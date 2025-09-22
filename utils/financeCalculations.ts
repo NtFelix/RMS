@@ -26,6 +26,86 @@ export interface FinanceTransaction {
   datum: string;
 }
 
+/**
+ * Fetches all available years from financial transactions with pagination support
+ * @param supabase - Supabase client instance
+ * @returns Promise<number[]> - Array of years sorted in descending order
+ */
+export async function fetchAvailableFinanceYears(supabase: any): Promise<number[]> {
+  const currentYear = new Date().getFullYear();
+  
+  // Try to use the optimized database function first
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_available_finance_years');
+    
+    if (!rpcError && rpcData) {
+      return rpcData.map((item: any) => item.year).sort((a: number, b: number) => b - a);
+    }
+  } catch (error) {
+    console.log('fetchAvailableFinanceYears: RPC function not available, using fallback with pagination');
+  }
+
+  // Fallback to regular query with pagination
+  const years = new Set<number>();
+  
+  // Add current year by default
+  years.add(currentYear);
+  
+  try {
+    const pageSize = 1000;
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('Finanzen')
+        .select('datum')
+        .not('datum', 'is', null)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (error) {
+        console.error('fetchAvailableFinanceYears pagination error:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      // Process dates to extract years
+      data.forEach(item => {
+        if (!item.datum) return;
+        
+        try {
+          const date = new Date(item.datum);
+          if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            if (year <= currentYear + 1) {
+              years.add(year);
+            }
+          }
+        } catch (e) {
+          console.warn('Invalid date format:', item.datum);
+        }
+      });
+
+      // If we got fewer records than the page size, we've reached the end
+      if (data.length < pageSize) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    }
+  } catch (error) {
+    console.error('fetchAvailableFinanceYears error:', error);
+    throw error;
+  }
+
+  // Convert to sorted array in descending order
+  return Array.from(years).sort((a, b) => b - a);
+}
+
 export function calculateFinancialSummary(
   transactions: FinanceTransaction[],
   year: number,
