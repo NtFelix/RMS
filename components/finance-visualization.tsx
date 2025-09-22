@@ -23,58 +23,13 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ChartSkeleton } from "@/components/chart-skeletons"
 import { BarChart3, AlertTriangle } from "lucide-react"
 
-// Einnahmen nach Wohnung (simulierte Daten)
-const staticIncomeByApartment = [
-  { name: "LSF 2. OG", value: 5820 },
-  { name: "VH 3.0G rechts", value: 14100 },
-  { name: "VH - frei und erfunden", value: 17400 },
-  { name: "erfunden", value: 9300 },
-  { name: "fantasie-groß", value: 4050 },
-  { name: "fantasie", value: 2880 },
-  { name: "VH DG 2.5.0", value: 6000 },
-  { name: "RSF 5.0 löschen", value: 40000 },
-]
-
-// Monatliche Einnahmen
-const staticMonthlyIncome = [
-  { month: "Jan", einnahmen: 7500 },
-  { month: "Feb", einnahmen: 7500 },
-  { month: "Mär", einnahmen: 7500 },
-  { month: "Apr", einnahmen: 7500 },
-  { month: "Mai", einnahmen: 7500 },
-  { month: "Jun", einnahmen: 7500 },
-  { month: "Jul", einnahmen: 7500 },
-  { month: "Aug", einnahmen: 7500 },
-  { month: "Sep", einnahmen: 7500 },
-  { month: "Okt", einnahmen: 7500 },
-  { month: "Nov", einnahmen: 7500 },
-  { month: "Dez", einnahmen: 7500 },
-]
-
-// Einnahmen-Ausgaben-Verhältnis
-const staticIncomeExpenseRatio = [
-  { month: "Jan", einnahmen: 7500, ausgaben: 1850 },
-  { month: "Feb", einnahmen: 7500, ausgaben: 1900 },
-  { month: "Mär", einnahmen: 7500, ausgaben: 1850 },
-  { month: "Apr", einnahmen: 7500, ausgaben: 1800 },
-  { month: "Mai", einnahmen: 7500, ausgaben: 1750 },
-  { month: "Jun", einnahmen: 7500, ausgaben: 1900 },
-  { month: "Jul", einnahmen: 7500, ausgaben: 1850 },
-  { month: "Aug", einnahmen: 7500, ausgaben: 1800 },
-  { month: "Sep", einnahmen: 7500, ausgaben: 1750 },
-  { month: "Okt", einnahmen: 7500, ausgaben: 1900 },
-  { month: "Nov", einnahmen: 7500, ausgaben: 1850 },
-  { month: "Dez", einnahmen: 7500, ausgaben: 1800 },
-]
-
-// Ausgabenkategorien
-const staticExpenseCategories = [
-  { name: "Instandhaltung", value: 9500 },
-  { name: "Versicherungen", value: 4200 },
-  { name: "Steuern", value: 6300 },
-  { name: "Verwaltung", value: 2100 },
-  { name: "Sonstiges", value: 1400 },
-]
+// Default empty chart data
+const emptyChartData: ChartData = {
+  monthlyIncome: [],
+  incomeExpenseRatio: [],
+  incomeByApartment: [],
+  expenseCategories: []
+}
 
 // Interface for finance transactions
 interface Finanz {
@@ -122,8 +77,8 @@ const isChartDataEmpty = (data: ChartData): boolean => {
   return (
     data.incomeByApartment.length === 0 &&
     data.expenseCategories.length === 0 &&
-    data.monthlyIncome.every(item => item.einnahmen === 0) &&
-    data.incomeExpenseRatio.every(item => item.einnahmen === 0 && item.ausgaben === 0)
+    (data.monthlyIncome.length === 0 || data.monthlyIncome.every(item => item.einnahmen === 0)) &&
+    (data.incomeExpenseRatio.length === 0 || data.incomeExpenseRatio.every(item => item.einnahmen === 0 && item.ausgaben === 0))
   )
 }
 
@@ -180,7 +135,13 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
           throw new Error('Invalid chart data format received from server')
         }
         
-        setChartData(data.charts)
+        // Use the dynamic data from the API
+        setChartData({
+          monthlyIncome: data.charts.monthlyIncome || [],
+          incomeExpenseRatio: data.charts.incomeExpenseRatio || [],
+          incomeByApartment: data.charts.incomeByApartment || [],
+          expenseCategories: data.charts.expenseCategories || []
+        })
       } catch (error) {
         let errorMessage = 'An unknown error occurred while loading chart data'
         
@@ -193,13 +154,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         
         setError(errorMessage)
         
-        // Fallback to static data on error
-        setChartData({
-          monthlyIncome: staticMonthlyIncome,
-          incomeExpenseRatio: staticIncomeExpenseRatio,
-          incomeByApartment: staticIncomeByApartment,
-          expenseCategories: staticExpenseCategories
-        })
+        // Fallback to empty data on error
+        setChartData(emptyChartData)
       } finally {
         setIsLoading(false)
       }
@@ -208,19 +164,9 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
     loadChartData()
   }, [selectedYear])
 
-  // Use loaded chart data or fallback to static data
+  // Use loaded chart data or fallback to empty data
   const displayData = useMemo(() => {
-    if (chartData) {
-      return chartData
-    }
-    
-    // Fallback to static data if no chart data is available
-    return {
-      incomeByApartment: staticIncomeByApartment,
-      monthlyIncome: staticMonthlyIncome,
-      incomeExpenseRatio: staticIncomeExpenseRatio,
-      expenseCategories: staticExpenseCategories
-    }
+    return chartData || emptyChartData
   }, [chartData])
 
   // Check if we have real user data or just empty/static data
@@ -293,7 +239,6 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
           <div className="text-center space-y-2">
             <div className="text-red-500 font-medium">Fehler beim Laden der Chart-Daten</div>
             <div className="text-sm text-muted-foreground">{error}</div>
-            <div className="text-xs text-muted-foreground">Fallback-Daten werden verwendet</div>
           </div>
         </div>
       )}

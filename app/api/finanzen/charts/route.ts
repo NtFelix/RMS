@@ -46,13 +46,65 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
     
-    // Fetch all financial data for the specified year with apartment information
-    const { data, error } = await supabase
-      .from('Finanzen')
-      .select('id, betrag, ist_einnahmen, datum, name, wohnung_id, Wohnungen(name)')
-      .gte('datum', startDate)
-      .lte('datum', endDate)
-      .order('datum', { ascending: false });
+    // Try to use the optimized Supabase function first
+    let data: FinancialItem[] = [];
+    let error: any = null;
+    
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_financial_chart_data', {
+        target_year: year
+      });
+      
+      if (!rpcError && rpcData) {
+        // Convert the RPC result to match our expected format
+        data = rpcData.map((item: any) => ({
+          id: item.id,
+          betrag: item.betrag,
+          ist_einnahmen: item.ist_einnahmen,
+          datum: item.datum,
+          name: item.name || '',
+          wohnung_id: item.wohnung_id || '',
+          Wohnungen: item.apartment_name ? { name: item.apartment_name } : null
+        }));
+      } else {
+        throw new Error('RPC function failed or returned no data');
+      }
+    } catch (rpcError) {
+      console.log('Charts API: RPC function not available, using fallback query with pagination');
+      
+      // Fallback to direct query with pagination
+      const allData: any[] = [];
+      const pageSize = 1000;
+      let page = 0;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data: pageData, error: pageError } = await supabase
+          .from('Finanzen')
+          .select('id, betrag, ist_einnahmen, datum, name, wohnung_id, Wohnungen(name)')
+          .gte('datum', startDate)
+          .lte('datum', endDate)
+          .order('datum', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+          
+        if (pageError) {
+          error = pageError;
+          break; // Exit loop on error
+        }
+        
+        if (pageData && pageData.length > 0) {
+          allData.push(...pageData);
+        }
+        
+        if (!pageData || pageData.length < pageSize) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
+      
+      data = allData as FinancialItem[] || [];
+    }
       
     if (error) {
       console.error('GET /api/finanzen/charts error:', error);

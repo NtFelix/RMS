@@ -4,67 +4,65 @@ export const dynamic = 'force-dynamic';
 import FinanzenClientWrapper from "./client-wrapper";
 import { createClient } from "@/utils/supabase/server";
 
-import { calculateFinancialSummary } from "@/utils/financeCalculations";
+
 import { PAGINATION } from "@/constants";
 
 async function getSummaryData(year: number) {
   const supabase = await createClient();
   
-  // Calculate date range for the specified year
-  const startDate = `${year}-01-01`;
-  const endDate = `${year}-12-31`;
-  
-  let allTransactions: any[] = [];
-  let page = 0;
-  const pageSize = 5000; // Increased batch size for better performance
-  let hasMore = true;
-  
   try {
-    // Fetch all financial data for the specified year with pagination
-    while (hasMore) {
-      const from = page * pageSize;
-      const to = (page + 1) * pageSize - 1;
-      
-      const { data, error, count } = await supabase
-        .from('Finanzen')
-        .select('id, betrag, ist_einnahmen, datum', { count: 'exact' })
-        .gte('datum', startDate)
-        .lte('datum', endDate)
-        .order('datum', { ascending: false })
-        .range(from, to);
-        
-      if (error) {
-        console.error('Error fetching summary data:', error);
-        return null;
-      }
-      
-      if (data && data.length > 0) {
-        allTransactions = [...allTransactions, ...data];
-        page++;
-        
-        // If we got fewer records than the page size, we've reached the end
-        if (!data || data.length < pageSize) {
-          hasMore = false;
-        }
-      } else {
-        hasMore = false;
-      }
+    // Use the optimized Supabase function that handles pagination internally
+    const { data, error } = await supabase.rpc('get_financial_year_summary', {
+      target_year: year
+    });
+    
+    if (error) {
+      console.error('Error fetching summary data with RPC:', error);
+      // Fallback to the function that returns raw data for client-side calculation
+      return await getSummaryDataFallback(year);
     }
-    
-    // Map the data to match the Finanzen type expected by calculateFinancialSummary
-    const transactions = allTransactions.map(item => ({
-      id: item.id,
-      betrag: item.betrag,
-      ist_einnahmen: item.ist_einnahmen,
-      datum: item.datum
-    }));
-    
-    // Use the shared utility function to calculate the summary
-    return calculateFinancialSummary(transactions, year, new Date());
+
+    if (!data || data.length === 0) {
+      // Return empty summary for the year
+      const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
+      return calculateFinancialSummary([], year, new Date());
+    }
+
+    const { processRpcFinancialSummary } = await import("@/utils/financeCalculations");
+    return processRpcFinancialSummary(data[0], year);
   } catch (error) {
     console.error('Error in getSummaryData:', error);
+    return await getSummaryDataFallback(year);
+  }
+}
+
+async function getSummaryDataFallback(year: number) {
+  const supabase = await createClient();
+  
+  try {
+    // Fallback: Use the function that returns all transactions for the year
+    const { data, error } = await supabase.rpc('get_financial_summary_data', {
+      target_year: year
+    });
+    
+    if (error) {
+      console.error('Error fetching summary data with fallback RPC:', error);
+      return null;
+    }
+
+    // Calculate summary using the utility function
+    const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
+    return calculateFinancialSummary(data || [], year, new Date());
+  } catch (error) {
+    console.error('Error in getSummaryDataFallback:', error);
     return null;
   }
+}
+
+async function getAvailableYears() {
+  const supabase = await createClient();
+  const { fetchAvailableFinanceYears } = await import("@/utils/financeCalculations");
+  return await fetchAvailableFinanceYears(supabase);
 }
 
 export default async function FinanzenPage() {
@@ -85,6 +83,14 @@ export default async function FinanzenPage() {
   // Summary-Daten für das aktuelle Jahr laden
   const currentYear = new Date().getFullYear();
   const summaryData = await getSummaryData(currentYear);
+  
+  // Available years laden
+  const availableYears = await getAvailableYears();
 
-  return <FinanzenClientWrapper finances={finances} wohnungen={wohnungen} summaryData={summaryData} />;
+  return <FinanzenClientWrapper 
+    finances={finances} 
+    wohnungen={wohnungen} 
+    summaryData={summaryData}
+    initialAvailableYears={availableYears}
+  />;
 }

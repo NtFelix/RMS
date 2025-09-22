@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
@@ -42,6 +43,7 @@ interface FinanzenClientWrapperProps {
   finances: Finanz[];
   wohnungen: Wohnung[];
   summaryData: SummaryData | null;
+  initialAvailableYears?: number[];
 }
 
 // Utility function to remove duplicates based on ID
@@ -56,7 +58,7 @@ const deduplicateFinances = (finances: Finanz[]): Finanz[] => {
   });
 };
 
-export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData }: FinanzenClientWrapperProps) {
+export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData, initialAvailableYears = [] }: FinanzenClientWrapperProps) {
   const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
@@ -65,7 +67,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [availableYears, setAvailableYears] = useState<number[]>(initialAvailableYears);
   const [filters, setFilters] = useState({
     searchQuery: '',
     selectedApartment: 'Alle Wohnungen',
@@ -150,20 +152,26 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
     try {
-      const params = new URLSearchParams({
-        searchQuery: debouncedSearchQueryRef.current,
-        selectedApartment: filtersRef.current.selectedApartment,
-        selectedYear: filtersRef.current.selectedYear,
-        selectedType: filtersRef.current.selectedType
+      const supabase = createClient();
+      
+      const { data, error } = await supabase.rpc('get_filtered_financial_summary', {
+        search_query: debouncedSearchQueryRef.current,
+        apartment_name: filtersRef.current.selectedApartment,
+        target_year: filtersRef.current.selectedYear,
+        transaction_type: filtersRef.current.selectedType
       });
       
-      const response = await fetch(`/api/finanzen/balance?${params.toString()}`);
-      if (response.ok) {
-        const { totalBalance, totalIncome, totalExpenses } = await response.json();
-        setTotalBalance(totalBalance);
-        setFilteredIncome(totalIncome);
-        setFilteredExpenses(totalExpenses);
+      if (error) {
+        console.error('Failed to fetch filtered summary:', error);
+        throw new Error(error.message);
       }
+      
+      // The RPC function is designed to always return a single row.
+      // We provide a fallback just in case the contract changes or an unexpected error occurs.
+      const summary = data?.[0] ?? { total_balance: 0, total_income: 0, total_expenses: 0 };
+      setTotalBalance(Number(summary.total_balance));
+      setFilteredIncome(Number(summary.total_income));
+      setFilteredExpenses(Number(summary.total_expenses));
     } catch (error) {
       console.error('Failed to fetch balance:', error);
       if (error instanceof Error) {
@@ -180,7 +188,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     setIsSummaryLoading(true);
     try {
       const currentYear = new Date().getFullYear();
-      const response = await fetch(`/api/finanzen/summary?year=${currentYear}`);
+      const response = await fetch(`/api/finanzen/analytics?action=summary&year=${currentYear}`);
       if (response.ok) {
         const newSummaryData = await response.json();
         setSummaryData(newSummaryData);
@@ -251,10 +259,18 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
   const fetchAvailableYears = useCallback(async () => {
     try {
-      const response = await fetch('/api/finanzen/years');
+      const response = await fetch('/api/finanzen/analytics?action=available-years');
       if (response.ok) {
         const years = await response.json();
         setAvailableYears(years);
+      } else {
+        // Fallback to the old API if the new one fails
+        console.warn('New analytics API failed, falling back to old years API');
+        const fallbackResponse = await fetch('/api/finanzen/years');
+        if (fallbackResponse.ok) {
+          const years = await fallbackResponse.json();
+          setAvailableYears(years);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch available years:', error);
