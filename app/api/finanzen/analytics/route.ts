@@ -290,17 +290,40 @@ async function handleFilteredSummary(supabase: any, searchParams: URLSearchParam
   console.log(`🎯 [Finance Analytics] Applied filters: ${appliedFilters.length > 0 ? appliedFilters.join(', ') : 'none'}`);
   
   const queryStartTime = Date.now();
-  const { data, error } = await query;
-  const queryDuration = Date.now() - queryStartTime;
+  
+  // Fetch all records with pagination to handle large datasets
+  const pageSize = 1000;
+  let page = 0;
+  let allRecords: any[] = [];
+  let hasMore = true;
 
-  if (error) {
-    console.error('❌ [Finance Analytics] Filtered summary database error:', error);
-    return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+  while (hasMore) {
+    const { data, error } = await query
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    
+    if (error) {
+      console.error('❌ [Finance Analytics] Filtered summary database error:', error);
+      return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+    }
+    
+    if (data && data.length > 0) {
+      allRecords = [...allRecords, ...data];
+      
+      // If we got fewer records than the page size, we've reached the end
+      if (data.length < pageSize) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    } else {
+      hasMore = false;
+    }
   }
 
-  console.log(`📊 [Finance Analytics] Filtered query returned ${data?.length || 0} transactions (${queryDuration}ms)`);
+  const queryDuration = Date.now() - queryStartTime;
+  console.log(`📊 [Finance Analytics] Filtered query returned ${allRecords.length} transactions in ${page + 1} pages (${queryDuration}ms)`);
   
-  const summary = calculateFilteredSummary(data || []);
+  const summary = calculateFilteredSummary(allRecords);
   console.log(`💰 [Finance Analytics] Filtered results: Balance: €${summary.totalBalance}, Income: €${summary.totalIncome}, Expenses: €${summary.totalExpenses}`);
   
   return NextResponse.json(summary, { status: 200 });
