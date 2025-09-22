@@ -105,7 +105,7 @@ export async function GET(request: Request) {
         response = await handleSummary(supabase, year);
         break;
       case 'filtered-summary':
-        console.log(`🔍 [Finance Analytics] Handling filtered summary request`);
+        console.log(`🔍 [Finance Analytics] Handling filtered summary request (DEPRECATED - use Supabase RPC instead)`);
         response = await handleFilteredSummary(supabase, searchParams);
         break;
       case 'chart-data':

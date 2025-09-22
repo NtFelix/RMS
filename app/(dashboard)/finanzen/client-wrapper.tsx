@@ -151,20 +151,31 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
     try {
-      const params = new URLSearchParams({
-        action: 'filtered-summary',
-        searchQuery: debouncedSearchQueryRef.current,
-        selectedApartment: filtersRef.current.selectedApartment,
-        selectedYear: filtersRef.current.selectedYear,
-        selectedType: filtersRef.current.selectedType
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      
+      const { data, error } = await supabase.rpc('get_filtered_financial_summary', {
+        search_query: debouncedSearchQueryRef.current,
+        apartment_name: filtersRef.current.selectedApartment,
+        target_year: filtersRef.current.selectedYear,
+        transaction_type: filtersRef.current.selectedType
       });
       
-      const response = await fetch(`/api/finanzen/analytics?${params.toString()}`);
-      if (response.ok) {
-        const { totalBalance, totalIncome, totalExpenses } = await response.json();
-        setTotalBalance(totalBalance);
-        setFilteredIncome(totalIncome);
-        setFilteredExpenses(totalExpenses);
+      if (error) {
+        console.error('Failed to fetch filtered summary:', error);
+        throw new Error(error.message);
+      }
+      
+      if (data && data.length > 0) {
+        const summary = data[0];
+        setTotalBalance(Number(summary.total_balance));
+        setFilteredIncome(Number(summary.total_income));
+        setFilteredExpenses(Number(summary.total_expenses));
+      } else {
+        // No data found, set to zero
+        setTotalBalance(0);
+        setFilteredIncome(0);
+        setFilteredExpenses(0);
       }
     } catch (error) {
       console.error('Failed to fetch balance:', error);

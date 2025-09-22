@@ -201,6 +201,50 @@ $$;
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_financial_year_summary(INTEGER) TO authenticated;
 
+-- Create a function to get filtered financial summary
+-- This provides pre-calculated totals based on filters to avoid client-side processing
+CREATE OR REPLACE FUNCTION get_filtered_financial_summary(
+  search_query TEXT DEFAULT '',
+  apartment_name TEXT DEFAULT '',
+  target_year TEXT DEFAULT '',
+  transaction_type TEXT DEFAULT ''
+)
+RETURNS TABLE (
+  total_income DECIMAL,
+  total_expenses DECIMAL,
+  total_balance DECIMAL
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $
+BEGIN
+  RETURN QUERY
+  SELECT 
+    COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END), 0) as total_income,
+    COALESCE(SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END), 0) as total_expenses,
+    COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE -f.betrag END), 0) as total_balance
+  FROM "Finanzen" f
+  LEFT JOIN "Wohnungen" w ON f.wohnung_id = w.id
+  WHERE f.user_id = auth.uid()
+    AND f.datum IS NOT NULL
+    -- Text search filter
+    AND (search_query = '' OR 
+         f.name ILIKE '%' || search_query || '%' OR 
+         COALESCE(f.notiz, '') ILIKE '%' || search_query || '%')
+    -- Apartment filter
+    AND (apartment_name = '' OR apartment_name = 'Alle Wohnungen' OR w.name = apartment_name)
+    -- Year filter
+    AND (target_year = '' OR target_year = 'Alle Jahre' OR EXTRACT(YEAR FROM f.datum)::TEXT = target_year)
+    -- Transaction type filter
+    AND (transaction_type = '' OR transaction_type = 'Alle Transaktionen' OR 
+         (transaction_type = 'Einnahme' AND f.ist_einnahmen = true) OR
+         (transaction_type = 'Ausgabe' AND f.ist_einnahmen = false));
+END;
+$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION get_filtered_financial_summary(TEXT, TEXT, TEXT, TEXT) TO authenticated;
+
 -- Test the functions (optional - you can run these to verify they work)
 -- SELECT * FROM get_financial_summary_data(2024);
 -- SELECT * FROM get_financial_year_summary(2024);
