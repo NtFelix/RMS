@@ -151,21 +151,27 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
     try {
-      const params = new URLSearchParams({
-        action: 'filtered-summary',
-        searchQuery: debouncedSearchQueryRef.current,
-        selectedApartment: filtersRef.current.selectedApartment,
-        selectedYear: filtersRef.current.selectedYear,
-        selectedType: filtersRef.current.selectedType
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      
+      const { data, error } = await supabase.rpc('get_filtered_financial_summary', {
+        search_query: debouncedSearchQueryRef.current,
+        apartment_name: filtersRef.current.selectedApartment,
+        target_year: filtersRef.current.selectedYear,
+        transaction_type: filtersRef.current.selectedType
       });
       
-      const response = await fetch(`/api/finanzen/analytics?${params.toString()}`);
-      if (response.ok) {
-        const { totalBalance, totalIncome, totalExpenses } = await response.json();
-        setTotalBalance(totalBalance);
-        setFilteredIncome(totalIncome);
-        setFilteredExpenses(totalExpenses);
+      if (error) {
+        console.error('Failed to fetch filtered summary:', error);
+        throw new Error(error.message);
       }
+      
+      // The RPC function is designed to always return a single row.
+      // We provide a fallback just in case the contract changes or an unexpected error occurs.
+      const summary = data?.[0] ?? { total_balance: 0, total_income: 0, total_expenses: 0 };
+      setTotalBalance(Number(summary.total_balance));
+      setFilteredIncome(Number(summary.total_income));
+      setFilteredExpenses(Number(summary.total_expenses));
     } catch (error) {
       console.error('Failed to fetch balance:', error);
       if (error instanceof Error) {
