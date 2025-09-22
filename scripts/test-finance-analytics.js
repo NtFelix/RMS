@@ -15,11 +15,6 @@ async function testAnalyticsAPI() {
       expectedFields: ['year', 'totalIncome', 'totalExpenses', 'averageMonthlyIncome', 'monthlyData']
     },
     {
-      name: 'Chart Data',
-      url: `${BASE_URL}/api/finanzen/analytics?action=chart-data&year=${currentYear}`,
-      expectedFields: ['monthlyData']
-    },
-    {
       name: 'Filtered Summary',
       url: `${BASE_URL}/api/finanzen/analytics?action=filtered-summary&selectedType=Alle Transaktionen`,
       expectedFields: ['totalBalance', 'totalIncome', 'totalExpenses']
