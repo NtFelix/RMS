@@ -587,9 +587,23 @@ export function AbrechnungModal({
           head: [tableColumn],
           body: tableRows,
           startY: startY,
-          theme: 'grid',
-          headStyles: { fillColor: [220, 220, 220], textColor: [0,0,0] },
-          styles: { fontSize: 9, cellPadding: 1.5 },
+          theme: 'plain',
+          headStyles: { 
+            fillColor: [255, 255, 255], // White background instead of gray
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            lineWidth: 0 // Remove header borders
+          },
+          styles: { 
+            fontSize: 9, 
+            cellPadding: 1.5,
+            lineWidth: 0, // Remove all cell borders
+            lineColor: [255, 255, 255] // Make any remaining lines white (invisible)
+          },
+          bodyStyles: {
+            lineWidth: { bottom: 0.1 }, // Only add thin bottom border for rows
+            lineColor: { bottom: [0, 0, 0] } // Black color for row separators
+          },
           columnStyles: {
             1: { halign: 'right' }, // Gesamtkosten in €
             2: { halign: 'right' }, // Verteiler
