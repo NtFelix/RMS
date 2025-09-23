@@ -12,12 +12,17 @@ import {
   Home,
   FileSpreadsheet,
   CheckSquare,
-  Folder
+  Folder,
+  User,
+  LogOut,
+  Globe
 } from 'lucide-react'
 import { useSidebarActiveState } from '@/hooks/use-active-state-manager'
 import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { cn } from '@/lib/utils'
+import { SettingsModal } from '@/components/settings-modal'
+import { createClient } from '@/utils/supabase/client'
 
 // Touch interaction debounce utility
 const useDebouncedCallback = (callback: (...args: any[]) => void, delay: number) => {
@@ -44,9 +49,10 @@ interface NavigationItem {
 interface DropdownItem {
   id: string
   title: string
-  href: string
+  href?: string
   icon: React.ComponentType<{ className?: string }>
   hidden?: boolean
+  onClick?: () => void
 }
 
 interface MobileBottomNavigationProps {
@@ -65,6 +71,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   // Local state for dropdown management
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [focusedItemIndex, setFocusedItemIndex] = useState(-1)
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const moreButtonRef = useRef<HTMLButtonElement>(null)
   const dropdownItemRefs = useRef<(HTMLAnchorElement | null)[]>([])
@@ -239,10 +246,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     })
   }
 
-  // Handle profile button click
-  const handleProfileClick = () => {
-    // This will be handled by the UserSettings component dropdown
-  }
+
 
   // Define primary navigation items
   const primaryNavItems: NavigationItem[] = [
@@ -278,8 +282,47 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     }
   ]
 
+  // Handle profile button click
+  const handleProfileClick = () => {
+    setIsSettingsModalOpen(true)
+    setIsDropdownOpen(false)
+    setAnnouncement('Settings opened.')
+  }
+
+  // Handle logout
+  const handleLogout = async () => {
+    setIsDropdownOpen(false)
+    setAnnouncement('Logging out...')
+    
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        throw error
+      }
+      // Redirect will be handled by middleware
+    } catch (error) {
+      console.error('Error signing out:', error)
+      setAnnouncement('Logout failed.')
+    }
+  }
+
+
+
   // Define dropdown items for "More" menu
   const dropdownItems: DropdownItem[] = [
+    {
+      id: 'profile',
+      title: 'Profil',
+      icon: User,
+      onClick: handleProfileClick
+    },
+    {
+      id: 'homepage',
+      title: 'Homepage',
+      href: '/landing',
+      icon: Globe
+    },
     {
       id: 'houses',
       title: 'Häuser',
@@ -310,11 +353,19 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       href: '/dateien',
       icon: Folder,
       hidden: !documentsEnabled
+    },
+    {
+      id: 'logout',
+      title: 'Abmelden',
+      icon: LogOut,
+      onClick: handleLogout
     }
   ]
 
-  // Define dropdown routes to check for "More" button active state
-  const dropdownRoutes = dropdownItems.map(item => item.href)
+  // Define dropdown routes to check for "More" button active state (only include items with href)
+  const dropdownRoutes = dropdownItems
+    .filter(item => item.href && !item.onClick) // Only include link items, not button items
+    .map(item => item.href!)
   
   // Check if any dropdown route is active to highlight "More" button
   const isMoreActive = dropdownRoutes.some(route => isRouteActive(route))
@@ -514,63 +565,128 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           <div className="py-3">
             {visibleDropdownItems.map((item, index) => {
               const IconComponent = item.icon
-              const isActive = isRouteActive(item.href)
+              const isActive = item.href ? isRouteActive(item.href) : false
               const isFocused = index === focusedItemIndex
               
-              return (
-                <Link
-                  key={item.id}
-                  id={`dropdown-item-${item.id}`}
-                  ref={(el) => {
-                    dropdownItemRefs.current[index] = el
-                  }}
-                  href={item.href}
-                  onClick={() => {
-                    handleNavigationSelect(item.title, () => {
-                      setIsDropdownOpen(false)
-                    })
-                  }}
-                  onMouseEnter={() => setFocusedItemIndex(index)}
-                  onFocus={() => setFocusedItemIndex(index)}
-                  onTouchStart={(e) => handleTouchStart(`dropdown-${item.id}`, e)}
-                  onTouchEnd={(e) => handleTouchEnd(`dropdown-${item.id}`, e)}
-                  onTouchCancel={handleTouchCancel}
-                  className={cn(
-                    "flex items-center px-4 py-3 mx-2 rounded-lg",
-                    "min-h-[44px] mobile-dropdown-item touch-feedback",
-                    "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                    "active:scale-95",
-                    // Enhanced touch feedback
-                    touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
-                    // Active state styling - mobile optimized without scaling
-                    isActive 
-                      ? "bg-primary/10 text-primary shadow-sm" 
-                      : "text-foreground hover:bg-accent/10",
-                    // Focus state styling - mobile optimized without scaling
-                    isFocused && !isActive && "bg-accent/5"
-                  )}
-                  role="menuitem"
-                  tabIndex={0}
-                  aria-current={isActive ? "page" : undefined}
-                  aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
-                >
-                  <IconComponent 
-                    className={cn(
-                      "w-5 h-5 mr-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                      isActive && "text-primary",
-                      isFocused && !isActive && "text-foreground"
+              // Handle button items (like profile)
+              if (item.onClick) {
+                return (
+                  <div key={item.id}>
+                    <button
+                      id={`dropdown-item-${item.id}`}
+                      ref={(el) => {
+                        dropdownItemRefs.current[index] = el as any
+                      }}
+                      onClick={() => {
+                        handleNavigationSelect(item.title, () => {
+                          item.onClick?.()
+                        })
+                      }}
+                      onMouseEnter={() => setFocusedItemIndex(index)}
+                      onFocus={() => setFocusedItemIndex(index)}
+                      onTouchStart={(e) => handleTouchStart(`dropdown-${item.id}`, e)}
+                      onTouchEnd={(e) => handleTouchEnd(`dropdown-${item.id}`, e)}
+                      onTouchCancel={handleTouchCancel}
+                      className={cn(
+                        "flex items-center px-4 py-3 mx-2 rounded-lg w-full text-left",
+                        "min-h-[44px] mobile-dropdown-item touch-feedback",
+                        "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                        "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                        "active:scale-95",
+                        // Enhanced touch feedback
+                        touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
+                        // Button styling
+                        "text-foreground hover:bg-accent/10",
+                        // Focus state styling
+                        isFocused && "bg-accent/5"
+                      )}
+                      role="menuitem"
+                      tabIndex={0}
+                      aria-label={`Open ${item.title}`}
+                    >
+                      <IconComponent 
+                        className={cn(
+                          "w-5 h-5 mr-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                          isFocused && "text-foreground"
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className={cn(
+                        "text-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                        "font-medium",
+                        isFocused && "font-medium"
+                      )}>
+                        {item.title}
+                      </span>
+                    </button>
+                    {/* Add separator after profile */}
+                    {item.id === 'profile' && (
+                      <div className="mx-2 my-2 border-t border-border/50" />
                     )}
-                    aria-hidden="true"
-                  />
-                  <span className={cn(
-                    "text-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                    isActive ? "font-semibold text-primary" : "font-medium",
-                    isFocused && !isActive && "font-medium"
-                  )}>
-                    {item.title}
-                  </span>
-                </Link>
+                  </div>
+                )
+              }
+              
+              // Handle link items
+              return (
+                <div key={item.id}>
+                  <Link
+                    id={`dropdown-item-${item.id}`}
+                    ref={(el) => {
+                      dropdownItemRefs.current[index] = el
+                    }}
+                    href={item.href!}
+                    onClick={() => {
+                      handleNavigationSelect(item.title, () => {
+                        setIsDropdownOpen(false)
+                      })
+                    }}
+                    onMouseEnter={() => setFocusedItemIndex(index)}
+                    onFocus={() => setFocusedItemIndex(index)}
+                    onTouchStart={(e) => handleTouchStart(`dropdown-${item.id}`, e)}
+                    onTouchEnd={(e) => handleTouchEnd(`dropdown-${item.id}`, e)}
+                    onTouchCancel={handleTouchCancel}
+                    className={cn(
+                      "flex items-center px-4 py-3 mx-2 rounded-lg",
+                      "min-h-[44px] mobile-dropdown-item touch-feedback",
+                      "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                      "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                      "active:scale-95",
+                      // Enhanced touch feedback
+                      touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
+                      // Active state styling - mobile optimized without scaling
+                      isActive 
+                        ? "bg-primary/10 text-primary shadow-sm" 
+                        : "text-foreground hover:bg-accent/10",
+                      // Focus state styling - mobile optimized without scaling
+                      isFocused && !isActive && "bg-accent/5"
+                    )}
+                    role="menuitem"
+                    tabIndex={0}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
+                  >
+                    <IconComponent 
+                      className={cn(
+                        "w-5 h-5 mr-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                        isActive && "text-primary",
+                        isFocused && !isActive && "text-foreground"
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span className={cn(
+                      "text-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                      isActive ? "font-semibold text-primary" : "font-medium",
+                      isFocused && !isActive && "font-medium"
+                    )}>
+                      {item.title}
+                    </span>
+                  </Link>
+                  {/* Add separator before logout */}
+                  {item.id === 'documents' && (
+                    <div className="mx-2 my-2 border-t border-border/50" />
+                  )}
+                </div>
               )
             })}
             
@@ -789,6 +905,8 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           })}
         </div>
       </nav>
+      {/* Settings Modal */}
+      <SettingsModal open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen} />
     </>
   )
 }
