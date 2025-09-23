@@ -46,6 +46,10 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   const { setOpen: setCommandMenuOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   
+  // Hydration safety - prevent SSR/client mismatch
+  const [mounted, setMounted] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  
   // Local state for dropdown management
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [focusedItemIndex, setFocusedItemIndex] = useState(-1)
@@ -55,6 +59,36 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   
   // Screen reader announcement state
   const [announcement, setAnnouncement] = useState('')
+
+  // Hydration safety and responsive behavior
+  useEffect(() => {
+    // Set mounted to true to prevent hydration mismatches
+    setMounted(true)
+    
+    // Check initial screen size
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    // Set initial state
+    checkScreenSize()
+    
+    // Add resize listener for responsive behavior
+    const handleResize = () => {
+      checkScreenSize()
+      // Close dropdown when switching between mobile/desktop
+      if (window.innerWidth >= 768 && isDropdownOpen) {
+        setIsDropdownOpen(false)
+        setAnnouncement('Navigation switched to desktop mode.')
+      }
+    }
+    
+    window.addEventListener('resize', handleResize)
+    
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [isDropdownOpen])
 
   // Handle dropdown toggle
   const handleMoreClick = () => {
@@ -259,6 +293,16 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     }
   }, [announcement])
 
+  // Prevent hydration mismatches by not rendering until mounted
+  if (!mounted) {
+    return null
+  }
+
+  // Don't render on desktop screens (additional safety check)
+  if (!isMobile && mounted) {
+    return null
+  }
+
   return (
     <>
       {/* Dropdown Menu - positioned above navigation bar */}
@@ -355,11 +399,18 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         className={cn(
           "fixed bottom-0 left-0 right-0 z-50",
           "bg-background border-t border-border",
-          "md:hidden",
+          // CSS-only responsive fallbacks
+          "block md:hidden",
+          // Ensure proper display even without JS
+          "[&:not([style*='display:none'])]:block",
           className
         )}
         role="navigation"
         aria-label="Main mobile navigation"
+        // CSS-only fallback for responsive behavior
+        style={{
+          display: typeof window !== 'undefined' && window.innerWidth >= 768 ? 'none' : undefined
+        }}
       >
         <div className="flex items-center justify-around px-2 py-2 h-16">
           {primaryNavItems.map((item) => {
