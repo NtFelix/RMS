@@ -67,28 +67,45 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     
     // Check initial screen size
     const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768)
+      const newIsMobile = window.innerWidth < 768
+      setIsMobile(newIsMobile)
+      return newIsMobile
     }
     
     // Set initial state
     checkScreenSize()
     
-    // Add resize listener for responsive behavior
+    // Add resize listener for responsive behavior with debouncing
+    let resizeTimeout: NodeJS.Timeout
     const handleResize = () => {
-      checkScreenSize()
-      // Close dropdown when switching between mobile/desktop
-      if (window.innerWidth >= 768 && isDropdownOpen) {
-        setIsDropdownOpen(false)
-        setAnnouncement('Navigation switched to desktop mode.')
-      }
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(() => {
+        const newIsMobile = checkScreenSize()
+        
+        // Close dropdown when switching from mobile to desktop
+        if (!newIsMobile && isDropdownOpen) {
+          setIsDropdownOpen(false)
+          setAnnouncement('Navigation switched to desktop mode.')
+        }
+        
+        // Announce responsive behavior changes
+        if (newIsMobile !== isMobile) {
+          setAnnouncement(
+            newIsMobile 
+              ? 'Switched to mobile navigation.' 
+              : 'Switched to desktop navigation.'
+          )
+        }
+      }, 150) // Debounce resize events
     }
     
-    window.addEventListener('resize', handleResize)
+    window.addEventListener('resize', handleResize, { passive: true })
     
     return () => {
       window.removeEventListener('resize', handleResize)
+      clearTimeout(resizeTimeout)
     }
-  }, [isDropdownOpen])
+  }, [isDropdownOpen, isMobile])
 
   // Handle dropdown toggle
   const handleMoreClick = () => {
@@ -293,9 +310,43 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     }
   }, [announcement])
 
-  // Prevent hydration mismatches by not rendering until mounted
+  // Prevent hydration mismatches by rendering a CSS-only fallback until mounted
   if (!mounted) {
-    return null
+    return (
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
+        role="navigation"
+        aria-label="Main mobile navigation"
+        style={{ 
+          // CSS-only fallback - ensure proper responsive behavior
+          display: 'block'
+        }}
+      >
+        <div className="flex items-center justify-around px-2 py-2 h-16">
+          {/* Render static navigation items as fallback */}
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
+            <BarChart3 className="w-5 h-5 mb-1" aria-hidden="true" />
+            <span className="text-xs font-medium">Home</span>
+          </div>
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
+            <Users className="w-5 h-5 mb-1" aria-hidden="true" />
+            <span className="text-xs font-medium">Mieter</span>
+          </div>
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
+            <SearchIcon className="w-5 h-5 mb-1" aria-hidden="true" />
+            <span className="text-xs font-medium">Suchen</span>
+          </div>
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
+            <Wallet className="w-5 h-5 mb-1" aria-hidden="true" />
+            <span className="text-xs font-medium">Finanzen</span>
+          </div>
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
+            <Menu className="w-5 h-5 mb-1" aria-hidden="true" />
+            <span className="text-xs font-medium">Mehr</span>
+          </div>
+        </div>
+      </nav>
+    )
   }
 
   // Don't render on desktop screens (additional safety check)
@@ -399,17 +450,19 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         className={cn(
           "fixed bottom-0 left-0 right-0 z-50",
           "bg-background border-t border-border",
-          // CSS-only responsive fallbacks
-          "block md:hidden",
-          // Ensure proper display even without JS
-          "[&:not([style*='display:none'])]:block",
+          // Enhanced CSS-only responsive fallbacks
+          "mobile-nav-responsive",
+          "hydration-safe-mobile",
+          // Prevent layout shift during hydration
+          "prevent-layout-shift",
           className
         )}
         role="navigation"
         aria-label="Main mobile navigation"
-        // CSS-only fallback for responsive behavior
+        // Enhanced CSS-only fallback for responsive behavior
         style={{
-          display: typeof window !== 'undefined' && window.innerWidth >= 768 ? 'none' : undefined
+          // Ensure proper responsive behavior even without JS
+          display: 'block'
         }}
       >
         <div className="flex items-center justify-around px-2 py-2 h-16">

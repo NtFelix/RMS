@@ -469,4 +469,69 @@
       max-width: none;
     }
   }
+
+  /* Mobile navigation responsive behavior - CSS-only fallbacks */
+  .mobile-nav-responsive {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .mobile-nav-responsive {
+      display: none !important;
+    }
+  }
+
+  /* Desktop sidebar responsive behavior - CSS-only fallbacks */
+  .desktop-sidebar-responsive {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .desktop-sidebar-responsive {
+      display: block;
+    }
+  }
+
+  /* Main content responsive padding - CSS-only fallbacks */
+  .main-content-responsive {
+    padding-bottom: 5rem; /* 80px for mobile nav */
+  }
+
+  @media (min-width: 768px) {
+    .main-content-responsive {
+      padding-bottom: 1.5rem; /* 24px for desktop */
+    }
+  }
+
+  /* Hydration-safe responsive utilities */
+  .hydration-safe-mobile {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .hydration-safe-mobile {
+      display: none;
+    }
+  }
+
+  .hydration-safe-desktop {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .hydration-safe-desktop {
+      display: block;
+    }
+  }
+
+  /* Smooth transitions for responsive changes */
+  .responsive-transition {
+    transition: padding-bottom 200ms ease-in-out, margin-bottom 200ms ease-in-out;
+  }
+
+  /* Prevent layout shift during hydration */
+  .prevent-layout-shift {
+    min-height: 0;
+    contain: layout style;
+  }
 }
