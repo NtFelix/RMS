@@ -592,7 +592,8 @@ export function AbrechnungModal({
             fillColor: [255, 255, 255], // White background instead of gray
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            lineWidth: 0 // Remove header borders
+            lineWidth: { bottom: 0.3 }, // Thicker bottom border for header
+            lineColor: { bottom: [0, 0, 0] } // Black color for header bottom border
           },
           styles: { 
             fontSize: 9, 
