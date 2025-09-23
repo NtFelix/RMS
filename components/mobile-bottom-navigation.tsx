@@ -549,9 +549,11 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           ref={dropdownRef}
           className={cn(
             "fixed bottom-16 left-0 right-0 z-40",
-            "bg-background/95 backdrop-blur-sm border border-border/50 rounded-t-xl shadow-xl shadow-black/10",
+            "bg-background/98 backdrop-blur-md border border-border/40 rounded-t-xl shadow-xl shadow-black/15",
             "mx-3 mb-2 mobile-dropdown",
-            "animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            "animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+            // Ensure proper background and prevent overlap
+            "overflow-hidden"
           )}
           role="menu"
           aria-label="More navigation options"
@@ -562,7 +564,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
               : undefined
           }
         >
-          <div className="py-3">
+          <div className="py-2">
             {visibleDropdownItems.map((item, index) => {
               const IconComponent = item.icon
               const isActive = item.href ? isRouteActive(item.href) : false
@@ -588,16 +590,16 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                       onTouchEnd={(e) => handleTouchEnd(`dropdown-${item.id}`, e)}
                       onTouchCancel={handleTouchCancel}
                       className={cn(
-                        "flex items-center px-4 py-3 mx-2 rounded-lg w-full text-left",
+                        "flex items-center px-4 py-3 mx-2 rounded-lg",
                         "min-h-[44px] mobile-dropdown-item touch-feedback",
                         "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                         "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                         "active:scale-95",
                         // Enhanced touch feedback
                         touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
-                        // Button styling
+                        // Button styling - exactly identical to link items (no active state since buttons don't have href)
                         "text-foreground hover:bg-accent/10",
-                        // Focus state styling
+                        // Focus state styling - exactly identical to link items
                         isFocused && "bg-accent/5"
                       )}
                       role="menuitem"
@@ -607,12 +609,14 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                       <IconComponent 
                         className={cn(
                           "w-5 h-5 mr-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                          // Icon styling exactly identical to link items (no active state for buttons)
                           isFocused && "text-foreground"
                         )}
                         aria-hidden="true"
                       />
                       <span className={cn(
                         "text-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                        // Text styling exactly identical to link items (no active state for buttons)
                         "font-medium",
                         isFocused && "font-medium"
                       )}>
@@ -621,7 +625,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     </button>
                     {/* Add separator after profile */}
                     {item.id === 'profile' && (
-                      <div className="mx-2 my-2 border-t border-border/50" />
+                      <div className="mx-4 my-3 border-t border-border/30" />
                     )}
                   </div>
                 )
@@ -684,7 +688,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   </Link>
                   {/* Add separator before logout */}
                   {item.id === 'documents' && (
-                    <div className="mx-2 my-2 border-t border-border/50" />
+                    <div className="mx-4 my-3 border-t border-border/30" />
                   )}
                 </div>
               )
