@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 
 // Touch interaction debounce utility
 const useDebouncedCallback = (callback: (...args: any[]) => void, delay: number) => {
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   
   return useCallback((...args: any[]) => {
     if (timeoutRef.current) {
@@ -75,7 +75,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   // Touch interaction states for enhanced feedback
   const [touchedItem, setTouchedItem] = useState<string | null>(null)
   const [isNavigating, setIsNavigating] = useState(false)
-  const navigationTimeoutRef = useRef<NodeJS.Timeout>()
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   
   // Touch event tracking for better mobile interactions
   const [touchStartTime, setTouchStartTime] = useState(0)
