@@ -7,6 +7,24 @@ import { TaskCard, type TaskCardTask } from "@/components/task-card"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { toast } from "@/hooks/use-toast"
 import { toggleTaskStatusAction } from "@/app/todos-actions"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Clock, CheckCircle } from "lucide-react"
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { KanbanColumn } from "@/components/kanban-column"
+import { KanbanTaskCard } from "@/components/kanban-task-card"
 
 export interface Task extends Omit<TaskCardTask, 'status' | 'createdAt' | 'updatedAt'> {
   erstellungsdatum: string
@@ -29,15 +47,17 @@ export function TaskBoard({
   onTaskDeleted 
 }: TaskBoardProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const { openAufgabeModal } = useModalStore()
-  
-  // Filter and sort tasks based on current filter and search query
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  )
+
+  // Filter tasks based on search query only (ignore filter for kanban)
   const filteredTasks = tasks.filter(task => {
-    const matchesFilter = 
-      filter === 'all' || 
-      (filter === 'done' && task.ist_erledigt) || 
-      (filter === 'open' && !task.ist_erledigt)
-      
     const taskDescription = task.beschreibung || ''
     const taskName = task.name || ''
     const searchQueryLower = searchQuery.toLowerCase()
@@ -45,163 +65,119 @@ export function TaskBoard({
       taskName.toLowerCase().includes(searchQueryLower) ||
       taskDescription.toLowerCase().includes(searchQueryLower)
     
-    return matchesFilter && matchesSearch
-  }).sort((a, b) => {
-    // Sort by completion status (pending first) and then by date (newest first)
-    if (a.ist_erledigt !== b.ist_erledigt) {
-      return a.ist_erledigt ? 1 : -1
-    }
-    return new Date(b.aenderungsdatum).getTime() - new Date(a.aenderungsdatum).getTime()
+    return matchesSearch
   })
 
-  // Function to refresh tasks from the server
-  const fetchTasks = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const response = await fetch("/api/todos")
-      if (!response.ok) {
-        throw new Error("Fehler beim Laden der Aufgaben")
-      }
-      return await response.json()
-    } catch (error) {
-      console.error("Error fetching tasks:", error)
-      toast({
-        title: "Fehler",
-        description: "Die Aufgaben konnten nicht geladen werden.",
-        variant: "destructive",
-      })
-      return []
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  // Separate tasks into columns
+  const todoTasks = filteredTasks.filter(task => !task.ist_erledigt)
+    .sort((a, b) => new Date(b.aenderungsdatum).getTime() - new Date(a.aenderungsdatum).getTime())
+  
+  const doneTasks = filteredTasks.filter(task => task.ist_erledigt)
+    .sort((a, b) => new Date(b.aenderungsdatum).getTime() - new Date(a.aenderungsdatum).getTime())
 
-  // Handle task deletion
-  const handleDeleteTask = async (taskId: string) => {
-    try {
-      const response = await fetch(`/api/todos/${taskId}`, {
-        method: 'DELETE',
-      })
-      
-      if (!response.ok) {
-        throw new Error('Fehler beim Löschen der Aufgabe')
-      }
-      
-      // Notify parent component about the deletion
-      onTaskDeleted(taskId)
-      
-      toast({
-        title: "Erfolg",
-        description: "Aufgabe wurde erfolgreich gelöscht.",
-      })
-    } catch (error) {
-      console.error('Fehler beim Löschen der Aufgabe:', error)
-      toast({
-        title: "Fehler",
-        description: "Aufgabe konnte nicht gelöscht werden.",
-        variant: "destructive"
-      })
-    }
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
   }
 
-  // Toggle task status
-  const toggleTaskStatus = async (taskId: string) => {
-    try {
-      const task = tasks.find(t => t.id === taskId)
-      if (!task) return
-      
-      const result = await toggleTaskStatusAction(taskId, !task.ist_erledigt)
-      if (result.success && result.task) {
-        // Use the updated task data from the server
-        onTaskUpdated(result.task)
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveId(null)
+
+    if (!over) return
+
+    const taskId = active.id as string
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+
+    // Determine new status based on drop zone
+    const newStatus = over.id === 'done'
+    
+    // Only update if status actually changed
+    if (task.ist_erledigt !== newStatus) {
+      try {
+        const result = await toggleTaskStatusAction(taskId, newStatus)
+        if (result.success && result.task) {
+          onTaskUpdated(result.task)
+          toast({
+            title: "Status aktualisiert",
+            description: `Aufgabe wurde als ${result.task.ist_erledigt ? 'erledigt' : 'ausstehend'} markiert.`
+          })
+        } else if (result.error) {
+          throw new Error(result.error.message)
+        }
+      } catch (error) {
+        console.error("Fehler beim Aktualisieren des Status:", error)
         toast({
-          title: "Status aktualisiert",
-          description: `Aufgabe wurde als ${result.task.ist_erledigt ? 'erledigt' : 'ausstehend'} markiert.`
+          title: "Fehler",
+          description: "Status konnte nicht aktualisiert werden.",
+          variant: "destructive"
         })
-      } else if (result.error) {
-        throw new Error(result.error.message)
       }
-    } catch (error) {
-      console.error("Fehler beim Aktualisieren des Status:", error)
-      toast({
-        title: "Fehler",
-        description: "Status konnte nicht aktualisiert werden.",
-        variant: "destructive"
-      })
     }
   }
 
-  const handleEdit = useCallback((task: TaskCardTask) => {
-    // Convert TaskCardTask to Task by ensuring required fields are present
-    const taskWithDefaults: Task = {
-      ...task,
-      beschreibung: task.beschreibung || task.description || '',
-      erstellungsdatum: task.erstellungsdatum || task.createdAt || new Date().toISOString(),
-      aenderungsdatum: task.aenderungsdatum || task.updatedAt || new Date().toISOString()
-    }
-    openAufgabeModal(taskWithDefaults, (updatedTask: Task) => {
-      onTaskUpdated(updatedTask)
-    })
-  }, [openAufgabeModal, onTaskUpdated])
+  const activeTask = activeId ? tasks.find(task => task.id === activeId) : null
 
-  useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
-
-  const formatDate = (dateString: string) => {
-    try {
-      return format(new Date(dateString), "dd.MM.yyyy", { locale: de })
-    } catch (e) {
-      return dateString
-    }
-  }
-
-  const formatDateTime = (dateString: string) => {
-    try {
-      return format(new Date(dateString), "dd.MM.yyyy HH:mm 'Uhr'", { locale: de })
-    } catch (e) {
-      return dateString
-    }
+  if (isLoading && tasks.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
   }
 
   return (
-    <div className="w-full">
-      {isLoading && tasks.length === 0 ? (
-        <div className="flex items-center justify-center p-8">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      ) : filteredTasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-8 text-center">
-          <p className="text-muted-foreground">
-            {searchQuery || filter !== "all"
-              ? "Keine Aufgaben gefunden, die den Suchkriterien entsprechen."
-              : "Keine Aufgaben vorhanden. Fügen Sie eine neue Aufgabe hinzu."}
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {filteredTasks.map((task) => (
-            <TaskCard 
-              key={task.id} 
-              task={{
-                id: task.id,
-                name: task.name,
-                description: task.beschreibung || '',
-                status: task.ist_erledigt ? "Erledigt" : "Offen",
-                createdAt: formatDate(task.erstellungsdatum),
-                updatedAt: formatDateTime(task.aenderungsdatum),
-                ist_erledigt: task.ist_erledigt,
-                beschreibung: task.beschreibung,
-                erstellungsdatum: task.erstellungsdatum,
-                aenderungsdatum: task.aenderungsdatum
-              }}
-              onToggleStatus={() => toggleTaskStatus(task.id)}
-              onEdit={handleEdit}
-              onTaskDeleted={onTaskDeleted}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <KanbanColumn
+          id="todo"
+          title="Zu erledigen"
+          tasks={todoTasks}
+          icon={<Clock className="h-5 w-5 text-yellow-600" />}
+          count={todoTasks.length}
+          onTaskUpdated={onTaskUpdated}
+          onTaskDeleted={onTaskDeleted}
+        />
+        <KanbanColumn
+          id="done"
+          title="Erledigt"
+          tasks={doneTasks}
+          icon={<CheckCircle className="h-5 w-5 text-green-600" />}
+          count={doneTasks.length}
+          onTaskUpdated={onTaskUpdated}
+          onTaskDeleted={onTaskDeleted}
+        />
+      </div>
+
+      <DragOverlay>
+        {activeTask ? (
+          <Card className="opacity-90 shadow-lg">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 pt-1">
+                  <Checkbox
+                    checked={activeTask.ist_erledigt}
+                    className="h-4 w-4"
+                    disabled
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-sm mb-2">{activeTask.name}</h3>
+                  {activeTask.beschreibung && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {activeTask.beschreibung}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   )
 }
