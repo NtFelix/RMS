@@ -15,6 +15,7 @@ import {
   Folder
 } from 'lucide-react'
 import { useSidebarActiveState } from '@/hooks/use-active-state-manager'
+import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { cn } from '@/lib/utils'
 
@@ -42,6 +43,7 @@ interface MobileBottomNavigationProps {
 
 export default function MobileBottomNavigation({ className }: MobileBottomNavigationProps) {
   const { isRouteActive } = useSidebarActiveState()
+  const { setOpen: setCommandMenuOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   
   // Local state for dropdown management
@@ -52,6 +54,11 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   // Handle dropdown toggle
   const handleMoreClick = () => {
     setIsDropdownOpen(!isDropdownOpen)
+  }
+
+  // Handle search button click
+  const handleSearchClick = () => {
+    setCommandMenuOpen(true)
   }
 
   // Define primary navigation items
@@ -72,10 +79,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       id: 'search',
       title: 'Suchen',
       icon: SearchIcon,
-      onClick: () => {
-        // Search functionality will be implemented in task 5
-        console.log('Search clicked')
-      }
+      onClick: handleSearchClick
     },
     {
       id: 'finance',
