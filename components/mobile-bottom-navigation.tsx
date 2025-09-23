@@ -1,7 +1,10 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import { BarChart3, Users, Search as SearchIcon, Wallet, Menu } from 'lucide-react'
+import { useSidebarActiveState } from '@/hooks/use-active-state-manager'
+import { cn } from '@/lib/utils'
 
 // TypeScript interfaces for NavigationItem and DropdownItem
 interface NavigationItem {
@@ -26,6 +29,8 @@ interface MobileBottomNavigationProps {
 }
 
 export default function MobileBottomNavigation({ className }: MobileBottomNavigationProps) {
+  const { isRouteActive } = useSidebarActiveState()
+
   // Define primary navigation items
   const primaryNavItems: NavigationItem[] = [
     {
@@ -66,14 +71,20 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     }
   ]
 
+  // Define dropdown items to check for "More" button active state
+  const dropdownRoutes = ['/haeuser', '/wohnungen', '/betriebskosten', '/todos', '/dateien']
+  
+  // Check if any dropdown route is active to highlight "More" button
+  const isMoreActive = dropdownRoutes.some(route => isRouteActive(route))
+
   return (
     <nav
-      className={`
-        fixed bottom-0 left-0 right-0 z-50
-        bg-white border-t border-gray-200
-        md:hidden
-        ${className || ''}
-      `}
+      className={cn(
+        "fixed bottom-0 left-0 right-0 z-50",
+        "bg-background border-t border-border",
+        "md:hidden",
+        className
+      )}
       role="navigation"
       aria-label="Mobile navigation"
     >
@@ -81,22 +92,49 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         {primaryNavItems.map((item) => {
           const IconComponent = item.icon
           
+          // Determine if this item is active
+          let isActive = false
+          if (item.href) {
+            isActive = isRouteActive(item.href)
+          } else if (item.id === 'more') {
+            // Special case: "More" button is active if any dropdown route is active
+            isActive = isMoreActive
+          }
+          
+          // If item has href, render as Link, otherwise as button
+          const Component = item.href ? Link : 'button'
+          const componentProps = item.href 
+            ? { href: item.href }
+            : { onClick: item.onClick }
+          
           return (
-            <button
+            <Component
               key={item.id}
-              className="
-                flex flex-col items-center justify-center
-                min-h-[44px] min-w-[44px] px-2 py-1
-                text-gray-600 hover:text-gray-900
-                transition-colors duration-200
-                rounded-md hover:bg-gray-100
-              "
-              onClick={item.onClick}
+              {...componentProps}
+              className={cn(
+                "flex flex-col items-center justify-center",
+                "min-h-[44px] min-w-[44px] px-2 py-1",
+                "transition-colors duration-200",
+                "rounded-md",
+                // Active state styling using application color scheme
+                isActive 
+                  ? "bg-accent text-accent-foreground" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
+              )}
               aria-label={item.title}
+              aria-current={isActive ? "page" : undefined}
             >
-              <IconComponent className="w-5 h-5 mb-1" />
-              <span className="text-xs font-medium">{item.title}</span>
-            </button>
+              <IconComponent className={cn(
+                "w-5 h-5 mb-1 transition-transform duration-200",
+                isActive && "scale-110"
+              )} />
+              <span className={cn(
+                "text-xs transition-all duration-200",
+                isActive ? "font-semibold" : "font-medium"
+              )}>
+                {item.title}
+              </span>
+            </Component>
           )
         })}
       </div>
