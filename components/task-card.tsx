@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { CheckCircle, Clock } from "lucide-react"
 import { TaskContextMenu } from "@/components/task-context-menu"
 
@@ -47,6 +48,11 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
     })
   }
 
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleStatus();
+  };
+
   return (
     <TaskContextMenu 
       task={{
@@ -64,13 +70,25 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
         onClick={handleEditClick}
       >
         <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 pt-1">
+              <Checkbox
+                checked={task.ist_erledigt}
+                onCheckedChange={onToggleStatus}
+                onClick={handleCheckboxClick}
+                className="h-5 w-5"
+              />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
-                <h3 className="font-semibold text-base truncate">{task.name}</h3>
+                <h3 className={`font-semibold text-base truncate ${task.ist_erledigt ? 'line-through text-muted-foreground' : ''}`}>
+                  {task.name}
+                </h3>
               </div>
               {task.description && (
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{task.description}</p>
+                <p className={`text-sm mb-3 line-clamp-2 ${task.ist_erledigt ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
+                  {task.description}
+                </p>
               )}
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <span>Erstellt: {task.createdAt}</span>
@@ -80,11 +98,7 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
             <div className="flex-shrink-0">
               <Badge 
                 variant="outline" 
-                className={`${statusColor} cursor-pointer hover:opacity-80`} 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleStatus();
-                }}
+                className={`${statusColor}`}
               >
                 <span className="flex items-center">
                   {statusIcon} {task.status}
