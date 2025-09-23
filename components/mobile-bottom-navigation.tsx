@@ -537,12 +537,12 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     "active:scale-95",
                     // Enhanced touch feedback
                     touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
-                    // Active state styling matching desktop navigation
+                    // Active state styling - mobile optimized without scaling
                     isActive 
                       ? "bg-primary/10 text-primary shadow-sm" 
-                      : "text-foreground hover:bg-accent/10 hover:scale-[1.02]",
-                    // Focus state styling
-                    isFocused && !isActive && "bg-accent/5 scale-[1.02]"
+                      : "text-foreground hover:bg-accent/10",
+                    // Focus state styling - mobile optimized without scaling
+                    isFocused && !isActive && "bg-accent/5"
                   )}
                   role="menuitem"
                   tabIndex={0}
@@ -552,14 +552,14 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   <IconComponent 
                     className={cn(
                       "w-5 h-5 mr-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                      isActive && "scale-110 text-primary",
-                      isFocused && !isActive && "scale-105"
+                      isActive && "text-primary",
+                      isFocused && !isActive && "text-foreground"
                     )}
                     aria-hidden="true"
                   />
                   <span className={cn(
                     "text-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                    isActive ? "font-semibold tracking-wide text-primary" : "font-medium",
+                    isActive ? "font-semibold text-primary" : "font-medium",
                     isFocused && !isActive && "font-medium"
                   )}>
                     {item.title}
@@ -644,10 +644,10 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     "active:scale-95",
                     // Enhanced touch feedback
                     touchedItem === item.id && "scale-95 bg-accent/20",
-                    // Active state styling matching desktop navigation with enhanced visual feedback
+                    // Active state styling - mobile optimized without scaling
                     isActive 
                       ? "bg-primary/10 text-primary shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105",
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10",
                     // Special styling when dropdown is open
                     isDropdownOpen && "bg-primary/15 text-primary",
                     // Disabled state for navigation debouncing
@@ -663,8 +663,8 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   <IconComponent 
                     className={cn(
                       "w-5 h-5 mb-1 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                      isActive && "scale-110",
-                      isDropdownOpen && "rotate-180 scale-110"
+                      isActive && "",
+                      isDropdownOpen && "rotate-180 "
                     )}
                     aria-hidden="true"
                   />
@@ -707,7 +707,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     // Active state styling matching desktop navigation
                     isActive 
                       ? "bg-primary/10 text-primary shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105",
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
                     // Disabled state for navigation debouncing
                     isNavigating && "opacity-70 pointer-events-none"
                   )}
@@ -717,7 +717,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   <IconComponent 
                     className={cn(
                       "w-5 h-5 mb-1 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                      isActive && "scale-110"
+                      isActive && ""
                     )}
                     aria-hidden="true"
                   />
@@ -754,7 +754,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     // Active state styling matching desktop navigation
                     isActive 
                       ? "bg-primary/10 text-primary shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105",
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
                     // Disabled state for navigation debouncing
                     isNavigating && "opacity-70 pointer-events-none"
                   )}
@@ -764,7 +764,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   <IconComponent 
                     className={cn(
                       "w-5 h-5 mb-1 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                      isActive && "scale-110"
+                      isActive && ""
                     )}
                     aria-hidden="true"
                   />
