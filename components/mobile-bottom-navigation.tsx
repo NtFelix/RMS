@@ -314,35 +314,37 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   if (!mounted) {
     return (
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
+        className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/50 shadow-lg shadow-black/5 mobile-nav-responsive hydration-safe-mobile prevent-layout-shift pb-safe"
         role="navigation"
         aria-label="Main mobile navigation"
         style={{ 
           // CSS-only fallback - ensure proper responsive behavior
-          display: 'block'
+          display: 'block',
+          // Safe area support
+          paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
         }}
       >
-        <div className="flex items-center justify-around px-2 py-2 h-16">
-          {/* Render static navigation items as fallback */}
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
-            <BarChart3 className="w-5 h-5 mb-1" aria-hidden="true" />
-            <span className="text-xs font-medium">Home</span>
+        <div className="flex items-center justify-around px-1 py-2 h-16">
+          {/* Render static navigation items as fallback with enhanced styling */}
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+            <BarChart3 className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
+            <span className="text-xs font-medium transition-all duration-300">Home</span>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
-            <Users className="w-5 h-5 mb-1" aria-hidden="true" />
-            <span className="text-xs font-medium">Mieter</span>
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+            <Users className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
+            <span className="text-xs font-medium transition-all duration-300">Mieter</span>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
-            <SearchIcon className="w-5 h-5 mb-1" aria-hidden="true" />
-            <span className="text-xs font-medium">Suchen</span>
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+            <SearchIcon className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
+            <span className="text-xs font-medium transition-all duration-300">Suchen</span>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
-            <Wallet className="w-5 h-5 mb-1" aria-hidden="true" />
-            <span className="text-xs font-medium">Finanzen</span>
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+            <Wallet className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
+            <span className="text-xs font-medium transition-all duration-300">Finanzen</span>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 text-muted-foreground">
-            <Menu className="w-5 h-5 mb-1" aria-hidden="true" />
-            <span className="text-xs font-medium">Mehr</span>
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+            <Menu className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
+            <span className="text-xs font-medium transition-all duration-300">Mehr</span>
           </div>
         </div>
       </nav>
@@ -363,9 +365,9 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           ref={dropdownRef}
           className={cn(
             "fixed bottom-16 left-0 right-0 z-40",
-            "bg-background border border-border rounded-t-lg shadow-lg",
-            "mx-4 mb-2",
-            "animate-in slide-in-from-bottom-2 duration-200"
+            "bg-background/95 backdrop-blur-sm border border-border/50 rounded-t-xl shadow-xl shadow-black/10",
+            "mx-3 mb-2",
+            "animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
           )}
           role="menu"
           aria-label="More navigation options"
@@ -376,7 +378,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
               : undefined
           }
         >
-          <div className="py-2">
+          <div className="py-3">
             {visibleDropdownItems.map((item, index) => {
               const IconComponent = item.icon
               const isActive = isRouteActive(item.href)
@@ -397,14 +399,17 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   onMouseEnter={() => setFocusedItemIndex(index)}
                   onFocus={() => setFocusedItemIndex(index)}
                   className={cn(
-                    "flex items-center px-4 py-3",
+                    "flex items-center px-4 py-3 mx-2 rounded-lg",
                     "min-h-[44px]",
-                    "transition-colors duration-200",
-                    "focus:outline-none focus:ring-2 focus:ring-accent focus:ring-inset",
+                    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                    "active:scale-95",
+                    // Active state styling matching desktop navigation
                     isActive 
-                      ? "bg-accent text-accent-foreground" 
-                      : "text-foreground hover:bg-accent/10",
-                    isFocused && !isActive && "bg-accent/5"
+                      ? "bg-primary/10 text-primary shadow-sm" 
+                      : "text-foreground hover:bg-accent/10 hover:scale-[1.02]",
+                    // Focus state styling
+                    isFocused && !isActive && "bg-accent/5 scale-[1.02]"
                   )}
                   role="menuitem"
                   tabIndex={isFocused ? 0 : -1}
@@ -413,14 +418,16 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 >
                   <IconComponent 
                     className={cn(
-                      "w-5 h-5 mr-3 transition-transform duration-200",
-                      isActive && "scale-110"
+                      "w-5 h-5 mr-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                      isActive && "scale-110 text-primary",
+                      isFocused && !isActive && "scale-105"
                     )}
                     aria-hidden="true"
                   />
                   <span className={cn(
-                    "text-sm transition-all duration-200",
-                    isActive ? "font-semibold" : "font-medium"
+                    "text-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    isActive ? "font-semibold tracking-wide text-primary" : "font-medium",
+                    isFocused && !isActive && "font-medium"
                   )}>
                     {item.title}
                   </span>
@@ -449,12 +456,15 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       <nav
         className={cn(
           "fixed bottom-0 left-0 right-0 z-50",
-          "bg-background border-t border-border",
+          "bg-background/95 backdrop-blur-sm border-t border-border/50",
+          "shadow-lg shadow-black/5",
           // Enhanced CSS-only responsive fallbacks
           "mobile-nav-responsive",
           "hydration-safe-mobile",
           // Prevent layout shift during hydration
           "prevent-layout-shift",
+          // Safe area support for devices with home indicators
+          "pb-safe",
           className
         )}
         role="navigation"
@@ -462,10 +472,12 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         // Enhanced CSS-only fallback for responsive behavior
         style={{
           // Ensure proper responsive behavior even without JS
-          display: 'block'
+          display: 'block',
+          // Safe area support
+          paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
         }}
       >
-        <div className="flex items-center justify-around px-2 py-2 h-16">
+        <div className="flex items-center justify-around px-1 py-2 h-16">
           {primaryNavItems.map((item) => {
             const IconComponent = item.icon
             
@@ -487,14 +499,17 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   onClick={item.onClick}
                   className={cn(
                     "flex flex-col items-center justify-center",
-                    "min-h-[44px] min-w-[44px] px-2 py-1",
-                    "transition-colors duration-200",
-                    "rounded-md",
-                    "focus:outline-none focus:ring-2 focus:ring-accent focus:ring-inset",
-                    // Active state styling using application color scheme
+                    "min-h-[44px] min-w-[44px] px-3 py-2",
+                    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    "rounded-lg relative",
+                    "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                    "active:scale-95",
+                    // Active state styling matching desktop navigation with enhanced visual feedback
                     isActive 
-                      ? "bg-accent text-accent-foreground" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
+                      ? "bg-primary/10 text-primary shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105",
+                    // Special styling when dropdown is open
+                    isDropdownOpen && "bg-primary/15 text-primary"
                   )}
                   aria-label={`${item.title} menu${isActive ? ' (current section)' : ''}`}
                   aria-current={isActive ? "page" : undefined}
@@ -505,15 +520,16 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 >
                   <IconComponent 
                     className={cn(
-                      "w-5 h-5 mb-1 transition-transform duration-200",
+                      "w-5 h-5 mb-1 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                       isActive && "scale-110",
-                      isDropdownOpen && "rotate-180"
+                      isDropdownOpen && "rotate-180 scale-110"
                     )}
                     aria-hidden="true"
                   />
                   <span className={cn(
-                    "text-xs transition-all duration-200",
-                    isActive ? "font-semibold" : "font-medium"
+                    "text-xs transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    isActive ? "font-semibold tracking-wide" : "font-medium",
+                    isDropdownOpen && "font-semibold tracking-wide"
                   )}>
                     {item.title}
                   </span>
@@ -530,28 +546,29 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   onClick={() => handleNavigationSelect(item.title)}
                   className={cn(
                     "flex flex-col items-center justify-center",
-                    "min-h-[44px] min-w-[44px] px-2 py-1",
-                    "transition-colors duration-200",
-                    "rounded-md",
-                    "focus:outline-none focus:ring-2 focus:ring-accent focus:ring-inset",
-                    // Active state styling using application color scheme
+                    "min-h-[44px] min-w-[44px] px-3 py-2",
+                    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    "rounded-lg relative",
+                    "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                    "active:scale-95",
+                    // Active state styling matching desktop navigation
                     isActive 
-                      ? "bg-accent text-accent-foreground" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
+                      ? "bg-primary/10 text-primary shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105"
                   )}
                   aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
                   aria-current={isActive ? "page" : undefined}
                 >
                   <IconComponent 
                     className={cn(
-                      "w-5 h-5 mb-1 transition-transform duration-200",
+                      "w-5 h-5 mb-1 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                       isActive && "scale-110"
                     )}
                     aria-hidden="true"
                   />
                   <span className={cn(
-                    "text-xs transition-all duration-200",
-                    isActive ? "font-semibold" : "font-medium"
+                    "text-xs transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    isActive ? "font-semibold tracking-wide" : "font-medium"
                   )}>
                     {item.title}
                   </span>
@@ -567,28 +584,29 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   }}
                   className={cn(
                     "flex flex-col items-center justify-center",
-                    "min-h-[44px] min-w-[44px] px-2 py-1",
-                    "transition-colors duration-200",
-                    "rounded-md",
-                    "focus:outline-none focus:ring-2 focus:ring-accent focus:ring-inset",
-                    // Active state styling using application color scheme
+                    "min-h-[44px] min-w-[44px] px-3 py-2",
+                    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    "rounded-lg relative",
+                    "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                    "active:scale-95",
+                    // Active state styling matching desktop navigation
                     isActive 
-                      ? "bg-accent text-accent-foreground" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10"
+                      ? "bg-primary/10 text-primary shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105"
                   )}
                   aria-label={`${item.title}${item.id === 'search' ? ' - Open search' : ''}${isActive ? ' (current page)' : ''}`}
                   aria-current={isActive ? "page" : undefined}
                 >
                   <IconComponent 
                     className={cn(
-                      "w-5 h-5 mb-1 transition-transform duration-200",
+                      "w-5 h-5 mb-1 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                       isActive && "scale-110"
                     )}
                     aria-hidden="true"
                   />
                   <span className={cn(
-                    "text-xs transition-all duration-200",
-                    isActive ? "font-semibold" : "font-medium"
+                    "text-xs transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    isActive ? "font-semibold tracking-wide" : "font-medium"
                   )}>
                     {item.title}
                   </span>
