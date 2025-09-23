@@ -86,11 +86,12 @@ export function DashboardSidebar() {
       />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-[49] w-72 flex-col transition-transform md:sticky md:translate-x-0 hidden md:flex",
+          "fixed inset-y-0 left-0 z-[49] w-72 flex-col transition-transform md:sticky md:translate-x-0 hidden md:flex h-screen",
           isOpen ? "translate-x-0 flex" : "-translate-x-full",
         )}
       >
-        <div className="h-full w-full flex flex-col bg-background border-r border-border dark:sidebar-container">
+        <div className="h-full w-full bg-background border-r border-border dark:sidebar-container grid grid-rows-[auto_1fr_auto]">
+          {/* Header section */}
           <div className="border-b px-6 py-4 dark:sidebar-header">
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <div className="relative w-8 h-8 rounded-full overflow-hidden">
@@ -105,7 +106,9 @@ export function DashboardSidebar() {
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          <SimpleScrollArea className="flex-1 pt-4 pb-4">
+          
+          {/* Navigation section - takes remaining space */}
+          <div className="pt-4 pb-4 overflow-y-auto min-h-0">
             <nav className="grid gap-1 px-2 pr-4">
               {sidebarNavItems.map((item) => {
                 const isActive = isRouteActive(item.href)
@@ -135,9 +138,10 @@ export function DashboardSidebar() {
                 )
               })}
             </nav>
-          </SimpleScrollArea>
-          <div className="mt-auto border-t p-4 pb-6 dark:sidebar-footer">
-            {/* The UserSettings component itself is now the sole display for user info in this area */}
+          </div>
+          
+          {/* Profile section - fixed at bottom */}
+          <div className="border-t p-4 pb-6 dark:sidebar-footer">
             <UserSettings />
           </div>
         </div>

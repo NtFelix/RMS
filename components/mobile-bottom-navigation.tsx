@@ -239,6 +239,11 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     })
   }
 
+  // Handle profile button click
+  const handleProfileClick = () => {
+    // This will be handled by the UserSettings component dropdown
+  }
+
   // Define primary navigation items
   const primaryNavItems: NavigationItem[] = [
     {
@@ -451,6 +456,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
         }}
       >
+        {/* Main navigation items fallback */}
         <div className="flex items-center justify-around px-1 h-16">
           {/* Render static navigation items as fallback with enhanced styling */}
           <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg mobile-nav-item">
@@ -567,6 +573,8 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 </Link>
               )
             })}
+            
+
           </div>
         </div>
       )}
@@ -611,6 +619,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
         }}
       >
+        {/* Main navigation items */}
         <div className="flex items-center justify-around px-1 h-16">
           {primaryNavItems.map((item) => {
             const IconComponent = item.icon
