@@ -13,14 +13,16 @@ import { toggleTaskStatusAction } from "@/app/todos-actions"
 import type { Task } from "@/components/task-board"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
+import { memo, useCallback, useMemo } from "react"
 
 interface KanbanTaskCardProps {
   task: Task
   onTaskUpdated: (task: Task) => void
   onTaskDeleted: (taskId: string) => void
+  isCompleting?: boolean
 }
 
-export function KanbanTaskCard({ task, onTaskUpdated, onTaskDeleted }: KanbanTaskCardProps) {
+export const KanbanTaskCard = memo(function KanbanTaskCard({ task, onTaskUpdated, onTaskDeleted, isCompleting }: KanbanTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -37,34 +39,30 @@ export function KanbanTaskCard({ task, onTaskUpdated, onTaskDeleted }: KanbanTas
     transition,
   }
 
-  const statusColor =
-    task.ist_erledigt
+  // Memoize expensive computations
+  const { statusColor, statusIcon, formattedDate } = useMemo(() => {
+    const statusColor = task.ist_erledigt
       ? "bg-green-50 text-green-700 hover:bg-green-50"
       : "bg-yellow-50 text-yellow-700 hover:bg-yellow-50"
 
-  const statusIcon = task.ist_erledigt ? (
-    <CheckCircle className="h-4 w-4 text-green-700" />
-  ) : (
-    <Clock className="h-4 w-4 text-yellow-700" />
-  )
+    const statusIcon = task.ist_erledigt ? (
+      <CheckCircle className="h-4 w-4 text-green-700" />
+    ) : (
+      <Clock className="h-4 w-4 text-yellow-700" />
+    )
 
-  const formatDate = (dateString: string) => {
-    try {
-      return format(new Date(dateString), "dd.MM.yyyy", { locale: de })
-    } catch (e) {
-      return dateString
-    }
-  }
+    const formattedDate = (() => {
+      try {
+        return format(new Date(task.erstellungsdatum), "dd.MM.yyyy", { locale: de })
+      } catch (e) {
+        return task.erstellungsdatum
+      }
+    })()
 
-  const formatDateTime = (dateString: string) => {
-    try {
-      return format(new Date(dateString), "dd.MM.yyyy HH:mm 'Uhr'", { locale: de })
-    } catch (e) {
-      return dateString
-    }
-  }
+    return { statusColor, statusIcon, formattedDate }
+  }, [task.ist_erledigt, task.erstellungsdatum])
 
-  const toggleTaskStatus = async () => {
+  const toggleTaskStatus = useCallback(async () => {
     try {
       const result = await toggleTaskStatusAction(task.id, !task.ist_erledigt)
       if (result.success && result.task) {
@@ -84,16 +82,16 @@ export function KanbanTaskCard({ task, onTaskUpdated, onTaskDeleted }: KanbanTas
         variant: "destructive"
       })
     }
-  }
+  }, [task.id, task.ist_erledigt, onTaskUpdated])
 
-  const handleEdit = () => {
+  const handleEdit = useCallback(() => {
     openAufgabeModal(task, onTaskUpdated)
-  }
+  }, [task, onTaskUpdated, openAufgabeModal])
 
-  const handleCheckboxClick = (e: React.MouseEvent) => {
+  const handleCheckboxClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     toggleTaskStatus()
-  }
+  }, [toggleTaskStatus])
 
   return (
     <TaskContextMenu
@@ -110,8 +108,12 @@ export function KanbanTaskCard({ task, onTaskUpdated, onTaskDeleted }: KanbanTas
       <Card
         ref={setNodeRef}
         style={style}
-        className={`cursor-pointer transition-all hover:shadow-md ${
-          isDragging ? "opacity-50 shadow-lg" : ""
+        className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+          isCompleting 
+            ? "bg-green-50 border-green-200 shadow-md" 
+            : isDragging 
+            ? "opacity-50 shadow-lg scale-105" 
+            : "hover:scale-[1.01]"
         }`}
         onClick={handleEdit}
         {...attributes}
@@ -141,7 +143,7 @@ export function KanbanTaskCard({ task, onTaskUpdated, onTaskDeleted }: KanbanTas
               )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{formatDate(task.erstellungsdatum)}</span>
+                  <span>{formattedDate}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className={`text-xs ${statusColor}`}>
@@ -152,7 +154,9 @@ export function KanbanTaskCard({ task, onTaskUpdated, onTaskDeleted }: KanbanTas
                   </Badge>
                   <div
                     {...listeners}
-                    className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
+                    className={`cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded transition-all duration-150 ${
+                      isDragging ? 'bg-muted' : ''
+                    }`}
                   >
                     <GripVertical className="h-3 w-3 text-muted-foreground" />
                   </div>
@@ -164,4 +168,4 @@ export function KanbanTaskCard({ task, onTaskUpdated, onTaskDeleted }: KanbanTas
       </Card>
     </TaskContextMenu>
   )
-}
+})
