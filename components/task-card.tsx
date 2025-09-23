@@ -63,28 +63,34 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
         className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer" 
         onClick={handleEditClick}
       >
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">{task.name}</CardTitle>
-            <Badge 
-              variant="outline" 
-              className={`${statusColor} cursor-pointer hover:opacity-80`} 
-              onClick={(e) => {
-                e.stopPropagation(); // Verhindert, dass der Klick die Bearbeitungsfunktion auslöst
-                onToggleStatus();
-              }}
-            >
-              <span className="flex items-center">
-                {statusIcon} {task.status}
-              </span>
-            </Badge>
-          </div>
-          <CardDescription className="text-sm text-muted-foreground">Erstellt am {task.createdAt}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm">{task.description}</p>
-          <div className="mt-4 flex justify-between text-xs text-muted-foreground">
-            <span>Zuletzt geändert: {task.updatedAt}</span>
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="font-semibold text-base truncate">{task.name}</h3>
+              </div>
+              {task.description && (
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{task.description}</p>
+              )}
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span>Erstellt: {task.createdAt}</span>
+                <span>Geändert: {task.updatedAt}</span>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <Badge 
+                variant="outline" 
+                className={`${statusColor} cursor-pointer hover:opacity-80`} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleStatus();
+                }}
+              >
+                <span className="flex items-center">
+                  {statusIcon} {task.status}
+                </span>
+              </Badge>
+            </div>
           </div>
         </CardContent>
       </Card>

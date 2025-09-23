@@ -23,29 +23,27 @@ export function TaskFilters({ activeFilter, onFilterChange, onSearchChange }: Ta
   ], []);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          {filterOptions.map(({ value, label }) => (
-            <Button
-              key={value}
-              variant={activeFilter === value ? "default" : "outline"}
-              onClick={() => handleFilterClick(value)}
-              className="h-9"
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-        <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Aufgabe suchen..."
-            className="pl-10"
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-        </div>
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap gap-2">
+        {filterOptions.map(({ value, label }) => (
+          <Button
+            key={value}
+            variant={activeFilter === value ? "default" : "outline"}
+            onClick={() => handleFilterClick(value)}
+            className="h-9"
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+      <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Aufgabe suchen..."
+          className="pl-10"
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
       </div>
     </div>
   )

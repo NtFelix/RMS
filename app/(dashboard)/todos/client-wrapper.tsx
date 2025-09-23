@@ -42,7 +42,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <Card className="overflow-hidden rounded-2xl border-none shadow-md">
+      <Card className="overflow-hidden rounded-2xl shadow-md">
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Aufgabenliste</CardTitle>
@@ -53,20 +53,18 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4">
-            <TaskFilters 
-              activeFilter={filter}
-              onFilterChange={setFilter}
-              onSearchChange={setSearchQuery}
-            />
-            <TaskBoard 
-              filter={filter} 
-              searchQuery={searchQuery} 
-              tasks={tasks}
-              onTaskUpdated={handleTaskUpdated}
-              onTaskDeleted={handleTaskDeleted}
-            />
-          </div>
+          <TaskFilters 
+            activeFilter={filter}
+            onFilterChange={setFilter}
+            onSearchChange={setSearchQuery}
+          />
+          <TaskBoard 
+            filter={filter} 
+            searchQuery={searchQuery} 
+            tasks={tasks}
+            onTaskUpdated={handleTaskUpdated}
+            onTaskDeleted={handleTaskDeleted}
+          />
         </CardContent>
       </Card>
       <Toaster />
