@@ -71,7 +71,7 @@ export function DashboardSidebar() {
       <Button
         variant="outline"
         size="icon"
-        className="fixed left-4 top-4 z-40 md:hidden"
+        className="fixed left-4 top-4 z-40 hidden"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -86,8 +86,8 @@ export function DashboardSidebar() {
       />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-[49] flex w-72 flex-col transition-transform md:sticky md:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full",
+          "fixed inset-y-0 left-0 z-[49] w-72 flex-col transition-transform md:sticky md:translate-x-0 hidden md:flex",
+          isOpen ? "translate-x-0 flex" : "-translate-x-full",
         )}
       >
         <div className="h-full w-full flex flex-col bg-background border-r border-border dark:sidebar-container">
