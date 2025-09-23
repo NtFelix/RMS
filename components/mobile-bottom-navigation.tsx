@@ -19,6 +19,18 @@ import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { cn } from '@/lib/utils'
 
+// Touch interaction debounce utility
+const useDebouncedCallback = (callback: (...args: any[]) => void, delay: number) => {
+  const timeoutRef = useRef<NodeJS.Timeout>()
+  
+  return useCallback((...args: any[]) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+    timeoutRef.current = setTimeout(() => callback(...args), delay)
+  }, [callback, delay])
+}
+
 // TypeScript interfaces for NavigationItem and DropdownItem
 interface NavigationItem {
   id: string
@@ -59,6 +71,15 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   
   // Screen reader announcement state
   const [announcement, setAnnouncement] = useState('')
+  
+  // Touch interaction states for enhanced feedback
+  const [touchedItem, setTouchedItem] = useState<string | null>(null)
+  const [isNavigating, setIsNavigating] = useState(false)
+  const navigationTimeoutRef = useRef<NodeJS.Timeout>()
+  
+  // Touch event tracking for better mobile interactions
+  const [touchStartTime, setTouchStartTime] = useState(0)
+  const [touchStartPosition, setTouchStartPosition] = useState({ x: 0, y: 0 })
 
   // Hydration safety and responsive behavior
   useEffect(() => {
@@ -107,33 +128,98 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     }
   }, [isDropdownOpen, isMobile])
 
-  // Handle dropdown toggle
-  const handleMoreClick = () => {
-    const newState = !isDropdownOpen
-    setIsDropdownOpen(newState)
-    setFocusedItemIndex(-1)
+  // Debounced navigation handler to prevent rapid navigation attempts
+  const debouncedNavigate = useDebouncedCallback((callback: () => void) => {
+    if (isNavigating) return
     
-    // Announce state change to screen readers
-    if (newState) {
-      setAnnouncement('More menu opened. Use arrow keys to navigate.')
-      // Focus first item when opening
-      setTimeout(() => {
-        if (dropdownItemRefs.current[0]) {
-          dropdownItemRefs.current[0]?.focus()
-          setFocusedItemIndex(0)
-        }
-      }, 100)
-    } else {
-      setAnnouncement('More menu closed.')
-      // Return focus to More button when closing
-      moreButtonRef.current?.focus()
+    setIsNavigating(true)
+    callback()
+    
+    // Reset navigation state after a short delay
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current)
     }
+    navigationTimeoutRef.current = setTimeout(() => {
+      setIsNavigating(false)
+    }, 300)
+  }, 150)
+
+  // Enhanced touch feedback handlers
+  const handleTouchStart = useCallback((itemId: string, event: React.TouchEvent) => {
+    setTouchedItem(itemId)
+    setTouchStartTime(Date.now())
+    setTouchStartPosition({
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY
+    })
+  }, [])
+
+  const handleTouchEnd = useCallback((itemId: string, event: React.TouchEvent) => {
+    const touchEndTime = Date.now()
+    const touchDuration = touchEndTime - touchStartTime
+    
+    // Only trigger if it's a quick tap (not a long press or drag)
+    if (touchDuration < 500) {
+      const touchEndPosition = {
+        x: event.changedTouches[0].clientX,
+        y: event.changedTouches[0].clientY
+      }
+      
+      // Check if touch didn't move too much (not a swipe)
+      const touchDistance = Math.sqrt(
+        Math.pow(touchEndPosition.x - touchStartPosition.x, 2) +
+        Math.pow(touchEndPosition.y - touchStartPosition.y, 2)
+      )
+      
+      if (touchDistance < 10) {
+        // Valid tap - provide haptic feedback if available
+        if ('vibrate' in navigator) {
+          navigator.vibrate(10)
+        }
+      }
+    }
+    
+    // Clear touched state after a short delay for visual feedback
+    setTimeout(() => {
+      setTouchedItem(null)
+    }, 150)
+  }, [touchStartTime, touchStartPosition])
+
+  const handleTouchCancel = useCallback(() => {
+    setTouchedItem(null)
+  }, [])
+
+  // Handle dropdown toggle with debouncing
+  const handleMoreClick = () => {
+    debouncedNavigate(() => {
+      const newState = !isDropdownOpen
+      setIsDropdownOpen(newState)
+      setFocusedItemIndex(-1)
+      
+      // Announce state change to screen readers
+      if (newState) {
+        setAnnouncement('More menu opened. Use arrow keys to navigate.')
+        // Focus first item when opening with optimized timing for touch
+        setTimeout(() => {
+          if (dropdownItemRefs.current[0]) {
+            dropdownItemRefs.current[0]?.focus()
+            setFocusedItemIndex(0)
+          }
+        }, 200) // Slightly longer delay for touch interactions
+      } else {
+        setAnnouncement('More menu closed.')
+        // Return focus to More button when closing
+        moreButtonRef.current?.focus()
+      }
+    })
   }
 
-  // Handle search button click
+  // Handle search button click with debouncing
   const handleSearchClick = () => {
-    setCommandMenuOpen(true)
-    setAnnouncement('Search opened.')
+    debouncedNavigate(() => {
+      setCommandMenuOpen(true)
+      setAnnouncement('Search opened.')
+    })
   }
 
   // Define primary navigation items
@@ -265,14 +351,17 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     }
   }, [isDropdownOpen, focusedItemIndex, visibleDropdownItems.length])
   
-  // Handle navigation item selection
-  const handleNavigationSelect = useCallback((itemTitle: string) => {
-    setAnnouncement(`Navigating to ${itemTitle}.`)
-  }, [])
+  // Handle navigation item selection with debouncing
+  const handleNavigationSelect = useCallback((itemTitle: string, callback?: () => void) => {
+    debouncedNavigate(() => {
+      setAnnouncement(`Navigating to ${itemTitle}.`)
+      callback?.()
+    })
+  }, [debouncedNavigate])
 
-  // Click outside handler to close dropdown
+  // Enhanced click/touch outside handler to close dropdown
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
       if (
         dropdownRef.current && 
         !dropdownRef.current.contains(event.target as Node) &&
@@ -285,9 +374,12 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     }
 
     if (isDropdownOpen) {
+      // Listen for both mouse and touch events for better mobile support
       document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside, { passive: true })
       return () => {
         document.removeEventListener('mousedown', handleClickOutside)
+        document.removeEventListener('touchstart', handleClickOutside)
       }
     }
   }, [isDropdownOpen])
@@ -310,6 +402,15 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     }
   }, [announcement])
 
+  // Cleanup navigation timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current)
+      }
+    }
+  }, [])
+
   // Prevent hydration mismatches by rendering a CSS-only fallback until mounted
   if (!mounted) {
     return (
@@ -326,23 +427,23 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       >
         <div className="flex items-center justify-around px-1 py-2 h-16">
           {/* Render static navigation items as fallback with enhanced styling */}
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg mobile-nav-item">
             <BarChart3 className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
             <span className="text-xs font-medium transition-all duration-300">Home</span>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg mobile-nav-item">
             <Users className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
             <span className="text-xs font-medium transition-all duration-300">Mieter</span>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg mobile-nav-item">
             <SearchIcon className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
             <span className="text-xs font-medium transition-all duration-300">Suchen</span>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg mobile-nav-item">
             <Wallet className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
             <span className="text-xs font-medium transition-all duration-300">Finanzen</span>
           </div>
-          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg">
+          <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg mobile-nav-item">
             <Menu className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
             <span className="text-xs font-medium transition-all duration-300">Mehr</span>
           </div>
@@ -366,7 +467,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           className={cn(
             "fixed bottom-16 left-0 right-0 z-40",
             "bg-background/95 backdrop-blur-sm border border-border/50 rounded-t-xl shadow-xl shadow-black/10",
-            "mx-3 mb-2",
+            "mx-3 mb-2 mobile-dropdown",
             "animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
           )}
           role="menu"
@@ -393,17 +494,23 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   }}
                   href={item.href}
                   onClick={() => {
-                    setIsDropdownOpen(false)
-                    handleNavigationSelect(item.title)
+                    handleNavigationSelect(item.title, () => {
+                      setIsDropdownOpen(false)
+                    })
                   }}
                   onMouseEnter={() => setFocusedItemIndex(index)}
                   onFocus={() => setFocusedItemIndex(index)}
+                  onTouchStart={(e) => handleTouchStart(`dropdown-${item.id}`, e)}
+                  onTouchEnd={(e) => handleTouchEnd(`dropdown-${item.id}`, e)}
+                  onTouchCancel={handleTouchCancel}
                   className={cn(
                     "flex items-center px-4 py-3 mx-2 rounded-lg",
-                    "min-h-[44px]",
-                    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    "min-h-[44px] mobile-dropdown-item touch-feedback",
+                    "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
+                    // Enhanced touch feedback
+                    touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
                     // Active state styling matching desktop navigation
                     isActive 
                       ? "bg-primary/10 text-primary shadow-sm" 
@@ -464,7 +571,9 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           // Prevent layout shift during hydration
           "prevent-layout-shift",
           // Safe area support for devices with home indicators
-          "pb-safe",
+          "mobile-nav-safe-area",
+          // Mobile navigation container optimizations
+          "mobile-nav-container",
           className
         )}
         role="navigation"
@@ -497,19 +606,27 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   key={item.id}
                   ref={moreButtonRef}
                   onClick={item.onClick}
+                  onTouchStart={(e) => handleTouchStart(item.id, e)}
+                  onTouchEnd={(e) => handleTouchEnd(item.id, e)}
+                  onTouchCancel={handleTouchCancel}
+                  disabled={isNavigating}
                   className={cn(
                     "flex flex-col items-center justify-center",
-                    "min-h-[44px] min-w-[44px] px-3 py-2",
-                    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
+                    "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     "rounded-lg relative",
                     "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
+                    // Enhanced touch feedback
+                    touchedItem === item.id && "scale-95 bg-accent/20",
                     // Active state styling matching desktop navigation with enhanced visual feedback
                     isActive 
                       ? "bg-primary/10 text-primary shadow-sm" 
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105",
                     // Special styling when dropdown is open
-                    isDropdownOpen && "bg-primary/15 text-primary"
+                    isDropdownOpen && "bg-primary/15 text-primary",
+                    // Disabled state for navigation debouncing
+                    isNavigating && "opacity-70 pointer-events-none"
                   )}
                   aria-label={`${item.title} menu${isActive ? ' (current section)' : ''}`}
                   aria-current={isActive ? "page" : undefined}
@@ -543,18 +660,31 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 <Link
                   key={item.id}
                   href={item.href}
-                  onClick={() => handleNavigationSelect(item.title)}
+                  onClick={(e) => {
+                    if (isNavigating) {
+                      e.preventDefault()
+                      return
+                    }
+                    handleNavigationSelect(item.title)
+                  }}
+                  onTouchStart={(e) => handleTouchStart(item.id, e)}
+                  onTouchEnd={(e) => handleTouchEnd(item.id, e)}
+                  onTouchCancel={handleTouchCancel}
                   className={cn(
                     "flex flex-col items-center justify-center",
-                    "min-h-[44px] min-w-[44px] px-3 py-2",
-                    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
+                    "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     "rounded-lg relative",
                     "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
+                    // Enhanced touch feedback
+                    touchedItem === item.id && "scale-95 bg-accent/20",
                     // Active state styling matching desktop navigation
                     isActive 
                       ? "bg-primary/10 text-primary shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105",
+                    // Disabled state for navigation debouncing
+                    isNavigating && "opacity-70 pointer-events-none"
                   )}
                   aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
                   aria-current={isActive ? "page" : undefined}
@@ -579,20 +709,29 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 <button
                   key={item.id}
                   onClick={() => {
-                    item.onClick?.()
-                    handleNavigationSelect(item.title)
+                    handleNavigationSelect(item.title, () => {
+                      item.onClick?.()
+                    })
                   }}
+                  onTouchStart={(e) => handleTouchStart(item.id, e)}
+                  onTouchEnd={(e) => handleTouchEnd(item.id, e)}
+                  onTouchCancel={handleTouchCancel}
+                  disabled={isNavigating}
                   className={cn(
                     "flex flex-col items-center justify-center",
-                    "min-h-[44px] min-w-[44px] px-3 py-2",
-                    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
+                    "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     "rounded-lg relative",
                     "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
+                    // Enhanced touch feedback
+                    touchedItem === item.id && "scale-95 bg-accent/20",
                     // Active state styling matching desktop navigation
                     isActive 
                       ? "bg-primary/10 text-primary shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:scale-105",
+                    // Disabled state for navigation debouncing
+                    isNavigating && "opacity-70 pointer-events-none"
                   )}
                   aria-label={`${item.title}${item.id === 'search' ? ' - Open search' : ''}${isActive ? ' (current page)' : ''}`}
                   aria-current={isActive ? "page" : undefined}
