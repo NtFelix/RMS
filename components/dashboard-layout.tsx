@@ -65,12 +65,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
+          <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-6">
             <div className="mx-auto w-full max-w-3xl">
               <div className="h-10 bg-muted rounded animate-pulse" />
             </div>
           </header>
-          <main className="flex flex-1 flex-col min-h-0 p-6 main-content-responsive responsive-transition prevent-layout-shift">
+          <main className="flex flex-1 flex-col min-h-0 p-6 pt-6 md:pt-6 main-content-responsive responsive-transition prevent-layout-shift">
             <div className="flex-1 overflow-y-auto rounded-2xl bg-white border shadow-sm mb-4 md:mb-0">
               <div className="p-6">
                 <div className="space-y-4">
@@ -110,7 +110,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </div>
       
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-6 dark:header-container">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-6 dark:header-container">
           <div className="mx-auto w-full max-w-3xl">
             <Button
               variant="outline"
@@ -126,12 +126,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className={cn(
-          "flex flex-1 flex-col min-h-0 p-6",
+          "flex flex-1 flex-col min-h-0",
           // Enhanced responsive padding with CSS-only fallbacks
           "main-content-responsive",
           "responsive-transition",
+          // Responsive padding: no top padding on mobile since header is hidden
+          "p-6 md:p-6",
+          "pt-6 md:pt-6",
           // JavaScript-enhanced responsive padding
-          isMobile ? "pb-20" : "pb-6"
+          isMobile ? "pb-20 pt-6" : "pb-6 pt-6"
         )}>
           <div className={cn(
             "flex-1 overflow-y-auto rounded-2xl bg-white dark:main-container border shadow-sm",
