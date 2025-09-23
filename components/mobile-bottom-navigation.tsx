@@ -173,9 +173,22 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       
       if (touchDistance < 10) {
         // Valid tap - provide haptic feedback if available
-        if ('vibrate' in navigator) {
-          navigator.vibrate(10)
+        if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
+          try {
+            navigator.vibrate(10)
+          } catch (error) {
+            // Silently fail if vibration is not supported
+          }
         }
+      }
+    }
+    
+    // Always provide haptic feedback for valid touch end events
+    if (touchDuration < 500 && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(10)
+      } catch (error) {
+        // Silently fail if vibration is not supported
       }
     }
     
@@ -199,17 +212,21 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       // Announce state change to screen readers
       if (newState) {
         setAnnouncement('More menu opened. Use arrow keys to navigate.')
-        // Focus first item when opening with optimized timing for touch
-        setTimeout(() => {
-          if (dropdownItemRefs.current[0]) {
-            dropdownItemRefs.current[0]?.focus()
-            setFocusedItemIndex(0)
-          }
-        }, 200) // Slightly longer delay for touch interactions
+        // Focus first item when opening - use multiple animation frames for better timing
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (dropdownItemRefs.current[0]) {
+              dropdownItemRefs.current[0]?.focus()
+              setFocusedItemIndex(0)
+            }
+          })
+        })
       } else {
         setAnnouncement('More menu closed.')
         // Return focus to More button when closing
-        moreButtonRef.current?.focus()
+        requestAnimationFrame(() => {
+          moreButtonRef.current?.focus()
+        })
       }
     })
   }
@@ -353,11 +370,19 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   
   // Handle navigation item selection with debouncing
   const handleNavigationSelect = useCallback((itemTitle: string, callback?: () => void) => {
-    debouncedNavigate(() => {
-      setAnnouncement(`Navigating to ${itemTitle}.`)
-      callback?.()
-    })
-  }, [debouncedNavigate])
+    if (isNavigating) return
+    
+    setIsNavigating(true)
+    setAnnouncement(`Navigating to ${itemTitle}.`)
+    
+    // Execute callback immediately for better UX
+    callback?.()
+    
+    // Reset navigation state after delay
+    setTimeout(() => {
+      setIsNavigating(false)
+    }, 300)
+  }, [isNavigating])
 
   // Enhanced click/touch outside handler to close dropdown
   useEffect(() => {
@@ -519,7 +544,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     isFocused && !isActive && "bg-accent/5 scale-[1.02]"
                   )}
                   role="menuitem"
-                  tabIndex={isFocused ? 0 : -1}
+                  tabIndex={0}
                   aria-current={isActive ? "page" : undefined}
                   aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
                 >

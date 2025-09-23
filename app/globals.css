@@ -4,6 +4,9 @@
 /* Mobile Touch Optimization Styles */
 @import '../styles/mobile-touch-optimizations.css';
 
+/* Mobile Navigation Accessibility Styles */
+@import '../styles/mobile-navigation-accessibility.css';
+
 
 
 @tailwind base;
