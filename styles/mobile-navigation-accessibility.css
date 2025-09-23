@@ -22,8 +22,9 @@
   min-height: 4rem; /* 64px - h-16 */
 }
 
-/* Safe area support for devices with home indicators */
+/* Safe area support for devices with home indicators - balanced padding */
 .mobile-nav-safe-area {
+  padding-top: 0.5rem;
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 

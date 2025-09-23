@@ -541,9 +541,10 @@
     contain: layout style;
   }
 
-  /* Safe area support for mobile navigation */
+  /* Safe area support for mobile navigation - balanced padding */
   .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+    padding-top: 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
 
   /* Enhanced mobile navigation animations */

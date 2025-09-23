@@ -440,17 +440,18 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   if (!mounted) {
     return (
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/50 shadow-lg shadow-black/5 mobile-nav-responsive hydration-safe-mobile prevent-layout-shift pb-safe"
+        className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/50 shadow-lg shadow-black/5 mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
         role="navigation"
         aria-label="Main mobile navigation"
         style={{ 
           // CSS-only fallback - ensure proper responsive behavior
           display: 'block',
-          // Safe area support
+          // Safe area support with balanced padding
+          paddingTop: '0.5rem',
           paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
         }}
       >
-        <div className="flex items-center justify-around px-1 py-2 h-16">
+        <div className="flex items-center justify-around px-1 h-16">
           {/* Render static navigation items as fallback with enhanced styling */}
           <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg mobile-nav-item">
             <BarChart3 className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
@@ -595,8 +596,6 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           "hydration-safe-mobile",
           // Prevent layout shift during hydration
           "prevent-layout-shift",
-          // Safe area support for devices with home indicators
-          "mobile-nav-safe-area",
           // Mobile navigation container optimizations
           "mobile-nav-container",
           className
@@ -607,11 +606,12 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         style={{
           // Ensure proper responsive behavior even without JS
           display: 'block',
-          // Safe area support
+          // Safe area support with balanced padding
+          paddingTop: '0.5rem',
           paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
         }}
       >
-        <div className="flex items-center justify-around px-1 py-2 h-16">
+        <div className="flex items-center justify-around px-1 h-16">
           {primaryNavItems.map((item) => {
             const IconComponent = item.icon
             
