@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
+import MobileBottomNavigation from "@/components/mobile-bottom-navigation"
 import { SearchIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCommandMenu } from "@/hooks/use-command-menu"
@@ -23,7 +24,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardSidebar />
+      {/* Desktop sidebar - hidden on mobile */}
+      <div className="hidden md:block">
+        <DashboardSidebar />
+      </div>
+      
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 items-center gap-4 border-b bg-background px-6 dark:header-container">
           <div className="mx-auto w-full max-w-3xl">
@@ -40,12 +45,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
-        <main className="flex flex-1 flex-col min-h-0 p-6">
-          <div className="flex-1 overflow-y-auto rounded-2xl bg-white dark:main-container border shadow-sm">
+        <main className="flex flex-1 flex-col min-h-0 p-6 pb-6 md:pb-6">
+          <div className="flex-1 overflow-y-auto rounded-2xl bg-white dark:main-container border shadow-sm mb-20 md:mb-0">
             {children}
           </div>
         </main>
       </div>
+      
+      {/* Mobile bottom navigation - shown only on mobile */}
+      <MobileBottomNavigation />
     </div>
   )
 }
