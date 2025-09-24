@@ -184,7 +184,7 @@ export function OperatingCostsOverviewModal({
       // Generate filename
       const startDate = isoToGermanDate(nebenkosten.startdatum)?.replace(/\./g, '-') || 'unbekannt'
       const endDate = isoToGermanDate(nebenkosten.enddatum)?.replace(/\./g, '-') || 'unbekannt'
-      const houseName = nebenkosten.haus_name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Haus'
+      const houseName = nebenkosten.haus_name?.replace(/[^a-zA-Z0-9äöüÄÖÜß]/g, '_') || 'Haus'
       const filename = `Kostenaufstellung_${houseName}_${startDate}_bis_${endDate}.pdf`
 
       // Save the PDF
