@@ -141,6 +141,9 @@ export function OperatingCostsOverviewModal({
           2: { halign: 'right' },
           3: { halign: 'right' },
         },
+        // Ensure table aligns with left and right content margins
+        tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
+        margin: { left: 20, right: 20 },
         didParseCell: function(data: any) {
           // Make the total row bold
           if (data.row.index === tableData.length - 1) {
