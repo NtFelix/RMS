@@ -126,8 +126,7 @@ export function OperatingCostsOverviewModal({
           textColor: [0, 0, 0],
           fontStyle: 'bold',
           lineWidth: { bottom: 0.3 }, // Thicker bottom border for header
-          lineColor: [0, 0, 0], // Black color for header bottom border
-          halign: 'left' // Default left alignment for headers
+          lineColor: [0, 0, 0] // Black color for header bottom border
         },
         styles: { 
           fontSize: 9, 
@@ -143,24 +142,6 @@ export function OperatingCostsOverviewModal({
           1: { halign: 'left' },   // Left align service descriptions
           2: { halign: 'right' },  // Right align total costs
           3: { halign: 'right' },  // Right align costs per sqm
-        },
-        // Custom drawing to properly right-align header text for currency columns
-        willDrawCell: function(data: any) {
-          if (data.section === 'head' && (data.column.index === 2 || data.column.index === 3)) {
-            // Prevent the original header text from being drawn
-            data.cell.text = [''];
-          }
-        },
-        didDrawCell: function(data: any) {
-          if (data.section === 'head' && (data.column.index === 2 || data.column.index === 3)) {
-            // Draw the right-aligned header text manually
-            const cell = data.cell;
-            const originalText = data.column.index === 2 ? 'Gesamtkosten' : 'Kosten pro m²';
-            
-            data.doc.setFont('helvetica', 'bold');
-            data.doc.setFontSize(9);
-            data.doc.text(originalText, cell.x + cell.width - 3, cell.y + cell.height / 2 + 1, { align: 'right' });
-          }
         },
         // Ensure table aligns with left and right content margins
         tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
