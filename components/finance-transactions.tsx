@@ -251,7 +251,6 @@ export function FinanceTransactions({
               </div>
             </div>
             <div className="rounded-lg border relative min-h-[60vh]">
-              <FinanceTableToolbar numSelected={Object.keys(rowSelection).length} selectedIds={Object.keys(rowSelection)} onRefresh={fullReload} />
               {isFilterLoading && (
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-md flex items-center justify-center">
                   <div className="flex flex-col items-center gap-3 p-6">
@@ -268,29 +267,37 @@ export function FinanceTransactions({
               )}
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>
-                      <Checkbox
-                        checked={sortedAndFilteredData.length > 0 && Object.keys(rowSelection).length === sortedAndFilteredData.length}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            const newSelection = sortedAndFilteredData.reduce((acc, fin) => {
-                              acc[fin.id] = true;
-                              return acc;
-                            }, {} as Record<string, boolean>);
-                            setRowSelection(newSelection);
-                          } else {
-                            setRowSelection({});
-                          }
-                        }}
-                      />
-                    </TableHead>
-                    <TableHeaderCell sortKey="name" className="w-[25%]">Bezeichnung</TableHeaderCell>
-                    <TableHeaderCell sortKey="wohnung" className="w-[20%]">Wohnung</TableHeaderCell>
-                    <TableHeaderCell sortKey="datum" className="w-[15%]">Datum</TableHeaderCell>
-                    <TableHeaderCell sortKey="betrag" className="w-[15%]">Betrag</TableHeaderCell>
-                    <TableHeaderCell sortKey="typ" className="w-[15%]">Typ</TableHeaderCell>
-                  </TableRow>
+                  {Object.keys(rowSelection).length > 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="p-0">
+                        <FinanceTableToolbar numSelected={Object.keys(rowSelection).length} selectedIds={Object.keys(rowSelection)} onRefresh={fullReload} />
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <TableRow>
+                      <TableHead>
+                        <Checkbox
+                          checked={sortedAndFilteredData.length > 0 && Object.keys(rowSelection).length === sortedAndFilteredData.length}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              const newSelection = sortedAndFilteredData.reduce((acc, fin) => {
+                                acc[fin.id] = true;
+                                return acc;
+                              }, {} as Record<string, boolean>);
+                              setRowSelection(newSelection);
+                            } else {
+                              setRowSelection({});
+                            }
+                          }}
+                        />
+                      </TableHead>
+                      <TableHeaderCell sortKey="name" className="w-[25%]">Bezeichnung</TableHeaderCell>
+                      <TableHeaderCell sortKey="wohnung" className="w-[20%]">Wohnung</TableHeaderCell>
+                      <TableHeaderCell sortKey="datum" className="w-[15%]">Datum</TableHeaderCell>
+                      <TableHeaderCell sortKey="betrag" className="w-[15%]">Betrag</TableHeaderCell>
+                      <TableHeaderCell sortKey="typ" className="w-[15%]">Typ</TableHeaderCell>
+                    </TableRow>
+                  )}
                 </TableHeader>
                 <TableBody>
                   {isFilterLoading && (

@@ -178,29 +178,36 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
 
   return (
     <div className="rounded-lg border">
-      <ApartmentTableToolbar numSelected={numSelected} selectedIds={Object.keys(rowSelection)} houses={houses} onRefresh={onTableRefresh} />
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>
-              <Checkbox
-                checked={
-                  numSelected > 0 && numSelected === rowCount
-                    ? true
-                    : numSelected > 0 && numSelected < rowCount
-                    ? 'indeterminate'
-                    : false
-                }
-                onCheckedChange={(checked) => handleSelectAllClick(checked === true)}
-              />
-            </TableHead>
-            <TableHeaderCell sortKey="name" className="w-[250px]">Wohnung</TableHeaderCell>
-            <TableHeaderCell sortKey="groesse">Größe (m²)</TableHeaderCell>
-            <TableHeaderCell sortKey="miete">Miete (€)</TableHeaderCell>
-            <TableHeaderCell sortKey="pricePerSqm">Miete pro m²</TableHeaderCell>
-            <TableHeaderCell sortKey="haus">Haus</TableHeaderCell>
-            <TableHeaderCell sortKey="status">Status</TableHeaderCell>
-          </TableRow>
+          {numSelected > 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} className="p-0">
+                <ApartmentTableToolbar numSelected={numSelected} selectedIds={Object.keys(rowSelection)} houses={houses} onRefresh={onTableRefresh} />
+              </TableCell>
+            </TableRow>
+          ) : (
+            <TableRow>
+              <TableHead>
+                <Checkbox
+                  checked={
+                    numSelected > 0 && numSelected === rowCount
+                      ? true
+                      : numSelected > 0 && numSelected < rowCount
+                      ? 'indeterminate'
+                      : false
+                  }
+                  onCheckedChange={(checked) => handleSelectAllClick(checked === true)}
+                />
+              </TableHead>
+              <TableHeaderCell sortKey="name" className="w-[250px]">Wohnung</TableHeaderCell>
+              <TableHeaderCell sortKey="groesse">Größe (m²)</TableHeaderCell>
+              <TableHeaderCell sortKey="miete">Miete (€)</TableHeaderCell>
+              <TableHeaderCell sortKey="pricePerSqm">Miete pro m²</TableHeaderCell>
+              <TableHeaderCell sortKey="haus">Haus</TableHeaderCell>
+              <TableHeaderCell sortKey="status">Status</TableHeaderCell>
+            </TableRow>
+          )}
         </TableHeader>
         <TableBody>
           {sortedAndFilteredData.length === 0 ? (

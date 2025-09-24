@@ -52,8 +52,8 @@ export function FinanceTableToolbar({ numSelected, selectedIds, onRefresh }: Fin
   }
 
   return (
-    <div className="flex items-center justify-between p-4 bg-muted/50">
-      <div className="text-sm text-muted-foreground">
+    <div className="flex items-center justify-between p-4">
+      <div className="text-sm text-muted-foreground pl-2">
         {numSelected} Zeile(n) ausgewählt
       </div>
       <DropdownMenu>
