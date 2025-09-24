@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
 import { Check, Minus } from 'lucide-react'
 import { useBulkOperations } from '@/context/bulk-operations-context'
@@ -20,19 +20,11 @@ export function SelectAllCheckbox({
   className 
 }: SelectAllCheckboxProps) {
   const { selectAll, state } = useBulkOperations()
-  const checkboxRef = useRef<HTMLButtonElement>(null)
   
   // Calculate selection state
   const selectedCount = allIds.filter(id => selectedIds.has(id)).length
   const isAllSelected = selectedCount === allIds.length && allIds.length > 0
   const isIndeterminate = selectedCount > 0 && selectedCount < allIds.length
-  
-  // Set indeterminate state on the native checkbox element
-  useEffect(() => {
-    if (checkboxRef.current) {
-      checkboxRef.current.indeterminate = isIndeterminate
-    }
-  }, [isIndeterminate])
   
   const handleClick = (event: React.MouseEvent) => {
     // Prevent event bubbling
@@ -45,14 +37,16 @@ export function SelectAllCheckbox({
     }
   }
 
+  // Use indeterminate as the checked state for Radix
+  const checkedState = isIndeterminate ? 'indeterminate' : isAllSelected
+
   return (
     <div 
       className={cn("flex items-center justify-center", className)}
       onClick={handleClick}
     >
       <CheckboxPrimitive.Root
-        ref={checkboxRef}
-        checked={isAllSelected}
+        checked={checkedState}
         onCheckedChange={handleCheckedChange}
         disabled={disabled || state.isLoading || allIds.length === 0}
         aria-label={
