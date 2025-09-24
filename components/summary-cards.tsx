@@ -44,8 +44,8 @@ export function SummaryCards({ totalArea, apartmentCount, tenantCount, totalCost
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {cards.map((card, index) => (
-        <Card key={index} className="rounded-2xl shadow-md">
+      {cards.map((card) => (
+        <Card key={card.title} className="rounded-2xl shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
             <div className="h-5 w-5 text-muted-foreground">
