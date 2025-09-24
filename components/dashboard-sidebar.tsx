@@ -71,7 +71,7 @@ export function DashboardSidebar() {
       <Button
         variant="outline"
         size="icon"
-        className="fixed left-4 top-4 z-40 hidden"
+        className="fixed left-4 top-4 z-40 md:hidden"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
