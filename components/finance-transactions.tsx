@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip"
 import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2, CheckCircle2, Filter, Database, PlusCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { FinanceTableToolbar } from "@/components/finance-table-toolbar"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FinanceContextMenu } from "@/components/finance-context-menu"
@@ -85,6 +87,7 @@ export function FinanceTransactions({
   filters,
   onFiltersChange,
 }: FinanceTransactionsProps) {
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -248,6 +251,7 @@ export function FinanceTransactions({
               </div>
             </div>
             <div className="rounded-lg border relative min-h-[60vh]">
+              <FinanceTableToolbar numSelected={Object.keys(rowSelection).length} selectedIds={Object.keys(rowSelection)} onRefresh={fullReload} />
               {isFilterLoading && (
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-md flex items-center justify-center">
                   <div className="flex flex-col items-center gap-3 p-6">
@@ -265,6 +269,22 @@ export function FinanceTransactions({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>
+                      <Checkbox
+                        checked={sortedAndFilteredData.length > 0 && Object.keys(rowSelection).length === sortedAndFilteredData.length}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            const newSelection = sortedAndFilteredData.reduce((acc, fin) => {
+                              acc[fin.id] = true;
+                              return acc;
+                            }, {} as Record<string, boolean>);
+                            setRowSelection(newSelection);
+                          } else {
+                            setRowSelection({});
+                          }
+                        }}
+                      />
+                    </TableHead>
                     <TableHeaderCell sortKey="name" className="w-[25%]">Bezeichnung</TableHeaderCell>
                     <TableHeaderCell sortKey="wohnung" className="w-[20%]">Wohnung</TableHeaderCell>
                     <TableHeaderCell sortKey="datum" className="w-[15%]">Datum</TableHeaderCell>
@@ -275,7 +295,7 @@ export function FinanceTransactions({
                 <TableBody>
                   {isFilterLoading && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12">
+                      <TableCell colSpan={6} className="text-center py-12">
                         <div className="flex flex-col items-center gap-4">
                           <div className="relative">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -296,7 +316,7 @@ export function FinanceTransactions({
                   )}
                   {!isFilterLoading && sortedAndFilteredData.length === 0 && !isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-16">
+                      <TableCell colSpan={6} className="text-center py-16">
                         <div className="flex flex-col items-center gap-4">
                           <div className="relative">
                             <Database className="h-12 w-12 text-muted-foreground/40" />
@@ -339,12 +359,28 @@ export function FinanceTransactions({
                           }}
                           onRefresh={() => fullReload && fullReload()}
                         >
-                          <TableRow ref={isLastElement ? lastTransactionElementRef : null} className="hover:bg-muted/50 cursor-pointer" onClick={() => onEdit && onEdit(finance)}>
-                            <TableCell>{finance.name}</TableCell>
-                            <TableCell>{finance.Wohnungen?.name || '-'}</TableCell>
-                            <TableCell>{formatDate(finance.datum)}</TableCell>
-                            <TableCell><span className={finance.ist_einnahmen ? "text-green-600" : "text-red-600"}>{formatCurrency(finance.betrag)}</span></TableCell>
-                            <TableCell><Badge variant="outline" className={finance.ist_einnahmen ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}>{finance.ist_einnahmen ? "Einnahme" : "Ausgabe"}</Badge></TableCell>
+                          <TableRow ref={isLastElement ? lastTransactionElementRef : null} className="hover:bg-muted/50 cursor-pointer" data-state={rowSelection[finance.id] ? 'selected' : ''}>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={rowSelection[finance.id] || false}
+                                onCheckedChange={() => {
+                                  setRowSelection(prev => {
+                                    const newSelection = { ...prev };
+                                    if (newSelection[finance.id]) {
+                                      delete newSelection[finance.id];
+                                    } else {
+                                      newSelection[finance.id] = true;
+                                    }
+                                    return newSelection;
+                                  });
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell onClick={() => onEdit && onEdit(finance)}>{finance.name}</TableCell>
+                            <TableCell onClick={() => onEdit && onEdit(finance)}>{finance.Wohnungen?.name || '-'}</TableCell>
+                            <TableCell onClick={() => onEdit && onEdit(finance)}>{formatDate(finance.datum)}</TableCell>
+                            <TableCell onClick={() => onEdit && onEdit(finance)}><span className={finance.ist_einnahmen ? "text-green-600" : "text-red-600"}>{formatCurrency(finance.betrag)}</span></TableCell>
+                            <TableCell onClick={() => onEdit && onEdit(finance)}><Badge variant="outline" className={finance.ist_einnahmen ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}>{finance.ist_einnahmen ? "Einnahme" : "Ausgabe"}</Badge></TableCell>
                           </TableRow>
                         </FinanceContextMenu>
                       )
@@ -352,7 +388,7 @@ export function FinanceTransactions({
                   ) : null}
                   {!isFilterLoading && isLoading && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
+                      <TableCell colSpan={6} className="text-center py-8">
                         <div className="flex flex-col items-center gap-3">
                           <div className="relative">
                             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -367,7 +403,7 @@ export function FinanceTransactions({
                   )}
                   {!isFilterLoading && !isLoading && !hasMore && sortedAndFilteredData.length > 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
+                      <TableCell colSpan={6} className="text-center py-8">
                         <div className="flex flex-col items-center gap-3">
                           <div className="relative">
                             <CheckCircle2 className="h-6 w-6 text-green-500" />
@@ -390,7 +426,7 @@ export function FinanceTransactions({
                   )}
                   {!isFilterLoading && error && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
+                      <TableCell colSpan={6} className="text-center py-8">
                         <div className="flex flex-col items-center gap-4">
                           <div className="relative">
                             <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center">

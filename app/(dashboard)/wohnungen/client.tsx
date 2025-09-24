@@ -203,6 +203,7 @@ export default function WohnungenClientView({
             onEdit={handleEditWohnung}
             onTableRefresh={refreshTable}
             reloadRef={reloadRef}
+            houses={housesData}
           />
         </CardContent>
       </Card>

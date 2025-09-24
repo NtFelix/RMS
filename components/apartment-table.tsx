@@ -17,6 +17,8 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { formatNumber } from "@/utils/format"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ApartmentTableToolbar } from "@/components/apartment-table-toolbar"
 
 export interface Apartment {
   id: string
@@ -46,12 +48,14 @@ interface ApartmentTableProps {
   onTableRefresh?: () => Promise<void> // New prop for requesting data refresh from parent
   // optional initial apartments loaded server-side
   initialApartments?: Apartment[]
+  houses: { id: string; name: string }[]
 }
 
-export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, initialApartments }: ApartmentTableProps) {
+export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, initialApartments, houses }: ApartmentTableProps) {
   // initialApartments prop will be the direct source of truth for apartments data
   const [sortKey, setSortKey] = useState<ApartmentSortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
 
   // Removed internal fetchApartments. Refresh is handled by onTableRefresh prop.
 
@@ -147,11 +151,44 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
     </TableHead>
   )
 
+  const numSelected = Object.values(rowSelection).filter(Boolean).length;
+  const rowCount = sortedAndFilteredData.length;
+
+  const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      const newSelecteds = sortedAndFilteredData.reduce((acc, n) => {
+        acc[n.id] = true;
+        return acc;
+      }, {} as Record<string, boolean>);
+      setRowSelection(newSelecteds);
+      return;
+    }
+    setRowSelection({});
+  };
+
+  const handleSelectClick = (id: string) => {
+    const newSelection = { ...rowSelection };
+    if (newSelection[id]) {
+      delete newSelection[id];
+    } else {
+      newSelection[id] = true;
+    }
+    setRowSelection(newSelection);
+  };
+
   return (
     <div className="rounded-lg border">
+      <ApartmentTableToolbar numSelected={numSelected} selectedIds={Object.keys(rowSelection)} houses={houses} onRefresh={onTableRefresh} />
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>
+              <Checkbox
+                checked={rowCount > 0 && numSelected === rowCount}
+                indeterminate={numSelected > 0 && numSelected < rowCount}
+                onChange={handleSelectAllClick}
+              />
+            </TableHead>
             <TableHeaderCell sortKey="name" className="w-[250px]">Wohnung</TableHeaderCell>
             <TableHeaderCell sortKey="groesse">Größe (m²)</TableHeaderCell>
             <TableHeaderCell sortKey="miete">Miete (€)</TableHeaderCell>
@@ -163,7 +200,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
         <TableBody>
           {sortedAndFilteredData.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center"> {/* Adjusted colSpan */}
+              <TableCell colSpan={7} className="h-24 text-center"> {/* Adjusted colSpan */}
                 Keine Wohnungen gefunden.
               </TableCell>
             </TableRow>
@@ -179,9 +216,18 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                   }
                 }}
               >
-                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(apt)}>
-                  <TableCell className="font-medium">{apt.name}</TableCell>
-                  <TableCell>{formatNumber(apt.groesse)} m²</TableCell>
+                <TableRow
+                  className="hover:bg-gray-50 cursor-pointer"
+                  data-state={rowSelection[apt.id] ? 'selected' : ''}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={rowSelection[apt.id] || false}
+                      onCheckedChange={() => handleSelectClick(apt.id)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium"  onClick={() => onEdit?.(apt)}>{apt.name}</TableCell>
+                  <TableCell onClick={() => onEdit?.(apt)}>{formatNumber(apt.groesse)} m²</TableCell>
                   <TableCell>{formatNumber(apt.miete)} €</TableCell>
                   <TableCell>{formatNumber(apt.miete / apt.groesse)} €/m²</TableCell>
                   <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
