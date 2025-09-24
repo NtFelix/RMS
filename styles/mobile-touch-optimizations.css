@@ -59,10 +59,7 @@
     overflow: hidden;
   }
 
-  /* Safe area support for devices with notches/home indicators */
-  .mobile-nav-safe-area {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-  }
+
 
   /* Improve scrolling performance on mobile */
   .mobile-nav-container {
