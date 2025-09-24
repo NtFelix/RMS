@@ -51,7 +51,7 @@ export function TaskBoard({
   onTaskUpdated, 
   onTaskDeleted 
 }: TaskBoardProps) {
-  const [isLoading, setIsLoading] = useState(false)
+
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const [optimisticTasks, setOptimisticTasks] = useState<Task[]>(tasks)
@@ -282,13 +282,7 @@ export function TaskBoard({
 
   const activeTask = activeId ? tasks.find(task => task.id === activeId) : null
 
-  if (isLoading && tasks.length === 0) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+
 
   return (
     <DndContext
