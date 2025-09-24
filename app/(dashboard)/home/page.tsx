@@ -17,7 +17,7 @@ export default async function Dashboard() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const displayName = user?.user_metadata.display_name;
+  const displayName = user?.user_metadata.display_name || user?.email;
 
   // Fetch real data from database
   const summary = await getDashboardSummary();
