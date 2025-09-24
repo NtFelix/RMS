@@ -165,7 +165,7 @@ describe('MobileBottomNavigation - Accessibility Compliance', () => {
         
         // Check menu items
         const menuItems = screen.getAllByRole('menuitem')
-        expect(menuItems).toHaveLength(5) // All dropdown items should be visible
+        expect(menuItems).toHaveLength(8) // All dropdown items should be visible
         
         menuItems.forEach(item => {
           expect(item).toHaveAttribute('role', 'menuitem')
