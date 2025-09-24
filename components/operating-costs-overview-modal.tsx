@@ -139,7 +139,7 @@ export function OperatingCostsOverviewModal({
           lineColor: [0, 0, 0] // Black color for row separators
         },
         columnStyles: {
-          0: { halign: 'center' }, // Center align position numbers
+          0: { halign: 'left' },   // Left align position numbers
           1: { halign: 'left' },   // Left align service descriptions
           2: { halign: 'right' },  // Right align total costs
           3: { halign: 'right' },  // Right align costs per sqm
