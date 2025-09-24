@@ -235,7 +235,7 @@ export function OperatingCostsOverviewModal({
         </div>
         
         <div className="space-y-6">
-          <div className="rounded-md border">
+          <div className="rounded-2xl border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -270,7 +270,7 @@ export function OperatingCostsOverviewModal({
           </div>
 
           {/* Water costs section */}
-          <div className="rounded-md border p-4">
+          <div className="rounded-2xl border p-4">
             <h3 className="font-semibold mb-4">Wasserkosten</h3>
             {(nebenkosten.wasserkosten && nebenkosten.wasserkosten > 0) || typeof nebenkosten.wasserverbrauch === 'number' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
