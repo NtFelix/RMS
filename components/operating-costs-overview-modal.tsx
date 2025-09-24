@@ -235,7 +235,7 @@ export function OperatingCostsOverviewModal({
         </div>
         
         <div className="space-y-6">
-          <div className="rounded-2xl border">
+          <div className="rounded-2xl border overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
