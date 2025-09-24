@@ -734,9 +734,9 @@ describe('MobileBottomNavigation - Accessibility Compliance', () => {
       })
       
       await waitFor(() => {
-        // Should focus on Tasks (last visible item when Documents is hidden)
-        const tasksItem = screen.getByRole('menuitem', { name: /Navigate to Aufgaben/ })
-        expect(tasksItem).toHaveFocus()
+        // Should focus on Logout (last visible item when Documents is hidden)
+        const logoutItem = screen.getByRole('menuitem', { name: /Open Abmelden/ })
+        expect(logoutItem).toHaveFocus()
       })
     })
   })
