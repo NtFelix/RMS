@@ -59,7 +59,7 @@ export function TaskBoard({
   const [optimisticTasks, setOptimisticTasks] = useState<Task[]>(tasks)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
   const [dragDirection, setDragDirection] = useState<'todo-to-done' | 'done-to-todo' | null>(null)
-  const dragTimeoutRef = useRef<NodeJS.Timeout>()
+  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Update optimistic tasks when props change
   useEffect(() => {
