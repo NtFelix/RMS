@@ -14,7 +14,6 @@ interface TodosClientWrapperProps {
 }
 
 export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientWrapperProps) {
-  const [filter, setFilter] = useState<"open" | "done" | "all">("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [tasks, setTasks] = useState<TaskBoardTask[]>(initialTasks);
 
@@ -42,10 +41,10 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <Card className="overflow-hidden rounded-2xl border-none shadow-md">
+      <Card className="overflow-hidden rounded-2xl shadow-md">
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
-            <CardTitle>Aufgabenliste</CardTitle>
+            <CardTitle>Aufgaben Board</CardTitle>
             <ButtonWithTooltip className="sm:w-auto" onClick={handleAddTask}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Aufgabe hinzufügen
@@ -53,20 +52,15 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4">
-            <TaskFilters 
-              activeFilter={filter}
-              onFilterChange={setFilter}
-              onSearchChange={setSearchQuery}
-            />
-            <TaskBoard 
-              filter={filter} 
-              searchQuery={searchQuery} 
-              tasks={tasks}
-              onTaskUpdated={handleTaskUpdated}
-              onTaskDeleted={handleTaskDeleted}
-            />
-          </div>
+          <TaskFilters 
+            onSearchChange={setSearchQuery}
+          />
+          <TaskBoard 
+            searchQuery={searchQuery} 
+            tasks={tasks}
+            onTaskUpdated={handleTaskUpdated}
+            onTaskDeleted={handleTaskDeleted}
+          />
         </CardContent>
       </Card>
       <Toaster />
