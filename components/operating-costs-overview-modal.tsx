@@ -152,6 +152,14 @@ export function OperatingCostsOverviewModal({
             data.cell.styles.fontStyle = 'bold'
             data.cell.styles.fillColor = [248, 248, 248]
           }
+          // Ensure header columns are properly aligned
+          if (data.section === 'head') {
+            if (data.column.index === 2 || data.column.index === 3) {
+              data.cell.styles.halign = 'right'
+            } else {
+              data.cell.styles.halign = 'left'
+            }
+          }
         }
       })
 
