@@ -10,15 +10,25 @@ import { RevenueExpensesChart } from "@/components/charts/revenue-expenses-chart
 import { OccupancyChart } from "@/components/charts/occupancy-chart"
 import { MaintenanceDonutChart } from "@/components/charts/maintenance-donut-chart"
 import { LastTransactionsContainer } from "@/components/last-transactions-container"
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export default async function Dashboard() {
+  const supabase = createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const displayName = user?.user_metadata.display_name;
+
   // Fetch real data from database
   const summary = await getDashboardSummary();
   
   return (
     <div className="flex flex-col gap-8 p-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Willkommen, {displayName ?? 'zurück'}!</h1>
+        <p className="text-muted-foreground">
+          Hier ist eine Übersicht über deine Immobilien.
+        </p>
       </div>
       <div className="grid gap-4 grid-cols-6 auto-rows-[140px] h-[calc(100vh-200px)]">
         {/* Row 1: Three wider summary cards (2/3 width - 4 columns total) + Tenant Payment List (1/3 width - 2 columns) */}
