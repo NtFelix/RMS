@@ -1,6 +1,12 @@
 /* Template Editor Styles */
 @import '../styles/template-editor.css';
 
+/* Mobile Touch Optimization Styles */
+@import '../styles/mobile-touch-optimizations.css';
+
+/* Mobile Navigation Accessibility Styles */
+@import '../styles/mobile-navigation-accessibility.css';
+
 
 
 @tailwind base;
@@ -467,6 +473,131 @@
   @media (min-width: 640px) {
     .truncate-mobile {
       max-width: none;
+    }
+  }
+
+  /* Mobile navigation responsive behavior - CSS-only fallbacks */
+  .mobile-nav-responsive {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .mobile-nav-responsive {
+      display: none;
+    }
+  }
+
+  /* Desktop sidebar responsive behavior - CSS-only fallbacks */
+  .desktop-sidebar-responsive {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .desktop-sidebar-responsive {
+      display: block;
+    }
+  }
+
+  /* Main content responsive padding - CSS-only fallbacks */
+  .main-content-responsive {
+    padding-bottom: 5rem; /* 80px for mobile nav */
+  }
+
+  @media (min-width: 768px) {
+    .main-content-responsive {
+      padding-bottom: 1.5rem; /* 24px for desktop */
+    }
+  }
+
+  /* Hydration-safe responsive utilities */
+  .hydration-safe-mobile {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .hydration-safe-mobile {
+      display: none;
+    }
+  }
+
+  .hydration-safe-desktop {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .hydration-safe-desktop {
+      display: block;
+    }
+  }
+
+  /* Smooth transitions for responsive changes */
+  .responsive-transition {
+    transition: padding-bottom 200ms ease-in-out, margin-bottom 200ms ease-in-out;
+  }
+
+  /* Prevent layout shift during hydration */
+  .prevent-layout-shift {
+    min-height: 0;
+    contain: layout style;
+  }
+
+  /* Safe area support for mobile navigation - balanced padding */
+  .pb-safe {
+    padding-top: 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  /* Enhanced mobile navigation animations */
+  .mobile-nav-item {
+    transform-origin: center;
+    will-change: transform, background-color, color;
+  }
+
+  .mobile-nav-item:active {
+    transform: scale(0.95);
+  }
+
+  /* Smooth dropdown animations */
+  .dropdown-enter {
+    animation: dropdownSlideIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dropdown-exit {
+    animation: dropdownSlideOut 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes dropdownSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes dropdownSlideOut {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(10px) scale(0.95);
+    }
+  }
+
+  /* Enhanced focus styles for mobile navigation */
+  .mobile-nav-focus {
+    outline: 2px solid hsl(var(--primary) / 0.2);
+    outline-offset: 2px;
+  }
+
+  /* Backdrop blur support fallback */
+  @supports not (backdrop-filter: blur(8px)) {
+    .mobile-nav-backdrop-fallback {
+      background-color: hsl(var(--background) / 0.98);
     }
   }
 }

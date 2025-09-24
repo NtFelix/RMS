@@ -1,0 +1,186 @@
+/* Mobile Navigation Accessibility Styles */
+
+/* Ensure proper responsive behavior */
+.mobile-nav-responsive {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-nav-responsive {
+    display: block;
+  }
+}
+
+/* Hydration safety */
+.hydration-safe-mobile {
+  opacity: 1;
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Prevent layout shift during hydration */
+.prevent-layout-shift {
+  min-height: 4rem; /* 64px - h-16 */
+}
+
+/* Safe area support for devices with home indicators - balanced padding */
+.mobile-nav-safe-area {
+  padding-top: 0.5rem;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+/* Mobile navigation container optimizations */
+.mobile-nav-container {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  will-change: transform;
+}
+
+/* Touch feedback for mobile interactions */
+.touch-feedback {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.touch-feedback:active {
+  transform: scale(0.95);
+}
+
+/* Mobile navigation item styling */
+.mobile-nav-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.mobile-nav-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: inherit;
+}
+
+.mobile-nav-item:hover::before,
+.mobile-nav-item:focus::before {
+  opacity: 0.05;
+}
+
+.mobile-nav-item:active::before {
+  opacity: 0.1;
+}
+
+/* Dropdown specific styles */
+.mobile-dropdown {
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  will-change: transform, opacity;
+}
+
+.mobile-dropdown-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.mobile-dropdown-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: inherit;
+}
+
+.mobile-dropdown-item:hover::before,
+.mobile-dropdown-item:focus::before {
+  opacity: 0.05;
+}
+
+.mobile-dropdown-item:active::before {
+  opacity: 0.1;
+}
+
+/* Focus indicators for accessibility */
+.mobile-nav-item:focus-visible,
+.mobile-dropdown-item:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .mobile-nav-item,
+  .mobile-dropdown-item {
+    border: 1px solid currentColor;
+  }
+  
+  .mobile-nav-item:focus,
+  .mobile-dropdown-item:focus {
+    outline: 3px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav-item,
+  .mobile-dropdown-item,
+  .mobile-nav-container,
+  .mobile-dropdown {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  .touch-feedback:active {
+    transform: none;
+  }
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Ensure proper z-index layering */
+.mobile-nav-container {
+  z-index: 50;
+}
+
+.mobile-dropdown {
+  z-index: 40;
+}
+
+/* Touch target size enforcement */
+.mobile-nav-item,
+.mobile-dropdown-item {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Ensure proper spacing for touch targets */
+.mobile-nav-item + .mobile-nav-item {
+  margin-left: 0.25rem;
+}
+
+.mobile-dropdown-item + .mobile-dropdown-item {
+  margin-top: 0.125rem;
+}

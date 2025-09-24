@@ -1,0 +1,103 @@
+/* Mobile Touch Interaction Optimizations */
+
+/* Ensure proper touch target sizes on all mobile devices */
+@media (max-width: 767px) {
+  /* Mobile navigation touch targets */
+  .mobile-nav-item {
+    min-height: 44px;
+    min-width: 44px;
+    /* Improve touch responsiveness */
+    touch-action: manipulation;
+    /* Prevent text selection on touch */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    /* Prevent callout on iOS */
+    -webkit-touch-callout: none;
+    /* Prevent tap highlight on mobile browsers */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Dropdown items touch optimization */
+  .mobile-dropdown-item {
+    min-height: 44px;
+    /* Improve touch responsiveness */
+    touch-action: manipulation;
+    /* Prevent text selection on touch */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    /* Prevent callout on iOS */
+    -webkit-touch-callout: none;
+    /* Prevent tap highlight on mobile browsers */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Enhanced touch feedback animations */
+  .touch-feedback {
+    transition: transform 0.1s ease-out, background-color 0.1s ease-out;
+  }
+
+  .touch-feedback:active {
+    transform: scale(0.95);
+  }
+
+  /* Optimize dropdown for touch interactions */
+  .mobile-dropdown {
+    /* Ensure dropdown is above other content */
+    z-index: 1000;
+    /* Add padding for easier touch interactions */
+    padding: 8px 0;
+    /* Smooth animations optimized for mobile */
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+  }
+
+  /* Prevent scroll bounce when dropdown is open */
+  .dropdown-open {
+    overflow: hidden;
+  }
+
+
+
+  /* Improve scrolling performance on mobile */
+  .mobile-nav-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .mobile-nav-item,
+  .mobile-dropdown-item {
+    /* Ensure crisp rendering on high DPI displays */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav-item,
+  .mobile-dropdown-item,
+  .touch-feedback {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Dark mode touch feedback adjustments */
+@media (prefers-color-scheme: dark) {
+  .touch-feedback:active {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Light mode touch feedback adjustments */
+@media (prefers-color-scheme: light) {
+  .touch-feedback:active {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}
