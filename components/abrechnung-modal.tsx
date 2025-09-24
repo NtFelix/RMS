@@ -593,17 +593,16 @@ export function AbrechnungModal({
             textColor: [0, 0, 0],
             fontStyle: 'bold',
             lineWidth: { bottom: 0.3 }, // Thicker bottom border for header
-            lineColor: { bottom: [0, 0, 0] } // Black color for header bottom border
+            lineColor: [0, 0, 0] // Black color for header bottom border
           },
           styles: { 
             fontSize: 9, 
             cellPadding: 1.5,
-            lineWidth: 0, // Remove all cell borders
-            lineColor: [255, 255, 255] // Make any remaining lines white (invisible)
+            lineWidth: 0 // Remove all cell borders
           },
           bodyStyles: {
             lineWidth: { bottom: 0.1 }, // Only add thin bottom border for rows
-            lineColor: { bottom: [0, 0, 0] } // Black color for row separators
+            lineColor: [0, 0, 0] // Black color for row separators
           },
           columnStyles: {
             1: { halign: 'right' }, // Gesamtkosten in €
