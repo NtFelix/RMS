@@ -154,16 +154,16 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
   const numSelected = Object.values(rowSelection).filter(Boolean).length;
   const rowCount = sortedAndFilteredData.length;
 
-  const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
+  const handleSelectAllClick = (checked: boolean) => {
+    if (checked) {
       const newSelecteds = sortedAndFilteredData.reduce((acc, n) => {
         acc[n.id] = true;
         return acc;
       }, {} as Record<string, boolean>);
       setRowSelection(newSelecteds);
-      return;
+    } else {
+      setRowSelection({});
     }
-    setRowSelection({});
   };
 
   const handleSelectClick = (id: string) => {
@@ -184,9 +184,14 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
           <TableRow>
             <TableHead>
               <Checkbox
-                checked={rowCount > 0 && numSelected === rowCount}
-                indeterminate={numSelected > 0 && numSelected < rowCount}
-                onChange={handleSelectAllClick}
+                checked={
+                  numSelected > 0 && numSelected === rowCount
+                    ? true
+                    : numSelected > 0 && numSelected < rowCount
+                    ? 'indeterminate'
+                    : false
+                }
+                onCheckedChange={(checked) => handleSelectAllClick(checked === true)}
               />
             </TableHead>
             <TableHeaderCell sortKey="name" className="w-[250px]">Wohnung</TableHeaderCell>
