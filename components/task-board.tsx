@@ -140,13 +140,7 @@ export function TaskBoard({
     const { over, active } = event
     const overId = over?.id as string || null
     
-    // Debug logging
-    console.log('DragOver:', { 
-      activeId: active?.id, 
-      overId, 
-      overRect: over?.rect,
-      dragDirection 
-    })
+
     
     setOverId(overId)
     
@@ -167,21 +161,14 @@ export function TaskBoard({
     const taskId = active.id as string
     const task = optimisticTasks.find(t => t.id === taskId)
     
-    // Debug logging
-    console.log('DragEnd:', { 
-      activeId: active?.id, 
-      overId: over?.id, 
-      overRect: over?.rect,
-      task: task?.name,
-      currentStatus: task?.ist_erledigt
-    })
+
     
     setActiveId(null)
     setOverId(null)
     setDragDirection(null)
 
     if (!over || !task) {
-      console.log('DragEnd aborted:', { over: !!over, task: !!task })
+
       return
     }
 
