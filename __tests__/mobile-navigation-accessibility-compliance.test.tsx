@@ -302,7 +302,7 @@ describe('MobileBottomNavigation - Accessibility Compliance', () => {
       })
       
       await waitFor(() => {
-        const lastItem = screen.getByRole('menuitem', { name: /Navigate to Dokumente/ })
+        const lastItem = screen.getByRole('menuitem', { name: /Open Abmelden/ })
         expect(lastItem).toHaveFocus()
       })
     })
