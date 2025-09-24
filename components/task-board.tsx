@@ -39,7 +39,6 @@ export interface Task extends Omit<TaskCardTask, 'status' | 'createdAt' | 'updat
 }
 
 interface TaskBoardProps {
-  filter: string
   searchQuery: string
   tasks: Task[]
   onTaskUpdated: (task: Task) => void
@@ -47,7 +46,6 @@ interface TaskBoardProps {
 }
 
 export function TaskBoard({ 
-  filter, 
   searchQuery, 
   tasks, 
   onTaskUpdated, 

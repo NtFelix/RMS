@@ -56,7 +56,6 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
             onSearchChange={setSearchQuery}
           />
           <TaskBoard 
-            filter="all"
             searchQuery={searchQuery} 
             tasks={tasks}
             onTaskUpdated={handleTaskUpdated}
