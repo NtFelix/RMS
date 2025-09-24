@@ -19,7 +19,9 @@ const customJestConfig = {
     '^@/lib/(.*)$': '<rootDir>/lib/$1',
     '^@/utils/(.*)$': '<rootDir>/utils/$1',
     '^@/app/(.*)$': '<rootDir>/app/$1',
-    '^@/hooks/(.*)$': '<rootDir>/hooks/$1', // Added specific mapping for hooks
+    '^@/hooks/(.*)$': '<rootDir>/hooks/$1',
+    '^@/context/(.*)$': '<rootDir>/context/$1',
+    '^@/types/(.*)$': '<rootDir>/types/$1',
   },
   // If you're using TypeScript with a baseUrl to set up directory aliases,
   // you need to tell Jest about these paths too.
