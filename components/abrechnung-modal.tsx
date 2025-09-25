@@ -1295,8 +1295,8 @@ export function AbrechnungModal({
             Schließen
           </Button>
           
-          {/* Export Dropdown Button */}
-          <div className="flex">
+          {/* Export Button with Integrated Dropdown */}
+          <div className="relative">
             <Button 
               variant="default" 
               onClick={async () => { 
@@ -1315,21 +1315,21 @@ export function AbrechnungModal({
                 }
               }}
               disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-              className="rounded-r-none border-r-0 h-10"
+              className="pr-12 h-10"
             >
               <FileDown className="mr-2 h-4 w-4" />
               {isGeneratingPDF ? "PDF wird erstellt..." : "Als PDF exportieren"}
             </Button>
             
+            {/* Circular Dropdown Trigger */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="default" 
+                <button
                   disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-                  className="rounded-l-none px-2 bg-primary/80 hover:bg-primary/90 h-10"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-primary/80 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                 >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
+                  <ChevronDown className="h-4 w-4 text-primary-foreground" />
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
