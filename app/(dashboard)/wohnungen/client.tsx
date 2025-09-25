@@ -4,12 +4,13 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
 import { PlusCircle, Home, Key, Euro, Ruler } from "lucide-react";
 import { ApartmentFilters } from "@/components/apartment-filters";
-import { ApartmentTable } from "@/components/apartment-table";
+import { SelectableApartmentTable } from "@/components/selectable-apartment-table";
+import { BulkOperationsProvider } from "@/context/bulk-operations-context";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
+import type { Apartment as ApartmentTableType } from "@/components/selectable-apartment-table";
 import { StatCard } from "@/components/stat-card";
 
 // Props for the main client view component, matching what page.tsx will pass
@@ -196,14 +197,16 @@ export default function WohnungenClientView({
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <ApartmentTable
-            filter={filter}
-            searchQuery={searchQuery}
-            initialApartments={apartments}
-            onEdit={handleEditWohnung}
-            onTableRefresh={refreshTable}
-            reloadRef={reloadRef}
-          />
+          <BulkOperationsProvider>
+            <SelectableApartmentTable
+              filter={filter}
+              searchQuery={searchQuery}
+              initialApartments={apartments}
+              onEdit={handleEditWohnung}
+              onTableRefresh={refreshTable}
+              reloadRef={reloadRef}
+            />
+          </BulkOperationsProvider>
         </CardContent>
       </Card>
     </div>

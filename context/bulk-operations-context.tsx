@@ -119,24 +119,69 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
       return
     }
 
+    if (!state.tableType) {
+      dispatch({ type: 'SET_ERROR', payload: 'No table type set' })
+      return
+    }
+
     dispatch({ type: 'SET_LOADING', payload: true })
     dispatch({ type: 'SET_ERROR', payload: null })
 
     try {
-      // This will be implemented in later tasks when we create the actual bulk operation handlers
-      // For now, we just simulate the operation
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const selectedIdsArray = Array.from(state.selectedIds)
       
-      // Clear selection after successful operation
-      dispatch({ type: 'CLEAR_SELECTION' })
+      const response = await fetch('/api/bulk-operations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          operation: operation.id,
+          tableType: state.tableType,
+          selectedIds: selectedIdsArray,
+          data,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Bulk operation failed')
+      }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Bulk operation failed')
+      }
+
+      // Show success message if there were updates
+      if (result.updatedCount > 0) {
+        // Success will be handled by the component that called this function
+        // Clear selection after successful operation
+        dispatch({ type: 'CLEAR_SELECTION' })
+      }
+
+      // Show warnings for failed items if any
+      if (result.failedIds && result.failedIds.length > 0) {
+        const failedCount = result.failedIds.length
+        const successCount = result.updatedCount
+        dispatch({ 
+          type: 'SET_ERROR', 
+          payload: `${successCount} Einträge erfolgreich aktualisiert, ${failedCount} fehlgeschlagen.` 
+        })
+      }
+
       dispatch({ type: 'SET_LOADING', payload: false })
+      
+      return result
     } catch (error) {
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: error instanceof Error ? error.message : 'An error occurred during bulk operation' 
+        payload: error instanceof Error ? error.message : 'Ein Fehler ist bei der Bulk-Operation aufgetreten' 
       })
+      throw error
     }
-  }, [state.selectedIds])
+  }, [state.selectedIds, state.tableType])
 
   const contextValue: BulkOperationsContext = {
     state,

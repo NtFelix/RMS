@@ -4,21 +4,31 @@ import { useState, useEffect, useMemo, MutableRefObject } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { ApartmentContextMenu } from "@/components/apartment-context-menu"
-import { SelectableTable, SelectableTableRow, SelectableTableHeader } from "@/components/selectable-table"
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel
-} from "@/components/ui/alert-dialog"
+import { RowSelectionCheckbox } from "@/components/row-selection-checkbox"
+import { SelectAllCheckbox } from "@/components/select-all-checkbox"
+import { BulkActionBar } from "@/components/bulk-action-bar"
+import { useBulkOperations } from "@/context/bulk-operations-context"
+import { getBulkOperationsForTable } from "@/lib/bulk-operations-config"
 import { toast } from "@/hooks/use-toast"
 import { ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { formatNumber } from "@/utils/format"
-import { Apartment } from "@/components/apartment-table"
+import { cn } from "@/lib/utils"
+
+export interface Apartment {
+  id: string
+  name: string
+  groesse: number
+  miete: number
+  haus_id?: string
+  Haeuser?: { name: string } | null
+  status: 'frei' | 'vermietet'
+  tenant?: {
+    id: string
+    name: string
+    einzug?: string
+    auszug?: string
+  } | null
+}
 
 // Define sortable fields for apartments
 type ApartmentSortKey = "name" | "groesse" | "miete" | "pricePerSqm" | "haus" | "status"
@@ -39,13 +49,24 @@ export function SelectableApartmentTable({
   reloadRef, 
   onEdit, 
   onTableRefresh, 
-  initialApartments 
+  initialApartments = [] 
 }: SelectableApartmentTableProps) {
   const [sortKey, setSortKey] = useState<ApartmentSortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const { state, setTableType, clearSelection } = useBulkOperations()
+  
+  // Set table type when component mounts
+  useEffect(() => {
+    setTableType('wohnungen')
+    
+    // Clear selections when component unmounts
+    return () => {
+      clearSelection()
+    }
+  }, [setTableType, clearSelection])
 
   const sortedAndFilteredData = useMemo(() => {
-    let result = [...(initialApartments ?? [])]
+    let result = [...initialApartments]
     
     // Filter by status
     if (filter === 'free') {
@@ -86,17 +107,17 @@ export function SelectableApartmentTable({
         if (valB === undefined || valB === null) valB = ''
 
         // Convert to number if it's a numeric string for proper sorting
-        const numA = parseFloat(String(valA));
-        const numB = parseFloat(String(valB));
+        const numA = parseFloat(String(valA))
+        const numB = parseFloat(String(valB))
 
         if (!isNaN(numA) && !isNaN(numB)) {
-          if (numA < numB) return sortDirection === "asc" ? -1 : 1;
-          if (numA > numB) return sortDirection === "asc" ? 1 : -1;
-          return 0;
+          if (numA < numB) return sortDirection === "asc" ? -1 : 1
+          if (numA > numB) return sortDirection === "asc" ? 1 : -1
+          return 0
         } else {
-          const strA = String(valA);
-          const strB = String(valB);
-          return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
+          const strA = String(valA)
+          const strB = String(valB)
+          return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA)
         }
       })
     }
@@ -136,68 +157,107 @@ export function SelectableApartmentTable({
     </TableHead>
   )
 
+  // Get bulk operations for wohnungen table
+  const bulkOperations = getBulkOperationsForTable('wohnungen')
+  
+  // Get affected items preview for the action bar
+  const getAffectedItemsPreview = (selectedIds: string[]) => {
+    return sortedAndFilteredData
+      .filter(apt => selectedIds.includes(apt.id))
+      .map(apt => apt.name)
+  }
+
+  // Extract all IDs from filtered data for select all functionality
+  const allIds = useMemo(() => sortedAndFilteredData.map(item => item.id), [sortedAndFilteredData])
+
   return (
-    <SelectableTable
-      data={sortedAndFilteredData}
-      tableType="wohnungen"
-      className="rounded-lg border"
-    >
-      <Table>
-        <TableHeader>
-          <SelectableTableHeader allIds={sortedAndFilteredData.map(apt => apt.id)}>
-            <TableHeaderCell sortKey="name" className="w-[250px]">Wohnung</TableHeaderCell>
-            <TableHeaderCell sortKey="groesse">Größe (m²)</TableHeaderCell>
-            <TableHeaderCell sortKey="miete">Miete (€)</TableHeaderCell>
-            <TableHeaderCell sortKey="pricePerSqm">Miete pro m²</TableHeaderCell>
-            <TableHeaderCell sortKey="haus">Haus</TableHeaderCell>
-            <TableHeaderCell sortKey="status">Status</TableHeaderCell>
-          </SelectableTableHeader>
-        </TableHeader>
-        <TableBody>
-          {sortedAndFilteredData.length === 0 ? (
+    <div className="relative">
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center">
-                Keine Wohnungen gefunden.
-              </TableCell>
+              <TableHead className="w-12">
+                <SelectAllCheckbox
+                  allIds={allIds}
+                  selectedIds={state.selectedIds}
+                  disabled={state.isLoading}
+                />
+              </TableHead>
+              <TableHeaderCell sortKey="name" className="w-[250px]">Wohnung</TableHeaderCell>
+              <TableHeaderCell sortKey="groesse">Größe (m²)</TableHeaderCell>
+              <TableHeaderCell sortKey="miete">Miete (€)</TableHeaderCell>
+              <TableHeaderCell sortKey="pricePerSqm">Miete pro m²</TableHeaderCell>
+              <TableHeaderCell sortKey="haus">Haus</TableHeaderCell>
+              <TableHeaderCell sortKey="status">Status</TableHeaderCell>
             </TableRow>
-          ) : (
-            sortedAndFilteredData.map((apt) => (
-              <ApartmentContextMenu
-                key={apt.id}
-                apartment={apt}
-                onEdit={() => onEdit?.(apt)}
-                onRefresh={async () => {
-                  if (onTableRefresh) {
-                    await onTableRefresh();
-                  }
-                }}
-              >
-                <SelectableTableRow
-                  id={apt.id}
-                  onClick={() => onEdit?.(apt)}
-                >
-                  <TableCell className="font-medium">{apt.name}</TableCell>
-                  <TableCell>{formatNumber(apt.groesse)} m²</TableCell>
-                  <TableCell>{formatNumber(apt.miete)} €</TableCell>
-                  <TableCell>{formatNumber(apt.miete / apt.groesse)} €/m²</TableCell>
-                  <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
-                  <TableCell>
-                    {apt.status === 'vermietet' ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
-                        vermietet
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
-                        frei
-                      </Badge>
-                    )}
-                  </TableCell>
-                </SelectableTableRow>
-              </ApartmentContextMenu>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </SelectableTable>
+          </TableHeader>
+          <TableBody>
+            {sortedAndFilteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  Keine Wohnungen gefunden.
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedAndFilteredData.map((apt) => {
+                const isSelected = state.selectedIds.has(apt.id)
+                return (
+                  <ApartmentContextMenu
+                    key={apt.id}
+                    apartment={apt}
+                    onEdit={() => onEdit?.(apt)}
+                    onRefresh={async () => {
+                      if (onTableRefresh) {
+                        await onTableRefresh()
+                      }
+                    }}
+                  >
+                    <TableRow 
+                      className={cn(
+                        "hover:bg-gray-50 cursor-pointer transition-colors",
+                        isSelected && "bg-blue-50 border-blue-200"
+                      )}
+                      data-selected={isSelected}
+                      onClick={() => onEdit?.(apt)}
+                    >
+                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                        <RowSelectionCheckbox
+                          rowId={apt.id}
+                          disabled={state.isLoading}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{apt.name}</TableCell>
+                      <TableCell>{formatNumber(apt.groesse)} m²</TableCell>
+                      <TableCell>{formatNumber(apt.miete)} €</TableCell>
+                      <TableCell>{formatNumber(apt.miete / apt.groesse)} €/m²</TableCell>
+                      <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
+                      <TableCell>
+                        {apt.status === 'vermietet' ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
+                            vermietet
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
+                            frei
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  </ApartmentContextMenu>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {/* Bulk Action Bar */}
+      {state.selectedIds.size > 0 && (
+        <BulkActionBar
+          operations={bulkOperations}
+          getAffectedItemsPreview={getAffectedItemsPreview}
+        />
+      )}
+    </div>
   )
 }

@@ -3,10 +3,10 @@
 import React, { useEffect, useCallback, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { useBulkOperations } from '@/context/bulk-operations-context'
 import { BulkOperation } from '@/types/bulk-operations'
 import { BulkOperationDropdown } from './bulk-operation-dropdown'
-import { BulkOperationConfirmationDialog } from './bulk-operation-confirmation-dialog'
 import { cn } from '@/lib/utils'
 
 interface BulkActionBarProps {
@@ -65,22 +65,18 @@ export function BulkActionBar({
       setAffectedItems(preview)
     }
     
-    if (operation.requiresConfirmation) {
-      setShowConfirmation(true)
-    } else {
-      // Execute operation directly if no confirmation required
-      handleConfirmOperation()
-    }
+    // Always show confirmation for operations with custom components
+    setShowConfirmation(true)
   }, [selectedIds, getAffectedItemsPreview])
 
-  // Handle operation confirmation
-  const handleConfirmOperation = useCallback(async () => {
+  // Handle operation confirmation with data from the component
+  const handleConfirmOperation = useCallback(async (data?: any) => {
     if (!selectedOperation) return
     
     setIsExecuting(true)
     
     try {
-      await performBulkOperation(selectedOperation, {})
+      await performBulkOperation(selectedOperation, data || {})
       setShowConfirmation(false)
       setSelectedOperation(null)
       setAffectedItems([])
@@ -160,17 +156,18 @@ export function BulkActionBar({
         </div>
       )}
 
-      {/* Confirmation Dialog */}
-      <BulkOperationConfirmationDialog
-        open={showConfirmation}
-        onOpenChange={setShowConfirmation}
-        operation={selectedOperation}
-        selectedCount={selectedCount}
-        isLoading={isExecuting}
-        onConfirm={handleConfirmOperation}
-        onCancel={handleCancelOperation}
-        affectedItems={affectedItems}
-      />
+      {/* Operation Dialog */}
+      {selectedOperation && (
+        <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+          <DialogContent className="sm:max-w-lg">
+            <selectedOperation.component
+              selectedIds={Array.from(selectedIds)}
+              onConfirm={handleConfirmOperation}
+              onCancel={handleCancelOperation}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
