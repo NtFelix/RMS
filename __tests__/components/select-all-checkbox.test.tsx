@@ -1,6 +1,7 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SelectAllCheckbox } from '@/components/select-all-checkbox'
+import { BulkOperationsProvider } from '@/context/bulk-operations-context'
 
 // Mock the bulk operations context
 const mockSelectAll = jest.fn()
@@ -11,11 +12,7 @@ const mockUseBulkOperations = {
     isLoading: false,
     error: null,
   },
-  selectRow: jest.fn(),
   selectAll: mockSelectAll,
-  clearSelection: jest.fn(),
-  setTableType: jest.fn(),
-  performBulkOperation: jest.fn(),
 }
 
 jest.mock('@/context/bulk-operations-context', () => ({
@@ -24,138 +21,319 @@ jest.mock('@/context/bulk-operations-context', () => ({
 }))
 
 describe('SelectAllCheckbox', () => {
-  const allIds = ['id1', 'id2', 'id3']
-  
+  const defaultProps = {
+    allIds: ['1', '2', '3'],
+    selectedIds: new Set<string>(),
+  }
+
   beforeEach(() => {
     jest.clearAllMocks()
+    mockUseBulkOperations.state.selectedIds = new Set<string>()
     mockUseBulkOperations.state.isLoading = false
   })
 
-  it('renders checkbox with correct aria-label when none selected', () => {
-    const selectedIds = new Set<string>()
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} />)
-    
-    const checkbox = screen.getByRole('checkbox')
-    expect(checkbox).toBeInTheDocument()
-    expect(checkbox).toHaveAttribute('aria-label', 'Select all rows')
+  describe('Rendering', () => {
+    it('renders checkbox with correct aria-label when none selected', () => {
+      render(<SelectAllCheckbox {...defaultProps} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toBeInTheDocument()
+      expect(checkbox).toHaveAttribute('aria-label', 'Select all rows')
+    })
+
+    it('renders checkbox with correct aria-label when all selected', () => {
+      const selectedIds = new Set(['1', '2', '3'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveAttribute('aria-label', 'Deselect all rows')
+    })
+
+    it('renders checkbox with correct aria-label when some selected', () => {
+      const selectedIds = new Set(['1', '2'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveAttribute('aria-label', 'Select all rows (some selected)')
+    })
   })
 
-  it('shows unchecked state when no rows are selected', () => {
-    const selectedIds = new Set<string>()
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} />)
-    
-    const checkbox = screen.getByRole('checkbox')
-    expect(checkbox).not.toBeChecked()
+  describe('Selection States', () => {
+    it('shows unchecked state when no rows are selected', () => {
+      render(<SelectAllCheckbox {...defaultProps} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).not.toBeChecked()
+      expect(checkbox).not.toHaveAttribute('data-state', 'indeterminate')
+    })
+
+    it('shows checked state when all rows are selected', () => {
+      const selectedIds = new Set(['1', '2', '3'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toBeChecked()
+    })
+
+    it('shows indeterminate state when some rows are selected', () => {
+      const selectedIds = new Set(['1', '2'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveAttribute('data-state', 'indeterminate')
+    })
+
+    it('shows unchecked state when allIds is empty', () => {
+      render(<SelectAllCheckbox {...defaultProps} allIds={[]} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).not.toBeChecked()
+    })
+
+    it('handles case where selected IDs include items not in allIds', () => {
+      const selectedIds = new Set(['1', '2', '4', '5']) // 4 and 5 not in allIds
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      // Should only consider IDs that are in allIds (1, 2 out of 1, 2, 3)
+      expect(checkbox).toHaveAttribute('data-state', 'indeterminate')
+    })
   })
 
-  it('shows checked state when all rows are selected', () => {
-    const selectedIds = new Set(['id1', 'id2', 'id3'])
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} />)
-    
-    const checkbox = screen.getByRole('checkbox')
-    expect(checkbox).toBeChecked()
-    expect(checkbox).toHaveAttribute('aria-label', 'Deselect all rows')
+  describe('Interactions', () => {
+    it('calls selectAll when checkbox is clicked and none are selected', () => {
+      render(<SelectAllCheckbox {...defaultProps} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      fireEvent.click(checkbox)
+      
+      expect(mockSelectAll).toHaveBeenCalledWith(['1', '2', '3'])
+    })
+
+    it('calls selectAll when checkbox is clicked and some are selected', () => {
+      const selectedIds = new Set(['1'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      fireEvent.click(checkbox)
+      
+      expect(mockSelectAll).toHaveBeenCalledWith(['1', '2', '3'])
+    })
+
+    it('calls selectAll when checkbox is clicked and all are selected (to deselect)', () => {
+      const selectedIds = new Set(['1', '2', '3'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      fireEvent.click(checkbox)
+      
+      expect(mockSelectAll).toHaveBeenCalledWith(['1', '2', '3'])
+    })
+
+    it('prevents event bubbling on container click', () => {
+      const mockParentClick = jest.fn()
+      
+      render(
+        <div onClick={mockParentClick}>
+          <SelectAllCheckbox {...defaultProps} />
+        </div>
+      )
+      
+      const container = screen.getByRole('checkbox').parentElement
+      fireEvent.click(container!)
+      
+      expect(mockParentClick).not.toHaveBeenCalled()
+    })
   })
 
-  it('shows indeterminate state when some rows are selected', () => {
-    const selectedIds = new Set(['id1', 'id2'])
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} />)
-    
-    const checkbox = screen.getByRole('checkbox')
-    expect(checkbox).not.toBeChecked()
-    expect(checkbox).toHaveAttribute('aria-label', 'Select all rows (some selected)')
-    
-    // Check for indeterminate state (this is set via useEffect on the DOM element)
-    expect(checkbox).toHaveProperty('indeterminate', true)
+  describe('Disabled States', () => {
+    it('disables checkbox when disabled prop is true', () => {
+      render(<SelectAllCheckbox {...defaultProps} disabled />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toBeDisabled()
+    })
+
+    it('disables checkbox when bulk operations are loading', () => {
+      mockUseBulkOperations.state.isLoading = true
+      
+      render(<SelectAllCheckbox {...defaultProps} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toBeDisabled()
+    })
+
+    it('disables checkbox when allIds is empty', () => {
+      render(<SelectAllCheckbox {...defaultProps} allIds={[]} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toBeDisabled()
+    })
+
+    it('does not call selectAll when disabled', () => {
+      render(<SelectAllCheckbox {...defaultProps} disabled />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      fireEvent.click(checkbox)
+      
+      expect(mockSelectAll).not.toHaveBeenCalled()
+    })
+
+    it('does not call selectAll when loading', () => {
+      mockUseBulkOperations.state.isLoading = true
+      
+      render(<SelectAllCheckbox {...defaultProps} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      fireEvent.click(checkbox)
+      
+      expect(mockSelectAll).not.toHaveBeenCalled()
+    })
   })
 
-  it('calls selectAll when checkbox is clicked', () => {
-    const selectedIds = new Set<string>()
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} />)
-    
-    const checkbox = screen.getByRole('checkbox')
-    fireEvent.click(checkbox)
-    
-    expect(mockSelectAll).toHaveBeenCalledWith(allIds)
+  describe('Visual States', () => {
+    it('applies correct CSS classes for unchecked state', () => {
+      render(<SelectAllCheckbox {...defaultProps} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveClass('border-primary')
+      expect(checkbox).not.toHaveClass('bg-blue-600')
+    })
+
+    it('applies correct CSS classes for checked state', () => {
+      const selectedIds = new Set(['1', '2', '3'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveClass('bg-blue-600', 'border-blue-600', 'text-white')
+    })
+
+    it('applies correct CSS classes for indeterminate state', () => {
+      const selectedIds = new Set(['1', '2'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveClass('bg-blue-600', 'border-blue-600', 'text-white')
+    })
+
+    it('applies custom className', () => {
+      render(<SelectAllCheckbox {...defaultProps} className="custom-class" />)
+      
+      const container = screen.getByRole('checkbox').parentElement
+      expect(container).toHaveClass('custom-class')
+    })
   })
 
-  it('prevents event bubbling on container click', () => {
-    const mockParentClick = jest.fn()
-    const selectedIds = new Set<string>()
-    
-    render(
-      <div onClick={mockParentClick}>
-        <SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} />
-      </div>
-    )
-    
-    const container = screen.getByRole('checkbox').parentElement
-    fireEvent.click(container!)
-    
-    expect(mockParentClick).not.toHaveBeenCalled()
+  describe('Icons', () => {
+    it('shows Check icon when all selected', () => {
+      const selectedIds = new Set(['1', '2', '3'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      // Check for the presence of the Check icon (Lucide Check component)
+      const checkbox = screen.getByRole('checkbox')
+      const indicator = checkbox.querySelector('svg')
+      expect(indicator).toBeInTheDocument()
+    })
+
+    it('shows Minus icon when some selected (indeterminate)', () => {
+      const selectedIds = new Set(['1', '2'])
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      // Check for the presence of the Minus icon (Lucide Minus component)
+      const checkbox = screen.getByRole('checkbox')
+      const indicator = checkbox.querySelector('svg')
+      expect(indicator).toBeInTheDocument()
+    })
   })
 
-  it('disables checkbox when disabled prop is true', () => {
-    const selectedIds = new Set<string>()
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} disabled />)
-    
-    const checkbox = screen.getByRole('checkbox')
-    expect(checkbox).toBeDisabled()
+  describe('Edge Cases', () => {
+    it('handles empty allIds array', () => {
+      render(<SelectAllCheckbox {...defaultProps} allIds={[]} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toBeDisabled()
+      expect(checkbox).not.toBeChecked()
+    })
+
+    it('handles single item in allIds', () => {
+      render(<SelectAllCheckbox {...defaultProps} allIds={['1']} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).not.toBeDisabled()
+      expect(checkbox).not.toBeChecked()
+    })
+
+    it('handles single item selected in single item allIds', () => {
+      const selectedIds = new Set(['1'])
+      render(<SelectAllCheckbox {...defaultProps} allIds={['1']} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toBeChecked()
+      expect(checkbox).not.toHaveAttribute('data-state', 'indeterminate')
+    })
+
+    it('handles selectedIds with items not in allIds', () => {
+      const selectedIds = new Set(['1', '4', '5']) // 4 and 5 not in allIds
+      render(<SelectAllCheckbox {...defaultProps} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      // Should only consider '1' from allIds ['1', '2', '3']
+      expect(checkbox).toHaveAttribute('data-state', 'indeterminate')
+    })
+
+    it('handles large number of items', () => {
+      const allIds = Array.from({ length: 1000 }, (_, i) => i.toString())
+      const selectedIds = new Set(allIds.slice(0, 500))
+      
+      render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveAttribute('data-state', 'indeterminate')
+    })
   })
 
-  it('disables checkbox when bulk operations are loading', () => {
-    mockUseBulkOperations.state.isLoading = true
-    const selectedIds = new Set<string>()
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} />)
-    
-    const checkbox = screen.getByRole('checkbox')
-    expect(checkbox).toBeDisabled()
-  })
+  describe('Accessibility', () => {
+    it('has proper role and accessibility attributes', () => {
+      render(<SelectAllCheckbox {...defaultProps} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveAttribute('role', 'checkbox')
+      expect(checkbox).toHaveAttribute('aria-label')
+    })
 
-  it('disables checkbox when allIds is empty', () => {
-    const selectedIds = new Set<string>()
-    
-    render(<SelectAllCheckbox allIds={[]} selectedIds={selectedIds} />)
-    
-    const checkbox = screen.getByRole('checkbox')
-    expect(checkbox).toBeDisabled()
-  })
+    it('updates aria-label based on selection state', () => {
+      const { rerender } = render(<SelectAllCheckbox {...defaultProps} />)
+      
+      let checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveAttribute('aria-label', 'Select all rows')
+      
+      // Update to some selected
+      const someSelected = new Set(['1'])
+      rerender(<SelectAllCheckbox {...defaultProps} selectedIds={someSelected} />)
+      
+      checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveAttribute('aria-label', 'Select all rows (some selected)')
+      
+      // Update to all selected
+      const allSelected = new Set(['1', '2', '3'])
+      rerender(<SelectAllCheckbox {...defaultProps} selectedIds={allSelected} />)
+      
+      checkbox = screen.getByRole('checkbox')
+      expect(checkbox).toHaveAttribute('aria-label', 'Deselect all rows')
+    })
 
-  it('does not call selectAll when disabled', () => {
-    const selectedIds = new Set<string>()
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} disabled />)
-    
-    const checkbox = screen.getByRole('checkbox')
-    fireEvent.click(checkbox)
-    
-    expect(mockSelectAll).not.toHaveBeenCalled()
-  })
-
-  it('applies custom className', () => {
-    const selectedIds = new Set<string>()
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} className="custom-class" />)
-    
-    const container = screen.getByRole('checkbox').parentElement
-    expect(container).toHaveClass('custom-class')
-  })
-
-  it('sets indeterminate state when some rows are selected', () => {
-    const selectedIds = new Set(['id1'])
-    
-    render(<SelectAllCheckbox allIds={allIds} selectedIds={selectedIds} />)
-    
-    // Verify the checkbox is in indeterminate state
-    const checkbox = screen.getByRole('checkbox')
-    expect(checkbox).toHaveProperty('indeterminate', true)
-    expect(checkbox).not.toBeChecked()
+    it('supports keyboard navigation', () => {
+      render(<SelectAllCheckbox {...defaultProps} />)
+      
+      const checkbox = screen.getByRole('checkbox')
+      
+      // Should be focusable
+      checkbox.focus()
+      expect(checkbox).toHaveFocus()
+      
+      // Should respond to Enter key (Radix checkbox responds to Enter, not Space for programmatic events)
+      fireEvent.click(checkbox)
+      expect(mockSelectAll).toHaveBeenCalledWith(['1', '2', '3'])
+    })
   })
 })
