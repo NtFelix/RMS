@@ -16,8 +16,11 @@ export interface ValidationRule {
 export interface BulkOperation {
   id: string
   label: string
-  icon?: React.ComponentType
+  icon?: React.ComponentType<{ className?: string }>
   requiresConfirmation: boolean
+  destructive?: boolean
+  disabled?: boolean
+  disabledReason?: string
   validationRules?: ValidationRule[]
   component: React.ComponentType<BulkOperationProps>
 }

@@ -1,48 +1,104 @@
 'use client'
 
-import React, { useEffect, useCallback } from 'react'
-import { X, ChevronDown } from 'lucide-react'
+import React, { useEffect, useCallback, useState } from 'react'
+import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useBulkOperations } from '@/context/bulk-operations-context'
 import { BulkOperation } from '@/types/bulk-operations'
+import { BulkOperationDropdown } from './bulk-operation-dropdown'
+import { BulkOperationConfirmationDialog } from './bulk-operation-confirmation-dialog'
 import { cn } from '@/lib/utils'
 
 interface BulkActionBarProps {
   operations?: BulkOperation[]
   position?: 'top' | 'bottom'
   className?: string
+  getAffectedItemsPreview?: (selectedIds: string[]) => string[]
 }
 
 export function BulkActionBar({ 
   operations = [], 
   position = 'top',
-  className 
+  className,
+  getAffectedItemsPreview
 }: BulkActionBarProps) {
-  const { state, clearSelection } = useBulkOperations()
+  const { state, clearSelection, performBulkOperation } = useBulkOperations()
   const { selectedIds } = state
   const selectedCount = selectedIds.size
+  
+  // Confirmation dialog state
+  const [selectedOperation, setSelectedOperation] = useState<BulkOperation | null>(null)
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [affectedItems, setAffectedItems] = useState<string[]>([])
+  const [isExecuting, setIsExecuting] = useState(false)
 
   // Handle escape key to clear selections
   const handleEscapeKey = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
-      clearSelection()
+      if (showConfirmation) {
+        setShowConfirmation(false)
+        setSelectedOperation(null)
+      } else {
+        clearSelection()
+      }
     }
-  }, [clearSelection])
+  }, [clearSelection, showConfirmation])
 
   // Add/remove escape key listener
   useEffect(() => {
-    if (selectedCount > 0) {
+    if (selectedCount > 0 || showConfirmation) {
       document.addEventListener('keydown', handleEscapeKey)
       return () => {
         document.removeEventListener('keydown', handleEscapeKey)
       }
     }
-  }, [selectedCount, handleEscapeKey])
+  }, [selectedCount, showConfirmation, handleEscapeKey])
+
+  // Handle operation selection
+  const handleOperationSelect = useCallback((operation: BulkOperation) => {
+    setSelectedOperation(operation)
+    
+    // Get affected items preview if function is provided
+    if (getAffectedItemsPreview) {
+      const selectedIdsArray = Array.from(selectedIds)
+      const preview = getAffectedItemsPreview(selectedIdsArray)
+      setAffectedItems(preview)
+    }
+    
+    if (operation.requiresConfirmation) {
+      setShowConfirmation(true)
+    } else {
+      // Execute operation directly if no confirmation required
+      handleConfirmOperation()
+    }
+  }, [selectedIds, getAffectedItemsPreview])
+
+  // Handle operation confirmation
+  const handleConfirmOperation = useCallback(async () => {
+    if (!selectedOperation) return
+    
+    setIsExecuting(true)
+    
+    try {
+      await performBulkOperation(selectedOperation, {})
+      setShowConfirmation(false)
+      setSelectedOperation(null)
+      setAffectedItems([])
+    } catch (error) {
+      console.error('Bulk operation failed:', error)
+      // Error handling is managed by the context
+    } finally {
+      setIsExecuting(false)
+    }
+  }, [selectedOperation, performBulkOperation])
+
+  // Handle operation cancellation
+  const handleCancelOperation = useCallback(() => {
+    setShowConfirmation(false)
+    setSelectedOperation(null)
+    setAffectedItems([])
+    setIsExecuting(false)
+  }, [])
 
   // Don't render if no rows are selected
   if (selectedCount === 0) {
@@ -76,42 +132,12 @@ export function BulkActionBar({
 
       {/* Operations Dropdown */}
       {operations.length > 0 && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="h-8"
-              disabled={state.isLoading}
-            >
-              Actions
-              <ChevronDown className="ml-1 h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="w-48">
-            {operations.map((operation) => (
-              <button
-                key={operation.id}
-                className={cn(
-                  "w-full px-3 py-2 text-left text-sm",
-                  "hover:bg-gray-100 focus:bg-gray-100",
-                  "focus:outline-none transition-colors",
-                  "flex items-center gap-2"
-                )}
-                onClick={() => {
-                  // This will be implemented in later tasks when we add the actual operation handlers
-                  console.log(`Executing operation: ${operation.id}`)
-                }}
-                disabled={state.isLoading}
-              >
-                {operation.icon && (
-                  <operation.icon className="h-4 w-4 text-gray-500" />
-                )}
-                {operation.label}
-              </button>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <BulkOperationDropdown
+          operations={operations}
+          selectedCount={selectedCount}
+          isLoading={state.isLoading || isExecuting}
+          onOperationSelect={handleOperationSelect}
+        />
       )}
 
       {/* Clear Selection Button */}
@@ -120,19 +146,31 @@ export function BulkActionBar({
         size="sm"
         onClick={clearSelection}
         className="h-8 w-8 p-0 hover:bg-gray-100"
-        disabled={state.isLoading}
+        disabled={state.isLoading || isExecuting}
         aria-label="Clear selection"
       >
         <X className="h-4 w-4" />
       </Button>
 
       {/* Loading Indicator */}
-      {state.isLoading && (
+      {(state.isLoading || isExecuting) && (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
           Processing...
         </div>
       )}
+
+      {/* Confirmation Dialog */}
+      <BulkOperationConfirmationDialog
+        open={showConfirmation}
+        onOpenChange={setShowConfirmation}
+        operation={selectedOperation}
+        selectedCount={selectedCount}
+        isLoading={isExecuting}
+        onConfirm={handleConfirmOperation}
+        onCancel={handleCancelOperation}
+        affectedItems={affectedItems}
+      />
     </div>
   )
 }

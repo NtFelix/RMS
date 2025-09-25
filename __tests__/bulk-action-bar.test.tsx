@@ -138,8 +138,8 @@ describe('BulkActionBar', () => {
     // Select a row to make toolbar visible
     fireEvent.click(screen.getByText('Select Row 1'))
     
-    // Should show Actions button
-    expect(screen.getByText('Actions')).toBeInTheDocument()
+    // Should show Bulk Actions button
+    expect(screen.getByText('Bulk Actions')).toBeInTheDocument()
   })
 
   it('should handle loading state correctly', () => {
