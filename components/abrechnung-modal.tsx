@@ -180,32 +180,19 @@ export function AbrechnungModal({
     const trigger = dropdownTriggerRef.current;
     if (!trigger || trigger.disabled) return;
     
-    const isDark = document.documentElement.classList.contains('dark');
     const intensity = isDirectHover ? 1 : 0.5; // Reduce intensity for indirect hover
     
     if (isHovering) {
-      if (isDark) {
-        const bgOpacity = 0.25 + (0.05 * intensity); // 25% to 30% lightness
-        const borderOpacity = 0.20 + (0.05 * intensity); // 20% to 25% lightness
-        trigger.style.backgroundColor = `hsl(220, 25%, ${bgOpacity * 100}%)`;
-        trigger.style.borderColor = `hsl(220, 30%, ${borderOpacity * 100}%)`;
-      } else {
-        // Use blue colors in light mode (similar to dark mode but adjusted for light theme)
-        const bgOpacity = 0.35 + (0.05 * intensity); // 35% to 40% lightness for better visibility in light mode
-        const borderOpacity = 0.30 + (0.05 * intensity); // 30% to 35% lightness
-        trigger.style.backgroundColor = `hsl(220, ${20 + (5 * intensity)}%, ${bgOpacity * 100}%)`;
-        trigger.style.borderColor = `hsl(220, ${25 + (5 * intensity)}%, ${borderOpacity * 100}%)`;
-      }
+      // Use the same accent color as other dropdown menus
+      const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+      const accentOpacity = 0.5 + (0.2 * intensity); // 50% to 70% opacity
+      trigger.style.backgroundColor = `hsl(${accentColor} / ${accentOpacity})`;
+      trigger.style.borderColor = `hsl(${accentColor} / ${accentOpacity + 0.1})`;
     } else {
-      // Reset to default
-      if (isDark) {
-        trigger.style.backgroundColor = 'hsl(220, 20%, 25%)';
-        trigger.style.borderColor = 'hsl(220, 25%, 20%)';
-      } else {
-        // Use blue colors for default state in light mode too
-        trigger.style.backgroundColor = 'hsl(220, 15%, 30%)';
-        trigger.style.borderColor = 'hsl(220, 20%, 25%)';
-      }
+      // Reset to default - use primary color for consistency
+      const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+      trigger.style.backgroundColor = `hsl(${primaryColor})`;
+      trigger.style.borderColor = `hsl(${primaryColor})`;
     }
   };
   
@@ -1216,11 +1203,7 @@ export function AbrechnungModal({
                     applyDropdownHoverEffect(false, true);
                     applyMainButtonHoverEffect(false, false);
                   }}
-                  style={{
-                    backgroundColor: 'hsl(220, 15%, 30%)',
-                    borderColor: 'hsl(220, 20%, 25%)',
-                    boxShadow: '0 1px 2px hsl(220, 25%, 15%, 0.4)'
-                  }}
+                  className="bg-primary border-primary text-primary-foreground shadow-sm"
                 >
                   <ChevronDown className="h-4 w-4 text-white" />
                 </button>
