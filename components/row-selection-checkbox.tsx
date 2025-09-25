@@ -38,23 +38,21 @@ const RowSelectionCheckboxComponent = ({
   
   const handleCheckedChange = useCallback((checked: boolean) => {
     if (!disabled) {
-      // Use requestAnimationFrame for better performance with rapid selections
-      requestAnimationFrame(() => {
-        selectRow(rowId)
-        
-        // Debounce screen reader announcements to prevent spam
-        const displayLabel = rowLabel || rowId
-        const announcement = checked 
-          ? SCREEN_READER_ANNOUNCEMENTS.rowSelected(displayLabel)
-          : SCREEN_READER_ANNOUNCEMENTS.rowDeselected(displayLabel)
-        
-        // Only announce if not in batch mode (to prevent announcement spam)
-        if (!state.isLoading) {
-          announceToScreenReader(announcement, 'polite')
-        }
-      })
+      selectRow(rowId)
+      
+      // Use the current selection state (inverted) for announcements since selectRow toggles
+      const displayLabel = rowLabel || rowId
+      const willBeSelected = !isSelected
+      const announcement = willBeSelected
+        ? SCREEN_READER_ANNOUNCEMENTS.rowSelected(displayLabel)
+        : SCREEN_READER_ANNOUNCEMENTS.rowDeselected(displayLabel)
+      
+      // Only announce if not in batch mode (to prevent announcement spam)
+      if (!state.isLoading) {
+        announceToScreenReader(announcement, 'polite')
+      }
     }
-  }, [disabled, selectRow, rowId, rowLabel, state.isLoading])
+  }, [disabled, selectRow, rowId, rowLabel, isSelected, state.isLoading])
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     // Handle Space key for checkbox toggle
@@ -62,19 +60,17 @@ const RowSelectionCheckboxComponent = ({
       event.preventDefault()
       event.stopPropagation()
       
-      // Use requestAnimationFrame for better performance
-      requestAnimationFrame(() => {
-        selectRow(rowId)
-        
-        const displayLabel = rowLabel || rowId
-        const announcement = !isSelected 
-          ? SCREEN_READER_ANNOUNCEMENTS.rowSelected(displayLabel)
-          : SCREEN_READER_ANNOUNCEMENTS.rowDeselected(displayLabel)
-        
-        if (!state.isLoading) {
-          announceToScreenReader(announcement, 'polite')
-        }
-      })
+      selectRow(rowId)
+      
+      const displayLabel = rowLabel || rowId
+      const willBeSelected = !isSelected
+      const announcement = willBeSelected
+        ? SCREEN_READER_ANNOUNCEMENTS.rowSelected(displayLabel)
+        : SCREEN_READER_ANNOUNCEMENTS.rowDeselected(displayLabel)
+      
+      if (!state.isLoading) {
+        announceToScreenReader(announcement, 'polite')
+      }
     }
   }, [disabled, selectRow, rowId, rowLabel, isSelected, state.isLoading])
 

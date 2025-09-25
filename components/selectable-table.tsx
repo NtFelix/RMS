@@ -63,12 +63,14 @@ export function SelectableTable<T extends { id: string }>({
   // Set table type when component mounts or tableType changes
   useEffect(() => {
     setTableType(tableType)
-    
-    // Clear selections when component unmounts or table type changes
+  }, [tableType, setTableType])
+  
+  // Clear selections when component unmounts
+  useEffect(() => {
     return () => {
       clearSelection()
     }
-  }, [tableType, setTableType, clearSelection])
+  }, [])
 
   // Clear selections when page changes
   useEffect(() => {
@@ -82,7 +84,7 @@ export function SelectableTable<T extends { id: string }>({
     if (filterDependencies.length > 0) {
       clearSelectionOnFilterChange()
     }
-  }, [filterDependencies, clearSelectionOnFilterChange])
+  }, filterDependencies)
   
   // Extract all IDs from data
   const allIds = useMemo(() => data.map(item => item.id), [data])
@@ -90,7 +92,8 @@ export function SelectableTable<T extends { id: string }>({
   // Call onSelectionChange when selection changes
   useEffect(() => {
     if (onSelectionChange) {
-      onSelectionChange(Array.from(state.selectedIds))
+      const selectedIdsArray = Array.from(state.selectedIds)
+      onSelectionChange(selectedIdsArray)
     }
   }, [state.selectedIds, onSelectionChange])
   

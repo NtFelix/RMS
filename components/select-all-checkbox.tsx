@@ -63,20 +63,17 @@ const SelectAllCheckboxComponent = ({
   
   const handleCheckedChange = useCallback((checked: boolean) => {
     if (!disabled) {
-      // Use requestAnimationFrame for better performance with large datasets
-      requestAnimationFrame(() => {
-        // Only select/deselect items from the current page (allIds contains only current page IDs)
-        selectAll(allIds)
+      // Only select/deselect items from the current page (allIds contains only current page IDs)
+      selectAll(allIds)
+      
+      // Debounce announcements for large datasets to prevent screen reader spam
+      if (allIds.length <= 100 || !state.isLoading) {
+        const announcement = isAllSelected 
+          ? SCREEN_READER_ANNOUNCEMENTS.allRowsDeselected
+          : SCREEN_READER_ANNOUNCEMENTS.allRowsSelected(allIds.length)
         
-        // Debounce announcements for large datasets to prevent screen reader spam
-        if (allIds.length <= 100 || !state.isLoading) {
-          const announcement = isAllSelected 
-            ? SCREEN_READER_ANNOUNCEMENTS.allRowsDeselected
-            : SCREEN_READER_ANNOUNCEMENTS.allRowsSelected(allIds.length)
-          
-          announceToScreenReader(announcement, 'polite')
-        }
-      })
+        announceToScreenReader(announcement, 'polite')
+      }
     }
   }, [disabled, selectAll, allIds, isAllSelected, state.isLoading])
 
@@ -86,19 +83,16 @@ const SelectAllCheckboxComponent = ({
       event.preventDefault()
       event.stopPropagation()
       
-      // Use requestAnimationFrame for better performance
-      requestAnimationFrame(() => {
-        selectAll(allIds)
+      selectAll(allIds)
+      
+      // Only announce for smaller datasets or when not in loading state
+      if (allIds.length <= 100 || !state.isLoading) {
+        const announcement = isAllSelected 
+          ? SCREEN_READER_ANNOUNCEMENTS.allRowsDeselected
+          : SCREEN_READER_ANNOUNCEMENTS.allRowsSelected(allIds.length)
         
-        // Only announce for smaller datasets or when not in loading state
-        if (allIds.length <= 100 || !state.isLoading) {
-          const announcement = isAllSelected 
-            ? SCREEN_READER_ANNOUNCEMENTS.allRowsDeselected
-            : SCREEN_READER_ANNOUNCEMENTS.allRowsSelected(allIds.length)
-          
-          announceToScreenReader(announcement, 'polite')
-        }
-      })
+        announceToScreenReader(announcement, 'polite')
+      }
     }
   }, [disabled, selectAll, allIds, isAllSelected, state.isLoading])
 

@@ -132,35 +132,11 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
 
   // Optimized action creators with performance considerations for large datasets
   const selectRow = useCallback((id: string) => {
-    // Use requestAnimationFrame for better performance with rapid selections
-    requestAnimationFrame(() => {
-      dispatch({ type: 'SELECT_ROW', payload: id })
-    })
+    dispatch({ type: 'SELECT_ROW', payload: id })
   }, [])
 
   const selectAll = useCallback((ids: string[]) => {
-    // For large datasets, batch the operation
-    if (ids.length > 500) {
-      // Process in chunks to prevent blocking the UI
-      const chunkSize = 100
-      let currentIndex = 0
-      
-      const processChunk = () => {
-        const chunk = ids.slice(currentIndex, currentIndex + chunkSize)
-        if (chunk.length > 0) {
-          dispatch({ type: 'SELECT_ALL', payload: chunk })
-          currentIndex += chunkSize
-          
-          if (currentIndex < ids.length) {
-            requestAnimationFrame(processChunk)
-          }
-        }
-      }
-      
-      requestAnimationFrame(processChunk)
-    } else {
-      dispatch({ type: 'SELECT_ALL', payload: ids })
-    }
+    dispatch({ type: 'SELECT_ALL', payload: ids })
   }, [])
 
   const clearSelection = useCallback(() => {
