@@ -7,7 +7,7 @@ import { useBulkOperations } from '@/context/bulk-operations-context'
 import { cn } from '@/lib/utils'
 
 interface SelectAllCheckboxProps {
-  allIds: string[]
+  allIds: string[] // IDs of items currently visible (current page in paginated context)
   selectedIds: Set<string>
   disabled?: boolean
   className?: string
@@ -21,7 +21,7 @@ export function SelectAllCheckbox({
 }: SelectAllCheckboxProps) {
   const { selectAll, state } = useBulkOperations()
   
-  // Calculate selection state
+  // Calculate selection state for current page only
   const selectedCount = allIds.filter(id => selectedIds.has(id)).length
   const isAllSelected = selectedCount === allIds.length && allIds.length > 0
   const isIndeterminate = selectedCount > 0 && selectedCount < allIds.length
@@ -33,6 +33,7 @@ export function SelectAllCheckbox({
   
   const handleCheckedChange = (checked: boolean) => {
     if (!disabled) {
+      // Only select/deselect items from the current page (allIds contains only current page IDs)
       selectAll(allIds)
     }
   }

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
 import { ChevronsUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { SelectableTable, SelectableTableRow, SelectableTableHeader } from '@/components/selectable-table'
+import { PaginatedSelectableTable } from '@/components/paginated-selectable-table'
 import { getBulkOperations } from '@/lib/bulk-operations-config'
 import { BulkActionBar } from '@/components/bulk-action-bar'
 import { useBulkOperations } from '@/context/bulk-operations-context'
@@ -23,6 +24,9 @@ interface SelectableTenantTableProps {
   searchQuery: string
   onEdit?: (t: Tenant) => void
   onDelete?: (id: string) => void
+  // Pagination props
+  pageSize?: number
+  showPagination?: boolean
 }
 
 export function SelectableTenantTable({ 
@@ -31,7 +35,9 @@ export function SelectableTenantTable({
   filter, 
   searchQuery, 
   onEdit, 
-  onDelete 
+  onDelete,
+  pageSize,
+  showPagination = true
 }: SelectableTenantTableProps) {
   const router = useRouter()
   const { state } = useBulkOperations()
@@ -147,16 +153,22 @@ export function SelectableTenantTable({
     })
   }
 
+  // Filter dependencies for clearing selections when filters change
+  const filterDependencies = [filter, searchQuery, sortKey, sortDirection]
+
   return (
-    <SelectableTable
+    <PaginatedSelectableTable
       data={sortedAndFilteredData}
       tableType="mieter"
       bulkOperations={bulkOperations}
+      pageSize={pageSize}
+      showPagination={showPagination}
+      filterDependencies={filterDependencies}
     >
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
-            <SelectableTableHeader allIds={allIds}>
+            <SelectableTableHeader>
               <TableHeaderCell sortKey="name" className="w-[250px]">Name</TableHeaderCell>
               <TableHeaderCell sortKey="email">E-Mail</TableHeaderCell>
               <TableHeaderCell sortKey="telefonnummer">Telefon</TableHeaderCell>
@@ -207,6 +219,6 @@ export function SelectableTenantTable({
         operations={bulkOperations}
         getAffectedItemsPreview={getAffectedItemsPreview}
       />
-    </SelectableTable>
+    </PaginatedSelectableTable>
   )
 }

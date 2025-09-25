@@ -230,7 +230,7 @@ export function SelectableTenantDataTable() {
             <div className="overflow-x-auto rounded-lg border">
               <Table>
                 <TableHeader>
-                  <SelectableTableHeader allIds={allIds}>
+                  <SelectableTableHeader>
                     <TableHead className="w-[200px]">Wohnung</TableHead>
                     <TableHead>Mieter</TableHead>
                     <TableHead>Größe</TableHead>

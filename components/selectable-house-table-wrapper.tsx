@@ -7,6 +7,7 @@ import { HouseContextMenu } from '@/components/house-context-menu'
 import { toast } from '@/hooks/use-toast'
 import { ChevronsUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { SelectableTable, SelectableTableRow, SelectableTableHeader } from '@/components/selectable-table'
+import { PaginatedSelectableTable } from '@/components/paginated-selectable-table'
 import { getBulkOperations } from '@/lib/bulk-operations-config'
 import { BulkActionBar } from '@/components/bulk-action-bar'
 import { useBulkOperations } from '@/context/bulk-operations-context'
@@ -34,6 +35,9 @@ interface SelectableHouseTableProps {
   reloadRef?: MutableRefObject<(() => void) | null>
   onEdit: (house: House) => void
   initialHouses?: House[]
+  // Pagination props
+  pageSize?: number
+  showPagination?: boolean
 }
 
 export function SelectableHouseTable({ 
@@ -41,7 +45,9 @@ export function SelectableHouseTable({
   searchQuery, 
   reloadRef, 
   onEdit, 
-  initialHouses 
+  initialHouses,
+  pageSize,
+  showPagination = true
 }: SelectableHouseTableProps) {
   const { state } = useBulkOperations()
   const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
@@ -180,16 +186,22 @@ export function SelectableHouseTable({
     })
   }
 
+  // Filter dependencies for clearing selections when filters change
+  const filterDependencies = [filter, searchQuery, sortKey, sortDirection]
+
   return (
-    <SelectableTable
+    <PaginatedSelectableTable
       data={sortedAndFilteredData}
       tableType="haeuser"
       bulkOperations={bulkOperations}
+      pageSize={pageSize}
+      showPagination={showPagination}
+      filterDependencies={filterDependencies}
     >
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
-            <SelectableTableHeader allIds={allIds}>
+            <SelectableTableHeader>
               <TableHeaderCell sortKey="name" className="w-[250px]">Häuser</TableHeaderCell>
               <TableHeaderCell sortKey="ort">Ort</TableHeaderCell>
               <TableHeaderCell sortKey="size">Größe</TableHeaderCell>
@@ -252,6 +264,6 @@ export function SelectableHouseTable({
         operations={bulkOperations}
         getAffectedItemsPreview={getAffectedItemsPreview}
       />
-    </SelectableTable>
+    </PaginatedSelectableTable>
   )
 }

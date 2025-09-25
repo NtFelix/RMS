@@ -38,6 +38,8 @@ export interface BulkOperationsContext {
   selectRow: (id: string) => void
   selectAll: (ids: string[]) => void
   clearSelection: () => void
+  clearSelectionOnPageChange: () => void
+  clearSelectionOnFilterChange: () => void
   setTableType: (tableType: TableType) => void
   performBulkOperation: (operation: BulkOperation, data: any, options?: { skipValidation?: boolean }) => Promise<void>
   validateOperation: (operation: BulkOperation, data?: any) => Promise<ValidationResult | null>

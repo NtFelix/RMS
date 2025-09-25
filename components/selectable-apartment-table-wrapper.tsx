@@ -3,6 +3,7 @@
 import React from 'react'
 import { ApartmentTable, Apartment } from '@/components/apartment-table'
 import { SelectableTable, SelectableTableRow, SelectableTableHeader } from '@/components/selectable-table'
+import { PaginatedSelectableTable } from '@/components/paginated-selectable-table'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { ApartmentContextMenu } from '@/components/apartment-context-menu'
@@ -24,6 +25,9 @@ interface SelectableApartmentTableProps {
   onEdit?: (apt: Apartment) => void
   onTableRefresh?: () => Promise<void>
   initialApartments?: Apartment[]
+  // Pagination props
+  pageSize?: number
+  showPagination?: boolean
 }
 
 export function SelectableApartmentTable({ 
@@ -32,7 +36,9 @@ export function SelectableApartmentTable({
   reloadRef, 
   onEdit, 
   onTableRefresh, 
-  initialApartments 
+  initialApartments,
+  pageSize,
+  showPagination = true
 }: SelectableApartmentTableProps) {
   const { state } = useBulkOperations()
   const [sortKey, setSortKey] = useState<ApartmentSortKey>("name")
@@ -140,16 +146,22 @@ export function SelectableApartmentTable({
     })
   }
 
+  // Filter dependencies for clearing selections when filters change
+  const filterDependencies = [filter, searchQuery, sortKey, sortDirection]
+
   return (
-    <SelectableTable
+    <PaginatedSelectableTable
       data={sortedAndFilteredData}
       tableType="wohnungen"
       bulkOperations={bulkOperations}
+      pageSize={pageSize}
+      showPagination={showPagination}
+      filterDependencies={filterDependencies}
     >
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
-            <SelectableTableHeader allIds={allIds}>
+            <SelectableTableHeader>
               <TableHeaderCell sortKey="name" className="w-[250px]">Wohnung</TableHeaderCell>
               <TableHeaderCell sortKey="groesse">Größe (m²)</TableHeaderCell>
               <TableHeaderCell sortKey="miete">Miete (€)</TableHeaderCell>
@@ -209,6 +221,6 @@ export function SelectableApartmentTable({
         operations={bulkOperations}
         getAffectedItemsPreview={getAffectedItemsPreview}
       />
-    </SelectableTable>
+    </PaginatedSelectableTable>
   )
 }

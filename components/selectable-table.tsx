@@ -15,11 +15,17 @@ interface SelectableTableProps<T extends { id: string }> {
   onSelectionChange?: (selectedIds: string[]) => void
   bulkOperations?: BulkOperation[]
   className?: string
+  // Pagination props
+  currentPage?: number
+  onPageChange?: (page: number) => void
+  // Filter props - when these change, selections should be cleared
+  filterDependencies?: any[]
 }
 
 interface SelectableTableContextValue {
   isRowSelected: (id: string) => boolean
   selectedIds: Set<string>
+  currentPageIds: string[]
 }
 
 const SelectableTableContext = React.createContext<SelectableTableContextValue | undefined>(undefined)
@@ -38,9 +44,12 @@ export function SelectableTable<T extends { id: string }>({
   children,
   onSelectionChange,
   bulkOperations = [],
-  className
+  className,
+  currentPage,
+  onPageChange,
+  filterDependencies = []
 }: SelectableTableProps<T>) {
-  const { state, setTableType, clearSelection } = useBulkOperations()
+  const { state, setTableType, clearSelection, clearSelectionOnPageChange, clearSelectionOnFilterChange } = useBulkOperations()
   
   // Set table type when component mounts or tableType changes
   useEffect(() => {
@@ -51,6 +60,20 @@ export function SelectableTable<T extends { id: string }>({
       clearSelection()
     }
   }, [tableType, setTableType, clearSelection])
+
+  // Clear selections when page changes
+  useEffect(() => {
+    if (currentPage !== undefined) {
+      clearSelectionOnPageChange()
+    }
+  }, [currentPage, clearSelectionOnPageChange])
+
+  // Clear selections when filter dependencies change
+  useEffect(() => {
+    if (filterDependencies.length > 0) {
+      clearSelectionOnFilterChange()
+    }
+  }, [filterDependencies, clearSelectionOnFilterChange])
   
   // Extract all IDs from data
   const allIds = useMemo(() => data.map(item => item.id), [data])
@@ -65,8 +88,9 @@ export function SelectableTable<T extends { id: string }>({
   // Create context value for child components
   const contextValue: SelectableTableContextValue = useMemo(() => ({
     isRowSelected: (id: string) => state.selectedIds.has(id),
-    selectedIds: state.selectedIds
-  }), [state.selectedIds])
+    selectedIds: state.selectedIds,
+    currentPageIds: allIds
+  }), [state.selectedIds, allIds])
   
   return (
     <SelectableTableContext.Provider value={contextValue}>
@@ -122,7 +146,7 @@ export function SelectableTableRow({
 
 // Enhanced table header component that includes select all checkbox
 interface SelectableTableHeaderProps {
-  allIds: string[]
+  allIds?: string[] // Optional - will use current page data if not provided
   children: React.ReactNode
   className?: string
 }
@@ -133,12 +157,16 @@ export function SelectableTableHeader({
   className 
 }: SelectableTableHeaderProps) {
   const { state } = useBulkOperations()
+  const context = useSelectableTable()
+  
+  // Use provided allIds or fall back to current page data from context
+  const currentPageIds = allIds || context.currentPageIds
   
   return (
     <TableRow className={className}>
       <TableHead className="w-12">
         <SelectAllCheckbox
-          allIds={allIds}
+          allIds={currentPageIds}
           selectedIds={state.selectedIds}
           disabled={state.isLoading}
         />

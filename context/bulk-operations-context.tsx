@@ -28,6 +28,8 @@ type BulkOperationsAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_VALIDATION_RESULT'; payload: ValidationResult | null }
+  | { type: 'CLEAR_SELECTION_ON_PAGE_CHANGE' }
+  | { type: 'CLEAR_SELECTION_ON_FILTER_CHANGE' }
 
 // Reducer
 function bulkOperationsReducer(
@@ -90,6 +92,20 @@ function bulkOperationsReducer(
         ...state,
         validationResult: action.payload,
       }
+    case 'CLEAR_SELECTION_ON_PAGE_CHANGE':
+      return {
+        ...state,
+        selectedIds: new Set<string>(),
+        error: null,
+        validationResult: null,
+      }
+    case 'CLEAR_SELECTION_ON_FILTER_CHANGE':
+      return {
+        ...state,
+        selectedIds: new Set<string>(),
+        error: null,
+        validationResult: null,
+      }
     default:
       return state
   }
@@ -116,6 +132,14 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
 
   const clearSelection = useCallback(() => {
     dispatch({ type: 'CLEAR_SELECTION' })
+  }, [])
+
+  const clearSelectionOnPageChange = useCallback(() => {
+    dispatch({ type: 'CLEAR_SELECTION_ON_PAGE_CHANGE' })
+  }, [])
+
+  const clearSelectionOnFilterChange = useCallback(() => {
+    dispatch({ type: 'CLEAR_SELECTION_ON_FILTER_CHANGE' })
   }, [])
 
   const setTableType = useCallback((tableType: TableType) => {
@@ -265,6 +289,8 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
     selectRow,
     selectAll,
     clearSelection,
+    clearSelectionOnPageChange,
+    clearSelectionOnFilterChange,
     setTableType,
     performBulkOperation,
     validateOperation,

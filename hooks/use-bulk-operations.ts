@@ -81,6 +81,8 @@ export function useBulkOperations() {
     selectRow: context.selectRow,
     selectAll: context.selectAll,
     clearSelection: context.clearSelection,
+    clearSelectionOnPageChange: context.clearSelectionOnPageChange,
+    clearSelectionOnFilterChange: context.clearSelectionOnFilterChange,
     toggleRowSelection,
     selectMultiple,
     deselectMultiple,
