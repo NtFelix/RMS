@@ -579,226 +579,14 @@ export function AbrechnungModal({
     let startY = 20; // Initial Y position for content
 
     const processTenant = (singleTenantData: TenantCostDetails) => {
-      // Reset startY for each tenant if it's a new page
-      // This check is important if processTenant is called multiple times for the same document instance.
-      // However, if a new page is added *before* calling processTenant (e.g., in a loop for multiple tenants),
-      // startY should be reset there. Let's assume startY is managed correctly before this call for new pages.
-      if (startY > pageHeight - 50) { // Check if new page is needed (50 as buffer)
+      // Check if new page is needed for multiple tenants
+      if (startY > pageHeight - 50) {
         doc.addPage();
         startY = 20;
       }
-
-          // 1. Owner Information & Title
-      doc.setFontSize(10);
-      doc.text(ownerName, 20, startY);
-      startY += 6;
-      doc.text(ownerAddress, 20, startY);
-      startY += 10;
-
-      doc.setFontSize(16);
-      doc.setFont("helvetica", "bold");
-      doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
-      startY += 10;
-
-      // 2. Settlement Period
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
-      startY += 6;
-
-      // 3. Property Details
-      const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${singleTenantData.apartmentName}, ${singleTenantData.apartmentSize} qm`;
-      doc.text(propertyDetails, 20, startY);
-      startY += 10;
-
-      // 4. Costs Table
-      const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
-      const tableRows: any[][] = [];
-
-      singleTenantData.costItems.forEach(item => {
-        const row = [
-          item.costName,
-          formatCurrency(item.totalCostForItem), // Gesamtkosten in €
-          item.verteiler || '-', // Use pre-calculated distribution basis
-          item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-', // Kosten Pro qm
-          formatCurrency(item.tenantShare) // Kostenanteil In €
-        ];
-        tableRows.push(row);
-      });
-
-      // Note: The separate "Wasserkosten" row that was here has been removed.
-      // If "Digitaler Wasserzähler" or similar is a cost item, it will be included above.
-      // Specific tenant water consumption costs will be detailed separately below this table.
-
-      // Calculate sums for the footer row
-      const sumOfTotalCostForItem = singleTenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
-      // This sum represents the tenant's share of the general operating costs listed in costItems.
-      // It does NOT yet include their specific water consumption costs, which are handled by singleTenantData.waterCost.tenantShare
-      const sumOfTenantSharesFromCostItems = singleTenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
-
-      // "Betriebskosten gesamt" row is removed from here and will be drawn manually after the table.
-
-        (doc as any).autoTable({
-          head: [tableColumn],
-          body: tableRows,
-          startY: startY,
-          theme: 'plain',
-          headStyles: { 
-            fillColor: [255, 255, 255], // White background instead of gray
-            textColor: [0, 0, 0],
-            fontStyle: 'bold',
-            lineWidth: { bottom: 0.3 }, // Thicker bottom border for header
-            lineColor: [0, 0, 0] // Black color for header bottom border
-          },
-          styles: { 
-            fontSize: 9, 
-            cellPadding: 1.5,
-            lineWidth: 0 // Remove all cell borders
-          },
-          bodyStyles: {
-            lineWidth: { bottom: 0.1 }, // Only add thin bottom border for rows
-            lineColor: [0, 0, 0] // Black color for row separators
-          },
-          columnStyles: {
-            1: { halign: 'right' }, // Gesamtkosten in €
-            2: { halign: 'right' }, // Verteiler
-            3: { halign: 'right' }, // Kosten Pro qm
-            4: { halign: 'right' }  // Kostenanteil In €
-          },
-          // Ensure table aligns with left and right content margins
-          tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
-          margin: { left: 20, right: 20 }
-        });
-
-      let tableFinalY = (doc as any).lastAutoTable?.finalY;
-      if (typeof tableFinalY === 'number') {
-        startY = tableFinalY + 6; // Space after table
-      } else {
-        startY += 10; // Fallback spacing
-        console.error("Error: doc.lastAutoTable.finalY was not available after autoTable call. Using default spacing.");
-      }
-
-      // Draw "Betriebskosten gesamt" sums manually below the table
-      const lastTable = (doc as any).lastAutoTable;
-      // Draw "Betriebskosten gesamt" sums manually below the table, aligned with columns
-      let sumsDrawnSuccessfully = false;
-
-      if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
-        const col0 = lastTable.columns[0];
-        const col1 = lastTable.columns[1];
-        const col4 = lastTable.columns[4];
-
-        if (col0 && typeof col0.x === 'number' &&
-            col1 && typeof col1.x === 'number' && typeof col1.width === 'number' &&
-            col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
-
-          const leistungsartX = col0.x;
-          const gesamtkostenX = col1.x;
-          const gesamtkostenWidth = col1.width;
-          const kostenanteilX = col4.x;
-          const kostenanteilWidth = col4.width;
-
-          doc.setFontSize(9); // Match table body font size
-          doc.setFont("helvetica", "bold");
-
-          const labelText = "Betriebskosten gesamt: ";
-          const sum1Text = formatCurrency(sumOfTotalCostForItem);
-          const labelX = col0.x; // Start of first column for the label
-
-          // Draw label and first sum together
-          doc.text(labelText + sum1Text, labelX, startY, { align: 'left' });
-
-          // Draw sum for "Kostenanteil In €" column (sum2) aligned to its column
-          doc.text(
-            formatCurrency(sumOfTenantSharesFromCostItems),
-            kostenanteilX + kostenanteilWidth,
-            startY,
-            { align: 'right' }
-          );
-
-          startY += 8; // Space after the sum line
-          doc.setFont("helvetica", "normal");
-          sumsDrawnSuccessfully = true;
-        }
-      }
-
-      if (!sumsDrawnSuccessfully) {
-        // Fallback if table column data isn't available or valid
-        console.error("Could not retrieve valid column data to draw 'Betriebskosten gesamt' sums accurately. Using improved fallback.");
-        doc.setFontSize(9); // Consistent font size with primary attempt
-        doc.setFont("helvetica", "bold");
-
-        // Fallback: Label and first sum together, second sum on far right
-        const fallbackLabelX = 20;
-        const fallbackSum2X = doc.internal.pageSize.getWidth() - 20; // Right margin
-
-        const labelAndSum1Text = `Betriebskosten gesamt: ${formatCurrency(sumOfTotalCostForItem)}`;
-        doc.text(labelAndSum1Text, fallbackLabelX, startY, {align: 'left'});
-
-        doc.text(
-          formatCurrency(sumOfTenantSharesFromCostItems),
-          fallbackSum2X,
-          startY,
-          { align: 'right' }
-        );
-
-        startY += 8;
-        doc.setFont("helvetica", "normal");
-      }
-
-      // Unused finalY block and vestigial font changes removed.
-      // startY is now correctly managed by tableFinalY and the subsequent drawing of "Betriebskosten gesamt" sums.
-
-      // 4.5. Wasserzähler Data Section
-      // startY was updated after drawing "Betriebskosten gesamt" sums (startY += 8).
-      // Add a consistent small space before this new section.
-      startY += 5;
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("Wasserverbrauch", 20, startY);
-      startY += 7;
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-
-      const totalBuildingWaterCost = nebenkostenItem.wasserkosten || 0;
-      const totalBuildingWaterConsumption = nebenkostenItem.wasserverbrauch || 0;
-      const pricePerCubicMeter = totalBuildingWaterConsumption > 0 ? totalBuildingWaterCost / totalBuildingWaterConsumption : 0;
-
-      // Display tenant's water consumption details
-      // TODO: For future enhancement, if data for old/new meters (Verbrauch alter WZ / neuer WZ) is available,
-      // it should be presented here as per the user's original example image.
-      // Current data provides total consumption for the period.
-      doc.text(`Gesamter Wasserverbrauch Mieter:`, 20, startY);
-      doc.text(`${singleTenantData.waterCost.consumption ? formatNumber(singleTenantData.waterCost.consumption) : '0,00'} m³`, 100, startY);
-      startY += 6;
-
-      doc.text(`Kosten pro m³:`, 20, startY);
-      doc.text(formatCurrency(pricePerCubicMeter), 100, startY);
-      startY += 6;
-
-      doc.text(`Kostenanteil Wasserverbrauch Mieter:`, 20, startY);
-      doc.text(formatCurrency(singleTenantData.waterCost.tenantShare), 100, startY, { align: "left" }); // Explicitly left, though default
-      startY += 10;
-
-
-      // 5. Final Summary
-      doc.setFontSize(10);
-      doc.text("Gesamtkosten:", 20, startY);
-      doc.text(formatCurrency(singleTenantData.totalTenantCost), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
-      startY += 6;
-
-      doc.text("Vorauszahlungen:", 20, startY); // Changed from "bereits geleistete Zahlungen"
-      doc.text(formatCurrency(singleTenantData.vorauszahlungen), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" }); // Used singleTenantData.vorauszahlungen
-      startY += 6;
       
-      // Updated Nachzahlung/Guthaben display
-      const settlementText = singleTenantData.finalSettlement >= 0 ? "Nachzahlung:" : "Guthaben:";
-      doc.setFont("helvetica", "bold");
-      doc.text(settlementText, 20, startY);
-      doc.text(formatCurrency(singleTenantData.finalSettlement), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
-      doc.setFont("helvetica", "normal");
-      startY += 10;
+      // Use the reusable PDF generation function
+      generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress);
     };
 
     // Ensure dataForProcessing is definitely an array.
@@ -833,6 +621,160 @@ export function AbrechnungModal({
     doc.save(filename);
   };
 
+  // Reusable function to generate PDF content for a single tenant
+  const generateSingleTenantPDF = (
+    doc: any, // jsPDF instance
+    tenantData: TenantCostDetails,
+    nebenkostenItem: Nebenkosten,
+    ownerName: string,
+    ownerAddress: string
+  ): void => {
+    let startY = 20;
+
+    // Owner Information & Title
+    doc.setFontSize(10);
+    doc.text(ownerName, 20, startY);
+    startY += 6;
+    doc.text(ownerAddress, 20, startY);
+    startY += 10;
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
+    startY += 10;
+
+    // Settlement Period
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
+    startY += 6;
+
+    // Property Details
+    const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
+    doc.text(propertyDetails, 20, startY);
+    startY += 10;
+
+    // Costs Table
+    const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
+    const tableRows: any[][] = [];
+
+    tenantData.costItems.forEach(item => {
+      const row = [
+        item.costName,
+        formatCurrency(item.totalCostForItem),
+        item.verteiler || '-',
+        item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-',
+        formatCurrency(item.tenantShare)
+      ];
+      tableRows.push(row);
+    });
+
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: startY,
+      theme: 'plain',
+      headStyles: { 
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        lineWidth: { bottom: 0.3 },
+        lineColor: [0, 0, 0]
+      },
+      styles: { 
+        fontSize: 9, 
+        cellPadding: 1.5,
+        lineWidth: 0
+      },
+      bodyStyles: {
+        lineWidth: { bottom: 0.1 },
+        lineColor: [0, 0, 0]
+      },
+      columnStyles: {
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right' }
+      },
+      tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
+      margin: { left: 20, right: 20 }
+    });
+
+    let tableFinalY = (doc as any).lastAutoTable?.finalY;
+    if (typeof tableFinalY === 'number') {
+      startY = tableFinalY + 6;
+    } else {
+      startY += 10;
+    }
+
+    // Draw "Betriebskosten gesamt" sums
+    const sumOfTotalCostForItem = tenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
+    const sumOfTenantSharesFromCostItems = tenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
+
+    const lastTable = (doc as any).lastAutoTable;
+    if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
+      const col0 = lastTable.columns[0];
+      const col4 = lastTable.columns[4];
+
+      if (col0 && typeof col0.x === 'number' && col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+
+        const labelText = "Betriebskosten gesamt: ";
+        const sum1Text = formatCurrency(sumOfTotalCostForItem);
+        doc.text(labelText + sum1Text, col0.x, startY, { align: 'left' });
+        doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col4.x + col4.width, startY, { align: 'right' });
+
+        startY += 8;
+        doc.setFont("helvetica", "normal");
+      }
+    }
+
+    // Water consumption section
+    startY += 5;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Wasserverbrauch", 20, startY);
+    startY += 7;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+
+    const totalBuildingConsumption = nebenkostenItem.wasserverbrauch || 0;
+    const totalWaterCost = nebenkostenItem.wasserkosten || 0;
+    const pricePerCubicMeter = totalBuildingConsumption > 0 ? totalWaterCost / totalBuildingConsumption : 0;
+
+    doc.text(`Gesamtverbrauch Gebäude: ${totalBuildingConsumption} m³`, 20, startY);
+    startY += 5;
+    doc.text(`Gesamtkosten Wasser: ${formatCurrency(totalWaterCost)}`, 20, startY);
+    startY += 5;
+    doc.text(`Preis pro m³: ${formatCurrency(pricePerCubicMeter)}`, 20, startY);
+    startY += 8;
+
+    doc.text(`Verbrauch ${tenantData.tenantName}: ${tenantData.waterCost.consumption || 0} m³`, 20, startY);
+    startY += 5;
+    doc.text(`Wasserkosten ${tenantData.tenantName}: ${formatCurrency(tenantData.waterCost.tenantShare)}`, 20, startY);
+    startY += 10;
+
+    // Settlement summary
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Abrechnung", 20, startY);
+    startY += 8;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Gesamtkosten: ${formatCurrency(tenantData.totalTenantCost)}`, 20, startY);
+    startY += 5;
+    doc.text(`Vorauszahlungen: ${formatCurrency(tenantData.vorauszahlungen)}`, 20, startY);
+    startY += 8;
+
+    doc.setFont("helvetica", "bold");
+    const isNachzahlung = tenantData.finalSettlement >= 0;
+    const settlementText = isNachzahlung ? "Nachzahlung" : "Guthaben";
+    doc.text(`${settlementText}: ${formatCurrency(tenantData.finalSettlement)}`, 20, startY);
+  };
+
   // ZIP generation function for multiple PDFs
   const generateSettlementZIP = async (
     tenantDataArray: TenantCostDetails[],
@@ -856,151 +798,9 @@ export function AbrechnungModal({
     // Generate individual PDFs for each tenant
     for (const tenantData of tenantDataArray) {
       const doc = new jsPDF();
-      let startY = 20;
-
-      // Use the same processTenant logic from generateSettlementPDF
-      // Owner Information & Title
-      doc.setFontSize(10);
-      doc.text(ownerName, 20, startY);
-      startY += 6;
-      doc.text(ownerAddress, 20, startY);
-      startY += 10;
-
-      doc.setFontSize(16);
-      doc.setFont("helvetica", "bold");
-      doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
-      startY += 10;
-
-      // Settlement Period
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
-      startY += 6;
-
-      // Property Details
-      const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
-      doc.text(propertyDetails, 20, startY);
-      startY += 10;
-
-      // Costs Table
-      const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
-      const tableRows: any[][] = [];
-
-      tenantData.costItems.forEach(item => {
-        const row = [
-          item.costName,
-          formatCurrency(item.totalCostForItem),
-          item.verteiler || '-',
-          item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-',
-          formatCurrency(item.tenantShare)
-        ];
-        tableRows.push(row);
-      });
-
-      (doc as any).autoTable({
-        head: [tableColumn],
-        body: tableRows,
-        startY: startY,
-        theme: 'plain',
-        headStyles: { 
-          fillColor: [255, 255, 255],
-          textColor: [0, 0, 0],
-          fontStyle: 'bold',
-          lineWidth: { bottom: 0.3 },
-          lineColor: [0, 0, 0]
-        },
-        styles: { 
-          fontSize: 9, 
-          cellPadding: 1.5,
-          lineWidth: 0
-        },
-        bodyStyles: {
-          lineWidth: { bottom: 0.1 },
-          lineColor: [0, 0, 0]
-        },
-        columnStyles: {
-          1: { halign: 'right' },
-          2: { halign: 'right' },
-          3: { halign: 'right' },
-          4: { halign: 'right' }
-        },
-        tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
-        margin: { left: 20, right: 20 }
-      });
-
-      let tableFinalY = (doc as any).lastAutoTable?.finalY;
-      if (typeof tableFinalY === 'number') {
-        startY = tableFinalY + 6;
-      } else {
-        startY += 10;
-      }
-
-      // Draw "Betriebskosten gesamt" sums
-      const sumOfTotalCostForItem = tenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
-      const sumOfTenantSharesFromCostItems = tenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
-
-      const lastTable = (doc as any).lastAutoTable;
-      if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
-        const col0 = lastTable.columns[0];
-        const col4 = lastTable.columns[4];
-
-        if (col0 && typeof col0.x === 'number' && col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
-          doc.setFontSize(9);
-          doc.setFont("helvetica", "bold");
-
-          const labelText = "Betriebskosten gesamt: ";
-          const sum1Text = formatCurrency(sumOfTotalCostForItem);
-          doc.text(labelText + sum1Text, col0.x, startY, { align: 'left' });
-          doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col4.x + col4.width, startY, { align: 'right' });
-
-          startY += 8;
-          doc.setFont("helvetica", "normal");
-        }
-      }
-
-      // Water consumption section
-      startY += 5;
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("Wasserverbrauch", 20, startY);
-      startY += 7;
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-
-      const totalBuildingConsumption = nebenkostenItem.wasserverbrauch || 0;
-      const totalWaterCost = nebenkostenItem.wasserkosten || 0;
-      const pricePerCubicMeter = totalBuildingConsumption > 0 ? totalWaterCost / totalBuildingConsumption : 0;
-
-      doc.text(`Gesamtverbrauch Gebäude: ${totalBuildingConsumption} m³`, 20, startY);
-      startY += 5;
-      doc.text(`Gesamtkosten Wasser: ${formatCurrency(totalWaterCost)}`, 20, startY);
-      startY += 5;
-      doc.text(`Preis pro m³: ${formatCurrency(pricePerCubicMeter)}`, 20, startY);
-      startY += 8;
-
-      doc.text(`Verbrauch ${tenantData.tenantName}: ${tenantData.waterCost.consumption || 0} m³`, 20, startY);
-      startY += 5;
-      doc.text(`Wasserkosten ${tenantData.tenantName}: ${formatCurrency(tenantData.waterCost.tenantShare)}`, 20, startY);
-      startY += 10;
-
-      // Settlement summary
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("Abrechnung", 20, startY);
-      startY += 8;
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Gesamtkosten: ${formatCurrency(tenantData.totalTenantCost)}`, 20, startY);
-      startY += 5;
-      doc.text(`Vorauszahlungen: ${formatCurrency(tenantData.vorauszahlungen)}`, 20, startY);
-      startY += 8;
-
-      doc.setFont("helvetica", "bold");
-      const isNachzahlung = tenantData.finalSettlement >= 0;
-      const settlementText = isNachzahlung ? "Nachzahlung" : "Guthaben";
-      doc.text(`${settlementText}: ${formatCurrency(tenantData.finalSettlement)}`, 20, startY);
+      
+      // Use the reusable PDF generation function
+      generateSingleTenantPDF(doc, tenantData, nebenkostenItem, ownerName, ownerAddress);
       
       const pdfBlob = doc.output('blob');
       const filename = `Abrechnung_${currentPeriod}_${tenantData.tenantName.replace(/\s+/g, '_')}.pdf`;
