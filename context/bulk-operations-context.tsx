@@ -6,9 +6,16 @@ import {
   BulkOperationsContext, 
   BulkOperation, 
   TableType,
-  ValidationResult 
+  ValidationResult,
+  BulkOperationResponse 
 } from '@/types/bulk-operations'
 import { validationService } from '@/lib/bulk-operations-validation'
+import { useBulkOperationsErrorHandler } from '@/hooks/use-bulk-operations-error-handler'
+import { 
+  classifyFetchError,
+  isNetworkError,
+  isTimeoutError 
+} from '@/lib/bulk-operations-error-handling'
 
 // Initial state
 const initialState: BulkOperationsState = {
@@ -121,6 +128,7 @@ interface BulkOperationsProviderProps {
 
 export function BulkOperationsProvider({ children }: BulkOperationsProviderProps) {
   const [state, dispatch] = useReducer(bulkOperationsReducer, initialState)
+  const errorHandler = useBulkOperationsErrorHandler()
 
   const selectRow = useCallback((id: string) => {
     dispatch({ type: 'SELECT_ROW', payload: id })
@@ -218,71 +226,75 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
         ? validationResult.validIds 
         : selectedIdsArray
 
-      const response = await fetch('/api/bulk-operations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          operation: operation.id,
-          tableType: state.tableType,
-          selectedIds: idsToUpdate,
-          data,
-          validationResult, // Include validation result for server-side reference
-        }),
-      })
+      // Create AbortController for timeout handling
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Bulk operation failed')
-      }
-
-      const result = await response.json()
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Bulk operation failed')
-      }
-
-      // Show success message if there were updates
-      if (result.updatedCount > 0) {
-        // Success will be handled by the component that called this function
-        // Clear selection after successful operation
-        dispatch({ type: 'CLEAR_SELECTION' })
-        dispatch({ type: 'SET_VALIDATION_RESULT', payload: null })
-      }
-
-      // Show warnings for failed items if any
-      if (result.failedIds && result.failedIds.length > 0) {
-        const failedCount = result.failedIds.length
-        const successCount = result.updatedCount
-        const skippedCount = validationResult ? validationResult.invalidIds.length : 0
-        
-        let message = `${successCount} Einträge erfolgreich aktualisiert`
-        if (failedCount > 0) {
-          message += `, ${failedCount} fehlgeschlagen`
-        }
-        if (skippedCount > 0) {
-          message += `, ${skippedCount} übersprungen`
-        }
-        message += '.'
-        
-        dispatch({ 
-          type: 'SET_ERROR', 
-          payload: message
+      try {
+        const response = await fetch('/api/bulk-operations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            operation: operation.id,
+            tableType: state.tableType,
+            selectedIds: idsToUpdate,
+            data,
+            validationResult, // Include validation result for server-side reference
+          }),
+          signal: controller.signal
         })
-      }
 
-      dispatch({ type: 'SET_LOADING', payload: false })
-      
-      return result
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const result: BulkOperationResponse = await response.json()
+        
+        if (!result.success && result.updatedCount === 0) {
+          throw new Error(result.errors?.[0]?.message || 'Bulk operation failed')
+        }
+
+        // Process the result with enhanced error handling
+        const totalRequested = selectedIdsArray.length
+        const validationSkipped = validationResult ? validationResult.invalidIds.length : 0
+        const processedResult = errorHandler.handleBulkOperationResult(result, totalRequested, validationSkipped)
+
+        // Clear selection after successful operation
+        if (processedResult.updatedCount > 0) {
+          dispatch({ type: 'CLEAR_SELECTION' })
+          dispatch({ type: 'SET_VALIDATION_RESULT', payload: null })
+        }
+
+        dispatch({ type: 'SET_LOADING', payload: false })
+        
+        return result
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+        throw fetchError
+      }
     } catch (error) {
-      dispatch({ 
-        type: 'SET_ERROR', 
-        payload: error instanceof Error ? error.message : 'Ein Fehler ist bei der Bulk-Operation aufgetreten' 
-      })
+      const errorMessage = error instanceof Error ? error.message : 'Ein Fehler ist bei der Bulk-Operation aufgetreten'
+      
+      // Handle different types of errors with enhanced error handling
+      if (error instanceof Error) {
+        if (isNetworkError(error) || isTimeoutError(error) || error.name === 'AbortError') {
+          errorHandler.handleBulkOperationError(error, operation, Array.from(state.selectedIds))
+        } else {
+          dispatch({ type: 'SET_ERROR', payload: errorMessage })
+        }
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: errorMessage })
+      }
+      
+      dispatch({ type: 'SET_LOADING', payload: false })
       throw error
     }
-  }, [state.selectedIds, state.tableType, state.validationResult])
+  }, [state.selectedIds, state.tableType, state.validationResult, errorHandler])
 
   const contextValue: BulkOperationsContext = {
     state,

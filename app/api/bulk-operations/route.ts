@@ -7,6 +7,20 @@ import {
   BulkOperationError 
 } from '@/types/bulk-operations'
 
+// Enhanced error codes for better client-side handling
+const ERROR_CODES = {
+  AUTHENTICATION_FAILED: 'AUTHENTICATION_FAILED',
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  UNSUPPORTED_OPERATION: 'UNSUPPORTED_OPERATION',
+  VALIDATION_FAILED: 'VALIDATION_FAILED',
+  NOT_FOUND: 'NOT_FOUND',
+  UPDATE_FAILED: 'UPDATE_FAILED',
+  DATABASE_ERROR: 'DATABASE_ERROR',
+  PERMISSION_DENIED: 'PERMISSION_DENIED',
+  INTERNAL_ERROR: 'INTERNAL_ERROR'
+} as const
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -15,13 +29,25 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError) {
       return NextResponse.json(
-        { success: false, error: 'Authentication failed' },
+        { 
+          success: false, 
+          error: 'Authentication failed',
+          errors: [{ id: 'auth', message: 'Authentication failed', code: ERROR_CODES.AUTHENTICATION_FAILED }],
+          updatedCount: 0,
+          failedIds: []
+        },
         { status: 401 }
       )
     }
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'User not found' },
+        { 
+          success: false, 
+          error: 'User not found',
+          errors: [{ id: 'user', message: 'User not found', code: ERROR_CODES.USER_NOT_FOUND }],
+          updatedCount: 0,
+          failedIds: []
+        },
         { status: 401 }
       )
     }
@@ -32,7 +58,13 @@ export async function POST(request: NextRequest) {
     // Validate request
     if (!operation || !tableType || !selectedIds || selectedIds.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Invalid request parameters' },
+        { 
+          success: false, 
+          error: 'Invalid request parameters',
+          errors: [{ id: 'request', message: 'Invalid request parameters', code: ERROR_CODES.INVALID_REQUEST }],
+          updatedCount: 0,
+          failedIds: selectedIds || []
+        },
         { status: 400 }
       )
     }
@@ -52,15 +84,46 @@ export async function POST(request: NextRequest) {
       
       default:
         return NextResponse.json(
-          { success: false, error: `Unsupported operation: ${operation} for table: ${tableType}` },
+          { 
+            success: false, 
+            error: `Unsupported operation: ${operation} for table: ${tableType}`,
+            errors: [{ 
+              id: 'operation', 
+              message: `Unsupported operation: ${operation} for table: ${tableType}`, 
+              code: ERROR_CODES.UNSUPPORTED_OPERATION 
+            }],
+            updatedCount: 0,
+            failedIds: selectedIds
+          },
           { status: 400 }
         )
     }
   } catch (error) {
     console.error('Bulk operation error:', error)
+    
+    // Determine error type for better client handling
+    let errorCode = ERROR_CODES.INTERNAL_ERROR
+    let statusCode = 500
+    let errorMessage = 'Internal server error'
+    
+    if (error instanceof SyntaxError) {
+      errorCode = ERROR_CODES.INVALID_REQUEST
+      statusCode = 400
+      errorMessage = 'Invalid JSON in request body'
+    } else if (error instanceof TypeError && error.message.includes('fetch')) {
+      errorCode = ERROR_CODES.DATABASE_ERROR
+      errorMessage = 'Database connection failed'
+    }
+    
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
+      { 
+        success: false, 
+        error: errorMessage,
+        errors: [{ id: 'server', message: errorMessage, code: errorCode }],
+        updatedCount: 0,
+        failedIds: []
+      },
+      { status: statusCode }
     )
   }
 }
@@ -76,7 +139,13 @@ async function handleWohnungenChangeHaus(
   
   if (!hausId) {
     return NextResponse.json(
-      { success: false, error: 'House ID is required' },
+      { 
+        success: false, 
+        error: 'House ID is required',
+        errors: [{ id: 'hausId', message: 'House ID is required', code: ERROR_CODES.VALIDATION_FAILED }],
+        updatedCount: 0,
+        failedIds: selectedIds
+      },
       { status: 400 }
     )
   }
@@ -96,7 +165,13 @@ async function handleWohnungenChangeHaus(
 
     if (hausError || !hausData) {
       return NextResponse.json(
-        { success: false, error: 'House not found or access denied' },
+        { 
+          success: false, 
+          error: 'House not found or access denied',
+          errors: [{ id: hausId, message: 'House not found or access denied', code: ERROR_CODES.NOT_FOUND }],
+          updatedCount: 0,
+          failedIds: selectedIds
+        },
         { status: 404 }
       )
     }
@@ -109,8 +184,15 @@ async function handleWohnungenChangeHaus(
       .eq('user_id', userId)
 
     if (wohnungenError) {
+      console.error('Database error validating apartments:', wohnungenError)
       return NextResponse.json(
-        { success: false, error: 'Failed to validate apartments' },
+        { 
+          success: false, 
+          error: 'Failed to validate apartments',
+          errors: [{ id: 'database', message: 'Failed to validate apartments', code: ERROR_CODES.DATABASE_ERROR }],
+          updatedCount: 0,
+          failedIds: selectedIds
+        },
         { status: 500 }
       )
     }
@@ -123,41 +205,73 @@ async function handleWohnungenChangeHaus(
       errors.push({
         id,
         message: 'Apartment not found or access denied',
-        code: 'NOT_FOUND'
+        code: ERROR_CODES.NOT_FOUND
       })
       failedIds.push(id)
     })
 
-    // Update valid Wohnungen
+    // Update valid Wohnungen in batches to handle large datasets
     if (validWohnungIds.length > 0) {
-      const { error: updateError } = await supabase
-        .from('Wohnungen')
-        .update({ haus_id: hausId })
-        .in('id', validWohnungIds)
-        .eq('user_id', userId)
-
-      if (updateError) {
-        console.error('Error updating Wohnungen:', updateError)
-        
-        // If update fails, mark all as failed
-        validWohnungIds.forEach((id: string) => {
-          errors.push({
-            id,
-            message: 'Failed to update apartment',
-            code: 'UPDATE_FAILED'
-          })
-          failedIds.push(id)
-        })
-      } else {
-        updatedCount = validWohnungIds.length
+      const batchSize = 100 // Process in batches of 100
+      const batches = []
+      
+      for (let i = 0; i < validWohnungIds.length; i += batchSize) {
+        batches.push(validWohnungIds.slice(i, i + batchSize))
       }
+      
+      let batchUpdatedCount = 0
+      
+      for (const batch of batches) {
+        try {
+          const { error: updateError, count } = await supabase
+            .from('Wohnungen')
+            .update({ haus_id: hausId })
+            .in('id', batch)
+            .eq('user_id', userId)
+
+          if (updateError) {
+            console.error('Error updating Wohnungen batch:', updateError)
+            
+            // Mark this batch as failed
+            batch.forEach((id: string) => {
+              errors.push({
+                id,
+                message: 'Failed to update apartment',
+                code: ERROR_CODES.UPDATE_FAILED
+              })
+              failedIds.push(id)
+            })
+          } else {
+            batchUpdatedCount += count || batch.length
+          }
+        } catch (batchError) {
+          console.error('Batch update error:', batchError)
+          
+          // Mark this batch as failed
+          batch.forEach((id: string) => {
+            errors.push({
+              id,
+              message: 'Database error during update',
+              code: ERROR_CODES.DATABASE_ERROR
+            })
+            failedIds.push(id)
+          })
+        }
+      }
+      
+      updatedCount = batchUpdatedCount
     }
 
     // Revalidate relevant paths
     if (updatedCount > 0) {
-      revalidatePath('/wohnungen')
-      revalidatePath('/')
-      revalidatePath(`/haeuser/${hausId}`)
+      try {
+        revalidatePath('/wohnungen')
+        revalidatePath('/')
+        revalidatePath(`/haeuser/${hausId}`)
+      } catch (revalidateError) {
+        console.warn('Failed to revalidate paths:', revalidateError)
+        // Don't fail the operation for revalidation errors
+      }
     }
 
     const response: BulkOperationResponse = {
@@ -171,8 +285,29 @@ async function handleWohnungenChangeHaus(
 
   } catch (error) {
     console.error('Error in handleWohnungenChangeHaus:', error)
+    
+    // Determine specific error type
+    let errorCode = ERROR_CODES.INTERNAL_ERROR
+    let errorMessage = 'Failed to update apartments'
+    
+    if (error instanceof Error) {
+      if (error.message.includes('timeout')) {
+        errorCode = ERROR_CODES.DATABASE_ERROR
+        errorMessage = 'Database operation timed out'
+      } else if (error.message.includes('connection')) {
+        errorCode = ERROR_CODES.DATABASE_ERROR
+        errorMessage = 'Database connection failed'
+      }
+    }
+    
     return NextResponse.json(
-      { success: false, error: 'Failed to update apartments' },
+      { 
+        success: false, 
+        error: errorMessage,
+        errors: [{ id: 'operation', message: errorMessage, code: errorCode }],
+        updatedCount: 0,
+        failedIds: selectedIds
+      },
       { status: 500 }
     )
   }
@@ -189,7 +324,13 @@ async function handleFinanzenChangeTyp(
   
   if (typeof istEinnahmen !== 'boolean') {
     return NextResponse.json(
-      { success: false, error: 'Type (ist_einnahmen) is required and must be boolean' },
+      { 
+        success: false, 
+        error: 'Type (ist_einnahmen) is required and must be boolean',
+        errors: [{ id: 'ist_einnahmen', message: 'Type (ist_einnahmen) is required and must be boolean', code: ERROR_CODES.VALIDATION_FAILED }],
+        updatedCount: 0,
+        failedIds: selectedIds
+      },
       { status: 400 }
     )
   }
@@ -207,8 +348,15 @@ async function handleFinanzenChangeTyp(
       .eq('user_id', userId)
 
     if (finanzenError) {
+      console.error('Database error validating finance entries:', finanzenError)
       return NextResponse.json(
-        { success: false, error: 'Failed to validate finance entries' },
+        { 
+          success: false, 
+          error: 'Failed to validate finance entries',
+          errors: [{ id: 'database', message: 'Failed to validate finance entries', code: ERROR_CODES.DATABASE_ERROR }],
+          updatedCount: 0,
+          failedIds: selectedIds
+        },
         { status: 500 }
       )
     }
@@ -221,40 +369,72 @@ async function handleFinanzenChangeTyp(
       errors.push({
         id,
         message: 'Finance entry not found or access denied',
-        code: 'NOT_FOUND'
+        code: ERROR_CODES.NOT_FOUND
       })
       failedIds.push(id)
     })
 
-    // Update valid Finanzen entries
+    // Update valid Finanzen entries in batches
     if (validFinanzenIds.length > 0) {
-      const { error: updateError } = await supabase
-        .from('Finanzen')
-        .update({ ist_einnahmen: istEinnahmen })
-        .in('id', validFinanzenIds)
-        .eq('user_id', userId)
-
-      if (updateError) {
-        console.error('Error updating Finanzen:', updateError)
-        
-        // If update fails, mark all as failed
-        validFinanzenIds.forEach((id: string) => {
-          errors.push({
-            id,
-            message: 'Failed to update finance entry',
-            code: 'UPDATE_FAILED'
-          })
-          failedIds.push(id)
-        })
-      } else {
-        updatedCount = validFinanzenIds.length
+      const batchSize = 100 // Process in batches of 100
+      const batches = []
+      
+      for (let i = 0; i < validFinanzenIds.length; i += batchSize) {
+        batches.push(validFinanzenIds.slice(i, i + batchSize))
       }
+      
+      let batchUpdatedCount = 0
+      
+      for (const batch of batches) {
+        try {
+          const { error: updateError, count } = await supabase
+            .from('Finanzen')
+            .update({ ist_einnahmen: istEinnahmen })
+            .in('id', batch)
+            .eq('user_id', userId)
+
+          if (updateError) {
+            console.error('Error updating Finanzen batch:', updateError)
+            
+            // Mark this batch as failed
+            batch.forEach((id: string) => {
+              errors.push({
+                id,
+                message: 'Failed to update finance entry',
+                code: ERROR_CODES.UPDATE_FAILED
+              })
+              failedIds.push(id)
+            })
+          } else {
+            batchUpdatedCount += count || batch.length
+          }
+        } catch (batchError) {
+          console.error('Batch update error:', batchError)
+          
+          // Mark this batch as failed
+          batch.forEach((id: string) => {
+            errors.push({
+              id,
+              message: 'Database error during update',
+              code: ERROR_CODES.DATABASE_ERROR
+            })
+            failedIds.push(id)
+          })
+        }
+      }
+      
+      updatedCount = batchUpdatedCount
     }
 
     // Revalidate relevant paths
     if (updatedCount > 0) {
-      revalidatePath('/finanzen')
-      revalidatePath('/')
+      try {
+        revalidatePath('/finanzen')
+        revalidatePath('/')
+      } catch (revalidateError) {
+        console.warn('Failed to revalidate paths:', revalidateError)
+        // Don't fail the operation for revalidation errors
+      }
     }
 
     const response: BulkOperationResponse = {
@@ -268,8 +448,29 @@ async function handleFinanzenChangeTyp(
 
   } catch (error) {
     console.error('Error in handleFinanzenChangeTyp:', error)
+    
+    // Determine specific error type
+    let errorCode = ERROR_CODES.INTERNAL_ERROR
+    let errorMessage = 'Failed to update finance entries'
+    
+    if (error instanceof Error) {
+      if (error.message.includes('timeout')) {
+        errorCode = ERROR_CODES.DATABASE_ERROR
+        errorMessage = 'Database operation timed out'
+      } else if (error.message.includes('connection')) {
+        errorCode = ERROR_CODES.DATABASE_ERROR
+        errorMessage = 'Database connection failed'
+      }
+    }
+    
     return NextResponse.json(
-      { success: false, error: 'Failed to update finance entries' },
+      { 
+        success: false, 
+        error: errorMessage,
+        errors: [{ id: 'operation', message: errorMessage, code: errorCode }],
+        updatedCount: 0,
+        failedIds: selectedIds
+      },
       { status: 500 }
     )
   }

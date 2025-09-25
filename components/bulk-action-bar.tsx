@@ -8,6 +8,9 @@ import { useBulkOperations } from '@/context/bulk-operations-context'
 import { BulkOperation, ValidationResult } from '@/types/bulk-operations'
 import { BulkOperationDropdown } from './bulk-operation-dropdown'
 import { BulkValidationFeedback } from './bulk-validation-feedback'
+import { BulkOperationErrorDetails } from './bulk-operation-error-details'
+import { useBulkOperationsErrorHandler } from '@/hooks/use-bulk-operations-error-handler'
+import { BulkOperationResult } from '@/lib/bulk-operations-error-handling'
 import { cn } from '@/lib/utils'
 
 interface BulkActionBarProps {
@@ -26,6 +29,7 @@ export function BulkActionBar({
   const { state, clearSelection, performBulkOperation, validateOperation } = useBulkOperations()
   const { selectedIds, tableType } = state
   const selectedCount = selectedIds.size
+  const errorHandler = useBulkOperationsErrorHandler()
   
   // Confirmation dialog state
   const [selectedOperation, setSelectedOperation] = useState<BulkOperation | null>(null)
@@ -34,6 +38,8 @@ export function BulkActionBar({
   const [isExecuting, setIsExecuting] = useState(false)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [operationData, setOperationData] = useState<any>(null)
+  const [lastOperationResult, setLastOperationResult] = useState<BulkOperationResult | null>(null)
+  const [showErrorDetails, setShowErrorDetails] = useState(false)
 
   // Handle escape key to clear selections
   const handleEscapeKey = useCallback((event: KeyboardEvent) => {
@@ -91,7 +97,22 @@ export function BulkActionBar({
     setIsExecuting(true)
     
     try {
-      await performBulkOperation(selectedOperation, data || {})
+      const response = await performBulkOperation(selectedOperation, data || {})
+      
+      if (response) {
+        // Process the result for detailed feedback
+        const totalRequested = Array.from(selectedIds).length
+        const validationSkipped = validationResult ? validationResult.invalidIds.length : 0
+        const result = errorHandler.handleBulkOperationResult(response, totalRequested, validationSkipped)
+        
+        setLastOperationResult(result)
+        
+        // Show error details if there were failures
+        if (result.failedCount > 0 || result.skippedCount > 0) {
+          setShowErrorDetails(true)
+        }
+      }
+      
       setShowConfirmation(false)
       setSelectedOperation(null)
       setAffectedItems([])
@@ -99,11 +120,11 @@ export function BulkActionBar({
       setOperationData(null)
     } catch (error) {
       console.error('Bulk operation failed:', error)
-      // Error handling is managed by the context
+      // Error handling is managed by the context and error handler
     } finally {
       setIsExecuting(false)
     }
-  }, [selectedOperation, performBulkOperation])
+  }, [selectedOperation, performBulkOperation, selectedIds, validationResult, errorHandler])
 
   // Handle data changes from operation components
   const handleDataChange = useCallback((data: any) => {
@@ -118,6 +139,35 @@ export function BulkActionBar({
     setIsExecuting(false)
     setValidationResult(null)
     setOperationData(null)
+  }, [])
+
+  // Handle retry operation
+  const handleRetryOperation = useCallback(async () => {
+    if (!selectedOperation || !lastOperationResult) return
+    
+    // Retry with only the retryable IDs
+    const retryData = {
+      ...operationData,
+      selectedIds: lastOperationResult.retryableIds
+    }
+    
+    try {
+      await errorHandler.retryFailedOperation(
+        selectedOperation,
+        retryData,
+        async (operation, data) => {
+          return await performBulkOperation(operation, data)
+        }
+      )
+    } catch (error) {
+      console.error('Retry failed:', error)
+    }
+  }, [selectedOperation, lastOperationResult, operationData, errorHandler, performBulkOperation])
+
+  // Handle closing error details
+  const handleCloseErrorDetails = useCallback(() => {
+    setShowErrorDetails(false)
+    setLastOperationResult(null)
   }, [])
 
   // Handle validation result changes
@@ -207,6 +257,19 @@ export function BulkActionBar({
                 onDataChange={handleDataChange}
               />
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Error Details Dialog */}
+      {lastOperationResult && (
+        <Dialog open={showErrorDetails} onOpenChange={setShowErrorDetails}>
+          <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+            <BulkOperationErrorDetails
+              result={lastOperationResult}
+              onRetry={lastOperationResult.canRetry ? handleRetryOperation : undefined}
+              isRetrying={errorHandler.retryState.isRetrying}
+            />
           </DialogContent>
         </Dialog>
       )}
