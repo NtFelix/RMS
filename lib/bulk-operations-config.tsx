@@ -1,6 +1,7 @@
 import { BulkOperation, TableType } from '@/types/bulk-operations'
 import { BulkChangeHausComponent } from '@/components/bulk-change-haus-component'
-import { Home } from 'lucide-react'
+import { BulkChangeTypComponent } from '@/components/bulk-change-typ-component'
+import { Home, DollarSign } from 'lucide-react'
 
 export const getBulkOperationsForTable = (tableType: TableType): BulkOperation[] => {
   switch (tableType) {
@@ -25,7 +26,21 @@ export const getBulkOperationsForTable = (tableType: TableType): BulkOperation[]
     
     case 'finanzen':
       return [
-        // Will be implemented in task 7
+        {
+          id: 'changeTyp',
+          label: 'Typ ändern',
+          icon: DollarSign,
+          requiresConfirmation: true,
+          destructive: false,
+          component: BulkChangeTypComponent,
+          validationRules: [
+            {
+              field: 'ist_einnahmen',
+              validator: (value: any) => typeof value === 'boolean',
+              message: 'Ein Typ muss ausgewählt werden'
+            }
+          ]
+        }
       ]
     
     case 'mieter':

@@ -42,6 +42,9 @@ export async function POST(request: NextRequest) {
       case 'wohnungen-changeHaus':
         return await handleWohnungenChangeHaus(supabase, user.id, selectedIds, data)
       
+      case 'finanzen-changeTyp':
+        return await handleFinanzenChangeTyp(supabase, user.id, selectedIds, data)
+      
       default:
         return NextResponse.json(
           { success: false, error: `Unsupported operation: ${operation} for table: ${tableType}` },
@@ -164,6 +167,102 @@ async function handleWohnungenChangeHaus(
     console.error('Error in handleWohnungenChangeHaus:', error)
     return NextResponse.json(
       { success: false, error: 'Failed to update apartments' },
+      { status: 500 }
+    )
+  }
+}
+
+async function handleFinanzenChangeTyp(
+  supabase: any,
+  userId: string,
+  selectedIds: string[],
+  data: Record<string, any>
+): Promise<NextResponse> {
+  const istEinnahmen = data.ist_einnahmen as boolean
+  
+  if (typeof istEinnahmen !== 'boolean') {
+    return NextResponse.json(
+      { success: false, error: 'Type (ist_einnahmen) is required and must be boolean' },
+      { status: 400 }
+    )
+  }
+
+  const errors: BulkOperationError[] = []
+  let updatedCount = 0
+  const failedIds: string[] = []
+
+  try {
+    // Validate that all selected Finanzen belong to the user
+    const { data: finanzenData, error: finanzenError } = await supabase
+      .from('Finanzen')
+      .select('id')
+      .in('id', selectedIds)
+      .eq('user_id', userId)
+
+    if (finanzenError) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to validate finance entries' },
+        { status: 500 }
+      )
+    }
+
+    const validFinanzenIds = finanzenData?.map((f: { id: string }) => f.id) || []
+    const invalidIds = selectedIds.filter(id => !validFinanzenIds.includes(id))
+
+    // Add errors for invalid IDs
+    invalidIds.forEach((id: string) => {
+      errors.push({
+        id,
+        message: 'Finance entry not found or access denied',
+        code: 'NOT_FOUND'
+      })
+      failedIds.push(id)
+    })
+
+    // Update valid Finanzen entries
+    if (validFinanzenIds.length > 0) {
+      const { error: updateError } = await supabase
+        .from('Finanzen')
+        .update({ ist_einnahmen: istEinnahmen })
+        .in('id', validFinanzenIds)
+        .eq('user_id', userId)
+
+      if (updateError) {
+        console.error('Error updating Finanzen:', updateError)
+        
+        // If update fails, mark all as failed
+        validFinanzenIds.forEach((id: string) => {
+          errors.push({
+            id,
+            message: 'Failed to update finance entry',
+            code: 'UPDATE_FAILED'
+          })
+          failedIds.push(id)
+        })
+      } else {
+        updatedCount = validFinanzenIds.length
+      }
+    }
+
+    // Revalidate relevant paths
+    if (updatedCount > 0) {
+      revalidatePath('/finanzen')
+      revalidatePath('/')
+    }
+
+    const response: BulkOperationResponse = {
+      success: updatedCount > 0,
+      updatedCount,
+      failedIds,
+      errors
+    }
+
+    return NextResponse.json(response)
+
+  } catch (error) {
+    console.error('Error in handleFinanzenChangeTyp:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to update finance entries' },
       { status: 500 }
     )
   }
