@@ -1315,7 +1315,7 @@ export function AbrechnungModal({
                 }
               }}
               disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-              className="rounded-r-none border-r-0"
+              className="rounded-r-none border-r-0 h-10"
             >
               <FileDown className="mr-2 h-4 w-4" />
               {isGeneratingPDF ? "PDF wird erstellt..." : "Als PDF exportieren"}
@@ -1325,9 +1325,8 @@ export function AbrechnungModal({
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="default" 
-                  size="sm"
                   disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-                  className="rounded-l-none px-2 bg-primary/80 hover:bg-primary/90"
+                  className="rounded-l-none px-2 bg-primary/80 hover:bg-primary/90 h-10"
                 >
                   <ChevronDown className="h-4 w-4" />
                 </Button>
