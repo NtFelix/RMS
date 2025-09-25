@@ -29,6 +29,7 @@ import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
+import type { jsPDF } from 'jspdf'; // Type import for better type safety
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 // import jsPDF from 'jspdf'; // Removed for dynamic import
@@ -645,7 +646,7 @@ export function AbrechnungModal({
 
   // Reusable function to generate PDF content for a single tenant
   const generateSingleTenantPDF = (
-    doc: any, // jsPDF instance
+    doc: jsPDF, // jsPDF instance
     tenantData: TenantCostDetails,
     nebenkostenItem: Nebenkosten,
     ownerName: string,
