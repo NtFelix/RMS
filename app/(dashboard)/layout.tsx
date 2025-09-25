@@ -40,6 +40,7 @@ import { TemplatesModal } from "@/components/templates-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
 import { AIAssistantModal } from "@/components/ai-assistant-modal"; // Added
+import { BulkOperationsProvider } from "@/context/bulk-operations-context"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -125,10 +126,11 @@ export default function DashboardRootLayout({
   
   return (
     <AuthProvider>
-      <NestedDialogProvider>
-        {/* <GlobalDragDropProvider> */}
-          <CommandMenu />
-          <DashboardLayout>{children}</DashboardLayout>
+      <BulkOperationsProvider>
+        <NestedDialogProvider>
+          {/* <GlobalDragDropProvider> */}
+            <CommandMenu />
+            <DashboardLayout>{children}</DashboardLayout>
       {/* Render modals: They control their own open/close state via the store */}
       {/* TenantEditModal needs serverAction. Other props are from store. */}
       <TenantEditModal serverAction={tenantServerAction} />
@@ -257,8 +259,9 @@ export default function DashboardRootLayout({
           cancelText={confirmationModalConfig.cancelText}
         />
       )}
-        {/* </GlobalDragDropProvider> */}
-      </NestedDialogProvider>
+          {/* </GlobalDragDropProvider> */}
+        </NestedDialogProvider>
+      </BulkOperationsProvider>
     </AuthProvider>
   )
 }

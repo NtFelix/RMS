@@ -5,7 +5,7 @@ import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
 import { PlusCircle, Home, Key, Euro, Ruler } from "lucide-react";
 import { ApartmentFilters } from "@/components/apartment-filters";
 import { SelectableApartmentTable } from "@/components/selectable-apartment-table";
-import { BulkOperationsProvider } from "@/context/bulk-operations-context";
+
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -197,16 +197,14 @@ export default function WohnungenClientView({
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <BulkOperationsProvider>
-            <SelectableApartmentTable
-              filter={filter}
-              searchQuery={searchQuery}
-              initialApartments={apartments}
-              onEdit={handleEditWohnung}
-              onTableRefresh={refreshTable}
-              reloadRef={reloadRef}
-            />
-          </BulkOperationsProvider>
+          <SelectableApartmentTable
+            filter={filter}
+            searchQuery={searchQuery}
+            initialApartments={apartments}
+            onEdit={handleEditWohnung}
+            onTableRefresh={refreshTable}
+            reloadRef={reloadRef}
+          />
         </CardContent>
       </Card>
     </div>

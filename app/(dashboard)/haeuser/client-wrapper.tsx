@@ -6,7 +6,7 @@ import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { PlusCircle, Building, Home, Key } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import { HouseFilters } from "@/components/house-filters";
-import { HouseTable, House } from "@/components/house-table";
+import { SelectableHouseTable, House } from "@/components/selectable-house-table-wrapper";
 import { useModalStore } from "@/hooks/use-modal-store";
 
 // Props for the main client view component
@@ -49,7 +49,7 @@ function HaeuserMainContentComponent({ // Renamed for clarity within this scope
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <HouseFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-        <HouseTable
+        <SelectableHouseTable
           filter={filter}
           searchQuery={searchQuery}
           reloadRef={tableReloadRef}

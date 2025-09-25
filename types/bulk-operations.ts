@@ -10,7 +10,7 @@ export interface BulkOperationsState {
 
 export interface ValidationRule {
   field: string
-  validator: (value: any, record: any) => boolean | string
+  validator: (value: any, record: any, operationData?: any) => boolean | string | Promise<boolean | string>
   message: string
 }
 

@@ -7,7 +7,7 @@ import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle, Users, BadgeCheck, Euro } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import { TenantFilters } from "@/components/tenant-filters";
-import { TenantTable } from "@/components/tenant-table";
+import { SelectableTenantTable } from "@/components/selectable-tenant-table-wrapper";
 
 
 import type { Tenant } from "@/types/Tenant";
@@ -139,7 +139,7 @@ export default function MieterClientView({
             onFilterChange={setFilter}
             onSearchChange={setSearchQuery}
           />
-          <TenantTable
+          <SelectableTenantTable
             tenants={initialTenants} // Directly use initialTenants or manage a separate 'filteredTenants' state if needed
             wohnungen={initialWohnungen}
             filter={filter}

@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use validated IDs if validation result is provided
-    const idsToProcess = validationResult?.validIds?.length > 0 
+    const idsToProcess = validationResult?.validIds && validationResult.validIds.length > 0 
       ? validationResult.validIds 
       : selectedIds
 

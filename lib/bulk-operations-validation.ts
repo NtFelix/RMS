@@ -359,7 +359,7 @@ export const ValidationRuleBuilders = {
   /**
    * Creates a rule that validates a field using a custom function
    */
-  custom: (field: string, validator: (value: any, record: any, operationData?: any) => boolean | string, message: string): ValidationRule => ({
+  custom: (field: string, validator: (value: any, record: any, operationData?: any) => boolean | string | Promise<boolean | string>, message: string): ValidationRule => ({
     field,
     validator,
     message

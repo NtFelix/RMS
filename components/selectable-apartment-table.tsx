@@ -8,7 +8,7 @@ import { RowSelectionCheckbox } from "@/components/row-selection-checkbox"
 import { SelectAllCheckbox } from "@/components/select-all-checkbox"
 import { BulkActionBar } from "@/components/bulk-action-bar"
 import { useBulkOperations } from "@/context/bulk-operations-context"
-import { getBulkOperationsForTable } from "@/lib/bulk-operations-config"
+import { getBulkOperations } from "@/lib/bulk-operations-config"
 import { toast } from "@/hooks/use-toast"
 import { ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { formatNumber } from "@/utils/format"
@@ -158,7 +158,7 @@ export function SelectableApartmentTable({
   )
 
   // Get bulk operations for wohnungen table
-  const bulkOperations = getBulkOperationsForTable('wohnungen')
+  const bulkOperations = getBulkOperations('wohnungen')
   
   // Get affected items preview for the action bar
   const getAffectedItemsPreview = (selectedIds: string[]) => {
