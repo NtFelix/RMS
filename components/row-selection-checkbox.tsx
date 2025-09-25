@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback } from 'react'
+import React, { useCallback, memo } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useBulkOperations } from '@/context/bulk-operations-context'
 import { cn } from '@/lib/utils'
@@ -18,55 +18,82 @@ interface RowSelectionCheckboxProps {
   rowLabel?: string // Optional human-readable label for the row
 }
 
-export function RowSelectionCheckbox({ 
+// Optimized component for large datasets - prevents unnecessary re-renders
+const RowSelectionCheckboxComponent = ({ 
   rowId, 
   disabled = false, 
   className,
   rowLabel
-}: RowSelectionCheckboxProps) {
+}: RowSelectionCheckboxProps) => {
   const { state, selectRow } = useBulkOperations()
   
-  const isSelected = state.selectedIds.has(rowId)
+  // Memoize selection state to prevent recalculation
+  const isSelected = useMemo(() => state.selectedIds.has(rowId), [state.selectedIds, rowId])
   
-  const handleClick = (event: React.MouseEvent) => {
+  // Memoize event handlers to prevent recreation on every render
+  const handleClick = useCallback((event: React.MouseEvent) => {
     // Prevent event bubbling to avoid triggering row click handlers
     event.stopPropagation()
-  }
+  }, [])
   
   const handleCheckedChange = useCallback((checked: boolean) => {
     if (!disabled) {
-      selectRow(rowId)
-      
-      // Announce selection change to screen readers
-      const displayLabel = rowLabel || rowId
-      const announcement = checked 
-        ? SCREEN_READER_ANNOUNCEMENTS.rowSelected(displayLabel)
-        : SCREEN_READER_ANNOUNCEMENTS.rowDeselected(displayLabel)
-      
-      announceToScreenReader(announcement, 'polite')
+      // Use requestAnimationFrame for better performance with rapid selections
+      requestAnimationFrame(() => {
+        selectRow(rowId)
+        
+        // Debounce screen reader announcements to prevent spam
+        const displayLabel = rowLabel || rowId
+        const announcement = checked 
+          ? SCREEN_READER_ANNOUNCEMENTS.rowSelected(displayLabel)
+          : SCREEN_READER_ANNOUNCEMENTS.rowDeselected(displayLabel)
+        
+        // Only announce if not in batch mode (to prevent announcement spam)
+        if (!state.isLoading) {
+          announceToScreenReader(announcement, 'polite')
+        }
+      })
     }
-  }, [disabled, selectRow, rowId, rowLabel])
+  }, [disabled, selectRow, rowId, rowLabel, state.isLoading])
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     // Handle Space key for checkbox toggle
     if (event.key === ' ' && !disabled) {
       event.preventDefault()
       event.stopPropagation()
-      selectRow(rowId)
       
-      const displayLabel = rowLabel || rowId
-      const announcement = !isSelected 
-        ? SCREEN_READER_ANNOUNCEMENTS.rowSelected(displayLabel)
-        : SCREEN_READER_ANNOUNCEMENTS.rowDeselected(displayLabel)
-      
-      announceToScreenReader(announcement, 'polite')
+      // Use requestAnimationFrame for better performance
+      requestAnimationFrame(() => {
+        selectRow(rowId)
+        
+        const displayLabel = rowLabel || rowId
+        const announcement = !isSelected 
+          ? SCREEN_READER_ANNOUNCEMENTS.rowSelected(displayLabel)
+          : SCREEN_READER_ANNOUNCEMENTS.rowDeselected(displayLabel)
+        
+        if (!state.isLoading) {
+          announceToScreenReader(announcement, 'polite')
+        }
+      })
     }
-  }, [disabled, selectRow, rowId, rowLabel, isSelected])
+  }, [disabled, selectRow, rowId, rowLabel, isSelected, state.isLoading])
 
-  // Generate accessible label
-  const ariaLabel = rowLabel 
-    ? `${isSelected ? 'Abwählen' : 'Auswählen'} ${rowLabel}`
-    : ARIA_LABELS.rowSelectionCheckbox(rowId)
+  // Memoize accessible label to prevent recalculation
+  const ariaLabel = useMemo(() => {
+    return rowLabel 
+      ? `${isSelected ? 'Abwählen' : 'Auswählen'} ${rowLabel}`
+      : ARIA_LABELS.rowSelectionCheckbox(rowId)
+  }, [rowLabel, isSelected, rowId])
+
+  // Memoize description ID to prevent string concatenation on every render
+  const descriptionId = useMemo(() => `row-${rowId}-description`, [rowId])
+
+  // Memoize checkbox classes to prevent recalculation
+  const checkboxClasses = useMemo(() => cn(
+    "data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600",
+    "focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+    "transition-all duration-200"
+  ), [])
 
   return (
     <div 
@@ -80,18 +107,14 @@ export function RowSelectionCheckbox({
         onKeyDown={handleKeyDown}
         disabled={disabled || state.isLoading}
         aria-label={ariaLabel}
-        aria-describedby={`row-${rowId}-description`}
-        className={cn(
-          "data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600",
-          "focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-          "transition-all duration-200"
-        )}
+        aria-describedby={descriptionId}
+        className={checkboxClasses}
         title={`${KEYBOARD_SHORTCUTS.selectRow} zum Auswählen/Abwählen`}
       />
       
-      {/* Hidden description for screen readers */}
+      {/* Hidden description for screen readers - memoized content */}
       <span 
-        id={`row-${rowId}-description`}
+        id={descriptionId}
         className="sr-only"
       >
         {isSelected ? 'Ausgewählt' : 'Nicht ausgewählt'}. 
@@ -100,3 +123,18 @@ export function RowSelectionCheckbox({
     </div>
   )
 }
+
+// Export memoized component with optimized comparison function for large datasets
+export const RowSelectionCheckbox = memo(RowSelectionCheckboxComponent, (prevProps, nextProps) => {
+  // Optimized comparison for large datasets - only re-render if props actually change
+  // This prevents unnecessary re-renders when parent components update
+  return (
+    prevProps.rowId === nextProps.rowId &&
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.className === nextProps.className &&
+    prevProps.rowLabel === nextProps.rowLabel
+  )
+})
+
+// Set display name for debugging
+RowSelectionCheckbox.displayName = 'RowSelectionCheckbox'

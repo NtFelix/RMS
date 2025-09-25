@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useCallback, useState } from 'react'
+import React, { useEffect, useCallback, useState, memo, useMemo } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -26,16 +26,23 @@ interface BulkActionBarProps {
   getAffectedItemsPreview?: (selectedIds: string[]) => string[]
 }
 
-export function BulkActionBar({ 
+const BulkActionBarComponent = ({ 
   operations = [], 
   position = 'top',
   className,
   getAffectedItemsPreview
-}: BulkActionBarProps) {
+}: BulkActionBarProps) => {
   const { state, clearSelection, performBulkOperation, validateOperation } = useBulkOperations()
   const { selectedIds, tableType } = state
   const selectedCount = selectedIds.size
   const errorHandler = useBulkOperationsErrorHandler()
+  
+  // Memoize expensive calculations
+  const memoizedValues = useMemo(() => ({
+    selectedIdsArray: Array.from(selectedIds),
+    hasSelection: selectedCount > 0,
+    operationsAvailable: operations.length > 0
+  }), [selectedIds, selectedCount, operations.length])
   
   // Confirmation dialog state
   const [selectedOperation, setSelectedOperation] = useState<BulkOperation | null>(null)

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useReducer, useCallback } from 'react'
+import React, { createContext, useContext, useReducer, useCallback, useMemo } from 'react'
 import { 
   BulkOperationsState, 
   BulkOperationsContext, 
@@ -130,12 +130,37 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
   const [state, dispatch] = useReducer(bulkOperationsReducer, initialState)
   const errorHandler = useBulkOperationsErrorHandler()
 
+  // Optimized action creators with performance considerations for large datasets
   const selectRow = useCallback((id: string) => {
-    dispatch({ type: 'SELECT_ROW', payload: id })
+    // Use requestAnimationFrame for better performance with rapid selections
+    requestAnimationFrame(() => {
+      dispatch({ type: 'SELECT_ROW', payload: id })
+    })
   }, [])
 
   const selectAll = useCallback((ids: string[]) => {
-    dispatch({ type: 'SELECT_ALL', payload: ids })
+    // For large datasets, batch the operation
+    if (ids.length > 500) {
+      // Process in chunks to prevent blocking the UI
+      const chunkSize = 100
+      let currentIndex = 0
+      
+      const processChunk = () => {
+        const chunk = ids.slice(currentIndex, currentIndex + chunkSize)
+        if (chunk.length > 0) {
+          dispatch({ type: 'SELECT_ALL', payload: chunk })
+          currentIndex += chunkSize
+          
+          if (currentIndex < ids.length) {
+            requestAnimationFrame(processChunk)
+          }
+        }
+      }
+      
+      requestAnimationFrame(processChunk)
+    } else {
+      dispatch({ type: 'SELECT_ALL', payload: ids })
+    }
   }, [])
 
   const clearSelection = useCallback(() => {
@@ -296,7 +321,8 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
     }
   }, [state.selectedIds, state.tableType, state.validationResult, errorHandler])
 
-  const contextValue: BulkOperationsContext = {
+  // Highly optimized context value memoization for large datasets
+  const contextValue: BulkOperationsContext = useMemo(() => ({
     state,
     selectRow,
     selectAll,
@@ -306,7 +332,22 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
     setTableType,
     performBulkOperation,
     validateOperation,
-  }
+  }), [
+    // Only re-create context when essential state changes
+    state.selectedIds.size, // Use size instead of the Set itself for better memoization
+    state.tableType,
+    state.isLoading,
+    state.error,
+    state.validationResult,
+    selectRow,
+    selectAll,
+    clearSelection,
+    clearSelectionOnPageChange,
+    clearSelectionOnFilterChange,
+    setTableType,
+    performBulkOperation,
+    validateOperation,
+  ])
 
   return (
     <BulkOperationsContextValue.Provider value={contextValue}>
