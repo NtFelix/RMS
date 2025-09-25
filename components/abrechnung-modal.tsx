@@ -15,6 +15,7 @@
  */
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
@@ -23,7 +24,7 @@ import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox"
 import { Nebenkosten, Mieter, Wohnung, Rechnung, Wasserzaehler } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState, useMemo } from "react"; // Import useEffect, useState, and useMemo
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
+import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive } from 'lucide-react'; // Added FileDown and other icon imports
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -32,6 +33,7 @@ import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
+// import JSZip from 'jszip'; // Removed for dynamic import
 
 // Explicitly register autoTable plugin // Removed as autoTable will be imported dynamically
 // (jsPDF.API as any).autoTable = autoTable;
@@ -778,6 +780,194 @@ export function AbrechnungModal({
     doc.save(filename);
   };
 
+  // ZIP generation function for multiple PDFs
+  const generateSettlementZIP = async (
+    tenantDataArray: TenantCostDetails[],
+    nebenkostenItem: Nebenkosten,
+    ownerName: string,
+    ownerAddress: string
+  ) => {
+    const JSZip = (await import('jszip')).default;
+    const { default: jsPDF } = await import('jspdf');
+    const autoTableModule = await import('jspdf-autotable');
+
+    if (autoTableModule && typeof autoTableModule.applyPlugin === 'function') {
+      autoTableModule.applyPlugin(jsPDF);
+    } else if (autoTableModule && typeof autoTableModule.default === 'function') {
+      (jsPDF.API as any).autoTable = autoTableModule.default;
+    }
+
+    const zip = new JSZip();
+    const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`;
+
+    // Generate individual PDFs for each tenant
+    for (const tenantData of tenantDataArray) {
+      const doc = new jsPDF();
+      let startY = 20;
+
+      // Use the same processTenant logic from generateSettlementPDF
+      // Owner Information & Title
+      doc.setFontSize(10);
+      doc.text(ownerName, 20, startY);
+      startY += 6;
+      doc.text(ownerAddress, 20, startY);
+      startY += 10;
+
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
+      startY += 10;
+
+      // Settlement Period
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
+      startY += 6;
+
+      // Property Details
+      const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
+      doc.text(propertyDetails, 20, startY);
+      startY += 10;
+
+      // Costs Table
+      const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
+      const tableRows: any[][] = [];
+
+      tenantData.costItems.forEach(item => {
+        const row = [
+          item.costName,
+          formatCurrency(item.totalCostForItem),
+          item.verteiler || '-',
+          item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-',
+          formatCurrency(item.tenantShare)
+        ];
+        tableRows.push(row);
+      });
+
+      (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: startY,
+        theme: 'plain',
+        headStyles: { 
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          lineWidth: { bottom: 0.3 },
+          lineColor: [0, 0, 0]
+        },
+        styles: { 
+          fontSize: 9, 
+          cellPadding: 1.5,
+          lineWidth: 0
+        },
+        bodyStyles: {
+          lineWidth: { bottom: 0.1 },
+          lineColor: [0, 0, 0]
+        },
+        columnStyles: {
+          1: { halign: 'right' },
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+          4: { halign: 'right' }
+        },
+        tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
+        margin: { left: 20, right: 20 }
+      });
+
+      let tableFinalY = (doc as any).lastAutoTable?.finalY;
+      if (typeof tableFinalY === 'number') {
+        startY = tableFinalY + 6;
+      } else {
+        startY += 10;
+      }
+
+      // Draw "Betriebskosten gesamt" sums
+      const sumOfTotalCostForItem = tenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
+      const sumOfTenantSharesFromCostItems = tenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
+
+      const lastTable = (doc as any).lastAutoTable;
+      if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
+        const col0 = lastTable.columns[0];
+        const col4 = lastTable.columns[4];
+
+        if (col0 && typeof col0.x === 'number' && col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+
+          const labelText = "Betriebskosten gesamt: ";
+          const sum1Text = formatCurrency(sumOfTotalCostForItem);
+          doc.text(labelText + sum1Text, col0.x, startY, { align: 'left' });
+          doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col4.x + col4.width, startY, { align: 'right' });
+
+          startY += 8;
+          doc.setFont("helvetica", "normal");
+        }
+      }
+
+      // Water consumption section
+      startY += 5;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Wasserverbrauch", 20, startY);
+      startY += 7;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+
+      const totalBuildingConsumption = nebenkostenItem.wasserverbrauch || 0;
+      const totalWaterCost = nebenkostenItem.wasserkosten || 0;
+      const pricePerCubicMeter = totalBuildingConsumption > 0 ? totalWaterCost / totalBuildingConsumption : 0;
+
+      doc.text(`Gesamtverbrauch Gebäude: ${totalBuildingConsumption} m³`, 20, startY);
+      startY += 5;
+      doc.text(`Gesamtkosten Wasser: ${formatCurrency(totalWaterCost)}`, 20, startY);
+      startY += 5;
+      doc.text(`Preis pro m³: ${formatCurrency(pricePerCubicMeter)}`, 20, startY);
+      startY += 8;
+
+      doc.text(`Verbrauch ${tenantData.tenantName}: ${tenantData.waterCost.consumption || 0} m³`, 20, startY);
+      startY += 5;
+      doc.text(`Wasserkosten ${tenantData.tenantName}: ${formatCurrency(tenantData.waterCost.tenantShare)}`, 20, startY);
+      startY += 10;
+
+      // Settlement summary
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Abrechnung", 20, startY);
+      startY += 8;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Gesamtkosten: ${formatCurrency(tenantData.totalTenantCost)}`, 20, startY);
+      startY += 5;
+      doc.text(`Vorauszahlungen: ${formatCurrency(tenantData.vorauszahlungen)}`, 20, startY);
+      startY += 8;
+
+      doc.setFont("helvetica", "bold");
+      const isNachzahlung = tenantData.finalSettlement >= 0;
+      const settlementText = isNachzahlung ? "Nachzahlung" : "Guthaben";
+      doc.text(`${settlementText}: ${formatCurrency(tenantData.finalSettlement)}`, 20, startY);
+      
+      const pdfBlob = doc.output('blob');
+      const filename = `Abrechnung_${currentPeriod}_${tenantData.tenantName.replace(/\s+/g, '_')}.pdf`;
+      zip.file(filename, pdfBlob);
+    }
+
+    // Generate and download the ZIP file
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const zipFilename = `Abrechnung_${currentPeriod}_Alle_Mieter.zip`;
+    
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = zipFilename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // Memoize tenant options to avoid recreating on every render
   const tenantOptions: ComboboxOption[] = useMemo(() => 
     (Array.isArray(tenants) ? tenants : []).map(tenant => ({
@@ -1104,28 +1294,93 @@ export function AbrechnungModal({
           <Button variant="outline" onClick={onClose} disabled={isGeneratingPDF}>
             Schließen
           </Button>
-          <Button 
-            variant="default" 
-            onClick={async () => { 
-              setIsGeneratingPDF(true);
-              try {
-                await generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress);
-              } catch (error) {
-                console.error('Error generating PDF:', error);
-                toast({
-                  title: "Fehler bei PDF-Generierung",
-                  description: "Ein Fehler ist beim Erstellen der PDF aufgetreten.",
-                  variant: "destructive",
-                });
-              } finally {
-                setIsGeneratingPDF(false);
-              }
-            }}
-            disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-          >
-            <FileDown className="mr-2 h-4 w-4" />
-            {isGeneratingPDF ? "PDF wird erstellt..." : "Als PDF exportieren"}
-          </Button>
+          
+          {/* Export Dropdown Button */}
+          <div className="flex">
+            <Button 
+              variant="default" 
+              onClick={async () => { 
+                setIsGeneratingPDF(true);
+                try {
+                  await generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress);
+                } catch (error) {
+                  console.error('Error generating PDF:', error);
+                  toast({
+                    title: "Fehler bei PDF-Generierung",
+                    description: "Ein Fehler ist beim Erstellen der PDF aufgetreten.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsGeneratingPDF(false);
+                }
+              }}
+              disabled={isGeneratingPDF || calculatedTenantData.length === 0}
+              className="rounded-r-none border-r-0"
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              {isGeneratingPDF ? "PDF wird erstellt..." : "Als PDF exportieren"}
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  disabled={isGeneratingPDF || calculatedTenantData.length === 0}
+                  className="rounded-l-none px-2 bg-primary/80 hover:bg-primary/90"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={async () => { 
+                    setIsGeneratingPDF(true);
+                    try {
+                      await generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress);
+                    } catch (error) {
+                      console.error('Error generating PDF:', error);
+                      toast({
+                        title: "Fehler bei PDF-Generierung",
+                        description: "Ein Fehler ist beim Erstellen der PDF aufgetreten.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsGeneratingPDF(false);
+                    }
+                  }}
+                  disabled={isGeneratingPDF || calculatedTenantData.length === 0}
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Als PDF exportieren
+                </DropdownMenuItem>
+                
+                {calculatedTenantData.length > 1 && (
+                  <DropdownMenuItem
+                    onClick={async () => { 
+                      setIsGeneratingPDF(true);
+                      try {
+                        await generateSettlementZIP(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress);
+                      } catch (error) {
+                        console.error('Error generating ZIP:', error);
+                        toast({
+                          title: "Fehler bei ZIP-Generierung",
+                          description: "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsGeneratingPDF(false);
+                      }
+                    }}
+                    disabled={isGeneratingPDF}
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Als ZIP exportieren (alle PDFs)
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
