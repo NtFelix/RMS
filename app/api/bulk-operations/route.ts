@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     console.error('Bulk operation error:', error)
     
     // Determine error type for better client handling
-    let errorCode = ERROR_CODES.INTERNAL_ERROR
+    let errorCode: (typeof ERROR_CODES)[keyof typeof ERROR_CODES] = ERROR_CODES.INTERNAL_ERROR
     let statusCode = 500
     let errorMessage = 'Internal server error'
     
@@ -287,7 +287,7 @@ async function handleWohnungenChangeHaus(
     console.error('Error in handleWohnungenChangeHaus:', error)
     
     // Determine specific error type
-    let errorCode = ERROR_CODES.INTERNAL_ERROR
+    let errorCode: (typeof ERROR_CODES)[keyof typeof ERROR_CODES] = ERROR_CODES.INTERNAL_ERROR
     let errorMessage = 'Failed to update apartments'
     
     if (error instanceof Error) {
@@ -450,7 +450,7 @@ async function handleFinanzenChangeTyp(
     console.error('Error in handleFinanzenChangeTyp:', error)
     
     // Determine specific error type
-    let errorCode = ERROR_CODES.INTERNAL_ERROR
+    let errorCode: (typeof ERROR_CODES)[keyof typeof ERROR_CODES] = ERROR_CODES.INTERNAL_ERROR
     let errorMessage = 'Failed to update finance entries'
     
     if (error instanceof Error) {

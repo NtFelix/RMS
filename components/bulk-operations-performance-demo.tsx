@@ -39,7 +39,7 @@ function BulkOperationsPerformanceDemo({ dataSize = 1000 }: PerformanceDemoProps
   const [operationTime, setOperationTime] = useState<number>(0)
   
   const {
-    selectedIds,
+    state,
     selectRow,
     selectAll,
     clearSelection,
@@ -121,7 +121,7 @@ function BulkOperationsPerformanceDemo({ dataSize = 1000 }: PerformanceDemoProps
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="text-center">
-              <div className="text-2xl font-bold">{selectedIds.size}</div>
+              <div className="text-2xl font-bold">{state.selectedIds.size}</div>
               <div className="text-sm text-muted-foreground">Selected</div>
             </div>
             <div className="text-center">
@@ -212,7 +212,7 @@ function BulkOperationsPerformanceDemo({ dataSize = 1000 }: PerformanceDemoProps
             <div className="flex items-center gap-2 mb-4">
               <SelectAllCheckbox
                 allIds={visibleIds}
-                selectedIds={selectedIds}
+                selectedIds={state.selectedIds}
                 tableType="Demo Items"
               />
               <span className="text-sm font-medium">

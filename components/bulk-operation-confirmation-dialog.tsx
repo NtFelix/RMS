@@ -202,7 +202,7 @@ export function BulkOperationConfirmationDialog({
                 )}
                 autoFocus
                 aria-describedby="confirmation-input-description confirmation-input-error"
-                aria-invalid={confirmationText && !isConfirmationValid}
+                aria-invalid={confirmationText && !isConfirmationValid ? true : false}
               />
               <span 
                 id="confirmation-input-description"

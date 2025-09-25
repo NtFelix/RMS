@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, memo } from 'react'
+import React, { useCallback, memo, useMemo } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useBulkOperations } from '@/context/bulk-operations-context'
 import { cn } from '@/lib/utils'

@@ -113,13 +113,7 @@ export function useBulkOperationsErrorHandler(
     toast({
       variant: "destructive",
       title: "Fehler bei der Bulk-Operation",
-      description: getErrorDescription(error, canRetry),
-      action: canRetry ? {
-        altText: "Wiederholen",
-        onClick: () => {
-          // This will be handled by the component using this hook
-        }
-      } : undefined
+      description: getErrorDescription(error, canRetry)
     })
   }, [toast])
 
@@ -239,12 +233,7 @@ export function useBulkOperationsErrorHandler(
       variant: "default",
       title: message.title,
       description: message.description,
-      action: result.canRetry ? {
-        altText: "Fehlgeschlagene wiederholen",
-        onClick: () => {
-          // This will be handled by the component using this hook
-        }
-      } : undefined
+
     })
   }, [toast])
 
@@ -258,12 +247,7 @@ export function useBulkOperationsErrorHandler(
       variant: "destructive",
       title: message.title,
       description: message.description,
-      action: result.canRetry ? {
-        altText: "Wiederholen",
-        onClick: () => {
-          // This will be handled by the component using this hook
-        }
-      } : undefined
+
     })
   }, [toast])
 

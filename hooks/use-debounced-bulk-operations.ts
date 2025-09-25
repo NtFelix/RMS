@@ -356,6 +356,14 @@ export function useOptimizedTableRendering<T extends { id: string }>(
       },
       
       getVisibleItems: (scrollTop: number) => {
+        if (!virtualScrollData) {
+          return {
+            items: data,
+            startIndex: 0,
+            endIndex: data.length,
+            offsetY: 0
+          }
+        }
         const { startIndex, endIndex, offsetY } = virtualScrollData.getVisibleRange(scrollTop)
         return {
           items: data.slice(startIndex, endIndex),

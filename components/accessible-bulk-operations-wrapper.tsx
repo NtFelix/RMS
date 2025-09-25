@@ -42,7 +42,7 @@ export function AccessibleBulkOperationsWrapper({
   // Set up keyboard navigation
   const { isKeyboardNavigationEnabled } = useBulkOperationsKeyboardNavigation({
     enabled: true,
-    containerRef,
+    containerRef: containerRef as React.RefObject<HTMLElement | null>,
     allIds
   })
 
@@ -148,7 +148,7 @@ export function withAccessibleBulkOperations<P extends object>(
     getAllIds?: (props: P) => string[]
   } = {}
 ) {
-  const AccessibleComponent = React.forwardRef<any, P>((props, ref) => {
+  const AccessibleComponent = (props: P) => {
     const { tableType = 'Tabelle', getAriaLabel, getAllIds } = options
     
     const ariaLabel = getAriaLabel ? getAriaLabel(props) : undefined
@@ -160,10 +160,10 @@ export function withAccessibleBulkOperations<P extends object>(
         ariaLabel={ariaLabel}
         allIds={allIds}
       >
-        <WrappedComponent {...props} ref={ref} />
+        <WrappedComponent {...props} />
       </AccessibleBulkOperationsWrapper>
     )
-  })
+  }
 
   AccessibleComponent.displayName = `withAccessibleBulkOperations(${WrappedComponent.displayName || WrappedComponent.name})`
 

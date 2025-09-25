@@ -112,8 +112,8 @@ const BulkActionBarComponent = ({
     try {
       const response = await performBulkOperation(selectedOperation, data || {})
       
+      // Process the result for detailed feedback if we got a response
       if (response) {
-        // Process the result for detailed feedback
         const totalRequested = Array.from(selectedIds).length
         const validationSkipped = validationResult ? validationResult.invalidIds.length : 0
         const result = errorHandler.handleBulkOperationResult(response, totalRequested, validationSkipped)
@@ -169,7 +169,11 @@ const BulkActionBarComponent = ({
         selectedOperation,
         retryData,
         async (operation, data) => {
-          return await performBulkOperation(operation, data)
+          const result = await performBulkOperation(operation, data)
+          if (!result) {
+            throw new Error('Operation failed - no response received')
+          }
+          return result
         }
       )
     } catch (error) {
@@ -320,3 +324,7 @@ const BulkActionBarComponent = ({
     </div>
   )
 }
+
+// Memoized export for performance
+export const BulkActionBar = memo(BulkActionBarComponent)
+BulkActionBar.displayName = 'BulkActionBar'

@@ -19,7 +19,7 @@ interface UseBulkOperationsKeyboardNavigationOptions {
   /**
    * Container element for focus management
    */
-  containerRef?: React.RefObject<HTMLElement>
+  containerRef?: React.RefObject<HTMLElement | null>
   
   /**
    * Callback when Escape key is pressed

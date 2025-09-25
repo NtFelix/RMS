@@ -48,7 +48,7 @@ export function BulkOperationsPerformanceMonitor({
 
   const {
     performanceMetrics,
-    selectedCount,
+    state,
     resetPerformanceMetrics
   } = useDebouncedBulkOperations({
     enablePerformanceMonitoring: true
@@ -70,7 +70,7 @@ export function BulkOperationsPerformanceMonitor({
           timestamp: Date.now(),
           renderTime: performanceMetrics.averageRenderTime,
           batchTime: performanceMetrics.batchProcessingTime,
-          selectedCount: performanceMetrics.selectedCount
+          selectedCount: state.selectedIds.size
         }
         
         // Keep only last 50 entries
@@ -78,7 +78,7 @@ export function BulkOperationsPerformanceMonitor({
         return updated
       })
     }
-  }, [performanceMetrics.lastRenderTime, performanceMetrics.averageRenderTime, performanceMetrics.batchProcessingTime, performanceMetrics.selectedCount])
+  }, [performanceMetrics.lastRenderTime, performanceMetrics.averageRenderTime, performanceMetrics.batchProcessingTime, state.selectedIds.size])
 
   // Calculate performance status
   const performanceStatus = useMemo(() => {
@@ -163,7 +163,7 @@ export function BulkOperationsPerformanceMonitor({
         {/* Basic Metrics */}
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div className="text-center">
-            <div className="text-lg font-semibold">{selectedCount}</div>
+            <div className="text-lg font-semibold">{state.selectedIds.size}</div>
             <div className="text-xs text-muted-foreground">Selected</div>
           </div>
           <div className="text-center">
