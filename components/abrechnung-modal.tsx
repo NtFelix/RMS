@@ -1215,7 +1215,7 @@ export function AbrechnungModal({
                     "Ein Fehler ist beim Erstellen der PDF aufgetreten."
                   )}
                   disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-                  className="hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary"
+                  className="hover:!bg-primary/10 hover:!text-primary focus:!bg-primary/10 focus:!text-primary"
                 >
                   <FileDown className="mr-2 h-4 w-4" />
                   Als PDF exportieren
@@ -1229,7 +1229,7 @@ export function AbrechnungModal({
                       "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten."
                     )}
                     disabled={isGeneratingPDF}
-                    className="hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary"
+                    className="hover:!bg-primary/10 hover:!text-primary focus:!bg-primary/10 focus:!text-primary"
                   >
                     <Archive className="mr-2 h-4 w-4" />
                     Als ZIP exportieren (alle PDFs)
