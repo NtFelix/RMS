@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: BulkOperationRequest = await request.json()
-    const { operation, tableType, selectedIds, data } = body
+    const { operation, tableType, selectedIds, data, validationResult } = body
 
     // Validate request
     if (!operation || !tableType || !selectedIds || selectedIds.length === 0) {
@@ -37,13 +37,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Use validated IDs if validation result is provided
+    const idsToProcess = validationResult?.validIds?.length > 0 
+      ? validationResult.validIds 
+      : selectedIds
+
     // Handle different bulk operations
     switch (`${tableType}-${operation}`) {
       case 'wohnungen-changeHaus':
-        return await handleWohnungenChangeHaus(supabase, user.id, selectedIds, data)
+        return await handleWohnungenChangeHaus(supabase, user.id, idsToProcess, data, validationResult)
       
       case 'finanzen-changeTyp':
-        return await handleFinanzenChangeTyp(supabase, user.id, selectedIds, data)
+        return await handleFinanzenChangeTyp(supabase, user.id, idsToProcess, data, validationResult)
       
       default:
         return NextResponse.json(
@@ -64,7 +69,8 @@ async function handleWohnungenChangeHaus(
   supabase: any,
   userId: string,
   selectedIds: string[],
-  data: Record<string, any>
+  data: Record<string, any>,
+  validationResult?: any
 ): Promise<NextResponse> {
   const hausId = data.hausId as string
   
@@ -176,7 +182,8 @@ async function handleFinanzenChangeTyp(
   supabase: any,
   userId: string,
   selectedIds: string[],
-  data: Record<string, any>
+  data: Record<string, any>,
+  validationResult?: any
 ): Promise<NextResponse> {
   const istEinnahmen = data.ist_einnahmen as boolean
   

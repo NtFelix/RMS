@@ -5,6 +5,7 @@ export interface BulkOperationsState {
   tableType: TableType | null
   isLoading: boolean
   error: string | null
+  validationResult: ValidationResult | null
 }
 
 export interface ValidationRule {
@@ -29,6 +30,7 @@ export interface BulkOperationProps {
   selectedIds: string[]
   onConfirm: (data: any) => Promise<void>
   onCancel: () => void
+  onDataChange?: (data: any) => void
 }
 
 export interface BulkOperationsContext {
@@ -37,7 +39,8 @@ export interface BulkOperationsContext {
   selectAll: (ids: string[]) => void
   clearSelection: () => void
   setTableType: (tableType: TableType) => void
-  performBulkOperation: (operation: BulkOperation, data: any) => Promise<void>
+  performBulkOperation: (operation: BulkOperation, data: any, options?: { skipValidation?: boolean }) => Promise<void>
+  validateOperation: (operation: BulkOperation, data?: any) => Promise<ValidationResult | null>
 }
 
 export interface BulkOperationRequest {
@@ -46,6 +49,7 @@ export interface BulkOperationRequest {
   selectedIds: string[]
   data: Record<string, any>
   userId: string
+  validationResult?: ValidationResult
 }
 
 export interface BulkOperationResponse {

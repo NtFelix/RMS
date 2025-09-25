@@ -23,12 +23,14 @@ interface BulkChangeHausComponentProps extends BulkOperationProps {
   selectedIds: string[]
   onConfirm: (data: any) => Promise<void>
   onCancel: () => void
+  onDataChange?: (data: any) => void
 }
 
 export function BulkChangeHausComponent({
   selectedIds,
   onConfirm,
-  onCancel
+  onCancel,
+  onDataChange
 }: BulkChangeHausComponentProps) {
   const [selectedHausId, setSelectedHausId] = useState<string>('')
   const [houses, setHouses] = useState<Haus[]>([])
@@ -117,7 +119,11 @@ export function BulkChangeHausComponent({
               <span className="text-sm text-gray-600">Häuser werden geladen...</span>
             </div>
           ) : (
-            <Select value={selectedHausId} onValueChange={setSelectedHausId}>
+            <Select value={selectedHausId} onValueChange={(value) => {
+              setSelectedHausId(value)
+              // Notify parent of data change for validation
+              onDataChange?.({ hausId: value })
+            }}>
               <SelectTrigger id="haus-select">
                 <SelectValue placeholder="Haus auswählen..." />
               </SelectTrigger>

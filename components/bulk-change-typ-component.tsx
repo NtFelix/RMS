@@ -18,12 +18,14 @@ interface BulkChangeTypComponentProps extends BulkOperationProps {
   selectedIds: string[]
   onConfirm: (data: any) => Promise<void>
   onCancel: () => void
+  onDataChange?: (data: any) => void
 }
 
 export function BulkChangeTypComponent({
   selectedIds,
   onConfirm,
-  onCancel
+  onCancel,
+  onDataChange
 }: BulkChangeTypComponentProps) {
   const [selectedTyp, setSelectedTyp] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
@@ -77,7 +79,12 @@ export function BulkChangeTypComponent({
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="typ-select">Neuen Typ auswählen</Label>
-          <Select value={selectedTyp} onValueChange={setSelectedTyp}>
+          <Select value={selectedTyp} onValueChange={(value) => {
+            setSelectedTyp(value)
+            // Notify parent of data change for validation
+            const istEinnahmen = value === 'einnahmen'
+            onDataChange?.({ ist_einnahmen: istEinnahmen })
+          }}>
             <SelectTrigger id="typ-select">
               <SelectValue placeholder="Typ auswählen..." />
             </SelectTrigger>

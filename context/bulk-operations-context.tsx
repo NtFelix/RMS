@@ -5,8 +5,10 @@ import {
   BulkOperationsState, 
   BulkOperationsContext, 
   BulkOperation, 
-  TableType 
+  TableType,
+  ValidationResult 
 } from '@/types/bulk-operations'
+import { validationService } from '@/lib/bulk-operations-validation'
 
 // Initial state
 const initialState: BulkOperationsState = {
@@ -14,6 +16,7 @@ const initialState: BulkOperationsState = {
   tableType: null,
   isLoading: false,
   error: null,
+  validationResult: null,
 }
 
 // Action types
@@ -24,6 +27,7 @@ type BulkOperationsAction =
   | { type: 'SET_TABLE_TYPE'; payload: TableType }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_VALIDATION_RESULT'; payload: ValidationResult | null }
 
 // Reducer
 function bulkOperationsReducer(
@@ -81,6 +85,11 @@ function bulkOperationsReducer(
         error: action.payload,
         isLoading: false,
       }
+    case 'SET_VALIDATION_RESULT':
+      return {
+        ...state,
+        validationResult: action.payload,
+      }
     default:
       return state
   }
@@ -113,7 +122,40 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
     dispatch({ type: 'SET_TABLE_TYPE', payload: tableType })
   }, [])
 
-  const performBulkOperation = useCallback(async (operation: BulkOperation, data: any) => {
+  const validateOperation = useCallback(async (operation: BulkOperation, data?: any) => {
+    if (state.selectedIds.size === 0 || !state.tableType) {
+      dispatch({ type: 'SET_VALIDATION_RESULT', payload: null })
+      return null
+    }
+
+    try {
+      const selectedIdsArray = Array.from(state.selectedIds)
+      const result = await validationService.validateBulkOperation(
+        operation,
+        selectedIdsArray,
+        state.tableType,
+        data
+      )
+      
+      dispatch({ type: 'SET_VALIDATION_RESULT', payload: result })
+      return result
+    } catch (error) {
+      const errorResult: ValidationResult = {
+        isValid: false,
+        validIds: [],
+        invalidIds: Array.from(state.selectedIds),
+        errors: [{
+          id: 'general',
+          field: 'general',
+          message: error instanceof Error ? error.message : 'Validation failed'
+        }]
+      }
+      dispatch({ type: 'SET_VALIDATION_RESULT', payload: errorResult })
+      return errorResult
+    }
+  }, [state.selectedIds, state.tableType])
+
+  const performBulkOperation = useCallback(async (operation: BulkOperation, data: any, options?: { skipValidation?: boolean }) => {
     if (state.selectedIds.size === 0) {
       dispatch({ type: 'SET_ERROR', payload: 'No rows selected' })
       return
@@ -130,6 +172,28 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
     try {
       const selectedIdsArray = Array.from(state.selectedIds)
       
+      // Validate before performing operation (unless skipped)
+      let validationResult = state.validationResult
+      if (!options?.skipValidation) {
+        validationResult = await validationService.validateBulkOperation(
+          operation,
+          selectedIdsArray,
+          state.tableType,
+          data
+        )
+        dispatch({ type: 'SET_VALIDATION_RESULT', payload: validationResult })
+      }
+
+      // Check if we can proceed with the operation
+      if (validationResult && !validationService.getValidationSummary(validationResult).canProceed) {
+        throw new Error('Validation failed. No records can be updated.')
+      }
+
+      // Use only valid IDs for the operation if we have validation results
+      const idsToUpdate = validationResult && validationResult.validIds.length > 0 
+        ? validationResult.validIds 
+        : selectedIdsArray
+
       const response = await fetch('/api/bulk-operations', {
         method: 'POST',
         headers: {
@@ -138,8 +202,9 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
         body: JSON.stringify({
           operation: operation.id,
           tableType: state.tableType,
-          selectedIds: selectedIdsArray,
+          selectedIds: idsToUpdate,
           data,
+          validationResult, // Include validation result for server-side reference
         }),
       })
 
@@ -159,15 +224,27 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
         // Success will be handled by the component that called this function
         // Clear selection after successful operation
         dispatch({ type: 'CLEAR_SELECTION' })
+        dispatch({ type: 'SET_VALIDATION_RESULT', payload: null })
       }
 
       // Show warnings for failed items if any
       if (result.failedIds && result.failedIds.length > 0) {
         const failedCount = result.failedIds.length
         const successCount = result.updatedCount
+        const skippedCount = validationResult ? validationResult.invalidIds.length : 0
+        
+        let message = `${successCount} Einträge erfolgreich aktualisiert`
+        if (failedCount > 0) {
+          message += `, ${failedCount} fehlgeschlagen`
+        }
+        if (skippedCount > 0) {
+          message += `, ${skippedCount} übersprungen`
+        }
+        message += '.'
+        
         dispatch({ 
           type: 'SET_ERROR', 
-          payload: `${successCount} Einträge erfolgreich aktualisiert, ${failedCount} fehlgeschlagen.` 
+          payload: message
         })
       }
 
@@ -181,7 +258,7 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
       })
       throw error
     }
-  }, [state.selectedIds, state.tableType])
+  }, [state.selectedIds, state.tableType, state.validationResult])
 
   const contextValue: BulkOperationsContext = {
     state,
@@ -190,6 +267,7 @@ export function BulkOperationsProvider({ children }: BulkOperationsProviderProps
     clearSelection,
     setTableType,
     performBulkOperation,
+    validateOperation,
   }
 
   return (

@@ -5,8 +5,9 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { useBulkOperations } from '@/context/bulk-operations-context'
-import { BulkOperation } from '@/types/bulk-operations'
+import { BulkOperation, ValidationResult } from '@/types/bulk-operations'
 import { BulkOperationDropdown } from './bulk-operation-dropdown'
+import { BulkValidationFeedback } from './bulk-validation-feedback'
 import { cn } from '@/lib/utils'
 
 interface BulkActionBarProps {
@@ -22,8 +23,8 @@ export function BulkActionBar({
   className,
   getAffectedItemsPreview
 }: BulkActionBarProps) {
-  const { state, clearSelection, performBulkOperation } = useBulkOperations()
-  const { selectedIds } = state
+  const { state, clearSelection, performBulkOperation, validateOperation } = useBulkOperations()
+  const { selectedIds, tableType } = state
   const selectedCount = selectedIds.size
   
   // Confirmation dialog state
@@ -31,6 +32,8 @@ export function BulkActionBar({
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [affectedItems, setAffectedItems] = useState<string[]>([])
   const [isExecuting, setIsExecuting] = useState(false)
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
+  const [operationData, setOperationData] = useState<any>(null)
 
   // Handle escape key to clear selections
   const handleEscapeKey = useCallback((event: KeyboardEvent) => {
@@ -55,8 +58,10 @@ export function BulkActionBar({
   }, [selectedCount, showConfirmation, handleEscapeKey])
 
   // Handle operation selection
-  const handleOperationSelect = useCallback((operation: BulkOperation) => {
+  const handleOperationSelect = useCallback(async (operation: BulkOperation) => {
     setSelectedOperation(operation)
+    setOperationData(null)
+    setValidationResult(null)
     
     // Get affected items preview if function is provided
     if (getAffectedItemsPreview) {
@@ -65,9 +70,19 @@ export function BulkActionBar({
       setAffectedItems(preview)
     }
     
+    // Perform initial validation
+    if (tableType) {
+      try {
+        const result = await validateOperation(operation)
+        setValidationResult(result)
+      } catch (error) {
+        console.error('Initial validation failed:', error)
+      }
+    }
+    
     // Always show confirmation for operations with custom components
     setShowConfirmation(true)
-  }, [selectedIds, getAffectedItemsPreview])
+  }, [selectedIds, getAffectedItemsPreview, tableType, validateOperation])
 
   // Handle operation confirmation with data from the component
   const handleConfirmOperation = useCallback(async (data?: any) => {
@@ -80,6 +95,8 @@ export function BulkActionBar({
       setShowConfirmation(false)
       setSelectedOperation(null)
       setAffectedItems([])
+      setValidationResult(null)
+      setOperationData(null)
     } catch (error) {
       console.error('Bulk operation failed:', error)
       // Error handling is managed by the context
@@ -88,12 +105,24 @@ export function BulkActionBar({
     }
   }, [selectedOperation, performBulkOperation])
 
+  // Handle data changes from operation components
+  const handleDataChange = useCallback((data: any) => {
+    setOperationData(data)
+  }, [])
+
   // Handle operation cancellation
   const handleCancelOperation = useCallback(() => {
     setShowConfirmation(false)
     setSelectedOperation(null)
     setAffectedItems([])
     setIsExecuting(false)
+    setValidationResult(null)
+    setOperationData(null)
+  }, [])
+
+  // Handle validation result changes
+  const handleValidationChange = useCallback((result: ValidationResult | null) => {
+    setValidationResult(result)
   }, [])
 
   // Don't render if no rows are selected
@@ -159,12 +188,25 @@ export function BulkActionBar({
       {/* Operation Dialog */}
       {selectedOperation && (
         <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-          <DialogContent className="sm:max-w-lg">
-            <selectedOperation.component
-              selectedIds={Array.from(selectedIds)}
-              onConfirm={handleConfirmOperation}
-              onCancel={handleCancelOperation}
-            />
+          <DialogContent className="sm:max-w-2xl">
+            <div className="space-y-4">
+              {/* Validation Feedback */}
+              <BulkValidationFeedback
+                operation={selectedOperation}
+                selectedIds={Array.from(selectedIds)}
+                tableType={tableType}
+                operationData={operationData}
+                onValidationChange={handleValidationChange}
+              />
+              
+              {/* Operation Component */}
+              <selectedOperation.component
+                selectedIds={Array.from(selectedIds)}
+                onConfirm={handleConfirmOperation}
+                onCancel={handleCancelOperation}
+                onDataChange={handleDataChange}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       )}
