@@ -1326,9 +1326,26 @@ export function AbrechnungModal({
               <DropdownMenuTrigger asChild>
                 <button
                   disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-primary/80 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 border shadow-sm"
+                  style={{
+                    backgroundColor: 'hsl(210, 15%, 24%)',
+                    borderColor: 'hsl(210, 18%, 20%)',
+                    boxShadow: '0 1px 2px hsl(210, 20%, 15%, 0.4)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!e.currentTarget.disabled) {
+                      e.currentTarget.style.backgroundColor = 'hsl(210, 18%, 28%)';
+                      e.currentTarget.style.borderColor = 'hsl(210, 22%, 22%)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!e.currentTarget.disabled) {
+                      e.currentTarget.style.backgroundColor = 'hsl(210, 15%, 24%)';
+                      e.currentTarget.style.borderColor = 'hsl(210, 18%, 20%)';
+                    }
+                  }}
                 >
-                  <ChevronDown className="h-4 w-4 text-primary-foreground" />
+                  <ChevronDown className="h-4 w-4 text-white" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
