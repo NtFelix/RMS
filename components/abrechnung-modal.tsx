@@ -1194,7 +1194,7 @@ export function AbrechnungModal({
                 <button
                   ref={dropdownTriggerRef}
                   disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 border shadow-sm dropdown-trigger-colors"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 border shadow-sm bg-primary border-primary text-primary-foreground"
                   onMouseEnter={() => {
                     applyDropdownHoverEffect(true, true);
                     applyMainButtonHoverEffect(true, false);
@@ -1203,7 +1203,6 @@ export function AbrechnungModal({
                     applyDropdownHoverEffect(false, true);
                     applyMainButtonHoverEffect(false, false);
                   }}
-                  className="bg-primary border-primary text-primary-foreground shadow-sm"
                 >
                   <ChevronDown className="h-4 w-4 text-white" />
                 </button>
