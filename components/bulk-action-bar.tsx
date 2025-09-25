@@ -12,6 +12,12 @@ import { BulkOperationErrorDetails } from './bulk-operation-error-details'
 import { useBulkOperationsErrorHandler } from '@/hooks/use-bulk-operations-error-handler'
 import { BulkOperationResult } from '@/lib/bulk-operations-error-handling'
 import { cn } from '@/lib/utils'
+import { 
+  ARIA_LABELS, 
+  SCREEN_READER_ANNOUNCEMENTS, 
+  KEYBOARD_SHORTCUTS,
+  announceToScreenReader 
+} from '@/lib/accessibility-constants'
 
 interface BulkActionBarProps {
   operations?: BulkOperation[]
@@ -192,18 +198,36 @@ export function BulkActionBar({
         "animate-in slide-in-from-bottom-2 duration-200",
         // Position
         position === 'top' ? "top-4" : "bottom-4",
+        // Focus styles
+        "focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2",
         className
       )}
       role="toolbar"
-      aria-label={`Bulk actions for ${selectedCount} selected items`}
+      aria-label={ARIA_LABELS.bulkActionBar(selectedCount)}
+      aria-describedby="bulk-action-bar-description"
+      data-bulk-action-bar
     >
       {/* Selection Counter */}
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <div className="w-2 h-2 bg-blue-500 rounded-full" />
-        <span>
-          {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
+      <div 
+        className="flex items-center gap-2 text-sm font-medium text-gray-700"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <div className="w-2 h-2 bg-blue-500 rounded-full" aria-hidden="true" />
+        <span aria-label={ARIA_LABELS.selectionCounter(selectedCount)}>
+          {selectedCount} {selectedCount === 1 ? 'Element' : 'Elemente'} ausgewählt
         </span>
       </div>
+      
+      {/* Hidden description for screen readers */}
+      <span 
+        id="bulk-action-bar-description"
+        className="sr-only"
+      >
+        {ARIA_LABELS.bulkActionBarDescription}. 
+        Drücken Sie {KEYBOARD_SHORTCUTS.clearSelection} zum Aufheben der Auswahl.
+      </span>
 
       {/* Operations Dropdown */}
       {operations.length > 0 && (
@@ -220,18 +244,31 @@ export function BulkActionBar({
         variant="ghost"
         size="sm"
         onClick={clearSelection}
-        className="h-8 w-8 p-0 hover:bg-gray-100"
+        className={cn(
+          "h-8 w-8 p-0 hover:bg-gray-100",
+          "focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+        )}
         disabled={state.isLoading || isExecuting}
-        aria-label="Clear selection"
+        aria-label={ARIA_LABELS.clearSelectionButton}
+        title={`${KEYBOARD_SHORTCUTS.clearSelection} zum Aufheben der Auswahl`}
+        data-bulk-operation-button="clear"
       >
-        <X className="h-4 w-4" />
+        <X className="h-4 w-4" aria-hidden="true" />
       </Button>
 
       {/* Loading Indicator */}
       {(state.isLoading || isExecuting) && (
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-          Processing...
+        <div 
+          className="flex items-center gap-2 text-sm text-gray-500"
+          role="status"
+          aria-live="polite"
+          aria-label={ARIA_LABELS.bulkOperationProgress}
+        >
+          <div 
+            className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" 
+            aria-hidden="true"
+          />
+          <span>Verarbeitung läuft...</span>
         </div>
       )}
 

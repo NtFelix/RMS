@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import {
   Dialog,
@@ -16,6 +16,12 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import type { BulkOperation } from '@/types/bulk-operations'
+import { 
+  ARIA_LABELS, 
+  SCREEN_READER_ANNOUNCEMENTS, 
+  KEYBOARD_SHORTCUTS,
+  announceToScreenReader 
+} from '@/lib/accessibility-constants'
 
 interface BulkOperationConfirmationDialogProps {
   open: boolean
@@ -66,26 +72,39 @@ export function BulkOperationConfirmationDialog({
     }
   }, [confirmationText, requiresTypedConfirmation])
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (isConfirmationValid && !isLoading) {
       onConfirm()
+      
+      // Announce operation start to screen readers
+      if (operation) {
+        announceToScreenReader(
+          SCREEN_READER_ANNOUNCEMENTS.bulkOperationStarted(operation.label, selectedCount),
+          'assertive'
+        )
+      }
     }
-  }
+  }, [isConfirmationValid, isLoading, onConfirm, operation, selectedCount])
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     if (!isLoading) {
       onCancel()
       onOpenChange(false)
+      
+      // Announce cancellation to screen readers
+      announceToScreenReader('Bulk-Operation abgebrochen', 'polite')
     }
-  }
+  }, [isLoading, onCancel, onOpenChange])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && isConfirmationValid && !isLoading) {
+      e.preventDefault()
       handleConfirm()
     } else if (e.key === 'Escape' && !isLoading) {
+      e.preventDefault()
       handleCancel()
     }
-  }
+  }, [isConfirmationValid, isLoading, handleConfirm, handleCancel])
 
   if (!operation) return null
 
@@ -97,15 +116,27 @@ export function BulkOperationConfirmationDialog({
       <DialogContent 
         className="sm:max-w-md"
         onKeyDown={handleKeyDown}
+        role="alertdialog"
+        aria-labelledby="confirmation-dialog-title"
+        aria-describedby="confirmation-dialog-description"
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle 
+            id="confirmation-dialog-title"
+            className="flex items-center gap-2"
+          >
             {isDestructive && (
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle 
+                className="h-5 w-5 text-amber-500" 
+                aria-hidden="true"
+              />
             )}
-            Confirm Bulk Operation
+            Bulk-Operation bestätigen
           </DialogTitle>
-          <DialogDescription className="text-left">
+          <DialogDescription 
+            id="confirmation-dialog-description"
+            className="text-left"
+          >
             {defaultMessage}
           </DialogDescription>
         </DialogHeader>
@@ -113,18 +144,22 @@ export function BulkOperationConfirmationDialog({
         <div className="space-y-4">
           {/* High-impact operation warning */}
           {requiresTypedConfirmation && (
-            <Alert className={cn(
-              "border-amber-200 bg-amber-50",
-              isDestructive && "border-red-200 bg-red-50"
-            )}>
-              <AlertTriangle className="h-4 w-4" />
+            <Alert 
+              className={cn(
+                "border-amber-200 bg-amber-50",
+                isDestructive && "border-red-200 bg-red-50"
+              )}
+              role="alert"
+              aria-live="assertive"
+            >
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
               <AlertDescription>
-                This operation will affect <strong>{selectedCount} records</strong>. 
-                This action cannot be undone. Please type{' '}
+                Diese Operation betrifft <strong>{selectedCount} Datensätze</strong>. 
+                Diese Aktion kann nicht rückgängig gemacht werden. Bitte geben Sie{' '}
                 <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">
                   {REQUIRED_CONFIRMATION_PHRASE}
                 </code>{' '}
-                to confirm.
+                ein, um zu bestätigen.
               </AlertDescription>
             </Alert>
           )}
@@ -149,9 +184,9 @@ export function BulkOperationConfirmationDialog({
           {requiresTypedConfirmation && (
             <div className="space-y-2">
               <Label htmlFor="confirmation-input" className="text-sm font-medium">
-                Type <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">
+                Geben Sie <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">
                   {REQUIRED_CONFIRMATION_PHRASE}
-                </code> to confirm:
+                </code> ein, um zu bestätigen:
               </Label>
               <Input
                 id="confirmation-input"
@@ -162,13 +197,27 @@ export function BulkOperationConfirmationDialog({
                 disabled={isLoading}
                 className={cn(
                   "font-mono",
+                  "focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
                   confirmationText && !isConfirmationValid && "border-red-300 focus:border-red-300"
                 )}
                 autoFocus
+                aria-describedby="confirmation-input-description confirmation-input-error"
+                aria-invalid={confirmationText && !isConfirmationValid}
               />
+              <span 
+                id="confirmation-input-description"
+                className="sr-only"
+              >
+                Geben Sie {REQUIRED_CONFIRMATION_PHRASE} genau wie angezeigt ein, um die Operation zu bestätigen.
+              </span>
               {confirmationText && !isConfirmationValid && (
-                <p className="text-sm text-red-600">
-                  Please type "{REQUIRED_CONFIRMATION_PHRASE}" exactly as shown.
+                <p 
+                  id="confirmation-input-error"
+                  className="text-sm text-red-600"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  Bitte geben Sie "{REQUIRED_CONFIRMATION_PHRASE}" genau wie angezeigt ein.
                 </p>
               )}
             </div>
@@ -180,24 +229,44 @@ export function BulkOperationConfirmationDialog({
             variant="outline"
             onClick={handleCancel}
             disabled={isLoading}
+            className="focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            aria-label={`Abbrechen - ${KEYBOARD_SHORTCUTS.cancelAction}`}
           >
-            Cancel
+            Abbrechen
           </Button>
           <Button
             variant={isDestructive ? "destructive" : "default"}
             onClick={handleConfirm}
             disabled={!isConfirmationValid || isLoading}
-            className="min-w-[100px]"
+            className={cn(
+              "min-w-[100px]",
+              "focus-visible:ring-2 focus-visible:ring-offset-2",
+              isDestructive 
+                ? "focus-visible:ring-red-500" 
+                : "focus-visible:ring-blue-500"
+            )}
+            aria-label={`${operation?.label} bestätigen - ${KEYBOARD_SHORTCUTS.confirmAction}`}
+            aria-describedby={!isConfirmationValid ? "confirmation-validation-error" : undefined}
           >
             {isLoading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Processing...
+                <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />
+                <span>Verarbeitung...</span>
               </>
             ) : (
-              `Confirm ${operation.label}`
+              `${operation?.label} bestätigen`
             )}
           </Button>
+          
+          {/* Hidden validation error for screen readers */}
+          {!isConfirmationValid && requiresTypedConfirmation && (
+            <span 
+              id="confirmation-validation-error"
+              className="sr-only"
+            >
+              Bestätigung erforderlich. Geben Sie {REQUIRED_CONFIRMATION_PHRASE} ein, um fortzufahren.
+            </span>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

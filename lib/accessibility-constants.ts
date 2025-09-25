@@ -4,6 +4,23 @@
 
 // ARIA labels for template components
 export const ARIA_LABELS = {
+  // Bulk Operations
+  bulkActionBar: (count: number) => `Bulk-Aktionen für ${count} ausgewählte ${count === 1 ? 'Element' : 'Elemente'}`,
+  bulkActionBarDescription: 'Führen Sie Aktionen für mehrere ausgewählte Zeilen gleichzeitig aus',
+  bulkOperationsDropdown: 'Bulk-Aktionen auswählen',
+  bulkOperationsDropdownTrigger: 'Bulk-Aktionen-Menü öffnen',
+  clearSelectionButton: 'Auswahl aufheben',
+  selectAllCheckbox: 'Alle Zeilen auswählen/abwählen',
+  selectAllCheckboxIndeterminate: 'Einige Zeilen ausgewählt - alle auswählen',
+  selectAllCheckboxSelected: 'Alle Zeilen ausgewählt - Auswahl aufheben',
+  rowSelectionCheckbox: (id: string) => `Zeile ${id} auswählen`,
+  selectionCounter: (count: number) => `${count} ${count === 1 ? 'Element' : 'Elemente'} ausgewählt`,
+  bulkOperationConfirmation: (operation: string, count: number) => 
+    `${operation} für ${count} ${count === 1 ? 'Element' : 'Elemente'} bestätigen`,
+  bulkOperationProgress: 'Bulk-Operation wird ausgeführt',
+  bulkOperationSuccess: (count: number) => `${count} ${count === 1 ? 'Element' : 'Elemente'} erfolgreich aktualisiert`,
+  bulkOperationError: 'Fehler bei der Bulk-Operation',
+  
   // Templates Modal
   templatesModal: 'Vorlagen verwalten',
   templatesModalDescription: 'Erstellen und verwalten Sie Ihre Dokumentvorlagen mit dynamischen Variablen',
@@ -59,6 +76,20 @@ export const ARIA_LABELS = {
 
 // Screen reader announcements
 export const SCREEN_READER_ANNOUNCEMENTS = {
+  // Bulk Operations
+  rowSelected: (id: string) => `Zeile ${id} ausgewählt`,
+  rowDeselected: (id: string) => `Zeile ${id} abgewählt`,
+  allRowsSelected: (count: number) => `Alle ${count} Zeilen ausgewählt`,
+  allRowsDeselected: 'Alle Zeilen abgewählt',
+  selectionCleared: 'Auswahl aufgehoben',
+  bulkOperationStarted: (operation: string, count: number) => 
+    `${operation} für ${count} ${count === 1 ? 'Element' : 'Elemente'} gestartet`,
+  bulkOperationCompleted: (operation: string, count: number) => 
+    `${operation} für ${count} ${count === 1 ? 'Element' : 'Elemente'} abgeschlossen`,
+  bulkOperationFailed: (operation: string) => `${operation} fehlgeschlagen`,
+  validationErrors: (count: number) => `${count} Validierungsfehler gefunden`,
+  
+  // Templates
   templateCreated: 'Neue Vorlage wurde erstellt und zur Liste hinzugefügt',
   templateUpdated: 'Vorlage wurde aktualisiert',
   templateDeleted: 'Vorlage wurde aus der Liste entfernt',
@@ -73,6 +104,15 @@ export const SCREEN_READER_ANNOUNCEMENTS = {
 
 // Keyboard shortcuts
 export const KEYBOARD_SHORTCUTS = {
+  // Bulk Operations shortcuts
+  clearSelection: 'Escape',
+  selectRow: 'Space',
+  selectAll: 'Ctrl+A',
+  toggleSelection: 'Space',
+  openBulkActions: 'Enter',
+  confirmAction: 'Enter',
+  cancelAction: 'Escape',
+  
   // Global shortcuts
   openTemplates: 'Alt+T',
   closeModal: 'Escape',
@@ -110,6 +150,13 @@ export const FOCUS_SELECTORS = {
     '[role="button"]:not([disabled])',
     '[role="menuitem"]:not([disabled])',
   ].join(', '),
+  
+  // Bulk Operations selectors
+  bulkActionBar: '[data-bulk-action-bar]',
+  bulkOperationsDropdown: '[data-bulk-operations-dropdown]',
+  rowSelectionCheckbox: '[data-row-selection-checkbox]',
+  selectAllCheckbox: '[data-select-all-checkbox]',
+  bulkOperationButton: '[data-bulk-operation-button]',
   
   // Template-specific selectors
   templateCard: '[data-template-card]',
