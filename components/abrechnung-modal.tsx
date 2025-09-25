@@ -606,8 +606,8 @@ export function AbrechnungModal({
         startY = 20;
       }
       
-      // Use the reusable PDF generation function
-      generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress);
+      // Use the reusable PDF generation function and update startY with the returned position
+      startY = generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress, startY);
     };
 
     // Ensure dataForProcessing is definitely an array.
@@ -632,9 +632,10 @@ export function AbrechnungModal({
     } else { // Multiple tenants
       dataForProcessing.forEach((td, index) => {
         processTenant(td);
+        // Add a new page for the next tenant (except for the last one)
         if (index < dataForProcessing.length - 1) {
           doc.addPage();
-          startY = 20; // Reset Y for new page - This should be handled within processTenant or immediately after addPage if needed
+          startY = 20; // Reset Y position for the new page
         }
       });
         filename = `Abrechnung_${currentPeriod}_Alle_Mieter.pdf`;
@@ -648,9 +649,10 @@ export function AbrechnungModal({
     tenantData: TenantCostDetails,
     nebenkostenItem: Nebenkosten,
     ownerName: string,
-    ownerAddress: string
-  ): void => {
-    let startY = 20;
+    ownerAddress: string,
+    initialStartY: number = 20
+  ): number => {
+    let startY = initialStartY;
 
     // Owner Information & Title
     doc.setFontSize(10);
@@ -794,6 +796,9 @@ export function AbrechnungModal({
     const isNachzahlung = tenantData.finalSettlement >= 0;
     const settlementText = isNachzahlung ? "Nachzahlung" : "Guthaben";
     doc.text(`${settlementText}: ${formatCurrency(tenantData.finalSettlement)}`, 20, startY);
+    startY += 10; // Add some space after the final settlement
+    
+    return startY; // Return the final Y position
   };
 
   // ZIP generation function for multiple PDFs
