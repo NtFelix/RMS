@@ -206,7 +206,7 @@ export function AbrechnungModal({
     }
   };
   
-  const applyMainButtonHoverEffect = (isHovering: boolean, isDirectHover: boolean = true, buttonElement?: HTMLElement) => {
+  const applyMainButtonHoverEffect = (isHovering: boolean, isDirectHover: boolean = true, buttonElement?: HTMLButtonElement) => {
     // Find the button element if not provided
     const button = buttonElement || (dropdownTriggerRef.current?.parentElement?.querySelector('button[class*="pr-12"]') as HTMLButtonElement);
     if (!button || button.disabled) return;
