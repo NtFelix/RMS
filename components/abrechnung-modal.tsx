@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung, Rechnung, Wasserzaehler } from "@/lib/data-fetching"; // Added Rechnung to import
-import { useEffect, useState, useMemo } from "react"; // Import useEffect, useState, and useMemo
+import { useEffect, useState, useMemo, useRef } from "react"; // Import useEffect, useState, useMemo, and useRef
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive } from 'lucide-react'; // Added FileDown and other icon imports
 import { Progress } from "@/components/ui/progress";
@@ -170,6 +170,59 @@ export function AbrechnungModal({
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
+  // Ref for dropdown trigger
+  const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
+  
+  // Shared hover effect functions
+  const applyDropdownHoverEffect = (isHovering: boolean, isDirectHover: boolean = true) => {
+    const trigger = dropdownTriggerRef.current;
+    if (!trigger || trigger.disabled) return;
+    
+    const isDark = document.documentElement.classList.contains('dark');
+    const intensity = isDirectHover ? 1 : 0.5; // Reduce intensity for indirect hover
+    
+    if (isHovering) {
+      if (isDark) {
+        const bgOpacity = 0.25 + (0.05 * intensity); // 25% to 30% lightness
+        const borderOpacity = 0.20 + (0.05 * intensity); // 20% to 25% lightness
+        trigger.style.backgroundColor = `hsl(220, 25%, ${bgOpacity * 100}%)`;
+        trigger.style.borderColor = `hsl(220, 30%, ${borderOpacity * 100}%)`;
+      } else {
+        const bgOpacity = 0.24 + (0.04 * intensity); // 24% to 28% lightness
+        const borderOpacity = 0.20 + (0.02 * intensity); // 20% to 22% lightness
+        trigger.style.backgroundColor = `hsl(210, ${15 + (3 * intensity)}%, ${bgOpacity * 100}%)`;
+        trigger.style.borderColor = `hsl(210, ${18 + (4 * intensity)}%, ${borderOpacity * 100}%)`;
+      }
+    } else {
+      // Reset to default
+      if (isDark) {
+        trigger.style.backgroundColor = 'hsl(220, 20%, 25%)';
+        trigger.style.borderColor = 'hsl(220, 25%, 20%)';
+      } else {
+        trigger.style.backgroundColor = 'hsl(210, 15%, 24%)';
+        trigger.style.borderColor = 'hsl(210, 18%, 20%)';
+      }
+    }
+  };
+  
+  const applyMainButtonHoverEffect = (isHovering: boolean, isDirectHover: boolean = true, buttonElement?: HTMLElement) => {
+    // Find the button element if not provided
+    const button = buttonElement || (dropdownTriggerRef.current?.parentElement?.querySelector('button[class*="pr-12"]') as HTMLButtonElement);
+    if (!button || button.disabled) return;
+    
+    const intensity = isDirectHover ? 1 : 0.3; // Reduce intensity for indirect hover
+    
+    if (isHovering) {
+      // Apply subtle brightness increase
+      button.style.filter = `brightness(${1 + (0.1 * intensity)})`;
+      button.style.transform = `scale(${1 + (0.02 * intensity)})`;
+    } else {
+      // Reset to default
+      button.style.filter = 'brightness(1)';
+      button.style.transform = 'scale(1)';
+    }
+  };
   
   // Guard: ensure we always work with an array for tenants
   const safeTenants = Array.isArray(tenants) ? tenants : [];
@@ -1315,7 +1368,15 @@ export function AbrechnungModal({
                 }
               }}
               disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-              className="pr-12 h-10"
+              className="pr-12 h-10 transition-all duration-200"
+              onMouseEnter={(e) => {
+                applyMainButtonHoverEffect(true, true, e.currentTarget);
+                applyDropdownHoverEffect(true, false);
+              }}
+              onMouseLeave={(e) => {
+                applyMainButtonHoverEffect(false, true, e.currentTarget);
+                applyDropdownHoverEffect(false, false);
+              }}
             >
               <FileDown className="mr-2 h-4 w-4" />
               {isGeneratingPDF ? "PDF wird erstellt..." : "Als PDF exportieren"}
@@ -1325,31 +1386,16 @@ export function AbrechnungModal({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
+                  ref={dropdownTriggerRef}
                   disabled={isGeneratingPDF || calculatedTenantData.length === 0}
                   className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 border shadow-sm dropdown-trigger-colors"
-                  onMouseEnter={(e) => {
-                    if (!e.currentTarget.disabled) {
-                      const isDark = document.documentElement.classList.contains('dark');
-                      if (isDark) {
-                        e.currentTarget.style.backgroundColor = 'hsl(220, 25%, 30%)';
-                        e.currentTarget.style.borderColor = 'hsl(220, 30%, 25%)';
-                      } else {
-                        e.currentTarget.style.backgroundColor = 'hsl(210, 18%, 28%)';
-                        e.currentTarget.style.borderColor = 'hsl(210, 22%, 22%)';
-                      }
-                    }
+                  onMouseEnter={() => {
+                    applyDropdownHoverEffect(true, true);
+                    applyMainButtonHoverEffect(true, false);
                   }}
-                  onMouseLeave={(e) => {
-                    if (!e.currentTarget.disabled) {
-                      const isDark = document.documentElement.classList.contains('dark');
-                      if (isDark) {
-                        e.currentTarget.style.backgroundColor = 'hsl(220, 20%, 25%)';
-                        e.currentTarget.style.borderColor = 'hsl(220, 25%, 20%)';
-                      } else {
-                        e.currentTarget.style.backgroundColor = 'hsl(210, 15%, 24%)';
-                        e.currentTarget.style.borderColor = 'hsl(210, 18%, 20%)';
-                      }
-                    }
+                  onMouseLeave={() => {
+                    applyDropdownHoverEffect(false, true);
+                    applyMainButtonHoverEffect(false, false);
                   }}
                   style={{
                     backgroundColor: 'hsl(210, 15%, 24%)',
