@@ -600,4 +600,17 @@
       background-color: hsl(var(--background) / 0.98);
     }
   }
+
+  /* Dropdown trigger colors for light and dark mode */
+  .dropdown-trigger-colors {
+    background-color: hsl(210, 15%, 24%);
+    border-color: hsl(210, 18%, 20%);
+    box-shadow: 0 1px 2px hsl(210, 20%, 15%, 0.4);
+  }
+
+  .dark .dropdown-trigger-colors {
+    background-color: hsl(220, 20%, 25%);
+    border-color: hsl(220, 25%, 20%);
+    box-shadow: 0 1px 2px hsl(220, 30%, 15%, 0.5);
+  }
 }
