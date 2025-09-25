@@ -223,6 +223,27 @@ export function AbrechnungModal({
       button.style.transform = 'scale(1)';
     }
   };
+
+  // Higher-order wrapper function to handle export operations with loading state and error handling
+  const handleExportOperation = async (
+    exportFunction: () => Promise<void>,
+    errorTitle: string,
+    errorDescription: string
+  ) => {
+    setIsGeneratingPDF(true);
+    try {
+      await exportFunction();
+    } catch (error) {
+      console.error(`Export error:`, error);
+      toast({
+        title: errorTitle,
+        description: errorDescription,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
   
   // Guard: ensure we always work with an array for tenants
   const safeTenants = Array.isArray(tenants) ? tenants : [];
@@ -1152,21 +1173,11 @@ export function AbrechnungModal({
           <div className="relative">
             <Button 
               variant="default" 
-              onClick={async () => { 
-                setIsGeneratingPDF(true);
-                try {
-                  await generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress);
-                } catch (error) {
-                  console.error('Error generating PDF:', error);
-                  toast({
-                    title: "Fehler bei PDF-Generierung",
-                    description: "Ein Fehler ist beim Erstellen der PDF aufgetreten.",
-                    variant: "destructive",
-                  });
-                } finally {
-                  setIsGeneratingPDF(false);
-                }
-              }}
+              onClick={() => handleExportOperation(
+                () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
+                "Fehler bei PDF-Generierung",
+                "Ein Fehler ist beim Erstellen der PDF aufgetreten."
+              )}
               disabled={isGeneratingPDF || calculatedTenantData.length === 0}
               className="pr-12 h-10 transition-all duration-200"
               onMouseEnter={(e) => {
@@ -1208,21 +1219,11 @@ export function AbrechnungModal({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={async () => { 
-                    setIsGeneratingPDF(true);
-                    try {
-                      await generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress);
-                    } catch (error) {
-                      console.error('Error generating PDF:', error);
-                      toast({
-                        title: "Fehler bei PDF-Generierung",
-                        description: "Ein Fehler ist beim Erstellen der PDF aufgetreten.",
-                        variant: "destructive",
-                      });
-                    } finally {
-                      setIsGeneratingPDF(false);
-                    }
-                  }}
+                  onClick={() => handleExportOperation(
+                    () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
+                    "Fehler bei PDF-Generierung",
+                    "Ein Fehler ist beim Erstellen der PDF aufgetreten."
+                  )}
                   disabled={isGeneratingPDF || calculatedTenantData.length === 0}
                 >
                   <FileDown className="mr-2 h-4 w-4" />
@@ -1231,21 +1232,11 @@ export function AbrechnungModal({
                 
                 {calculatedTenantData.length > 1 && (
                   <DropdownMenuItem
-                    onClick={async () => { 
-                      setIsGeneratingPDF(true);
-                      try {
-                        await generateSettlementZIP(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress);
-                      } catch (error) {
-                        console.error('Error generating ZIP:', error);
-                        toast({
-                          title: "Fehler bei ZIP-Generierung",
-                          description: "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten.",
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setIsGeneratingPDF(false);
-                      }
-                    }}
+                    onClick={() => handleExportOperation(
+                      () => generateSettlementZIP(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
+                      "Fehler bei ZIP-Generierung",
+                      "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten."
+                    )}
                     disabled={isGeneratingPDF}
                   >
                     <Archive className="mr-2 h-4 w-4" />
