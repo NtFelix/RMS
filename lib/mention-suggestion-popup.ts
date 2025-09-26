@@ -172,7 +172,6 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
       interactive: true,
       trigger: 'manual',
       hideOnClick: false,
-      flipOnUpdate: true,
       theme: 'mention-suggestion',
       animation: 'shift-away-subtle',
       duration: [150, 100],
