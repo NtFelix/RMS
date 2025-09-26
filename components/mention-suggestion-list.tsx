@@ -187,13 +187,14 @@ export const MentionSuggestionList = forwardRef<
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (flatItems[selectedIndex]) {
-      const itemNode = document.getElementById(`suggestion-${flatItems[selectedIndex].id}`);
-      if (itemNode && listRef.current) {
+    if (listRef.current && selectedIndex >= 0 && selectedIndex < flatItems.length) {
+      const itemNode = listRef.current.querySelector(
+        `#suggestion-${flatItems[selectedIndex].id}`
+      );
+      if (itemNode) {
         itemNode.scrollIntoView({
-          behavior: 'smooth',
           block: 'nearest',
-          inline: 'start',
+          inline: 'nearest',
         });
       }
     }
