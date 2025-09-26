@@ -1082,9 +1082,9 @@ export function AbrechnungModal({
                           </CardContent>
                         </Card>
                       </HoverCardTrigger>
-                      <HoverCardContent className="w-96 text-sm">
-                        <h4 className="font-semibold mb-3">Abrechnungsdetails</h4>
-                        <div className="space-y-2">
+                      <HoverCardContent className="w-96 text-sm p-3">
+                        <h4 className="font-semibold mb-1">Abrechnungsdetails</h4>
+                        <div className="space-y-1">
                           <div className="flex justify-between">
                             <span>Gesamtkosten {isoToGermanDate(nebenkostenItem?.startdatum)} bis {isoToGermanDate(nebenkostenItem?.enddatum)}:</span>
                             <span>{formatCurrency(tenantData.totalTenantCost)}</span>
@@ -1093,7 +1093,7 @@ export function AbrechnungModal({
                             <span>Geleistete Vorauszahlungen:</span>
                             <span>{formatCurrency(tenantData.vorauszahlungen)}</span>
                           </div>
-                          <div className="h-px bg-border my-2"></div>
+                          <div className="h-px bg-border my-1"></div>
                           <div className="flex justify-between font-semibold">
                             <span>{isNachzahlung ? "Nachzahlung" : "Guthaben"}:</span>
                             <span className={amountColor}>{formatCurrency(tenantData.finalSettlement)}</span>
@@ -1101,9 +1101,9 @@ export function AbrechnungModal({
                           
                           {tenantData.recommendedPrepayment !== undefined && (
                             <>
-                              <div className="h-px bg-border my-2"></div>
-                              <h4 className="font-semibold mt-3 mb-2">Empfehlung für nächsten Zeitraum</h4>
-                              <div className="space-y-1">
+                              <div className="h-px bg-border my-1"></div>
+                              <h4 className="font-semibold mt-1 mb-1">Empfehlung für nächsten Zeitraum</h4>
+                              <div className="space-y-0.5">
                                 <div className="flex justify-between">
                                   <span>Empfohlene Vorauszahlung:</span>
                                   <span className="font-semibold">{formatCurrency(tenantData.recommendedPrepayment)}</span>
@@ -1112,7 +1112,7 @@ export function AbrechnungModal({
                                   <span>Monatliche Rate:</span>
                                   <span>{formatCurrency(tenantData.recommendedPrepayment / 12)}</span>
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-1">
+                                <div className="text-xs text-muted-foreground mt-0.5">
                                   (basierend auf {formatCurrency(tenantData.totalTenantCost)} + {Math.round((PREPAYMENT_BUFFER_MULTIPLIER - 1) * 100)}% Puffer)
                                 </div>
                               </div>
@@ -1135,19 +1135,19 @@ export function AbrechnungModal({
                 </TableHeader>
                 <TableBody>
                   {tenantData.costItems.map((item, index) => (
-                    <TableRow key={index} className={index % 2 === 0 ? "bg-muted/30" : ""}>
-                      <TableCell className="py-2 px-3 align-top">{item.costName}</TableCell>
-                      <TableCell className="py-2 px-3 align-top">{item.calculationType}</TableCell>
-                      <TableCell className="py-2 px-3 align-top">{item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-'}</TableCell> {/* New Cell */}
-                      <TableCell className="text-right py-2 px-3 align-top">{formatCurrency(item.tenantShare)}</TableCell>
+                    <TableRow key={index} className={`${index % 2 === 0 ? "bg-muted/30" : ""} h-8`}>
+                      <TableCell className="py-0.5 px-3 align-top h-8">{item.costName}</TableCell>
+                      <TableCell className="py-0.5 px-3 align-top h-8">{item.calculationType}</TableCell>
+                      <TableCell className="py-0.5 px-3 align-top h-8">{item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-'}</TableCell> {/* New Cell */}
+                      <TableCell className="text-right py-0.5 px-3 align-top h-8">{formatCurrency(item.tenantShare)}</TableCell>
                     </TableRow>
                   ))}
                   {/* Wasserkosten row removed from here */}
-                  <TableRow className="font-semibold bg-primary/10 border-t-2 border-border">
-                    <TableCell className="py-3 px-3 text-primary">Gesamtkosten Mieter</TableCell>
-                    <TableCell className="py-3 px-3 text-primary"></TableCell> {/* For Abrechnungsart */}
-                    <TableCell className="py-3 px-3 text-primary"></TableCell> {/* New empty cell for Preis/qm */}
-                    <TableCell className="text-right py-3 px-3 text-primary">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
+                  <TableRow className="font-semibold bg-primary/10 border-t-2 border-border h-10">
+                    <TableCell className="py-0.5 px-3 text-primary h-10">Gesamtkosten Mieter</TableCell>
+                    <TableCell className="py-0.5 px-3 text-primary h-10"></TableCell> {/* For Abrechnungsart */}
+                    <TableCell className="py-0.5 px-3 text-primary h-10"></TableCell> {/* New empty cell for Preis/qm */}
+                    <TableCell className="text-right py-0.5 px-3 text-primary h-10">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
