@@ -31,9 +31,9 @@ ResponsiveContainer.displayName = "ResponsiveContainer"
 // Mobile-responsive grid component
 interface ResponsiveGridProps extends React.HTMLAttributes<HTMLDivElement> {
   cols?: {
-    mobile?: number
-    tablet?: number
-    desktop?: number
+    mobile?: 1 | 2 | 3 | 4 | 5 | 6
+    tablet?: 1 | 2 | 3 | 4 | 5 | 6
+    desktop?: 1 | 2 | 3 | 4 | 5 | 6
   }
   gap?: "sm" | "md" | "lg"
 }
@@ -46,12 +46,37 @@ const ResponsiveGrid = React.forwardRef<HTMLDivElement, ResponsiveGridProps>(
       lg: "gap-6 md:gap-8"
     }
 
-    const gridCols = `grid-cols-${cols.mobile} md:grid-cols-${cols.tablet} lg:grid-cols-${cols.desktop}`
+    // Use object mapping to ensure Tailwind classes are properly included
+    const getGridCols = () => {
+      return cn({
+        // Mobile grid columns
+        'grid-cols-1': cols.mobile === 1,
+        'grid-cols-2': cols.mobile === 2,
+        'grid-cols-3': cols.mobile === 3,
+        'grid-cols-4': cols.mobile === 4,
+        'grid-cols-5': cols.mobile === 5,
+        'grid-cols-6': cols.mobile === 6,
+        // Tablet grid columns
+        'md:grid-cols-1': cols.tablet === 1,
+        'md:grid-cols-2': cols.tablet === 2,
+        'md:grid-cols-3': cols.tablet === 3,
+        'md:grid-cols-4': cols.tablet === 4,
+        'md:grid-cols-5': cols.tablet === 5,
+        'md:grid-cols-6': cols.tablet === 6,
+        // Desktop grid columns
+        'lg:grid-cols-1': cols.desktop === 1,
+        'lg:grid-cols-2': cols.desktop === 2,
+        'lg:grid-cols-3': cols.desktop === 3,
+        'lg:grid-cols-4': cols.desktop === 4,
+        'lg:grid-cols-5': cols.desktop === 5,
+        'lg:grid-cols-6': cols.desktop === 6,
+      })
+    }
 
     return (
       <div
         ref={ref}
-        className={cn("grid", gridCols, gapClasses[gap], className)}
+        className={cn("grid", getGridCols(), gapClasses[gap], className)}
         {...props}
       />
     )
