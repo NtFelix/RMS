@@ -295,9 +295,7 @@ export const MentionSuggestionList = forwardRef<
     <div
       className={cn(
         'mention-suggestion-modal',
-        loading && 'mention-suggestion-loading-state',
-        'max-h-80 overflow-y-auto',
-        'border rounded-md shadow-lg p-2'
+        loading && 'mention-suggestion-loading-state'
       )}
       role="listbox"
       aria-label="Variable suggestions"
@@ -306,7 +304,7 @@ export const MentionSuggestionList = forwardRef<
       aria-multiselectable="false"
       tabIndex={-1}
     >
-      <div>
+      <div className="max-h-80 overflow-y-auto rounded-md border bg-background p-1 shadow-lg">
         {loading ? (
           <>
             <div className="mention-suggestion-loading" role="status" aria-live="polite">
