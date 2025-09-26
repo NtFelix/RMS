@@ -163,9 +163,9 @@ export default async function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         </div>
         
-        <div className="space-y-6 mt-4">
+        <div className="mt-4">
           {/* Mobile Summary Cards */}
-          <Link href="/haeuser">
+          <Link href="/haeuser" className="block mb-6">
             <Card className="min-h-[120px] overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
                 <CardTitle className="text-sm font-medium">Häuser</CardTitle>
@@ -180,7 +180,7 @@ export default async function Dashboard() {
             </Card>
           </Link>
 
-          <Link href="/wohnungen">
+          <Link href="/wohnungen" className="block mb-6">
             <Card className="min-h-[120px] overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
                 <CardTitle className="text-sm font-medium">Wohnungen</CardTitle>
@@ -195,7 +195,7 @@ export default async function Dashboard() {
             </Card>
           </Link>
 
-          <Link href="/mieter">
+          <Link href="/mieter" className="block mb-6">
             <Card className="min-h-[120px] overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
                 <CardTitle className="text-sm font-medium">Mieter</CardTitle>
@@ -226,8 +226,8 @@ export default async function Dashboard() {
           </div>
 
           {/* Mobile Additional Cards */}
-          <div className="mt-8 space-y-6">
-            <Link href="/todos">
+          <div className="mt-8">
+            <Link href="/todos" className="block mb-6">
             <Card className="min-h-[120px] overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                 <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
@@ -249,7 +249,7 @@ export default async function Dashboard() {
             </Card>
           </Link>
 
-          <Link href="/finanzen">
+          <Link href="/finanzen" className="block mb-6">
             <Card className="min-h-[120px] overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                 <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
@@ -269,7 +269,7 @@ export default async function Dashboard() {
             </Card>
           </Link>
 
-          <Link href="/betriebskosten">
+          <Link href="/betriebskosten" className="block mb-6">
             <Card className="min-h-[120px] overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                 <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
@@ -291,12 +291,12 @@ export default async function Dashboard() {
           </div>
 
           {/* Mobile Final Charts */}
-          <div className="mt-8 space-y-6">
-            <div className="h-[300px] overflow-hidden">
+          <div className="mt-8">
+            <div className="h-[300px] overflow-hidden mb-6">
               <LastTransactionsContainer />
             </div>
 
-            <div className="h-[300px] overflow-hidden">
+            <div className="h-[300px] overflow-hidden mb-6">
               <MaintenanceDonutChart />
             </div>
           </div>
