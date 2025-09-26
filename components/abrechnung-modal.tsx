@@ -1039,26 +1039,22 @@ export function AbrechnungModal({
                       </CardContent>
                     </Card>
                   </HoverCardTrigger>
-                  <HoverCardContent className="w-96 text-sm">
-                    <h4 className="font-semibold mb-2 text-center">Monatliche Vorauszahlungen</h4>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="px-2 py-1 h-auto text-xs">Monat</TableHead>
-                          <TableHead className="text-right px-2 py-1 h-auto text-xs">Zahlung</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {tenantData.monthlyVorauszahlungen.map((payment) => (
-                          <TableRow key={payment.monthName}>
-                            <TableCell className="px-2 py-1 text-xs">{payment.monthName}</TableCell>
-                            <TableCell className="text-right px-2 py-1 text-xs">
-                              {payment.isActiveMonth ? formatCurrency(payment.amount) : "-"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                  <HoverCardContent className="w-96 text-sm p-3">
+                    <h4 className="font-semibold mb-2 text-center text-sm">Monatliche Vorauszahlungen</h4>
+                    <div className="space-y-1">
+                      <div className="flex justify-between border-b border-gray-200 pb-1">
+                        <span className="text-xs font-medium">Monat</span>
+                        <span className="text-xs font-medium">Zahlung</span>
+                      </div>
+                      {tenantData.monthlyVorauszahlungen.map((payment) => (
+                        <div key={payment.monthName} className="flex justify-between py-0.5">
+                          <span className="text-xs">{payment.monthName}</span>
+                          <span className="text-xs font-medium">
+                            {payment.isActiveMonth ? formatCurrency(payment.amount) : "-"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </HoverCardContent>
                 </HoverCard>
                 {/* Final Settlement Info Card */}
