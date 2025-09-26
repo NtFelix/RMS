@@ -95,3 +95,233 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Mobile-first responsive utilities and optimizations */
+@layer utilities {
+  /* Enhanced mobile navigation styles */
+  .mobile-nav-responsive {
+    display: none;
+  }
+  
+  .desktop-sidebar-responsive {
+    display: none;
+  }
+  
+  /* CSS-only responsive fallbacks for hydration safety */
+  .hydration-safe-mobile {
+    display: block;
+  }
+  
+  .hydration-safe-desktop {
+    display: block;
+    width: 16rem; /* w-64 equivalent */
+  }
+  
+  /* Prevent layout shift during hydration */
+  .prevent-layout-shift {
+    contain: layout style;
+  }
+  
+  /* Main content responsive adjustments */
+  .main-content-responsive {
+    padding-bottom: 5rem; /* pb-20 for mobile bottom nav */
+  }
+  
+  /* Responsive transition utilities */
+  .responsive-transition {
+    transition: padding 0.2s ease-out, margin 0.2s ease-out;
+  }
+  
+  /* Mobile navigation item styles */
+  .mobile-nav-item {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  .mobile-nav-container {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+  
+  /* Touch feedback for mobile interactions */
+  .touch-feedback {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Mobile dropdown styles */
+  .mobile-dropdown {
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
+  
+  .mobile-dropdown-item {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  /* Dashboard grid mobile optimizations - only apply on mobile */
+  @media (max-width: 767px) {
+    .dashboard-grid-mobile {
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+      gap: 1rem !important;
+      padding: 1rem !important;
+      height: auto !important;
+      grid-auto-rows: auto !important;
+    }
+  }
+  
+  /* Dashboard card mobile optimizations - only apply on mobile */
+  @media (max-width: 767px) {
+    .dashboard-card-mobile {
+      min-height: 120px !important;
+      border-radius: 1rem !important;
+    }
+  }
+  
+  /* Chart container mobile optimizations - only apply on mobile */
+  @media (max-width: 767px) {
+    .chart-container-mobile {
+      height: 300px !important;
+      overflow: hidden !important;
+    }
+  }
+  
+  /* Table mobile optimizations */
+  .table-mobile-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .table-mobile-compact {
+    font-size: 0.875rem;
+  }
+  
+  /* Form mobile optimizations */
+  .form-mobile-spacing {
+    gap: 1rem;
+  }
+  
+  .input-mobile-size {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Modal mobile optimizations */
+  .modal-mobile-fullscreen {
+    margin: 0;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  
+  .modal-mobile-padding {
+    padding: 1rem;
+  }
+  
+  /* Safe area support */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  /* Responsive breakpoint utilities */
+  @media (min-width: 768px) {
+    .mobile-nav-responsive {
+      display: none !important;
+    }
+    
+    .desktop-sidebar-responsive {
+      display: flex !important;
+    }
+    
+    .hydration-safe-mobile {
+      display: none !important;
+    }
+    
+    .main-content-responsive {
+      padding-bottom: 1.5rem; /* pb-6 for desktop */
+    }
+    
+    .dashboard-grid-mobile {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-auto-rows: 140px;
+      gap: 1rem;
+      padding: 2rem;
+      height: calc(100vh - 200px);
+    }
+    
+    .dashboard-card-mobile {
+      min-height: auto;
+    }
+    
+    .chart-container-mobile {
+      height: auto;
+    }
+    
+    .table-mobile-scroll {
+      overflow-x: visible;
+    }
+    
+    .table-mobile-compact {
+      font-size: 0.875rem;
+    }
+    
+    .modal-mobile-fullscreen {
+      margin: auto;
+      max-height: 90vh;
+      border-radius: 0.75rem;
+    }
+    
+    .modal-mobile-padding {
+      padding: 1.5rem;
+    }
+  }
+  
+  @media (max-width: 767px) {
+    .mobile-nav-responsive {
+      display: block !important;
+    }
+    
+    .desktop-sidebar-responsive {
+      display: none !important;
+    }
+    
+    .hydration-safe-desktop {
+      display: none !important;
+    }
+  }
+  
+  /* Enhanced mobile touch targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Mobile-optimized animations */
+  @media (prefers-reduced-motion: no-preference) {
+    .mobile-smooth-scroll {
+      scroll-behavior: smooth;
+    }
+  }
+  
+  /* Mobile-specific hover states (only on devices that support hover) */
+  @media (hover: hover) and (pointer: fine) {
+    .hover-desktop:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+  }
+  
+  /* Mobile-optimized focus states */
+  .focus-mobile:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+}

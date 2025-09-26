@@ -55,36 +55,36 @@ export function SummaryCard({
               {children}
             </HoverCardTrigger>
             <HoverCardContent
-              className="w-80 absolute left-full top-0 ml-2 h-auto min-h-full"
+              className="w-80 absolute left-full top-0 ml-2 h-auto min-h-full p-2"
               side="right"
               align="start"
               sideOffset={0}
               alignOffset={0}
               style={{ height: "auto", minHeight: "100%" }}
             >
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <h4 className="text-sm font-semibold">{title} - Details</h4>
-                  <p className="text-sm text-muted-foreground">Zusätzliche Statistiken</p>
+              <div className="space-y-0">
+                <div className="mb-1">
+                  <h4 className="text-sm font-semibold leading-tight">{title} - Details</h4>
+                  <p className="text-sm text-muted-foreground leading-tight">Zusätzliche Statistiken</p>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-0">
                   {hoverDetails.average !== undefined && (
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm leading-tight">
                       <span className="text-muted-foreground">Durchschnitt:</span>
                       <span className="font-medium">{formatHoverValue(hoverDetails.average)}</span>
                     </div>
                   )}
                   {hoverDetails.median !== undefined && (
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm leading-tight">
                       <span className="text-muted-foreground">Median:</span>
                       <span className="font-medium">{formatHoverValue(hoverDetails.median)}</span>
                     </div>
                   )}
                   {hoverDetails.breakdown && hoverDetails.breakdown.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium text-muted-foreground">Aufschlüsselung:</div>
+                    <div className="mt-1">
+                      <div className="text-sm font-medium text-muted-foreground leading-tight">Aufschlüsselung:</div>
                       {hoverDetails.breakdown.map((item, idx) => (
-                        <div key={idx} className="flex justify-between text-sm">
+                        <div key={idx} className="flex justify-between text-sm leading-tight">
                           <span className="text-muted-foreground">{item.label}:</span>
                           <span className="font-medium">{formatHoverValue(item.value)}</span>
                         </div>
