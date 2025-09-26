@@ -2,50 +2,15 @@
 
 /* Base suggestion modal container */
 .mention-suggestion-modal {
-  @apply bg-popover border border-border rounded-md shadow-lg;
-  @apply w-full max-w-sm;
+  @apply bg-popover text-popover-foreground;
+  @apply w-full h-full;
   @apply focus:outline-none;
-  @apply animate-in fade-in-0 zoom-in-95 duration-200;
-  
-  /* Ensure proper z-index for Tippy.js */
-  z-index: var(--z-index-tooltip);
-}
-
-/* Scrolling container */
-.mention-suggestion-modal > div {
-  @apply py-1;
-  max-height: 20rem; /* 320px */
-  overflow-y: auto;
-  
-  /* Smooth scrolling */
-  scroll-behavior: smooth;
-  
-  /* Custom scrollbar styling */
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted)) transparent;
-}
-
-.mention-suggestion-modal > div::-webkit-scrollbar {
-  width: 6px;
-}
-
-.mention-suggestion-modal > div::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.mention-suggestion-modal > div::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted));
-  border-radius: 3px;
-}
-
-.mention-suggestion-modal > div::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--muted-foreground) / 0.5);
 }
 
 /* Category header styling */
 .mention-category-header {
   @apply px-3 py-1.5 text-xs font-medium text-muted-foreground;
-  @apply flex items-center gap-2 sticky top-0;
+  @apply flex items-center gap-2 sticky top-0 z-10;
   @apply bg-popover/95 backdrop-blur-sm border-b border-border/50;
   
   /* Prevent text selection */
@@ -215,14 +180,6 @@
 
 /* Responsive design adjustments */
 @media (max-width: 640px) {
-  .mention-suggestion-modal {
-    @apply max-w-xs;
-  }
-
-  .mention-suggestion-modal > div {
-    max-height: 16rem; /* 256px */
-  }
-  
   .mention-suggestion-item {
     @apply px-2 py-2.5;
     @apply min-h-[48px];
@@ -285,12 +242,35 @@
 
 /* Tippy.js theme integration */
 .tippy-box[data-theme~='mention-suggestion'] {
-  @apply bg-transparent shadow-none;
-  padding: 0;
+  @apply bg-popover border border-border rounded-md shadow-lg;
+  @apply animate-in fade-in-0 zoom-in-95 duration-200;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+
+  /* Custom scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted)) transparent;
+}
+
+.tippy-box[data-theme~='mention-suggestion']::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tippy-box[data-theme~='mention-suggestion']::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tippy-box[data-theme~='mention-suggestion']::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+.tippy-box[data-theme~='mention-suggestion']::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
 }
 
 .tippy-box[data-theme~='mention-suggestion'] .tippy-content {
-  padding: 0;
+  @apply p-1;
 }
 
 /* Dark mode enhancements */
