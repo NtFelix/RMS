@@ -704,10 +704,17 @@ export function AbrechnungModal({
         lineColor: [0, 0, 0]
       },
       columnStyles: {
-        1: { halign: 'right' },
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' }
+        0: { halign: 'left' }, // Leistungsart - left aligned
+        1: { halign: 'right' }, // Gesamtkosten in € - right aligned
+        2: { halign: 'right' }, // Verteiler - right aligned
+        3: { halign: 'right' }, // Kosten Pro qm - right aligned
+        4: { halign: 'right' }  // Kostenanteil In € - right aligned
+      },
+      willDrawCell: function (data: any) {
+        // Right-align header text for columns 1-4
+        if (data.section === 'head' && data.column.index >= 1) {
+          data.cell.styles.halign = 'right';
+        }
       },
       tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
       margin: { left: 20, right: 20 }
