@@ -130,11 +130,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           // Enhanced responsive padding with CSS-only fallbacks
           "main-content-responsive",
           "responsive-transition",
-          // Responsive padding: preserve desktop padding, reduce on mobile
-          "p-6 max-md:p-4",
-          "pt-6 max-md:pt-4",
-          // JavaScript-enhanced responsive padding with safe area support
-          isMobile ? "pb-20 safe-area-bottom" : "pb-6"
+          // Responsive padding: no top padding on mobile since header is hidden
+          "p-6 md:p-6",
+          "pt-6 md:pt-6",
+          // JavaScript-enhanced responsive padding
+          isMobile ? "pb-20 pt-6" : "pb-6 pt-6"
         )}>
           <div className={cn(
             "flex-1 overflow-y-auto bg-white dark:main-container border shadow-sm",
