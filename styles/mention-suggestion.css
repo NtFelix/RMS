@@ -3,7 +3,7 @@
 /* Base suggestion modal container */
 .mention-suggestion-modal {
   @apply bg-popover border border-border rounded-md shadow-lg;
-  @apply w-full max-w-sm max-h-80 overflow-y-auto;
+  @apply w-full max-w-sm max-h-[250px] overflow-y-auto;
   @apply py-1 focus:outline-none;
   @apply animate-in fade-in-0 zoom-in-95 duration-200;
   
