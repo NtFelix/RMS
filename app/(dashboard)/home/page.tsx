@@ -158,12 +158,12 @@ export default async function Dashboard() {
       </div>
 
       {/* Mobile Layout - Completely separate */}
-      <div className="md:hidden flex flex-col gap-4 p-4">
-        <div>
+      <div className="md:hidden flex flex-col gap-6 p-4">
+        <div className="pt-2">
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-6 mt-4">
           {/* Mobile Summary Cards */}
           <Link href="/haeuser">
             <Card className="min-h-[120px] overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
@@ -211,20 +211,23 @@ export default async function Dashboard() {
           </Link>
 
           {/* Mobile Charts */}
-          <div className="h-[300px] overflow-hidden">
-            <TenantPaymentBento />
-          </div>
+          <div className="mt-8">
+            <div className="h-[300px] overflow-hidden mb-6">
+              <TenantPaymentBento />
+            </div>
 
-          <div className="h-[300px] overflow-hidden">
-            <OccupancyChart />
-          </div>
+            <div className="h-[300px] overflow-hidden mb-6">
+              <OccupancyChart />
+            </div>
 
-          <div className="h-[300px] overflow-hidden">
-            <RevenueExpensesChart />
+            <div className="h-[300px] overflow-hidden mb-6">
+              <RevenueExpensesChart />
+            </div>
           </div>
 
           {/* Mobile Additional Cards */}
-          <Link href="/todos">
+          <div className="mt-8 space-y-6">
+            <Link href="/todos">
             <Card className="min-h-[120px] overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                 <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
@@ -285,13 +288,17 @@ export default async function Dashboard() {
               </CardContent>
             </Card>
           </Link>
-
-          <div className="h-[300px] overflow-hidden">
-            <LastTransactionsContainer />
           </div>
 
-          <div className="h-[300px] overflow-hidden">
-            <MaintenanceDonutChart />
+          {/* Mobile Final Charts */}
+          <div className="mt-8 space-y-6">
+            <div className="h-[300px] overflow-hidden">
+              <LastTransactionsContainer />
+            </div>
+
+            <div className="h-[300px] overflow-hidden">
+              <MaintenanceDonutChart />
+            </div>
           </div>
         </div>
       </div>
