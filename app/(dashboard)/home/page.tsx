@@ -30,11 +30,11 @@ export default async function Dashboard() {
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
-              <div className="flex items-center gap-2 mt-1">
+            <CardContent className="flex-1 flex flex-col justify-center pt-0 pb-6">
+              <div className="flex items-center gap-2">
                 <div className="text-xl font-bold leading-none md:text-2xl">{summary.haeuserCount}</div>
               </div>
-              <p className="text-xs text-muted-foreground">Verwaltete Immobilien</p>
+              <p className="text-xs text-muted-foreground mt-2">Verwaltete Immobilien</p>
             </CardContent>
           </Card>
         </Link>
@@ -46,11 +46,11 @@ export default async function Dashboard() {
                 <Home className="h-4 w-4 text-muted-foreground" />
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
-              <div className="flex items-center gap-2 mt-1">
+            <CardContent className="flex-1 flex flex-col justify-center pt-0 pb-6">
+              <div className="flex items-center gap-2">
                 <div className="text-xl font-bold leading-none md:text-2xl">{summary.wohnungenCount}</div>
               </div>
-              <p className="text-xs text-muted-foreground">Verwaltete Einheiten</p>
+              <p className="text-xs text-muted-foreground mt-2">Verwaltete Einheiten</p>
             </CardContent>
           </Card>
         </Link>
@@ -62,11 +62,11 @@ export default async function Dashboard() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
-              <div className="flex items-center gap-2 mt-1">
+            <CardContent className="flex-1 flex flex-col justify-center pt-0 pb-6">
+              <div className="flex items-center gap-2">
                 <div className="text-xl font-bold leading-none md:text-2xl">{summary.mieterCount}</div>
               </div>
-              <p className="text-xs text-muted-foreground">Aktive Mietverhältnisse</p>
+              <p className="text-xs text-muted-foreground mt-2">Aktive Mietverhältnisse</p>
             </CardContent>
           </Card>
         </Link>
