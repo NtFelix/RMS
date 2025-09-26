@@ -5,7 +5,6 @@
   @apply bg-popover text-popover-foreground rounded-lg border shadow-lg;
   @apply w-full max-w-xs p-1;
   max-height: 20rem; /* 320px */
-  overflow-y: auto;
   
   /* Advanced scrollbar styling */
   &::-webkit-scrollbar {
