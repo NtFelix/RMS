@@ -193,17 +193,17 @@ export function OperatingCostsTable({
                     <TableCell>{item.haus_name || 'N/A'}</TableCell>
                     <TableCell>
                       {item.nebenkostenart && item.nebenkostenart.length > 0
-                        ? item.nebenkostenart.map((art: string, idx: number) => <div key={idx}>{art || '-'}</div>)
+                        ? item.nebenkostenart.map((art: string, idx: number) => <div key={idx} className="py-0 leading-tight">{art || '-'}</div>)
                         : '-'}
                     </TableCell>
                     <TableCell>
                       {item.betrag && item.betrag.length > 0
-                        ? item.betrag.map((b: number | null, idx: number) => <div key={idx}>{typeof b === 'number' ? formatCurrency(b) : '-'}</div>)
+                        ? item.betrag.map((b: number | null, idx: number) => <div key={idx} className="py-0 leading-tight">{typeof b === 'number' ? formatCurrency(b) : '-'}</div>)
                         : '-'}
                     </TableCell>
                     <TableCell>
                       {item.berechnungsart && item.berechnungsart.length > 0
-                        ? item.berechnungsart.map((ba: string, idx: number) => <div key={idx}>{ba || '-'}</div>)
+                        ? item.berechnungsart.map((ba: string, idx: number) => <div key={idx} className="py-0 leading-tight">{ba || '-'}</div>)
                         : '-'}
                     </TableCell>
                     <TableCell>{formatCurrency(item.wasserkosten)}</TableCell>
