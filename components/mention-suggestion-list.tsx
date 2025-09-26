@@ -295,7 +295,9 @@ export const MentionSuggestionList = forwardRef<
     <div
       className={cn(
         'mention-suggestion-modal',
-        loading && 'mention-suggestion-loading-state'
+        loading && 'mention-suggestion-loading-state',
+        'max-h-80 overflow-y-auto',
+        'border rounded-md shadow-lg p-2'
       )}
       role="listbox"
       aria-label="Variable suggestions"
