@@ -246,6 +246,7 @@
   @apply animate-in fade-in-0 zoom-in-95 duration-200;
   overflow-y: auto;
   scroll-behavior: smooth;
+  max-height: 22rem; /* 352px */
 
   /* Custom scrollbar styling */
   scrollbar-width: thin;
