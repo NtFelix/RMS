@@ -90,11 +90,11 @@ export function SortableCostItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex flex-col gap-3 p-4 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-xl ${isDragging ? 'z-10 shadow-lg bg-white dark:bg-gray-800' : ''}`}
+      className={`flex flex-col gap-2 p-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-xl ${isDragging ? 'z-10 shadow-lg bg-white dark:bg-gray-800' : ''}`}
       role="group"
       aria-label={`Kostenposition ${index + 1}`}
     >
-      <div className="flex flex-col sm:flex-row items-start gap-3">
+      <div className="flex flex-col sm:flex-row items-start gap-2">
         <div className="flex items-center justify-center flex-none w-8 h-10">
           <button
             type="button"
@@ -197,7 +197,7 @@ export function SortableCostItem({
       </div>
 
       {item.berechnungsart === 'nach Rechnung' && (
-        <div className="mt-3 p-4 bg-gray-100 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-xl space-y-3">
+        <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-xl space-y-2">
           <h4 className="text-md font-semibold text-gray-800 dark:text-gray-200">
             Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
           </h4>
@@ -225,7 +225,7 @@ export function SortableCostItem({
                   {selectedHausMieter.map(mieter => {
                     const rechnungForMieter = (rechnungen[item.id] || []).find(r => r.mieterId === mieter.id);
                     return (
-                      <div key={mieter.id} className="flex items-center justify-between gap-4 py-3 border-b border-gray-300 dark:border-gray-600 last:border-b-0">
+                      <div key={mieter.id} className="flex items-center justify-between gap-4 py-2 border-b border-gray-300 dark:border-gray-600 last:border-b-0">
                         <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="flex-1 text-sm font-medium" title={mieter.name}>
                           {mieter.name}
                         </Label>
