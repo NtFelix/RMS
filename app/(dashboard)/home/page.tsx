@@ -16,14 +16,14 @@ export default async function Dashboard() {
   const summary = await getDashboardSummary();
   
   return (
-    <div className="flex flex-col gap-4 md:gap-8 p-4 md:p-8">
+    <div className="flex flex-col gap-8 p-8 md:gap-8 md:p-8 max-md:gap-4 max-md:p-4">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight max-md:text-2xl">Dashboard</h1>
       </div>
-      <div className="dashboard-grid-mobile grid gap-4 grid-cols-1 md:grid-cols-6 md:auto-rows-[140px] md:h-[calc(100vh-200px)]">
-        {/* Row 1: Summary cards - mobile: stacked, desktop: grid layout */}
-        <Link href="/haeuser" className="col-span-1 md:col-span-1 md:row-span-1 touch-target">
-          <Card className="dashboard-card-mobile h-full overflow-hidden rounded-2xl shadow-md hover-desktop transition-all cursor-pointer summary-card flex flex-col touch-feedback focus-mobile">
+      <div className="grid gap-4 grid-cols-6 auto-rows-[140px] h-[calc(100vh-200px)] max-md:grid-cols-1 max-md:auto-rows-auto max-md:h-auto">
+        {/* Row 1: Three wider summary cards (2/3 width - 4 columns total) + Tenant Payment List (1/3 width - 2 columns) */}
+        <Link href="/haeuser" className="col-span-1 row-span-1">
+          <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col max-md:min-h-[120px]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Häuser</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
@@ -31,13 +31,13 @@ export default async function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-center pt-0">
-              <div className="text-xl md:text-2xl font-bold leading-none">{summary.haeuserCount}</div>
+              <div className="text-2xl font-bold leading-none max-md:text-xl">{summary.haeuserCount}</div>
               <p className="text-xs text-muted-foreground mt-2">Verwaltete Immobilien</p>
             </CardContent>
           </Card>
         </Link>
-        <Link href="/wohnungen" className="col-span-1 md:col-span-2 md:row-span-1 touch-target">
-          <Card className="dashboard-card-mobile h-full overflow-hidden rounded-2xl shadow-md hover-desktop transition-all cursor-pointer summary-card flex flex-col touch-feedback focus-mobile">
+        <Link href="/wohnungen" className="col-span-2 row-span-1 max-md:col-span-1">
+          <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col max-md:min-h-[120px]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Wohnungen</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
@@ -45,13 +45,13 @@ export default async function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-center pt-0">
-              <div className="text-xl md:text-2xl font-bold leading-none">{summary.wohnungenCount}</div>
+              <div className="text-2xl font-bold leading-none max-md:text-xl">{summary.wohnungenCount}</div>
               <p className="text-xs text-muted-foreground mt-2">Verwaltete Einheiten</p>
             </CardContent>
           </Card>
         </Link>
-        <Link href="/mieter" className="col-span-1 md:col-span-1 md:row-span-1 touch-target">
-          <Card className="dashboard-card-mobile h-full overflow-hidden rounded-2xl shadow-md hover-desktop transition-all cursor-pointer summary-card flex flex-col touch-feedback focus-mobile">
+        <Link href="/mieter" className="col-span-1 row-span-1">
+          <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col max-md:min-h-[120px]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Mieter</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
@@ -59,37 +59,36 @@ export default async function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-center pt-0">
-              <div className="text-xl md:text-2xl font-bold leading-none">{summary.mieterCount}</div>
+              <div className="text-2xl font-bold leading-none max-md:text-xl">{summary.mieterCount}</div>
               <p className="text-xs text-muted-foreground mt-2">Aktive Mietverhältnisse</p>
             </CardContent>
           </Card>
         </Link>
-        {/* Tenant Payment List - mobile: full width, desktop: 2 columns */}
-        <div className="col-span-1 md:col-span-2 md:row-span-4">
-          <div className="chart-container-mobile">
+        {/* Tenant Payment List (1/3 width - 2 columns) */}
+        <div className="col-span-2 row-span-4 max-md:col-span-1 max-md:row-span-1">
+          <div className="max-md:h-[300px] max-md:overflow-hidden">
             <TenantPaymentBento />
           </div>
         </div>
 
-        {/* Occupancy Chart - mobile: full width, desktop: 4 columns */}
-        <div className="col-span-1 md:col-span-4 md:row-span-3">
-          <div className="chart-container-mobile">
+        {/* Row 2: Belegung Chart (2/3 width - 4 columns) */}
+        <div className="col-span-4 row-span-3 max-md:col-span-1 max-md:row-span-1">
+          <div className="max-md:h-[300px] max-md:overflow-hidden">
             <OccupancyChart />
           </div>
         </div>
 
-        {/* Revenue Chart - mobile: full width, desktop: 4 columns */}
-        <div className="col-span-1 md:col-span-4 md:row-span-3">
-          <div className="chart-container-mobile">
+        {/* Row 5: Revenue Chart (4 cols, 3 rows) + Vertically stacked summary cards (2 cols, 3 rows) */}
+        <div className="col-span-4 row-span-3 max-md:col-span-1 max-md:row-span-1">
+          <div className="max-md:h-[300px] max-md:overflow-hidden">
             <RevenueExpensesChart />
           </div>
         </div>
-        {/* Summary cards container - mobile: individual cards, desktop: stacked */}
-        <div className="col-span-1 md:col-span-2 md:row-span-3">
-          {/* Container for vertically stacked summary cards - mobile: individual, desktop: stacked */}
-          <div className="h-full flex flex-col gap-4">
-            <Link href="/todos" className="flex-1 touch-target">
-              <Card className="dashboard-card-mobile h-full overflow-hidden rounded-2xl shadow-md hover-desktop transition-all cursor-pointer summary-card flex flex-col touch-feedback focus-mobile">
+        <div className="col-span-2 row-span-3 max-md:col-span-1 max-md:row-span-1">
+          {/* Container for vertically stacked summary cards - 1/3 of page width */}
+          <div className="h-full flex flex-col gap-4 max-md:gap-4">
+            <Link href="/todos" className="flex-1">
+              <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col max-md:min-h-[120px]">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                   <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
@@ -98,7 +97,7 @@ export default async function Dashboard() {
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="text-xl md:text-2xl font-bold leading-none">{summary.offeneAufgabenCount}</div>
+                    <div className="text-2xl font-bold leading-none max-md:text-xl">{summary.offeneAufgabenCount}</div>
                     {summary.offeneAufgabenCount > 0 && (
                       <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
                         Offen
@@ -110,8 +109,8 @@ export default async function Dashboard() {
               </Card>
             </Link>
             
-            <Link href="/finanzen" className="flex-1 touch-target">
-              <Card className="dashboard-card-mobile h-full overflow-hidden rounded-2xl shadow-md hover-desktop transition-all cursor-pointer summary-card flex flex-col touch-feedback focus-mobile">
+            <Link href="/finanzen" className="flex-1">
+              <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col max-md:min-h-[120px]">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                   <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
@@ -120,7 +119,7 @@ export default async function Dashboard() {
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="text-lg md:text-2xl font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
+                    <div className="text-2xl font-bold leading-none max-md:text-lg">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
                     <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
                       /Monat
                     </div>
@@ -130,8 +129,8 @@ export default async function Dashboard() {
               </Card>
             </Link>
             
-            <Link href="/betriebskosten" className="flex-1 touch-target">
-              <Card className="dashboard-card-mobile h-full overflow-hidden rounded-2xl shadow-md hover-desktop transition-all cursor-pointer summary-card flex flex-col touch-feedback focus-mobile">
+            <Link href="/betriebskosten" className="flex-1">
+              <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col max-md:min-h-[120px]">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                   <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
@@ -140,7 +139,7 @@ export default async function Dashboard() {
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="text-lg md:text-2xl font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
+                    <div className="text-2xl font-bold leading-none max-md:text-lg">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
                     <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
                       /Jahr
                     </div>
@@ -152,14 +151,14 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        {/* Bottom row: Last Transactions and Maintenance Chart - mobile: stacked, desktop: side by side */}
-        <div className="col-span-1 md:col-span-3 md:row-span-3">
-          <div className="chart-container-mobile">
+        {/* Row 8: Last Transactions (left 50%) + Instandhaltung Chart (right 50%) */}
+        <div className="col-span-3 row-span-3 max-md:col-span-1 max-md:row-span-1">
+          <div className="max-md:h-[300px] max-md:overflow-hidden">
             <LastTransactionsContainer />
           </div>
         </div>
-        <div className="col-span-1 md:col-span-3 md:row-span-3">
-          <div className="chart-container-mobile">
+        <div className="col-span-3 row-span-3 max-md:col-span-1 max-md:row-span-1">
+          <div className="max-md:h-[300px] max-md:overflow-hidden">
             <MaintenanceDonutChart />
           </div>
         </div>

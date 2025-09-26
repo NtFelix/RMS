@@ -162,23 +162,32 @@ body {
     touch-action: manipulation;
   }
   
-  /* Dashboard grid mobile optimizations */
-  .dashboard-grid-mobile {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    padding: 1rem;
+  /* Dashboard grid mobile optimizations - only apply on mobile */
+  @media (max-width: 767px) {
+    .dashboard-grid-mobile {
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+      gap: 1rem !important;
+      padding: 1rem !important;
+      height: auto !important;
+      grid-auto-rows: auto !important;
+    }
   }
   
-  .dashboard-card-mobile {
-    min-height: 120px;
-    border-radius: 1rem;
+  /* Dashboard card mobile optimizations - only apply on mobile */
+  @media (max-width: 767px) {
+    .dashboard-card-mobile {
+      min-height: 120px !important;
+      border-radius: 1rem !important;
+    }
   }
   
-  /* Chart container mobile optimizations */
-  .chart-container-mobile {
-    height: 300px;
-    overflow: hidden;
+  /* Chart container mobile optimizations - only apply on mobile */
+  @media (max-width: 767px) {
+    .chart-container-mobile {
+      height: 300px !important;
+      overflow: hidden !important;
+    }
   }
   
   /* Table mobile optimizations */
