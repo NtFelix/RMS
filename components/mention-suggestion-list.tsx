@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect, memo } from 'react';
+import { forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect, memo, useRef } from 'react';
 import { Editor, Range } from '@tiptap/react';
 import { MentionVariable, CATEGORY_CONFIGS, getCategoryConfig } from '@/lib/template-constants';
 import { groupMentionVariablesByCategory, getOrderedCategories } from '@/lib/mention-utils';
@@ -184,6 +184,21 @@ export const MentionSuggestionList = forwardRef<
     initialIndex: 0,
   });
 
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (flatItems[selectedIndex]) {
+      const itemNode = document.getElementById(`suggestion-${flatItems[selectedIndex].id}`);
+      if (itemNode && listRef.current) {
+        itemNode.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'start',
+        });
+      }
+    }
+  }, [selectedIndex, flatItems]);
+
   // Wrap keyboard handling with error recovery
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     try {
@@ -304,7 +319,7 @@ export const MentionSuggestionList = forwardRef<
       aria-multiselectable="false"
       tabIndex={-1}
     >
-      <div>
+      <div ref={listRef}>
         {loading ? (
           <>
             <div className="mention-suggestion-loading" role="status" aria-live="polite">
