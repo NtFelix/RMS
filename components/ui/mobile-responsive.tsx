@@ -189,14 +189,19 @@ export function useResponsive() {
     
     checkScreenSize()
     
-    const handleResize = () => {
-      checkScreenSize()
+    let resizeTimeout: NodeJS.Timeout
+    const debouncedHandleResize = () => {
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(() => {
+        checkScreenSize()
+      }, 150) // 150ms debounce delay
     }
     
-    window.addEventListener('resize', handleResize, { passive: true })
+    window.addEventListener('resize', debouncedHandleResize, { passive: true })
     
     return () => {
-      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('resize', debouncedHandleResize)
+      clearTimeout(resizeTimeout)
     }
   }, [])
 
