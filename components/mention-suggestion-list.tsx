@@ -5,6 +5,7 @@ import { Editor, Range } from '@tiptap/react';
 import { MentionVariable, CATEGORY_CONFIGS, getCategoryConfig } from '@/lib/template-constants';
 import { groupMentionVariablesByCategory, getOrderedCategories } from '@/lib/mention-utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   suggestionPerformanceMonitor, 
   createResourceCleanupTracker,
@@ -304,78 +305,59 @@ export const MentionSuggestionList = forwardRef<
       aria-multiselectable="false"
       tabIndex={-1}
     >
-      <div>
+      <ScrollArea className="h-full">
         {loading ? (
-          <>
+          <div className="p-2">
             <div className="mention-suggestion-loading" role="status" aria-live="polite">
               <Loader2 className="mention-suggestion-loading-spinner" />
-              <span className="mention-suggestion-loading-text">Loading suggestions...</span>
+              <span className="mention-suggestion-loading-text">Loading...</span>
             </div>
-            {/* Skeleton items for better UX */}
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={`skeleton-${index}`} className="mention-suggestion-skeleton">
-                <div className="mention-suggestion-skeleton-label" />
-                <div className="mention-suggestion-skeleton-description" />
-              </div>
-            ))}
-          </>
+          </div>
         ) : items.length === 0 ? (
           <div className="mention-suggestion-empty" role="status" aria-live="polite">
             <Search className="mention-suggestion-empty-icon" />
             <div className="mention-suggestion-empty-text">No matches found</div>
             <div className="mention-suggestion-empty-subtext">
-              {query ? `No variables match "${query}"` : 'Start typing to search variables'}
+              {query ? `No variables match "${query}"` : 'Start typing to search'}
             </div>
           </div>
         ) : (
-          orderedCategories.map((categoryId, categoryIndex) => {
-            const categoryItems = groupedItems[categoryId] || [];
-            const categoryConfig = getCategoryConfig(categoryId);
-            
-            if (categoryItems.length === 0) return null;
-            
-            const IconComponent = categoryConfig?.icon ? ICON_MAP[categoryConfig.icon] : null;
-            
-            return (
-              <div key={categoryId}>
-                {/* Category separator - only show if not first category */}
-                {categoryIndex > 0 && (
-                  <div className="mention-category-separator" />
-                )}
-                
-                {/* Category header */}
-                <div className={cn(
-                  'mention-category-header',
-                  `mention-category-${categoryId}`
-                )}>
-                  {IconComponent && (
-                    <IconComponent className="mention-category-icon" />
-                  )}
-                  <span>{categoryConfig?.label || categoryId}</span>
+          <div className="space-y-1">
+            {orderedCategories.map((categoryId) => {
+              const categoryItems = groupedItems[categoryId] || [];
+              const categoryConfig = getCategoryConfig(categoryId);
+              if (categoryItems.length === 0) return null;
+              const IconComponent = categoryConfig?.icon ? ICON_MAP[categoryConfig.icon] : null;
+
+              return (
+                <div key={categoryId}>
+                  <div className={cn('mention-category-header', `mention-category-${categoryId}`)}>
+                    {IconComponent && <IconComponent className="mention-category-icon" />}
+                    <span>{categoryConfig?.label || categoryId}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {categoryItems.map((item) => {
+                      const flatIndex = getFlatIndex(item);
+                      const isSelected = flatIndex === selectedIndex;
+                      return (
+                        <MemoizedSuggestionItem
+                          key={item.id}
+                          item={item}
+                          isSelected={isSelected}
+                          query={query}
+                          onSelect={() => handleItemClick(item)}
+                          onMouseEnter={() => setSelectedIndex(flatIndex)}
+                          highlightMatch={highlightMatch}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
-                
-                {/* Category items */}
-                {categoryItems.map((item) => {
-                  const flatIndex = getFlatIndex(item);
-                  const isSelected = flatIndex === selectedIndex;
-                  
-                  return (
-                    <MemoizedSuggestionItem
-                      key={item.id}
-                      item={item}
-                      isSelected={isSelected}
-                      query={query}
-                      onSelect={() => handleItemClick(item)}
-                      onMouseEnter={() => setSelectedIndex(flatIndex)}
-                      highlightMatch={highlightMatch}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 });
