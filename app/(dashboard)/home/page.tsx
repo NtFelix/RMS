@@ -24,43 +24,49 @@ export default async function Dashboard() {
         {/* Row 1: Three wider summary cards (2/3 width - 4 columns total) + Tenant Payment List (1/3 width - 2 columns) */}
         <Link href="/haeuser" className="col-span-1 row-span-1 md:col-span-1 md:row-span-1">
           <Card className="min-h-[120px] h-full overflow-hidden rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Häuser</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-center pt-0">
-              <div className="text-xl font-bold leading-none md:text-2xl">{summary.haeuserCount}</div>
-              <p className="text-xs text-muted-foreground mt-2">Verwaltete Immobilien</p>
+            <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
+              <div className="flex items-center gap-2 mt-1">
+                <div className="text-xl font-bold leading-none md:text-2xl">{summary.haeuserCount}</div>
+              </div>
+              <p className="text-xs text-muted-foreground">Verwaltete Immobilien</p>
             </CardContent>
           </Card>
         </Link>
         <Link href="/wohnungen" className="col-span-1 row-span-1 md:col-span-2 md:row-span-1">
           <Card className="min-h-[120px] h-full overflow-hidden rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Wohnungen</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
                 <Home className="h-4 w-4 text-muted-foreground" />
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-center pt-0">
-              <div className="text-xl font-bold leading-none md:text-2xl">{summary.wohnungenCount}</div>
-              <p className="text-xs text-muted-foreground mt-2">Verwaltete Einheiten</p>
+            <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
+              <div className="flex items-center gap-2 mt-1">
+                <div className="text-xl font-bold leading-none md:text-2xl">{summary.wohnungenCount}</div>
+              </div>
+              <p className="text-xs text-muted-foreground">Verwaltete Einheiten</p>
             </CardContent>
           </Card>
         </Link>
         <Link href="/mieter" className="col-span-1 row-span-1 md:col-span-1 md:row-span-1">
           <Card className="min-h-[120px] h-full overflow-hidden rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Mieter</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
                 <Users className="h-4 w-4 text-muted-foreground" />
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-center pt-0">
-              <div className="text-xl font-bold leading-none md:text-2xl">{summary.mieterCount}</div>
-              <p className="text-xs text-muted-foreground mt-2">Aktive Mietverhältnisse</p>
+            <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
+              <div className="flex items-center gap-2 mt-1">
+                <div className="text-xl font-bold leading-none md:text-2xl">{summary.mieterCount}</div>
+              </div>
+              <p className="text-xs text-muted-foreground">Aktive Mietverhältnisse</p>
             </CardContent>
           </Card>
         </Link>
