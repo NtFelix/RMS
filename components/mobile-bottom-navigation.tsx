@@ -551,7 +551,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
             "fixed bottom-16 left-0 right-0 z-40",
             "bg-background/98 backdrop-blur-md border border-border/40 rounded-t-xl shadow-xl shadow-black/15",
             "mx-3 mb-2 mobile-dropdown",
-            "animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+            "animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
             // Ensure proper background and prevent overlap
             "overflow-hidden"
           )}
@@ -592,7 +592,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                       className={cn(
                         "flex items-center px-4 py-3 mx-2 rounded-lg",
                         "min-h-[44px] mobile-dropdown-item touch-feedback",
-                        "transition-all duration-200 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                        "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                         "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                         "active:scale-95",
                         // Enhanced touch feedback
@@ -608,14 +608,14 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     >
                       <IconComponent 
                         className={cn(
-                          "w-5 h-5 mr-3 transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                          "w-5 h-5 mr-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                           // Icon styling exactly identical to link items (no active state for buttons)
                           isFocused && "text-foreground"
                         )}
                         aria-hidden="true"
                       />
                       <span className={cn(
-                        "text-sm transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                        "text-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                         // Text styling exactly identical to link items (no active state for buttons)
                         "font-medium",
                         isFocused && "font-medium"
@@ -653,7 +653,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     className={cn(
                       "flex items-center px-4 py-3 mx-2 rounded-lg",
                       "min-h-[44px] mobile-dropdown-item touch-feedback",
-                      "transition-all duration-200 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                      "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                       "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                       "active:scale-95",
                       // Enhanced touch feedback
@@ -672,14 +672,14 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   >
                     <IconComponent 
                       className={cn(
-                        "w-5 h-5 mr-3 transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                        "w-5 h-5 mr-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                         isActive && "text-primary",
                         isFocused && !isActive && "text-foreground"
                       )}
                       aria-hidden="true"
                     />
                     <span className={cn(
-                      "text-sm transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                      "text-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                       isActive ? "font-semibold text-primary" : "font-medium",
                       isFocused && !isActive && "font-medium"
                     )}>
@@ -767,7 +767,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   className={cn(
                     "flex flex-col items-center justify-center",
                     "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
-                    "transition-all duration-200 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                    "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     "rounded-lg relative",
                     "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
@@ -791,14 +791,14 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 >
                   <IconComponent 
                     className={cn(
-                      "w-5 h-5 mb-1 transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                      "w-5 h-5 mb-1 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                       isActive && "",
                       isDropdownOpen && "rotate-180 "
                     )}
                     aria-hidden="true"
                   />
                   <span className={cn(
-                    "text-xs transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                    "text-xs transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     isActive ? "font-semibold tracking-wide" : "font-medium",
                     isDropdownOpen && "font-semibold tracking-wide"
                   )}>
@@ -827,7 +827,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   className={cn(
                     "flex flex-col items-center justify-center",
                     "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
-                    "transition-all duration-200 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                    "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     "rounded-lg relative",
                     "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
@@ -845,13 +845,13 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 >
                   <IconComponent 
                     className={cn(
-                      "w-5 h-5 mb-1 transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                      "w-5 h-5 mb-1 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                       isActive && ""
                     )}
                     aria-hidden="true"
                   />
                   <span className={cn(
-                    "text-xs transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                    "text-xs transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     isActive ? "font-semibold tracking-wide" : "font-medium"
                   )}>
                     {item.title}
@@ -874,7 +874,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   className={cn(
                     "flex flex-col items-center justify-center",
                     "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
-                    "transition-all duration-200 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                    "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     "rounded-lg relative",
                     "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
@@ -892,13 +892,13 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 >
                   <IconComponent 
                     className={cn(
-                      "w-5 h-5 mb-1 transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                      "w-5 h-5 mb-1 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                       isActive && ""
                     )}
                     aria-hidden="true"
                   />
                   <span className={cn(
-                    "text-xs transition-all duration-300 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
+                    "text-xs transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                     isActive ? "font-semibold tracking-wide" : "font-medium"
                   )}>
                     {item.title}

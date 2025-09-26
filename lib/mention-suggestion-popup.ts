@@ -171,7 +171,7 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
       showOnCreate: true,
       interactive: true,
       trigger: 'manual',
-      hideOnClick: false,
+      hideOnClick: 'toggle',
       theme: 'mention-suggestion',
       animation: 'shift-away-subtle',
       duration: [150, 100],
