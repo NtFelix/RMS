@@ -319,8 +319,9 @@ export const MentionSuggestionList = forwardRef<
       aria-activedescendant={selectedItem ? `suggestion-${selectedItem.id}` : undefined}
       aria-multiselectable="false"
       tabIndex={-1}
+      ref={listRef}
     >
-      <div ref={listRef}>
+      <div>
         {loading ? (
           <>
             <div className="mention-suggestion-loading" role="status" aria-live="polite">

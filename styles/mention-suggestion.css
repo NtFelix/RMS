@@ -3,17 +3,12 @@
 /* Base suggestion modal container */
 .mention-suggestion-modal {
   @apply bg-popover border border-border rounded-md shadow-lg;
-  @apply w-full max-w-sm;
-  @apply focus:outline-none;
+  @apply w-full max-w-sm max-h-80 overflow-y-auto;
+  @apply py-1 focus:outline-none;
   @apply animate-in fade-in-0 zoom-in-95 duration-200;
 
   /* Ensure proper z-index for Tippy.js */
   z-index: var(--z-index-tooltip);
-}
-
-/* Inner container for scrollable content */
-.mention-suggestion-modal > div {
-  @apply max-h-[250px] overflow-y-auto py-1;
 
   /* Smooth scrolling */
   scroll-behavior: smooth;
@@ -23,20 +18,20 @@
   scrollbar-color: hsl(var(--muted)) transparent;
 }
 
-.mention-suggestion-modal > div::-webkit-scrollbar {
+.mention-suggestion-modal::-webkit-scrollbar {
   width: 6px;
 }
 
-.mention-suggestion-modal > div::-webkit-scrollbar-track {
+.mention-suggestion-modal::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.mention-suggestion-modal > div::-webkit-scrollbar-thumb {
+.mention-suggestion-modal::-webkit-scrollbar-thumb {
   background-color: hsl(var(--muted));
   border-radius: 3px;
 }
 
-.mention-suggestion-modal > div::-webkit-scrollbar-thumb:hover {
+.mention-suggestion-modal::-webkit-scrollbar-thumb:hover {
   background-color: hsl(var(--muted-foreground) / 0.5);
 }
 
