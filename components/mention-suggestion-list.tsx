@@ -188,17 +188,47 @@ export const MentionSuggestionList = forwardRef<
 
   useEffect(() => {
     if (listRef.current && selectedIndex >= 0 && selectedIndex < flatItems.length) {
-      const itemNode = listRef.current.querySelector(
+      const itemNode = listRef.current.querySelector<HTMLElement>(
         `#suggestion-${flatItems[selectedIndex].id}`
       );
       if (itemNode) {
-        itemNode.scrollIntoView({
-          block: 'nearest',
-          inline: 'nearest',
-        });
+        // Using a combination of scrollTop and offsetTop for more reliable scrolling
+        const list = listRef.current;
+        const itemTop = itemNode.offsetTop;
+        const itemBottom = itemTop + itemNode.offsetHeight;
+
+        if (itemTop < list.scrollTop) {
+          list.scrollTop = itemTop;
+        } else if (itemBottom > list.scrollTop + list.clientHeight) {
+          list.scrollTop = itemBottom - list.clientHeight;
+        }
       }
     }
   }, [selectedIndex, flatItems]);
+
+  // Handle mouse wheel scrolling
+  useEffect(() => {
+    const listElement = listRef.current;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (listElement) {
+        // Prevent the page from scrolling
+        event.preventDefault();
+        // Manually scroll the list
+        listElement.scrollTop += event.deltaY;
+      }
+    };
+
+    if (listElement) {
+      listElement.addEventListener('wheel', handleWheel, { passive: false });
+    }
+
+    return () => {
+      if (listElement) {
+        listElement.removeEventListener('wheel', handleWheel);
+      }
+    };
+  }, []);
 
   // Wrap keyboard handling with error recovery
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
