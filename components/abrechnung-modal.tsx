@@ -773,7 +773,7 @@ export function AbrechnungModal({
     
     doc.setFont("helvetica", "normal");
     
-    startY += 6;
+    startY += 12;
 
     // Add water cost summary paragraph
     doc.setFontSize(10);
@@ -792,7 +792,7 @@ export function AbrechnungModal({
     doc.text(`${formatCurrency(pricePerCubicMeterCalc)} / m3`, col4Start + 15, startY, { align: 'right' });
     doc.text(formatCurrency(tenantWaterShare), col5End, startY, { align: 'right' });
     
-    startY += 15;
+    startY += 16;
     
     // Total line - sum of operating costs and water costs
     const totalTenantCosts = sumOfTenantSharesFromCostItems + tenantWaterShare;
