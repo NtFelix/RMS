@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 import type { jsPDF } from 'jspdf'; // Type import for better type safety
+import type { CellHookData } from 'jspdf-autotable'; // Type import for autoTable hook data
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 // import jsPDF from 'jspdf'; // Removed for dynamic import
@@ -704,10 +705,17 @@ export function AbrechnungModal({
         lineColor: [0, 0, 0]
       },
       columnStyles: {
-        1: { halign: 'right' },
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' }
+        0: { halign: 'left' }, // Leistungsart - left aligned
+        1: { halign: 'right' }, // Gesamtkosten in € - right aligned
+        2: { halign: 'right' }, // Verteiler - right aligned
+        3: { halign: 'right' }, // Kosten Pro qm - right aligned
+        4: { halign: 'right' }  // Kostenanteil In € - right aligned
+      },
+      willDrawCell: function (data: CellHookData) {
+        // Right-align header text for columns 1-4
+        if (data.section === 'head' && data.column.index >= 1) {
+          data.cell.styles.halign = 'right';
+        }
       },
       tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
       margin: { left: 20, right: 20 }
