@@ -316,9 +316,47 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
 }
 
 /**
+ * Custom CSS theme for mention suggestion popup - now handled by mention-suggestion.css
+ * This is kept for backward compatibility but the main styling is in the CSS file
+ */
+export const mentionSuggestionTheme = `
+  /* Base Tippy.js theme integration - detailed styles are in mention-suggestion.css */
+  .tippy-box[data-theme~='mention-suggestion'] {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .tippy-box[data-theme~='mention-suggestion'] .tippy-content {
+    padding: 0;
+  }
+
+  .tippy-box[data-theme~='mention-suggestion'] .tippy-arrow {
+    display: none;
+  }
+`;
+
+/**
+ * Injects the mention suggestion theme CSS into the document head
+ */
+export function injectMentionSuggestionTheme(): void {
+  const existingStyle = document.getElementById('mention-suggestion-theme');
+  if (existingStyle) return;
+
+  const style = document.createElement('style');
+  style.id = 'mention-suggestion-theme';
+  style.textContent = mentionSuggestionTheme;
+  document.head.appendChild(style);
+}
+
+/**
  * Utility function to handle viewport changes and update popup positioning
  */
 export function createViewportAwarePopup(config: SuggestionPopupConfig): PopupInstance {
+  // Inject theme CSS
+  injectMentionSuggestionTheme();
+
   // Create popup with viewport awareness
   const popup = createSuggestionPopup(config);
   

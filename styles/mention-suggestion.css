@@ -2,10 +2,37 @@
 
 /* Base suggestion modal container */
 .mention-suggestion-modal {
-  @apply w-full max-w-sm focus:outline-none;
+  @apply bg-popover border border-border rounded-lg shadow-xl;
+  @apply w-full max-w-sm max-h-96 overflow-y-auto;
+  @apply py-1.5 focus:outline-none;
+  @apply animate-in fade-in-0 zoom-in-95 duration-300;
   
   /* Ensure proper z-index for Tippy.js */
   z-index: var(--z-index-tooltip);
+
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
+
+  /* Custom scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted)) transparent;
+}
+
+.mention-suggestion-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mention-suggestion-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mention-suggestion-modal::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+.mention-suggestion-modal::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
 }
 
 /* Category header styling */
@@ -93,10 +120,10 @@
 /* Selected state */
 .mention-suggestion-item.selected {
   @apply bg-accent text-accent-foreground;
-  @apply ring-2 ring-ring ring-offset-1;
+  @apply ring-2 ring-primary ring-offset-2 ring-offset-popover;
   @apply border-l-primary;
-  @apply shadow-sm;
-  transform: translateX(2px);
+  @apply shadow-lg;
+  transform: translateX(4px) scale(1.02);
 }
 
 /* Active state (when clicked) */
@@ -247,36 +274,12 @@
 
 /* Tippy.js theme integration */
 .tippy-box[data-theme~='mention-suggestion'] {
-  @apply rounded-md border bg-popover shadow-lg;
-  @apply animate-in fade-in-0 zoom-in-95 duration-200;
+  @apply bg-transparent shadow-none;
+  padding: 0;
 }
 
 .tippy-box[data-theme~='mention-suggestion'] .tippy-content {
-  @apply max-h-80 overflow-y-auto py-1;
-
-  /* Smooth scrolling */
-  scroll-behavior: smooth;
-
-  /* Custom scrollbar styling */
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted)) transparent;
-}
-
-.tippy-box[data-theme~='mention-suggestion'] .tippy-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.tippy-box[data-theme~='mention-suggestion'] .tippy-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.tippy-box[data-theme~='mention-suggestion'] .tippy-content::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted));
-  border-radius: 3px;
-}
-
-.tippy-box[data-theme~='mention-suggestion'] .tippy-content::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--muted-foreground) / 0.5);
+  padding: 0;
 }
 
 /* Dark mode enhancements */
