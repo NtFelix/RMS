@@ -6,6 +6,7 @@
   @apply w-full max-w-sm max-h-80;
   @apply py-1 focus:outline-none;
   @apply animate-in fade-in-0 zoom-in-95 duration-200;
+  @apply overflow-hidden;
 
   /* Ensure proper z-index for Tippy.js */
   z-index: var(--z-index-tooltip);
