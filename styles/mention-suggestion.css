@@ -3,6 +3,7 @@
 /* Base suggestion modal container */
 .mention-suggestion-modal {
   @apply bg-popover text-popover-foreground;
+  @apply w-full h-full;
   @apply focus:outline-none;
 }
 
@@ -179,7 +180,7 @@
 
 /* Responsive design adjustments */
 @media (max-width: 640px) {
-  .tippy-box[data-theme~='mention-suggestion'] {
+  .tippy-box[data-theme~='mention-suggestion'] .tippy-content {
     max-height: 16rem; /* 256px */
   }
 
@@ -247,6 +248,9 @@
 .tippy-box[data-theme~='mention-suggestion'] {
   @apply bg-popover border border-border rounded-md shadow-lg;
   @apply animate-in fade-in-0 zoom-in-95 duration-200;
+}
+
+.tippy-box[data-theme~='mention-suggestion'] .tippy-content {
   overflow-y: auto;
   scroll-behavior: smooth;
   max-height: 22rem; /* 352px */
@@ -256,25 +260,21 @@
   scrollbar-color: hsl(var(--muted)) transparent;
 }
 
-.tippy-box[data-theme~='mention-suggestion']::-webkit-scrollbar {
+.tippy-box[data-theme~='mention-suggestion'] .tippy-content::-webkit-scrollbar {
   width: 6px;
 }
 
-.tippy-box[data-theme~='mention-suggestion']::-webkit-scrollbar-track {
+.tippy-box[data-theme~='mention-suggestion'] .tippy-content::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.tippy-box[data-theme~='mention-suggestion']::-webkit-scrollbar-thumb {
+.tippy-box[data-theme~='mention-suggestion'] .tippy-content::-webkit-scrollbar-thumb {
   background-color: hsl(var(--muted));
   border-radius: 3px;
 }
 
-.tippy-box[data-theme~='mention-suggestion']::-webkit-scrollbar-thumb:hover {
+.tippy-box[data-theme~='mention-suggestion'] .tippy-content::-webkit-scrollbar-thumb:hover {
   background-color: hsl(var(--muted-foreground) / 0.5);
-}
-
-.tippy-box[data-theme~='mention-suggestion'] .tippy-content {
-  @apply p-1;
 }
 
 /* Dark mode enhancements */
