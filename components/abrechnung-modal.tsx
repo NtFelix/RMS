@@ -733,28 +733,47 @@ export function AbrechnungModal({
       startY += 10;
     }
 
-    // Draw "Betriebskosten gesamt" sums
+    // Draw "Betriebskosten gesamt" summary text aligned with table columns
     const sumOfTotalCostForItem = tenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
     const sumOfTenantSharesFromCostItems = tenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
 
-    const lastTable = (doc as any).lastAutoTable;
-    if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
-      const col0 = lastTable.columns[0];
-      const col4 = lastTable.columns[4];
+    // Add spacing before summary text
+    startY += 8;
 
-      if (col0 && typeof col0.x === 'number' && col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-
-        const labelText = "Betriebskosten gesamt: ";
-        const sum1Text = formatCurrency(sumOfTotalCostForItem);
-        doc.text(labelText + sum1Text, col0.x, startY, { align: 'left' });
-        doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col4.x + col4.width, startY, { align: 'right' });
-
-        startY += 8;
-        doc.setFont("helvetica", "normal");
-      }
-    }
+    // Draw "Betriebskosten gesamt" summary - simplified approach
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    
+    // Use fixed positions based on table width and margins to ensure alignment
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const tableWidth = pageWidth - 40; // Same as table margin
+    const leftMargin = 20;
+    
+    // Calculate column positions based on typical table layout
+    const col1Start = leftMargin; // Leistungsart
+    const col2Start = leftMargin + (tableWidth * 0.25); // Gesamtkosten (25% of table width)
+    const col3Start = leftMargin + (tableWidth * 0.45); // Verteiler (45% of table width)  
+    const col4Start = leftMargin + (tableWidth * 0.65); // Kosten Pro qm (65% of table width)
+    const col5Start = leftMargin + (tableWidth * 0.85); // Kostenanteil (85% of table width)
+    const col5End = leftMargin + tableWidth; // Right edge of Kostenanteil column
+    
+    // No background or borders - just plain text with proper alignment
+    
+    // Add the text with proper alignment
+    doc.setTextColor(0, 0, 0);
+    
+    // Label in first column
+    doc.text("Betriebskosten gesamt:", col1Start, startY, { align: 'left' });
+    
+    // Total cost in Gesamtkosten column (right-aligned within column)
+    doc.text(formatCurrency(sumOfTotalCostForItem), col3Start + 15.65, startY, { align: 'right' });
+    
+    // Tenant share in Kostenanteil column (right-aligned within column)
+    doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col5End, startY, { align: 'right' });
+    
+    doc.setFont("helvetica", "normal");
+    
+    startY += 10;
 
     // Water consumption section
     startY += 5;
