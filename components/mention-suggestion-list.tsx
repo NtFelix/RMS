@@ -11,6 +11,7 @@ import {
   useRenderPerformanceMonitor 
 } from '@/lib/mention-suggestion-performance';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   User, 
   Home, 
@@ -173,6 +174,8 @@ export const MentionSuggestionList = forwardRef<
     }
   }, [flatItems, command, reset, handleError, fallbackMode, fallback, editor, query]);
 
+  const viewportRef = useRef<HTMLDivElement>(null);
+
   // Use keyboard navigation hook with error handling
   const {
     selectedIndex,
@@ -184,51 +187,16 @@ export const MentionSuggestionList = forwardRef<
     initialIndex: 0,
   });
 
-  const listRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    if (listRef.current && selectedIndex >= 0 && selectedIndex < flatItems.length) {
-      const itemNode = listRef.current.querySelector<HTMLElement>(
+    if (flatItems.length > 0 && selectedIndex >= 0) {
+      const item = viewportRef.current?.querySelector(
         `#suggestion-${flatItems[selectedIndex].id}`
       );
-      if (itemNode) {
-        // Using a combination of scrollTop and offsetTop for more reliable scrolling
-        const list = listRef.current;
-        const itemTop = itemNode.offsetTop;
-        const itemBottom = itemTop + itemNode.offsetHeight;
-
-        if (itemTop < list.scrollTop) {
-          list.scrollTop = itemTop;
-        } else if (itemBottom > list.scrollTop + list.clientHeight) {
-          list.scrollTop = itemBottom - list.clientHeight;
-        }
+      if (item) {
+        item.scrollIntoView({ block: 'nearest' });
       }
     }
   }, [selectedIndex, flatItems]);
-
-  // Handle mouse wheel scrolling
-  useEffect(() => {
-    const listElement = listRef.current;
-
-    const handleWheel = (event: WheelEvent) => {
-      if (listElement) {
-        // Prevent the page from scrolling
-        event.preventDefault();
-        // Manually scroll the list
-        listElement.scrollTop += event.deltaY;
-      }
-    };
-
-    if (listElement) {
-      listElement.addEventListener('wheel', handleWheel, { passive: false });
-    }
-
-    return () => {
-      if (listElement) {
-        listElement.removeEventListener('wheel', handleWheel);
-      }
-    };
-  }, []);
 
   // Wrap keyboard handling with error recovery
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -349,9 +317,9 @@ export const MentionSuggestionList = forwardRef<
       aria-activedescendant={selectedItem ? `suggestion-${selectedItem.id}` : undefined}
       aria-multiselectable="false"
       tabIndex={-1}
-      ref={listRef}
     >
-      <div>
+      <ScrollArea className="h-full">
+        <div ref={viewportRef}>
         {loading ? (
           <>
             <div className="mention-suggestion-loading" role="status" aria-live="polite">
@@ -375,54 +343,57 @@ export const MentionSuggestionList = forwardRef<
             </div>
           </div>
         ) : (
-          orderedCategories.map((categoryId, categoryIndex) => {
-            const categoryItems = groupedItems[categoryId] || [];
-            const categoryConfig = getCategoryConfig(categoryId);
-            
-            if (categoryItems.length === 0) return null;
-            
-            const IconComponent = categoryConfig?.icon ? ICON_MAP[categoryConfig.icon] : null;
-            
-            return (
-              <div key={categoryId}>
-                {/* Category separator - only show if not first category */}
-                {categoryIndex > 0 && (
-                  <div className="mention-category-separator" />
-                )}
-                
-                {/* Category header */}
-                <div className={cn(
-                  'mention-category-header',
-                  `mention-category-${categoryId}`
-                )}>
-                  {IconComponent && (
-                    <IconComponent className="mention-category-icon" />
+          <div>
+            {orderedCategories.map((categoryId, categoryIndex) => {
+              const categoryItems = groupedItems[categoryId] || [];
+              const categoryConfig = getCategoryConfig(categoryId);
+
+              if (categoryItems.length === 0) return null;
+
+              const IconComponent = categoryConfig?.icon ? ICON_MAP[categoryConfig.icon] : null;
+
+              return (
+                <div key={categoryId}>
+                  {/* Category separator - only show if not first category */}
+                  {categoryIndex > 0 && (
+                    <div className="mention-category-separator" />
                   )}
-                  <span>{categoryConfig?.label || categoryId}</span>
-                </div>
-                
-                {/* Category items */}
-                {categoryItems.map((item) => {
-                  const flatIndex = getFlatIndex(item);
-                  const isSelected = flatIndex === selectedIndex;
                   
-                  return (
-                    <MemoizedSuggestionItem
-                      key={item.id}
-                      item={item}
-                      isSelected={isSelected}
-                      query={query}
-                      onSelect={() => handleItemClick(item)}
-                      onMouseEnter={() => setSelectedIndex(flatIndex)}
-                      highlightMatch={highlightMatch}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })
+                  {/* Category header */}
+                  <div className={cn(
+                    'mention-category-header',
+                    `mention-category-${categoryId}`
+                  )}>
+                    {IconComponent && (
+                      <IconComponent className="mention-category-icon" />
+                    )}
+                    <span>{categoryConfig?.label || categoryId}</span>
+                  </div>
+
+                  {/* Category items */}
+                  {categoryItems.map((item) => {
+                    const flatIndex = getFlatIndex(item);
+                    const isSelected = flatIndex === selectedIndex;
+
+                    return (
+                      <MemoizedSuggestionItem
+                        key={item.id}
+                        item={item}
+                        isSelected={isSelected}
+                        query={query}
+                        onSelect={() => handleItemClick(item)}
+                        onMouseEnter={() => setSelectedIndex(flatIndex)}
+                        highlightMatch={highlightMatch}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         )}
-      </div>
+        </div>
+      </ScrollArea>
     </div>
   );
 });
