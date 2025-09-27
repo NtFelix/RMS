@@ -318,7 +318,7 @@ export const MentionSuggestionList = forwardRef<
       aria-multiselectable="false"
       tabIndex={-1}
     >
-      <ScrollArea className="h-full">
+      <ScrollArea className="flex-1">
         <div ref={viewportRef}>
         {loading ? (
           <>
