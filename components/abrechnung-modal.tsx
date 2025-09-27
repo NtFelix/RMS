@@ -669,7 +669,7 @@ export function AbrechnungModal({
     startY += 10;
 
     // Costs Table
-    const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler", "Kosten\nPro qm", "Kostenanteil\nIn €"];
+    const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
     const tableRows: any[][] = [];
 
     tenantData.costItems.forEach(item => {
