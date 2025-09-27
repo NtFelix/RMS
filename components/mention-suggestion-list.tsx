@@ -184,6 +184,26 @@ export const MentionSuggestionList = forwardRef<
     initialIndex: 0,
   });
 
+  // Scroll selected item into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && flatItems.length > 0) {
+      const selectedElement = document.getElementById(`suggestion-${flatItems[selectedIndex]?.id}`);
+      if (selectedElement) {
+        selectedElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'nearest'
+        });
+      }
+    }
+  }, [selectedIndex, flatItems]);
+
+  // Ensure mouse wheel events work properly
+  const handleWheel = useCallback((event: React.WheelEvent) => {
+    // Allow the event to bubble up to the scrollable container
+    event.stopPropagation();
+  }, []);
+
   // Wrap keyboard handling with error recovery
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     try {
@@ -303,8 +323,21 @@ export const MentionSuggestionList = forwardRef<
       aria-activedescendant={selectedItem ? `suggestion-${selectedItem.id}` : undefined}
       aria-multiselectable="false"
       tabIndex={-1}
+      onWheel={handleWheel}
     >
-      <div>
+      <div
+        onWheel={(e) => {
+          // Ensure wheel events are handled by this scrollable container
+          e.stopPropagation();
+        }}
+        style={{
+          // Ensure the container is scrollable and handles mouse wheel
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          pointerEvents: 'auto',
+          touchAction: 'pan-y'
+        }}
+      >
         {loading ? (
           <>
             <div className="mention-suggestion-loading" role="status" aria-live="polite">
