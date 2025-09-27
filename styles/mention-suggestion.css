@@ -3,9 +3,12 @@
 .mention-suggestion-modal {
   @apply bg-background text-foreground rounded-lg border shadow-lg;
   @apply w-full max-w-xs p-1;
+}
+
+.mention-suggestion-scroll-area {
   max-height: 20rem; /* 320px */
   overflow-y: auto;
-  
+
   /* Custom scrollbar styling */
   &::-webkit-scrollbar {
     width: 8px;
