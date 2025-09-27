@@ -666,6 +666,11 @@ export function AbrechnungModal({
     // Property Details
     const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
     doc.text(propertyDetails, 20, startY);
+    startY += 6;
+
+    // Tenant Details
+    const tenantDetails = `Mieter: ${tenantData.tenantName}`;
+    doc.text(tenantDetails, 20, startY);
     startY += 10;
 
     // Costs Table
