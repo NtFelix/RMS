@@ -805,6 +805,15 @@ export function AbrechnungModal({
     doc.text("Vorauszahlungen:", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(tenantData.vorauszahlungen), col5End, startY, { align: 'right' });
     
+    startY += 8;
+    
+    // Final settlement line (Nachzahlung or Guthaben)
+    const isPositiveSettlement = tenantData.finalSettlement >= 0;
+    const settlementLabel = isPositiveSettlement ? "Nachzahlung:" : "Guthaben:";
+    const settlementAmount = Math.abs(tenantData.finalSettlement);
+    doc.text(settlementLabel, col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(settlementAmount), col5End, startY, { align: 'right' });
+    
     doc.setFont("helvetica", "normal");
     
     startY += 10;
