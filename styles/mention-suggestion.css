@@ -3,7 +3,6 @@
 /* Base suggestion modal container */
 .mention-suggestion-modal {
   @apply bg-popover text-popover-foreground;
-  @apply w-full h-full;
   @apply focus:outline-none;
 }
 
