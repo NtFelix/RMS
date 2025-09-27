@@ -798,31 +798,7 @@ export function AbrechnungModal({
     
     startY += 10;
 
-    // Water consumption section
-    startY += 5;
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Wasserverbrauch", 20, startY);
-    startY += 7;
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-
-    const totalBuildingConsumption = nebenkostenItem.wasserverbrauch || 0;
-    const totalWaterCost = nebenkostenItem.wasserkosten || 0;
-    const pricePerCubicMeter = totalBuildingConsumption > 0 ? totalWaterCost / totalBuildingConsumption : 0;
-
-    doc.text(`Gesamtverbrauch Gebäude: ${totalBuildingConsumption} m³`, 20, startY);
-    startY += 5;
-    doc.text(`Gesamtkosten Wasser: ${formatCurrency(totalWaterCost)}`, 20, startY);
-    startY += 5;
-    doc.text(`Preis pro m³: ${formatCurrency(pricePerCubicMeter)}`, 20, startY);
-    startY += 8;
-
-    doc.text(`Verbrauch ${tenantData.tenantName}: ${tenantData.waterCost.consumption || 0} m³`, 20, startY);
-    startY += 5;
-    doc.text(`Wasserkosten ${tenantData.tenantName}: ${formatCurrency(tenantData.waterCost.tenantShare)}`, 20, startY);
-    startY += 10;
 
     // Settlement summary
     doc.setFontSize(12);
