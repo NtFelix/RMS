@@ -820,24 +820,7 @@ export function AbrechnungModal({
 
 
 
-    // Settlement summary
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Abrechnung", 20, startY);
-    startY += 8;
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Gesamtkosten: ${formatCurrency(tenantData.totalTenantCost)}`, 20, startY);
-    startY += 5;
-    doc.text(`Vorauszahlungen: ${formatCurrency(tenantData.vorauszahlungen)}`, 20, startY);
-    startY += 8;
-
-    doc.setFont("helvetica", "bold");
-    const isNachzahlung = tenantData.finalSettlement >= 0;
-    const settlementText = isNachzahlung ? "Nachzahlung" : "Guthaben";
-    doc.text(`${settlementText}: ${formatCurrency(tenantData.finalSettlement)}`, 20, startY);
-    startY += 10; // Add some space after the final settlement
     
     return startY; // Return the final Y position
   };
