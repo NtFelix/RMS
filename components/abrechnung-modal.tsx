@@ -799,6 +799,12 @@ export function AbrechnungModal({
     doc.text("Gesamt:", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(totalTenantCosts), col5End, startY, { align: 'right' });
     
+    startY += 8;
+    
+    // Advance payments line
+    doc.text("Vorauszahlungen:", col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(tenantData.vorauszahlungen), col5End, startY, { align: 'right' });
+    
     doc.setFont("helvetica", "normal");
     
     startY += 10;
