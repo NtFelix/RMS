@@ -304,57 +304,76 @@ export const MentionSuggestionList = forwardRef<
       aria-multiselectable="false"
       tabIndex={-1}
     >
-      <div className="mention-suggestion-scroll-area">
+      <div>
         {loading ? (
-          <div className="p-2">
+          <>
             <div className="mention-suggestion-loading" role="status" aria-live="polite">
               <Loader2 className="mention-suggestion-loading-spinner" />
-              <span className="mention-suggestion-loading-text">Loading...</span>
+              <span className="mention-suggestion-loading-text">Loading suggestions...</span>
             </div>
-          </div>
+            {/* Skeleton items for better UX */}
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={`skeleton-${index}`} className="mention-suggestion-skeleton">
+                <div className="mention-suggestion-skeleton-label" />
+                <div className="mention-suggestion-skeleton-description" />
+              </div>
+            ))}
+          </>
         ) : items.length === 0 ? (
           <div className="mention-suggestion-empty" role="status" aria-live="polite">
             <Search className="mention-suggestion-empty-icon" />
             <div className="mention-suggestion-empty-text">No matches found</div>
             <div className="mention-suggestion-empty-subtext">
-              {query ? `No variables match "${query}"` : 'Start typing to search'}
+              {query ? `No variables match "${query}"` : 'Start typing to search variables'}
             </div>
           </div>
         ) : (
-          <div className="space-y-1">
-            {orderedCategories.map((categoryId) => {
-              const categoryItems = groupedItems[categoryId] || [];
-              const categoryConfig = getCategoryConfig(categoryId);
-              if (categoryItems.length === 0) return null;
-              const IconComponent = categoryConfig?.icon ? ICON_MAP[categoryConfig.icon] : null;
+          orderedCategories.map((categoryId, categoryIndex) => {
+            const categoryItems = groupedItems[categoryId] || [];
+            const categoryConfig = getCategoryConfig(categoryId);
 
-              return (
-                <div key={categoryId}>
-                  <div className={cn('mention-category-header', `mention-category-${categoryId}`)}>
-                    {IconComponent && <IconComponent className="mention-category-icon" />}
-                    <span>{categoryConfig?.label || categoryId}</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    {categoryItems.map((item) => {
-                      const flatIndex = getFlatIndex(item);
-                      const isSelected = flatIndex === selectedIndex;
-                      return (
-                        <MemoizedSuggestionItem
-                          key={item.id}
-                          item={item}
-                          isSelected={isSelected}
-                          query={query}
-                          onSelect={() => handleItemClick(item)}
-                          onMouseEnter={() => setSelectedIndex(flatIndex)}
-                          highlightMatch={highlightMatch}
-                        />
-                      );
-                    })}
-                  </div>
+            if (categoryItems.length === 0) return null;
+
+            const IconComponent = categoryConfig?.icon ? ICON_MAP[categoryConfig.icon] : null;
+
+            return (
+              <div key={categoryId}>
+                {/* Category separator - only show if not first category */}
+                {categoryIndex > 0 && (
+                  <div className="mention-category-separator" />
+                )}
+
+                {/* Category header */}
+                <div className={cn(
+                  'mention-category-header',
+                  `mention-category-${categoryId}`
+                )}>
+                  {IconComponent && (
+                    <IconComponent className="mention-category-icon" />
+                  )}
+                  <span>{categoryConfig?.label || categoryId}</span>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Category items */}
+                {categoryItems.map((item) => {
+                  const flatIndex = getFlatIndex(item);
+                  const isSelected = flatIndex === selectedIndex;
+
+                  return (
+                    <MemoizedSuggestionItem
+                      key={item.id}
+                      item={item}
+                      isSelected={isSelected}
+                      query={query}
+                      onSelect={() => handleItemClick(item)}
+                      onMouseEnter={() => setSelectedIndex(flatIndex)}
+                      highlightMatch={highlightMatch}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })
         )}
       </div>
     </div>

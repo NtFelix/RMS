@@ -1,13 +1,15 @@
 /* TipTap Mention Suggestion Modal Styles */
 
+/* Base suggestion modal container */
 .mention-suggestion-modal {
-  @apply bg-background text-foreground rounded-lg border shadow-lg;
-  @apply w-full max-w-xs p-1;
+  @apply bg-background text-foreground;
+  @apply w-full max-w-xs;
 }
 
 .mention-suggestion-scroll-area {
   max-height: 20rem; /* 320px */
   overflow-y: auto;
+  @apply p-1;
 
   /* Custom scrollbar styling */
   &::-webkit-scrollbar {
@@ -93,8 +95,10 @@
   @apply h-4 w-4 animate-spin;
 }
 
+/* Tippy.js theme integration */
 .tippy-box[data-theme~='mention-suggestion'] {
-  @apply bg-transparent shadow-none p-0;
+  @apply bg-background text-foreground rounded-lg border shadow-lg;
+  @apply p-0;
 }
 
 .tippy-box[data-theme~='mention-suggestion'] .tippy-content {
