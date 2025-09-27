@@ -773,6 +773,29 @@ export function AbrechnungModal({
     
     doc.setFont("helvetica", "normal");
     
+    startY += 6;
+
+    // Add water cost summary paragraph
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    
+    // Get water cost data for this tenant
+    const tenantWaterShare = tenantData.waterCost.tenantShare;
+    const tenantWaterConsumption = tenantData.waterCost.consumption || 0;
+    const buildingWaterCost = nebenkostenItem.wasserkosten || 0;
+    const buildingWaterConsumption = nebenkostenItem.wasserverbrauch || 0;
+    const pricePerCubicMeterCalc = buildingWaterConsumption > 0 ? buildingWaterCost / buildingWaterConsumption : 0;
+    
+    // Water cost summary with aligned columns
+    doc.text("Wasserkosten:", col1Start, startY, { align: 'left' });
+    doc.text(`${tenantWaterConsumption} m³`, col3Start + 15.65, startY, { align: 'right' });
+    doc.text(`${formatCurrency(pricePerCubicMeterCalc)} / m3`, col4Start + 15, startY, { align: 'right' });
+    doc.text(formatCurrency(tenantWaterShare), col5End, startY, { align: 'right' });
+    
+
+    
+    doc.setFont("helvetica", "normal");
+    
     startY += 10;
 
     // Water consumption section
