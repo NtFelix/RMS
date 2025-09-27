@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 import type { jsPDF } from 'jspdf'; // Type import for better type safety
+import type { CellHookData } from 'jspdf-autotable'; // Type import for autoTable hook data
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 // import jsPDF from 'jspdf'; // Removed for dynamic import
@@ -710,7 +711,7 @@ export function AbrechnungModal({
         3: { halign: 'right' }, // Kosten Pro qm - right aligned
         4: { halign: 'right' }  // Kostenanteil In € - right aligned
       },
-      willDrawCell: function (data: any) {
+      willDrawCell: function (data: CellHookData) {
         // Right-align header text for columns 1-4
         if (data.section === 'head' && data.column.index >= 1) {
           data.cell.styles.halign = 'right';
