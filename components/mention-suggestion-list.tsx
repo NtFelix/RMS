@@ -68,7 +68,7 @@ const MemoizedSuggestionItem = memo<{
   <div
     id={`suggestion-${item.id}`}
     className={cn(
-      "relative flex cursor-pointer select-none items-start gap-3 rounded-lg px-3 py-2.5 text-sm outline-none transition-all duration-150",
+      "group relative flex cursor-pointer select-none items-start gap-3 rounded-lg px-3 py-2.5 text-sm outline-none transition-all duration-150",
       "hover:bg-accent hover:text-accent-foreground hover:scale-[1.01]",
       isSelected && "bg-accent text-accent-foreground shadow-sm"
     )}
@@ -79,7 +79,12 @@ const MemoizedSuggestionItem = memo<{
     onClick={onSelect}
     onMouseEnter={onMouseEnter}
   >
-    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary flex-shrink-0 mt-0.5">
+    <div className={cn(
+      "flex h-6 w-6 items-center justify-center rounded-md flex-shrink-0 mt-0.5 transition-all duration-150",
+      "bg-primary/10 text-primary",
+      "group-hover:bg-accent-foreground/10 group-hover:text-accent-foreground",
+      isSelected && "bg-accent-foreground/15 text-accent-foreground"
+    )}>
       <Hash className="h-3.5 w-3.5" />
     </div>
     <div className="flex-1 space-y-1 min-w-0">
