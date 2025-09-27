@@ -19,7 +19,8 @@ import {
   UserCheck,
   Search,
   Loader2,
-  LucideIcon
+  LucideIcon,
+  Hash
 } from 'lucide-react';
 import {
   MentionSuggestionErrorType,
@@ -55,7 +56,7 @@ export interface MentionSuggestionListRef {
   onKeyDown: (props: { event: KeyboardEvent }) => boolean;
 }
 
-// Memoized suggestion item component for better performance
+// Memoized suggestion item component with modern application styling
 const MemoizedSuggestionItem = memo<{
   item: MentionVariable;
   isSelected: boolean;
@@ -67,8 +68,9 @@ const MemoizedSuggestionItem = memo<{
   <div
     id={`suggestion-${item.id}`}
     className={cn(
-      'mention-suggestion-item',
-      isSelected && 'selected'
+      "relative flex cursor-pointer select-none items-start gap-3 rounded-lg px-3 py-2.5 text-sm outline-none transition-all duration-150",
+      "hover:bg-accent hover:text-accent-foreground hover:scale-[1.01]",
+      isSelected && "bg-accent text-accent-foreground shadow-sm"
     )}
     role="option"
     aria-selected={isSelected}
@@ -77,15 +79,20 @@ const MemoizedSuggestionItem = memo<{
     onClick={onSelect}
     onMouseEnter={onMouseEnter}
   >
-    <div className="mention-suggestion-label" aria-label={`Variable: ${item.label}`}>
-      {highlightMatch(item.label, query)}
+    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary flex-shrink-0 mt-0.5">
+      <Hash className="h-3.5 w-3.5" />
     </div>
-    <div 
-      id={`suggestion-${item.id}-description`}
-      className="mention-suggestion-description"
-      aria-label={`Description: ${item.description}`}
-    >
-      {highlightMatch(item.description, query)}
+    <div className="flex-1 space-y-1 min-w-0">
+      <div className="font-medium leading-none" aria-label={`Variable: ${item.label}`}>
+        {highlightMatch(item.label, query)}
+      </div>
+      <div 
+        id={`suggestion-${item.id}-description`}
+        className="text-xs text-muted-foreground leading-relaxed"
+        aria-label={`Description: ${item.description}`}
+      >
+        {highlightMatch(item.description, query)}
+      </div>
     </div>
   </div>
 ));
@@ -276,7 +283,14 @@ export const MentionSuggestionList = forwardRef<
       const parts = text.split(regex);
       
       return parts.map((part, index) => 
-        regex.test(part) ? <mark key={index}>{part}</mark> : part
+        regex.test(part) ? (
+          <span 
+            key={index} 
+            className="bg-primary/20 text-primary px-1 py-0.5 rounded font-semibold"
+          >
+            {part}
+          </span>
+        ) : part
       );
     } catch (error) {
       // Fallback to plain text if highlighting fails
@@ -314,8 +328,12 @@ export const MentionSuggestionList = forwardRef<
   return (
     <div
       className={cn(
-        'mention-suggestion-modal',
-        loading && 'mention-suggestion-loading-state'
+        "z-50 w-80 rounded-2xl border bg-popover text-popover-foreground shadow-xl backdrop-blur-sm",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out",
+        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        "pointer-events-auto",
+        loading && 'opacity-90'
       )}
       role="listbox"
       aria-label="Variable suggestions"
@@ -325,88 +343,111 @@ export const MentionSuggestionList = forwardRef<
       tabIndex={-1}
       onWheel={handleWheel}
     >
+      {/* Header with search indicator */}
+      <div className="flex items-center gap-2 border-b px-4 py-3">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">Template Variables</span>
+        {query && (
+          <span className="ml-auto text-xs text-muted-foreground">
+            "{query}"
+          </span>
+        )}
+      </div>
+
+      {/* Scrollable content */}
       <div
-        onWheel={(e) => {
-          // Ensure wheel events are handled by this scrollable container
-          e.stopPropagation();
-        }}
+        className="max-h-[320px] overflow-y-auto p-2"
         style={{
-          // Ensure the container is scrollable and handles mouse wheel
           overflowY: 'auto',
           overflowX: 'hidden',
           pointerEvents: 'auto',
-          touchAction: 'pan-y'
+          touchAction: 'pan-y',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'hsl(var(--muted-foreground) / 0.3) transparent'
+        }}
+        onWheel={(e) => {
+          e.stopPropagation();
         }}
       >
         {loading ? (
           <>
-            <div className="mention-suggestion-loading" role="status" aria-live="polite">
-              <Loader2 className="mention-suggestion-loading-spinner" />
-              <span className="mention-suggestion-loading-text">Loading suggestions...</span>
+            <div className="flex items-center gap-3 px-3 py-4" role="status" aria-live="polite">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Loading suggestions...</span>
             </div>
-            {/* Skeleton items for better UX */}
+            {/* Skeleton items */}
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={`skeleton-${index}`} className="mention-suggestion-skeleton">
-                <div className="mention-suggestion-skeleton-label" />
-                <div className="mention-suggestion-skeleton-description" />
+              <div key={`skeleton-${index}`} className="flex items-start gap-3 rounded-lg px-3 py-2.5">
+                <div className="h-6 w-6 rounded-md bg-muted animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-muted rounded animate-pulse" style={{ width: '60%' }} />
+                  <div className="h-3 bg-muted rounded animate-pulse" style={{ width: '80%' }} />
+                </div>
               </div>
             ))}
           </>
         ) : items.length === 0 ? (
-          <div className="mention-suggestion-empty" role="status" aria-live="polite">
-            <Search className="mention-suggestion-empty-icon" />
-            <div className="mention-suggestion-empty-text">No matches found</div>
-            <div className="mention-suggestion-empty-subtext">
-              {query ? `No variables match "${query}"` : 'Start typing to search variables'}
+          <div className="flex flex-col items-center gap-3 px-4 py-8 text-center" role="status" aria-live="polite">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <Search className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm font-medium">No matches found</div>
+              <div className="text-xs text-muted-foreground">
+                {query ? `No variables match "${query}"` : 'Start typing to search variables'}
+              </div>
             </div>
           </div>
         ) : (
-          orderedCategories.map((categoryId, categoryIndex) => {
-            const categoryItems = groupedItems[categoryId] || [];
-            const categoryConfig = getCategoryConfig(categoryId);
-            
-            if (categoryItems.length === 0) return null;
-            
-            const IconComponent = categoryConfig?.icon ? ICON_MAP[categoryConfig.icon] : null;
-            
-            return (
-              <div key={categoryId}>
-                {/* Category separator - only show if not first category */}
-                {categoryIndex > 0 && (
-                  <div className="mention-category-separator" />
-                )}
-                
-                {/* Category header */}
-                <div className={cn(
-                  'mention-category-header',
-                  `mention-category-${categoryId}`
-                )}>
-                  {IconComponent && (
-                    <IconComponent className="mention-category-icon" />
+          <div className="space-y-1">
+            {orderedCategories.map((categoryId, categoryIndex) => {
+              const categoryItems = groupedItems[categoryId] || [];
+              const categoryConfig = getCategoryConfig(categoryId);
+              
+              if (categoryItems.length === 0) return null;
+              
+              const IconComponent = categoryConfig?.icon ? ICON_MAP[categoryConfig.icon] : null;
+              
+              return (
+                <div key={categoryId} className="space-y-1">
+                  {/* Category separator - only show if not first category */}
+                  {categoryIndex > 0 && (
+                    <div className="mx-2 my-2 h-px bg-border" />
                   )}
-                  <span>{categoryConfig?.label || categoryId}</span>
-                </div>
-                
-                {/* Category items */}
-                {categoryItems.map((item) => {
-                  const flatIndex = getFlatIndex(item);
-                  const isSelected = flatIndex === selectedIndex;
                   
-                  return (
-                    <MemoizedSuggestionItem
-                      key={item.id}
-                      item={item}
-                      isSelected={isSelected}
-                      query={query}
-                      onSelect={() => handleItemClick(item)}
-                      onMouseEnter={() => setSelectedIndex(flatIndex)}
-                      highlightMatch={highlightMatch}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })
+                  {/* Category header */}
+                  <div className="sticky top-0 z-10 flex items-center gap-2 bg-popover/95 backdrop-blur-sm px-3 py-2 text-xs font-semibold text-muted-foreground">
+                    {IconComponent && (
+                      <IconComponent className="h-3.5 w-3.5" />
+                    )}
+                    <span className="uppercase tracking-wide">{categoryConfig?.label || categoryId}</span>
+                  </div>
+                  
+                  {/* Category items */}
+                  <div className="space-y-0.5">
+                    {categoryItems.map((item) => {
+                      const flatIndex = getFlatIndex(item);
+                      const isSelected = flatIndex === selectedIndex;
+                      
+                      return (
+                        <MemoizedSuggestionItem
+                          key={item.id}
+                          item={item}
+                          isSelected={isSelected}
+                          query={query}
+                          onSelect={() => handleItemClick(item)}
+                          onMouseEnter={() => setSelectedIndex(flatIndex)}
+                          highlightMatch={highlightMatch}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
