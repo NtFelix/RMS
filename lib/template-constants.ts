@@ -1,7 +1,8 @@
 // Template categories for German property management
 export const TEMPLATE_CATEGORIES = [
   'Mail',
-  'Dokumente'
+  'Dokumente',
+  'Sonstiges'
 ] as const;
 
 export type TemplateCategory = typeof TEMPLATE_CATEGORIES[number];
