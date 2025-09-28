@@ -242,13 +242,13 @@ export function TenantMailTemplatesModal({
         <div className="flex-1 flex flex-col relative min-h-0">
           {/* Search Bar */}
           <div className="flex-shrink-0 pb-4 border-b border-border relative z-10">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <div className="relative w-full group">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none transition-all duration-300 ease-in-out peer-focus:text-primary peer-focus:scale-110 group-hover:text-foreground" />
               <Input
                 placeholder="Vorlagen durchsuchen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 bg-background border-input focus:border-primary focus:ring-0 focus:outline-none transition-colors duration-200"
+                className="peer w-full pl-10 bg-background border-input focus:border-primary focus:bg-background/80 hover:border-border/80 focus:ring-0 focus:outline-none transition-all duration-300 ease-in-out"
               />
             </div>
             
