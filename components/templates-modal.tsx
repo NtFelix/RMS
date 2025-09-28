@@ -472,9 +472,9 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
 
           <div className="flex-1 overflow-hidden flex flex-col p-1" ref={containerRef}>
             {/* Search, Filter and Actions Section */}
-            <div className="flex-shrink-0 pb-4 sm:pb-6 border-b space-y-4 px-2 pt-1">
-              {/* Top Row: Search and Create Button */}
-              <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex-shrink-0 pb-4 sm:pb-6 border-b space-y-3 px-2 pt-1">
+              {/* Single Row: Search, Filter, and Create Button */}
+              <div className="flex items-center gap-2 sm:gap-3">
                 {/* Search Bar - Takes most space */}
                 <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" aria-hidden="true" />
@@ -492,24 +492,54 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                   </div>
                 </div>
 
+                {/* Category Filter - Medium width */}
+                <div className="flex items-center gap-1 min-w-0">
+                  <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0 hidden sm:block" aria-hidden="true" />
+                  <div className="relative w-[140px] sm:w-[180px] min-w-0">
+                    <Select 
+                      value={selectedCategory || 'all'} 
+                      onValueChange={(value) => {
+                        setSelectedCategory(value);
+                        announceFilterApplied(value === 'all' ? templates.length : filteredTemplates.length);
+                      }}
+                    >
+                      <SelectTrigger 
+                        className="w-full focus-visible:scale-100 focus:ring-2 focus:ring-offset-1 focus:ring-offset-background text-sm"
+                        aria-label={ARIA_LABELS.categoryFilter}
+                        aria-expanded={false}
+                      >
+                        <SelectValue placeholder="Alle Kategorien" />
+                      </SelectTrigger>
+                      <SelectContent className="z-50 min-w-[200px]">
+                        <SelectItem value="all">Alle Kategorien</SelectItem>
+                        {availableCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 {/* Create Button - Fixed width */}
                 <Button 
                   data-create-template-button
                   onClick={handleCreateTemplate} 
-                  className="flex-shrink-0 min-w-[120px] sm:min-w-[140px]"
+                  className="flex-shrink-0 min-w-[100px] sm:min-w-[120px]"
                   disabled={isCreating || loading}
                   aria-label={ARIA_LABELS.createTemplateButton}
                   aria-describedby={`${modalId}-create-help`}
                 >
                   {isCreating ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                      <Loader2 className="h-4 w-4 mr-1 sm:mr-2 animate-spin" aria-hidden="true" />
                       <span className="hidden sm:inline">Erstellt...</span>
-                      <span className="sm:hidden">Erstellt...</span>
+                      <span className="sm:hidden">Neu...</span>
                     </>
                   ) : (
                     <>
-                      <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                      <Plus className="h-4 w-4 mr-1 sm:mr-2" aria-hidden="true" />
                       <span className="hidden sm:inline">Neue Vorlage</span>
                       <span className="sm:hidden">Neu</span>
                     </>
@@ -517,36 +547,6 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                 </Button>
                 <div id={`${modalId}-create-help`} className="sr-only">
                   Erstellt eine neue Dokumentvorlage mit dem Rich-Text-Editor
-                </div>
-              </div>
-
-              {/* Second Row: Category Filter */}
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-                <div className="relative w-full sm:w-64 min-w-0">
-                  <Select 
-                    value={selectedCategory || 'all'} 
-                    onValueChange={(value) => {
-                      setSelectedCategory(value);
-                      announceFilterApplied(value === 'all' ? templates.length : filteredTemplates.length);
-                    }}
-                  >
-                    <SelectTrigger 
-                      className="w-full focus-visible:scale-100 focus:ring-2 focus:ring-offset-1 focus:ring-offset-background"
-                      aria-label={ARIA_LABELS.categoryFilter}
-                      aria-expanded={false}
-                    >
-                      <SelectValue placeholder="Alle Kategorien" />
-                    </SelectTrigger>
-                    <SelectContent className="z-50 min-w-[200px]">
-                      <SelectItem value="all">Alle Kategorien</SelectItem>
-                      {availableCategories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 
