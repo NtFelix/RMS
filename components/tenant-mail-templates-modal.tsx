@@ -76,11 +76,13 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   const getFullEmailContent = (content: any): string => {
     if (!content || !content.content) return '';
     
-    const extractText = (node: any): string => {
+    const processNode = (node: any): string => {
+      // Handle text nodes
       if (node.type === 'text') {
         return node.text || '';
       }
       
+      // Handle mention nodes
       if (node.type === 'mention') {
         const label = node.attrs?.label || node.attrs?.id || 'Variable';
         // Replace common variables with actual values if available
@@ -96,39 +98,49 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
         }
       }
       
+      // Handle paragraph nodes - this is key for line breaks
       if (node.type === 'paragraph') {
-        const text = node.content ? node.content.map(extractText).join('') : '';
-        return text + '\n\n';
+        if (!node.content || !Array.isArray(node.content)) {
+          return '';
+        }
+        // Process all content within the paragraph
+        const paragraphText = node.content.map(processNode).join('');
+        return paragraphText; // Don't add line breaks here, we'll handle them at the document level
       }
       
+      // Handle hard breaks
       if (node.type === 'hardBreak') {
         return '\n';
       }
       
-      if (node.type === 'heading') {
-        const text = node.content ? node.content.map(extractText).join('') : '';
-        return text + '\n\n';
-      }
-      
+      // Handle other node types that might have content
       if (node.content && Array.isArray(node.content)) {
-        return node.content.map(extractText).join('');
+        return node.content.map(processNode).join('');
       }
       
       return '';
     };
     
-    const result = content.content.map(extractText).join('');
+    // Process the document content - each paragraph should be separated by double line breaks
+    if (!content.content || !Array.isArray(content.content)) {
+      return '';
+    }
     
-    // Clean up and ensure proper line breaks
-    return result
-      .replace(/\n{3,}/g, '\n\n') // Replace 3+ consecutive line breaks with 2
-      .trim();
+    const paragraphs = content.content.map(processNode).filter(p => p.trim() !== '');
+    
+    // Join paragraphs with double line breaks
+    return paragraphs.join('\n\n').trim();
   };
 
   // Handle template click to open mail app
   const handleTemplateClick = () => {
     const emailContent = getFullEmailContent(template.inhalt);
     const subject = template.titel;
+    
+    // Debug logging
+    console.log('Template content structure:', JSON.stringify(template.inhalt, null, 2));
+    console.log('Extracted email content:', emailContent);
+    console.log('Email content with visible line breaks:', JSON.stringify(emailContent));
     
     // Create mailto URL with tenant email as recipient
     const recipient = tenantEmail || '';
@@ -143,6 +155,8 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       .replace(/%0A/g, '%0D%0A');          // Single newlines
     
     const mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;
+    
+    console.log('Final mailto URL:', mailtoUrl);
     
     // Open mail app
     window.location.href = mailtoUrl;
