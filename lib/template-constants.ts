@@ -1,12 +1,7 @@
 // Template categories for German property management
 export const TEMPLATE_CATEGORIES = [
   'Mail',
-  'Brief', 
-  'Vertrag',
-  'Rechnung',
-  'Mahnung',
-  'Kündigung',
-  'Sonstiges'
+  'Dokumente'
 ] as const;
 
 export type TemplateCategory = typeof TEMPLATE_CATEGORIES[number];
