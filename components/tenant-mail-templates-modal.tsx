@@ -51,13 +51,20 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
         const label = node.attrs?.label || node.attrs?.id || 'Variable';
         return `@${label}`;
       }
+      if (node.type === 'paragraph') {
+        const text = node.content ? node.content.map(extractTextWithHighlights).join('') : '';
+        return text + ' ';
+      }
+      if (node.type === 'hardBreak' || node.type === 'lineBreak') {
+        return ' ';
+      }
       if (node.content && Array.isArray(node.content)) {
         return node.content.map(extractTextWithHighlights).join('');
       }
       return '';
     };
     
-    const text = content.content.map(extractTextWithHighlights).join(' ');
+    const text = content.content.map(extractTextWithHighlights).join('').replace(/\s+/g, ' ').trim();
     const truncatedText = text.length > 150 ? text.substring(0, 150) + '...' : text;
     
     return { text: truncatedText, hasVariables };
@@ -65,7 +72,7 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
 
   const { text: preview, hasVariables } = getPreviewWithHighlights(template.inhalt);
 
-  // Extract full content for email
+  // Extract full content for email with proper line break handling
   const getFullEmailContent = (content: any): string => {
     if (!content || !content.content) return '';
     
@@ -73,6 +80,7 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       if (node.type === 'text') {
         return node.text || '';
       }
+      
       if (node.type === 'mention') {
         const label = node.attrs?.label || node.attrs?.id || 'Variable';
         // Replace common variables with actual values if available
@@ -87,20 +95,34 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
             return `[${label}]`;
         }
       }
+      
       if (node.type === 'paragraph') {
         const text = node.content ? node.content.map(extractText).join('') : '';
         return text + '\n\n';
       }
+      
       if (node.type === 'hardBreak') {
         return '\n';
       }
+      
+      if (node.type === 'heading') {
+        const text = node.content ? node.content.map(extractText).join('') : '';
+        return text + '\n\n';
+      }
+      
       if (node.content && Array.isArray(node.content)) {
         return node.content.map(extractText).join('');
       }
+      
       return '';
     };
     
-    return content.content.map(extractText).join('').trim();
+    const result = content.content.map(extractText).join('');
+    
+    // Clean up and ensure proper line breaks
+    return result
+      .replace(/\n{3,}/g, '\n\n') // Replace 3+ consecutive line breaks with 2
+      .trim();
   };
 
   // Handle template click to open mail app
@@ -110,7 +132,17 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
     
     // Create mailto URL with tenant email as recipient
     const recipient = tenantEmail || '';
-    const mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailContent)}`;
+    
+    // Encode the content properly for mailto URLs
+    // Use encodeURIComponent but then replace encoded newlines with proper mailto line breaks
+    let encodedContent = encodeURIComponent(emailContent);
+    
+    // Replace encoded newlines with proper mailto line breaks
+    encodedContent = encodedContent
+      .replace(/%0A%0A/g, '%0D%0A%0D%0A')  // Double newlines (paragraphs)
+      .replace(/%0A/g, '%0D%0A');          // Single newlines
+    
+    const mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;
     
     // Open mail app
     window.location.href = mailtoUrl;
