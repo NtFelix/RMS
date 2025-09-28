@@ -339,7 +339,7 @@ export function TemplateEditorModal({
   }, [isOpen, handleModalOpen, handleModalClose]);
 
   return (
-    <Dialog open={isOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleAttemptClose()}>
       <DialogContent
         id={editorId}
         className="max-w-[95vw] sm:max-w-5xl lg:max-w-6xl h-[83vh] min-h-[83vh] max-h-[83vh] overflow-hidden flex flex-col"
