@@ -121,7 +121,7 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       return '';
     };
     
-    // Process the document content - each paragraph should be separated by double line breaks
+    // Process the document content - each paragraph should be separated by single line breaks
     if (!content.content || !Array.isArray(content.content)) {
       return '';
     }
@@ -144,8 +144,8 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       }
     });
     
-    // Join all paragraphs with double line breaks
-    return paragraphs.join('\n\n');
+    // Join all paragraphs with single line breaks
+    return paragraphs.join('\n');
   };
 
   // Handle template click to open mail app
@@ -167,8 +167,7 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
     
     // Replace encoded newlines with proper mailto line breaks
     encodedContent = encodedContent
-      .replace(/%0A%0A/g, '%0D%0A%0D%0A')  // Double newlines (paragraphs)
-      .replace(/%0A/g, '%0D%0A');          // Single newlines
+      .replace(/%0A/g, '%0D%0A');          // Single newlines to proper line breaks
     
     const mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;
     
