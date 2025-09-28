@@ -239,22 +239,22 @@ export function TenantMailTemplatesModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col relative">
           {/* Search Bar */}
-          <div className="flex-shrink-0 pb-4 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="flex-shrink-0 pb-4 border-b border-border relative z-10">
+            <div className="relative z-20">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-30 pointer-events-none" />
               <Input
                 placeholder="Vorlagen durchsuchen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background border-input focus:border-ring focus:ring-ring"
+                className="pl-10 bg-background border-input focus:border-ring focus:ring-ring focus:ring-2 focus:ring-offset-0 focus:z-40 relative focus:shadow-lg transition-all duration-200 focus:bg-background"
               />
             </div>
             
             {/* Results Count */}
             {!loading && !error && (
-              <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
+              <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground relative z-10">
                 <div className="flex items-center gap-2">
                   <span>
                     {filteredTemplates.length} von {mailTemplates.length} Mail-Vorlagen
@@ -278,7 +278,7 @@ export function TenantMailTemplatesModal({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto py-4">
+          <div className="flex-1 overflow-y-auto py-4 relative z-0">
             {loading && renderLoadingSkeleton()}
             {error && renderError()}
             {!loading && !error && filteredTemplates.length === 0 && renderEmptyState()}
