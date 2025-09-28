@@ -361,7 +361,7 @@ export const MentionSuggestionList = forwardRef<
 
       {/* Scrollable content */}
       <div
-        className="max-h-[320px] overflow-y-auto p-2"
+        className="max-h-[320px] overflow-y-auto overflow-x-hidden"
         style={{
           overflowY: 'auto',
           overflowX: 'hidden',
@@ -406,7 +406,7 @@ export const MentionSuggestionList = forwardRef<
             </div>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="pb-2">
             {orderedCategories.map((categoryId, categoryIndex) => {
               const categoryItems = groupedItems[categoryId] || [];
               const categoryConfig = getCategoryConfig(categoryId);
@@ -416,14 +416,14 @@ export const MentionSuggestionList = forwardRef<
               const IconComponent = categoryConfig?.icon ? ICON_MAP[categoryConfig.icon] : null;
               
               return (
-                <div key={categoryId} className="space-y-1">
+                <div key={categoryId}>
                   {/* Category separator - only show if not first category */}
                   {categoryIndex > 0 && (
-                    <div className="mx-2 my-2 h-px bg-border" />
+                    <div className="mx-2 my-1 h-px bg-border" />
                   )}
                   
                   {/* Category header */}
-                  <div className="sticky top-0 z-10 flex items-center gap-2 bg-popover/95 backdrop-blur-sm px-3 py-2 text-xs font-semibold text-muted-foreground">
+                  <div className="sticky top-0 z-20 flex items-center gap-2 bg-popover border-b border-border/50 px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm backdrop-blur-sm">
                     {IconComponent && (
                       <IconComponent className="h-3.5 w-3.5" />
                     )}
@@ -431,7 +431,7 @@ export const MentionSuggestionList = forwardRef<
                   </div>
                   
                   {/* Category items */}
-                  <div className="space-y-0.5">
+                  <div className="px-2 py-1 space-y-0.5">
                     {categoryItems.map((item) => {
                       const flatIndex = getFlatIndex(item);
                       const isSelected = flatIndex === selectedIndex;
