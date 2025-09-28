@@ -294,7 +294,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
   const renderLoadingSkeleton = () => (
     <div className="px-1">
       <div 
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
         role="status"
         aria-label={ARIA_LABELS.loadingTemplates}
       >
@@ -409,7 +409,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
               </Badge>
             </div>
             <div 
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
               role="grid"
               aria-labelledby={`${modalId}-category-${category}`}
             >
