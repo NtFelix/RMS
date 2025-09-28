@@ -126,10 +126,26 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       return '';
     }
     
-    const paragraphs = content.content.map(processNode).filter(p => p.trim() !== '');
+    // Process each paragraph and collect them
+    const paragraphs: string[] = [];
     
-    // Join paragraphs with double line breaks
-    return paragraphs.join('\n\n').trim();
+    content.content.forEach((node: any) => {
+      if (node.type === 'paragraph') {
+        const paragraphText = processNode(node);
+        if (paragraphText.trim()) {
+          paragraphs.push(paragraphText.trim());
+        }
+      } else {
+        // Handle other node types at document level
+        const nodeText = processNode(node);
+        if (nodeText.trim()) {
+          paragraphs.push(nodeText.trim());
+        }
+      }
+    });
+    
+    // Join all paragraphs with double line breaks
+    return paragraphs.join('\n\n');
   };
 
   // Handle template click to open mail app
