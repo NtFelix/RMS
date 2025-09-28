@@ -148,30 +148,90 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
     return paragraphs.join('\n\n');
   };
 
+  // Detect platform and mail client for optimal encoding
+  const detectPlatformAndClient = () => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const platform = navigator.platform.toLowerCase();
+    
+    // Detect platform
+    const isMac = platform.includes('mac') || userAgent.includes('mac');
+    const isWindows = platform.includes('win') || userAgent.includes('win');
+    const isLinux = platform.includes('linux') || userAgent.includes('linux');
+    
+    // Detect potential mail clients based on common patterns
+    const hasOutlook = userAgent.includes('outlook') || userAgent.includes('office');
+    const hasThunderbird = userAgent.includes('thunderbird');
+    const isChrome = userAgent.includes('chrome') && !userAgent.includes('edge');
+    const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
+    const isFirefox = userAgent.includes('firefox');
+    
+    return {
+      platform: isMac ? 'mac' : isWindows ? 'windows' : isLinux ? 'linux' : 'unknown',
+      isMac,
+      isWindows,
+      isLinux,
+      hasOutlook,
+      hasThunderbird,
+      isChrome,
+      isSafari,
+      isFirefox
+    };
+  };
+
   // Handle template click to open mail app
   const handleTemplateClick = () => {
     const emailContent = getFullEmailContent(template.inhalt);
     const subject = template.titel;
+    const recipient = tenantEmail || '';
+    
+    // Detect platform and client
+    const clientInfo = detectPlatformAndClient();
     
     // Debug logging
     console.log('Template content structure:', JSON.stringify(template.inhalt, null, 2));
     console.log('Extracted email content:', emailContent);
     console.log('Email content with visible line breaks:', JSON.stringify(emailContent));
+    console.log('Detected client info:', clientInfo);
     
-    // Create mailto URL with tenant email as recipient
-    const recipient = tenantEmail || '';
+    let formattedContent: string;
+    let encodingStrategy: string;
     
-    // Convert line breaks to proper format before encoding
-    const formattedContent = emailContent
-      .replace(/\n\n/g, '\r\n\r\n')  // Double newlines to CRLF
-      .replace(/\n/g, '\r\n');       // Single newlines to CRLF
+    // Choose encoding strategy based on platform and client
+    if (clientInfo.isMac) {
+      // macOS Mail.app typically works better with LF only
+      formattedContent = emailContent.replace(/\n\n/g, '\n\n').replace(/\n/g, '\n');
+      encodingStrategy = 'mac-lf';
+    } else if (clientInfo.isWindows || clientInfo.hasOutlook) {
+      // Windows and Outlook prefer CRLF
+      formattedContent = emailContent.replace(/\n\n/g, '\r\n\r\n').replace(/\n/g, '\r\n');
+      encodingStrategy = 'windows-crlf';
+    } else if (clientInfo.hasThunderbird || clientInfo.isFirefox) {
+      // Thunderbird and Firefox handle standard line breaks well
+      formattedContent = emailContent.replace(/\n\n/g, '\n\n').replace(/\n/g, '\n');
+      encodingStrategy = 'thunderbird-lf';
+    } else {
+      // Default: try CRLF for better compatibility
+      formattedContent = emailContent.replace(/\n\n/g, '\r\n\r\n').replace(/\n/g, '\r\n');
+      encodingStrategy = 'default-crlf';
+    }
     
-    console.log('Formatted content with CRLF:', JSON.stringify(formattedContent));
+    console.log(`Using encoding strategy: ${encodingStrategy}`);
+    console.log('Formatted content:', JSON.stringify(formattedContent));
     
-    // Now encode the properly formatted content
+    // Encode the content
     const encodedContent = encodeURIComponent(formattedContent);
     
-    const mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;
+    // For some clients, we might need to try alternative encoding
+    let mailtoUrl: string;
+    
+    if (clientInfo.isSafari) {
+      // Safari sometimes has issues with standard encoding, try simpler approach
+      const simpleContent = emailContent.replace(/\n/g, '%0A');
+      mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${simpleContent}`;
+      console.log('Using Safari-specific encoding');
+    } else {
+      mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;
+    }
     
     console.log('Final mailto URL:', mailtoUrl);
     
