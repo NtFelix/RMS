@@ -172,6 +172,40 @@ export function TemplateEditor({
                       component?.destroy();
                     },
                   });
+
+                  // Add keyboard event listener directly to the popup element
+                  const popupElement = component.element as HTMLElement;
+                  if (popupElement) {
+                    const handlePopupKeyDown = (event: KeyboardEvent) => {
+                      console.log('Popup key captured:', event.key);
+                      if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(event.key)) {
+                        console.log('Handling popup navigation key:', event.key);
+                        const handled = component?.ref?.onKeyDown({ event });
+                        if (handled) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }
+                      }
+                    };
+
+                    // Make the popup element focusable and add event listener
+                    popupElement.tabIndex = 0;
+                    popupElement.addEventListener('keydown', handlePopupKeyDown, true);
+                    
+                    // Focus the popup element so it can receive keyboard events
+                    setTimeout(() => {
+                      popupElement.focus();
+                    }, 0);
+                    
+                    // Store the cleanup function
+                    if (popup) {
+                      const originalDestroy = popup.destroy;
+                      popup.destroy = () => {
+                        popupElement.removeEventListener('keydown', handlePopupKeyDown, true);
+                        originalDestroy();
+                      };
+                    }
+                  }
                 } catch (error) {
                   const suggestionError = handleSuggestionInitializationError(
                     error instanceof Error ? error : new Error('Suggestion initialization failed'),
