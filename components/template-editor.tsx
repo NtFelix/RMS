@@ -209,12 +209,19 @@ export function TemplateEditor({
               },
               onKeyDown: (props) => {
                 try {
+                  // Handle escape key first
                   if (props.event.key === 'Escape') {
                     popup?.hide();
                     return true;
                   }
 
-                  return component?.ref?.onKeyDown(props) || false;
+                  // Pass keyboard events to the suggestion list component
+                  const handled = component?.ref?.onKeyDown(props);
+                  if (handled) {
+                    return true;
+                  }
+
+                  return false;
                 } catch (error) {
                   console.warn('Suggestion keyboard handling failed:', error);
                   

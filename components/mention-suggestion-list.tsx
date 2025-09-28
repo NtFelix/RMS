@@ -263,7 +263,10 @@ export const MentionSuggestionList = forwardRef<
 
   // Handle keyboard events for TipTap integration
   const onKeyDown = useCallback(({ event }: { event: KeyboardEvent }) => {
-    return handleKeyDown(event);
+    console.log('MentionSuggestionList received key:', event.key); // Debug log
+    const handled = handleKeyDown(event);
+    console.log('Key handled:', handled); // Debug log
+    return handled;
   }, [handleKeyDown]);
 
   // Expose keyboard navigation methods via ref
@@ -376,16 +379,8 @@ export const MentionSuggestionList = forwardRef<
         aria-activedescendant={selectedItem ? `suggestion-${selectedItem.id}` : undefined}
         aria-multiselectable="false"
         aria-describedby="suggestion-instructions"
-        tabIndex={0}
+        tabIndex={-1}
         onWheel={handleWheel}
-        onKeyDown={(e) => {
-          // Handle keyboard events directly on the container
-          const handled = handleKeyDown(e.nativeEvent);
-          if (handled) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-        }}
       >
       {/* Header with search indicator */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
