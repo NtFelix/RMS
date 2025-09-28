@@ -120,7 +120,7 @@ export function TemplateEditorModal({
           }
           break;
         case KEYBOARD_SHORTCUTS.closeModal:
-          handleClose();
+          handleAttemptClose();
           break;
       }
     },
