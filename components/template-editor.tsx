@@ -177,8 +177,11 @@ export function TemplateEditor({
                   const popupElement = component.element as HTMLElement;
                   if (popupElement) {
                     const handlePopupKeyDown = (event: KeyboardEvent) => {
+                      console.log('Popup received key:', event.key);
                       if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(event.key)) {
+                        console.log('Handling navigation key:', event.key);
                         const handled = component?.ref?.onKeyDown({ event });
+                        console.log('Key handled by component:', handled);
                         if (handled) {
                           event.preventDefault();
                           event.stopPropagation();

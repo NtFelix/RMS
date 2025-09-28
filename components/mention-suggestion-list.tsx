@@ -263,12 +263,15 @@ export const MentionSuggestionList = forwardRef<
 
   // Handle keyboard events for TipTap integration
   const onKeyDown = useCallback(({ event }: { event: KeyboardEvent }) => {
+    console.log('Suggestion list onKeyDown called with:', event.key, 'selectedIndex:', selectedIndex, 'flatItems.length:', flatItems.length);
     // Handle arrow keys for navigation
     if (event.key === 'ArrowDown') {
+      console.log('Handling ArrowDown');
       event.preventDefault();
       event.stopPropagation();
       if (flatItems.length > 0) {
         const nextIndex = selectedIndex < flatItems.length - 1 ? selectedIndex + 1 : 0;
+        console.log('Setting next index to:', nextIndex);
         setSelectedIndex(nextIndex);
       }
       return true;
