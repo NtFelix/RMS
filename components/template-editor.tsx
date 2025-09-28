@@ -209,33 +209,36 @@ export function TemplateEditor({
               },
               onKeyDown: (props) => {
                 console.log('Template editor received key:', props.event.key);
-                try {
-                  // Handle escape key first
-                  if (props.event.key === 'Escape') {
-                    popup?.hide();
-                    return true;
-                  }
-
-                  // Pass keyboard events to the suggestion list component
-                  console.log('Passing key to suggestion list component');
+                
+                // Always try to handle navigation keys first
+                if (props.event.key === 'ArrowDown') {
+                  console.log('Intercepting ArrowDown');
                   const handled = component?.ref?.onKeyDown(props);
-                  console.log('Suggestion list handled:', handled);
-                  if (handled) {
-                    return true;
-                  }
-
-                  return false;
-                } catch (error) {
-                  console.warn('Suggestion keyboard handling failed:', error);
-                  
-                  // Fallback keyboard handling
-                  if (props.event.key === 'Escape') {
-                    popup?.hide();
-                    return true;
-                  }
-                  
-                  return false;
+                  console.log('ArrowDown handled:', handled);
+                  return handled || false;
                 }
+                
+                if (props.event.key === 'ArrowUp') {
+                  console.log('Intercepting ArrowUp');
+                  const handled = component?.ref?.onKeyDown(props);
+                  console.log('ArrowUp handled:', handled);
+                  return handled || false;
+                }
+                
+                if (props.event.key === 'Enter' || props.event.key === 'Tab') {
+                  console.log('Intercepting selection key:', props.event.key);
+                  const handled = component?.ref?.onKeyDown(props);
+                  console.log('Selection key handled:', handled);
+                  return handled || false;
+                }
+                
+                if (props.event.key === 'Escape') {
+                  popup?.hide();
+                  return true;
+                }
+
+                // For other keys, let TipTap handle them
+                return false;
               },
               onExit: () => {
                 try {
