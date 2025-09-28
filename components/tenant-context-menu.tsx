@@ -124,8 +124,8 @@ export function TenantContextMenu({
 
   const handleTemplates = () => {
     try {
-      // Open tenant mail templates modal with tenant name
-      openTenantMailTemplatesModal(tenant.name);
+      // Open tenant mail templates modal with tenant name and email
+      openTenantMailTemplatesModal(tenant.name, tenant.email);
     } catch (error) {
       console.error('Error opening mail templates modal:', error);
       toast({

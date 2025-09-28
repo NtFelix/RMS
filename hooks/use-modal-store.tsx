@@ -389,8 +389,9 @@ export interface ModalState {
   isTenantMailTemplatesModalOpen: boolean;
   tenantMailTemplatesModalData?: {
     tenantName?: string;
+    tenantEmail?: string;
   };
-  openTenantMailTemplatesModal: (tenantName?: string) => void;
+  openTenantMailTemplatesModal: (tenantName?: string, tenantEmail?: string) => void;
   closeTenantMailTemplatesModal: () => void;
 }
 
@@ -1052,10 +1053,11 @@ export const useModalStore = create<ModalState>((set, get) => {
     setTemplateEditorModalDirty: (isDirty) => set({ isTemplateEditorModalDirty: isDirty }),
 
     // Tenant Mail Templates Modal
-    openTenantMailTemplatesModal: (tenantName) => set({
+    openTenantMailTemplatesModal: (tenantName, tenantEmail) => set({
       isTenantMailTemplatesModalOpen: true,
       tenantMailTemplatesModalData: {
         tenantName,
+        tenantEmail,
       },
     }),
     closeTenantMailTemplatesModal: () => set(initialTenantMailTemplatesModalState),

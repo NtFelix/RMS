@@ -26,14 +26,16 @@ interface TenantMailTemplatesModalProps {
   isOpen: boolean;
   onClose: () => void;
   tenantName?: string;
+  tenantEmail?: string;
 }
 
 interface TemplateCardProps {
   template: Template;
   tenantName?: string;
+  tenantEmail?: string;
 }
 
-function TemplateCard({ template, tenantName }: TemplateCardProps) {
+function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) {
   // Extract text with mention/variable highlighting from TipTap JSON content
   const getPreviewWithHighlights = (content: any): { text: string; hasVariables: boolean } => {
     if (!content || !content.content) return { text: '', hasVariables: false };
@@ -106,8 +108,9 @@ function TemplateCard({ template, tenantName }: TemplateCardProps) {
     const emailContent = getFullEmailContent(template.inhalt);
     const subject = template.titel;
     
-    // Create mailto URL
-    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailContent)}`;
+    // Create mailto URL with tenant email as recipient
+    const recipient = tenantEmail || '';
+    const mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailContent)}`;
     
     // Open mail app
     window.location.href = mailtoUrl;
@@ -189,7 +192,8 @@ function TemplateCard({ template, tenantName }: TemplateCardProps) {
 export function TenantMailTemplatesModal({ 
   isOpen, 
   onClose, 
-  tenantName 
+  tenantName,
+  tenantEmail 
 }: TenantMailTemplatesModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -288,11 +292,21 @@ export function TenantMailTemplatesModal({
             {tenantName && (
               <span className="text-muted-foreground font-normal">
                 für {tenantName}
+                {tenantEmail && (
+                  <span className="text-xs text-green-600 dark:text-green-400 ml-2">
+                    ({tenantEmail})
+                  </span>
+                )}
               </span>
             )}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Verfügbare Mail-Vorlagen für die Kommunikation mit Mietern. Klicken Sie auf eine Vorlage für weitere Details.
+            Verfügbare Mail-Vorlagen für die Kommunikation mit Mietern. Klicken Sie auf eine Vorlage, um Ihre Mail-App zu öffnen.
+            {tenantEmail && (
+              <span className="block text-xs text-green-600 dark:text-green-400 mt-1">
+                E-Mails werden automatisch an {tenantEmail} adressiert.
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -346,6 +360,7 @@ export function TenantMailTemplatesModal({
                     key={template.id}
                     template={template}
                     tenantName={tenantName}
+                    tenantEmail={tenantEmail}
                   />
                 ))}
               </div>

@@ -250,6 +250,7 @@ export default function DashboardRootLayout({
         isOpen={isTenantMailTemplatesModalOpen}
         onClose={closeTenantMailTemplatesModal}
         tenantName={tenantMailTemplatesModalData?.tenantName}
+        tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
       />
       {/* AI Assistant Modal - Global AI assistant modal */}
       <AIAssistantModal />
