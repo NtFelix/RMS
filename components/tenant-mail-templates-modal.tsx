@@ -161,14 +161,15 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
     // Create mailto URL with tenant email as recipient
     const recipient = tenantEmail || '';
     
-    // Encode the content properly for mailto URLs
-    // Use encodeURIComponent but then replace encoded newlines with proper mailto line breaks
-    let encodedContent = encodeURIComponent(emailContent);
+    // Convert line breaks to proper format before encoding
+    const formattedContent = emailContent
+      .replace(/\n\n/g, '\r\n\r\n')  // Double newlines to CRLF
+      .replace(/\n/g, '\r\n');       // Single newlines to CRLF
     
-    // Replace encoded newlines with proper mailto line breaks
-    encodedContent = encodedContent
-      .replace(/%0A%0A/g, '%0D%0A%0D%0A')  // Double newlines (paragraphs)
-      .replace(/%0A/g, '%0D%0A');          // Single newlines
+    console.log('Formatted content with CRLF:', JSON.stringify(formattedContent));
+    
+    // Now encode the properly formatted content
+    const encodedContent = encodeURIComponent(formattedContent);
     
     const mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;
     
