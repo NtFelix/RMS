@@ -384,6 +384,14 @@ export interface ModalState {
   closeTemplateEditorModal: (options?: CloseModalOptions) => void;
   setTemplatesModalDirty: (isDirty: boolean) => void;
   setTemplateEditorModalDirty: (isDirty: boolean) => void;
+
+  // Tenant Mail Templates Modal State
+  isTenantMailTemplatesModalOpen: boolean;
+  tenantMailTemplatesModalData?: {
+    tenantName?: string;
+  };
+  openTenantMailTemplatesModal: (tenantName?: string) => void;
+  closeTenantMailTemplatesModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -539,6 +547,11 @@ const initialTemplatesModalState = {
   isTemplateEditorModalDirty: false,
 };
 
+const initialTenantMailTemplatesModalState = {
+  isTenantMailTemplatesModalOpen: false,
+  tenantMailTemplatesModalData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -562,6 +575,7 @@ const createInitialModalState = () => ({
   ...initialShareDocumentModalState,
   ...initialMarkdownEditorModalState,
   ...initialTemplatesModalState,
+  ...initialTenantMailTemplatesModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -1036,5 +1050,14 @@ export const useModalStore = create<ModalState>((set, get) => {
       isTemplateEditorModalDirty: false,
     }),
     setTemplateEditorModalDirty: (isDirty) => set({ isTemplateEditorModalDirty: isDirty }),
+
+    // Tenant Mail Templates Modal
+    openTenantMailTemplatesModal: (tenantName) => set({
+      isTenantMailTemplatesModalOpen: true,
+      tenantMailTemplatesModalData: {
+        tenantName,
+      },
+    }),
+    closeTenantMailTemplatesModal: () => set(initialTenantMailTemplatesModalState),
   };
 });
