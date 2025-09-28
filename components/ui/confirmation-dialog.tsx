@@ -19,6 +19,7 @@ interface ConfirmationDialogProps {
   description: string
   confirmText?: string
   cancelText?: string
+  variant?: 'default' | 'destructive'
 }
 
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -29,6 +30,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   description,
   confirmText = "Bestätigen",
   cancelText = "Abbrechen",
+  variant = "default",
 }) => {
   if (!isOpen) {
     return null
@@ -50,7 +52,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           <Button variant="outline" onClick={onClose}>
             {cancelText}
           </Button>
-          <Button onClick={onConfirm}>{confirmText}</Button>
+          <Button variant={variant} onClick={onConfirm}>{confirmText}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

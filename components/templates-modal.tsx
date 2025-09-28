@@ -137,6 +137,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
       description: `Sind Sie sicher, dass Sie die Vorlage "${template.titel}" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`,
       confirmText: 'Löschen',
       cancelText: 'Abbrechen',
+      variant: 'destructive',
       onConfirm: async () => {
         try {
           setIsDeleting(templateId);

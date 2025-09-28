@@ -96,6 +96,7 @@ interface ConfirmationModalConfig {
   onCancel?: () => void;
   confirmText?: string;
   cancelText?: string;
+  variant?: 'default' | 'destructive';
 }
 
 // AI Assistant Modal Types

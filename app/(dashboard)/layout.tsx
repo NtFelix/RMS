@@ -255,6 +255,7 @@ export default function DashboardRootLayout({
           description={confirmationModalConfig.description}
           confirmText={confirmationModalConfig.confirmText}
           cancelText={confirmationModalConfig.cancelText}
+          variant={confirmationModalConfig.variant}
         />
       )}
         {/* </GlobalDragDropProvider> */}
