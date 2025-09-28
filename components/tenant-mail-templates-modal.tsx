@@ -30,9 +30,10 @@ interface TenantMailTemplatesModalProps {
 
 interface TemplateCardProps {
   template: Template;
+  tenantName?: string;
 }
 
-function TemplateCard({ template }: TemplateCardProps) {
+function TemplateCard({ template, tenantName }: TemplateCardProps) {
   // Extract text with mention/variable highlighting from TipTap JSON content
   const getPreviewWithHighlights = (content: any): { text: string; hasVariables: boolean } => {
     if (!content || !content.content) return { text: '', hasVariables: false };
@@ -62,6 +63,56 @@ function TemplateCard({ template }: TemplateCardProps) {
 
   const { text: preview, hasVariables } = getPreviewWithHighlights(template.inhalt);
 
+  // Extract full content for email
+  const getFullEmailContent = (content: any): string => {
+    if (!content || !content.content) return '';
+    
+    const extractText = (node: any): string => {
+      if (node.type === 'text') {
+        return node.text || '';
+      }
+      if (node.type === 'mention') {
+        const label = node.attrs?.label || node.attrs?.id || 'Variable';
+        // Replace common variables with actual values if available
+        switch (label.toLowerCase()) {
+          case 'mieter.name':
+            return tenantName || '[Mieter Name]';
+          case 'datum.heute':
+            return new Date().toLocaleDateString('de-DE');
+          case 'vermieter.name':
+            return '[Vermieter Name]';
+          default:
+            return `[${label}]`;
+        }
+      }
+      if (node.type === 'paragraph') {
+        const text = node.content ? node.content.map(extractText).join('') : '';
+        return text + '\n\n';
+      }
+      if (node.type === 'hardBreak') {
+        return '\n';
+      }
+      if (node.content && Array.isArray(node.content)) {
+        return node.content.map(extractText).join('');
+      }
+      return '';
+    };
+    
+    return content.content.map(extractText).join('').trim();
+  };
+
+  // Handle template click to open mail app
+  const handleTemplateClick = () => {
+    const emailContent = getFullEmailContent(template.inhalt);
+    const subject = template.titel;
+    
+    // Create mailto URL
+    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailContent)}`;
+    
+    // Open mail app
+    window.location.href = mailtoUrl;
+  };
+
   // Highlight mentions/variables in the preview text
   const highlightVariables = (text: string) => {
     if (!text) return null;
@@ -85,7 +136,10 @@ function TemplateCard({ template }: TemplateCardProps) {
   };
 
   return (
-    <div className="border border-border rounded-lg p-4 hover:bg-muted/50 hover:border-border/80 hover:shadow-sm dark:hover:bg-muted/30 transition-all duration-200 cursor-pointer group bg-card">
+    <div 
+      onClick={handleTemplateClick}
+      className="border border-border rounded-lg p-4 hover:bg-muted/50 hover:border-border/80 hover:shadow-sm dark:hover:bg-muted/30 transition-all duration-200 cursor-pointer group bg-card"
+    >
       <div className="flex items-start justify-between mb-3">
         <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight">
           {template.titel}
@@ -123,6 +177,9 @@ function TemplateCard({ template }: TemplateCardProps) {
               </span>
             </span>
           )}
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <Mail className="h-3 w-3 text-primary" />
+          </div>
         </div>
       </div>
     </div>
@@ -288,6 +345,7 @@ export function TenantMailTemplatesModal({
                   <TemplateCard
                     key={template.id}
                     template={template}
+                    tenantName={tenantName}
                   />
                 ))}
               </div>
