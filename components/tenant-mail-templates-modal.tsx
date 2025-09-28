@@ -17,7 +17,9 @@ import {
   FileText, 
   Search, 
   AlertCircle,
-  Mail
+  Mail,
+  Calendar,
+  Hash
 } from 'lucide-react';
 
 interface TenantMailTemplatesModalProps {
@@ -31,50 +33,97 @@ interface TemplateCardProps {
 }
 
 function TemplateCard({ template }: TemplateCardProps) {
-  // Extract plain text from TipTap JSON content for preview
-  const getTextPreview = (content: any): string => {
-    if (!content || !content.content) return '';
+  // Extract text with mention/variable highlighting from TipTap JSON content
+  const getPreviewWithHighlights = (content: any): { text: string; hasVariables: boolean } => {
+    if (!content || !content.content) return { text: '', hasVariables: false };
     
-    const extractText = (node: any): string => {
+    let hasVariables = false;
+    
+    const extractTextWithHighlights = (node: any): string => {
       if (node.type === 'text') {
         return node.text || '';
       }
+      if (node.type === 'mention') {
+        hasVariables = true;
+        const label = node.attrs?.label || node.attrs?.id || 'Variable';
+        return `@${label}`;
+      }
       if (node.content && Array.isArray(node.content)) {
-        return node.content.map(extractText).join('');
+        return node.content.map(extractTextWithHighlights).join('');
       }
       return '';
     };
     
-    const text = content.content.map(extractText).join(' ');
-    return text.length > 150 ? text.substring(0, 150) + '...' : text;
+    const text = content.content.map(extractTextWithHighlights).join(' ');
+    const truncatedText = text.length > 150 ? text.substring(0, 150) + '...' : text;
+    
+    return { text: truncatedText, hasVariables };
   };
 
-  const preview = getTextPreview(template.inhalt);
+  const { text: preview, hasVariables } = getPreviewWithHighlights(template.inhalt);
+
+  // Highlight mentions/variables in the preview text
+  const highlightVariables = (text: string) => {
+    if (!text) return null;
+    
+    // Split by @ mentions and highlight them
+    const parts = text.split(/(@[^\s@]+)/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('@')) {
+        return (
+          <span 
+            key={index} 
+            className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-1 py-0.5 rounded text-xs font-medium"
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
 
   return (
-    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-medium text-sm line-clamp-2">{template.titel}</h3>
-        <Badge variant="secondary" className="ml-2 text-xs">
+    <div className="border border-border rounded-lg p-4 hover:bg-muted/50 hover:border-border/80 hover:shadow-sm dark:hover:bg-muted/30 transition-all duration-200 cursor-pointer group bg-card">
+      <div className="flex items-start justify-between mb-3">
+        <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+          {template.titel}
+        </h3>
+        <Badge variant="secondary" className="ml-2 text-xs flex-shrink-0 bg-primary/10 text-primary border-primary/20">
           {template.kategorie}
         </Badge>
       </div>
       
       {preview && (
-        <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
-          {preview}
-        </p>
+        <div className="text-sm text-muted-foreground line-clamp-3 mb-3 leading-relaxed">
+          {highlightVariables(preview)}
+        </div>
       )}
       
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          {new Date(template.erstellungsdatum).toLocaleDateString('de-DE')}
-        </span>
-        {template.kontext_anforderungen && template.kontext_anforderungen.length > 0 && (
-          <span className="text-xs">
-            {template.kontext_anforderungen.length} Variable{template.kontext_anforderungen.length !== 1 ? 'n' : ''}
+        <div className="flex items-center gap-1">
+          <Calendar className="h-3 w-3" />
+          <span>
+            {new Date(template.erstellungsdatum).toLocaleDateString('de-DE')}
           </span>
-        )}
+        </div>
+        <div className="flex items-center gap-2">
+          {hasVariables && (
+            <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full">
+              <Hash className="h-2.5 w-2.5" />
+              <span className="text-xs font-medium">Variablen</span>
+            </span>
+          )}
+          {template.kontext_anforderungen && template.kontext_anforderungen.length > 0 && !hasVariables && (
+            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full">
+              <Hash className="h-2.5 w-2.5" />
+              <span className="text-xs font-medium">
+                {template.kontext_anforderungen.length} Variable{template.kontext_anforderungen.length !== 1 ? 'n' : ''}
+              </span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -119,7 +168,7 @@ export function TenantMailTemplatesModal({
   const renderLoadingSkeleton = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="space-y-3 p-4 border rounded-lg">
+        <div key={index} className="space-y-3 p-4 border rounded-lg bg-card">
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-16 w-full" />
           <div className="flex justify-between items-center">
@@ -134,11 +183,11 @@ export function TenantMailTemplatesModal({
   // Render error state
   const renderError = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-medium mb-2">
+      <AlertCircle className="h-12 w-12 text-destructive/60 mb-4" />
+      <h3 className="text-lg font-medium mb-2 text-foreground">
         Fehler beim Laden der Vorlagen
       </h3>
-      <p className="text-muted-foreground">
+      <p className="text-muted-foreground max-w-md">
         {error}
       </p>
     </div>
@@ -147,16 +196,26 @@ export function TenantMailTemplatesModal({
   // Render empty state
   const renderEmptyState = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <Mail className="h-12 w-12 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-medium mb-2">
+      <div className="rounded-full bg-muted/50 p-3 mb-4">
+        <Mail className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h3 className="text-lg font-medium mb-2 text-foreground">
         {searchQuery ? 'Keine Vorlagen gefunden' : 'Keine Mail-Vorlagen verfügbar'}
       </h3>
-      <p className="text-muted-foreground">
+      <p className="text-muted-foreground max-w-md">
         {searchQuery 
-          ? 'Versuchen Sie andere Suchbegriffe.' 
-          : 'Es wurden noch keine Mail-Vorlagen erstellt.'
+          ? 'Versuchen Sie andere Suchbegriffe oder entfernen Sie den Filter.' 
+          : 'Es wurden noch keine Mail-Vorlagen erstellt. Erstellen Sie Vorlagen im Vorlagen-Manager.'
         }
       </p>
+      {searchQuery && (
+        <button
+          onClick={() => setSearchQuery('')}
+          className="mt-4 text-sm text-primary hover:text-primary/80 transition-colors"
+        >
+          Suche zurücksetzen
+        </button>
+      )}
     </div>
   );
 
@@ -164,8 +223,10 @@ export function TenantMailTemplatesModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-foreground">
+            <div className="rounded-md bg-primary/10 p-1.5">
+              <Mail className="h-4 w-4 text-primary" />
+            </div>
             Mail-Vorlagen
             {tenantName && (
               <span className="text-muted-foreground font-normal">
@@ -173,32 +234,42 @@ export function TenantMailTemplatesModal({
               </span>
             )}
           </DialogTitle>
-          <DialogDescription>
-            Verfügbare Mail-Vorlagen für die Kommunikation mit Mietern
+          <DialogDescription className="text-muted-foreground">
+            Verfügbare Mail-Vorlagen für die Kommunikation mit Mietern. Klicken Sie auf eine Vorlage für weitere Details.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Search Bar */}
-          <div className="flex-shrink-0 pb-4 border-b">
+          <div className="flex-shrink-0 pb-4 border-b border-border">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Vorlagen durchsuchen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-background border-input focus:border-ring focus:ring-ring"
               />
             </div>
             
             {/* Results Count */}
             {!loading && !error && (
-              <div className="flex items-center justify-between mt-2 text-sm text-muted-foreground">
-                <span>
-                  {filteredTemplates.length} von {mailTemplates.length} Mail-Vorlagen
-                </span>
+              <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span>
+                    {filteredTemplates.length} von {mailTemplates.length} Mail-Vorlagen
+                  </span>
+                  {filteredTemplates.length > 0 && (
+                    <div className="w-1 h-1 bg-muted-foreground/50 rounded-full"></div>
+                  )}
+                  {filteredTemplates.some(t => t.kontext_anforderungen && t.kontext_anforderungen.length > 0) && (
+                    <span className="text-blue-600 dark:text-blue-400 text-xs">
+                      Mit Variablen
+                    </span>
+                  )}
+                </div>
                 {searchQuery && (
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs border-border">
                     Suche: "{searchQuery}"
                   </Badge>
                 )}
