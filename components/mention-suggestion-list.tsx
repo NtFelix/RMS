@@ -413,7 +413,7 @@ export const MentionSuggestionList = forwardRef<
       {/* Header with search indicator */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <Search className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Template Variables</span>
+        <span className="text-sm font-medium">Vorlage-Variablen</span>
         {query && (
           <span className="ml-auto text-xs text-muted-foreground">
             "{query}"
