@@ -221,7 +221,7 @@ export function TenantMailTemplatesModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <div className="rounded-md bg-primary/10 p-1.5">
@@ -239,16 +239,16 @@ export function TenantMailTemplatesModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col relative">
+        <div className="flex-1 flex flex-col relative min-h-0">
           {/* Search Bar */}
           <div className="flex-shrink-0 pb-4 border-b border-border relative z-10">
-            <div className="relative z-20">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-30 pointer-events-none" />
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Vorlagen durchsuchen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background border-input focus:border-ring focus:ring-ring focus:ring-2 focus:ring-offset-0 focus:z-40 relative focus:shadow-lg transition-all duration-200 focus:bg-background"
+                className="w-full pl-10 bg-background border-input focus:border-primary focus:ring-0 focus:outline-none transition-colors duration-200"
               />
             </div>
             
@@ -278,7 +278,7 @@ export function TenantMailTemplatesModal({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto py-4 relative z-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 relative z-0">
             {loading && renderLoadingSkeleton()}
             {error && renderError()}
             {!loading && !error && filteredTemplates.length === 0 && renderEmptyState()}
