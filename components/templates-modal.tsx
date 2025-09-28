@@ -535,7 +535,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                     <>
                       <Loader2 className="h-4 w-4 mr-1 sm:mr-2 animate-spin" aria-hidden="true" />
                       <span className="hidden sm:inline">Erstellt...</span>
-                      <span className="sm:hidden">Neu...</span>
+                      <span className="sm:hidden">Erstelle...</span>
                     </>
                   ) : (
                     <>
