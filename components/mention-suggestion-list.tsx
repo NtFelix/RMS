@@ -263,20 +263,28 @@ export const MentionSuggestionList = forwardRef<
 
   // Handle keyboard events for TipTap integration
   const onKeyDown = useCallback(({ event }: { event: KeyboardEvent }) => {
+    console.log('Suggestion list received key:', event.key, 'selectedIndex:', selectedIndex, 'flatItems.length:', flatItems.length);
+    
     // Handle arrow keys for navigation
     if (event.key === 'ArrowDown') {
+      console.log('Handling ArrowDown');
       event.preventDefault();
+      event.stopPropagation();
       if (flatItems.length > 0) {
         const nextIndex = selectedIndex < flatItems.length - 1 ? selectedIndex + 1 : 0;
+        console.log('Setting next index to:', nextIndex);
         setSelectedIndex(nextIndex);
       }
       return true;
     }
     
     if (event.key === 'ArrowUp') {
+      console.log('Handling ArrowUp');
       event.preventDefault();
+      event.stopPropagation();
       if (flatItems.length > 0) {
         const prevIndex = selectedIndex > 0 ? selectedIndex - 1 : flatItems.length - 1;
+        console.log('Setting prev index to:', prevIndex);
         setSelectedIndex(prevIndex);
       }
       return true;
@@ -284,13 +292,16 @@ export const MentionSuggestionList = forwardRef<
     
     // Handle selection
     if (event.key === 'Enter' || event.key === 'Tab') {
+      console.log('Handling selection');
       event.preventDefault();
+      event.stopPropagation();
       if (flatItems[selectedIndex]) {
         handleSelect(selectedIndex);
       }
       return true;
     }
     
+    console.log('Key not handled:', event.key);
     return false;
   }, [flatItems, selectedIndex, setSelectedIndex, handleSelect]);
 

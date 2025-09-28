@@ -208,6 +208,7 @@ export function TemplateEditor({
                 }
               },
               onKeyDown: (props) => {
+                console.log('Template editor received key:', props.event.key);
                 try {
                   // Handle escape key first
                   if (props.event.key === 'Escape') {
@@ -216,7 +217,9 @@ export function TemplateEditor({
                   }
 
                   // Pass keyboard events to the suggestion list component
+                  console.log('Passing key to suggestion list component');
                   const handled = component?.ref?.onKeyDown(props);
+                  console.log('Suggestion list handled:', handled);
                   if (handled) {
                     return true;
                   }
