@@ -173,39 +173,27 @@ export function TemplateEditor({
                     },
                   });
 
-                  // Add keyboard event listener directly to the popup element
-                  const popupElement = component.element as HTMLElement;
-                  if (popupElement) {
-                    const handlePopupKeyDown = (event: KeyboardEvent) => {
-                      console.log('Popup received key:', event.key);
-                      if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(event.key)) {
-                        console.log('Handling navigation key:', event.key);
-                        const handled = component?.ref?.onKeyDown({ event });
-                        console.log('Key handled by component:', handled);
-                        if (handled) {
-                          event.preventDefault();
-                          event.stopPropagation();
-                        }
+                  // Add global keyboard event listener while popup is open
+                  const handleGlobalKeyDown = (event: KeyboardEvent) => {
+                    if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(event.key)) {
+                      const handled = component?.ref?.onKeyDown({ event });
+                      if (handled) {
+                        event.preventDefault();
+                        event.stopPropagation();
                       }
-                    };
-
-                    // Make the popup element focusable and add event listener
-                    popupElement.tabIndex = 0;
-                    popupElement.addEventListener('keydown', handlePopupKeyDown, true);
-                    
-                    // Focus the popup element so it can receive keyboard events
-                    setTimeout(() => {
-                      popupElement.focus();
-                    }, 0);
-                    
-                    // Store the cleanup function
-                    if (popup) {
-                      const originalDestroy = popup.destroy;
-                      popup.destroy = () => {
-                        popupElement.removeEventListener('keydown', handlePopupKeyDown, true);
-                        originalDestroy();
-                      };
                     }
+                  };
+
+                  // Add global event listener with capture
+                  document.addEventListener('keydown', handleGlobalKeyDown, true);
+                  
+                  // Store the cleanup function
+                  if (popup) {
+                    const originalDestroy = popup.destroy;
+                    popup.destroy = () => {
+                      document.removeEventListener('keydown', handleGlobalKeyDown, true);
+                      originalDestroy();
+                    };
                   }
                 } catch (error) {
                   const suggestionError = handleSuggestionInitializationError(
