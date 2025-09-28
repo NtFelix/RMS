@@ -70,14 +70,23 @@ const MemoizedSuggestionItem = memo<{
     className={cn(
       "group relative flex cursor-pointer select-none items-start gap-3 rounded-lg px-3 py-2.5 text-sm outline-none transition-all duration-150",
       "hover:bg-accent hover:text-accent-foreground hover:scale-[1.01]",
-      isSelected && "bg-accent text-accent-foreground shadow-sm"
+      "focus:bg-accent focus:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-primary/20",
+      isSelected && "bg-accent text-accent-foreground shadow-sm ring-2 ring-primary/20"
     )}
     role="option"
     aria-selected={isSelected}
     aria-describedby={`suggestion-${item.id}-description`}
+    aria-label={`${item.label}: ${item.description}`}
     tabIndex={isSelected ? 0 : -1}
     onClick={onSelect}
     onMouseEnter={onMouseEnter}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        onSelect();
+      }
+    }}
   >
     <div className={cn(
       "flex h-6 w-6 items-center justify-center rounded-md flex-shrink-0 mt-0.5 transition-all duration-150",
@@ -196,7 +205,7 @@ export const MentionSuggestionList = forwardRef<
     initialIndex: 0,
   });
 
-  // Scroll selected item into view
+  // Scroll selected item into view and manage focus
   useEffect(() => {
     if (selectedIndex >= 0 && flatItems.length > 0) {
       const selectedElement = document.getElementById(`suggestion-${flatItems[selectedIndex]?.id}`);
@@ -206,6 +215,18 @@ export const MentionSuggestionList = forwardRef<
           block: 'nearest',
           inline: 'nearest'
         });
+        
+        // Announce the selected item to screen readers
+        const itemLabel = flatItems[selectedIndex]?.label;
+        const itemDescription = flatItems[selectedIndex]?.description;
+        if (itemLabel) {
+          // Create a live region announcement
+          const announcement = `${itemLabel}. ${itemDescription || ''}`;
+          const liveRegion = document.getElementById('suggestion-live-region');
+          if (liveRegion) {
+            liveRegion.textContent = announcement;
+          }
+        }
       }
     }
   }, [selectedIndex, flatItems]);
@@ -331,23 +352,41 @@ export const MentionSuggestionList = forwardRef<
   }
 
   return (
-    <div
-      className={cn(
-        "z-50 w-80 rounded-2xl border bg-popover text-popover-foreground shadow-xl backdrop-blur-sm",
-        "data-[state=open]:animate-in data-[state=closed]:animate-out",
-        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-        "pointer-events-auto",
-        loading && 'opacity-90'
-      )}
-      role="listbox"
-      aria-label="Variable suggestions"
-      aria-expanded="true"
-      aria-activedescendant={selectedItem ? `suggestion-${selectedItem.id}` : undefined}
-      aria-multiselectable="false"
-      tabIndex={-1}
-      onWheel={handleWheel}
-    >
+    <>
+      {/* Live region for screen reader announcements */}
+      <div
+        id="suggestion-live-region"
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+      />
+      
+      <div
+        className={cn(
+          "z-50 w-80 rounded-2xl border bg-popover text-popover-foreground shadow-xl backdrop-blur-sm",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out",
+          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          "pointer-events-auto",
+          loading && 'opacity-90'
+        )}
+        role="listbox"
+        aria-label={`Variable suggestions${query ? ` for "${query}"` : ''}. Use arrow keys to navigate, Enter to select, Escape to close.`}
+        aria-expanded="true"
+        aria-activedescendant={selectedItem ? `suggestion-${selectedItem.id}` : undefined}
+        aria-multiselectable="false"
+        aria-describedby="suggestion-instructions"
+        tabIndex={0}
+        onWheel={handleWheel}
+        onKeyDown={(e) => {
+          // Handle keyboard events directly on the container
+          const handled = handleKeyDown(e.nativeEvent);
+          if (handled) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+      >
       {/* Header with search indicator */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <Search className="h-4 w-4 text-muted-foreground" />
@@ -357,6 +396,13 @@ export const MentionSuggestionList = forwardRef<
             "{query}"
           </span>
         )}
+      </div>
+
+      {/* Hidden instructions for screen readers */}
+      <div id="suggestion-instructions" className="sr-only">
+        Use arrow keys to navigate suggestions. Press Home to go to first item, End to go to last item. 
+        Press Page Up or Page Down to jump by 5 items. Press Enter, Tab, or Space to select. Press Escape to close.
+        {flatItems.length > 0 && ` ${flatItems.length} suggestions available.`}
       </div>
 
       {/* Scrollable content */}
@@ -455,7 +501,8 @@ export const MentionSuggestionList = forwardRef<
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 });
 
