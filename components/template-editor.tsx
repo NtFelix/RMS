@@ -177,9 +177,7 @@ export function TemplateEditor({
                   const popupElement = component.element as HTMLElement;
                   if (popupElement) {
                     const handlePopupKeyDown = (event: KeyboardEvent) => {
-                      console.log('Popup key captured:', event.key);
                       if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(event.key)) {
-                        console.log('Handling popup navigation key:', event.key);
                         const handled = component?.ref?.onKeyDown({ event });
                         if (handled) {
                           event.preventDefault();
@@ -242,36 +240,13 @@ export function TemplateEditor({
                 }
               },
               onKeyDown: (props) => {
-                console.log('Template editor received key:', props.event.key);
-                
-                // Always try to handle navigation keys first
-                if (props.event.key === 'ArrowDown') {
-                  console.log('Intercepting ArrowDown');
-                  const handled = component?.ref?.onKeyDown(props);
-                  console.log('ArrowDown handled:', handled);
-                  return handled || false;
-                }
-                
-                if (props.event.key === 'ArrowUp') {
-                  console.log('Intercepting ArrowUp');
-                  const handled = component?.ref?.onKeyDown(props);
-                  console.log('ArrowUp handled:', handled);
-                  return handled || false;
-                }
-                
-                if (props.event.key === 'Enter' || props.event.key === 'Tab') {
-                  console.log('Intercepting selection key:', props.event.key);
-                  const handled = component?.ref?.onKeyDown(props);
-                  console.log('Selection key handled:', handled);
-                  return handled || false;
-                }
-                
+                // This is now handled by the direct popup event listener
+                // Keep this as fallback for any edge cases
                 if (props.event.key === 'Escape') {
                   popup?.hide();
                   return true;
                 }
 
-                // For other keys, let TipTap handle them
                 return false;
               },
               onExit: () => {
