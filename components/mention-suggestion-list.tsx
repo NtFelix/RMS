@@ -263,11 +263,36 @@ export const MentionSuggestionList = forwardRef<
 
   // Handle keyboard events for TipTap integration
   const onKeyDown = useCallback(({ event }: { event: KeyboardEvent }) => {
-    console.log('MentionSuggestionList received key:', event.key); // Debug log
-    const handled = handleKeyDown(event);
-    console.log('Key handled:', handled); // Debug log
-    return handled;
-  }, [handleKeyDown]);
+    // Handle arrow keys for navigation
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (flatItems.length > 0) {
+        const nextIndex = selectedIndex < flatItems.length - 1 ? selectedIndex + 1 : 0;
+        setSelectedIndex(nextIndex);
+      }
+      return true;
+    }
+    
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (flatItems.length > 0) {
+        const prevIndex = selectedIndex > 0 ? selectedIndex - 1 : flatItems.length - 1;
+        setSelectedIndex(prevIndex);
+      }
+      return true;
+    }
+    
+    // Handle selection
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault();
+      if (flatItems[selectedIndex]) {
+        handleSelect(selectedIndex);
+      }
+      return true;
+    }
+    
+    return false;
+  }, [flatItems, selectedIndex, setSelectedIndex, handleSelect]);
 
   // Expose keyboard navigation methods via ref
   useImperativeHandle(ref, () => ({
