@@ -99,7 +99,11 @@ export function TemplateEditorModal({
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  const { setTemplateEditorModalDirty, isTemplateEditorModalDirty } = useModalStore();
+  const { 
+    setTemplateEditorModalDirty, 
+    isTemplateEditorModalDirty,
+    closeTemplateEditorModal 
+  } = useModalStore();
 
   // Accessibility hook
   const {
@@ -116,7 +120,7 @@ export function TemplateEditorModal({
           }
           break;
         case KEYBOARD_SHORTCUTS.closeModal:
-          handleClose();
+          handleAttemptClose();
           break;
       }
     },
@@ -306,31 +310,20 @@ export function TemplateEditorModal({
     setStep('category');
   };
 
-  // Handle modal close with dirty check
-  const handleClose = () => {
-    if (isTemplateEditorModalDirty) {
-      // This will be handled by the Dialog component's isDirty prop
-      return;
-    }
-    onClose();
+  // Handle attempt to close (called by Dialog component when dirty)
+  const handleAttemptClose = () => {
+    closeTemplateEditorModal(); // Store handles confirmation and cleanup
   };
 
-  // Handle attempt to close when dirty
-  const handleAttemptClose = () => {
-    // Reset forms and state
-    setStep('category');
-    setSelectedCategory(null);
-    setEditorContent(undefined);
-    setTemplateEditorModalDirty(false);
-    categoryForm.reset();
-    templateForm.reset();
-    onClose();
+  // Handle cancel button click (force close)
+  const handleCancelClick = () => {
+    closeTemplateEditorModal({ force: true }); // Force close without confirmation
   };
 
   // Set up keyboard navigation
   useModalKeyboardNavigation({
     isOpen,
-    onClose: handleClose,
+    onClose: handleAttemptClose,
     isDirty: isTemplateEditorModalDirty,
     onAttemptClose: handleAttemptClose,
     enableArrowNavigation: true,
@@ -346,10 +339,10 @@ export function TemplateEditorModal({
   }, [isOpen, handleModalOpen, handleModalClose]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleAttemptClose()}>
       <DialogContent
         id={editorId}
-        className="max-w-[95vw] sm:max-w-4xl h-[90vh] min-h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
+        className="max-w-[95vw] sm:max-w-5xl lg:max-w-6xl h-[83vh] min-h-[83vh] max-h-[83vh] overflow-hidden flex flex-col"
         isDirty={isTemplateEditorModalDirty}
         onAttemptClose={handleAttemptClose}
         role="dialog"
@@ -452,7 +445,7 @@ export function TemplateEditorModal({
                     <Button 
                       type="button" 
                       variant="outline" 
-                      onClick={onClose} 
+                      onClick={handleCancelClick} 
                       className="w-full sm:w-auto"
                       aria-label={ARIA_LABELS.cancelButton}
                     >
@@ -596,7 +589,7 @@ export function TemplateEditorModal({
                     <Button 
                       type="button" 
                       variant="outline" 
-                      onClick={handleClose}
+                      onClick={handleCancelClick}
                       disabled={isLoading}
                       className="w-full sm:w-auto"
                     >

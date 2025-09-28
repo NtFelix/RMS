@@ -294,7 +294,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
   const renderLoadingSkeleton = () => (
     <div className="px-1">
       <div 
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
         role="status"
         aria-label={ARIA_LABELS.loadingTemplates}
       >
@@ -409,7 +409,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
               </Badge>
             </div>
             <div 
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
               role="grid"
               aria-labelledby={`${modalId}-category-${category}`}
             >
@@ -450,7 +450,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent 
           id={modalId}
-          className="max-w-[95vw] sm:max-w-4xl h-[90vh] min-h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
+          className="max-w-[98vw] sm:max-w-6xl lg:max-w-7xl h-[95vh] min-h-[95vh] max-h-[95vh] overflow-hidden flex flex-col"
           isDirty={isTemplatesModalDirty}
           onAttemptClose={handleAttemptClose}
           role="dialog"
