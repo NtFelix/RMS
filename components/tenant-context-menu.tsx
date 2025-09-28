@@ -41,7 +41,7 @@ export function TenantContextMenu({
 }: TenantContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
-  const { openKautionModal } = useModalStore()
+  const { openKautionModal, openTemplatesModal } = useModalStore()
   const templatesEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   const handleKaution = () => {
@@ -123,12 +123,17 @@ export function TenantContextMenu({
   };
 
   const handleTemplates = () => {
-    // TODO: Implement template functionality
-    toast({
-      title: "Vorlagen",
-      description: "Vorlagen-Funktionalität wird bald verfügbar sein.",
-      variant: "default",
-    });
+    try {
+      // Open templates modal with "Mail" category filter
+      openTemplatesModal('Mail');
+    } catch (error) {
+      console.error('Error opening templates modal:', error);
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Öffnen der Vorlagen. Bitte versuchen Sie es erneut.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

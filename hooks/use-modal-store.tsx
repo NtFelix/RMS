@@ -370,6 +370,7 @@ export interface ModalState {
 
   // Templates Modal State
   isTemplatesModalOpen: boolean;
+  templatesModalInitialCategory?: string;
   isTemplateEditorModalOpen: boolean;
   templateEditorData?: {
     template?: Template;
@@ -377,7 +378,7 @@ export interface ModalState {
   };
   isTemplatesModalDirty: boolean;
   isTemplateEditorModalDirty: boolean;
-  openTemplatesModal: () => void;
+  openTemplatesModal: (initialCategory?: string) => void;
   closeTemplatesModal: (options?: CloseModalOptions) => void;
   openTemplateEditorModal: (template?: Template, onSave?: (templateData: Partial<Template>) => void) => void;
   closeTemplateEditorModal: (options?: CloseModalOptions) => void;
@@ -531,6 +532,7 @@ const initialMarkdownEditorModalState = {
 
 const initialTemplatesModalState = {
   isTemplatesModalOpen: false,
+  templatesModalInitialCategory: undefined,
   isTemplateEditorModalOpen: false,
   templateEditorData: undefined,
   isTemplatesModalDirty: false,
@@ -1011,8 +1013,9 @@ export const useModalStore = create<ModalState>((set, get) => {
     closeMarkdownEditorModal: () => set(initialMarkdownEditorModalState),
 
     // Templates Modal
-    openTemplatesModal: () => set({
+    openTemplatesModal: (initialCategory) => set({
       isTemplatesModalOpen: true,
+      templatesModalInitialCategory: initialCategory,
       isTemplatesModalDirty: false,
     }),
     closeTemplatesModal: createCloseHandler('isTemplatesModalDirty', initialTemplatesModalState),

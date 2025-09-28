@@ -118,6 +118,7 @@ export default function DashboardRootLayout({
     closeMarkdownEditorModal,
     // Templates Modal state
     isTemplatesModalOpen,
+    templatesModalInitialCategory,
     closeTemplatesModal,
     // AI Assistant Modal state
     isAIAssistantModalOpen,
@@ -237,6 +238,7 @@ export default function DashboardRootLayout({
       <TemplatesModal
         isOpen={isTemplatesModalOpen}
         onClose={closeTemplatesModal}
+        initialCategory={templatesModalInitialCategory}
       />
       {/* AI Assistant Modal - Global AI assistant modal */}
       <AIAssistantModal />
