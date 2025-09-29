@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
+import { roundToNearest5 } from "@/lib/utils";
 
 // Import optimized types from centralized location
 import { 
@@ -1597,11 +1598,6 @@ export async function createAbrechnungCalculationAction(
         // Calculate recommended prepayment for next period if requested
         let recommendedPrepayment = 0;
         if (options.includeRecommendations && totalCosts > 0) {
-          // Helper function to round to nearest 5 euros
-          const roundToNearest5 = (value: number): number => {
-            return Math.round(value / 5) * 5;
-          };
-          
           const monthlyWithBuffer = (totalCosts * 1.1) / 12;
           const roundedMonthly = roundToNearest5(monthlyWithBuffer);
           recommendedPrepayment = roundedMonthly * 12;

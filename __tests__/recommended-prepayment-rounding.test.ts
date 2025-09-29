@@ -5,11 +5,9 @@
  * the monthly amount to the nearest 5 euros as requested.
  */
 
+import { roundToNearest5 } from "@/lib/utils";
+
 describe('Recommended Prepayment Rounding', () => {
-  // Helper function to round to nearest 5 euros (same as in the implementation)
-  const roundToNearest5 = (value: number): number => {
-    return Math.round(value / 5) * 5;
-  };
 
   // Function to calculate recommended prepayment (same logic as in the implementation)
   const calculateRecommendedPrepayment = (totalAnnualCosts: number): number => {

@@ -8,6 +8,7 @@
 
 import { Mieter, Nebenkosten, Wasserzaehler } from "@/lib/data-fetching";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
+import { roundToNearest5 } from "@/lib/utils";
 import { 
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
@@ -257,10 +258,7 @@ export function calculatePrepayments(
   };
 }
 
-// Helper function to round to nearest 5 euros
-const roundToNearest5 = (value: number): number => {
-  return Math.round(value / 5) * 5;
-};
+
 
 /**
  * Calculate recommended prepayment for next period

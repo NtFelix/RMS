@@ -33,6 +33,7 @@ import type { jsPDF } from 'jspdf'; // Type import for better type safety
 import type { CellHookData } from 'jspdf-autotable'; // Type import for autoTable hook data
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
+import { roundToNearest5 } from "@/lib/utils";
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 // import JSZip from 'jszip'; // Removed for dynamic import
@@ -57,11 +58,6 @@ const GERMAN_MONTHS = [
 
 // Financial calculation constants
 const PREPAYMENT_BUFFER_MULTIPLIER = 1.1; // 10% buffer for prepayment calculation
-
-// Helper function to round to nearest 5 euros
-const roundToNearest5 = (value: number): number => {
-  return Math.round(value / 5) * 5;
-};
 
 const calculateOccupancy = (
   einzug: string | null | undefined, 
