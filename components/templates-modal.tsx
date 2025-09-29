@@ -292,25 +292,27 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
 
   // Render loading skeleton
   const renderLoadingSkeleton = () => (
-    <div 
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
-      role="status"
-      aria-label={ARIA_LABELS.loadingTemplates}
-    >
-      {Array.from({ length: 8 }).map((_, index) => (
-        <div key={index} className="space-y-3 p-4 border rounded-lg" aria-hidden="true">
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-16 sm:h-20 w-full" />
-          <div className="flex justify-between items-center">
-            <Skeleton className="h-3 w-1/3" />
-            <div className="flex gap-1">
-              <Skeleton className="h-6 w-6" />
-              <Skeleton className="h-6 w-6" />
+    <div className="px-1">
+      <div 
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+        role="status"
+        aria-label={ARIA_LABELS.loadingTemplates}
+      >
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div key={index} className="space-y-3 p-4 border rounded-lg" aria-hidden="true">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-16 sm:h-20 w-full" />
+            <div className="flex justify-between items-center">
+              <Skeleton className="h-3 w-1/3" />
+              <div className="flex gap-1">
+                <Skeleton className="h-6 w-6" />
+                <Skeleton className="h-6 w-6" />
+              </div>
             </div>
           </div>
-        </div>
-      ))}
-      <div className="sr-only">Vorlagen werden geladen...</div>
+        ))}
+        <div className="sr-only">Vorlagen werden geladen...</div>
+      </div>
     </div>
   );
 
@@ -388,10 +390,10 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
     }
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-8 px-1">
         {categories.map((category) => (
           <div key={category} className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur-sm py-2 -mx-1 px-1 z-10">
               <h3 
                 className="text-lg font-medium"
                 id={`${modalId}-category-${category}`}
@@ -407,14 +409,14 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
               </Badge>
             </div>
             <div 
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
               role="grid"
               aria-labelledby={`${modalId}-category-${category}`}
             >
               {groupedTemplates[category].map((template, index) => (
                 <div 
                   key={template.id} 
-                  className="relative"
+                  className="relative min-h-0"
                   role="gridcell"
                   aria-rowindex={Math.floor(index / 4) + 1}
                   aria-colindex={(index % 4) + 1}
@@ -426,7 +428,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                   />
                   {isDeleting === template.id && (
                     <div 
-                      className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg"
+                      className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-20"
                       role="status"
                       aria-label={ARIA_LABELS.deletingTemplate}
                     >
@@ -448,7 +450,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent 
           id={modalId}
-          className="max-w-[95vw] sm:max-w-4xl h-[90vh] min-h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
+          className="max-w-[98vw] sm:max-w-6xl lg:max-w-7xl h-[95vh] min-h-[95vh] max-h-[95vh] overflow-hidden flex flex-col"
           isDirty={isTemplatesModalDirty}
           onAttemptClose={handleAttemptClose}
           role="dialog"
@@ -468,19 +470,20 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden flex flex-col" ref={containerRef}>
-            {/* Search, Filter and Actions Row */}
-            <div className="flex-shrink-0 pb-4 sm:pb-6 border-b">
-              <div className="flex items-center gap-3 sm:gap-4 p-1">
-                {/* Search Bar - Left */}
-                <div className="relative flex-1 z-10">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <div className="flex-1 overflow-hidden flex flex-col p-1" ref={containerRef}>
+            {/* Search, Filter and Actions Section */}
+            <div className="flex-shrink-0 pb-4 sm:pb-6 border-b space-y-3 px-2 pt-1">
+              {/* Single Row: Search, Filter, and Create Button */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Search Bar - Takes most space */}
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" aria-hidden="true" />
                   <Input
                     data-search-input
                     placeholder="Vorlagen durchsuchen..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full focus-visible:scale-100 focus:ring-2 focus:ring-offset-1 focus:ring-offset-background"
                     aria-label={ARIA_LABELS.templatesSearch}
                     aria-describedby={`${modalId}-search-help`}
                   />
@@ -489,52 +492,54 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                   </div>
                 </div>
 
-                {/* Category Filter - Center */}
-                <div className="flex items-center gap-2 min-w-[200px] sm:min-w-[250px] z-10">
-                  <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-                  <Select 
-                    value={selectedCategory || 'all'} 
-                    onValueChange={(value) => {
-                      setSelectedCategory(value);
-                      announceFilterApplied(value === 'all' ? templates.length : filteredTemplates.length);
-                    }}
-                  >
-                    <SelectTrigger 
-                      className="w-full"
-                      aria-label={ARIA_LABELS.categoryFilter}
-                      aria-expanded={false}
+                {/* Category Filter - Medium width */}
+                <div className="flex items-center gap-1 min-w-0">
+                  <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0 hidden sm:block" aria-hidden="true" />
+                  <div className="relative w-[140px] sm:w-[180px] min-w-0">
+                    <Select 
+                      value={selectedCategory || 'all'} 
+                      onValueChange={(value) => {
+                        setSelectedCategory(value);
+                        announceFilterApplied(value === 'all' ? templates.length : filteredTemplates.length);
+                      }}
                     >
-                      <SelectValue placeholder="Alle Kategorien" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Alle Kategorien</SelectItem>
-                      {availableCategories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      <SelectTrigger 
+                        className="w-full focus-visible:scale-100 focus:ring-2 focus:ring-offset-1 focus:ring-offset-background text-sm"
+                        aria-label={ARIA_LABELS.categoryFilter}
+                        aria-expanded={false}
+                      >
+                        <SelectValue placeholder="Alle Kategorien" />
+                      </SelectTrigger>
+                      <SelectContent className="z-50 min-w-[200px]">
+                        <SelectItem value="all">Alle Kategorien</SelectItem>
+                        {availableCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
-                {/* Create Button - Right */}
+                {/* Create Button - Fixed width */}
                 <Button 
                   data-create-template-button
                   onClick={handleCreateTemplate} 
-                  className="flex-shrink-0 min-w-[140px]"
+                  className="flex-shrink-0 min-w-[100px] sm:min-w-[120px]"
                   disabled={isCreating || loading}
                   aria-label={ARIA_LABELS.createTemplateButton}
                   aria-describedby={`${modalId}-create-help`}
                 >
                   {isCreating ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                      <Loader2 className="h-4 w-4 mr-1 sm:mr-2 animate-spin" aria-hidden="true" />
                       <span className="hidden sm:inline">Erstellt...</span>
-                      <span className="sm:hidden">Wird erstellt...</span>
+                      <span className="sm:hidden">Erstelle...</span>
                     </>
                   ) : (
                     <>
-                      <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                      <Plus className="h-4 w-4 mr-1 sm:mr-2" aria-hidden="true" />
                       <span className="hidden sm:inline">Neue Vorlage</span>
                       <span className="sm:hidden">Neu</span>
                     </>
@@ -545,11 +550,13 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                 </div>
               </div>
 
-              {/* Active Filters */}
+              {/* Third Row: Active Filters */}
               {(searchQuery || (selectedCategory && selectedCategory !== 'all')) && (
-                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                  <span className="hidden sm:inline">Aktive Filter:</span>
-                  <span className="sm:hidden">Filter:</span>
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                  <span className="text-sm text-muted-foreground">
+                    <span className="hidden sm:inline">Aktive Filter:</span>
+                    <span className="sm:hidden">Filter:</span>
+                  </span>
                   {searchQuery && (
                     <Badge variant="outline" className="text-xs">
                       <span className="hidden sm:inline">Suche: "</span>
@@ -567,7 +574,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                     variant="ghost"
                     size="sm"
                     onClick={handleClearFilters}
-                    className="h-6 px-2 text-xs"
+                    className="h-6 px-2 text-xs ml-auto"
                     aria-label={ARIA_LABELS.clearFiltersButton}
                   >
                     <span className="hidden sm:inline">Zurücksetzen</span>
@@ -579,7 +586,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
               {/* Results Count */}
               {!loading && !error && (
                 <div 
-                  className="text-sm text-muted-foreground"
+                  className="text-sm text-muted-foreground pt-2"
                   role="status"
                   aria-live="polite"
                   aria-label={`${filteredTemplates.length} von ${templates.length} Vorlagen werden angezeigt`}
@@ -591,14 +598,16 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
 
             {/* Content */}
             <div 
-              className="flex-1 overflow-y-auto py-6"
+              className="flex-1 overflow-y-auto pt-6 pb-4"
               role="region"
               aria-label={ARIA_LABELS.templatesList}
               data-templates-grid
             >
-              {loading && renderLoadingSkeleton()}
-              {error && renderError()}
-              {!loading && !error && renderTemplateGroups()}
+              <div className="min-h-0">
+                {loading && renderLoadingSkeleton()}
+                {error && renderError()}
+                {!loading && !error && renderTemplateGroups()}
+              </div>
             </div>
           </div>
         </DialogContent>

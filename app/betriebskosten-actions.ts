@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
+import { roundToNearest5 } from "@/lib/utils";
 
 // Import optimized types from centralized location
 import { 
@@ -1594,11 +1595,7 @@ export async function createAbrechnungCalculationAction(
         const totalCosts = operatingCosts.totalCost + waterCosts.totalCost;
         const finalSettlement = totalCosts - prepayments.totalPrepayments;
 
-        // Calculate recommended prepayment for next period if requested
-        let recommendedPrepayment = 0;
-        if (options.includeRecommendations && totalCosts > 0) {
-          recommendedPrepayment = Math.round((totalCosts * 1.1) / 12 * 100) / 100; // 10% buffer, monthly
-        }
+
 
         const tenantCalculation: TenantCalculationResult = {
           tenantId: tenant.id,
