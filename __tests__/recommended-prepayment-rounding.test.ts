@@ -6,21 +6,44 @@
  */
 
 import { roundToNearest5 } from "@/lib/utils";
+import { calculateRecommendedPrepayment as calculateRecommendedPrepaymentFromUtils } from "@/utils/abrechnung-calculations";
+import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
 
 describe('Recommended Prepayment Rounding', () => {
 
-  // Function to calculate recommended prepayment (same logic as in the implementation)
+  // Helper function to create a mock TenantCalculationResult for testing
+  const createMockTenantCalculation = (totalCosts: number): TenantCalculationResult => ({
+    tenantId: 'test-tenant-id',
+    tenantName: 'Test Tenant',
+    apartmentName: 'Test Apartment',
+    apartmentSize: 50,
+    occupancyPercentage: 100,
+    daysOccupied: 365,
+    daysInPeriod: 365,
+    operatingCosts: {
+      costItems: [],
+      totalCost: totalCosts
+    },
+    waterCosts: {
+      totalBuildingWaterCost: 0,
+      totalBuildingConsumption: 0,
+      pricePerCubicMeter: 0,
+      tenantConsumption: 0,
+      totalCost: 0
+    },
+    totalCosts,
+    prepayments: {
+      monthlyPayments: [],
+      totalPrepayments: 0,
+      averageMonthlyPayment: 0
+    },
+    finalSettlement: totalCosts
+  });
+
+  // Wrapper function to test the actual production code
   const calculateRecommendedPrepayment = (totalAnnualCosts: number): number => {
-    if (totalAnnualCosts <= 0) return 0;
-    
-    // Add 10% buffer and calculate monthly amount
-    const monthlyWithBuffer = (totalAnnualCosts * 1.1) / 12;
-    
-    // Round to nearest 5 euros for the monthly amount
-    const roundedMonthly = roundToNearest5(monthlyWithBuffer);
-    
-    // Return the annual amount (monthly * 12)
-    return roundedMonthly * 12;
+    const mockTenantCalculation = createMockTenantCalculation(totalAnnualCosts);
+    return calculateRecommendedPrepaymentFromUtils(mockTenantCalculation);
   };
 
   describe('roundToNearest5 function', () => {
