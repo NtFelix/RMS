@@ -71,3 +71,13 @@ export function naturalSort(a: string, b: string): number {
   // If neither has numeric prefix, use regular string comparison
   return a.localeCompare(b);
 }
+
+/**
+ * Rounds a number to the nearest 5 euros.
+ * Used for calculating recommended prepayment amounts.
+ * @param value - The value to round
+ * @returns number - The value rounded to the nearest 5
+ */
+export function roundToNearest5(value: number): number {
+  return Math.round(value / 5) * 5;
+}
