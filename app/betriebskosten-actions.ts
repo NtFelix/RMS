@@ -1595,13 +1595,7 @@ export async function createAbrechnungCalculationAction(
         const totalCosts = operatingCosts.totalCost + waterCosts.totalCost;
         const finalSettlement = totalCosts - prepayments.totalPrepayments;
 
-        // Calculate recommended prepayment for next period if requested
-        let recommendedPrepayment = 0;
-        if (options.includeRecommendations && totalCosts > 0) {
-          const monthlyWithBuffer = (totalCosts * 1.1) / 12;
-          const roundedMonthly = roundToNearest5(monthlyWithBuffer);
-          recommendedPrepayment = roundedMonthly * 12;
-        }
+
 
         const tenantCalculation: TenantCalculationResult = {
           tenantId: tenant.id,
