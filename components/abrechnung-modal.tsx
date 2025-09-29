@@ -34,6 +34,8 @@ import type { CellHookData } from 'jspdf-autotable'; // Type import for autoTabl
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
+import { calculateRecommendedPrepayment } from "@/utils/abrechnung-calculations";
+import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 // import JSZip from 'jszip'; // Removed for dynamic import
@@ -515,9 +517,9 @@ export function AbrechnungModal({
       // Calculate recommended prepayment for next year based on current year's settlement
       let recommendedPrepayment = 0;
       if (totalTenantCost > 0) {
-        const monthlyAmount = (totalTenantCost * PREPAYMENT_BUFFER_MULTIPLIER) / 12;
-        const roundedMonthlyAmount = roundToNearest5(monthlyAmount);
-        recommendedPrepayment = roundedMonthlyAmount * 12;
+        // Use the centralized function to ensure consistency
+        const mockTenantCalculation = { totalCosts: totalTenantCost } as TenantCalculationResult;
+        recommendedPrepayment = calculateRecommendedPrepayment(mockTenantCalculation);
       }
 
       return {
