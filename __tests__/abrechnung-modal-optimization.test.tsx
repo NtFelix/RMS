@@ -217,8 +217,8 @@ describe('AbrechnungModal Optimization', () => {
     expect(combobox).toBeInTheDocument();
     
     // Verify tenants are available in the combobox
-    expect(screen.getByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'John Doe' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Jane Smith' })).toBeInTheDocument();
   });
 
   it('should show performance indicator for pre-loaded data', () => {

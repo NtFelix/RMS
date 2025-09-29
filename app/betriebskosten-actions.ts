@@ -1597,7 +1597,14 @@ export async function createAbrechnungCalculationAction(
         // Calculate recommended prepayment for next period if requested
         let recommendedPrepayment = 0;
         if (options.includeRecommendations && totalCosts > 0) {
-          recommendedPrepayment = Math.round((totalCosts * 1.1) / 12 * 100) / 100; // 10% buffer, monthly
+          // Helper function to round to nearest 5 euros
+          const roundToNearest5 = (value: number): number => {
+            return Math.round(value / 5) * 5;
+          };
+          
+          const monthlyWithBuffer = (totalCosts * 1.1) / 12;
+          const roundedMonthly = roundToNearest5(monthlyWithBuffer);
+          recommendedPrepayment = roundedMonthly * 12;
         }
 
         const tenantCalculation: TenantCalculationResult = {

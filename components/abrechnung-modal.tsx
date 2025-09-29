@@ -58,6 +58,11 @@ const GERMAN_MONTHS = [
 // Financial calculation constants
 const PREPAYMENT_BUFFER_MULTIPLIER = 1.1; // 10% buffer for prepayment calculation
 
+// Helper function to round to nearest 5 euros
+const roundToNearest5 = (value: number): number => {
+  return Math.round(value / 5) * 5;
+};
+
 const calculateOccupancy = (
   einzug: string | null | undefined, 
   auszug: string | null | undefined, 
@@ -512,9 +517,12 @@ export function AbrechnungModal({
       const finalSettlement = totalTenantCost - totalVorauszahlungen;
 
       // Calculate recommended prepayment for next year based on current year's settlement
-      const recommendedPrepayment = totalTenantCost > 0 
-        ? totalTenantCost * PREPAYMENT_BUFFER_MULTIPLIER 
-        : 0;
+      let recommendedPrepayment = 0;
+      if (totalTenantCost > 0) {
+        const monthlyAmount = (totalTenantCost * PREPAYMENT_BUFFER_MULTIPLIER) / 12;
+        const roundedMonthlyAmount = roundToNearest5(monthlyAmount);
+        recommendedPrepayment = roundedMonthlyAmount * 12;
+      }
 
       return {
         tenantId: tenant.id,

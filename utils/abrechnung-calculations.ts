@@ -257,6 +257,11 @@ export function calculatePrepayments(
   };
 }
 
+// Helper function to round to nearest 5 euros
+const roundToNearest5 = (value: number): number => {
+  return Math.round(value / 5) * 5;
+};
+
 /**
  * Calculate recommended prepayment for next period
  */
@@ -264,10 +269,17 @@ export function calculateRecommendedPrepayment(
   tenantCalculation: TenantCalculationResult
 ): number {
   const totalAnnualCosts = tenantCalculation.totalCosts;
-  const monthlyRecommendation = totalAnnualCosts / 12;
   
-  // Add 10% buffer to avoid underpayment
-  return Math.ceil(monthlyRecommendation * 1.1);
+  if (totalAnnualCosts <= 0) return 0;
+  
+  // Add 10% buffer and calculate monthly amount
+  const monthlyWithBuffer = (totalAnnualCosts * 1.1) / 12;
+  
+  // Round to nearest 5 euros for the monthly amount
+  const roundedMonthly = roundToNearest5(monthlyWithBuffer);
+  
+  // Return the annual amount (monthly * 12)
+  return roundedMonthly * 12;
 }
 
 /**
