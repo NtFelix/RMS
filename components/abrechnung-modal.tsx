@@ -275,6 +275,13 @@ export function AbrechnungModal({
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
 
+  // Auto-select first tenant when modal opens
+  useEffect(() => {
+    if (isOpen && safeTenants.length > 0 && !selectedTenantId) {
+      setSelectedTenantId(safeTenants[0].id);
+    }
+  }, [isOpen, safeTenants, selectedTenantId]);
+
   // Memoize the price per cubic meter calculation
   const pricePerCubicMeter = useMemo(() => {
     if (!nebenkostenItem?.wasserkosten || !nebenkostenItem?.wasserverbrauch || nebenkostenItem.wasserverbrauch <= 0) {
