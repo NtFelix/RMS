@@ -827,6 +827,22 @@ export function AbrechnungModal({
     doc.text(settlementLabel, col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(settlementAmount), col5End, startY, { align: 'right' });
     
+    startY += 8;
+    
+    // Suggested monthly Vorauszahlung line (rounded to nearest 5)
+    const suggestedVorauszahlung = tenantData.recommendedPrepayment ? roundToNearest5(tenantData.recommendedPrepayment) : 0;
+    const monthlyVorauszahlung = suggestedVorauszahlung / 12; // Convert annual to monthly
+    
+    // Calculate next month start date (at least 14 days from now)
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const formattedDate = format(nextMonth, 'dd.MM.yy');
+    
+    doc.setFont("helvetica", "bold");
+    const label = `Vorauszahlung ab ${formattedDate} (nächster Monat; mind. 14 Tage)`;
+    doc.text(label, col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(monthlyVorauszahlung), col5End, startY, { align: 'right' });
+    
     doc.setFont("helvetica", "normal");
     
     startY += 10;
