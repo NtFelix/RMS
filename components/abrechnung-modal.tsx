@@ -28,6 +28,21 @@ import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Ar
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+
+// Function to fetch customer billing address
+const fetchCustomerBillingAddress = async () => {
+  try {
+    const response = await fetch('/api/stripe/customer');
+    if (!response.ok) {
+      throw new Error('Failed to fetch customer data');
+    }
+    const data = await response.json();
+    return data.customer?.address || null;
+  } catch (error) {
+    console.error('Error fetching billing address:', error);
+    return null;
+  }
+};
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 import type { jsPDF } from 'jspdf'; // Type import for better type safety
 import type { CellHookData } from 'jspdf-autotable'; // Type import for autoTable hook data
@@ -603,6 +618,9 @@ export function AbrechnungModal({
     const pageHeight = doc.internal.pageSize.height;
     let startY = 20; // Initial Y position for content
 
+    // Fetch billing address for the PDF
+    const billingAddress = await fetchCustomerBillingAddress();
+
     const processTenant = (singleTenantData: TenantCostDetails) => {
       // Check if new page is needed for multiple tenants
       if (startY > pageHeight - 50) {
@@ -611,7 +629,7 @@ export function AbrechnungModal({
       }
       
       // Use the reusable PDF generation function and update startY with the returned position
-      startY = generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress, startY);
+      startY = generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress, startY, billingAddress);
     };
 
     // Ensure dataForProcessing is definitely an array.
@@ -654,7 +672,8 @@ export function AbrechnungModal({
     nebenkostenItem: Nebenkosten,
     ownerName: string,
     ownerAddress: string,
-    initialStartY: number = 20
+    initialStartY: number = 20,
+    billingAddress?: any // Optional billing address from Stripe
   ): number => {
     let startY = initialStartY;
 
@@ -847,9 +866,27 @@ export function AbrechnungModal({
     
     startY += 10;
 
-
-
-
+    // Add date and location row at the end
+    startY += 15; // Add some space before the final row
+    const currentDate = new Date();
+    const formattedToday = format(currentDate, 'dd.MM.yyyy');
+    
+    // Format location from billing address
+    let location = '';
+    if (billingAddress) {
+      const parts = [];
+      if (billingAddress.postal_code) parts.push(billingAddress.postal_code);
+      if (billingAddress.city) parts.push(billingAddress.city);
+      location = parts.join(' ');
+    }
+    
+    if (location) {
+      doc.setFont("helvetica", "normal");
+      doc.text(`${formattedToday}, ${location}`, col1Start, startY, { align: 'left' });
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.text(formattedToday, col1Start, startY, { align: 'left' });
+    }
     
     return startY; // Return the final Y position
   };
@@ -875,11 +912,13 @@ export function AbrechnungModal({
     const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`;
 
     // Generate individual PDFs for each tenant
+    const billingAddress = await fetchCustomerBillingAddress();
+    
     for (const tenantData of tenantDataArray) {
       const doc = new jsPDF();
       
       // Use the reusable PDF generation function
-      generateSingleTenantPDF(doc, tenantData, nebenkostenItem, ownerName, ownerAddress);
+      generateSingleTenantPDF(doc, tenantData, nebenkostenItem, ownerName, ownerAddress, 20, billingAddress);
       
       const pdfBlob = doc.output('blob');
       const filename = `Abrechnung_${currentPeriod}_${tenantData.tenantName.replace(/\s+/g, '_')}.pdf`;
