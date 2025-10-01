@@ -882,10 +882,10 @@ export function AbrechnungModal({
     
     if (location) {
       doc.setFont("helvetica", "normal");
-      doc.text(`${formattedToday}, ${location}`, col1Start, startY, { align: 'left' });
+      doc.text(`${location}, den ${formattedToday}`, col1Start, startY, { align: 'left' });
     } else {
       doc.setFont("helvetica", "normal");
-      doc.text(formattedToday, col1Start, startY, { align: 'left' });
+      doc.text(`den ${formattedToday}`, col1Start, startY, { align: 'left' });
     }
     
     return startY; // Return the final Y position
