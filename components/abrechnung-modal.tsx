@@ -875,7 +875,6 @@ export function AbrechnungModal({
     let location = '';
     if (billingAddress) {
       const parts = [];
-      if (billingAddress.postal_code) parts.push(billingAddress.postal_code);
       if (billingAddress.city) parts.push(billingAddress.city);
       location = parts.join(' ');
     }
