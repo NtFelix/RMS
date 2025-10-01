@@ -839,7 +839,7 @@ export function AbrechnungModal({
     const formattedDate = format(nextMonth, 'dd.MM.yy');
     
     doc.setFont("helvetica", "bold");
-    const label = `Vorauszahlung ab ${formattedDate} (nächster Monat; mind. 14 Tage)`;
+    const label = `Vorauszahlung ab ${formattedDate}`;
     doc.text(label, col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(monthlyVorauszahlung), col5End, startY, { align: 'right' });
     
