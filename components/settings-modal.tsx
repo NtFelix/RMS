@@ -15,7 +15,8 @@ import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
-import { getUserProfileForSettings, getBillingAddress, updateBillingAddress, getCountryData } from '@/app/user-profile-actions'; // Import the server actions
+import { Elements, AddressElement } from '@stripe/react-stripe-js';
+import { getUserProfileForSettings, getBillingAddress, updateBillingAddress, createSetupIntent } from '@/app/user-profile-actions'; // Import the server actions
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import SubscriptionPaymentMethods from '@/components/subscription-payment-methods';
@@ -131,8 +132,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     postal_code: "",
     country: "",
   });
-  const [countries, setCountries] = useState<any[]>([]);
-  const [states, setStates] = useState<any[]>([]);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [addressElementValue, setAddressElementValue] = useState<any>(null);
+  const [isAddressComplete, setIsAddressComplete] = useState(false);
 
   // PostHog early access features
   const posthog = usePostHog()
@@ -349,60 +351,28 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   }, [open, activeTab]);
 
   useEffect(() => {
-    if (profile?.stripe_customer_id && activeTab === 'profile' && countries.length > 0) {
-      const fetchBillingAddress = async () => {
-        const customerData = await getBillingAddress(profile.stripe_customer_id!);
-        if ('error' in customerData) {
+    if (open && profile?.stripe_customer_id) {
+      const fetchClientSecret = async () => {
+        const result = await createSetupIntent(profile.stripe_customer_id!);
+        if ('error' in result) {
           toast({
             title: "Fehler",
-            description: "Rechnungsadresse konnte nicht geladen werden.",
+            description: "Stripe konnte nicht initialisiert werden.",
             variant: "destructive",
           });
         } else {
-          const address = customerData.address;
-          const companyName = customerData.metadata?.company_name || "";
-          const countryCode = address?.country || "";
-
-          const selectedCountry = countries.find(c => c.code2 === countryCode);
-
-          setBillingAddress({
-            companyName: companyName,
-            line1: address?.line1 || "",
-            line2: address?.line2 || "",
-            city: address?.city || "",
-            state: address?.state || "",
-            postal_code: address?.postal_code || "",
-            country: countryCode,
-          });
-
-          if (selectedCountry) {
-            setStates(selectedCountry.states);
-          }
+          setClientSecret(result.clientSecret);
         }
       };
-      fetchBillingAddress();
+      fetchClientSecret();
     }
-  }, [profile, activeTab, countries]);
+  }, [open, profile]);
 
   // When modal opens, initialize guide setting from cookie
   useEffect(() => {
     if (open) {
       const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
       setBetriebskostenGuideEnabled(hidden !== 'true');
-
-      const fetchCountries = async () => {
-        const countryData = await getCountryData();
-        if ('error' in countryData) {
-          toast({
-            title: "Fehler",
-            description: "Länder konnten nicht geladen werden.",
-            variant: "destructive",
-          });
-        } else {
-          setCountries(countryData);
-        }
-      };
-      fetchCountries();
     }
   }, [open]);
 
@@ -594,21 +564,30 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       });
       return;
     }
+    if (!isAddressComplete || !addressElementValue) {
+      toast({
+        title: "Fehler",
+        description: "Bitte füllen Sie alle erforderlichen Adressfelder aus.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsSavingBilling(true);
     try {
+      const { name: companyName, address } = addressElementValue;
       const result = await updateBillingAddress(
         profile.stripe_customer_id,
         {
           name: `${firstName} ${lastName}`,
           address: {
-            line1: billingAddress.line1,
-            line2: billingAddress.line2,
-            city: billingAddress.city,
-            state: billingAddress.state,
-            postal_code: billingAddress.postal_code,
-            country: billingAddress.country,
+            line1: address.line1,
+            line2: address.line2,
+            city: address.city,
+            state: address.state,
+            postal_code: address.postal_code,
+            country: address.country,
           },
-          companyName: billingAddress.companyName,
+          companyName: companyName,
         }
       );
 
@@ -826,117 +805,21 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             description="Verwalten Sie Ihre Rechnungsadresse für Rechnungen."
           >
             <SettingsCard>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Firma (optional)
-                  </label>
-                  <Input
-                    value={billingAddress.companyName}
-                    onChange={e => setBillingAddress({...billingAddress, companyName: e.target.value})}
-                    className="w-full"
-                    disabled={isSavingBilling}
+              {clientSecret && (
+                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                  <AddressElement
+                    options={{ mode: 'billing' }}
+                    onChange={(event) => {
+                      setIsAddressComplete(event.complete);
+                      if (event.complete) {
+                        setAddressElementValue(event.value);
+                      }
+                    }}
                   />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Straße und Hausnummer
-                  </label>
-                  <Input
-                    value={billingAddress.line1}
-                    onChange={e => setBillingAddress({...billingAddress, line1: e.target.value})}
-                    className="w-full"
-                    disabled={isSavingBilling}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Adresszusatz (optional)
-                  </label>
-                  <Input
-                    value={billingAddress.line2}
-                    onChange={e => setBillingAddress({...billingAddress, line2: e.target.value})}
-                    className="w-full"
-                    disabled={isSavingBilling}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Stadt
-                    </label>
-                    <Input
-                      value={billingAddress.city}
-                      onChange={e => setBillingAddress({...billingAddress, city: e.target.value})}
-                      className="w-full"
-                      disabled={isSavingBilling}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Postleitzahl
-                    </label>
-                    <Input
-                      value={billingAddress.postal_code}
-                      onChange={e => setBillingAddress({...billingAddress, postal_code: e.target.value})}
-                      className="w-full"
-                      disabled={isSavingBilling}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Land
-                    </label>
-                    <Select
-                      value={billingAddress.country}
-                      onValueChange={(value) => {
-                        const selectedCountry = countries.find(c => c.code2 === value);
-                        setBillingAddress({ ...billingAddress, country: value, state: '' });
-                        setStates(selectedCountry ? selectedCountry.states : []);
-                      }}
-                      disabled={isSavingBilling}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Land auswählen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {countries.map((country) => (
-                          <SelectItem key={country.code2} value={country.code2}>
-                            {country.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Bundesland / Kanton
-                    </label>
-                    <Select
-                      value={billingAddress.state}
-                      onValueChange={(value) => {
-                        setBillingAddress({ ...billingAddress, state: value });
-                      }}
-                      disabled={isSavingBilling || states.length === 0}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Bundesland/Kanton auswählen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {states.map((state) => (
-                          <SelectItem key={state.code || state.name} value={state.name}>
-                            {state.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
+                </Elements>
+              )}
               <div className="flex justify-end mt-6">
-                <Button onClick={handleBillingAddressSave} disabled={isSavingBilling} size="sm">
+                <Button onClick={handleBillingAddressSave} disabled={!isAddressComplete || isSavingBilling} size="sm">
                   {isSavingBilling ? "Speichern..." : "Rechnungsadresse speichern"}
                 </Button>
               </div>

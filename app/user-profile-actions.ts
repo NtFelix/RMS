@@ -4,7 +4,6 @@ import { createClient } from '@/utils/supabase/server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import type { Profile as SupabaseProfile } from '@/types/supabase';
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
-import { countries as localCountries } from '@/lib/countries-states';
 import Stripe from 'stripe';
 
 // Define the expected return type for clarity, similar to UserProfileWithSubscription
@@ -144,25 +143,27 @@ export async function updateBillingAddress(
   }
 }
 
-export async function getCountryData(): Promise<{ name: string; code2: string; states: any[] }[] | { error: string; details?: any }> {
+export async function createSetupIntent(stripeCustomerId: string): Promise<{ clientSecret: string } | { error: string; details?: any }> {
   if (!process.env.STRIPE_SECRET_KEY) {
     return { error: 'Stripe secret key is not configured' };
+  }
+  if (!stripeCustomerId) {
+    return { error: 'Stripe customer ID is required' };
   }
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const countrySpecs = await stripe.countrySpecs.list({ limit: 100 });
-    const supportedCountryCodes = countrySpecs.data.map(spec => spec.id);
-
-    const filteredCountries = localCountries.filter(country => supportedCountryCodes.includes(country.code2));
-
-    return filteredCountries.map(country => ({
-      name: country.name,
-      code2: country.code2,
-      states: country.states,
-    }));
+    const setupIntent = await stripe.setupIntents.create({
+      customer: stripeCustomerId,
+      payment_method_types: ['card'],
+      usage: 'on_session',
+    });
+    if (!setupIntent.client_secret) {
+      throw new Error('Failed to create SetupIntent: client_secret is null');
+    }
+    return { clientSecret: setupIntent.client_secret };
   } catch (error: any) {
-    console.error('Error fetching country data:', error);
-    return { error: 'Failed to fetch country data', details: error.message };
+    console.error(`Error creating SetupIntent for ${stripeCustomerId}:`, error);
+    return { error: 'Failed to create SetupIntent', details: error.message };
   }
 }

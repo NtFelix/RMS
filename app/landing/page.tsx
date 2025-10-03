@@ -194,23 +194,12 @@ function LandingPageContent() {
         throw new Error(`Failed to create checkout session: ${errorMessage}`);
       }
 
-      const { sessionId, url } = await response.json();
+      const { url } = await response.json();
 
       if (url) {
-        window.location.href = url;
-      } else if (sessionId) {
-        const stripe = await stripePromise;
-        if (stripe) {
-          const { error } = await stripe.redirectToCheckout({ sessionId });
-          if (error) {
-            console.error('Stripe redirectToCheckout error:', error);
-            toast({ title: 'Error', description: error.message || 'Failed to redirect to Stripe.', variant: 'destructive' });
-          }
-        } else {
-          throw new Error('Stripe.js not loaded.');
-        }
+        router.push(url);
       } else {
-        throw new Error('Session ID or URL missing from checkout session response.');
+        throw new Error('URL missing from checkout session response.');
       }
     } catch (error) {
       console.error('Subscription error:', error);
