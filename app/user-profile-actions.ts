@@ -71,18 +71,9 @@ export async function getUserProfileForSettings() {
     .single()
 
   if (profileError || !profile) {
-    // If no profile is found, return a default structure instead of an error.
-    // This can happen for newly registered users before their profile is created.
     return {
-      id: user.id,
-      email: user.email,
-      currentWohnungenCount: 0,
-      activePlan: null,
-      stripe_customer_id: null,
-      stripe_subscription_id: null,
-      stripe_subscription_status: null,
-      stripe_cancel_at_period_end: null,
-      stripe_current_period_end: null,
+      error: 'Profil nicht gefunden',
+      details: profileError?.message || 'Kein Profil in der Datenbank gefunden',
     }
   }
 
