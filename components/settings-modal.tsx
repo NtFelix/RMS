@@ -231,11 +231,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       const userProfileData = await getUserProfileForSettings();
       if ('error' in userProfileData && userProfileData.error) {
         console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
-        toast({
-          title: "Fehler",
-          description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
-          variant: "destructive",
-        });
+        // Only show toast for unexpected errors, not for "Profil nicht gefunden"
+        if (userProfileData.error !== 'Profil nicht gefunden') {
+          toast({
+            title: "Fehler",
+            description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
+            variant: "destructive",
+          });
+        }
         const currentEmail = profile?.email || '';
         setProfile({
           id: profile?.id || '',
