@@ -666,7 +666,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
     setLoading(true);
     try {
-      const result = await updateBillingAddress(profile.stripe_customer_id, billingAddress);
+      // Convert Stripe.Address (null values) to Stripe.AddressParam (undefined values)
+      const addressParam: Stripe.AddressParam = {
+        line1: billingAddress.line1 ?? undefined,
+        line2: billingAddress.line2 ?? undefined,
+        city: billingAddress.city ?? undefined,
+        state: billingAddress.state ?? undefined,
+        postal_code: billingAddress.postal_code ?? undefined,
+        country: billingAddress.country ?? undefined,
+      };
+
+      const result = await updateBillingAddress(profile.stripe_customer_id, addressParam);
       if (result.success) {
         toast({
           title: "Erfolg",
@@ -793,16 +803,22 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Straße</label>
                     <Input
-                      value={billingAddress?.line1 || ''}
-                      onChange={e => setBillingAddress(prev => ({ ...prev, line1: e.target.value }))}
+                      value={billingAddress?.line1 ?? ''}
+                      onChange={e => setBillingAddress(prev => ({
+                        ...(prev ?? { city: null, country: null, line1: null, line2: null, postal_code: null, state: null }),
+                        line1: e.target.value,
+                      }))}
                       disabled={loading}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Adresszusatz</label>
                     <Input
-                      value={billingAddress?.line2 || ''}
-                      onChange={e => setBillingAddress(prev => ({ ...prev, line2: e.target.value }))}
+                      value={billingAddress?.line2 ?? ''}
+                      onChange={e => setBillingAddress(prev => ({
+                        ...(prev ?? { city: null, country: null, line1: null, line2: null, postal_code: null, state: null }),
+                        line2: e.target.value,
+                      }))}
                       disabled={loading}
                     />
                   </div>
@@ -810,16 +826,22 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Stadt</label>
                       <Input
-                        value={billingAddress?.city || ''}
-                        onChange={e => setBillingAddress(prev => ({ ...prev, city: e.target.value }))}
+                        value={billingAddress?.city ?? ''}
+                        onChange={e => setBillingAddress(prev => ({
+                          ...(prev ?? { city: null, country: null, line1: null, line2: null, postal_code: null, state: null }),
+                          city: e.target.value,
+                        }))}
                         disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">PLZ</label>
                       <Input
-                        value={billingAddress?.postal_code || ''}
-                        onChange={e => setBillingAddress(prev => ({ ...prev, postal_code: e.target.value }))}
+                        value={billingAddress?.postal_code ?? ''}
+                        onChange={e => setBillingAddress(prev => ({
+                          ...(prev ?? { city: null, country: null, line1: null, line2: null, postal_code: null, state: null }),
+                          postal_code: e.target.value,
+                        }))}
                         disabled={loading}
                       />
                     </div>
@@ -828,16 +850,22 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Bundesland</label>
                       <Input
-                        value={billingAddress?.state || ''}
-                        onChange={e => setBillingAddress(prev => ({ ...prev, state: e.target.value }))}
+                        value={billingAddress?.state ?? ''}
+                        onChange={e => setBillingAddress(prev => ({
+                          ...(prev ?? { city: null, country: null, line1: null, line2: null, postal_code: null, state: null }),
+                          state: e.target.value,
+                        }))}
                         disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Land</label>
                       <Input
-                        value={billingAddress?.country || ''}
-                        onChange={e => setBillingAddress(prev => ({ ...prev, country: e.target.value }))}
+                        value={billingAddress?.country ?? ''}
+                        onChange={e => setBillingAddress(prev => ({
+                          ...(prev ?? { city: null, country: null, line1: null, line2: null, postal_code: null, state: null }),
+                          country: e.target.value,
+                        }))}
                         disabled={loading}
                       />
                     </div>
