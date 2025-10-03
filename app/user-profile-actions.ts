@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import type { Profile as SupabaseProfile } from '@/types/supabase';
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
+import { countries as localCountries } from '@/lib/countries-states';
 import Stripe from 'stripe';
 
 // Define the expected return type for clarity, similar to UserProfileWithSubscription
@@ -140,5 +141,28 @@ export async function updateBillingAddress(
   } catch (error: any) {
     console.error(`Error updating billing address for ${stripeCustomerId}:`, error);
     return { success: false, error: 'Failed to update billing address', details: error.message };
+  }
+}
+
+export async function getCountryData(): Promise<{ name: string; code2: string; states: any[] }[] | { error: string; details?: any }> {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return { error: 'Stripe secret key is not configured' };
+  }
+
+  try {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const countrySpecs = await stripe.countrySpecs.list({ limit: 100 });
+    const supportedCountryCodes = countrySpecs.data.map(spec => spec.id);
+
+    const filteredCountries = localCountries.filter(country => supportedCountryCodes.includes(country.code2));
+
+    return filteredCountries.map(country => ({
+      name: country.name,
+      code2: country.code2,
+      states: country.states,
+    }));
+  } catch (error: any) {
+    console.error('Error fetching country data:', error);
+    return { error: 'Failed to fetch country data', details: error.message };
   }
 }

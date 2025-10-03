@@ -15,7 +15,7 @@ import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
-import { getUserProfileForSettings, getBillingAddress, updateBillingAddress } from '@/app/user-profile-actions'; // Import the server actions
+import { getUserProfileForSettings, getBillingAddress, updateBillingAddress, getCountryData } from '@/app/user-profile-actions'; // Import the server actions
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import SubscriptionPaymentMethods from '@/components/subscription-payment-methods';
@@ -25,7 +25,6 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
-import { countries } from "@/lib/countries-states";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -132,6 +131,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     postal_code: "",
     country: "",
   });
+  const [countries, setCountries] = useState<any[]>([]);
   const [states, setStates] = useState<any[]>([]);
 
   // PostHog early access features
@@ -349,7 +349,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   }, [open, activeTab]);
 
   useEffect(() => {
-    if (profile?.stripe_customer_id && activeTab === 'profile') {
+    if (profile?.stripe_customer_id && activeTab === 'profile' && countries.length > 0) {
       const fetchBillingAddress = async () => {
         const customerData = await getBillingAddress(profile.stripe_customer_id!);
         if ('error' in customerData) {
@@ -382,13 +382,27 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       };
       fetchBillingAddress();
     }
-  }, [profile, activeTab]);
+  }, [profile, activeTab, countries]);
 
   // When modal opens, initialize guide setting from cookie
   useEffect(() => {
     if (open) {
       const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
       setBetriebskostenGuideEnabled(hidden !== 'true');
+
+      const fetchCountries = async () => {
+        const countryData = await getCountryData();
+        if ('error' in countryData) {
+          toast({
+            title: "Fehler",
+            description: "Länder konnten nicht geladen werden.",
+            variant: "destructive",
+          });
+        } else {
+          setCountries(countryData);
+        }
+      };
+      fetchCountries();
     }
   }, [open]);
 
