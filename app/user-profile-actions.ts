@@ -4,6 +4,8 @@ import { createClient } from '@/utils/supabase/server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import type { Profile as SupabaseProfile } from '@/types/supabase';
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
+import { stripe } from '@/lib/stripe-server';
+import type Stripe from 'stripe';
 
 // Define the expected return type for clarity, similar to UserProfileWithSubscription
 // This helps ensure consistency with what the client-side components expect.
@@ -75,25 +77,9 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
 
     // Construct the response, ensuring it matches UserProfileForSettings
     const responseData: UserProfileForSettings = {
-      ...profile, // Spreads all fields from the fetched SupabaseProfile.
-                  // This includes id, email (from profiles table), stripe_customer_id, etc.,
-                  // assuming they are columns in 'profiles' table and part of SupabaseProfile type.
-
-      email: user.email, // Override with the primary email from auth.users if it's different or more authoritative.
-                         // If profile.email is preferred, this line can be removed or conditional.
-
-      // Ensure profile specific email is explicitly mapped if needed, though ...profile should cover it.
-      // profileEmail: profile.email, // This is already covered by ...profile if 'email' is the column name.
-                                   // If UserProfileForSettings expects 'profileEmail' and db column is 'email', then map it:
-                                   // profileEmail: profile.email
-
-      // The UserProfileForSettings interface now explicitly lists these Stripe fields.
-      // Spreading ...profile should populate them if the column names match and are in SupabaseProfile.
-      // No need to re-declare them here if ...profile handles it.
-      // stripe_customer_id: profile.stripe_customer_id, (covered by ...profile)
-      // stripe_subscription_id: profile.stripe_subscription_id, (covered by ...profile)
-      // ... and so on for other fields that are directly from the 'profiles' table.
-
+      ...profile,
+      email: user.email,
+      stripe_customer_id: profile.stripe_customer_id,
       activePlan: planDetails,
       hasActiveSubscription,
       currentWohnungenCount,
@@ -104,5 +90,48 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
   } catch (error: any) {
     console.error('Generic server error in getUserProfileForSettings:', error);
     return { error: 'Internal server error', details: error.message };
+  }
+}
+
+export async function getBillingAddress(stripeCustomerId: string): Promise<Stripe.Customer | { error: string; details?: any }> {
+  if (!stripeCustomerId) {
+    return { error: 'Stripe customer ID is required' };
+  }
+
+  try {
+    const customer = await stripe.customers.retrieve(stripeCustomerId);
+    if (customer.deleted) {
+      return { error: 'Customer not found or deleted' };
+    }
+    return customer;
+  } catch (error: any) {
+    console.error(`Error fetching billing address for ${stripeCustomerId}:`, error);
+    return { error: 'Failed to fetch billing address', details: error.message };
+  }
+}
+
+export async function updateBillingAddress(
+  stripeCustomerId: string,
+  details: {
+    address: Stripe.AddressParam;
+    name: string;
+    companyName?: string;
+  }
+): Promise<{ success: boolean; error?: string; details?: any }> {
+  if (!stripeCustomerId) {
+    return { success: false, error: 'Stripe customer ID is required' };
+  }
+
+  try {
+    const customerUpdateParams: Stripe.CustomerUpdateParams = {
+      name: details.companyName || details.name,
+      address: details.address,
+    };
+
+    await stripe.customers.update(stripeCustomerId, customerUpdateParams);
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Error updating billing address for ${stripeCustomerId}:`, error);
+    return { success: false, error: 'Failed to update billing address', details: error.message };
   }
 }

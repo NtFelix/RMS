@@ -15,7 +15,7 @@ import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
-import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
+import { getUserProfileForSettings, getBillingAddress, updateBillingAddress } from '@/app/user-profile-actions'; // Import the server actions
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import SubscriptionPaymentMethods from '@/components/subscription-payment-methods';
@@ -121,6 +121,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
+  const [isSavingBilling, setIsSavingBilling] = useState<boolean>(false);
+  const [billingAddress, setBillingAddress] = useState({
+    companyName: "",
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    postal_code: "",
+    country: "",
+  });
 
   // PostHog early access features
   const posthog = usePostHog()
@@ -328,14 +338,42 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      if (open && activeTab === 'subscription') {
-        await refreshUserProfile(); // Fetch profile
-        // Plan fetching removed from here. Pricing component will fetch its own plans.
+      if (open && (activeTab === 'subscription' || activeTab === 'profile')) {
+        await refreshUserProfile();
       }
     };
 
     fetchInitialData();
   }, [open, activeTab]);
+
+  useEffect(() => {
+    if (profile?.stripe_customer_id && activeTab === 'profile') {
+      const fetchBillingAddress = async () => {
+        const customerData = await getBillingAddress(profile.stripe_customer_id!);
+        if ('error' in customerData) {
+          toast({
+            title: "Fehler",
+            description: "Rechnungsadresse konnte nicht geladen werden.",
+            variant: "destructive",
+          });
+        } else {
+          const address = customerData.address;
+          const companyName = customerData.metadata?.company_name || "";
+
+          setBillingAddress({
+            companyName: companyName,
+            line1: address?.line1 || "",
+            line2: address?.line2 || "",
+            city: address?.city || "",
+            state: address?.state || "",
+            postal_code: address?.postal_code || "",
+            country: address?.country || "",
+          });
+        }
+      };
+      fetchBillingAddress();
+    }
+  }, [profile, activeTab]);
 
   // When modal opens, initialize guide setting from cookie
   useEffect(() => {
@@ -523,6 +561,54 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       })
     }
   }
+
+  const handleBillingAddressSave = async () => {
+    if (!profile?.stripe_customer_id) {
+      toast({
+        title: "Fehler",
+        description: "Stripe-Kunden-ID nicht gefunden.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSavingBilling(true);
+    try {
+      const result = await updateBillingAddress(
+        profile.stripe_customer_id,
+        {
+          name: `${firstName} ${lastName}`,
+          address: {
+            line1: billingAddress.line1,
+            line2: billingAddress.line2,
+            city: billingAddress.city,
+            state: billingAddress.state,
+            postal_code: billingAddress.postal_code,
+            country: billingAddress.country,
+          },
+          companyName: billingAddress.companyName,
+        }
+      );
+
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: "Ihre Rechnungsadresse wurde erfolgreich gespeichert.",
+          variant: "success",
+        });
+      } else {
+        throw new Error(result.error || "Ein unbekannter Fehler ist aufgetreten.");
+      }
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: `Fehler beim Speichern der Rechnungsadresse: ${(error as Error).message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingBilling(false);
+    }
+  };
+
   const handleEmailSave = async () => {
     if (email !== confirmEmail) {
       toast({
@@ -707,6 +793,102 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <div className="flex justify-end mt-6">
                 <Button onClick={handleProfileSave} disabled={loading} size="sm">
                   {loading ? "Speichern..." : "Profil speichern"}
+                </Button>
+              </div>
+            </SettingsCard>
+          </SettingsSection>
+
+          <SettingsSection
+            title="Rechnungsadresse"
+            description="Verwalten Sie Ihre Rechnungsadresse für Rechnungen."
+          >
+            <SettingsCard>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Firma (optional)
+                  </label>
+                  <Input
+                    value={billingAddress.companyName}
+                    onChange={e => setBillingAddress({...billingAddress, companyName: e.target.value})}
+                    className="w-full"
+                    disabled={isSavingBilling}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Straße und Hausnummer
+                  </label>
+                  <Input
+                    value={billingAddress.line1}
+                    onChange={e => setBillingAddress({...billingAddress, line1: e.target.value})}
+                    className="w-full"
+                    disabled={isSavingBilling}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Adresszusatz (optional)
+                  </label>
+                  <Input
+                    value={billingAddress.line2}
+                    onChange={e => setBillingAddress({...billingAddress, line2: e.target.value})}
+                    className="w-full"
+                    disabled={isSavingBilling}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Stadt
+                    </label>
+                    <Input
+                      value={billingAddress.city}
+                      onChange={e => setBillingAddress({...billingAddress, city: e.target.value})}
+                      className="w-full"
+                      disabled={isSavingBilling}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Postleitzahl
+                    </label>
+                    <Input
+                      value={billingAddress.postal_code}
+                      onChange={e => setBillingAddress({...billingAddress, postal_code: e.target.value})}
+                      className="w-full"
+                      disabled={isSavingBilling}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Bundesland / Kanton
+                    </label>
+                    <Input
+                      value={billingAddress.state}
+                      onChange={e => setBillingAddress({...billingAddress, state: e.target.value})}
+                      className="w-full"
+                      disabled={isSavingBilling}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Land
+                    </label>
+                    <Input
+                      value={billingAddress.country}
+                      onChange={e => setBillingAddress({...billingAddress, country: e.target.value})}
+                      className="w-full"
+                      disabled={isSavingBilling}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <Button onClick={handleBillingAddressSave} disabled={isSavingBilling} size="sm">
+                  {isSavingBilling ? "Speichern..." : "Rechnungsadresse speichern"}
                 </Button>
               </div>
             </SettingsCard>
