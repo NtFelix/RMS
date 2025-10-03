@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
+import { countries } from "@/lib/countries-states";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -131,6 +132,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     postal_code: "",
     country: "",
   });
+  const [states, setStates] = useState<any[]>([]);
 
   // PostHog early access features
   const posthog = usePostHog()
@@ -359,6 +361,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         } else {
           const address = customerData.address;
           const companyName = customerData.metadata?.company_name || "";
+          const countryCode = address?.country || "";
+
+          const selectedCountry = countries.find(c => c.code2 === countryCode);
 
           setBillingAddress({
             companyName: companyName,
@@ -367,8 +372,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             city: address?.city || "",
             state: address?.state || "",
             postal_code: address?.postal_code || "",
-            country: address?.country || "",
+            country: countryCode,
           });
+
+          if (selectedCountry) {
+            setStates(selectedCountry.states);
+          }
         }
       };
       fetchBillingAddress();
@@ -864,25 +873,51 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Bundesland / Kanton
+                      Land
                     </label>
-                    <Input
-                      value={billingAddress.state}
-                      onChange={e => setBillingAddress({...billingAddress, state: e.target.value})}
-                      className="w-full"
+                    <Select
+                      value={billingAddress.country}
+                      onValueChange={(value) => {
+                        const selectedCountry = countries.find(c => c.code2 === value);
+                        setBillingAddress({ ...billingAddress, country: value, state: '' });
+                        setStates(selectedCountry ? selectedCountry.states : []);
+                      }}
                       disabled={isSavingBilling}
-                    />
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Land auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map((country) => (
+                          <SelectItem key={country.code2} value={country.code2}>
+                            {country.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Land
+                      Bundesland / Kanton
                     </label>
-                    <Input
-                      value={billingAddress.country}
-                      onChange={e => setBillingAddress({...billingAddress, country: e.target.value})}
-                      className="w-full"
-                      disabled={isSavingBilling}
-                    />
+                    <Select
+                      value={billingAddress.state}
+                      onValueChange={(value) => {
+                        setBillingAddress({ ...billingAddress, state: value });
+                      }}
+                      disabled={isSavingBilling || states.length === 0}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Bundesland/Kanton auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {states.map((state) => (
+                          <SelectItem key={state.code || state.name} value={state.name}>
+                            {state.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
