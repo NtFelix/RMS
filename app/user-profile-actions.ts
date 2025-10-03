@@ -4,8 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import type { Profile as SupabaseProfile } from '@/types/supabase';
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
-import { stripe } from '@/lib/stripe-server';
-import type Stripe from 'stripe';
+import Stripe from 'stripe';
 
 // Define the expected return type for clarity, similar to UserProfileWithSubscription
 // This helps ensure consistency with what the client-side components expect.
@@ -94,11 +93,15 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
 }
 
 export async function getBillingAddress(stripeCustomerId: string): Promise<Stripe.Customer | { error: string; details?: any }> {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return { error: 'Stripe secret key is not configured' };
+  }
   if (!stripeCustomerId) {
     return { error: 'Stripe customer ID is required' };
   }
 
   try {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const customer = await stripe.customers.retrieve(stripeCustomerId);
     if (customer.deleted) {
       return { error: 'Customer not found or deleted' };
@@ -118,11 +121,15 @@ export async function updateBillingAddress(
     companyName?: string;
   }
 ): Promise<{ success: boolean; error?: string; details?: any }> {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return { success: false, error: 'Stripe secret key is not configured' };
+  }
   if (!stripeCustomerId) {
     return { success: false, error: 'Stripe customer ID is required' };
   }
 
   try {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const customerUpdateParams: Stripe.CustomerUpdateParams = {
       name: details.companyName || details.name,
       address: details.address,
