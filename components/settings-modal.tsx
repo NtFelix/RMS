@@ -15,7 +15,7 @@ import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
-import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
+import { getUserProfileForSettings, getBillingAddress, updateBillingAddress } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import SubscriptionPaymentMethods from '@/components/subscription-payment-methods';
@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
+import type { Stripe } from "stripe";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -121,6 +122,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
+  const [billingAddress, setBillingAddress] = useState<Stripe.Address | null>(null)
+  const [isLoadingBillingAddress, setIsLoadingBillingAddress] = useState<boolean>(false)
 
   // PostHog early access features
   const posthog = usePostHog()
@@ -179,6 +182,29 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const { isExporting, handleDataExport: performDataExport } = useDataExport(); // Use the custom hook
   // Settings: Betriebskosten Guide visibility
   const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (profile?.stripe_customer_id) {
+      setIsLoadingBillingAddress(true)
+      getBillingAddress(profile.stripe_customer_id)
+        .then(address => {
+          if (address) {
+            setBillingAddress(address)
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch billing address:', error)
+          toast({
+            title: "Fehler",
+            description: "Rechnungsadresse konnte nicht geladen werden.",
+            variant: "destructive",
+          })
+        })
+        .finally(() => {
+          setIsLoadingBillingAddress(false)
+        })
+    }
+  }, [profile?.stripe_customer_id])
 
   useEffect(() => {
     supabase.auth.getUser().then(res => {
@@ -328,7 +354,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      if (open && activeTab === 'subscription') {
+      if (open && (activeTab === 'subscription' || activeTab === 'profile')) {
         await refreshUserProfile(); // Fetch profile
         // Plan fetching removed from here. Pricing component will fetch its own plans.
       }
@@ -628,6 +654,41 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     }
   };
 
+  const handleBillingAddressSave = async () => {
+    if (!profile?.stripe_customer_id || !billingAddress) {
+      toast({
+        title: "Fehler",
+        description: "Kunden-ID oder Adresse nicht vorhanden.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await updateBillingAddress(profile.stripe_customer_id, billingAddress);
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: "Rechnungsadresse erfolgreich gespeichert.",
+          variant: "success",
+        });
+        setBillingAddress(result.address || null);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Failed to save billing address:", error);
+      toast({
+        title: "Fehler",
+        description: "Rechnungsadresse konnte nicht gespeichert werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // const handleDataExport = async () => { // Original function removed, now using hook
   //   setIsExporting(true);
   //   toast.info("Datenexport wird vorbereitet...");
@@ -712,7 +773,86 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             </SettingsCard>
           </SettingsSection>
 
-          <SettingsSection 
+          <SettingsSection
+            title="Rechnungsadresse"
+            description="Verwalten Sie Ihre Rechnungsadresse für Ihre Abonnements."
+          >
+            <SettingsCard>
+              {isLoadingBillingAddress ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-8 w-1/2" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Straße</label>
+                    <Input
+                      value={billingAddress?.line1 || ''}
+                      onChange={e => setBillingAddress(prev => ({ ...prev, line1: e.target.value }))}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Adresszusatz</label>
+                    <Input
+                      value={billingAddress?.line2 || ''}
+                      onChange={e => setBillingAddress(prev => ({ ...prev, line2: e.target.value }))}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Stadt</label>
+                      <Input
+                        value={billingAddress?.city || ''}
+                        onChange={e => setBillingAddress(prev => ({ ...prev, city: e.target.value }))}
+                        disabled={loading}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">PLZ</label>
+                      <Input
+                        value={billingAddress?.postal_code || ''}
+                        onChange={e => setBillingAddress(prev => ({ ...prev, postal_code: e.target.value }))}
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Bundesland</label>
+                      <Input
+                        value={billingAddress?.state || ''}
+                        onChange={e => setBillingAddress(prev => ({ ...prev, state: e.target.value }))}
+                        disabled={loading}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Land</label>
+                      <Input
+                        value={billingAddress?.country || ''}
+                        onChange={e => setBillingAddress(prev => ({ ...prev, country: e.target.value }))}
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-6">
+                    <Button onClick={handleBillingAddressSave} disabled={loading} size="sm">
+                      {loading ? "Speichern..." : "Rechnungsadresse speichern"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </SettingsCard>
+          </SettingsSection>
+
+          <SettingsSection
             title="Gefährliche Aktionen"
             description="Irreversible Aktionen, die Ihr Konto dauerhaft beeinträchtigen."
           >
