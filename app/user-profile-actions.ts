@@ -92,7 +92,21 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
   }
 }
 
-export async function getBillingAddress(stripeCustomerId: string): Promise<Stripe.Customer | { error: string; details?: any }> {
+interface BillingAddress {
+  name?: string;
+  address: {
+    line1?: string;
+    line2?: string | null;
+    city?: string;
+    state?: string | null;
+    postal_code?: string;
+    country?: string;
+  };
+  email?: string;
+  phone?: string | null;
+}
+
+export async function getBillingAddress(stripeCustomerId: string): Promise<BillingAddress | { error: string; details?: any }> {
   if (!process.env.STRIPE_SECRET_KEY) {
     return { error: 'Stripe secret key is not configured' };
   }
@@ -103,24 +117,55 @@ export async function getBillingAddress(stripeCustomerId: string): Promise<Strip
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const customer = await stripe.customers.retrieve(stripeCustomerId);
-    if (customer.deleted) {
+    
+    if ('deleted' in customer && customer.deleted) {
       return { error: 'Customer not found or deleted' };
     }
-    return customer;
+
+    // Type guard to check if customer is a Stripe.Customer
+    if ('object' in customer && customer.object === 'customer') {
+      return {
+        name: customer.name || '',
+        email: customer.email || '',
+        phone: customer.phone || null,
+        address: {
+          line1: customer.address?.line1 || '',
+          line2: customer.address?.line2 || null,
+          city: customer.address?.city || '',
+          state: customer.address?.state || null,
+          postal_code: customer.address?.postal_code || '',
+          country: customer.address?.country || 'DE',
+        }
+      };
+    }
+    
+    return { error: 'Invalid customer data received from Stripe' };
   } catch (error: any) {
-    console.error(`Error fetching billing address for ${stripeCustomerId}:`, error);
-    return { error: 'Failed to fetch billing address', details: error.message };
+    console.error('Error in getBillingAddress:', error);
+    return { 
+      error: 'Failed to fetch billing address',
+      details: error.message 
+    };
   }
+}
+
+interface UpdateBillingAddressParams {
+  name: string;
+  address: {
+    line1: string;
+    line2?: string | null;
+    city: string;
+    state?: string | null;
+    postal_code: string;
+    country: string;
+  };
+  companyName?: string;
 }
 
 export async function updateBillingAddress(
   stripeCustomerId: string,
-  details: {
-    address: Stripe.AddressParam;
-    name: string;
-    companyName?: string;
-  }
-): Promise<{ success: boolean; error?: string; details?: any }> {
+  details: UpdateBillingAddressParams
+): Promise<{ success: boolean; error?: string }> {
   if (!process.env.STRIPE_SECRET_KEY) {
     return { success: false, error: 'Stripe secret key is not configured' };
   }
@@ -130,20 +175,40 @@ export async function updateBillingAddress(
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const customerUpdateParams: Stripe.CustomerUpdateParams = {
-      name: details.companyName || details.name,
-      address: details.address,
+    
+    // Prepare the update data with only the fields we want to update
+    const updateData: Stripe.CustomerUpdateParams = {
+      name: details.name,
+      address: {
+        line1: details.address.line1,
+        ...(details.address.line2 && { line2: details.address.line2 }),
+        city: details.address.city,
+        ...(details.address.state && { state: details.address.state }),
+        postal_code: details.address.postal_code,
+        country: details.address.country
+      },
+      metadata: {}
     };
 
-    await stripe.customers.update(stripeCustomerId, customerUpdateParams);
+    // Add company name to metadata if provided
+    if (details.companyName) {
+      updateData.metadata = { companyName: details.companyName };
+    }
+
+    // Update the customer with the new billing details
+    await stripe.customers.update(stripeCustomerId, updateData);
+
     return { success: true };
   } catch (error: any) {
-    console.error(`Error updating billing address for ${stripeCustomerId}:`, error);
-    return { success: false, error: 'Failed to update billing address', details: error.message };
+    console.error('Error updating billing address:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to update billing address' 
+    };
   }
 }
 
-export async function createSetupIntent(stripeCustomerId: string): Promise<{ clientSecret: string } | { error: string; details?: any }> {
+export async function createSetupIntent(stripeCustomerId: string): Promise<{ clientSecret: string } | { error: string }> {
   if (!process.env.STRIPE_SECRET_KEY) {
     return { error: 'Stripe secret key is not configured' };
   }
@@ -156,14 +221,18 @@ export async function createSetupIntent(stripeCustomerId: string): Promise<{ cli
     const setupIntent = await stripe.setupIntents.create({
       customer: stripeCustomerId,
       payment_method_types: ['card'],
-      usage: 'on_session',
+      usage: 'on_session' as const,
     });
+    
     if (!setupIntent.client_secret) {
       throw new Error('Failed to create SetupIntent: client_secret is null');
     }
+    
     return { clientSecret: setupIntent.client_secret };
   } catch (error: any) {
     console.error(`Error creating SetupIntent for ${stripeCustomerId}:`, error);
-    return { error: 'Failed to create SetupIntent', details: error.message };
+    return { 
+      error: error.message || 'Failed to create SetupIntent' 
+    };
   }
 }

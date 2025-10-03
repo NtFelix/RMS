@@ -123,14 +123,23 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [isSavingBilling, setIsSavingBilling] = useState<boolean>(false);
-  const [billingAddress, setBillingAddress] = useState({
+  // Billing address state with proper typing
+  const [billingAddress, setBillingAddress] = useState<{
+    companyName: string;
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  }>({
     companyName: "",
     line1: "",
     line2: "",
     city: "",
     state: "",
     postal_code: "",
-    country: "",
+    country: "DE", // Default to Germany
   });
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [addressElementValue, setAddressElementValue] = useState<any>(null);
@@ -176,8 +185,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     }
   }
 
-
-
   // Account deletion states
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
   const [reauthCode, setReauthCode] = useState<string>("")
@@ -186,6 +193,42 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   // State for subscription tab
   const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
+
+  // Load billing address when modal is opened or profile changes
+  useEffect(() => {
+    const loadBillingAddress = async () => {
+      if (open && profile?.stripe_customer_id) {
+        try {
+          const result = await getBillingAddress(profile.stripe_customer_id);
+          
+          if ('error' in result) {
+            console.error('Error loading billing address:', result.error);
+            return;
+          }
+          
+          // Update the billing address state with the loaded data
+          setBillingAddress({
+            companyName: result.name || '',
+            line1: result.address?.line1 || '',
+            line2: result.address?.line2 || '',
+            city: result.address?.city || '',
+            state: result.address?.state || '',
+            postal_code: result.address?.postal_code || '',
+            country: result.address?.country || 'DE',
+          });
+          
+          // Set the address as complete if we have the required fields
+          if (result.address?.line1 && result.address.city && result.address.postal_code && result.address.country) {
+            setIsAddressComplete(true);
+          }
+        } catch (error) {
+          console.error('Error loading billing address:', error);
+        }
+      }
+    };
+    
+    loadBillingAddress();
+  }, [open, profile?.stripe_customer_id]);
   // isLoadingSub removed as Pricing component is removed
   const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
   // isCancellingSubscription removed
@@ -564,6 +607,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       });
       return;
     }
+    
     if (!isAddressComplete || !addressElementValue) {
       toast({
         title: "Fehler",
@@ -572,22 +616,30 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       });
       return;
     }
+    
     setIsSavingBilling(true);
+    
     try {
       const { name: companyName, address } = addressElementValue;
+      
+      // Ensure we have all required fields
+      if (!address.line1 || !address.city || !address.postal_code || !address.country) {
+        throw new Error("Bitte füllen Sie alle erforderlichen Adressfelder aus.");
+      }
+      
       const result = await updateBillingAddress(
         profile.stripe_customer_id,
         {
-          name: `${firstName} ${lastName}`,
+          name: `${firstName} ${lastName}`.trim() || companyName || 'Mietverwaltung',
           address: {
             line1: address.line1,
-            line2: address.line2,
+            line2: address.line2 || '',
             city: address.city,
-            state: address.state,
+            state: address.state || '',
             postal_code: address.postal_code,
             country: address.country,
           },
-          companyName: companyName,
+          companyName: companyName || '',
         }
       );
 
@@ -596,6 +648,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           title: "Erfolg",
           description: "Ihre Rechnungsadresse wurde erfolgreich gespeichert.",
           variant: "success",
+        });
+        
+        // Update local state with the saved values
+        setBillingAddress({
+          companyName: companyName || '',
+          line1: address.line1,
+          line2: address.line2 || '',
+          city: address.city,
+          state: address.state || '',
+          postal_code: address.postal_code,
+          country: address.country,
         });
       } else {
         throw new Error(result.error || "Ein unbekannter Fehler ist aufgetreten.");
@@ -808,7 +871,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               {clientSecret && (
                 <Elements stripe={stripePromise} options={{ clientSecret }}>
                   <AddressElement
-                    options={{ mode: 'billing' }}
+                    options={{ 
+                      mode: 'billing',
+                      defaultValues: {
+                        name: billingAddress.companyName,
+                        address: {
+                          line1: billingAddress.line1,
+                          line2: billingAddress.line2,
+                          city: billingAddress.city,
+                          state: billingAddress.state,
+                          postal_code: billingAddress.postal_code,
+                          country: billingAddress.country,
+                        },
+                      }
+                    }}
                     onChange={(event) => {
                       setIsAddressComplete(event.complete);
                       if (event.complete) {
