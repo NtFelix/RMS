@@ -125,11 +125,9 @@ export async function getBillingAddress(stripeCustomerId: string): Promise<Billi
       return { error: 'Customer not found' };
     }
 
-    // Then get the metadata separately if needed
-    let companyName = '';
-    if (customer.metadata && typeof customer.metadata === 'object' && 'companyName' in customer.metadata) {
-      companyName = String(customer.metadata.companyName);
-    }
+    // Get the business name from the customer object
+    const customerWithBusinessName = customer as Stripe.Customer & { business_name?: string };
+    const companyName = customerWithBusinessName.business_name || '';
 
     // If customer has no address, return empty values
     if (!customer.address) {
