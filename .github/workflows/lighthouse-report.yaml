@@ -224,6 +224,7 @@ jobs:
                   const files = await fs.readdir(reportPath);
                   const jsonFiles = files.filter(file => file.endsWith('.json'));
                   
+                  if (jsonFiles.length === 0) return null;
                   
                   const report = JSON.parse(await fs.readFile(`${reportPath}/${jsonFiles[0]}`, 'utf8'));
                   const { categories } = report;
