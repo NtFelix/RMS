@@ -11,7 +11,10 @@ import {
 } from "./dialog" // Assuming this is the path to your existing dialog components
 import { Button } from "./button" // Assuming this is the path to your Button component
 
-export type ConfirmationDialogVariant = 'default' | 'destructive'
+export type ConfirmationDialogVariant = Extract<
+  import('class-variance-authority').VariantProps<typeof import('./button').buttonVariants>['variant'],
+  'default' | 'destructive'
+>
 
 interface ConfirmationDialogProps {
   isOpen: boolean
