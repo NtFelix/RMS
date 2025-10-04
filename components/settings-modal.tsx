@@ -125,6 +125,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [isSavingBilling, setIsSavingBilling] = useState<boolean>(false);
   // Billing address state with proper typing
   const [billingAddress, setBillingAddress] = useState<{
+    name: string;
     companyName: string;
     line1: string;
     line2: string;
@@ -133,6 +134,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     postal_code: string;
     country: string;
   }>({
+    name: "",
     companyName: "",
     line1: "",
     line2: "",
@@ -207,15 +209,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           }
           
           // Update the billing address state with the loaded data
-          setBillingAddress({
-            companyName: result.name || '',
+          setBillingAddress(prev => ({
+            ...prev,
+            name: result.name || '',
+            companyName: result.companyName || '',
             line1: result.address?.line1 || '',
             line2: result.address?.line2 || '',
             city: result.address?.city || '',
             state: result.address?.state || '',
             postal_code: result.address?.postal_code || '',
             country: result.address?.country || 'DE',
-          });
+          }));
           
           // Set the address as complete if we have the required fields
           if (result.address?.line1 && result.address.city && result.address.postal_code && result.address.country) {
@@ -608,7 +612,18 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       return;
     }
     
-    if (!isAddressComplete || !addressElementValue) {
+    // Check if all required fields are filled
+    const requiredFields = [
+      billingAddress.name,
+      billingAddress.line1,
+      billingAddress.city,
+      billingAddress.postal_code,
+      billingAddress.country
+    ];
+    
+    const allFieldsFilled = requiredFields.every(field => Boolean(field));
+    
+    if (!allFieldsFilled) {
       toast({
         title: "Fehler",
         description: "Bitte füllen Sie alle erforderlichen Adressfelder aus.",
@@ -620,28 +635,24 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     setIsSavingBilling(true);
     
     try {
-      const { name: companyName, address } = addressElementValue;
-      
-      // Ensure we have all required fields
-      if (!address.line1 || !address.city || !address.postal_code || !address.country) {
-        throw new Error("Bitte füllen Sie alle erforderlichen Adressfelder aus.");
-      }
-      
       const result = await updateBillingAddress(
         profile.stripe_customer_id,
         {
-          name: `${firstName} ${lastName}`.trim() || companyName || 'Mietverwaltung',
+          name: billingAddress.name,
           address: {
-            line1: address.line1,
-            line2: address.line2 || '',
-            city: address.city,
-            state: address.state || '',
-            postal_code: address.postal_code,
-            country: address.country,
+            line1: billingAddress.line1,
+            line2: billingAddress.line2 || '',
+            city: billingAddress.city,
+            state: billingAddress.state || '',
+            postal_code: billingAddress.postal_code,
+            country: billingAddress.country,
           },
-          companyName: companyName || '',
+          companyName: billingAddress.companyName || '',
         }
       );
+      
+      // Update the address complete state
+      setIsAddressComplete(allFieldsFilled);
 
       if (result.success) {
         toast({
@@ -650,16 +661,18 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           variant: "success",
         });
         
-        // Update local state with the saved values
-        setBillingAddress({
-          companyName: companyName || '',
-          line1: address.line1,
-          line2: address.line2 || '',
-          city: address.city,
-          state: address.state || '',
-          postal_code: address.postal_code,
-          country: address.country,
-        });
+        // Update local state with the saved values from the form
+        setBillingAddress(prev => ({
+          ...prev,
+          name: billingAddress.name,
+          companyName: billingAddress.companyName,
+          line1: billingAddress.line1,
+          line2: billingAddress.line2,
+          city: billingAddress.city,
+          state: billingAddress.state,
+          postal_code: billingAddress.postal_code,
+          country: billingAddress.country
+        }));
       } else {
         throw new Error(result.error || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -868,36 +881,133 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             description="Verwalten Sie Ihre Rechnungsadresse für Rechnungen."
           >
             <SettingsCard>
-              {clientSecret && (
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                  <AddressElement
-                    options={{ 
-                      mode: 'billing',
-                      defaultValues: {
-                        name: billingAddress.companyName,
-                        address: {
-                          line1: billingAddress.line1,
-                          line2: billingAddress.line2,
-                          city: billingAddress.city,
-                          state: billingAddress.state,
-                          postal_code: billingAddress.postal_code,
-                          country: billingAddress.country,
-                        },
-                      }
-                    }}
-                    onChange={(event) => {
-                      setIsAddressComplete(event.complete);
-                      if (event.complete) {
-                        setAddressElementValue(event.value);
-                      }
-                    }}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="companyName" className="text-sm font-medium leading-none">
+                      Firmenname (optional)
+                    </label>
+                    <Input
+                      id="companyName"
+                      value={billingAddress.companyName || ''}
+                      onChange={(e) => setBillingAddress({...billingAddress, companyName: e.target.value})}
+                      placeholder="Firmenname"
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="name" className="text-sm font-medium leading-none">
+                      Name <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      id="name"
+                      value={billingAddress.name || ''}
+                      onChange={(e) => setBillingAddress({...billingAddress, name: e.target.value})}
+                      placeholder="Vor- und Nachname"
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="line1" className="text-sm font-medium leading-none">
+                    Straße und Hausnummer <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    id="line1"
+                    value={billingAddress.line1 || ''}
+                    onChange={(e) => setBillingAddress({...billingAddress, line1: e.target.value})}
+                    placeholder="Musterstraße 123"
+                    className="w-full"
+                    required
                   />
-                </Elements>
-              )}
-              <div className="flex justify-end mt-6">
-                <Button onClick={handleBillingAddressSave} disabled={!isAddressComplete || isSavingBilling} size="sm">
-                  {isSavingBilling ? "Speichern..." : "Rechnungsadresse speichern"}
-                </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="line2" className="text-sm font-medium leading-none">
+                    Adresszusatz (optional)
+                  </label>
+                  <Input
+                    id="line2"
+                    value={billingAddress.line2 || ''}
+                    onChange={(e) => setBillingAddress({...billingAddress, line2: e.target.value})}
+                    placeholder="Wohnung, Stockwerk, etc."
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="postal_code" className="text-sm font-medium leading-none">
+                      PLZ <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      id="postal_code"
+                      value={billingAddress.postal_code || ''}
+                      onChange={(e) => setBillingAddress({...billingAddress, postal_code: e.target.value})}
+                      placeholder="12345"
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="city" className="text-sm font-medium leading-none">
+                      Stadt <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      id="city"
+                      value={billingAddress.city || ''}
+                      onChange={(e) => setBillingAddress({...billingAddress, city: e.target.value})}
+                      placeholder="Musterstadt"
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="country" className="text-sm font-medium leading-none">
+                      Land <span className="text-destructive">*</span>
+                    </label>
+                    <Select
+                      value={billingAddress.country || 'DE'}
+                      onValueChange={(value) => setBillingAddress({...billingAddress, country: value})}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Land auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DE">Deutschland</SelectItem>
+                        <SelectItem value="AT">Österreich</SelectItem>
+                        <SelectItem value="CH">Schweiz</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="state" className="text-sm font-medium leading-none">
+                      Bundesland (optional)
+                    </label>
+                    <Input
+                      id="state"
+                      value={billingAddress.state || ''}
+                      onChange={(e) => setBillingAddress({...billingAddress, state: e.target.value})}
+                      placeholder="Bundesland"
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <Button 
+                    onClick={handleBillingAddressSave} 
+                    disabled={isSavingBilling || !billingAddress.name || !billingAddress.line1 || !billingAddress.postal_code || !billingAddress.city || !billingAddress.country}
+                    size="sm"
+                  >
+                    {isSavingBilling ? "Speichern..." : "Rechnungsadresse speichern"}
+                  </Button>
+                </div>
               </div>
             </SettingsCard>
           </SettingsSection>

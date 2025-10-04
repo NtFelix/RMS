@@ -94,6 +94,7 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
 
 interface BillingAddress {
   name?: string;
+  companyName?: string;
   address: {
     line1?: string;
     line2?: string | null;
@@ -116,30 +117,52 @@ export async function getBillingAddress(stripeCustomerId: string): Promise<Billi
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const customer = await stripe.customers.retrieve(stripeCustomerId);
     
+    // First get the customer without expanding metadata
+    const customer = await stripe.customers.retrieve(stripeCustomerId);
+
     if ('deleted' in customer && customer.deleted) {
-      return { error: 'Customer not found or deleted' };
+      return { error: 'Customer not found' };
     }
 
-    // Type guard to check if customer is a Stripe.Customer
-    if ('object' in customer && customer.object === 'customer') {
+    // Then get the metadata separately if needed
+    let companyName = '';
+    if (customer.metadata && typeof customer.metadata === 'object' && 'companyName' in customer.metadata) {
+      companyName = String(customer.metadata.companyName);
+    }
+
+    // If customer has no address, return empty values
+    if (!customer.address) {
       return {
         name: customer.name || '',
-        email: customer.email || '',
-        phone: customer.phone || null,
+        companyName,
         address: {
-          line1: customer.address?.line1 || '',
-          line2: customer.address?.line2 || null,
-          city: customer.address?.city || '',
-          state: customer.address?.state || null,
-          postal_code: customer.address?.postal_code || '',
-          country: customer.address?.country || 'DE',
-        }
+          line1: '',
+          line2: null,
+          city: '',
+          state: null,
+          postal_code: '',
+          country: 'DE',
+        },
+        email: customer.email || '',
+        phone: customer.phone || null
       };
     }
-    
-    return { error: 'Invalid customer data received from Stripe' };
+
+    return {
+      name: customer.name || '',
+      companyName,
+      address: {
+        line1: customer.address.line1 || '',
+        line2: customer.address.line2 || null,
+        city: customer.address.city || '',
+        state: customer.address.state || null,
+        postal_code: customer.address.postal_code || '',
+        country: customer.address.country || 'DE',
+      },
+      email: customer.email || '',
+      phone: customer.phone || null
+    };
   } catch (error: any) {
     console.error('Error in getBillingAddress:', error);
     return { 
@@ -176,9 +199,10 @@ export async function updateBillingAddress(
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     
-    // Prepare the update data with only the fields we want to update
     const updateData: Stripe.CustomerUpdateParams = {
       name: details.name,
+      // Set the business_name field if companyName is provided
+      ...(details.companyName && { business_name: details.companyName }),
       address: {
         line1: details.address.line1,
         ...(details.address.line2 && { line2: details.address.line2 }),
@@ -186,18 +210,11 @@ export async function updateBillingAddress(
         ...(details.address.state && { state: details.address.state }),
         postal_code: details.address.postal_code,
         country: details.address.country
-      },
-      metadata: {}
+      }
     };
-
-    // Add company name to metadata if provided
-    if (details.companyName) {
-      updateData.metadata = { companyName: details.companyName };
-    }
 
     // Update the customer with the new billing details
     await stripe.customers.update(stripeCustomerId, updateData);
-
     return { success: true };
   } catch (error: any) {
     console.error('Error updating billing address:', error);
