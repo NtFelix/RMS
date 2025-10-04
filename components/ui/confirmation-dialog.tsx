@@ -12,7 +12,7 @@ import {
 import { Button } from "./button" // Assuming this is the path to your Button component
 
 export type ConfirmationDialogVariant = Extract<
-  import('class-variance-authority').VariantProps<typeof import('./button').buttonVariants>['variant'],
+  React.ComponentProps<typeof Button>['variant'],
   'default' | 'destructive'
 >
 
