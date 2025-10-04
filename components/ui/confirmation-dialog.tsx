@@ -11,6 +11,8 @@ import {
 } from "./dialog" // Assuming this is the path to your existing dialog components
 import { Button } from "./button" // Assuming this is the path to your Button component
 
+export type ConfirmationDialogVariant = 'default' | 'destructive'
+
 interface ConfirmationDialogProps {
   isOpen: boolean
   onClose: () => void
@@ -19,7 +21,7 @@ interface ConfirmationDialogProps {
   description: string
   confirmText?: string
   cancelText?: string
-  variant?: 'default' | 'destructive'
+  variant?: ConfirmationDialogVariant
 }
 
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
