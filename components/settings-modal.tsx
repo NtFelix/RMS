@@ -23,7 +23,7 @@ import SubscriptionPaymentMethods from '@/components/subscription-payment-method
 import SubscriptionPaymentHistory from '@/components/subscription-payment-history';
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
 
@@ -926,13 +926,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
                 <div className="space-y-2">
                   <label htmlFor="line2" className="text-sm font-medium leading-none">
-                    Adresszusatz (optional)
+                    Adresszeile 2 (optional)
                   </label>
                   <Input
                     id="line2"
                     value={billingAddress.line2 || ''}
                     onChange={(e) => setBillingAddress({...billingAddress, line2: e.target.value})}
-                    placeholder="Wohnung, Stockwerk, etc."
+                    placeholder="Zusätzliche Adresszeile"
                     className="w-full"
                   />
                 </div>
@@ -966,37 +966,82 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="country" className="text-sm font-medium leading-none">
-                      Land <span className="text-destructive">*</span>
-                    </label>
-                    <Select
-                      value={billingAddress.country || 'DE'}
-                      onValueChange={(value) => setBillingAddress({...billingAddress, country: value})}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Land auswählen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="DE">Deutschland</SelectItem>
-                        <SelectItem value="AT">Österreich</SelectItem>
-                        <SelectItem value="CH">Schweiz</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="state" className="text-sm font-medium leading-none">
-                      Bundesland (optional)
-                    </label>
-                    <Input
-                      id="state"
-                      value={billingAddress.state || ''}
-                      onChange={(e) => setBillingAddress({...billingAddress, state: e.target.value})}
-                      placeholder="Bundesland"
-                      className="w-full"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <label htmlFor="country" className="text-sm font-medium leading-none">
+                    Land <span className="text-destructive">*</span>
+                  </label>
+                  <Select
+                    value={billingAddress.country || 'DE'}
+                    onValueChange={(value) => setBillingAddress({...billingAddress, country: value})}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Land auswählen" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px] overflow-y-auto">
+                      {/* DACH countries at the top */}
+                      <SelectItem value="DE">Deutschland</SelectItem>
+                      <SelectItem value="AT">Österreich</SelectItem>
+                      <SelectItem value="CH">Schweiz</SelectItem>
+                      
+                      <SelectSeparator className="my-1" />
+                      
+                      {/* Rest of Europe */}
+                      <SelectItem value="AL">Albanien</SelectItem>
+                      <SelectItem value="AD">Andorra</SelectItem>
+                      <SelectItem value="BE">Belgien</SelectItem>
+                      <SelectItem value="BA">Bosnien und Herzegowina</SelectItem>
+                      <SelectItem value="BG">Bulgarien</SelectItem>
+                      <SelectItem value="HR">Kroatien</SelectItem>
+                      <SelectItem value="CY">Zypern</SelectItem>
+                      <SelectItem value="CZ">Tschechien</SelectItem>
+                      <SelectItem value="DK">Dänemark</SelectItem>
+                      <SelectItem value="EE">Estland</SelectItem>
+                      <SelectItem value="FI">Finnland</SelectItem>
+                      <SelectItem value="FR">Frankreich</SelectItem>
+                      <SelectItem value="GR">Griechenland</SelectItem>
+                      <SelectItem value="GB">Großbritannien</SelectItem>
+                      <SelectItem value="HU">Ungarn</SelectItem>
+                      <SelectItem value="IS">Island</SelectItem>
+                      <SelectItem value="IE">Irland</SelectItem>
+                      <SelectItem value="IT">Italien</SelectItem>
+                      <SelectItem value="XK">Kosovo</SelectItem>
+                      <SelectItem value="LV">Lettland</SelectItem>
+                      <SelectItem value="LI">Liechtenstein</SelectItem>
+                      <SelectItem value="LT">Litauen</SelectItem>
+                      <SelectItem value="LU">Luxemburg</SelectItem>
+                      <SelectItem value="MT">Malta</SelectItem>
+                      <SelectItem value="MD">Moldawien</SelectItem>
+                      <SelectItem value="MC">Monaco</SelectItem>
+                      <SelectItem value="ME">Montenegro</SelectItem>
+                      <SelectItem value="NL">Niederlande</SelectItem>
+                      <SelectItem value="MK">Nordmazedonien</SelectItem>
+                      <SelectItem value="NO">Norwegen</SelectItem>
+                      <SelectItem value="PL">Polen</SelectItem>
+                      <SelectItem value="PT">Portugal</SelectItem>
+                      <SelectItem value="RO">Rumänien</SelectItem>
+                      <SelectItem value="SM">San Marino</SelectItem>
+                      <SelectItem value="SE">Schweden</SelectItem>
+                      <SelectItem value="RS">Serbien</SelectItem>
+                      <SelectItem value="SK">Slowakei</SelectItem>
+                      <SelectItem value="SI">Slowenien</SelectItem>
+                      <SelectItem value="ES">Spanien</SelectItem>
+                      <SelectItem value="TR">Türkei</SelectItem>
+                      <SelectItem value="UA">Ukraine</SelectItem>
+                      <SelectItem value="VA">Vatikanstadt</SelectItem>
+                      
+                      <SelectSeparator className="my-1" />
+                      
+                      {/* Major non-European countries */}
+                      <SelectItem value="US">Vereinigte Staaten</SelectItem>
+                      <SelectItem value="CA">Kanada</SelectItem>
+                      <SelectItem value="AU">Australien</SelectItem>
+                      <SelectItem value="NZ">Neuseeland</SelectItem>
+                      <SelectItem value="JP">Japan</SelectItem>
+                      <SelectItem value="CN">China</SelectItem>
+                      <SelectItem value="IN">Indien</SelectItem>
+                      <SelectItem value="BR">Brasilien</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="flex justify-end pt-4">
