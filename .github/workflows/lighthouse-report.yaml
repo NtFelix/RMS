@@ -17,6 +17,13 @@ jobs:
     name: Lighthouse Audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    
+    # GitHub Token Permissions for PR comments
+    permissions:
+      contents: read           # Read repository content
+      pull-requests: write     # Create PR comments
+      issues: write            # PRs are technically issues
+      checks: write           # Set check status
 
     steps:
       - name: Checkout Repository
