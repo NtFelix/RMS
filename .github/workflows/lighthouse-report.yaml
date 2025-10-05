@@ -209,7 +209,7 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      # Optional: Add a comment to the PR with the results
+      # Add a comment to the PR with the results (for PRs)
       - name: Add PR comment with results
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
@@ -273,4 +273,100 @@ jobs:
               console.log('Successfully posted Lighthouse results to PR');
             } catch (error) {
               core.warning(`Failed to create PR comment: ${error.message}`);
+            }
+
+      # Add results to Actions Summary (runs for all events)
+      - name: Display Lighthouse Results Summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs').promises;
+            
+            try {
+              const processReport = async (reportPath) => {
+                try {
+                  const files = await fs.readdir(reportPath);
+                  const jsonFiles = files.filter(file => file.endsWith('.json'));
+                  
+                  if (jsonFiles.length === 0) return null;
+                  
+                  const report = JSON.parse(await fs.readFile(`${reportPath}/${jsonFiles[0]}`, 'utf8'));
+                  const { categories } = report;
+                  
+                  return Object.entries(categories).map(([key, value]) => ({
+                    name: value.title,
+                    score: Math.round(value.score * 100)
+                  }));
+                } catch (error) {
+                  core.warning(`Failed to process report at ${reportPath}: ${error.message}`);
+                  return null;
+                }
+              };
+              
+              const mobileScores = await processReport('.lighthouseci/mobile');
+              const desktopScores = await processReport('.lighthouseci/desktop');
+              
+              if (!mobileScores && !desktopScores) {
+                core.warning('No valid Lighthouse reports found');
+                return;
+              }
+              
+              const formatScores = (scores) => {
+                if (!scores) return '❌ No data';
+                return scores.map(s => `**${s.name}:** ${s.score}%`).join(' • ');
+              };
+              
+              const getScoreEmoji = (score) => {
+                if (score >= 90) return '🟢';
+                if (score >= 75) return '🟡';
+                return '🔴';
+              };
+              
+              const formatScoresWithEmojis = (scores) => {
+                if (!scores) return '❌ No data';
+                return scores.map(s => `${getScoreEmoji(s.score)} **${s.name}:** ${s.score}%`).join('  \n');
+              };
+              
+              // Build Actions Summary
+              let summaryContent = '# ⚡ Lighthouse Audit Results\n\n';
+              
+              if (github.event_name === 'workflow_dispatch') {
+                summaryContent += '> 🎯 **Manual Run** • ';
+              } else {
+                summaryContent += '> 🔄 **Automatic Run** • ';
+              }
+              
+              summaryContent += `Branch: \` ${process.env.GITHUB_REF_NAME || 'unknown'}\`\n\n`;
+              
+              // Mobile Results
+              summaryContent += '## 📱 Mobile Results\n\n';
+              if (mobileScores) {
+                summaryContent += formatScoresWithEmojis(mobileScores) + '\n\n';
+              } else {
+                summaryContent += '❌ No mobile data available\n\n';
+              }
+              
+              // Desktop Results  
+              summaryContent += '## 🖥️ Desktop Results\n\n';
+              if (desktopScores) {
+                summaryContent += formatScoresWithEmojis(desktopScores) + '\n\n';
+              } else {
+                summaryContent += '❌ No desktop data available\n\n';
+              }
+              
+              // Artifacts Link
+              summaryContent += '## 📊 Detailed Reports\n\n';
+              summaryContent += `📁 **[Download Lighthouse Reports](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})**\n\n`;
+              
+              // Add timestamp
+              summaryContent += `---\n*Generated on ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} CET*`;
+              
+              await core.summary
+                .addRaw(summaryContent)
+                .write();
+                
+              console.log('Lighthouse results added to Actions Summary');
+            } catch (error) {
+              core.warning(`Failed to create summary: ${error.message}`);
             }
