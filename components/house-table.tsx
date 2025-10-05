@@ -206,10 +206,10 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   )
 
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-lg">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="[&>th]:border-0">
             <TableHeaderCell sortKey="name" className="w-[250px]">Häuser</TableHeaderCell>
             <TableHeaderCell sortKey="ort">Ort</TableHeaderCell>
             <TableHeaderCell sortKey="size">Größe</TableHeaderCell>
@@ -220,7 +220,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
         </TableHeader>
         <TableBody>
           {sortedAndFilteredData.length === 0 ? (
-            <TableRow>
+            <TableRow className="[&>td]:border-0">
               <TableCell colSpan={6} className="h-24 text-center">
                 Keine Häuser gefunden.
               </TableCell>
@@ -233,7 +233,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                 onEdit={() => onEdit(house)}
                 onRefresh={fetchHouses}
               >
-                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit(house)}>
+                <TableRow className="hover:bg-gray-50 dark:hover:bg-[#2d3748] cursor-pointer [&>td]:border-0" onClick={() => onEdit(house)}>
                   <TableCell className="font-medium">{house.name}</TableCell>
                   <TableCell>{house.ort}</TableCell>
                   <TableCell>{house.size ? `${house.size} m²` : "-"}</TableCell>

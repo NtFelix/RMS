@@ -112,22 +112,22 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
 
   const renderSortIcon = (key: TenantSortKey) => {
     if (sortKey !== key) {
-      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
     }
     return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4" />
+      <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
     ) : (
-      <ArrowDown className="h-4 w-4" />
+      <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
     )
   }
 
-  const TableHeaderCell = ({ sortKey, children, className, icon: Icon }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string, icon: React.ElementType }) => (
-    <TableHead className={className}>
+  const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string, icon: React.ElementType }) => (
+    <TableHead className={`${className} dark:text-[#f3f4f6]`}>
       <div
         onClick={() => handleSort(sortKey)}
-        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors -ml-2"
+        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors -ml-2 dark:text-[#f3f4f6]"
       >
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
         {children}
         {renderSortIcon(sortKey)}
       </div>
@@ -138,12 +138,12 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     <div className="rounded-lg">
       <Table>
         <TableHeader>
-          <TableRow className="bg-gray-50 dark:bg-gray-800/50">
-            <TableHeaderCell sortKey="name" className="w-[250px]" icon={User}>Name</TableHeaderCell>
-            <TableHeaderCell sortKey="email" icon={Mail}>E-Mail</TableHeaderCell>
-            <TableHeaderCell sortKey="telefonnummer" icon={Phone}>Telefon</TableHeaderCell>
-            <TableHeaderCell sortKey="wohnung" icon={Home}>Wohnung</TableHeaderCell>
-            <TableHeaderCell sortKey="nebenkosten" icon={FileText}>Nebenkosten</TableHeaderCell>
+          <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6]">
+            <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={User}>Name</TableHeaderCell>
+            <TableHeaderCell sortKey="email" className="dark:text-[#f3f4f6]" icon={Mail}>E-Mail</TableHeaderCell>
+            <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone}>Telefon</TableHeaderCell>
+            <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
+            <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText}>Nebenkosten</TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -161,11 +161,11 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                 onEdit={() => onEdit?.(tenant)}
                 onRefresh={() => router.refresh()}
               >
-                <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-800/50 cursor-pointer transition-colors" onClick={() => onEdit?.(tenant)}>
-                  <TableCell className="font-medium py-4">{tenant.name}</TableCell>
-                  <TableCell className="py-4">{tenant.email}</TableCell>
-                  <TableCell className="py-4">{tenant.telefonnummer}</TableCell>
-                  <TableCell className="py-4">{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
+                <TableRow className="hover:bg-gray-100 dark:hover:rgba(45, 55, 72, 0.5) cursor-pointer transition-colors" onClick={() => onEdit?.(tenant)}>
+                  <TableCell className="font-medium py-4 dark:text-[#f3f4f6]">{tenant.name}</TableCell>
+                  <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.email}</TableCell>
+                  <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.telefonnummer}</TableCell>
+                  <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
                   <TableCell className="py-4">
                     {tenant.nebenkosten && tenant.nebenkosten.length > 0
                       ? tenant.nebenkosten
