@@ -37,21 +37,47 @@ export default function Faq() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          viewport={{ once: true }}
+          className="w-full"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.1,
+              },
+            },
+          }}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
         >
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full space-y-4">
             {faqData.map((item, index) => (
-              <AccordionItem value={`item-${index}`} key={index}>
-                <AccordionTrigger className="text-lg font-semibold text-left hover:text-primary transition-colors">
-                  {item.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-base">
-                  {item.answer}
-                </AccordionContent>
-              </AccordionItem>
+              <motion.div
+                key={index}
+                variants={{
+                  hidden: { y: 20, opacity: 0 },
+                  visible: {
+                    y: 0,
+                    opacity: 1,
+                    transition: {
+                      duration: 0.5,
+                    },
+                  },
+                }}
+              >
+                <AccordionItem
+                  value={`item-${index}`}
+                  className="overflow-hidden rounded-lg border bg-card shadow-sm"
+                >
+                  <AccordionTrigger className="px-6 py-4 text-left text-lg font-semibold transition-colors hover:text-primary hover:no-underline">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6 text-base">
+                    {item.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              </motion.div>
             ))}
           </Accordion>
         </motion.div>
