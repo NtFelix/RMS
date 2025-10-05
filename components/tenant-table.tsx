@@ -161,7 +161,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                 onEdit={() => onEdit?.(tenant)}
                 onRefresh={() => router.refresh()}
               >
-                <TableRow className="hover:bg-gray-100 dark:hover:rgba(45, 55, 72, 0.5) cursor-pointer transition-colors" onClick={() => onEdit?.(tenant)}>
+                <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-800/70 cursor-pointer transition-colors" onClick={() => onEdit?.(tenant)}>
                   <TableCell className="font-medium py-4 dark:text-[#f3f4f6]">{tenant.name}</TableCell>
                   <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.email}</TableCell>
                   <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.telefonnummer}</TableCell>
