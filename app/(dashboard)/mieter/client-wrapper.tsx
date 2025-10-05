@@ -4,10 +4,11 @@ import { useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { PlusCircle, Users, BadgeCheck, Euro } from "lucide-react";
+import { PlusCircle, Users, BadgeCheck, Euro, Search } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
-import { TenantFilters } from "@/components/tenant-filters";
 import { TenantTable } from "@/components/tenant-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 
 import type { Tenant } from "@/types/Tenant";
@@ -137,22 +138,51 @@ export default function MieterClientView({
       </div>
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl">
         <CardHeader>
-          <div className="flex flex-row items-center justify-between">
-            <CardTitle>Mieterverwaltung</CardTitle>
-            <AddTenantButton onAdd={handleAddTenant} />
+          <div className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Mieterverwaltung</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Mieter</p>
+            </div>
+            <div className="mt-1">
+              <AddTenantButton onAdd={handleAddTenant} />
+            </div>
           </div>
         </CardHeader>
         <div className="px-6">
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <TenantFilters 
-            activeFilter={filter}
-            onFilterChange={setFilter}
-            onSearchChange={setSearchQuery}
-          />
+          <div className="flex flex-col gap-4 mt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "current" as const, label: "Aktuelle Mieter" },
+                  { value: "previous" as const, label: "Vorherige Mieter" },
+                  { value: "all" as const, label: "Alle Mieter" },
+                ].map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={filter === value ? "default" : "ghost"}
+                    onClick={() => setFilter(value)}
+                    className="h-9 rounded-full"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Mieter suchen..."
+                  className="pl-10 rounded-full"
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
           <TenantTable
-            tenants={initialTenants} // Directly use initialTenants or manage a separate 'filteredTenants' state if needed
+            tenants={initialTenants}
             wohnungen={initialWohnungen}
             filter={filter}
             searchQuery={searchQuery}
