@@ -242,32 +242,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                           .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
                       : '-'}
                   </TableCell>
-                  <TableCell className="py-4" onClick={(event) => event.stopPropagation()}>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onEdit?.(tenant)
-                        }}
-                        aria-label={`Mieter ${tenant.name} bearbeiten`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          setTenantToDelete(tenant)
-                          setShowDeleteConfirm(true)
-                        }}
-                        aria-label={`Mieter ${tenant.name} löschen`}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
+                  <TableCell className="py-4 text-right" onClick={(event) => event.stopPropagation()}>
+                    <span className="inline-flex items-center justify-center h-8 w-8 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer">
+                      <span className="text-muted-foreground">•••</span>
+                    </span>
                   </TableCell>
                 </TableRow>
               </TenantContextMenu>
