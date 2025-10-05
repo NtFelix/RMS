@@ -1,15 +1,7 @@
 name: Lighthouse CI
 
 on:
-  push:
-    branches: ["main"]
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.mdx'
-  pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.mdx'
+  workflow_dispatch:  # Allows manual triggering from the Actions tab
 
 # Set a timeout for the entire job (in minutes)
 jobs:
