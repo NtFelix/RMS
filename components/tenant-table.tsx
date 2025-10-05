@@ -174,9 +174,9 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
               >
                 <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-800/70 cursor-pointer transition-colors" onClick={() => onEdit?.(tenant)}>
                   <TableCell className="font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3">
-                    <Avatar className="h-9 w-9 flex-shrink-0">
+                    <Avatar className="h-9 w-9 flex-shrink-0 bg-primary text-primary-foreground">
                       <AvatarImage src="" alt={tenant.name} />
-                      <AvatarFallback className="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                      <AvatarFallback className="bg-primary text-primary-foreground">
                         {getInitials(tenant.name)}
                       </AvatarFallback>
                     </Avatar>
