@@ -3,6 +3,7 @@ import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib
 import { WasserzaehlerModalData } from '@/types/optimized-betriebskosten';
 import { Tenant, KautionData } from '@/types/Tenant';
 import { Template } from '@/types/template';
+import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
 
 // Overview Modal Types
 interface HausWithWohnungen {
@@ -96,6 +97,7 @@ interface ConfirmationModalConfig {
   onCancel?: () => void;
   confirmText?: string;
   cancelText?: string;
+  variant?: ConfirmationDialogVariant;
 }
 
 // AI Assistant Modal Types
