@@ -122,10 +122,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   }
 
   const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string, icon: React.ElementType }) => (
-    <TableHead className={`${className} dark:text-[#f3f4f6]`}>
+    <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
       <div
         onClick={() => handleSort(sortKey)}
-        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors -ml-2 dark:text-[#f3f4f6]"
+        className="flex items-center gap-2 cursor-pointer p-2 -ml-2 dark:text-[#f3f4f6]"
       >
         <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
         {children}
@@ -138,7 +138,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     <div className="rounded-lg">
       <Table>
         <TableHeader>
-          <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6]">
+          <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
             <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={User}>Name</TableHeaderCell>
             <TableHeaderCell sortKey="email" className="dark:text-[#f3f4f6]" icon={Mail}>E-Mail</TableHeaderCell>
             <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone}>Telefon</TableHeaderCell>
