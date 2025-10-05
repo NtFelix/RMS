@@ -6,6 +6,7 @@ import Hero from '../modern/components/hero';
 import FeatureSections from '../modern/components/feature-sections';
 import FinanceShowcase from '../modern/components/finance-showcase';
 import MoreFeatures from '../modern/components/more-features';
+import Faq from '../modern/components/faq';
 import CTA from '../modern/components/cta';
 import Footer from '../modern/components/footer';
 import Navigation from '../modern/components/navigation';
@@ -335,7 +336,9 @@ function LandingPageContent() {
             isLoading={isProcessingCheckout}
           />
         </div>
-        
+        <div id="faq">
+          <Faq />
+        </div>
         <div id="cta">
           <CTA onGetStarted={handleGetStarted} />
         </div>
