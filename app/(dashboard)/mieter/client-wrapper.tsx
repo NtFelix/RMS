@@ -106,7 +106,13 @@ export default function MieterClientView({
   }, [initialTenants, initialWohnungen, openTenantModal]);
 
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-gray-900/50">
+      <div
+        className="absolute inset-0 z-[-1]"
+        style={{
+          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
+        }}
+      />
       <div className="flex flex-wrap gap-4">
         <StatCard
           title="Mieter gesamt"

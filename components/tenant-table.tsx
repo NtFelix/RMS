@@ -7,7 +7,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText } from "lucide-react"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
 
@@ -121,12 +121,13 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     )
   }
 
-  const TableHeaderCell = ({ sortKey, children, className }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string }) => (
+  const TableHeaderCell = ({ sortKey, children, className, icon: Icon }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string, icon: React.ElementType }) => (
     <TableHead className={className}>
       <div
         onClick={() => handleSort(sortKey)}
         className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2"
       >
+        <Icon className="h-4 w-4 text-muted-foreground" />
         {children}
         {renderSortIcon(sortKey)}
       </div>
@@ -138,11 +139,11 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
       <Table>
         <TableHeader>
           <TableRow className="bg-gray-50 dark:bg-gray-800/50">
-            <TableHeaderCell sortKey="name" className="w-[250px]">Name</TableHeaderCell>
-            <TableHeaderCell sortKey="email">E-Mail</TableHeaderCell>
-            <TableHeaderCell sortKey="telefonnummer">Telefon</TableHeaderCell>
-            <TableHeaderCell sortKey="wohnung">Wohnung</TableHeaderCell>
-            <TableHeaderCell sortKey="nebenkosten">Nebenkosten</TableHeaderCell>
+            <TableHeaderCell sortKey="name" className="w-[250px]" icon={User}>Name</TableHeaderCell>
+            <TableHeaderCell sortKey="email" icon={Mail}>E-Mail</TableHeaderCell>
+            <TableHeaderCell sortKey="telefonnummer" icon={Phone}>Telefon</TableHeaderCell>
+            <TableHeaderCell sortKey="wohnung" icon={Home}>Wohnung</TableHeaderCell>
+            <TableHeaderCell sortKey="nebenkosten" icon={FileText}>Nebenkosten</TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -160,7 +161,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                 onEdit={() => onEdit?.(tenant)}
                 onRefresh={() => router.refresh()}
               >
-                <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-800/50 cursor-pointer" onClick={() => onEdit?.(tenant)}>
+                <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-800/50 cursor-pointer transition-colors" onClick={() => onEdit?.(tenant)}>
                   <TableCell className="font-medium py-4">{tenant.name}</TableCell>
                   <TableCell className="py-4">{tenant.email}</TableCell>
                   <TableCell className="py-4">{tenant.telefonnummer}</TableCell>

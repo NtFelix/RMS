@@ -23,15 +23,15 @@ export function TenantFilters({ activeFilter, onFilterChange, onSearchChange }: 
   ], []);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 rounded-2xl bg-gray-100 dark:bg-gray-800/50 p-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           {filterOptions.map(({ value, label }) => (
             <Button
               key={value}
-              variant={activeFilter === value ? "default" : "outline"}
+              variant={activeFilter === value ? "default" : "ghost"}
               onClick={() => handleFilterClick(value)}
-              className="h-9"
+              className="h-9 rounded-full"
             >
               {label}
             </Button>
@@ -42,7 +42,7 @@ export function TenantFilters({ activeFilter, onFilterChange, onSearchChange }: 
           <Input
             type="search"
             placeholder="Mieter suchen..."
-            className="pl-10"
+            className="pl-10 rounded-full"
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
