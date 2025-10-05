@@ -134,10 +134,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   )
 
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-lg">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-gray-50 dark:bg-gray-800/50">
             <TableHeaderCell sortKey="name" className="w-[250px]">Name</TableHeaderCell>
             <TableHeaderCell sortKey="email">E-Mail</TableHeaderCell>
             <TableHeaderCell sortKey="telefonnummer">Telefon</TableHeaderCell>
@@ -160,12 +160,12 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                 onEdit={() => onEdit?.(tenant)}
                 onRefresh={() => router.refresh()}
               >
-                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(tenant)}>
-                  <TableCell className="font-medium">{tenant.name}</TableCell>
-                  <TableCell>{tenant.email}</TableCell>
-                  <TableCell>{tenant.telefonnummer}</TableCell>
-                  <TableCell>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
-                  <TableCell>
+                <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-800/50 cursor-pointer" onClick={() => onEdit?.(tenant)}>
+                  <TableCell className="font-medium py-4">{tenant.name}</TableCell>
+                  <TableCell className="py-4">{tenant.email}</TableCell>
+                  <TableCell className="py-4">{tenant.telefonnummer}</TableCell>
+                  <TableCell className="py-4">{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
+                  <TableCell className="py-4">
                     {tenant.nebenkosten && tenant.nebenkosten.length > 0
                       ? tenant.nebenkosten
                           .slice(0, 3)

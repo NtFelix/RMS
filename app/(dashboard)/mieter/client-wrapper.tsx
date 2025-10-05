@@ -112,11 +112,13 @@ export default function MieterClientView({
           title="Mieter gesamt"
           value={summary.total}
           icon={<Users className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800/50 shadow-sm rounded-3xl"
         />
         <StatCard
           title="Aktiv / Ehemalig"
           value={`${summary.activeCount} / ${summary.formerCount}`}
           icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800/50 shadow-sm rounded-3xl"
         />
         <StatCard
           title="Ø Nebenkosten"
@@ -124,9 +126,10 @@ export default function MieterClientView({
           unit="€"
           decimals
           icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800/50 shadow-sm rounded-3xl"
         />
       </div>
-      <Card className="overflow-hidden rounded-2xl shadow-md">
+      <Card className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800/50 shadow-sm rounded-3xl">
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Mieterverwaltung</CardTitle>
