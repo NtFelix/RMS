@@ -23,7 +23,7 @@ interface MieterClientViewProps {
 // Internal AddTenantButton (could be kept from previous step if preferred)
 function AddTenantButton({ onAdd }: { onAdd: () => void }) {
   return (
-    <ButtonWithTooltip onClick={onAdd} className="sm:w-auto">
+    <ButtonWithTooltip onClick={onAdd} className="w-full">
       <PlusCircle className="mr-2 h-4 w-4" />
       Mieter hinzufügen
     </ButtonWithTooltip>
@@ -106,48 +106,77 @@ export default function MieterClientView({
   }, [initialTenants, initialWohnungen, openTenantModal]);
 
   return (
-    <div className="flex flex-col gap-8 p-8">
-      <div className="flex flex-wrap gap-4">
-        <StatCard
-          title="Mieter gesamt"
-          value={summary.total}
-          icon={<Users className="h-4 w-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="Aktiv / Ehemalig"
-          value={`${summary.activeCount} / ${summary.formerCount}`}
-          icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="Ø Nebenkosten"
-          value={summary.avgUtilities}
-          unit="€"
-          decimals
-          icon={<Euro className="h-4 w-4 text-muted-foreground" />}
-        />
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 p-8 h-full">
+      {/* Main Content */}
+      <div className="lg:col-span-3">
+        <Card className="h-full shadow-lg rounded-2xl">
+          <CardHeader>
+            <CardTitle>Mieterübersicht</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TenantTable
+              tenants={initialTenants}
+              wohnungen={initialWohnungen}
+              filter={filter}
+              searchQuery={searchQuery}
+              onEdit={handleEditTenantInTable}
+            />
+          </CardContent>
+        </Card>
       </div>
-      <Card className="overflow-hidden rounded-2xl shadow-md">
-        <CardHeader>
-          <div className="flex flex-row items-center justify-between">
-            <CardTitle>Mieterverwaltung</CardTitle>
+
+      {/* Sidebar */}
+      <div className="lg:col-span-1 flex flex-col gap-8">
+        {/* Actions */}
+        <Card className="shadow-lg rounded-2xl">
+          <CardHeader>
+            <CardTitle>Aktionen</CardTitle>
+          </CardHeader>
+          <CardContent>
             <AddTenantButton onAdd={handleAddTenant} />
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <TenantFilters 
-            activeFilter={filter}
-            onFilterChange={setFilter}
-            onSearchChange={setSearchQuery}
-          />
-          <TenantTable
-            tenants={initialTenants} // Directly use initialTenants or manage a separate 'filteredTenants' state if needed
-            wohnungen={initialWohnungen}
-            filter={filter}
-            searchQuery={searchQuery}
-            onEdit={handleEditTenantInTable}
-          />
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Filters */}
+        <Card className="shadow-lg rounded-2xl">
+          <CardHeader>
+            <CardTitle>Filter</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TenantFilters
+              activeFilter={filter}
+              onFilterChange={setFilter}
+              onSearchChange={setSearchQuery}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Stats */}
+        <Card className="shadow-lg rounded-2xl">
+          <CardHeader>
+            <CardTitle>Statistiken</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <StatCard
+              title="Mieter gesamt"
+              value={summary.total}
+              icon={<Users className="h-4 w-4 text-muted-foreground" />}
+            />
+            <StatCard
+              title="Aktiv / Ehemalig"
+              value={`${summary.activeCount} / ${summary.formerCount}`}
+              icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
+            />
+            <StatCard
+              title="Ø Nebenkosten"
+              value={summary.avgUtilities}
+              unit="€"
+              decimals
+              icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

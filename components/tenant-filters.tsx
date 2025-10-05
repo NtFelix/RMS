@@ -24,25 +24,25 @@ export function TenantFilters({ activeFilter, onFilterChange, onSearchChange }: 
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
           {filterOptions.map(({ value, label }) => (
             <Button
               key={value}
               variant={activeFilter === value ? "default" : "outline"}
               onClick={() => handleFilterClick(value)}
-              className="h-9"
+              className="w-full justify-start"
             >
               {label}
             </Button>
           ))}
         </div>
-        <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Mieter suchen..."
-            className="pl-10"
+            className="pl-10 w-full"
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
