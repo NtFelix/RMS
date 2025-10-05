@@ -103,7 +103,7 @@ export default function Faq() {
           </motion.div>
           
           <motion.h2 
-            className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/80 bg-clip-text text-transparent leading-tight mb-4"
+            className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/80 bg-clip-text text-transparent leading-tight mb-1 pb-10"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
@@ -112,7 +112,7 @@ export default function Faq() {
           </motion.h2>
           
           <motion.p 
-            className="max-w-2xl mx-auto text-lg text-muted-foreground"
+            className="max-w-2xl mx-auto text-lg text-muted-foreground -mt-5"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
