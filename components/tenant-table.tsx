@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TenantContextMenu } from "@/components/tenant-context-menu"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
-import { toast } from "@/hooks/use-toast"
-import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
@@ -34,6 +35,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const [isDeleting, setIsDeleting] = useState(false)
   const [sortKey, setSortKey] = useState<TenantSortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set())
 
   // Function to get initials from name
   const getInitials = (name: string) => {
@@ -112,6 +114,37 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     return result
   }, [tenants, filter, searchQuery, sortKey, sortDirection, wohnungsMap])
 
+  const visibleTenantIds = useMemo(() => sortedAndFilteredData.map((tenant) => tenant.id), [sortedAndFilteredData])
+
+  const allSelected = visibleTenantIds.length > 0 && visibleTenantIds.every((id) => selectedTenants.has(id))
+  const partiallySelected = visibleTenantIds.some((id) => selectedTenants.has(id)) && !allSelected
+
+  const handleSelectAll = (checked: CheckedState) => {
+    const isChecked = checked === true
+    setSelectedTenants((prev) => {
+      const next = new Set(prev)
+      if (isChecked) {
+        visibleTenantIds.forEach((id) => next.add(id))
+      } else {
+        visibleTenantIds.forEach((id) => next.delete(id))
+      }
+      return next
+    })
+  }
+
+  const handleSelectTenant = (tenantId: string, checked: CheckedState) => {
+    const isChecked = checked === true
+    setSelectedTenants((prev) => {
+      const next = new Set(prev)
+      if (isChecked) {
+        next.add(tenantId)
+      } else {
+        next.delete(tenantId)
+      }
+      return next
+    })
+  }
+
   const handleSort = (key: TenantSortKey) => {
     if (sortKey === key) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc")
@@ -150,17 +183,26 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
       <Table>
         <TableHeader>
           <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+            <TableHead className="w-12">
+              <Checkbox
+                aria-label="Alle Mieter auswählen"
+                checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
+                onCheckedChange={handleSelectAll}
+                className="translate-y-[1px]"
+              />
+            </TableHead>
             <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={User}>Name</TableHeaderCell>
             <TableHeaderCell sortKey="email" className="dark:text-[#f3f4f6]" icon={Mail}>E-Mail</TableHeaderCell>
             <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone}>Telefon</TableHeaderCell>
             <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
             <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText}>Nebenkosten</TableHeaderCell>
+            <TableHead className="w-[140px] text-right pr-6">Aktionen</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortedAndFilteredData.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
+              <TableCell colSpan={7} className="h-24 text-center">
                 Keine Mieter gefunden.
               </TableCell>
             </TableRow>
@@ -173,6 +215,13 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                 onRefresh={() => router.refresh()}
               >
                 <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-800/70 cursor-pointer transition-colors" onClick={() => onEdit?.(tenant)}>
+                  <TableCell className="py-4" onClick={(event) => event.stopPropagation()}>
+                    <Checkbox
+                      aria-label={`Mieter ${tenant.name} auswählen`}
+                      checked={selectedTenants.has(tenant.id)}
+                      onCheckedChange={(checked) => handleSelectTenant(tenant.id, checked)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3">
                     <Avatar className="h-9 w-9 flex-shrink-0 bg-primary text-primary-foreground">
                       <AvatarImage src="" alt={tenant.name} />
@@ -192,6 +241,33 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                           .map((n: NebenkostenEntry) => `${n.amount} €`)
                           .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
                       : '-'}
+                  </TableCell>
+                  <TableCell className="py-4" onClick={(event) => event.stopPropagation()}>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onEdit?.(tenant)
+                        }}
+                        aria-label={`Mieter ${tenant.name} bearbeiten`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setTenantToDelete(tenant)
+                          setShowDeleteConfirm(true)
+                        }}
+                        aria-label={`Mieter ${tenant.name} löschen`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               </TenantContextMenu>
