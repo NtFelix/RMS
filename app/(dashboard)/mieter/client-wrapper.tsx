@@ -152,7 +152,7 @@ export default function MieterClientView({
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-6">
+          <div className="flex flex-col gap-4 mt-6 mb-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-2">
                 {[
