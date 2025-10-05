@@ -142,6 +142,9 @@ export default function MieterClientView({
             <AddTenantButton onAdd={handleAddTenant} />
           </div>
         </CardHeader>
+        <div className="px-6">
+          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+        </div>
         <CardContent className="flex flex-col gap-6">
           <TenantFilters 
             activeFilter={filter}
