@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
 
@@ -33,6 +34,16 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const [isDeleting, setIsDeleting] = useState(false)
   const [sortKey, setSortKey] = useState<TenantSortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+
+  // Function to get initials from name
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
 
   // Map wohnung_id to wohnung name
   const wohnungsMap = useMemo(() => {
@@ -162,7 +173,15 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                 onRefresh={() => router.refresh()}
               >
                 <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-800/70 cursor-pointer transition-colors" onClick={() => onEdit?.(tenant)}>
-                  <TableCell className="font-medium py-4 dark:text-[#f3f4f6]">{tenant.name}</TableCell>
+                  <TableCell className="font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3">
+                    <Avatar className="h-9 w-9 flex-shrink-0">
+                      <AvatarImage src="" alt={tenant.name} />
+                      <AvatarFallback className="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                        {getInitials(tenant.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{tenant.name}</span>
+                  </TableCell>
                   <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.email}</TableCell>
                   <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.telefonnummer}</TableCell>
                   <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
@@ -170,7 +189,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                     {tenant.nebenkosten && tenant.nebenkosten.length > 0
                       ? tenant.nebenkosten
                           .slice(0, 3)
-                          .map(n => `${n.amount} €`)
+                          .map((n: NebenkostenEntry) => `${n.amount} €`)
                           .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
                       : '-'}
                   </TableCell>
