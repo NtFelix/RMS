@@ -125,7 +125,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     <TableHead className={className}>
       <div
         onClick={() => handleSort(sortKey)}
-        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2"
+        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors -ml-2"
       >
         <Icon className="h-4 w-4 text-muted-foreground" />
         {children}

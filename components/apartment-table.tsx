@@ -139,7 +139,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
     <TableHead className={className}>
       <div
         onClick={() => handleSort(sortKey)}
-        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2"
+        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors -ml-2"
       >
         {children}
         {renderSortIcon(sortKey)}
