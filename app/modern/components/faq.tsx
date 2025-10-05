@@ -16,7 +16,7 @@ const FAQItem = ({ question, answer, index }: { question: string; answer: string
       className="mb-4"
     >
       <motion.div
-        className={`p-6 rounded-xl bg-card border border-border/50 shadow-sm cursor-pointer transition-all duration-300 hover:shadow-md ${isOpen ? 'bg-primary/5 border-primary/20' : 'hover:bg-accent/50'}`}
+        className={`p-6 rounded-2xl bg-card border border-border/50 shadow-sm cursor-pointer transition-all duration-300 hover:shadow-md ${isOpen ? 'bg-primary/5 border-primary/20' : 'hover:bg-accent/50'}`}
         onClick={() => setIsOpen(!isOpen)}
         whileHover={{ scale: 1.01 }}
         initial={false}
