@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "sonner"
+import { toast } from "@/hooks/use-toast"
 import { updateTenantApartment } from "@/app/mieter-actions"
 
 interface TenantBulkActionBarProps {
@@ -45,27 +45,60 @@ export function TenantBulkActionBar({
 
   const handleAssignApartment = async () => {
     if (selectedApartment === "none") {
-      toast.error("Bitte wählen Sie eine Wohnung aus")
+      toast({
+        title: "Fehlende Auswahl",
+        description: "Bitte wählen Sie eine Wohnung aus, um fortzufahren.",
+        variant: "destructive"
+      })
       return
     }
 
     setIsUpdating(true)
+    
     try {
       const selectedTenantIds = Array.from(selectedTenants)
-      const updatePromises = selectedTenantIds.map(tenantId => 
-        updateTenantApartment(tenantId, selectedApartment === "none" ? "" : selectedApartment)
+      const updateResults = await Promise.allSettled(
+        selectedTenantIds.map(tenantId => 
+          updateTenantApartment(tenantId, selectedApartment === "none" ? "" : selectedApartment)
+        )
       )
       
-      await Promise.all(updatePromises)
+      const successfulUpdates = updateResults.filter(
+        (result): result is PromiseFulfilledResult<{ success: boolean }> => 
+          result.status === 'fulfilled' && result.value.success
+      )
       
-      toast.success(`${selectedTenantIds.length} Mieter wurden erfolgreich aktualisiert`)
-      setIsAssignDialogOpen(false)
-      setSelectedApartment("")
-      onUpdate?.()
-      onClearSelection()
+      const failedUpdates = updateResults.length - successfulUpdates.length
+      
+      if (successfulUpdates.length > 0) {
+        toast({
+          title: "Erfolgreich aktualisiert",
+          description: `${successfulUpdates.length} von ${updateResults.length} Mietern wurden erfolgreich aktualisiert.`,
+          variant: "success"
+        })
+      }
+      
+      if (failedUpdates > 0) {
+        toast({
+          title: "Teilweise Fehler",
+          description: `Bei ${failedUpdates} von ${updateResults.length} Mietern ist ein Fehler aufgetreten.`,
+          variant: "destructive"
+        })
+      }
+      
+      if (successfulUpdates.length > 0) {
+        setIsAssignDialogOpen(false)
+        setSelectedApartment("none")
+        onUpdate?.()
+        onClearSelection()
+      }
     } catch (error) {
       console.error("Fehler beim Aktualisieren der Mieter:", error)
-      toast.error("Ein Fehler ist beim Aktualisieren der Mieter aufgetreten")
+      toast({
+        title: "Fehler",
+        description: "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
+        variant: "destructive"
+      })
     } finally {
       setIsUpdating(false)
     }
