@@ -8,8 +8,18 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2, Settings } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2, Settings, Euro, MoreVertical } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useModalStore } from "@/hooks/use-modal-store"
+import { deleteTenantAction } from "@/app/mieter-actions"
+import { toast } from "@/hooks/use-toast"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
 
@@ -36,6 +46,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const [sortKey, setSortKey] = useState<TenantSortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set())
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [tenantToDeleteFromMenu, setTenantToDeleteFromMenu] = useState<Tenant | null>(null)
+  const [isDeletingFromMenu, setIsDeletingFromMenu] = useState(false)
+  const { openKautionModal } = useModalStore()
 
   // Function to get initials from name
   const getInitials = (name: string) => {
@@ -165,6 +179,82 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     )
   }
 
+  const handleKaution = (tenant: Tenant) => {
+    try {
+      const cleanTenant = {
+        id: tenant.id,
+        name: tenant.name,
+        wohnung_id: tenant.wohnung_id
+      };
+      
+      let kautionData = undefined;
+      
+      if (tenant.kaution) {
+        const amount = typeof tenant.kaution.amount === 'string' 
+          ? parseFloat(tenant.kaution.amount)
+          : tenant.kaution.amount;
+          
+        if (isNaN(amount)) {
+          throw new Error('Ungültiger Kautionbetrag');
+        }
+        
+        kautionData = {
+          amount,
+          paymentDate: tenant.kaution.paymentDate || '',
+          status: tenant.kaution.status || 'Ausstehend',
+          createdAt: tenant.kaution.createdAt,
+          updatedAt: tenant.kaution.updatedAt
+        };
+      }
+      
+      openKautionModal(cleanTenant, kautionData);
+      
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Fehler beim Laden der Kautiondaten. Bitte versuchen Sie es erneut.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteFromMenu = async () => {
+    if (!tenantToDeleteFromMenu) return;
+    
+    try {
+      setIsDeletingFromMenu(true);
+      const result = await deleteTenantAction(tenantToDeleteFromMenu.id);
+
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: `Der Mieter "${tenantToDeleteFromMenu.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
+        });
+        setTimeout(() => {
+          router.refresh();
+        }, 100);
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Der Mieter konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Unerwarteter Fehler beim Löschen des Mieters:", error);
+      toast({
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingFromMenu(false);
+      setDeleteDialogOpen(false);
+      setTenantToDeleteFromMenu(null);
+    }
+  };
+
   const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon, sortable = true }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string, icon: React.ElementType, sortable?: boolean }) => (
     <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
       <div
@@ -254,9 +344,39 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                       : '-'}
                   </TableCell>
                   <TableCell className="py-4 text-right" onClick={(event) => event.stopPropagation()}>
-                    <span className="inline-flex items-center justify-center h-8 w-8 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer">
-                      <span className="text-muted-foreground">•••</span>
-                    </span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                        >
+                          <span className="sr-only">Menü öffnen</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => onEdit?.(tenant)} className="cursor-pointer">
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleKaution(tenant)} className="cursor-pointer">
+                          <Euro className="h-4 w-4 mr-2" />
+                          Kaution
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setTenantToDeleteFromMenu(tenant)
+                            setDeleteDialogOpen(true)
+                          }}
+                          className="cursor-pointer text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               </TenantContextMenu>
@@ -283,6 +403,23 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
               setIsDeleting(false)
               setShowDeleteConfirm(false)
             }} className="bg-red-600 hover:bg-red-700">{isDeleting ? "Lösche..." : "Löschen"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mieter löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie den Mieter "{tenantToDeleteFromMenu?.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingFromMenu}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteFromMenu} disabled={isDeletingFromMenu} className="bg-red-600 hover:bg-red-700">
+              {isDeletingFromMenu ? "Löschen..." : "Löschen"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
