@@ -34,18 +34,20 @@ interface TenantTableProps {
   searchQuery: string;
   onEdit?: (t: Tenant) => void;
   onDelete?: (id: string) => void;
+  selectedTenants?: Set<string>;
+  onSelectionChange?: (selected: Set<string>) => void;
 }
 
 
 
-export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete }: TenantTableProps) {
+export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange }: TenantTableProps) {
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [sortKey, setSortKey] = useState<TenantSortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
-  const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set())
+  const [internalSelectedTenants, setInternalSelectedTenants] = useState<Set<string>>(new Set())
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [tenantToDeleteFromMenu, setTenantToDeleteFromMenu] = useState<Tenant | null>(null)
   const [isDeletingFromMenu, setIsDeletingFromMenu] = useState(false)
@@ -53,6 +55,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const { openKautionModal } = useModalStore()
+
+  // Use external selection state if provided, otherwise use internal
+  const selectedTenants = externalSelectedTenants ?? internalSelectedTenants
+  const setSelectedTenants = onSelectionChange ?? setInternalSelectedTenants
 
   // Function to get initials from name
   const getInitials = (name: string) => {
@@ -338,9 +344,9 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   )
 
   return (
-    <div className="rounded-lg">
-      {/* Bulk Action Bar */}
-      {selectedTenants.size > 0 && (
+    <>
+      {/* Bulk Action Bar - only show if using internal state */}
+      {!externalSelectedTenants && selectedTenants.size > 0 && (
         <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -384,6 +390,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
           </div>
         </div>
       )}
+      <div className="rounded-lg">
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">

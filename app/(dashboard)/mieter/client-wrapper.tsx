@@ -7,8 +7,13 @@ import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle, Users, BadgeCheck, Euro, Search } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import { TenantTable } from "@/components/tenant-table";
+import { TenantBulkActionBar } from "@/components/tenant-bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { deleteTenantAction } from "@/app/mieter-actions";
+import { toast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 
 import type { Tenant } from "@/types/Tenant";
@@ -37,8 +42,12 @@ export default function MieterClientView({
   initialWohnungen,
   serverAction,
 }: MieterClientViewProps) {
+  const router = useRouter()
   const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const { openTenantModal } = useModalStore();
 
   // Summary calculation for StatCards
@@ -106,6 +115,79 @@ export default function MieterClientView({
     }
   }, [initialTenants, initialWohnungen, openTenantModal]);
 
+  // Wohnungen map for bulk actions
+  const wohnungsMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    initialWohnungen?.forEach(w => { map[w.id] = w.name })
+    return map
+  }, [initialWohnungen])
+
+  const handleBulkExport = useCallback(() => {
+    const selectedTenantsData = initialTenants.filter(t => selectedTenants.has(t.id))
+    const csvContent = [
+      ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug'].join(','),
+      ...selectedTenantsData.map(t => [
+        t.name,
+        t.email || '',
+        t.telefonnummer || '',
+        t.wohnung_id ? wohnungsMap[t.wohnung_id] || '' : '',
+        t.einzug || '',
+        t.auszug || ''
+      ].join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `mieter_export_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+
+    toast({
+      title: "Export erfolgreich",
+      description: `${selectedTenants.size} Mieter exportiert.`,
+      variant: "success",
+    })
+  }, [selectedTenants, initialTenants, wohnungsMap])
+
+  const handleBulkDelete = useCallback(async () => {
+    setIsBulkDeleting(true)
+    const selectedIds = Array.from(selectedTenants)
+    let successCount = 0
+    let errorCount = 0
+
+    for (const tenantId of selectedIds) {
+      try {
+        const result = await deleteTenantAction(tenantId)
+        if (result.success) {
+          successCount++
+        } else {
+          errorCount++
+        }
+      } catch (error) {
+        errorCount++
+      }
+    }
+
+    setIsBulkDeleting(false)
+    setShowBulkDeleteConfirm(false)
+    setSelectedTenants(new Set())
+
+    if (successCount > 0) {
+      toast({
+        title: "Erfolg",
+        description: `${successCount} Mieter erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.`,
+        variant: "success",
+      })
+      router.refresh()
+    } else {
+      toast({
+        title: "Fehler",
+        description: "Keine Mieter konnten gelöscht werden.",
+        variant: "destructive",
+      })
+    }
+  }, [selectedTenants, router]);
+
   return (
     <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
       <div
@@ -152,7 +234,7 @@ export default function MieterClientView({
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-6 mb-6">
+          <div className="flex flex-col gap-4 mt-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-2">
                 {[
@@ -180,6 +262,14 @@ export default function MieterClientView({
                 />
               </div>
             </div>
+            <TenantBulkActionBar
+              selectedTenants={selectedTenants}
+              tenants={initialTenants}
+              wohnungsMap={wohnungsMap}
+              onClearSelection={() => setSelectedTenants(new Set())}
+              onExport={handleBulkExport}
+              onDelete={() => setShowBulkDeleteConfirm(true)}
+            />
           </div>
           <TenantTable
             tenants={initialTenants}
@@ -187,8 +277,29 @@ export default function MieterClientView({
             filter={filter}
             searchQuery={searchQuery}
             onEdit={handleEditTenantInTable}
+            selectedTenants={selectedTenants}
+            onSelectionChange={setSelectedTenants}
           />
         </CardContent>
+      </Card>
+
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mehrere Mieter löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie wirklich {selectedTenants.size} Mieter löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+              {isBulkDeleting ? "Lösche..." : `${selectedTenants.size} Mieter löschen`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
       </Card>
     </div>
   );
