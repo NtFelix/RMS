@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2, Settings, Euro, MoreVertical } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2, Settings, Euro, MoreVertical, X, Download, Send, Archive } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -50,6 +50,8 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const [tenantToDeleteFromMenu, setTenantToDeleteFromMenu] = useState<Tenant | null>(null)
   const [isDeletingFromMenu, setIsDeletingFromMenu] = useState(false)
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const { openKautionModal } = useModalStore()
 
   // Function to get initials from name
@@ -256,6 +258,72 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     }
   };
 
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true)
+    const selectedIds = Array.from(selectedTenants)
+    let successCount = 0
+    let errorCount = 0
+
+    for (const tenantId of selectedIds) {
+      try {
+        const result = await deleteTenantAction(tenantId)
+        if (result.success) {
+          successCount++
+        } else {
+          errorCount++
+        }
+      } catch (error) {
+        errorCount++
+      }
+    }
+
+    setIsBulkDeleting(false)
+    setShowBulkDeleteConfirm(false)
+    setSelectedTenants(new Set())
+
+    if (successCount > 0) {
+      toast({
+        title: "Erfolg",
+        description: `${successCount} Mieter erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.`,
+        variant: "success",
+      })
+      router.refresh()
+    } else {
+      toast({
+        title: "Fehler",
+        description: "Keine Mieter konnten gelöscht werden.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleBulkExport = () => {
+    const selectedTenantsData = tenants.filter(t => selectedTenants.has(t.id))
+    const csvContent = [
+      ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug'].join(','),
+      ...selectedTenantsData.map(t => [
+        t.name,
+        t.email || '',
+        t.telefonnummer || '',
+        t.wohnung_id ? wohnungsMap[t.wohnung_id] || '' : '',
+        t.einzug || '',
+        t.auszug || ''
+      ].join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `mieter_export_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+
+    toast({
+      title: "Export erfolgreich",
+      description: `${selectedTenants.size} Mieter exportiert.`,
+      variant: "success",
+    })
+  }
+
   const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon, sortable = true }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string, icon: React.ElementType, sortable?: boolean }) => (
     <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
       <div
@@ -271,6 +339,51 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
 
   return (
     <div className="rounded-lg">
+      {/* Bulk Action Bar */}
+      {selectedTenants.size > 0 && (
+        <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={true}
+                onCheckedChange={() => setSelectedTenants(new Set())}
+                className="data-[state=checked]:bg-primary"
+              />
+              <span className="font-medium text-sm">
+                {selectedTenants.size} {selectedTenants.size === 1 ? 'Mieter' : 'Mieter'} ausgewählt
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedTenants(new Set())}
+              className="h-8 px-2 hover:bg-primary/20"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkExport}
+              className="h-8 gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Exportieren
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowBulkDeleteConfirm(true)}
+              className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+            >
+              <Trash2 className="h-4 w-4" />
+              Löschen
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
@@ -452,6 +565,23 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
             <AlertDialogCancel disabled={isDeletingFromMenu}>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteFromMenu} disabled={isDeletingFromMenu} className="bg-red-600 hover:bg-red-700">
               {isDeletingFromMenu ? "Löschen..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mehrere Mieter löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie wirklich {selectedTenants.size} Mieter löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+              {isBulkDeleting ? "Lösche..." : `${selectedTenants.size} Mieter löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
