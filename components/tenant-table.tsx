@@ -182,14 +182,16 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     <div className="rounded-lg">
       <Table>
         <TableHeader>
-          <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+          <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
             <TableHead className="w-12">
-              <Checkbox
-                aria-label="Alle Mieter auswählen"
-                checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
-                onCheckedChange={handleSelectAll}
-                className="translate-y-[1px]"
-              />
+              <div className="flex items-center justify-center w-6 h-6 rounded-md transition-transform duration-100">
+                <Checkbox
+                  aria-label="Alle Mieter auswählen"
+                  checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
+                  onCheckedChange={handleSelectAll}
+                  className="transition-transform duration-100 scale-90 hover:scale-100"
+                />
+              </div>
             </TableHead>
             <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={User}>Name</TableHeaderCell>
             <TableHeaderCell sortKey="email" className="dark:text-[#f3f4f6]" icon={Mail}>E-Mail</TableHeaderCell>
