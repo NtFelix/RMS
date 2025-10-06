@@ -49,6 +49,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [tenantToDeleteFromMenu, setTenantToDeleteFromMenu] = useState<Tenant | null>(null)
   const [isDeletingFromMenu, setIsDeletingFromMenu] = useState(false)
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
   const { openKautionModal } = useModalStore()
 
   // Function to get initials from name
@@ -344,7 +345,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                       : '-'}
                   </TableCell>
                   <TableCell className="py-4 text-right" onClick={(event) => event.stopPropagation()}>
-                    <DropdownMenu>
+                    <DropdownMenu 
+                      open={openDropdownId === tenant.id}
+                      onOpenChange={(open) => setOpenDropdownId(open ? tenant.id : null)}
+                    >
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
@@ -357,9 +361,15 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem 
-                          onClick={(e) => {
+                          onSelect={(e) => {
                             e.preventDefault()
-                            setTimeout(() => onEdit?.(tenant), 0)
+                            setOpenDropdownId(null)
+                            // Use requestAnimationFrame to ensure dropdown is fully closed
+                            requestAnimationFrame(() => {
+                              requestAnimationFrame(() => {
+                                onEdit?.(tenant)
+                              })
+                            })
                           }} 
                           className="cursor-pointer"
                         >
@@ -367,9 +377,14 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                           Bearbeiten
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={(e) => {
+                          onSelect={(e) => {
                             e.preventDefault()
-                            setTimeout(() => handleKaution(tenant), 0)
+                            setOpenDropdownId(null)
+                            requestAnimationFrame(() => {
+                              requestAnimationFrame(() => {
+                                handleKaution(tenant)
+                              })
+                            })
                           }} 
                           className="cursor-pointer"
                         >
@@ -378,12 +393,15 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
-                          onClick={(e) => {
+                          onSelect={(e) => {
                             e.preventDefault()
-                            setTimeout(() => {
-                              setTenantToDeleteFromMenu(tenant)
-                              setDeleteDialogOpen(true)
-                            }, 0)
+                            setOpenDropdownId(null)
+                            requestAnimationFrame(() => {
+                              requestAnimationFrame(() => {
+                                setTenantToDeleteFromMenu(tenant)
+                                setDeleteDialogOpen(true)
+                              })
+                            })
                           }}
                           className="cursor-pointer text-red-600 focus:text-red-600"
                         >
