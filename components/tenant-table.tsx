@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
 
 // Define sortable fields for tenant table
-type TenantSortKey = "name" | "email" | "telefonnummer" | "wohnung" | "nebenkosten"
+type TenantSortKey = "name" | "email" | "telefonnummer" | "wohnung" | "nebenkosten" | ""
 type SortDirection = "asc" | "desc"
 
 interface TenantTableProps {
@@ -165,15 +165,15 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     )
   }
 
-  const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string, icon: React.ElementType }) => (
+  const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon, sortable = true }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string, icon: React.ElementType, sortable?: boolean }) => (
     <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
       <div
-        onClick={() => handleSort(sortKey)}
-        className="flex items-center gap-2 cursor-pointer p-2 -ml-2 dark:text-[#f3f4f6]"
+        onClick={() => sortable && handleSort(sortKey)}
+        className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
       >
         <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
         {children}
-        {renderSortIcon(sortKey)}
+        {sortable && renderSortIcon(sortKey)}
       </div>
     </TableHead>
   )
@@ -200,7 +200,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
             <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone}>Telefon</TableHeaderCell>
             <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
             <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText}>Nebenkosten</TableHeaderCell>
-            <TableHeaderCell sortKey="" className="w-[140px] dark:text-[#f3f4f6]" icon={Pencil}>Aktionen</TableHeaderCell>
+            <TableHeaderCell sortKey="" className="w-[140px] dark:text-[#f3f4f6]" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
