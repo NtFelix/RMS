@@ -214,7 +214,14 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                 onEdit={() => onEdit?.(tenant)}
                 onRefresh={() => router.refresh()}
               >
-                <TableRow className="hover:bg-gray-100 dark:hover:bg-gray-800/70 cursor-pointer transition-colors" onClick={() => onEdit?.(tenant)}>
+                <TableRow 
+                  className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
+                    selectedTenants.has(tenant.id) 
+                      ? 'bg-primary/10 dark:bg-primary/20' 
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                  onClick={() => onEdit?.(tenant)}
+                >
                   <TableCell className="py-4" onClick={(event) => event.stopPropagation()}>
                     <Checkbox
                       aria-label={`Mieter ${tenant.name} auswählen`}
