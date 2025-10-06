@@ -144,28 +144,24 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
 
   const handleSelectAll = (checked: CheckedState) => {
     const isChecked = checked === true
-    setSelectedTenants((prev) => {
-      const next = new Set(prev)
-      if (isChecked) {
-        visibleTenantIds.forEach((id) => next.add(id))
-      } else {
-        visibleTenantIds.forEach((id) => next.delete(id))
-      }
-      return next
-    })
+    const next = new Set(selectedTenants)
+    if (isChecked) {
+      visibleTenantIds.forEach((id) => next.add(id))
+    } else {
+      visibleTenantIds.forEach((id) => next.delete(id))
+    }
+    setSelectedTenants(next)
   }
 
   const handleSelectTenant = (tenantId: string, checked: CheckedState) => {
     const isChecked = checked === true
-    setSelectedTenants((prev) => {
-      const next = new Set(prev)
-      if (isChecked) {
-        next.add(tenantId)
-      } else {
-        next.delete(tenantId)
-      }
-      return next
-    })
+    const next = new Set(selectedTenants)
+    if (isChecked) {
+      next.add(tenantId)
+    } else {
+      next.delete(tenantId)
+    }
+    setSelectedTenants(next)
   }
 
   const handleSort = (key: TenantSortKey) => {
@@ -344,7 +340,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   )
 
   return (
-    <>
+    <div className="rounded-lg">
       {/* Bulk Action Bar - only show if using internal state */}
       {!externalSelectedTenants && selectedTenants.size > 0 && (
         <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
@@ -390,7 +386,6 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
           </div>
         </div>
       )}
-      <div className="rounded-lg">
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">

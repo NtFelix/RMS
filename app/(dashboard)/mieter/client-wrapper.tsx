@@ -300,7 +300,5 @@ export default function MieterClientView({
         </AlertDialogContent>
       </AlertDialog>
     </div>
-      </Card>
-    </div>
   );
 }
