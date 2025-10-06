@@ -10,8 +10,20 @@ import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-// Consolidated lucide-react import to include all used icons
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor, FlaskConical, CheckCircle2, AlertCircle, AlertTriangle, CheckCircle } from "lucide-react";
+// Only import icons that are actually used in this component
+import { 
+  User as UserIcon, 
+  Mail, 
+  Lock, 
+  CreditCard, 
+  Trash2, 
+  DownloadCloud, 
+  Info, 
+  Monitor, 
+  FlaskConical, 
+  CheckCircle2, 
+  AlertCircle 
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
