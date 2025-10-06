@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2 } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2, Settings } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
@@ -198,7 +198,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
             <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone}>Telefon</TableHeaderCell>
             <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
             <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText}>Nebenkosten</TableHeaderCell>
-            <TableHead className="w-[140px] text-right pr-6">Aktionen</TableHead>
+            <TableHeaderCell sortKey="" className="w-[140px] dark:text-[#f3f4f6]" icon={Pencil}>Aktionen</TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
