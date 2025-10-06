@@ -247,6 +247,33 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
   }
 }
 
+export async function updateTenantApartment(tenantId: string, apartmentId: string): Promise<{ success: boolean; error?: { message: string } }> {
+  const supabase = await createClient();
+
+  try {
+    const { error } = await supabase
+      .from('Mieter')
+      .update({ wohnung_id: apartmentId || null })
+      .eq('id', tenantId);
+
+    if (error) {
+      console.error('Error updating tenant apartment:', error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/mieter');
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error updating tenant apartment:', error);
+    return { 
+      success: false, 
+      error: { 
+        message: error instanceof Error ? error.message : 'An unknown error occurred' 
+      } 
+    };
+  }
+}
+
 export async function getSuggestedKautionAmount(tenantId: string): Promise<{ success: boolean; suggestedAmount?: number; error?: { message: string } }> {
   const supabase = await createClient();
 
