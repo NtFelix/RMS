@@ -356,19 +356,34 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => onEdit?.(tenant)} className="cursor-pointer">
+                        <DropdownMenuItem 
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setTimeout(() => onEdit?.(tenant), 0)
+                          }} 
+                          className="cursor-pointer"
+                        >
                           <Pencil className="h-4 w-4 mr-2" />
                           Bearbeiten
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleKaution(tenant)} className="cursor-pointer">
+                        <DropdownMenuItem 
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setTimeout(() => handleKaution(tenant), 0)
+                          }} 
+                          className="cursor-pointer"
+                        >
                           <Euro className="h-4 w-4 mr-2" />
                           Kaution
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
-                          onClick={() => {
-                            setTenantToDeleteFromMenu(tenant)
-                            setDeleteDialogOpen(true)
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setTimeout(() => {
+                              setTenantToDeleteFromMenu(tenant)
+                              setDeleteDialogOpen(true)
+                            }, 0)
                           }}
                           className="cursor-pointer text-red-600 focus:text-red-600"
                         >
