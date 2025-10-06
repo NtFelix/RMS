@@ -406,7 +406,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
             <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone}>Telefon</TableHeaderCell>
             <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
             <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText}>Nebenkosten</TableHeaderCell>
-            <TableHeaderCell sortKey="" className="w-[140px] dark:text-[#f3f4f6]" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
+            <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -459,7 +459,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                           .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
                       : '-'}
                   </TableCell>
-                  <TableCell className="py-4 text-right" onClick={(event) => event.stopPropagation()}>
+                  <TableCell className="py-2 pr-2 text-right w-[80px]" onClick={(event) => event.stopPropagation()}>
                     <DropdownMenu 
                       open={openDropdownId === tenant.id}
                       onOpenChange={(open) => setOpenDropdownId(open ? tenant.id : null)}
@@ -467,11 +467,11 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          size="icon"
+                          className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
                         >
                           <span className="sr-only">Menü öffnen</span>
-                          <MoreVertical className="h-4 w-4" />
+                          <MoreVertical className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
