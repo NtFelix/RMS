@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/components/auth-provider';
 import { useTemplates } from '@/hooks/use-templates';
 import { Template } from '@/types/template';
 import { 
@@ -36,6 +37,7 @@ interface TemplateCardProps {
 }
 
 function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) {
+  const { user } = useAuth();
   // Extract text with mention/variable highlighting from TipTap JSON content
   const getPreviewWithHighlights = (content: any): { text: string; hasVariables: boolean } => {
     if (!content || !content.content) return { text: '', hasVariables: false };
@@ -92,7 +94,7 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
           case 'datum.heute':
             return new Date().toLocaleDateString('de-DE');
           case 'vermieter.name':
-            return '[Vermieter Name]';
+            return (user?.user_metadata?.first_name && user?.user_metadata?.last_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` : user?.email) || '[Vermieter Name]';
           default:
             return `[${label}]`;
         }
