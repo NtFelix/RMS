@@ -965,11 +965,15 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      {passwordError ? (
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      ) : (
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      )}
+                      <div className="relative h-4 w-4 flex items-center justify-center">
+                        {passwordError ? (
+                          <AlertCircle className="h-4 w-4 text-destructive absolute transition-opacity duration-200" />
+                        ) : password && confirmPassword && password === confirmPassword ? (
+                          <CheckCircle className="h-4 w-4 text-green-500 absolute transition-all duration-200" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-muted-foreground/50 absolute transition-all duration-200" />
+                        )}
+                      </div>
                       <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                         Passwort bestätigen
                       </label>
