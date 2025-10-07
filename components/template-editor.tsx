@@ -172,6 +172,29 @@ export function TemplateEditor({
                       component?.destroy();
                     },
                   });
+
+                  // Add global keyboard event listener while popup is open
+                  const handleGlobalKeyDown = (event: KeyboardEvent) => {
+                    if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(event.key)) {
+                      const handled = component?.ref?.onKeyDown({ event });
+                      if (handled) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }
+                    }
+                  };
+
+                  // Add global event listener with capture
+                  document.addEventListener('keydown', handleGlobalKeyDown, true);
+                  
+                  // Store the cleanup function
+                  if (popup) {
+                    const originalDestroy = popup.destroy;
+                    popup.destroy = () => {
+                      document.removeEventListener('keydown', handleGlobalKeyDown, true);
+                      originalDestroy();
+                    };
+                  }
                 } catch (error) {
                   const suggestionError = handleSuggestionInitializationError(
                     error instanceof Error ? error : new Error('Suggestion initialization failed'),
@@ -208,24 +231,14 @@ export function TemplateEditor({
                 }
               },
               onKeyDown: (props) => {
-                try {
-                  if (props.event.key === 'Escape') {
-                    popup?.hide();
-                    return true;
-                  }
-
-                  return component?.ref?.onKeyDown(props) || false;
-                } catch (error) {
-                  console.warn('Suggestion keyboard handling failed:', error);
-                  
-                  // Fallback keyboard handling
-                  if (props.event.key === 'Escape') {
-                    popup?.hide();
-                    return true;
-                  }
-                  
-                  return false;
+                // This is now handled by the direct popup event listener
+                // Keep this as fallback for any edge cases
+                if (props.event.key === 'Escape') {
+                  popup?.hide();
+                  return true;
                 }
+
+                return false;
               },
               onExit: () => {
                 try {

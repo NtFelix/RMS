@@ -1,22 +1,21 @@
 name: Lighthouse CI
 
 on:
-  push:
-    branches: ["main"]
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.mdx'
-  pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.mdx'
+  workflow_dispatch:  # Allows manual triggering from the Actions tab
 
 # Set a timeout for the entire job (in minutes)
 jobs:
   lighthouse:
     name: Lighthouse Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    
+    # GitHub Token Permissions for PR comments
+    permissions:
+      contents: read           # Read repository content
+      pull-requests: write     # Create PR comments
+      issues: write            # PRs are technically issues
+      checks: write           # Set check status
 
     steps:
       - name: Checkout Repository
@@ -64,45 +63,92 @@ jobs:
       # Run Lighthouse audits
       - name: Run Lighthouse audits
         id: lighthouse
-        timeout-minutes: 8
+        timeout-minutes: 12
         run: |
           # Create output directories
           mkdir -p .lighthouseci/mobile .lighthouseci/desktop
           
+          # Function to kill all processes on a specific port
+          kill_port_processes() {
+            local port=$1
+            echo "Cleaning up processes on port $port..."
+            
+            # Find and kill processes using the port
+            lsof -ti:$port | xargs -r kill -9 2>/dev/null || true
+            
+            # Wait a moment for processes to terminate
+            sleep 2
+            
+            # Double-check that port is free
+            if lsof -i:$port >/dev/null 2>&1; then
+              echo "Warning: Port $port still in use after cleanup"
+              lsof -i:$port
+            else
+              echo "Port $port successfully freed"
+            fi
+          }
+          
           # Function to run Lighthouse and handle errors
           run_lighthouse() {
             local form_factor=$1
+            local port=$2
             local output_dir=".lighthouseci/$form_factor"
             local max_attempts=3
             local attempt=1
             local success=false
             
+            echo "Starting Lighthouse $form_factor audit on port $port..."
+            
             while [ $attempt -le $max_attempts ] && [ "$success" = false ]; do
               echo "Running Lighthouse $form_factor audit (attempt $attempt/$max_attempts)..."
               
-              # Start Next.js server in background
-              npm run start & 
+              # Clean up any existing processes on the port first
+              kill_port_processes $port
+              
+              # Start Next.js server in background with custom port
+              echo "Starting Next.js server on port $port..."
+              PORT=$port npm run start &
               APP_PID=$!
               
-              # Function to cleanup
+              # Function to cleanup this specific run
               cleanup() {
-                if kill -0 $APP_PID 2>/dev/null; then
-                  echo "Stopping Next.js server..."
-                  kill $APP_PID 2>/dev/null || true
+                echo "Cleaning up Lighthouse $form_factor test (PID: $APP_PID)..."
+                
+                # Kill the specific process
+                if [ -n "$APP_PID" ] && kill -0 $APP_PID 2>/dev/null; then
+                  echo "Stopping Next.js server (PID: $APP_PID)..."
+                  kill -TERM $APP_PID 2>/dev/null || true
+                  
+                  # Wait for graceful shutdown
+                  sleep 3
+                  
+                  # Force kill if still running
+                  if kill -0 $APP_PID 2>/dev/null; then
+                    echo "Force killing server (PID: $APP_PID)..."
+                    kill -KILL $APP_PID 2>/dev/null || true
+                  fi
+                  
                   wait $APP_PID 2>/dev/null || true
                 fi
+                
+                # Clean up any remaining processes on the port
+                kill_port_processes $port
               }
               
               # Ensure cleanup happens on script exit or error
               trap cleanup EXIT
               
-              # Wait for server to be ready
-              if npx wait-on --timeout 60000 http://localhost:3000; then
-                # Run Lighthouse
+              # Wait for server to be ready with custom port
+              echo "Waiting for server to be ready on http://localhost:$port..."
+              if npx wait-on --timeout 90000 http://localhost:$port; then
+                echo "Server is ready, starting Lighthouse audit..."
+                
+                # Run Lighthouse with custom port
                 if npx lhci collect \
-                  --url=http://localhost:3000 \
+                  --url=http://localhost:$port \
                   --settings.emulatedFormFactor=$form_factor \
                   --settings.maxWaitForLoad=90000 \
+                  --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage" \
                   --no-upload; then
                   
                   # Move reports to appropriate directory
@@ -117,11 +163,13 @@ jobs:
                   echo "Lighthouse $form_factor audit failed (attempt $attempt/$max_attempts)"
                 fi
               else
-                echo "Error: Application failed to start within timeout"
+                echo "Error: Application failed to start within timeout on port $port"
               fi
               
               # Cleanup and increment attempt counter
               cleanup
+              trap - EXIT  # Remove the trap
+              
               attempt=$((attempt + 1))
               
               # Small delay between retries
@@ -137,15 +185,17 @@ jobs:
             fi
           }
           
-          # Run audits for both mobile and desktop
-          run_lighthouse mobile
-          run_lighthouse desktop
+          # Run audits for mobile and desktop on different ports to avoid conflicts
+          run_lighthouse mobile 3001
+          run_lighthouse desktop 3002
           
           # Verify reports were generated
           if [ -z "$(find .lighthouseci -name '*.json' -print -quit)" ]; then
             echo "Error: No Lighthouse reports were generated"
             exit 1
           fi
+          
+          echo "All Lighthouse audits completed successfully!"
 
       # Upload results as artifacts
       - name: Upload Lighthouse reports
@@ -159,18 +209,15 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      # Optional: Add a comment to the PR with the results
+      # Add a comment to the PR with the results (for PRs)
       - name: Add PR comment with results
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs').promises;
-            const { context } = require('@actions/github');
-            const core = require('@actions/core');
             
-            try {
-              // Read and process Lighthouse reports
+            try { // Read and process Lighthouse reports
               const processReport = async (reportPath) => {
                 try {
                   const files = await fs.readdir(reportPath);
@@ -205,9 +252,9 @@ jobs:
               };
               
               // Build the comment using string concatenation to avoid YAML parsing issues
-              const comment = '## ⚡ Lighthouse Audit Results\n\n### Mobile\n' + 
+              const comment = '## ⚡ Lighthouse Audit Results\n\n### 📱 Mobile\n' + 
                 formatScores(mobileScores) + 
-                '\n\n### Desktop\n' + 
+                '\n\n### 🖥️ Desktop\n' + 
                 formatScores(desktopScores) + 
                 '\n\n[View full report](' + 
                 process.env.GITHUB_SERVER_URL + '/' + 
@@ -215,7 +262,6 @@ jobs:
                 '/actions/runs/' + 
                 process.env.GITHUB_RUN_ID + 
                 ')';
-
               
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
@@ -223,6 +269,104 @@ jobs:
                 repo: context.repo.repo,
                 body: comment
               });
+              
+              console.log('Successfully posted Lighthouse results to PR');
             } catch (error) {
               core.warning(`Failed to create PR comment: ${error.message}`);
+            }
+
+      # Add results to Actions Summary (runs for all events)
+      - name: Display Lighthouse Results Summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs').promises;
+            
+            try {
+              const processReport = async (reportPath) => {
+                try {
+                  const files = await fs.readdir(reportPath);
+                  const jsonFiles = files.filter(file => file.endsWith('.json'));
+                  
+                  if (jsonFiles.length === 0) return null;
+                  
+                  const report = JSON.parse(await fs.readFile(`${reportPath}/${jsonFiles[0]}`, 'utf8'));
+                  const { categories } = report;
+                  
+                  return Object.entries(categories).map(([key, value]) => ({
+                    name: value.title,
+                    score: Math.round(value.score * 100)
+                  }));
+                } catch (error) {
+                  core.warning(`Failed to process report at ${reportPath}: ${error.message}`);
+                  return null;
+                }
+              };
+              
+              const mobileScores = await processReport('.lighthouseci/mobile');
+              const desktopScores = await processReport('.lighthouseci/desktop');
+              
+              if (!mobileScores && !desktopScores) {
+                core.warning('No valid Lighthouse reports found');
+                return;
+              }
+              
+              const formatScores = (scores) => {
+                if (!scores) return '❌ No data';
+                return scores.map(s => `**${s.name}:** ${s.score}%`).join(' • ');
+              };
+              
+              const getScoreEmoji = (score) => {
+                if (score >= 90) return '🟢';
+                if (score >= 75) return '🟡';
+                return '🔴';
+              };
+              
+              const formatScoresWithEmojis = (scores) => {
+                if (!scores) return '❌ No data';
+                return scores.map(s => `${getScoreEmoji(s.score)} **${s.name}:** ${s.score}%`).join('  \n');
+              };
+              
+              // Build Actions Summary
+              let summaryContent = '# ⚡ Lighthouse Audit Results\n\n';
+              
+              if (github.event_name === 'workflow_dispatch') {
+                summaryContent += '> 🎯 **Manual Run** • ';
+              } else {
+                summaryContent += '> 🔄 **Automatic Run** • ';
+              }
+              
+              summaryContent += `Branch: \` ${process.env.GITHUB_REF_NAME || 'unknown'}\`\n\n`;
+              
+              // Mobile Results
+              summaryContent += '## 📱 Mobile Results\n\n';
+              if (mobileScores) {
+                summaryContent += formatScoresWithEmojis(mobileScores) + '\n\n';
+              } else {
+                summaryContent += '❌ No mobile data available\n\n';
+              }
+              
+              // Desktop Results  
+              summaryContent += '## 🖥️ Desktop Results\n\n';
+              if (desktopScores) {
+                summaryContent += formatScoresWithEmojis(desktopScores) + '\n\n';
+              } else {
+                summaryContent += '❌ No desktop data available\n\n';
+              }
+              
+              // Artifacts Link
+              summaryContent += '## 📊 Detailed Reports\n\n';
+              summaryContent += `📁 **[Download Lighthouse Reports](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})**\n\n`;
+              
+              // Add timestamp
+              summaryContent += `---\n*Generated on ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} CET*`;
+              
+              await core.summary
+                .addRaw(summaryContent)
+                .write();
+                
+              console.log('Lighthouse results added to Actions Summary');
+            } catch (error) {
+              core.warning(`Failed to create summary: ${error.message}`);
             }

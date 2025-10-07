@@ -176,6 +176,10 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
       animation: 'shift-away-subtle',
       duration: [150, 100],
       zIndex: parseInt(getComputedStyle(document.documentElement).getPropertyValue('--z-index-tooltip').trim()) || 1070,
+      // Allow mouse wheel events to pass through to scrollable content
+      allowHTML: true,
+      interactiveBorder: 0,
+      interactiveDebounce: 0,
       ...( isMobile && initialRect 
         ? getMobileConfig() 
         : getDesktopConfig(initialRect || new DOMRect())
@@ -326,14 +330,23 @@ export const mentionSuggestionTheme = `
     border: none;
     box-shadow: none;
     padding: 0;
+    pointer-events: auto !important;
+    overflow: visible !important;
   }
   
   .tippy-box[data-theme~='mention-suggestion'] .tippy-content {
     padding: 0;
+    pointer-events: auto !important;
+    overflow: visible !important;
   }
   
   .tippy-box[data-theme~='mention-suggestion'] .tippy-arrow {
     display: none;
+  }
+  
+  /* Ensure mouse wheel events work */
+  .tippy-box[data-theme~='mention-suggestion'] * {
+    pointer-events: auto !important;
   }
 `;
 

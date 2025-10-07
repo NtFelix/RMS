@@ -41,9 +41,10 @@ import { toast } from '@/hooks/use-toast';
 interface TemplatesModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialCategory?: string;
 }
 
-export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
+export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesModalProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,6 +78,13 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
     filteredTemplates,
     groupedTemplates,
   } = useTemplateFilters(templates);
+
+  // Set initial category when modal opens
+  useEffect(() => {
+    if (isOpen && initialCategory && initialCategory !== selectedCategory) {
+      setSelectedCategory(initialCategory);
+    }
+  }, [isOpen, initialCategory, selectedCategory, setSelectedCategory]);
 
   // Get available categories from templates
   const availableCategories = useMemo(() => {
@@ -137,6 +145,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
       description: `Sind Sie sicher, dass Sie die Vorlage "${template.titel}" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`,
       confirmText: 'Löschen',
       cancelText: 'Abbrechen',
+      variant: 'destructive',
       onConfirm: async () => {
         try {
           setIsDeleting(templateId);

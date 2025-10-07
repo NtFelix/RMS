@@ -10,8 +10,22 @@ import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-// Consolidated lucide-react import to include all used icons
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor, FlaskConical } from "lucide-react";
+// Only import icons that are actually used in this component
+import { 
+  User as UserIcon, 
+  Mail, 
+  Lock, 
+  CreditCard, 
+  Trash2, 
+  DownloadCloud, 
+  Info, 
+  Monitor, 
+  FlaskConical, 
+  CheckCircle2, 
+  AlertCircle,
+  Circle,
+  CheckCircle 
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -147,6 +161,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [addressElementValue, setAddressElementValue] = useState<any>(null);
   const [isAddressComplete, setIsAddressComplete] = useState(false);
+  const [emailError, setEmailError] = useState<boolean>(false)
+  const [passwordError, setPasswordError] = useState<boolean>(false)
 
   // PostHog early access features
   const posthog = usePostHog()
@@ -693,13 +709,15 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const handleEmailSave = async () => {
     if (email !== confirmEmail) {
+      setEmailError(true)
       toast({
         title: "Fehler",
-        description: "E-Mail stimmt nicht überein",
+        description: "Die E-Mail-Adressen stimmen nicht überein.",
         variant: "destructive",
       })
       return
     }
+    setEmailError(false)
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ email })
     setLoading(false)
@@ -719,13 +737,15 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   }
   const handlePasswordSave = async () => {
     if (password !== confirmPassword) {
+      setPasswordError(true)
       toast({
         title: "Fehler",
-        description: "Passwörter stimmen nicht überein",
+        description: "Die Passwörter stimmen nicht überein.",
         variant: "destructive",
       })
       return
     }
+    setPasswordError(false)
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
@@ -1275,13 +1295,27 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      E-Mail bestätigen
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative h-4 w-4 flex items-center justify-center">
+                        {emailError ? (
+                          <AlertCircle className="h-4 w-4 text-destructive absolute transition-opacity duration-200" />
+                        ) : email && confirmEmail && email === confirmEmail ? (
+                          <CheckCircle className="h-4 w-4 text-green-500 absolute transition-all duration-200" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-muted-foreground/50 absolute transition-all duration-200" />
+                        )}
+                      </div>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        E-Mail bestätigen
+                      </label>
+                    </div>
                     <Input
                       type="email"
                       value={confirmEmail}
-                      onChange={e => setConfirmEmail(e.target.value)}
+                      onChange={e => {
+                        setConfirmEmail(e.target.value)
+                        setEmailError(false)
+                      }}
                       className="w-full"
                       disabled={loading}
                     />
@@ -1319,13 +1353,27 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Passwort bestätigen
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative h-4 w-4 flex items-center justify-center">
+                        {passwordError ? (
+                          <AlertCircle className="h-4 w-4 text-destructive absolute transition-opacity duration-200" />
+                        ) : password && confirmPassword && password === confirmPassword ? (
+                          <CheckCircle className="h-4 w-4 text-green-500 absolute transition-all duration-200" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-muted-foreground/50 absolute transition-all duration-200" />
+                        )}
+                      </div>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Passwort bestätigen
+                      </label>
+                    </div>
                     <Input
                       type="password"
                       value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
+                      onChange={e => {
+                        setConfirmPassword(e.target.value)
+                        setPasswordError(false)
+                      }}
                       className="w-full"
                       disabled={loading}
                     />
