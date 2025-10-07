@@ -123,17 +123,8 @@ export function TenantContextMenu({
   };
 
   const handleTemplates = () => {
-    try {
-      // Open tenant mail templates modal with tenant name and email
-      openTenantMailTemplatesModal(tenant.name, tenant.email);
-    } catch (error) {
-      console.error('Error opening mail templates modal:', error);
-      toast({
-        title: "Fehler",
-        description: "Fehler beim Öffnen der Mail-Vorlagen. Bitte versuchen Sie es erneut.",
-        variant: "destructive",
-      });
-    }
+    // Open tenant mail templates modal with tenant name and email
+    openTenantMailTemplatesModal(tenant.name, tenant.email);
   };
 
   return (
