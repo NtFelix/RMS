@@ -194,22 +194,14 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
     let encodingStrategy: string;
     
     // Choose encoding strategy based on platform and client
-    if (clientInfo.isMac) {
-      // macOS Mail.app typically works better with LF only
-      formattedContent = emailContent.replace(/\n\n/g, '\n\n').replace(/\n/g, '\n');
-      encodingStrategy = 'mac-lf';
-    } else if (clientInfo.isWindows || clientInfo.hasOutlook) {
-      // Windows and Outlook prefer CRLF
-      formattedContent = emailContent.replace(/\n\n/g, '\r\n\r\n').replace(/\n/g, '\r\n');
-      encodingStrategy = 'windows-crlf';
-    } else if (clientInfo.hasThunderbird || clientInfo.isFirefox) {
-      // Thunderbird and Firefox handle standard line breaks well
-      formattedContent = emailContent.replace(/\n\n/g, '\n\n').replace(/\n/g, '\n');
-      encodingStrategy = 'thunderbird-lf';
+    if (clientInfo.isMac || clientInfo.hasThunderbird || clientInfo.isFirefox) {
+      // These clients handle LF well, no conversion needed
+      formattedContent = emailContent;
+      encodingStrategy = 'lf';
     } else {
-      // Default: try CRLF for better compatibility
-      formattedContent = emailContent.replace(/\n\n/g, '\r\n\r\n').replace(/\n/g, '\r\n');
-      encodingStrategy = 'default-crlf';
+      // Default to CRLF for better compatibility (Windows, Outlook, etc.)
+      formattedContent = emailContent.replace(/\n/g, '\r\n');
+      encodingStrategy = 'crlf';
     }
     
     console.log(`Using encoding strategy: ${encodingStrategy}`);
