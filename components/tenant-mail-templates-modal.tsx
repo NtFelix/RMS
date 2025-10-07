@@ -204,9 +204,6 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       encodingStrategy = 'crlf';
     }
     
-    console.log(`Using encoding strategy: ${encodingStrategy}`);
-    console.log('Formatted content:', JSON.stringify(formattedContent));
-    
     // Encode the content
     const encodedContent = encodeURIComponent(formattedContent);
     
@@ -217,12 +214,9 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       // Safari sometimes has issues with standard encoding, try simpler approach
       const simpleContent = emailContent.replace(/\n/g, '%0A');
       mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${simpleContent}`;
-      console.log('Using Safari-specific encoding');
     } else {
       mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;
     }
-    
-    console.log('Final mailto URL:', mailtoUrl);
     
     // Open mail app
     window.location.href = mailtoUrl;
