@@ -189,12 +189,6 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
     // Detect platform and client
     const clientInfo = detectPlatformAndClient();
     
-    // Debug logging
-    console.log('Template content structure:', JSON.stringify(template.inhalt, null, 2));
-    console.log('Extracted email content:', emailContent);
-    console.log('Email content with visible line breaks:', JSON.stringify(emailContent));
-    console.log('Detected client info:', clientInfo);
-    
     let formattedContent: string;
     let encodingStrategy: string;
     
