@@ -372,6 +372,7 @@ export interface ModalState {
 
   // Templates Modal State
   isTemplatesModalOpen: boolean;
+  templatesModalInitialCategory?: string;
   isTemplateEditorModalOpen: boolean;
   templateEditorData?: {
     template?: Template;
@@ -379,12 +380,21 @@ export interface ModalState {
   };
   isTemplatesModalDirty: boolean;
   isTemplateEditorModalDirty: boolean;
-  openTemplatesModal: () => void;
+  openTemplatesModal: (initialCategory?: string) => void;
   closeTemplatesModal: (options?: CloseModalOptions) => void;
   openTemplateEditorModal: (template?: Template, onSave?: (templateData: Partial<Template>) => void) => void;
   closeTemplateEditorModal: (options?: CloseModalOptions) => void;
   setTemplatesModalDirty: (isDirty: boolean) => void;
   setTemplateEditorModalDirty: (isDirty: boolean) => void;
+
+  // Tenant Mail Templates Modal State
+  isTenantMailTemplatesModalOpen: boolean;
+  tenantMailTemplatesModalData?: {
+    tenantName?: string;
+    tenantEmail?: string;
+  };
+  openTenantMailTemplatesModal: (tenantName?: string, tenantEmail?: string) => void;
+  closeTenantMailTemplatesModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -533,10 +543,16 @@ const initialMarkdownEditorModalState = {
 
 const initialTemplatesModalState = {
   isTemplatesModalOpen: false,
+  templatesModalInitialCategory: undefined,
   isTemplateEditorModalOpen: false,
   templateEditorData: undefined,
   isTemplatesModalDirty: false,
   isTemplateEditorModalDirty: false,
+};
+
+const initialTenantMailTemplatesModalState = {
+  isTenantMailTemplatesModalOpen: false,
+  tenantMailTemplatesModalData: undefined,
 };
 
 const createInitialModalState = () => ({
@@ -562,6 +578,7 @@ const createInitialModalState = () => ({
   ...initialShareDocumentModalState,
   ...initialMarkdownEditorModalState,
   ...initialTemplatesModalState,
+  ...initialTenantMailTemplatesModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -1013,8 +1030,9 @@ export const useModalStore = create<ModalState>((set, get) => {
     closeMarkdownEditorModal: () => set(initialMarkdownEditorModalState),
 
     // Templates Modal
-    openTemplatesModal: () => set({
+    openTemplatesModal: (initialCategory) => set({
       isTemplatesModalOpen: true,
+      templatesModalInitialCategory: initialCategory,
       isTemplatesModalDirty: false,
     }),
     closeTemplatesModal: createCloseHandler('isTemplatesModalDirty', initialTemplatesModalState),
@@ -1035,5 +1053,15 @@ export const useModalStore = create<ModalState>((set, get) => {
       isTemplateEditorModalDirty: false,
     }),
     setTemplateEditorModalDirty: (isDirty) => set({ isTemplateEditorModalDirty: isDirty }),
+
+    // Tenant Mail Templates Modal
+    openTenantMailTemplatesModal: (tenantName, tenantEmail) => set({
+      isTenantMailTemplatesModalOpen: true,
+      tenantMailTemplatesModalData: {
+        tenantName,
+        tenantEmail,
+      },
+    }),
+    closeTenantMailTemplatesModal: () => set(initialTenantMailTemplatesModalState),
   };
 });
