@@ -123,6 +123,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [isSavingBilling, setIsSavingBilling] = useState<boolean>(false);
+  const [isBillingAddressLoading, setIsBillingAddressLoading] = useState<boolean>(false);
   // Billing address state with proper typing
   const [billingAddress, setBillingAddress] = useState<{
     name: string;
@@ -200,6 +201,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   useEffect(() => {
     const loadBillingAddress = async () => {
       if (open && profile?.stripe_customer_id) {
+        setIsBillingAddressLoading(true);
         try {
           const result = await getBillingAddress(profile.stripe_customer_id);
           
@@ -227,6 +229,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           }
         } catch (error) {
           console.error('Error loading billing address:', error);
+        } finally {
+          setIsBillingAddressLoading(false);
         }
       }
     };
@@ -881,179 +885,219 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             description="Verwalten Sie Ihre Rechnungsadresse für Rechnungen."
           >
             <SettingsCard>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="companyName" className="text-sm font-medium leading-none">
-                      Firmenname (optional)
-                    </label>
-                    <Input
-                      id="companyName"
-                      value={billingAddress.companyName || ''}
-                      onChange={(e) => setBillingAddress({...billingAddress, companyName: e.target.value})}
-                      placeholder="Firmenname"
-                      className="w-full"
-                    />
+              {isBillingAddressLoading ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="name" className="text-sm font-medium leading-none">
-                      Name <span className="text-destructive">*</span>
-                    </label>
-                    <Input
-                      id="name"
-                      value={billingAddress.name || ''}
-                      onChange={(e) => setBillingAddress({...billingAddress, name: e.target.value})}
-                      placeholder="Vor- und Nachname"
-                      className="w-full"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="line1" className="text-sm font-medium leading-none">
-                    Straße und Hausnummer <span className="text-destructive">*</span>
-                  </label>
-                  <Input
-                    id="line1"
-                    value={billingAddress.line1 || ''}
-                    onChange={(e) => setBillingAddress({...billingAddress, line1: e.target.value})}
-                    placeholder="Musterstraße 123"
-                    className="w-full"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="line2" className="text-sm font-medium leading-none">
-                    Adresszeile 2 (optional)
-                  </label>
-                  <Input
-                    id="line2"
-                    value={billingAddress.line2 || ''}
-                    onChange={(e) => setBillingAddress({...billingAddress, line2: e.target.value})}
-                    placeholder="Zusätzliche Adresszeile"
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="postal_code" className="text-sm font-medium leading-none">
-                      PLZ <span className="text-destructive">*</span>
-                    </label>
-                    <Input
-                      id="postal_code"
-                      value={billingAddress.postal_code || ''}
-                      onChange={(e) => setBillingAddress({...billingAddress, postal_code: e.target.value})}
-                      placeholder="12345"
-                      className="w-full"
-                      required
-                    />
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-10 w-full" />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="city" className="text-sm font-medium leading-none">
-                      Stadt <span className="text-destructive">*</span>
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="flex justify-end pt-4">
+                    <Skeleton className="h-9 w-48" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="companyName" className="text-sm font-medium leading-none">
+                        Firmenname (optional)
+                      </label>
+                      <Input
+                        id="companyName"
+                        value={billingAddress.companyName || ''}
+                        onChange={(e) => setBillingAddress({...billingAddress, companyName: e.target.value})}
+                        placeholder="Firmenname"
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="name" className="text-sm font-medium leading-none">
+                        Name <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="name"
+                        value={billingAddress.name || ''}
+                        onChange={(e) => setBillingAddress({...billingAddress, name: e.target.value})}
+                        placeholder="Vor- und Nachname"
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="line1" className="text-sm font-medium leading-none">
+                      Straße und Hausnummer <span className="text-destructive">*</span>
                     </label>
                     <Input
-                      id="city"
-                      value={billingAddress.city || ''}
-                      onChange={(e) => setBillingAddress({...billingAddress, city: e.target.value})}
-                      placeholder="Musterstadt"
+                      id="line1"
+                      value={billingAddress.line1 || ''}
+                      onChange={(e) => setBillingAddress({...billingAddress, line1: e.target.value})}
+                      placeholder="Musterstraße 123"
                       className="w-full"
                       required
                     />
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="country" className="text-sm font-medium leading-none">
-                    Land <span className="text-destructive">*</span>
-                  </label>
-                  <Select
-                    value={billingAddress.country || 'DE'}
-                    onValueChange={(value) => setBillingAddress({...billingAddress, country: value})}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Land auswählen" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px] overflow-y-auto">
-                      {/* DACH countries at the top */}
-                      <SelectItem value="DE">Deutschland</SelectItem>
-                      <SelectItem value="AT">Österreich</SelectItem>
-                      <SelectItem value="CH">Schweiz</SelectItem>
-                      
-                      <SelectSeparator className="my-1" />
-                      
-                      {/* Rest of Europe */}
-                      <SelectItem value="AL">Albanien</SelectItem>
-                      <SelectItem value="AD">Andorra</SelectItem>
-                      <SelectItem value="BE">Belgien</SelectItem>
-                      <SelectItem value="BA">Bosnien und Herzegowina</SelectItem>
-                      <SelectItem value="BG">Bulgarien</SelectItem>
-                      <SelectItem value="HR">Kroatien</SelectItem>
-                      <SelectItem value="CY">Zypern</SelectItem>
-                      <SelectItem value="CZ">Tschechien</SelectItem>
-                      <SelectItem value="DK">Dänemark</SelectItem>
-                      <SelectItem value="EE">Estland</SelectItem>
-                      <SelectItem value="FI">Finnland</SelectItem>
-                      <SelectItem value="FR">Frankreich</SelectItem>
-                      <SelectItem value="GR">Griechenland</SelectItem>
-                      <SelectItem value="GB">Großbritannien</SelectItem>
-                      <SelectItem value="HU">Ungarn</SelectItem>
-                      <SelectItem value="IS">Island</SelectItem>
-                      <SelectItem value="IE">Irland</SelectItem>
-                      <SelectItem value="IT">Italien</SelectItem>
-                      <SelectItem value="XK">Kosovo</SelectItem>
-                      <SelectItem value="LV">Lettland</SelectItem>
-                      <SelectItem value="LI">Liechtenstein</SelectItem>
-                      <SelectItem value="LT">Litauen</SelectItem>
-                      <SelectItem value="LU">Luxemburg</SelectItem>
-                      <SelectItem value="MT">Malta</SelectItem>
-                      <SelectItem value="MD">Moldawien</SelectItem>
-                      <SelectItem value="MC">Monaco</SelectItem>
-                      <SelectItem value="ME">Montenegro</SelectItem>
-                      <SelectItem value="NL">Niederlande</SelectItem>
-                      <SelectItem value="MK">Nordmazedonien</SelectItem>
-                      <SelectItem value="NO">Norwegen</SelectItem>
-                      <SelectItem value="PL">Polen</SelectItem>
-                      <SelectItem value="PT">Portugal</SelectItem>
-                      <SelectItem value="RO">Rumänien</SelectItem>
-                      <SelectItem value="SM">San Marino</SelectItem>
-                      <SelectItem value="SE">Schweden</SelectItem>
-                      <SelectItem value="RS">Serbien</SelectItem>
-                      <SelectItem value="SK">Slowakei</SelectItem>
-                      <SelectItem value="SI">Slowenien</SelectItem>
-                      <SelectItem value="ES">Spanien</SelectItem>
-                      <SelectItem value="TR">Türkei</SelectItem>
-                      <SelectItem value="UA">Ukraine</SelectItem>
-                      <SelectItem value="VA">Vatikanstadt</SelectItem>
-                      
-                      <SelectSeparator className="my-1" />
-                      
-                      {/* Major non-European countries */}
-                      <SelectItem value="US">Vereinigte Staaten</SelectItem>
-                      <SelectItem value="CA">Kanada</SelectItem>
-                      <SelectItem value="AU">Australien</SelectItem>
-                      <SelectItem value="NZ">Neuseeland</SelectItem>
-                      <SelectItem value="JP">Japan</SelectItem>
-                      <SelectItem value="CN">China</SelectItem>
-                      <SelectItem value="IN">Indien</SelectItem>
-                      <SelectItem value="BR">Brasilien</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <label htmlFor="line2" className="text-sm font-medium leading-none">
+                      Adresszeile 2 (optional)
+                    </label>
+                    <Input
+                      id="line2"
+                      value={billingAddress.line2 || ''}
+                      onChange={(e) => setBillingAddress({...billingAddress, line2: e.target.value})}
+                      placeholder="Zusätzliche Adresszeile"
+                      className="w-full"
+                    />
+                  </div>
 
-                <div className="flex justify-end pt-4">
-                  <Button 
-                    onClick={handleBillingAddressSave} 
-                    disabled={isSavingBilling || !billingAddress.name || !billingAddress.line1 || !billingAddress.postal_code || !billingAddress.city || !billingAddress.country}
-                    size="sm"
-                  >
-                    {isSavingBilling ? "Speichern..." : "Rechnungsadresse speichern"}
-                  </Button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="postal_code" className="text-sm font-medium leading-none">
+                        PLZ <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="postal_code"
+                        value={billingAddress.postal_code || ''}
+                        onChange={(e) => setBillingAddress({...billingAddress, postal_code: e.target.value})}
+                        placeholder="12345"
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="city" className="text-sm font-medium leading-none">
+                        Stadt <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="city"
+                        value={billingAddress.city || ''}
+                        onChange={(e) => setBillingAddress({...billingAddress, city: e.target.value})}
+                        placeholder="Musterstadt"
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="country" className="text-sm font-medium leading-none">
+                      Land <span className="text-destructive">*</span>
+                    </label>
+                    <Select
+                      value={billingAddress.country || 'DE'}
+                      onValueChange={(value) => setBillingAddress({...billingAddress, country: value})}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Land auswählen" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] overflow-y-auto">
+                        {/* DACH countries at the top */}
+                        <SelectItem value="DE">Deutschland</SelectItem>
+                        <SelectItem value="AT">Österreich</SelectItem>
+                        <SelectItem value="CH">Schweiz</SelectItem>
+                        
+                        <SelectSeparator className="my-1" />
+                        
+                        {/* Rest of Europe */}
+                        <SelectItem value="AL">Albanien</SelectItem>
+                        <SelectItem value="AD">Andorra</SelectItem>
+                        <SelectItem value="BE">Belgien</SelectItem>
+                        <SelectItem value="BA">Bosnien und Herzegowina</SelectItem>
+                        <SelectItem value="BG">Bulgarien</SelectItem>
+                        <SelectItem value="HR">Kroatien</SelectItem>
+                        <SelectItem value="CY">Zypern</SelectItem>
+                        <SelectItem value="CZ">Tschechien</SelectItem>
+                        <SelectItem value="DK">Dänemark</SelectItem>
+                        <SelectItem value="EE">Estland</SelectItem>
+                        <SelectItem value="FI">Finnland</SelectItem>
+                        <SelectItem value="FR">Frankreich</SelectItem>
+                        <SelectItem value="GR">Griechenland</SelectItem>
+                        <SelectItem value="GB">Großbritannien</SelectItem>
+                        <SelectItem value="HU">Ungarn</SelectItem>
+                        <SelectItem value="IS">Island</SelectItem>
+                        <SelectItem value="IE">Irland</SelectItem>
+                        <SelectItem value="IT">Italien</SelectItem>
+                        <SelectItem value="XK">Kosovo</SelectItem>
+                        <SelectItem value="LV">Lettland</SelectItem>
+                        <SelectItem value="LI">Liechtenstein</SelectItem>
+                        <SelectItem value="LT">Litauen</SelectItem>
+                        <SelectItem value="LU">Luxemburg</SelectItem>
+                        <SelectItem value="MT">Malta</SelectItem>
+                        <SelectItem value="MD">Moldawien</SelectItem>
+                        <SelectItem value="MC">Monaco</SelectItem>
+                        <SelectItem value="ME">Montenegro</SelectItem>
+                        <SelectItem value="NL">Niederlande</SelectItem>
+                        <SelectItem value="MK">Nordmazedonien</SelectItem>
+                        <SelectItem value="NO">Norwegen</SelectItem>
+                        <SelectItem value="PL">Polen</SelectItem>
+                        <SelectItem value="PT">Portugal</SelectItem>
+                        <SelectItem value="RO">Rumänien</SelectItem>
+                        <SelectItem value="SM">San Marino</SelectItem>
+                        <SelectItem value="SE">Schweden</SelectItem>
+                        <SelectItem value="RS">Serbien</SelectItem>
+                        <SelectItem value="SK">Slowakei</SelectItem>
+                        <SelectItem value="SI">Slowenien</SelectItem>
+                        <SelectItem value="ES">Spanien</SelectItem>
+                        <SelectItem value="TR">Türkei</SelectItem>
+                        <SelectItem value="UA">Ukraine</SelectItem>
+                        <SelectItem value="VA">Vatikanstadt</SelectItem>
+                        
+                        <SelectSeparator className="my-1" />
+                        
+                        {/* Major non-European countries */}
+                        <SelectItem value="US">Vereinigte Staaten</SelectItem>
+                        <SelectItem value="CA">Kanada</SelectItem>
+                        <SelectItem value="AU">Australien</SelectItem>
+                        <SelectItem value="NZ">Neuseeland</SelectItem>
+                        <SelectItem value="JP">Japan</SelectItem>
+                        <SelectItem value="CN">China</SelectItem>
+                        <SelectItem value="IN">Indien</SelectItem>
+                        <SelectItem value="BR">Brasilien</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex justify-end pt-4">
+                    <Button 
+                      onClick={handleBillingAddressSave} 
+                      disabled={isSavingBilling || !billingAddress.name || !billingAddress.line1 || !billingAddress.postal_code || !billingAddress.city || !billingAddress.country}
+                      size="sm"
+                    >
+                      {isSavingBilling ? "Speichern..." : "Rechnungsadresse speichern"}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </SettingsCard>
           </SettingsSection>
 
