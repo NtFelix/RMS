@@ -78,6 +78,16 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   const getFullEmailContent = (content: any): string => {
     if (!content || !content.content) return '';
     
+    // Map of variable names to their resolver functions
+    const variableResolvers: Record<string, () => string> = {
+      'mieter.name': () => tenantName || '[Mieter Name]',
+      'datum.heute': () => new Date().toLocaleDateString('de-DE'),
+      'vermieter.name': () => 
+        (user?.user_metadata?.first_name && user?.user_metadata?.last_name 
+          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
+          : user?.email) || '[Vermieter Name]',
+    };
+
     const processNode = (node: any): string => {
       // Handle text nodes
       if (node.type === 'text') {
@@ -87,17 +97,8 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       // Handle mention nodes
       if (node.type === 'mention') {
         const label = node.attrs?.label || node.attrs?.id || 'Variable';
-        // Replace common variables with actual values if available
-        switch (label.toLowerCase()) {
-          case 'mieter.name':
-            return tenantName || '[Mieter Name]';
-          case 'datum.heute':
-            return new Date().toLocaleDateString('de-DE');
-          case 'vermieter.name':
-            return (user?.user_metadata?.first_name && user?.user_metadata?.last_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` : user?.email) || '[Vermieter Name]';
-          default:
-            return `[${label}]`;
-        }
+        const resolver = variableResolvers[label.toLowerCase()];
+        return resolver ? resolver() : `[${label}]`;
       }
       
       // Handle paragraph nodes - this is key for line breaks
