@@ -118,13 +118,14 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### Test Results :white_check_mark:
-
-- **Node Version**: ${process.env.NODE_VERSION}
-- **OS**: ${process.env.RUNNER_OS}
-- **Test Command**: \`npm test --coverage\`
-
-View the [full test results](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
+              body: |
+                ### Test Results :white_check_mark:
+                
+                - **Node Version**: ${process.env.NODE_VERSION}
+                - **OS**: ${process.env.RUNNER_OS}
+                - **Test Command**: \`npm test --coverage\`
+                
+                View the [full test results](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
             });
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
