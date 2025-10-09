@@ -69,16 +69,31 @@ jobs:
       - name: Run tests with coverage
         run: |
           mkdir -p coverage
-          npm test -- --coverage --maxWorkers=2
+          echo "Current directory: $(pwd)"
+          echo "Files in coverage directory:"
+          ls -la coverage/ || true
+          
+          # Run tests with coverage and debug output
+          npx jest --coverage --maxWorkers=2 --testLocationInResults --json --outputFile=test-results.json
+          
+          echo "After test run - Files in coverage directory:"
+          ls -la coverage/ || true
+          echo "Coverage report path: $(pwd)/coverage/lcov.info"
+          [ -f coverage/lcov.info ] && echo "Coverage file exists" || echo "Coverage file does not exist"
         continue-on-error: true
 
-      # Upload test coverage to Codecov
+      # Upload test coverage to Codecov with debug info
       - name: Upload coverage to Codecov
         if: always()
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: coverage/
+        run: |
+          echo "Checking for coverage files..."
+          find . -name '*.info' -o -name 'coverage*.xml' -o -name 'coverage-final.json' | xargs -I {} echo "Found coverage file: {}" || echo "No coverage files found"
+          
+          # Try uploading with debug flag
+          npx codecov --token=${{ secrets.CODECOV_TOKEN }} --file=coverage/lcov.info --verbose || \
+            echo "Codecov upload failed, but continuing..."
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       # Upload test results as artifacts
       - name: Upload test results
