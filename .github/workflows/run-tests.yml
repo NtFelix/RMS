@@ -65,35 +65,50 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Create coverage directory and run tests
+      # Run tests with coverage
       - name: Run tests with coverage
         run: |
-          mkdir -p coverage
-          echo "Current directory: $(pwd)"
-          echo "Files in coverage directory:"
-          ls -la coverage/ || true
+          # Clean any previous coverage data
+          rm -rf coverage/ .nyc_output/
           
-          # Run tests with coverage and debug output
+          # Run tests with coverage
+          echo "Running tests with coverage..."
           npx jest --coverage --maxWorkers=2 --testLocationInResults --json --outputFile=test-results.json
           
-          echo "After test run - Files in coverage directory:"
-          ls -la coverage/ || true
-          echo "Coverage report path: $(pwd)/coverage/lcov.info"
-          [ -f coverage/lcov.info ] && echo "Coverage file exists" || echo "Coverage file does not exist"
+          # Verify coverage files were generated
+          echo "Checking for coverage files..."
+          ls -la coverage/ || echo "No coverage directory found"
+          
+          # Check for lcov.info in common locations
+          COVERAGE_FILE="coverage/lcov.info"
+          if [ ! -f "$COVERAGE_FILE" ]; then
+            echo "lcov.info not found in default location, searching..."
+            find . -name 'lcov.info' -o -name 'coverage-final.json' | xargs -I {} echo "Found coverage file: {}" || \
+              echo "No coverage files found"
+          else
+            echo "Coverage file found at: $COVERAGE_FILE"
+          fi
         continue-on-error: true
 
-      # Upload test coverage to Codecov with debug info
+      # Upload test coverage to Codecov
       - name: Upload coverage to Codecov
         if: always()
         run: |
-          echo "Checking for coverage files..."
-          find . -name '*.info' -o -name 'coverage*.xml' -o -name 'coverage-final.json' | xargs -I {} echo "Found coverage file: {}" || echo "No coverage files found"
+          # Install codecov if not already installed
+          npm install -g codecov
           
-          # Try uploading with debug flag
-          npx codecov --token=${{ secrets.CODECOV_TOKEN }} --file=coverage/lcov.info --verbose || \
-            echo "Codecov upload failed, but continuing..."
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          # Try to find and upload coverage file
+          if [ -f "coverage/lcov.info" ]; then
+            echo "Uploading coverage from: coverage/lcov.info"
+            codecov --file=coverage/lcov.info --token=${{ secrets.CODECOV_TOKEN }}
+          elif [ -f "coverage/coverage-final.json" ]; then
+            echo "Uploading coverage from: coverage/coverage-final.json"
+            codecov --file=coverage/coverage-final.json --token=${{ secrets.CODECOV_TOKEN }}
+          else
+            echo "No coverage files found to upload"
+            find . -name '*.info' -o -name 'coverage*.json' | xargs -I {} echo "Potential coverage file: {}" || \
+              echo "No coverage files found in the project"
+          fi
 
       # Upload test results as artifacts
       - name: Upload test results
@@ -102,8 +117,9 @@ jobs:
         with:
           name: test-results
           path: |
-            coverage/
-            .jest/
+            coverage/**/*
+            .jest/**/*
+            test-results.json
           if-no-files-found: warn
           retention-days: 7
 
