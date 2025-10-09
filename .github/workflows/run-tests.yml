@@ -1,0 +1,104 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.jsx'
+      - '**/package.json'
+      - '**/package-lock.json'
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  NODE_ENV: test
+  CI: true
+  NODE_OPTIONS: --max-old-space-size=4096
+  JEST_TIMEOUT: '10000'
+  FORCE_COLOR: '1'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Setup Node.js with caching
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Cache node_modules and build outputs
+      - name: Cache node modules
+        uses: actions/cache@v4
+        id: cache-node-modules
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            .next/cache
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # Cache Jest test results
+      - name: Cache Jest
+        uses: actions/cache@v4
+        id: cache-jest
+        with:
+          path: .jest/cache
+          key: ${{ runner.os }}-jest-${{ hashFiles('**/*.test.ts', '**/*.test.tsx') }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-jest-
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Run tests with coverage
+      - name: Run tests
+        run: npm test -- --coverage --maxWorkers=2
+
+      # Upload test coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage/lcov.info
+          flags: unittests
+
+      # Upload test results as artifacts
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            coverage/
+            .jest/cache/
+          retention-days: 7
+
+      # Create a comment on PR with test results
+      - name: Create test report comment
+        if: github.event_name == 'pull_request'
+        uses: mshick/add-pr-comment@v3
+        with:
+          message: |
+            ### Test Results :white_check_mark:
+            
+            - **Node Version**: ${{ steps.setup-node.outputs.node-version }}
+            - **OS**: ${{ runner.os }}
+            - **Test Command**: `npm test --coverage`
+            
+            View the [full test results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
