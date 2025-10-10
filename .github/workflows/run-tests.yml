@@ -171,7 +171,7 @@ jobs:
           fi
           
           # Set test files for this group
-          TEST_CMD="npx jest --maxWorkers=2"
+          TEST_CMD="npx jest --maxWorkers=2 --passWithNoTests"
           
           # Only add coverage for the first group to avoid merge conflicts
           if ${{ matrix.is-first-group }}; then
@@ -190,12 +190,21 @@ jobs:
           echo "Running test group ${{ matrix.test-group }} with command:"
           echo "$TEST_CMD $TEST_FILES"
           
-          # Execute tests
-          eval $TEST_CMD $TEST_FILES || echo "Tests failed but continuing..."
+          # Execute tests with error handling
+          set +e
+          eval $TEST_CMD $TEST_FILES
+          TEST_EXIT_CODE=$?
+          set -e
           
           # If this is the first group, ensure coverage directory exists
           if ${{ matrix.is-first-group }} && [ ! -d "coverage" ]; then
             mkdir -p coverage
+          fi
+          
+          # Exit with the test status code
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "Tests failed with exit code $TEST_EXIT_CODE"
+            exit $TEST_EXIT_CODE
           fi
           
           # For the first group, verify coverage
@@ -226,9 +235,8 @@ jobs:
         with:
           name: test-results
           path: |
-            coverage/
+            coverage/**
             test-results.json
-            !**/node_modules/**
           if-no-files-found: warn
           retention-days: 7
           
