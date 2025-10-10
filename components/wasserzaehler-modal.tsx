@@ -375,10 +375,10 @@ export function WasserzaehlerModal() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 py-4">
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 py-4">
           {/* General Date Picker */}
           {formData.length > 0 && (
-            <div className="p-4 border rounded-lg space-y-3">
+            <div className="p-4 border rounded-xl space-y-3">
               <div className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                 <Label htmlFor="general-date-picker" className="text-sm font-medium">
@@ -500,7 +500,7 @@ export function WasserzaehlerModal() {
               groupedEntries.map(([wohnungName, entries]) => (
               <div key={wohnungName} className="space-y-3">
                 {/* Apartment Group Header */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border rounded-lg">
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border rounded-lg mr-2">
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                   <h3 className="font-semibold">{wohnungName}</h3>
                   <span className="text-sm text-muted-foreground ml-auto">
@@ -516,7 +516,7 @@ export function WasserzaehlerModal() {
                     : null;
                   
                   return (
-                    <div key={entry.mieter_id} className="ml-4 p-4 border rounded-lg space-y-3">
+                    <div key={entry.mieter_id} className="ml-4 mr-2 p-4 border rounded-lg space-y-3">
                       <div className="flex justify-between items-start">
                         <div className="flex items-start gap-2">
                           <User className="h-4 w-4 text-muted-foreground mt-1" />
