@@ -26,6 +26,24 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Split tests into 4 groups for parallel execution
+        test-group: [1, 2, 3, 4]
+        # Include a flag for the first group to handle coverage
+        include:
+          - test-group: 1
+            is-first-group: true
+          - test-group: 2
+            is-first-group: false
+          - test-group: 3
+            is-first-group: false
+          - test-group: 4
+            is-first-group: false
+    
+    # Set a job name for better visibility in the GitHub Actions UI
+    name: Test Group ${{ matrix.test-group }}
     
     steps:
       - name: Checkout code
@@ -65,66 +83,94 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Run tests in parallel with coverage
-      - name: Run tests with coverage
+      # Install dependencies for test splitting
+      - name: Get test files list
+        id: test-files
+        run: |
+          # Get list of all test files
+          TEST_FILES=$(find . -name '*.test.ts' -o -name '*.test.tsx' | grep -v 'node_modules' | sort)
+          
+          # Split test files into 4 groups
+          TOTAL_FILES=$(echo "$TEST_FILES" | wc -l)
+          FILES_PER_GROUP=$(( ($TOTAL_FILES + 3) / 4 ))
+          
+          # Select files for this group
+          GROUP_FILES=$(echo "$TEST_FILES" | awk -v group=${{ matrix.test-group }} -v per_group=$FILES_PER_GROUP '\
+            NR > (group-1)*per_group && NR <= group*per_group {print}')
+          
+          # Format as JSON array for Jest
+          echo "TEST_FILES='$(echo "$GROUP_FILES" | jq -R -s -c 'split("\n") | map(select(. != ""))' | tr -d '\n')'" >> $GITHUB_ENV
+          
+          echo "Total test files: $TOTAL_FILES"
+          echo "Files in group ${{ matrix.test-group }}:"
+          echo "$GROUP_FILES"
+          echo "TEST_FILES=$TEST_FILES" >> $GITHUB_ENV
+
+      # Run tests for this group
+      - name: Run test group ${{ matrix.test-group }}
         run: |
           # Clean any previous coverage data
           rm -rf coverage/ .nyc_output/
           
-          # Run tests in parallel with coverage
-          echo "Running tests with coverage..."
+          # Set test files for this group
+          TEST_CMD="npx jest --maxWorkers=2"
           
-          # First run unit tests (faster tests first)
-          echo "Running unit tests..."
-          npx jest --coverage --maxWorkers=4 --testPathIgnorePatterns='e2e|integration' \
-            --testMatch='**/*.test.{ts,tsx}' \
-            --json --outputFile=test-results.json || true
+          # Only add coverage for the first group to avoid merge conflicts
+          if ${{ matrix.is-first-group }}; then
+            mkdir -p coverage
+            TEST_CMD="$TEST_CMD --coverage --testLocationInResults --json --outputFile=test-results.json"
+          fi
           
-          # Then run integration tests if needed
-          # echo "Running integration tests..."
-          # npx jest --coverage --maxWorkers=2 --testPathPattern='e2e|integration' || true
+          # Run tests for this group
+          echo "Running test group ${{ matrix.test-group }} with command:"
+          echo "$TEST_CMD ${{ env.TEST_FILES }}"
           
-          # Generate combined coverage report if needed
-          if [ -d "coverage" ]; then
+          # Execute tests
+          eval $TEST_CMD ${{ env.TEST_FILES }} || echo "Tests failed but continuing..."
+          
+          # For the first group, verify coverage
+          if ${{ matrix.is-first-group }} && [ -d "coverage" ]; then
             echo "Coverage report generated at: $(pwd)/coverage"
             ls -la coverage/
-          else
-            echo "No coverage directory was created"
           fi
         continue-on-error: true
 
-      # Upload test coverage to Codecov (only if coverage files exist)
+      # Upload test coverage to Codecov (only from first group and main/develop branches)
       - name: Upload coverage to Codecov
-        if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        if: always() && matrix.is-first-group && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         run: |
-          # Only upload from main or develop branches to avoid noise
-          if [ -f "coverage/lcov.info" ] || [ -f "coverage/coverage-final.json" ]; then
-            echo "Installing codecov..."
-            npm install -g codecov
-            
-            if [ -f "coverage/lcov.info" ]; then
-              echo "Uploading lcov.info to Codecov..."
-              codecov --file=coverage/lcov.info --token=${{ secrets.CODECOV_TOKEN }}
-            elif [ -f "coverage/coverage-final.json" ]; then
-              echo "Uploading coverage-final.json to Codecov..."
-              codecov --file=coverage/coverage-final.json --token=${{ secrets.CODECOV_TOKEN }}
-            fi
+          if [ -f "coverage/lcov.info" ]; then
+            echo "Uploading lcov.info to Codecov..."
+            npx codecov --file=coverage/lcov.info --token=${{ secrets.CODECOV_TOKEN }}
+          elif [ -f "coverage/coverage-final.json" ]; then
+            echo "Uploading coverage-final.json to Codecov..."
+            npx codecov --file=coverage/coverage-final.json --token=${{ secrets.CODECOV_TOKEN }}
           else
             echo "No coverage files found. Skipping Codecov upload."
           fi
 
-      # Upload test results as artifacts
+      # Upload test results as artifacts (only from first group)
       - name: Upload test results
-        if: always()
+        if: always() && matrix.is-first-group
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: |
             coverage/
-            .jest/
             test-results.json
             !**/node_modules/**
           if-no-files-found: warn
+          retention-days: 7
+          
+      # Upload JUnit test results for better visualization
+      - name: Upload JUnit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-group-${{ matrix.test-group }}
+          path: |
+            junit-*.xml
+          if-no-files-found: ignore
           retention-days: 7
 
       # Create a comment on PR with test results
