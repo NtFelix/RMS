@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { isoToGermanDate } from "@/utils/date-calculations";
 import {
   Dialog,
@@ -13,14 +13,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching";
 import { WasserzaehlerModalData } from "@/types/optimized-betriebskosten";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { AlertTriangle, Building2, CalendarDays, Droplet, Gauge, Users } from "lucide-react";
+import { 
+  Droplet, 
+  Building2, 
+  Calendar as CalendarIcon, 
+  TrendingUp, 
+  TrendingDown, 
+  AlertTriangle,
+  User,
+  Gauge,
+  Activity
+} from "lucide-react";
 
 // Local interface to handle additional client-side properties
 interface ModalWasserzaehlerEntry extends Omit<WasserzaehlerFormEntry, 'ablese_datum' | 'zaehlerstand' | 'verbrauch'> {
@@ -36,11 +45,6 @@ interface ModalWasserzaehlerEntry extends Omit<WasserzaehlerFormEntry, 'ablese_d
   } | null;
   warning?: string;
 }
-
-type ApartmentGroup = {
-  wohnungGroesse: number;
-  entries: { entry: ModalWasserzaehlerEntry; originalIndex: number }[];
-};
 
 export function WasserzaehlerModal() {
   const {
@@ -66,23 +70,6 @@ export function WasserzaehlerModal() {
 
   // Threshold for high consumption warning (50% more than previous year)
   const HIGH_CONSUMPTION_INCREASE_THRESHOLD = 1.5; // 50% increase
-
-  const groupedEntries = formData.reduce<Map<string, ApartmentGroup>>((acc, entry, index) => {
-    const key = entry.wohnung_name || "Unbekannte Wohnung";
-
-    if (!acc.has(key)) {
-      acc.set(key, {
-        wohnungGroesse: entry.wohnung_groesse,
-        entries: [],
-      });
-    }
-
-    acc.get(key)!.entries.push({ entry, originalIndex: index });
-
-    return acc;
-  }, new Map());
-
-  const groupedEntriesArray = Array.from(groupedEntries.entries());
 
   useEffect(() => {
     if (isWasserzaehlerModalOpen && wasserzaehlerNebenkosten) {
@@ -315,6 +302,21 @@ export function WasserzaehlerModal() {
     closeWasserzaehlerModal();
   };
 
+  // Group entries by apartment
+  const groupedEntries = useMemo(() => {
+    const groups: { [key: string]: ModalWasserzaehlerEntry[] } = {};
+    
+    formData.forEach(entry => {
+      const key = entry.wohnung_name;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(entry);
+    });
+    
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [formData]);
+
   if (!wasserzaehlerNebenkosten) {
     return null;
   }
@@ -338,146 +340,164 @@ export function WasserzaehlerModal() {
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 py-4">
           {/* General Date Picker */}
           {formData.length > 0 && (
-            <div className="mb-6 p-6 bg-muted/40 border rounded-xl shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <CalendarDays className="h-5 w-5 text-primary" />
+            <div className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="general-date-picker" className="text-sm font-medium">
+                  Gemeinsames Ablesedatum für alle Mieter
+                </Label>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1">
+                  <DatePicker
+                    id="general-date-picker"
+                    value={generalDate}
+                    onChange={(date) => setGeneralDate(date || new Date())}
+                    placeholder="Datum für alle Mieter auswählen"
+                  />
                 </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <p className="font-semibold">Gemeinsames Ablesedatum</p>
-                    <p className="text-sm text-muted-foreground">
-                      Übernehmen Sie ein Datum für alle Einträge, um Mehrfacheingaben zu vermeiden.
-                    </p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="flex-1">
-                      <DatePicker
-                        id="general-date-picker"
-                        value={generalDate}
-                        onChange={(date) => setGeneralDate(date || new Date())}
-                        placeholder="Datum für alle Mieter auswählen"
-                      />
-                    </div>
-                    <Button 
-                      type="button" 
-                      onClick={applyGeneralDateToAll} 
-                      variant="outline" 
-                      className="whitespace-nowrap"
-                    >
-                      Datum für alle übernehmen
-                    </Button>
-                  </div>
-                </div>
+                <Button 
+                  type="button" 
+                  onClick={applyGeneralDateToAll} 
+                  variant="outline" 
+                  className="whitespace-nowrap"
+                >
+                  Auf alle Mieter anwenden
+                </Button>
               </div>
             </div>
           )}
 
           {isLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <p>Lade Daten...</p>
+            <div className="flex flex-col justify-center items-center h-40 gap-3">
+              <Droplet className="h-8 w-8 text-muted-foreground animate-pulse" />
+              <p className="text-muted-foreground">Lade Wasserzählerdaten...</p>
             </div>
-          ) : groupedEntriesArray.length > 0 ? (
-            groupedEntriesArray.map(([wohnungName, group]) => (
-              <div key={wohnungName} className="border rounded-2xl bg-background shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/50 px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-primary/10 p-2">
-                      <Building2 className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-lg">{wohnungName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Wohnfläche: {group.wohnungGroesse} m²
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="flex items-center gap-1 text-sm">
-                    <Users className="h-4 w-4" />
-                    {group.entries.length} {group.entries.length === 1 ? "Mieter" : "Mieter"}
-                  </Badge>
+          ) : formData.length > 0 ? (
+            groupedEntries.map(([wohnungName, entries]) => (
+              <div key={wohnungName} className="space-y-3">
+                {/* Apartment Group Header */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border rounded-lg">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="font-semibold">{wohnungName}</h3>
+                  <span className="text-sm text-muted-foreground ml-auto">
+                    {entries.length} {entries.length === 1 ? 'Mieter' : 'Mieter'}
+                  </span>
                 </div>
 
-                <div className="space-y-4 px-6 py-4">
-                  {group.entries.map(({ entry, originalIndex }) => (
-                    <div key={`${wohnungName}-${entry.mieter_id}`} className="rounded-xl border bg-muted/30 p-5 shadow-sm">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-base font-semibold">
-                            <Droplet className="h-4 w-4 text-primary" />
-                            {entry.mieter_name}
+                {/* Tenants in this apartment */}
+                {entries.map((entry) => {
+                  const index = formData.findIndex(e => e.mieter_id === entry.mieter_id);
+                  const consumptionChange = entry.previous_reading?.verbrauch 
+                    ? ((parseFloat(entry.verbrauch) || 0) - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch * 100
+                    : null;
+                  
+                  return (
+                    <div key={entry.mieter_id} className="ml-4 p-4 border rounded-lg space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-start gap-2">
+                          <User className="h-4 w-4 text-muted-foreground mt-1" />
+                          <div>
+                            <p className="font-semibold">{entry.mieter_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {entry.wohnung_groesse} m²
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {entry.previous_reading ? (
-                              <>
-                                Vorjahresstand: {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'} · {entry.previous_reading.zaehlerstand} m³
-                              </>
-                            ) : (
-                              "Keine Vorjahres-Abrechnung vorhanden."
-                            )}
-                          </p>
                         </div>
+                        {consumptionChange !== null && !isNaN(consumptionChange) && (
+                          <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
+                            consumptionChange > 20 
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                              : consumptionChange < -10
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                              : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {consumptionChange > 0 ? (
+                              <TrendingUp className="h-3 w-3" />
+                            ) : (
+                              <TrendingDown className="h-3 w-3" />
+                            )}
+                            {consumptionChange > 0 ? '+' : ''}{consumptionChange.toFixed(1)}%
+                          </div>
+                        )}
                       </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div className="space-y-1">
-                          <Label htmlFor={`ablesedatum-${entry.mieter_id}`} className="flex items-center gap-2">
-                            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      {entry.previous_reading ? (
+                        <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+                          <Activity className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="font-medium">Vorjahr:</span>{' '}
+                            {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'} • 
+                            Stand: {entry.previous_reading.zaehlerstand} m³ • 
+                            Verbrauch: {entry.previous_reading.verbrauch} m³
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+                          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <p>Keine Vorjahres-Abrechnung vorhanden</p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`ablesedatum-${entry.mieter_id}`}>
                             Ablesedatum
                           </Label>
                           <DatePicker
                             id={`ablesedatum-${entry.mieter_id}`}
                             value={entry.ablese_datum}
-                            onChange={(date) => handleDateChangeRow(originalIndex, date)}
-                            placeholder="Datum auswählen (optional)"
+                            onChange={(date) => handleDateChangeRow(index, date)}
+                            placeholder="Datum auswählen"
                             disabled={isLoading}
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label htmlFor={`zaehlerstand-${entry.mieter_id}`} className="flex items-center gap-2">
-                            <Gauge className="h-4 w-4 text-muted-foreground" />
-                            Neuer Zählerstand
+                        <div className="space-y-2">
+                          <Label htmlFor={`zaehlerstand-${entry.mieter_id}`}>
+                            Neuer Zählerstand (m³)
                           </Label>
                           <Input
                             id={`zaehlerstand-${entry.mieter_id}`}
                             type="number"
+                            step="0.01"
                             value={entry.zaehlerstand}
-                            onChange={(e) => handleInputChange(originalIndex, 'zaehlerstand', e.target.value)}
+                            onChange={(e) => handleInputChange(index, 'zaehlerstand', e.target.value)}
                             placeholder="z.B. 123.45"
                             disabled={isLoading}
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label htmlFor={`verbrauch-${entry.mieter_id}`} className="flex items-center gap-2">
-                            <Droplet className="h-4 w-4 text-muted-foreground" />
-                            Verbrauch
+                        <div className="space-y-2">
+                          <Label htmlFor={`verbrauch-${entry.mieter_id}`}>
+                            Verbrauch (m³)
                           </Label>
                           <Input
                             id={`verbrauch-${entry.mieter_id}`}
                             type="number"
+                            step="0.01"
                             value={entry.verbrauch}
-                            onChange={(e) => handleInputChange(originalIndex, 'verbrauch', e.target.value)}
+                            onChange={(e) => handleInputChange(index, 'verbrauch', e.target.value)}
                             placeholder="wird berechnet"
                             disabled={isLoading}
                             className={entry.warning ? "border-red-500 focus-visible:ring-red-500" : ""}
                           />
                         </div>
                       </div>
-
+                      
                       {entry.warning && (
-                        <div className="mt-3 flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                          <AlertTriangle className="h-4 w-4" />
-                          {entry.warning}
+                        <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-sm text-destructive">
+                          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <p className="font-medium">{entry.warning}</p>
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             ))
           ) : (
-            <div className="flex justify-center items-center h-40">
-              <p>Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
+            <div className="flex flex-col justify-center items-center h-40 gap-3">
+              <Building2 className="h-12 w-12 text-muted-foreground/50" />
+              <p className="text-muted-foreground">Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
             </div>
           )}
         </div>
