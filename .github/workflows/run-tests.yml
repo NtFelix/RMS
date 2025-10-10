@@ -284,5 +284,3 @@ jobs:
               console.error('Error creating test report comment:', error);
               // Don't fail the workflow if comment creation fails
             }
-          NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
-          RUNNER_OS: ${{ runner.os }}
