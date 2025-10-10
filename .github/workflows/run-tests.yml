@@ -42,8 +42,7 @@ jobs:
           - test-group: 4
             is-first-group: false
     
-    # Set a job name for better visibility in the GitHub Actions UI
-    name: Test Group ${{ matrix.test-group }}
+    # Job name is set by the matrix strategy
     
     steps:
       - name: Checkout code
