@@ -28,8 +28,18 @@ import {
   AlertTriangle,
   User,
   Gauge,
-  Activity
+  Activity,
+  Search,
+  X
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 // Local interface to handle additional client-side properties
 interface ModalWasserzaehlerEntry extends Omit<WasserzaehlerFormEntry, 'ablese_datum' | 'zaehlerstand' | 'verbrauch'> {
@@ -66,6 +76,8 @@ export function WasserzaehlerModal() {
   const [initialFormData, setInitialFormData] = useState<ModalWasserzaehlerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [generalDate, setGeneralDate] = useState<Date | undefined>(new Date());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterTag, setFilterTag] = useState<string>("all");
   const { toast } = useToast();
 
   // Threshold for high consumption warning (50% more than previous year)
@@ -302,11 +314,37 @@ export function WasserzaehlerModal() {
     closeWasserzaehlerModal();
   };
 
-  // Group entries by apartment
+  // Filter and group entries by apartment
   const groupedEntries = useMemo(() => {
+    // First, filter the data based on search and filter tag
+    let filteredData = formData.filter(entry => {
+      // Search filter
+      const matchesSearch = searchQuery === "" || 
+        entry.mieter_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.wohnung_name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      if (!matchesSearch) return false;
+
+      // Tag filter
+      if (filterTag === "all") return true;
+      
+      const consumptionChange = entry.previous_reading?.verbrauch 
+        ? ((parseFloat(entry.verbrauch) || 0) - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch * 100
+        : null;
+
+      if (filterTag === "high-increase" && consumptionChange !== null && consumptionChange > 20) return true;
+      if (filterTag === "decrease" && consumptionChange !== null && consumptionChange < -10) return true;
+      if (filterTag === "no-data" && !entry.previous_reading) return true;
+      if (filterTag === "warnings" && entry.warning) return true;
+      if (filterTag === "incomplete" && (!entry.zaehlerstand || !entry.ablese_datum)) return true;
+      
+      return filterTag === "all";
+    });
+
+    // Then group by apartment
     const groups: { [key: string]: ModalWasserzaehlerEntry[] } = {};
     
-    formData.forEach(entry => {
+    filteredData.forEach(entry => {
       const key = entry.wohnung_name;
       if (!groups[key]) {
         groups[key] = [];
@@ -315,7 +353,7 @@ export function WasserzaehlerModal() {
     });
     
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [formData]);
+  }, [formData, searchQuery, filterTag]);
 
   if (!wasserzaehlerNebenkosten) {
     return null;
@@ -368,13 +406,98 @@ export function WasserzaehlerModal() {
             </div>
           )}
 
+          {/* Search and Filter */}
+          {formData.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Mieter oder Wohnung suchen..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <Select value={filterTag} onValueChange={setFilterTag}>
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle anzeigen</SelectItem>
+                    <SelectItem value="high-increase">Hoher Anstieg (&gt;20%)</SelectItem>
+                    <SelectItem value="decrease">Rückgang (&gt;10%)</SelectItem>
+                    <SelectItem value="warnings">Mit Warnungen</SelectItem>
+                    <SelectItem value="incomplete">Unvollständig</SelectItem>
+                    <SelectItem value="no-data">Keine Vorjahresdaten</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Active filters display */}
+              {(searchQuery || filterTag !== "all") && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Aktive Filter:</span>
+                  {searchQuery && (
+                    <Badge variant="secondary" className="gap-1">
+                      Suche: {searchQuery}
+                      <button onClick={() => setSearchQuery("")} className="ml-1 hover:text-foreground">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  {filterTag !== "all" && (
+                    <Badge variant="secondary" className="gap-1">
+                      {filterTag === "high-increase" && "Hoher Anstieg"}
+                      {filterTag === "decrease" && "Rückgang"}
+                      {filterTag === "warnings" && "Mit Warnungen"}
+                      {filterTag === "incomplete" && "Unvollständig"}
+                      {filterTag === "no-data" && "Keine Vorjahresdaten"}
+                      <button onClick={() => setFilterTag("all")} className="ml-1 hover:text-foreground">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setFilterTag("all");
+                    }}
+                    className="h-6 text-xs"
+                  >
+                    Alle Filter zurücksetzen
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex flex-col justify-center items-center h-40 gap-3">
               <Droplet className="h-8 w-8 text-muted-foreground animate-pulse" />
               <p className="text-muted-foreground">Lade Wasserzählerdaten...</p>
             </div>
           ) : formData.length > 0 ? (
-            groupedEntries.map(([wohnungName, entries]) => (
+            groupedEntries.length === 0 ? (
+              <div className="flex flex-col justify-center items-center h-40 gap-3">
+                <Search className="h-12 w-12 text-muted-foreground/50" />
+                <div className="text-center">
+                  <p className="text-muted-foreground font-medium">Keine Ergebnisse gefunden</p>
+                  <p className="text-sm text-muted-foreground">Versuchen Sie, Ihre Suchkriterien anzupassen</p>
+                </div>
+              </div>
+            ) : (
+              groupedEntries.map(([wohnungName, entries]) => (
               <div key={wohnungName} className="space-y-3">
                 {/* Apartment Group Header */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border rounded-lg">
@@ -493,7 +616,7 @@ export function WasserzaehlerModal() {
                   );
                 })}
               </div>
-            ))
+            )))
           ) : (
             <div className="flex flex-col justify-center items-center h-40 gap-3">
               <Building2 className="h-12 w-12 text-muted-foreground/50" />
