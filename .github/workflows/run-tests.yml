@@ -86,24 +86,41 @@ jobs:
       - name: Get test files list
         id: test-files
         run: |
-          # Get list of all test files
-          TEST_FILES=$(find . -name '*.test.ts' -o -name '*.test.tsx' | grep -v 'node_modules' | sort)
+          # Get list of all test files and write to a file
+          find . -name '*.test.ts' -o -name '*.test.tsx' | grep -v 'node_modules' | sort > all_tests.txt
           
-          # Split test files into 4 groups
-          TOTAL_FILES=$(echo "$TEST_FILES" | wc -l)
+          # Count total test files
+          TOTAL_FILES=$(wc -l < all_tests.txt)
           FILES_PER_GROUP=$(( ($TOTAL_FILES + 3) / 4 ))
           
-          # Select files for this group
-          GROUP_FILES=$(echo "$TEST_FILES" | awk -v group=${{ matrix.test-group }} -v per_group=$FILES_PER_GROUP '\
-            NR > (group-1)*per_group && NR <= group*per_group {print}')
+          # Calculate line range for this group
+          START_LINE=$(( (${{ matrix.test-group }} - 1) * FILES_PER_GROUP + 1 ))
+          END_LINE=$(( ${{ matrix.test-group }} * FILES_PER_GROUP ))
           
-          # Format as JSON array for Jest
-          echo "TEST_FILES='$(echo "$GROUP_FILES" | jq -R -s -c 'split("\n") | map(select(. != ""))' | tr -d '\n')'" >> $GITHUB_ENV
+          # Extract files for this group
+          sed -n "${START_LINE},${END_LINE}p" all_tests.txt > group_files.txt
+          
+          # Create a JSON array of test files
+          echo '[' > test_files.json
+          while IFS= read -r line; do
+            echo "\"$line\"," >> test_files.json
+          done < group_files.txt
+          # Remove trailing comma and close array
+          sed -i '' -e '${s/,$//}' test_files.json
+          echo ']' >> test_files.json
+          
+          # Use jq to properly escape the JSON
+          TEST_FILES_JSON=$(jq -c . test_files.json)
           
           echo "Total test files: $TOTAL_FILES"
-          echo "Files in group ${{ matrix.test-group }}:"
-          echo "$GROUP_FILES"
-          echo "TEST_FILES=$TEST_FILES" >> $GITHUB_ENV
+          echo "Files in group ${{ matrix.test-group }} (lines $START_LINE-$END_LINE):"
+          cat group_files.txt
+          
+          # Set output for use in subsequent steps
+          echo "test_files=$TEST_FILES_JSON" >> $GITHUB_OUTPUT
+          
+          # For debugging
+          echo "TEST_FILES_JSON=$TEST_FILES_JSON" >> $GITHUB_ENV
 
       # Run tests for this group
       - name: Run test group ${{ matrix.test-group }}
@@ -120,12 +137,14 @@ jobs:
             TEST_CMD="$TEST_CMD --coverage --testLocationInResults --json --outputFile=test-results.json"
           fi
           
-          # Run tests for this group
+          # Read test files from the JSON file
+          TEST_FILES=$(jq -r '.[]' test_files.json | tr '\n' ' ')
+          
           echo "Running test group ${{ matrix.test-group }} with command:"
-          echo "$TEST_CMD ${{ env.TEST_FILES }}"
+          echo "$TEST_CMD $TEST_FILES"
           
           # Execute tests
-          eval $TEST_CMD ${{ env.TEST_FILES }} || echo "Tests failed but continuing..."
+          eval $TEST_CMD $TEST_FILES || echo "Tests failed but continuing..."
           
           # For the first group, verify coverage
           if ${{ matrix.is-first-group }} && [ -d "coverage" ]; then
