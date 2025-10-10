@@ -500,7 +500,7 @@ export function WasserzaehlerModal() {
               groupedEntries.map(([wohnungName, entries]) => (
               <div key={wohnungName} className="space-y-3">
                 {/* Apartment Group Header */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border rounded-lg mr-2">
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border rounded-lg">
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                   <h3 className="font-semibold">{wohnungName}</h3>
                   <span className="text-sm text-muted-foreground ml-auto">
@@ -516,7 +516,7 @@ export function WasserzaehlerModal() {
                     : null;
                   
                   return (
-                    <div key={entry.mieter_id} className="ml-4 mr-2 p-4 border rounded-lg space-y-3">
+                    <div key={entry.mieter_id} className="ml-4 p-4 border rounded-2xl space-y-3">
                       <div className="flex justify-between items-start">
                         <div className="flex items-start gap-2">
                           <User className="h-4 w-4 text-muted-foreground mt-1" />
@@ -546,20 +546,25 @@ export function WasserzaehlerModal() {
                       </div>
 
                       {entry.previous_reading ? (
-                        <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                          <Activity className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <span className="font-medium">Vorjahr:</span>{' '}
-                            {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'} • 
-                            Stand: {entry.previous_reading.zaehlerstand} m³ • 
-                            Verbrauch: {entry.previous_reading.verbrauch} m³
-                          </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="secondary" className="gap-1.5">
+                            <Activity className="h-3 w-3" />
+                            <span>Vorjahr: {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'}</span>
+                          </Badge>
+                          <Badge variant="outline" className="gap-1.5">
+                            <Gauge className="h-3 w-3" />
+                            <span>Stand: {entry.previous_reading.zaehlerstand} m³</span>
+                          </Badge>
+                          <Badge variant="outline" className="gap-1.5">
+                            <Droplet className="h-3 w-3" />
+                            <span>Verbrauch: {entry.previous_reading.verbrauch} m³</span>
+                          </Badge>
                         </div>
                       ) : (
-                        <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <p>Keine Vorjahres-Abrechnung vorhanden</p>
-                        </div>
+                        <Badge variant="secondary" className="gap-1.5 w-fit">
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>Keine Vorjahres-Abrechnung vorhanden</span>
+                        </Badge>
                       )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -607,10 +612,10 @@ export function WasserzaehlerModal() {
                       </div>
                       
                       {entry.warning && (
-                        <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-sm text-destructive">
-                          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <p className="font-medium">{entry.warning}</p>
-                        </div>
+                        <Badge variant="destructive" className="gap-1.5 w-fit">
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>{entry.warning}</span>
+                        </Badge>
                       )}
                     </div>
                   );
