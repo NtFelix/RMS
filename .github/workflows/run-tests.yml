@@ -99,21 +99,24 @@ jobs:
           
           # Extract files for this group
           sed -n "${START_LINE},${END_LINE}p" all_tests.txt > group_files.txt
-          
           # Create a JSON array of test files
           echo '[' > test_files.json
           while IFS= read -r line; do
             echo "\"$line\"," >> test_files.json
           done < group_files.txt
-          # Remove trailing comma and close array
-          sed -i '' -e '${s/,$//}' test_files.json
-          echo ']' >> test_files.json
+              # Remove trailing comma and close array (compatible with both Linux and macOS)
+              if [ -s test_files.json ]; then
+                head -n -1 test_files.json > temp.json && mv temp.json test_files.json
+                echo ']' >> test_files.json
+              else
+                echo '[]' > test_files.json
+              fi
           
           # Use jq to properly escape the JSON
           TEST_FILES_JSON=$(jq -c . test_files.json)
           
           echo "Total test files: $TOTAL_FILES"
-          echo "Files in group ${{ matrix.test-group }} (lines $START_LINE-$END_LINE):"
+{{ ... }}
           cat group_files.txt
           
           # Set output for use in subsequent steps
