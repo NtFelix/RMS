@@ -116,7 +116,7 @@ jobs:
           TEST_FILES_JSON=$(jq -c . test_files.json)
           
           echo "Total test files: $TOTAL_FILES"
-{{ ... }}
+          echo "Files in group ${{ matrix.test-group }} (lines $START_LINE-$END_LINE):"
           cat group_files.txt
           
           # Set output for use in subsequent steps
