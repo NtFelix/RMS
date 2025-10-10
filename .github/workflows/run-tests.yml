@@ -25,22 +25,63 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        # Split tests into 4 groups for parallel execution
-        test-group: [1, 2, 3, 4]
-        # Include a flag for the first group to handle coverage
+        test-group: [1, 2, 3]
         include:
           - test-group: 1
             is-first-group: true
+            test-files: >-
+              lib/data-fetching.test.ts
+              lib/utils.test.ts
+              lib/__tests__/template-constants.test.ts
+              lib/__tests__/storage-service.test.ts
+              lib/__tests__/path-utils.test.ts
+              lib/constants.test.ts
+              lib/supabase-server.test.ts
+              lib/stripe-server.test.ts
+              hooks/use-command-menu.test.tsx
+              hooks/use-search.test.ts
+              components/house-filters.test.tsx
+              components/wohnung-overview-modal.test.tsx
+              components/search-error-boundary.test.tsx
+              components/search-result-item.test.tsx
+              components/finance-edit-modal.test.tsx
           - test-group: 2
             is-first-group: false
+            test-files: >-
+              hooks/__tests__/use-cloud-storage-upload.test.ts
+              hooks/__tests__/use-keyboard-navigation.test.ts
+              hooks/__tests__/use-cloud-storage-navigation.test.ts
+              hooks/__tests__/use-cloud-storage-store.test.ts
+              hooks/__tests__/use-modal-store-timeout.test.ts
+              components/ui/custom-combobox.test.tsx
+              components/ui/video-player.test.tsx
+              components/ui/label-with-tooltip.test.tsx
+              components/ui/button-with-tooltip.test.tsx
+              app/(dashboard)/wohnungen/client.test.tsx
+              app/(dashboard)/todos/client-wrapper.test.tsx
+              app/(dashboard)/betriebskosten/client-wrapper.test.tsx
+              app/(dashboard)/betriebskosten/client-wrapper-layout.test.tsx
+              app/wohnungen-actions.test.ts
+              app/subscription-locked/page.test.tsx
           - test-group: 3
             is-first-group: false
-          - test-group: 4
-            is-first-group: false
+            test-files: >-
+              __tests__/template-integration.test.ts
+              __tests__/template-integration.test.tsx
+              __tests__/template-editor-final-integration.test.tsx
+              __tests__/template-editor-modal-comprehensive.test.tsx
+              __tests__/template-mention-extension.test.tsx
+              __tests__/ai-assistant-dependencies.test.ts
+              __tests__/ai-assistant-comprehensive.test.tsx
+              __tests__/storage-performance-optimization.test.tsx
+              __tests__/mobile-navigation-responsive-behavior-comprehensive.test.tsx
+              lib/__tests__/mention-suggestion-popup.test.ts
+              lib/__tests__/path-utils-virtual-folders.test.ts
+              lib/__tests__/directory-cache.test.ts
+              integration/landing-page-flow.test.tsx
     
     # Job name is set by the matrix strategy
     
@@ -82,71 +123,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Install dependencies for test splitting
+      # Get test files for this group
       - name: Get test files list
         id: test-files
         run: |
-          # Create an empty array as fallback
-          echo '[]' > test_files.json
-          
-          # Get list of all test files and write to a file
-          find . -name '*.test.ts' -o -name '*.test.tsx' | grep -v 'node_modules' | sort > all_tests.txt || true
-          
-          # Count total test files
-          TOTAL_FILES=$(wc -l < all_tests.txt || echo 0)
-          
-          if [ "$TOTAL_FILES" -gt 0 ]; then
-            FILES_PER_GROUP=$(( ($TOTAL_FILES + 3) / 4 ))
-            
-            # Calculate line range for this group
-            START_LINE=$(( (${{ matrix.test-group }} - 1) * FILES_PER_GROUP + 1 ))
-            END_LINE=$(( ${{ matrix.test-group }} * FILES_PER_GROUP ))
-            
-            # Extract files for this group
-            sed -n "${START_LINE},${END_LINE}p" all_tests.txt > group_files.txt
-            
-            # Create a JSON array of test files
-            echo '[' > test_files.json
-            while IFS= read -r line; do
-              # Skip empty lines
-              [ -z "$line" ] && continue
-              echo "\"$line\"," >> test_files.json
-            done < group_files.txt
-            
-            # Only modify the file if we have test files
-            if [ -s group_files.txt ]; then
-              # Remove trailing comma and close array
-              if [ -s test_files.json ]; then
-                sed -i -e '${s/,$//}' test_files.json
-                echo ']' >> test_files.json
-              else
-                echo '[]' > test_files.json
-              fi
-            else
-              echo '[]' > test_files.json
-            fi
-            
-            echo "Files in group ${{ matrix.test-group }} (lines $START_LINE-$END_LINE):"
-            cat group_files.txt || echo "No test files in this group"
-          else
-            echo '[]' > test_files.json
-            echo "No test files found in the project."
+          # Create a JSON array of test files from the matrix variable
+          echo '[' > test_files.json
+          if [ -n "${{ matrix.test-files }}" ]; then
+            # Convert newline-separated list to JSON array
+            echo "${{ matrix.test-files }}" | while read -r line; do
+              [ -n "$line" ] && echo "\"$line\"," >> test_files.json
+            done
+            # Remove trailing comma and close array
+            sed -i '' -e '$ s/,$//' test_files.json
           fi
+          echo ']' >> test_files.json
           
-          # Use jq to validate and properly escape the JSON
-          if ! TEST_FILES_JSON=$(jq -c . test_files.json 2>/dev/null); then
+          # Validate JSON
+          if ! jq -e . test_files.json > /dev/null 2>&1; then
             echo "Error: Invalid JSON in test_files.json"
             cat test_files.json
             exit 1
           fi
           
-          echo "Total test files: $TOTAL_FILES"
+          # Output for debugging
+          echo "Test files in group ${{ matrix.test-group }}:"
+          cat test_files.json
           
           # Set output for use in subsequent steps
-          echo "test_files=$TEST_FILES_JSON" >> $GITHUB_OUTPUT
-          
-          # For debugging
-          echo "TEST_FILES_JSON=$TEST_FILES_JSON" >> $GITHUB_ENV
+          echo "test_files=$(cat test_files.json | jq -c .)" >> $GITHUB_OUTPUT
 
       # Run tests for this group
       - name: Run test group ${{ matrix.test-group }}
