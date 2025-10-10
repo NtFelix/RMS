@@ -242,41 +242,47 @@ jobs:
       - name: Create test report comment
         if: github.event_name == 'pull_request' && github.event.pull_request != ''
         uses: actions/github-script@v7
+        env:
+          NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
+          RUNNER_OS: ${{ runner.os }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           script: |
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number
-            });
-            
-            // Delete previous comments from this action
-            for (const comment of comments) {
-              if (comment.user.login === 'github-actions[bot]' && 
-                  comment.body.includes('### Test Results')) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: comment.id
-                });
+            try {
+              // Get existing comments
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number
+              });
+              
+              // Delete any existing test result comments
+              for (const comment of comments) {
+                if (comment.user.login === 'github-actions[bot]' && 
+                    comment.body.includes('### Test Results')) {
+                  await github.rest.issues.deleteComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: comment.id
+                  });
+                }
               }
+              
+              // Create a new comment with test results
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `### Test Results :white_check_mark:
+
+- **Node Version**: ${process.env.NODE_VERSION}
+- **OS**: ${process.env.RUNNER_OS}
+- **Test Command**: \`npm test --coverage\`
+- **Workflow Run**: [#${process.env.GITHUB_RUN_NUMBER}](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
+              });
+            } catch (error) {
+              console.error('Error creating test report comment:', error);
+              // Don't fail the workflow if comment creation fails
             }
-            
-            // Create new comment
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: |
-                ### Test Results :white_check_mark:
-                
-                - **Node Version**: ${process.env.NODE_VERSION}
-                - **OS**: ${process.env.RUNNER_OS}
-                - **Test Command**: \`npm test --coverage\`
-                
-                View the [full test results](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
-            });
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
           RUNNER_OS: ${{ runner.os }}
