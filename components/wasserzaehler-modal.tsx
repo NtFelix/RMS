@@ -298,7 +298,7 @@ export function WasserzaehlerModal() {
   return (
     <Dialog open={isWasserzaehlerModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent 
-        className="sm:max-w-[600px] md:max-w-[800px]"
+        className="sm:max-w-[800px] md:max-w-[1000px] lg:max-w-[1200px]"
         isDirty={isWasserzaehlerModalDirty}
         onAttemptClose={attemptClose}
       >
