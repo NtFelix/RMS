@@ -78,10 +78,45 @@ export function WasserzaehlerModal() {
   const [generalDate, setGeneralDate] = useState<Date | undefined>(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTag, setFilterTag] = useState<string>("all");
+  const [apartmentUsage, setApartmentUsage] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
 
   // Threshold for high consumption warning (50% more than previous year)
   const HIGH_CONSUMPTION_INCREASE_THRESHOLD = 1.5; // 50% increase
+
+  // Handle apartment-level water usage change
+  const handleApartmentUsageChange = (wohnungName: string, value: string) => {
+    setApartmentUsage(prev => ({
+      ...prev,
+      [wohnungName]: value
+    }));
+
+    // If the value is empty, don't update individual usages
+    if (!value || isNaN(parseFloat(value))) return;
+
+    const totalUsage = parseFloat(value);
+    const apartmentEntries = formData.filter(entry => entry.wohnung_name === wohnungName);
+    const tenantCount = apartmentEntries.length;
+    
+    if (tenantCount === 0) return;
+
+    // Calculate equal share for each tenant
+    const share = (totalUsage / tenantCount).toFixed(2);
+    
+    // Update form data with new usages
+    setFormData(prev => 
+      prev.map(entry => {
+        if (entry.wohnung_name === wohnungName) {
+          return {
+            ...entry,
+            verbrauch: share,
+            warning: '' // Clear any previous warnings
+          };
+        }
+        return entry;
+      })
+    );
+  };
 
   useEffect(() => {
     if (isWasserzaehlerModalOpen && wasserzaehlerNebenkosten) {
@@ -500,12 +535,40 @@ export function WasserzaehlerModal() {
               groupedEntries.map(([wohnungName, entries]) => (
               <div key={wohnungName} className="space-y-3">
                 {/* Apartment Group Header */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border rounded-lg">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold">{wohnungName}</h3>
-                  <span className="text-sm text-muted-foreground ml-auto">
-                    {entries.length} {entries.length === 1 ? 'Mieter' : 'Mieter'}
-                  </span>
+                <div className="space-y-3 p-3 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="font-semibold">{wohnungName}</h3>
+                    <span className="text-sm text-muted-foreground ml-auto">
+                      {entries.length} {entries.length === 1 ? 'Mieter' : 'Mieter'}
+                    </span>
+                  </div>
+                  
+                  {/* Apartment Water Usage Input */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Droplet className="h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor={`apartment-usage-${wohnungName}`} className="text-sm font-medium">
+                        Gesamtverbrauch aufteilen (m³)
+                      </Label>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id={`apartment-usage-${wohnungName}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={apartmentUsage[wohnungName] || ''}
+                        onChange={(e) => handleApartmentUsageChange(wohnungName, e.target.value)}
+                        placeholder="Gesamtverbrauch eingeben"
+                        className="pl-8"
+                      />
+                      <Droplet className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        m³
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Tenants in this apartment */}
