@@ -538,11 +538,13 @@ export function WasserzaehlerModal() {
               groupedEntries.map(([wohnungName, entries]) => (
               <div key={wohnungName} className="space-y-3">
                 {/* Apartment Group Header */}
-                <div className="space-y-3 p-3 border rounded-2xl">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 flex-1">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <h3 className="font-semibold">{wohnungName}</h3>
+                <div className="p-4 border rounded-2xl mb-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-start gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground mt-1" />
+                      <div>
+                        <h3 className="font-semibold">{wohnungName}</h3>
+                      </div>
                     </div>
                     <Badge 
                       variant="secondary" 
@@ -554,7 +556,7 @@ export function WasserzaehlerModal() {
                   </div>
                   
                   {/* Apartment Water Usage Input */}
-                  <div className="space-y-2">
+                  <div className="mt-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <Droplet className="h-4 w-4 text-muted-foreground" />
                       <Label htmlFor={`apartment-usage-${wohnungName}`} className="text-sm font-medium">
