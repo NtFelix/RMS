@@ -354,34 +354,40 @@ export function WasserzaehlerModal() {
 
   // Filter and group entries by apartment
   const groupedEntries = useMemo(() => {
-    // First, filter the data based on search and filter tag
-    let filteredData = formData.filter(entry => {
+    // Augment data with consumptionChange and original index
+    const augmentedData = formData.map((entry, index) => {
+      const consumptionChange = entry.previous_reading?.verbrauch 
+        ? ((parseFloat(entry.verbrauch) || 0) - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch * 100
+        : null;
+      return { 
+        ...entry, 
+        originalIndex: index, 
+        consumptionChange 
+      };
+    });
+
+    // Filter the augmented data based on search and filter tag
+    let filteredData = augmentedData.filter(entry => {
       // Search filter
       const matchesSearch = searchQuery === "" || 
         entry.mieter_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         entry.wohnung_name.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       if (!matchesSearch) return false;
 
       // Tag filter
       if (filterTag === "all") return true;
-      
-      const consumptionChange = entry.previous_reading?.verbrauch 
-        ? ((parseFloat(entry.verbrauch) || 0) - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch * 100
-        : null;
-
-      if (filterTag === "high-increase" && consumptionChange !== null && consumptionChange > 20) return true;
-      if (filterTag === "decrease" && consumptionChange !== null && consumptionChange < -10) return true;
+      if (filterTag === "high-increase" && entry.consumptionChange !== null && entry.consumptionChange > 20) return true;
+      if (filterTag === "decrease" && entry.consumptionChange !== null && entry.consumptionChange < -10) return true;
       if (filterTag === "no-data" && !entry.previous_reading) return true;
       if (filterTag === "warnings" && entry.warning) return true;
       if (filterTag === "incomplete" && (!entry.zaehlerstand || !entry.ablese_datum)) return true;
       
-      return filterTag === "all";
+      return false;
     });
 
-    // Then group by apartment
-    const groups: { [key: string]: ModalWasserzaehlerEntry[] } = {};
-    
+    // Group by apartment
+    const groups: { [key: string]: typeof filteredData } = {};
     filteredData.forEach(entry => {
       const key = entry.wohnung_name;
       if (!groups[key]) {
@@ -389,7 +395,7 @@ export function WasserzaehlerModal() {
       }
       groups[key].push(entry);
     });
-    
+
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [formData, searchQuery, filterTag]);
 
@@ -604,10 +610,8 @@ export function WasserzaehlerModal() {
 
                 {/* Tenants in this apartment */}
                 {entries.map((entry) => {
-                  const index = formData.findIndex(e => e.mieter_id === entry.mieter_id);
-                  const consumptionChange = entry.previous_reading?.verbrauch 
-                    ? ((parseFloat(entry.verbrauch) || 0) - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch * 100
-                    : null;
+                  const index = entry.originalIndex;
+                  const consumptionChange = entry.consumptionChange;
                   
                   return (
                     <div key={entry.mieter_id} className="ml-4 p-4 border rounded-3xl space-y-3 bg-gray-50 dark:bg-zinc-900/50">
