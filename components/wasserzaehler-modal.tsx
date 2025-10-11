@@ -352,6 +352,16 @@ export function WasserzaehlerModal() {
     closeWasserzaehlerModal();
   };
 
+  // Define filter options
+  const filterOptions = [
+    { value: 'all', label: 'Alle anzeigen' },
+    { value: 'high-increase', label: 'Hoher Anstieg (>20%)' },
+    { value: 'decrease', label: 'Rückgang (>10%)' },
+    { value: 'warnings', label: 'Mit Warnungen' },
+    { value: 'incomplete', label: 'Unvollständig' },
+    { value: 'no-data', label: 'Keine Vorjahresdaten' },
+  ] as const;
+
   // Filter and group entries by apartment
   const groupedEntries = useMemo(() => {
     // Augment data with consumptionChange and original index
@@ -476,12 +486,11 @@ export function WasserzaehlerModal() {
                     <SelectValue placeholder="Filter" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Alle anzeigen</SelectItem>
-                    <SelectItem value="high-increase">Hoher Anstieg (&gt;20%)</SelectItem>
-                    <SelectItem value="decrease">Rückgang (&gt;10%)</SelectItem>
-                    <SelectItem value="warnings">Mit Warnungen</SelectItem>
-                    <SelectItem value="incomplete">Unvollständig</SelectItem>
-                    <SelectItem value="no-data">Keine Vorjahresdaten</SelectItem>
+                    {filterOptions.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
