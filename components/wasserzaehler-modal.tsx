@@ -44,6 +44,25 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
+// Filter options for the water meter modal
+const filterOptions = [
+  { value: 'all', label: 'Alle anzeigen' },
+  { value: 'high-increase', label: 'Hoher Anstieg (>20%)' },
+  { value: 'decrease', label: 'Rückgang (>10%)' },
+  { value: 'warnings', label: 'Mit Warnungen' },
+  { value: 'incomplete', label: 'Unvollständig' },
+  { value: 'no-data', label: 'Keine Vorjahresdaten' },
+] as const;
+
+// Map filter tags to their display labels
+const filterTagLabels: Record<string, string> = {
+  'high-increase': 'Hoher Anstieg',
+  'decrease': 'Rückgang',
+  'warnings': 'Mit Warnungen',
+  'incomplete': 'Unvollständig',
+  'no-data': 'Keine Vorjahresdaten',
+};
+
 // Local interface to handle additional client-side properties
 interface ModalWasserzaehlerEntry extends Omit<WasserzaehlerFormEntry, 'ablese_datum' | 'zaehlerstand' | 'verbrauch'> {
   ablese_datum: string;
@@ -350,25 +369,6 @@ export function WasserzaehlerModal() {
 
   const attemptClose = () => {
     closeWasserzaehlerModal();
-  };
-
-  // Define filter options
-  const filterOptions = [
-    { value: 'all', label: 'Alle anzeigen' },
-    { value: 'high-increase', label: 'Hoher Anstieg (>20%)' },
-    { value: 'decrease', label: 'Rückgang (>10%)' },
-    { value: 'warnings', label: 'Mit Warnungen' },
-    { value: 'incomplete', label: 'Unvollständig' },
-    { value: 'no-data', label: 'Keine Vorjahresdaten' },
-  ] as const;
-
-  // Map filter tags to their display labels
-  const filterTagLabels: Record<string, string> = {
-    'high-increase': 'Hoher Anstieg',
-    'decrease': 'Rückgang',
-    'warnings': 'Mit Warnungen',
-    'incomplete': 'Unvollständig',
-    'no-data': 'Keine Vorjahresdaten',
   };
 
   // Filter and group entries by apartment
