@@ -538,7 +538,7 @@ export function WasserzaehlerModal() {
               groupedEntries.map(([wohnungName, entries]) => (
               <div key={wohnungName} className="space-y-3">
                 {/* Apartment Group Header */}
-                <div className="space-y-3 p-3 border rounded-lg">
+                <div className="space-y-3 p-3 border rounded-2xl">
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-muted-foreground" />
                     <h3 className="font-semibold">{wohnungName}</h3>
