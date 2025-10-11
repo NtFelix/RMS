@@ -606,12 +606,7 @@ export function WasserzaehlerModal() {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => {
-                          const value = apartmentUsage[wohnungName];
-                          if (value && !isNaN(parseFloat(value))) {
-                            handleApartmentUsageChange(wohnungName, value);
-                          }
-                        }}
+                        onClick={() => handleApartmentUsageChange(wohnungName, apartmentUsage[wohnungName])}
                         disabled={!apartmentUsage[wohnungName] || isNaN(parseFloat(apartmentUsage[wohnungName]))}
                         className="shrink-0 gap-2"
                       >
