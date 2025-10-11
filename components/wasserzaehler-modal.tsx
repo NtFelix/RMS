@@ -30,7 +30,10 @@ import {
   Gauge,
   Activity,
   Search,
-  X
+  X,
+  ArrowRightLeft,
+  ArrowDownUp,
+  ArrowDownUp as SplitIcon
 } from "lucide-react";
 import {
   Select,
@@ -552,21 +555,42 @@ export function WasserzaehlerModal() {
                         Gesamtverbrauch aufteilen (m³)
                       </Label>
                     </div>
-                    <div className="relative">
-                      <Input
-                        id={`apartment-usage-${wohnungName}`}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={apartmentUsage[wohnungName] || ''}
-                        onChange={(e) => handleApartmentUsageChange(wohnungName, e.target.value)}
-                        placeholder="Gesamtverbrauch eingeben"
-                        className="pl-8"
-                      />
-                      <Droplet className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        m³
-                      </span>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          id={`apartment-usage-${wohnungName}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={apartmentUsage[wohnungName] || ''}
+                          onChange={(e) => setApartmentUsage(prev => ({
+                            ...prev,
+                            [wohnungName]: e.target.value
+                          }))}
+                          placeholder="Gesamtverbrauch"
+                          className="pl-8"
+                        />
+                        <Droplet className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          m³
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        title="Verbrauch aufteilen"
+                        onClick={() => {
+                          const value = apartmentUsage[wohnungName];
+                          if (value && !isNaN(parseFloat(value))) {
+                            handleApartmentUsageChange(wohnungName, value);
+                          }
+                        }}
+                        disabled={!apartmentUsage[wohnungName] || isNaN(parseFloat(apartmentUsage[wohnungName]))}
+                        className="shrink-0"
+                      >
+                        <SplitIcon className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
