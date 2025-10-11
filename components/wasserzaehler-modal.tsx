@@ -362,6 +362,15 @@ export function WasserzaehlerModal() {
     { value: 'no-data', label: 'Keine Vorjahresdaten' },
   ] as const;
 
+  // Map filter tags to their display labels
+  const filterTagLabels: Record<string, string> = {
+    'high-increase': 'Hoher Anstieg',
+    'decrease': 'Rückgang',
+    'warnings': 'Mit Warnungen',
+    'incomplete': 'Unvollständig',
+    'no-data': 'Keine Vorjahresdaten',
+  };
+
   // Filter and group entries by apartment
   const groupedEntries = useMemo(() => {
     // Augment data with consumptionChange and original index
@@ -509,11 +518,7 @@ export function WasserzaehlerModal() {
                   )}
                   {filterTag !== "all" && (
                     <Badge variant="secondary" className="gap-1">
-                      {filterTag === "high-increase" && "Hoher Anstieg"}
-                      {filterTag === "decrease" && "Rückgang"}
-                      {filterTag === "warnings" && "Mit Warnungen"}
-                      {filterTag === "incomplete" && "Unvollständig"}
-                      {filterTag === "no-data" && "Keine Vorjahresdaten"}
+                      {filterTagLabels[filterTag]}
                       <button onClick={() => setFilterTag("all")} className="ml-1 hover:text-foreground">
                         <X className="h-3 w-3" />
                       </button>
