@@ -108,11 +108,6 @@ export function WasserzaehlerModal() {
 
   // Handle apartment-level water usage change
   const handleApartmentUsageChange = (wohnungName: string, value: string) => {
-    setApartmentUsage(prev => ({
-      ...prev,
-      [wohnungName]: value
-    }));
-
     // If the value is empty, don't update individual usages
     if (!value || isNaN(parseFloat(value))) return;
 
@@ -122,22 +117,27 @@ export function WasserzaehlerModal() {
     
     if (tenantCount === 0) return;
 
-    // Calculate equal share for each tenant
-    const share = (totalUsage / tenantCount).toFixed(2);
-    
+    // Calculate share for each tenant, ensuring the total sums up correctly
+    const baseShare = totalUsage / tenantCount;
+    const roundedShare = Math.floor(baseShare * 100) / 100; // Round down to 2 decimal places
+    const remainder = Math.round((totalUsage - (roundedShare * (tenantCount - 1))) * 100) / 100;
+
     // Update form data with new usages
-    setFormData(prev => 
-      prev.map(entry => {
+    setFormData(prev => {
+      let remainingTenants = tenantCount;
+      return prev.map(entry => {
         if (entry.wohnung_name === wohnungName) {
+          const share = remainingTenants === 1 ? remainder : roundedShare;
+          remainingTenants--;
           return {
             ...entry,
-            verbrauch: share,
+            verbrauch: share.toFixed(2),
             warning: '' // Clear any previous warnings
           };
         }
         return entry;
-      })
-    );
+      });
+    });
   };
 
   useEffect(() => {
