@@ -586,8 +586,6 @@ export function WasserzaehlerModal() {
                       <Button
                         type="button"
                         variant="outline"
-                        size="icon"
-                        title="Verbrauch aufteilen"
                         onClick={() => {
                           const value = apartmentUsage[wohnungName];
                           if (value && !isNaN(parseFloat(value))) {
@@ -595,9 +593,10 @@ export function WasserzaehlerModal() {
                           }
                         }}
                         disabled={!apartmentUsage[wohnungName] || isNaN(parseFloat(apartmentUsage[wohnungName]))}
-                        className="shrink-0"
+                        className="shrink-0 gap-2"
                       >
                         <SplitIcon className="h-4 w-4" />
+                        <span>Verbrauch aufteilen</span>
                       </Button>
                     </div>
                   </div>
