@@ -539,12 +539,18 @@ export function WasserzaehlerModal() {
               <div key={wohnungName} className="space-y-3">
                 {/* Apartment Group Header */}
                 <div className="space-y-3 p-3 border rounded-2xl">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="font-semibold">{wohnungName}</h3>
-                    <span className="text-sm text-muted-foreground ml-auto">
-                      {entries.length} {entries.length === 1 ? 'Mieter' : 'Mieter'}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-1">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="font-semibold">{wohnungName}</h3>
+                    </div>
+                    <Badge 
+                      variant="secondary" 
+                      className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium"
+                    >
+                      <User className="h-3 w-3" />
+                      <span>{entries.length} {entries.length === 1 ? 'Mieter' : 'Mieter'}</span>
+                    </Badge>
                   </div>
                   
                   {/* Apartment Water Usage Input */}
