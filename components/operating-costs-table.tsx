@@ -498,9 +498,13 @@ export function OperatingCostsTable({
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
                             {item.betrag && item.betrag.length > 0 ? (
                               <div className="flex flex-col gap-0.5">
-                                <span className="font-medium">{typeof item.betrag[0] === 'number' ? formatCurrency(item.betrag[0]) : '-'}</span>
+                                <span className="font-medium">
+                                  {formatCurrency(
+                                    item.betrag.reduce((sum, b) => sum + (typeof b === 'number' ? b : 0), 0)
+                                  )}
+                                </span>
                                 {item.betrag.length > 1 && (
-                                  <span className="text-xs text-muted-foreground">+{item.betrag.length - 1} weitere</span>
+                                  <span className="text-xs text-muted-foreground">{item.betrag.length} Positionen</span>
                                 )}
                               </div>
                             ) : '-'}
