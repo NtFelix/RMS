@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
-import { PlusCircle, Home, Key, Euro, Ruler, Search, X, Download, Trash2 } from "lucide-react";
+import { PlusCircle, Home, Key, Euro, Ruler, Search, X, Download, Trash2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,6 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
 import { StatCard } from "@/components/stat-card";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
@@ -44,6 +47,9 @@ export default function WohnungenClientView({
   const [selectedApartments, setSelectedApartments] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedHouse, setSelectedHouse] = useState<string>("none");
+  const [isUpdating, setIsUpdating] = useState(false);
   const { openWohnungModal } = useModalStore();
 
   // ======================= SUMMARY METRICS =======================
@@ -170,7 +176,83 @@ export default function WohnungenClientView({
         variant: "destructive",
       })
     }
-  }, [selectedApartments, router]);
+  }, [selectedApartments, router, refreshTable]);
+
+  const handleAssignHouse = useCallback(async () => {
+    if (selectedHouse === "none") {
+      toast({
+        title: "Fehlende Auswahl",
+        description: "Bitte wählen Sie ein Haus aus, um fortzufahren.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsUpdating(true)
+    
+    try {
+      const selectedIds = Array.from(selectedApartments)
+      const updateResults = await Promise.allSettled(
+        selectedIds.map(async (apartmentId) => {
+          const apartment = apartments.find(a => a.id === apartmentId)
+          if (!apartment) return { success: false }
+          
+          const response = await fetch(`/api/wohnungen?id=${apartmentId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: apartment.name,
+              groesse: apartment.groesse,
+              miete: apartment.miete,
+              haus_id: selectedHouse === "none" ? null : selectedHouse
+            })
+          })
+          
+          return { success: response.ok }
+        })
+      )
+      
+      const successfulUpdates = updateResults.filter(
+        (result): result is PromiseFulfilledResult<{ success: boolean }> => 
+          result.status === 'fulfilled' && result.value.success
+      )
+      
+      const failedUpdates = updateResults.length - successfulUpdates.length
+      
+      if (successfulUpdates.length > 0) {
+        toast({
+          title: "Erfolgreich aktualisiert",
+          description: `${successfulUpdates.length} von ${updateResults.length} Wohnungen wurden erfolgreich aktualisiert.`,
+          variant: "success"
+        })
+      }
+      
+      if (failedUpdates > 0) {
+        toast({
+          title: "Teilweise Fehler",
+          description: `Bei ${failedUpdates} von ${updateResults.length} Wohnungen ist ein Fehler aufgetreten.`,
+          variant: "destructive"
+        })
+      }
+      
+      if (successfulUpdates.length > 0) {
+        setIsAssignDialogOpen(false)
+        setSelectedHouse("none")
+        await refreshTable()
+        setSelectedApartments(new Set())
+        router.refresh()
+      }
+    } catch (error) {
+      console.error("Fehler beim Aktualisieren der Wohnungen:", error)
+      toast({
+        title: "Fehler",
+        description: "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [selectedHouse, selectedApartments, apartments, refreshTable, router]);
 
   const updateApartmentInList = useCallback((updatedApartment: Wohnung) => {
     setApartments(prev => {
@@ -357,6 +439,15 @@ export default function WohnungenClientView({
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => setIsAssignDialogOpen(true)}
+                    className="h-8 gap-2"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Haus zuweisen
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={handleBulkExport}
                     className="h-8 gap-2"
                   >
@@ -405,6 +496,58 @@ export default function WohnungenClientView({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Haus zuweisen</DialogTitle>
+            <DialogDescription>
+              Weisen Sie {selectedApartments.size} {selectedApartments.size === 1 ? 'ausgewählter Wohnung' : 'ausgewählten Wohnungen'} ein Haus zu.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="house" className="text-right">
+                Haus
+              </Label>
+              <Select
+                value={selectedHouse}
+                onValueChange={setSelectedHouse}
+                disabled={isUpdating}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Haus auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Kein Haus</SelectItem>
+                  {housesData.map((house) => (
+                    <SelectItem key={house.id} value={house.id}>
+                      {house.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAssignDialogOpen(false)}
+              disabled={isUpdating}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAssignHouse}
+              disabled={!selectedHouse || isUpdating}
+            >
+              {isUpdating ? 'Wird gespeichert...' : 'Zuweisen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
