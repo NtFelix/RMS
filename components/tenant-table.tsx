@@ -352,36 +352,43 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
               </TableCell>
             </TableRow>
           ) : (
-            sortedAndFilteredData.map((tenant) => (
-              <TenantContextMenu
-                key={tenant.id}
-                tenant={tenant}
-                onEdit={() => onEdit?.(tenant)}
-                onRefresh={() => router.refresh()}
-              >
-                <TableRow 
-                  ref={(el) => {
-                    if (el) {
-                      contextMenuRefs.current.set(tenant.id, el)
-                    } else {
-                      contextMenuRefs.current.delete(tenant.id)
-                    }
-                  }}
-                  className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
-                    selectedTenants.has(tenant.id) 
-                      ? 'bg-primary/10 dark:bg-primary/20' 
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                  }`}
-                  onClick={() => onEdit?.(tenant)}
+            sortedAndFilteredData.map((tenant, index) => {
+              const isLastRow = index === sortedAndFilteredData.length - 1
+              const isSelected = selectedTenants.has(tenant.id)
+              
+              return (
+                <TenantContextMenu
+                  key={tenant.id}
+                  tenant={tenant}
+                  onEdit={() => onEdit?.(tenant)}
+                  onRefresh={() => router.refresh()}
                 >
-                  <TableCell className="py-4" onClick={(event) => event.stopPropagation()}>
+                  <TableRow 
+                    ref={(el) => {
+                      if (el) {
+                        contextMenuRefs.current.set(tenant.id, el)
+                      } else {
+                        contextMenuRefs.current.delete(tenant.id)
+                      }
+                    }}
+                    className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
+                      isSelected 
+                        ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                    }`}
+                    onClick={() => onEdit?.(tenant)}
+                  >
+                  <TableCell 
+                    className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`} 
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <Checkbox
                       aria-label={`Mieter ${tenant.name} auswählen`}
                       checked={selectedTenants.has(tenant.id)}
                       onCheckedChange={(checked) => handleSelectTenant(tenant.id, checked)}
                     />
                   </TableCell>
-                  <TableCell className="font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3">
+                  <TableCell className={`font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3`}>
                     <Avatar className="h-9 w-9 flex-shrink-0 bg-primary text-primary-foreground">
                       <AvatarImage src="" alt={tenant.name} />
                       <AvatarFallback className="bg-primary text-primary-foreground">
@@ -390,10 +397,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                     </Avatar>
                     <span>{tenant.name}</span>
                   </TableCell>
-                  <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.email}</TableCell>
-                  <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.telefonnummer}</TableCell>
-                  <TableCell className="py-4 dark:text-[#f3f4f6]">{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
-                  <TableCell className="py-4">
+                  <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.email}</TableCell>
+                  <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.telefonnummer}</TableCell>
+                  <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
+                  <TableCell className={`py-4`}>
                     {tenant.nebenkosten && tenant.nebenkosten.length > 0
                       ? tenant.nebenkosten
                           .slice(0, 3)
@@ -401,7 +408,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                           .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
                       : '-'}
                   </TableCell>
-                  <TableCell className="py-2 pr-2 text-right w-[80px]" onClick={(event) => event.stopPropagation()}>
+                  <TableCell 
+                    className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <Button
                       variant="ghost"
                       size="icon"
@@ -427,7 +437,8 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                   </TableCell>
                 </TableRow>
               </TenantContextMenu>
-            ))
+            )
+            })
           )}
             </TableBody>
           </Table>
