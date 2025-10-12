@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Home, Ruler, Euro, Building2, CheckCircle2, MoreVertical, X, Download, Trash2 } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Home, Ruler, Euro, Building2, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
 import { formatNumber } from "@/utils/format"
 
 export interface Apartment {
@@ -336,7 +336,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                 <TableHeaderCell sortKey="pricePerSqm" className="w-[130px] dark:text-[#f3f4f6]" icon={Euro}>€/m²</TableHeaderCell>
                 <TableHeaderCell sortKey="haus" className="dark:text-[#f3f4f6]" icon={Building2}>Haus</TableHeaderCell>
                 <TableHeaderCell sortKey="status" className="w-[110px] dark:text-[#f3f4f6]" icon={CheckCircle2}>Status</TableHeaderCell>
-                <TableHeaderCell sortKey="name" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={MoreVertical} sortable={false}>Aktionen</TableHeaderCell>
+                <TableHeaderCell sortKey="name" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
