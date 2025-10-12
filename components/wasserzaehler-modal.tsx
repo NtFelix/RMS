@@ -596,9 +596,9 @@ export function WasserzaehlerModal() {
                             [wohnungName]: e.target.value
                           }))}
                           placeholder="Gesamtverbrauch"
-                          className="pl-8"
+                          className="pl-8 transition-all duration-200 focus:pl-10"
                         />
-                        <Droplet className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Droplet className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-all duration-200 [input:focus~&]:h-5 [input:focus~&]:w-5" />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                           m³
                         </span>
