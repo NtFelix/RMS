@@ -511,7 +511,7 @@ export function OperatingCostsTable({
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
                             {item.berechnungsart && item.berechnungsart.length > 0 ? (
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400">
+                              <Badge variant="outline" className="bg-gray-100 text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300">
                                 {item.berechnungsart.length} {item.berechnungsart.length === 1 ? 'Berechnungsart' : 'Berechnungsarten'}
                               </Badge>
                             ) : '-'}
