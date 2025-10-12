@@ -96,6 +96,28 @@ export default function WohnungenClientView({
     setIsAddButtonDisabled(!serverUserIsEligibleToAdd || limitReached);
   }, [serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd, serverLimitReason]);
 
+  const updateApartmentInList = useCallback((updatedApartment: Wohnung) => {
+    setApartments(prev => {
+      const exists = prev.some(apt => apt.id === updatedApartment.id);
+      if (exists) return prev.map(apt => (apt.id === updatedApartment.id ? updatedApartment : apt));
+      return [updatedApartment, ...prev];
+    });
+  }, []);
+
+  const refreshTable = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch('/api/wohnungen');
+      if (res.ok) {
+        const data: Wohnung[] = await res.json();
+        setApartments(data);
+      } else {
+        console.error('Failed to fetch wohnungen for refreshTable, status:', res.status);
+      }
+    } catch (error) {
+      console.error('Error fetching wohnungen in refreshTable:', error);
+    }
+  }, []);
+
   const escapeCsvValue = useCallback((value: string | null | undefined): string => {
     if (!value) return ''
     const stringValue = String(value)
@@ -253,28 +275,6 @@ export default function WohnungenClientView({
       setIsUpdating(false)
     }
   }, [selectedHouse, selectedApartments, apartments, refreshTable, router]);
-
-  const updateApartmentInList = useCallback((updatedApartment: Wohnung) => {
-    setApartments(prev => {
-      const exists = prev.some(apt => apt.id === updatedApartment.id);
-      if (exists) return prev.map(apt => (apt.id === updatedApartment.id ? updatedApartment : apt));
-      return [updatedApartment, ...prev];
-    });
-  }, []);
-
-  const refreshTable = useCallback(async (): Promise<void> => {
-    try {
-      const res = await fetch('/api/wohnungen');
-      if (res.ok) {
-        const data: Wohnung[] = await res.json();
-        setApartments(data);
-      } else {
-        console.error('Failed to fetch wohnungen for refreshTable, status:', res.status);
-      }
-    } catch (error) {
-      console.error('Error fetching wohnungen in refreshTable:', error);
-    }
-  }, []);
 
   const handleSuccess = useCallback((data: Wohnung) => {
     updateApartmentInList(data);
