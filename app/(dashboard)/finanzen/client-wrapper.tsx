@@ -3,15 +3,18 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTable } from "@/components/finance-table";
 import { FinanceBulkActionBar } from "@/components/finance-bulk-action-bar";
+import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
+import { SummaryCard } from "@/components/summary-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatCard } from "@/components/stat-card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
+import { CustomCombobox } from "@/components/ui/custom-combobox";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -72,8 +75,6 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableYears, setAvailableYears] = useState<number[]>(initialAvailableYears);
-  const [filter, setFilter] = useState<"all" | "income" | "expenses">("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedFinances, setSelectedFinances] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState({
     searchQuery: '',
@@ -264,6 +265,28 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     await fetchBalance();
   };
 
+  // Constants for filter options
+  const ALL_APARTMENTS_FILTER = 'Alle Wohnungen';
+  const ALL_YEARS_FILTER = 'Alle Jahre';
+
+  // Filter options
+  const apartmentOptions = useMemo(() => 
+    [ALL_APARTMENTS_FILTER, ...wohnungen.map(w => w.name)].map(a => ({ value: a, label: a })), 
+    [wohnungen]
+  );
+
+  const yearOptions = useMemo(() => 
+    [ALL_YEARS_FILTER, ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })), 
+    [availableYears]
+  );
+
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters({
+      ...filters,
+      [key]: value
+    });
+  };
+
   // Summary calculation for StatCards
   const summary = useMemo(() => {
     const totalTransactions = finData.length;
@@ -324,6 +347,17 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     link.click()
   }, [selectedFinances, finData, escapeCsvValue]);
 
+  const handleExportCsv = () => {
+    const params = new URLSearchParams();
+    if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
+    if (filters.selectedApartment) params.append('selectedApartment', filters.selectedApartment);
+    if (filters.selectedYear) params.append('selectedYear', filters.selectedYear);
+    if (filters.selectedType) params.append('selectedType', filters.selectedType);
+
+    const url = `/api/finanzen/export?${params.toString()}`;
+    window.open(url, '_blank');
+  };
+
   const fetchAvailableYears = useCallback(async () => {
     try {
       const response = await fetch('/api/finanzen/analytics?action=available-years');
@@ -373,35 +407,60 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
-      <div className="flex flex-wrap gap-4">
-        <StatCard
-          title="Transaktionen gesamt"
-          value={summary.totalTransactions}
-          icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
-        />
-        <StatCard
-          title="Einnahmen / Ausgaben"
-          value={`${summary.incomeCount} / ${summary.expenseCount}`}
-          icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
-        />
-        <StatCard
-          title="Ø Transaktionsbetrag"
-          value={summary.avgTransaction}
-          unit="€"
-          decimals
-          icon={<Euro className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
-        />
-        <StatCard
-          title="Aktueller Saldo"
-          value={totalBalance}
-          unit="€"
-          decimals
-          icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
-        />
+      
+      {/* Summary Cards for Current Year */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {isSummaryLoading && hasInitialData ? (
+          <>
+            <SummaryCardSkeleton 
+              title="Ø Monatliche Einnahmen" 
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Ø Monatliche Ausgaben" 
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Ø Monatlicher Cashflow" 
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Jahresprognose" 
+              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} 
+            />
+          </>
+        ) : (
+          <>
+            <SummaryCard
+              title="Ø Monatliche Einnahmen"
+              value={averageMonthlyIncome}
+              description="Durchschnittliche monatliche Einnahmen"
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+              isLoading={isSummaryLoading}
+            />
+            <SummaryCard
+              title="Ø Monatliche Ausgaben"
+              value={averageMonthlyExpenses}
+              description="Durchschnittliche monatliche Ausgaben"
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+              isLoading={isSummaryLoading}
+            />
+            <SummaryCard
+              title="Ø Monatlicher Cashflow"
+              value={averageMonthlyCashflow}
+              description="Durchschnittlicher monatlicher Überschuss"
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              isLoading={isSummaryLoading}
+            />
+            <SummaryCard
+              title="Jahresprognose"
+              value={yearlyProjection}
+              description="Geschätzter Jahresgewinn"
+              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+              isLoading={isSummaryLoading}
+            />
+          </>
+        )}
       </div>
 
       <FinanceVisualization 
@@ -410,6 +469,50 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         availableYears={availableYears}
         key={summaryData?.year} 
       />
+      
+      {/* Filtered Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {balanceLoading ? (
+          <>
+            <SummaryCardSkeleton 
+              title="Gefilterte Einnahmen" 
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Gefilterte Ausgaben" 
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Aktueller Saldo" 
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+            />
+          </>
+        ) : (
+          <>
+            <SummaryCard
+              title="Gefilterte Einnahmen"
+              value={filteredIncome}
+              description="Einnahmen basierend auf aktuellen Filtern"
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+              isLoading={balanceLoading}
+            />
+            <SummaryCard
+              title="Gefilterte Ausgaben"
+              value={filteredExpenses}
+              description="Ausgaben basierend auf aktuellen Filtern"
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+              isLoading={balanceLoading}
+            />
+            <SummaryCard
+              title="Aktueller Saldo"
+              value={totalBalance}
+              description="Gesamtsaldo aller Transaktionen"
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              isLoading={balanceLoading}
+            />
+          </>
+        )}
+      </div>
 
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
@@ -431,33 +534,59 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         </div>
         <CardContent className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 mt-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: "all" as const, label: "Alle Transaktionen" },
-                  { value: "income" as const, label: "Einnahmen" },
-                  { value: "expenses" as const, label: "Ausgaben" },
-                ].map(({ value, label }) => (
-                  <Button
-                    key={value}
-                    variant={filter === value ? "default" : "ghost"}
-                    onClick={() => setFilter(value)}
-                    className="h-9 rounded-full"
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Transaktionen suchen..."
-                  className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
+            {/* Filter Controls */}
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
+                <CustomCombobox
+                  options={apartmentOptions}
+                  value={filters.selectedApartment}
+                  onChange={(value) => handleFilterChange('selectedApartment', value ?? ALL_APARTMENTS_FILTER)}
+                  placeholder="Wohnung auswählen"
+                  searchPlaceholder="Wohnung suchen..."
+                  emptyText="Keine Wohnung gefunden"
+                  width="w-full"
                 />
+                <CustomCombobox
+                  options={yearOptions}
+                  value={filters.selectedYear}
+                  onChange={(value) => handleFilterChange('selectedYear', value ?? ALL_YEARS_FILTER)}
+                  placeholder="Jahr auswählen"
+                  searchPlaceholder="Jahr suchen..."
+                  emptyText="Kein Jahr gefunden"
+                  width="w-full"
+                />
+                <CustomCombobox
+                  options={[
+                    { value: "Alle Transaktionen", label: "Alle Transaktionen" },
+                    { value: "Einnahme", label: "Einnahme" },
+                    { value: "Ausgabe", label: "Ausgabe" }
+                  ]}
+                  value={filters.selectedType}
+                  onChange={(value) => handleFilterChange('selectedType', value ?? 'Alle Transaktionen')}
+                  placeholder="Transaktionstyp auswählen"
+                  searchPlaceholder="Typ suchen..."
+                  emptyText="Kein Typ gefunden"
+                  width="w-full"
+                />
+                <div className="relative col-span-1 sm:col-span-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    type="search" 
+                    placeholder="Transaktion suchen..." 
+                    className="pl-10" 
+                    value={filters.searchQuery} 
+                    onChange={(e) => handleFilterChange('searchQuery', e.target.value)} 
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-4 md:mt-0">
+                <ButtonWithTooltip variant="outline" size="sm" onClick={handleExportCsv}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Als CSV exportieren
+                </ButtonWithTooltip>
               </div>
             </div>
+            
             <FinanceBulkActionBar
               selectedFinances={selectedFinances}
               finances={finData}
@@ -470,11 +599,16 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
           <FinanceTable
             finances={finData}
             wohnungen={wohnungen}
-            filter={filter}
-            searchQuery={searchQuery}
+            filter="all"
+            searchQuery=""
             onEdit={handleEdit}
             selectedFinances={selectedFinances}
             onSelectionChange={setSelectedFinances}
+            isFilterLoading={isFilterLoading}
+            hasMore={hasMore}
+            isLoading={isLoading}
+            error={error}
+            loadFinances={() => loadMoreTransactions(false)}
           />
         </CardContent>
       </Card>

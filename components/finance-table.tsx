@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useRef, useCallback } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { FinanceContextMenu } from "@/components/finance-context-menu"
@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, FileText, Home, Calendar, Euro, TrendingUp, Pencil, Trash2, MoreVertical, X, Download } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, FileText, Home, Calendar, Euro, TrendingUp, Pencil, Trash2, MoreVertical, X, Download, Loader2, CheckCircle2, Filter, Database, Search } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { toast } from "@/hooks/use-toast"
@@ -44,6 +44,11 @@ interface FinanceTableProps {
   onDelete?: (id: string) => void;
   selectedFinances?: Set<string>;
   onSelectionChange?: (selected: Set<string>) => void;
+  isFilterLoading?: boolean;
+  hasMore?: boolean;
+  isLoading?: boolean;
+  error?: string | null;
+  loadFinances?: () => void;
 }
 
 const formatDate = (dateString: string | undefined): string => {
@@ -56,7 +61,21 @@ const formatDate = (dateString: string | undefined): string => {
   })
 }
 
-export function FinanceTable({ finances, wohnungen, filter, searchQuery, onEdit, onDelete, selectedFinances: externalSelectedFinances, onSelectionChange }: FinanceTableProps) {
+export function FinanceTable({ 
+  finances, 
+  wohnungen, 
+  filter, 
+  searchQuery, 
+  onEdit, 
+  onDelete, 
+  selectedFinances: externalSelectedFinances, 
+  onSelectionChange,
+  isFilterLoading = false,
+  hasMore = false,
+  isLoading = false,
+  error = null,
+  loadFinances
+}: FinanceTableProps) {
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
@@ -71,6 +90,19 @@ export function FinanceTable({ finances, wohnungen, filter, searchQuery, onEdit,
   // Use external selection state if provided, otherwise use internal
   const selectedFinances = externalSelectedFinances ?? internalSelectedFinances
   const setSelectedFinances = onSelectionChange ?? setInternalSelectedFinances
+
+  // Infinite scroll observer
+  const observer = useRef<IntersectionObserver | null>(null)
+  const lastTransactionElementRef = useCallback((node: HTMLTableRowElement) => {
+    if (isLoading) return
+    if (observer.current) observer.current.disconnect()
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadFinances && loadFinances()
+      }
+    })
+    if (node) observer.current.observe(node)
+  }, [isLoading, hasMore, loadFinances])
 
   // Function to get initials from name
   const getInitials = (name: string) => {
@@ -365,14 +397,49 @@ export function FinanceTable({ finances, wohnungen, filter, searchQuery, onEdit,
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedAndFilteredData.length === 0 ? (
+          {isFilterLoading && (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center">
-                Keine Transaktionen gefunden.
+              <TableCell colSpan={7} className="text-center py-12">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <div className="absolute inset-0 h-8 w-8 rounded-full border-2 border-primary/20 animate-pulse"></div>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Filter className="h-4 w-4 text-primary" />
+                      Filter werden angewendet
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Transaktionen werden gefiltert und sortiert...
+                    </div>
+                  </div>
+                </div>
               </TableCell>
             </TableRow>
-          ) : (
+          )}
+          {!isFilterLoading && sortedAndFilteredData.length === 0 && !isLoading ? (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center py-16">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative">
+                    <Database className="h-12 w-12 text-muted-foreground/40" />
+                    <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-muted flex items-center justify-center">
+                      <Search className="h-2.5 w-2.5 text-muted-foreground" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <h3 className="text-sm font-medium text-foreground">Keine Transaktionen gefunden</h3>
+                    <p className="text-xs text-muted-foreground max-w-sm text-center">
+                      Es wurden noch keine Transaktionen erstellt oder die aktuellen Filter ergeben keine Ergebnisse.
+                    </p>
+                  </div>
+                </div>
+              </TableCell>
+            </TableRow>
+          ) : !isFilterLoading ? (
             sortedAndFilteredData.map((finance, index) => {
+              const isLastElement = sortedAndFilteredData.length === index + 1;
               const isLastRow = index === sortedAndFilteredData.length - 1
               const isSelected = selectedFinances.has(finance.id)
               
@@ -406,7 +473,7 @@ export function FinanceTable({ finances, wohnungen, filter, searchQuery, onEdit,
                   onRefresh={() => router.refresh()}
                 >
                   <TableRow 
-                    ref={(el) => {
+                    ref={isLastElement ? lastTransactionElementRef : (el) => {
                       if (el) {
                         contextMenuRefs.current.set(finance.id, el)
                       } else {
@@ -488,8 +555,69 @@ export function FinanceTable({ finances, wohnungen, filter, searchQuery, onEdit,
               </FinanceContextMenu>
             )
             })
+          ) : null}
+          {!isFilterLoading && isLoading && (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center py-8">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <div className="absolute inset-0 h-6 w-6 rounded-full border border-primary/20 animate-ping"></div>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Weitere Transaktionen werden geladen...
+                  </div>
+                </div>
+              </TableCell>
+            </TableRow>
           )}
-            </TableBody>
+          {!isFilterLoading && !isLoading && !hasMore && sortedAndFilteredData.length > 0 && (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center py-8">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative">
+                    <CheckCircle2 className="h-6 w-6 text-green-500" />
+                    <div className="absolute inset-0 h-6 w-6 rounded-full bg-green-500/10 animate-pulse"></div>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="text-sm font-medium text-foreground">
+                      Alle Transaktionen geladen
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {sortedAndFilteredData.length} {sortedAndFilteredData.length === 1 ? 'Eintrag' : 'Einträge'} insgesamt
+                    </div>
+                  </div>
+                </div>
+              </TableCell>
+            </TableRow>
+          )}
+          {!isFilterLoading && error && (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center py-8">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative">
+                    <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center">
+                      <Search className="h-6 w-6 text-red-500" />
+                    </div>
+                    <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
+                      <span className="text-white text-xs">!</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <h3 className="text-sm font-medium text-red-600">Fehler beim Laden</h3>
+                    <p className="text-xs text-muted-foreground text-center max-w-sm">
+                      {error}
+                    </p>
+                    <Button onClick={loadFinances} variant="outline" size="sm" className="mt-2">
+                      <Loader2 className="mr-2 h-3 w-3" />
+                      Erneut versuchen
+                    </Button>
+                  </div>
+                </div>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
           </Table>
         </div>
       </div>
