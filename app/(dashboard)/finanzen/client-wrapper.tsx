@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
-import { FinanceTransactions } from "@/components/finance-transactions";
-import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
-import { SummaryCard } from "@/components/summary-card";
+import { FinanceTable } from "@/components/finance-table";
+import { FinanceBulkActionBar } from "@/components/finance-bulk-action-bar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { StatCard } from "@/components/stat-card";
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -68,6 +72,9 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableYears, setAvailableYears] = useState<number[]>(initialAvailableYears);
+  const [filter, setFilter] = useState<"all" | "income" | "expenses">("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedFinances, setSelectedFinances] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState({
     searchQuery: '',
     selectedApartment: 'Alle Wohnungen',
@@ -247,15 +254,75 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
   }, [wohnungen, handleSuccess]);
 
-  const handleAddTransaction = () => {
+  const handleAddTransaction = useCallback(() => {
     useModalStore.getState().openFinanceModal(undefined, wohnungen, handleSuccess);
-  };
+  }, [wohnungen, handleSuccess]);
 
   const refreshFinances = async () => {
     await loadMoreTransactions(true);
     await refreshSummaryData();
     await fetchBalance();
   };
+
+  // Summary calculation for StatCards
+  const summary = useMemo(() => {
+    const totalTransactions = finData.length;
+    const incomeCount = finData.filter(f => f.ist_einnahmen).length;
+    const expenseCount = totalTransactions - incomeCount;
+
+    // Average transaction amount
+    const transactionAmounts = finData.map(f => f.betrag).filter(amount => amount > 0);
+    const avgTransaction = transactionAmounts.length ? transactionAmounts.reduce((s, v) => s + v, 0) / transactionAmounts.length : 0;
+
+    return { totalTransactions, incomeCount, expenseCount, avgTransaction };
+  }, [finData]);
+
+  // Wohnungen map for bulk actions
+  const wohnungsMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    wohnungen?.forEach(w => { map[w.id] = w.name })
+    return map
+  }, [wohnungen]);
+
+  // Helper function to properly escape CSV values
+  const escapeCsvValue = useCallback((value: string | null | undefined): string => {
+    if (!value) return ''
+    const stringValue = String(value)
+    // If the value contains comma, quote, or newline, wrap it in quotes and escape internal quotes
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+      return `"${stringValue.replace(/"/g, '""')}"`
+    }
+    return stringValue
+  }, [])
+
+  const handleBulkExport = useCallback(() => {
+    const selectedFinancesData = finData.filter(f => selectedFinances.has(f.id))
+    
+    // Create CSV header
+    const headers = ['Bezeichnung', 'Wohnung', 'Datum', 'Betrag', 'Typ', 'Notiz']
+    const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
+    
+    // Create CSV rows with proper escaping
+    const csvRows = selectedFinancesData.map(f => {
+      const row = [
+        f.name,
+        f.Wohnungen?.name || '',
+        f.datum || '',
+        f.betrag.toString(),
+        f.ist_einnahmen ? 'Einnahme' : 'Ausgabe',
+        f.notiz || ''
+      ]
+      return row.map(value => escapeCsvValue(value)).join(',')
+    })
+    
+    const csvContent = [csvHeader, ...csvRows].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `finanzen_export_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+  }, [selectedFinances, finData, escapeCsvValue]);
 
   const fetchAvailableYears = useCallback(async () => {
     try {
@@ -299,59 +366,42 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
 
   return (
-    <div className="flex flex-col gap-8 p-8">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {isSummaryLoading && hasInitialData ? (
-          <>
-            <SummaryCardSkeleton 
-              title="Ø Monatliche Einnahmen" 
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
-            />
-            <SummaryCardSkeleton 
-              title="Ø Monatliche Ausgaben" 
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
-            />
-            <SummaryCardSkeleton 
-              title="Ø Monatlicher Cashflow" 
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
-            />
-            <SummaryCardSkeleton 
-              title="Jahresprognose" 
-              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} 
-            />
-          </>
-        ) : (
-          <>
-            <SummaryCard
-              title="Ø Monatliche Einnahmen"
-              value={averageMonthlyIncome}
-              description="Durchschnittliche monatliche Einnahmen"
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
-              isLoading={isSummaryLoading}
-            />
-            <SummaryCard
-              title="Ø Monatliche Ausgaben"
-              value={averageMonthlyExpenses}
-              description="Durchschnittliche monatliche Ausgaben"
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
-              isLoading={isSummaryLoading}
-            />
-            <SummaryCard
-              title="Ø Monatlicher Cashflow"
-              value={averageMonthlyCashflow}
-              description="Durchschnittlicher monatlicher Überschuss"
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-              isLoading={isSummaryLoading}
-            />
-            <SummaryCard
-              title="Jahresprognose"
-              value={yearlyProjection}
-              description="Geschätzter Jahresgewinn"
-              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
-              isLoading={isSummaryLoading}
-            />
-          </>
-        )}
+    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
+      <div
+        className="absolute inset-0 z-[-1]"
+        style={{
+          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
+        }}
+      />
+      <div className="flex flex-wrap gap-4">
+        <StatCard
+          title="Transaktionen gesamt"
+          value={summary.totalTransactions}
+          icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+        />
+        <StatCard
+          title="Einnahmen / Ausgaben"
+          value={`${summary.incomeCount} / ${summary.expenseCount}`}
+          icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+        />
+        <StatCard
+          title="Ø Transaktionsbetrag"
+          value={summary.avgTransaction}
+          unit="€"
+          decimals
+          icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+        />
+        <StatCard
+          title="Aktueller Saldo"
+          value={totalBalance}
+          unit="€"
+          decimals
+          icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+        />
       </div>
 
       <FinanceVisualization 
@@ -360,66 +410,74 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         availableYears={availableYears}
         key={summaryData?.year} 
       />
-      
-      <div className="grid gap-4 md:grid-cols-3">
-        {balanceLoading ? (
-          <>
-            <SummaryCardSkeleton 
-              title="Gefilterte Einnahmen" 
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+        <CardHeader>
+          <div className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Finanzverwaltung</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
+            </div>
+            <div className="mt-1">
+              <ButtonWithTooltip onClick={handleAddTransaction} className="sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Transaktion hinzufügen
+              </ButtonWithTooltip>
+            </div>
+          </div>
+        </CardHeader>
+        <div className="px-6">
+          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+        </div>
+        <CardContent className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 mt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "all" as const, label: "Alle Transaktionen" },
+                  { value: "income" as const, label: "Einnahmen" },
+                  { value: "expenses" as const, label: "Ausgaben" },
+                ].map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={filter === value ? "default" : "ghost"}
+                    onClick={() => setFilter(value)}
+                    className="h-9 rounded-full"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Transaktionen suchen..."
+                  className="pl-10 rounded-full"
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <FinanceBulkActionBar
+              selectedFinances={selectedFinances}
+              finances={finData}
+              wohnungsMap={wohnungsMap}
+              onClearSelection={() => setSelectedFinances(new Set())}
+              onExport={handleBulkExport}
+              onDelete={() => {/* TODO: Implement bulk delete */}}
             />
-            <SummaryCardSkeleton 
-              title="Gefilterte Ausgaben" 
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
-            />
-            <SummaryCardSkeleton 
-              title="Aktueller Saldo" 
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
-            />
-          </>
-        ) : (
-          <>
-            <SummaryCard
-              title="Gefilterte Einnahmen"
-              value={filteredIncome}
-              description="Einnahmen basierend auf aktuellen Filtern"
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
-              isLoading={balanceLoading}
-            />
-            <SummaryCard
-              title="Gefilterte Ausgaben"
-              value={filteredExpenses}
-              description="Ausgaben basierend auf aktuellen Filtern"
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
-              isLoading={balanceLoading}
-            />
-            <SummaryCard
-              title="Aktueller Saldo"
-              value={totalBalance}
-              description="Gesamtsaldo aller Transaktionen"
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-              isLoading={balanceLoading}
-            />
-          </>
-        )}
-      </div>
-      
-      <FinanceTransactions
-        finances={finData}
-        wohnungen={wohnungen}
-        availableYears={availableYears}
-        onEdit={handleEdit}
-        onAddTransaction={handleAddTransaction}
-        loadFinances={() => loadMoreTransactions(false)}
-        reloadRef={reloadRef}
-        hasMore={hasMore}
-        isLoading={isLoading}
-        isFilterLoading={isFilterLoading}
-        error={error}
-        fullReload={refreshFinances}
-        filters={filters}
-        onFiltersChange={setFilters}
-      />
+          </div>
+          <FinanceTable
+            finances={finData}
+            wohnungen={wohnungen}
+            filter={filter}
+            searchQuery={searchQuery}
+            onEdit={handleEdit}
+            selectedFinances={selectedFinances}
+            onSelectionChange={setSelectedFinances}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
