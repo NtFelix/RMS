@@ -236,7 +236,13 @@ export default function BetriebskostenClientView({
   ];
 
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
+      <div
+        className="absolute inset-0 z-[-1]"
+        style={{
+          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
+        }}
+      />
       {/* Instruction Cards */}
       {showGuide && (
         <>
@@ -256,7 +262,7 @@ export default function BetriebskostenClientView({
               return (
                 <Card 
                   key={card.id}
-                  className="relative overflow-hidden rounded-2xl shadow-md border summary-card"
+                  className="relative overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -276,24 +282,34 @@ export default function BetriebskostenClientView({
       )}
 
       {/* Main Content Area including Card, Table, Modals */}
-      <Card className="overflow-hidden rounded-2xl shadow-md">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-center justify-between">
-            <CardTitle>Betriebskostenübersicht</CardTitle>
-            <ButtonWithTooltip onClick={handleOpenCreateModal} className="sm:w-auto">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Betriebskostenabrechnung erstellen
-            </ButtonWithTooltip>
+          <div className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Betriebskostenübersicht</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Betriebskostenabrechnungen</p>
+            </div>
+            <div className="mt-1">
+              <ButtonWithTooltip onClick={handleOpenCreateModal} className="sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Betriebskostenabrechnung erstellen
+              </ButtonWithTooltip>
+            </div>
           </div>
         </CardHeader>
+        <div className="px-6">
+          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+        </div>
         <CardContent className="flex flex-col gap-6">
-          <OperatingCostsFilters
-            onFilterChange={setFilter}
-            onSearchChange={setSearchQuery}
-            onHouseChange={setSelectedHouseId}
-            haeuser={initialHaeuser}
-            selectedHouseId={selectedHouseId}
-          />
+          <div className="flex flex-col gap-4 mt-6">
+            <OperatingCostsFilters
+              onFilterChange={setFilter}
+              onSearchChange={setSearchQuery}
+              onHouseChange={setSelectedHouseId}
+              haeuser={initialHaeuser}
+              selectedHouseId={selectedHouseId}
+            />
+          </div>
           <div ref={tableRef}>
             <OperatingCostsTable
               nebenkosten={filteredNebenkosten}
