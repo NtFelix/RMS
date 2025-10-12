@@ -207,7 +207,7 @@ export default function BetriebskostenClientView({
       />
       {/* Instruction Guide */}
       {showGuide && (
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl">
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
           <CardHeader className="pb-4">
             <div className="flex items-start justify-between">
               <div>
