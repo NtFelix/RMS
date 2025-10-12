@@ -272,31 +272,25 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
     <div className="rounded-lg">
       {/* Bulk Action Bar - only show if using internal state */}
       {!externalSelectedApartments && selectedApartments.size > 0 && (
-        <div className="mb-4 p-3 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 dark:from-primary/20 dark:via-primary/10 dark:to-primary/20 border border-primary/30 dark:border-primary/40 rounded-xl shadow-sm backdrop-blur-sm flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 px-3 py-1.5 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-primary/20 dark:border-primary/30">
+        <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Checkbox
                 checked={true}
                 onCheckedChange={() => setSelectedApartments(new Set())}
-                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                className="data-[state=checked]:bg-primary"
               />
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm text-primary dark:text-primary-foreground">
-                  {selectedApartments.size}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {selectedApartments.size === 1 ? 'Wohnung' : 'Wohnungen'} ausgewählt
-                </span>
-              </div>
+              <span className="font-medium text-sm">
+                {selectedApartments.size} {selectedApartments.size === 1 ? 'Wohnung' : 'Wohnungen'} ausgewählt
+              </span>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSelectedApartments(new Set())}
-              className="h-8 px-3 text-xs hover:bg-white/60 dark:hover:bg-gray-800/60 transition-colors"
+              className="h-8 px-2 hover:bg-primary/20"
             >
-              <X className="h-3.5 w-3.5 mr-1.5" />
-              Auswahl aufheben
+              <X className="h-4 w-4" />
             </Button>
           </div>
           <div className="flex items-center gap-2">
@@ -304,19 +298,19 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
               variant="outline"
               size="sm"
               onClick={handleBulkExport}
-              className="h-9 gap-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 shadow-sm transition-all hover:shadow"
+              className="h-8 gap-2"
             >
               <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Exportieren</span>
+              Exportieren
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowBulkDeleteConfirm(true)}
-              className="h-9 gap-2 bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/50 border-red-200 dark:border-red-900 hover:border-red-300 dark:hover:border-red-800 shadow-sm transition-all hover:shadow"
+              className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
             >
               <Trash2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Löschen</span>
+              Löschen
             </Button>
           </div>
         </div>
