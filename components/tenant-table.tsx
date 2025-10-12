@@ -215,19 +215,38 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     }
   }
 
+  // Helper function to properly escape CSV values
+  const escapeCsvValue = (value: string | null | undefined): string => {
+    if (!value) return ''
+    const stringValue = String(value)
+    // If the value contains comma, quote, or newline, wrap it in quotes and escape internal quotes
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+      return `"${stringValue.replace(/"/g, '""')}"`
+    }
+    return stringValue
+  }
+
   const handleBulkExport = () => {
     const selectedTenantsData = tenants.filter(t => selectedTenants.has(t.id))
-    const csvContent = [
-      ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug'].join(','),
-      ...selectedTenantsData.map(t => [
+    
+    // Create CSV header
+    const headers = ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug']
+    const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
+    
+    // Create CSV rows with proper escaping
+    const csvRows = selectedTenantsData.map(t => {
+      const row = [
         t.name,
         t.email || '',
         t.telefonnummer || '',
         t.wohnung_id ? wohnungsMap[t.wohnung_id] || '' : '',
         t.einzug || '',
         t.auszug || ''
-      ].join(','))
-    ].join('\n')
+      ]
+      return row.map(value => escapeCsvValue(value)).join(',')
+    })
+    
+    const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
