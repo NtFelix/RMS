@@ -84,7 +84,7 @@ export function OperatingCostsTable({
     let result = [...nebenkosten]
 
     // Apply sorting
-    if (sortKey && sortKey !== "") {
+    if (sortKey !== "") {
       result.sort((a, b) => {
         let valA, valB
 
