@@ -580,7 +580,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-4 md:mt-0">
-                <ButtonWithTooltip variant="outline" size="sm" onClick={handleExportCsv}>
+                <ButtonWithTooltip variant="outline" onClick={handleExportCsv}>
                   <Download className="mr-2 h-4 w-4" />
                   Als CSV exportieren
                 </ButtonWithTooltip>
