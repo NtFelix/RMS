@@ -225,7 +225,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
   const handleBulkExport = () => {
     const selectedApartmentsData = (initialApartments ?? []).filter(a => selectedApartments.has(a.id))
     
-    const headers = ['Name', 'Größe (m²)', 'Miete (€)', 'Miete pro m²', 'Haus', 'Status']
+    const headers = ['Wohnung', 'Größe (m²)', 'Miete (€)', '€/m²', 'Haus', 'Status']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
     
     const csvRows = selectedApartmentsData.map(a => {
@@ -330,12 +330,12 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                     />
                   </div>
                 </TableHead>
-                <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
-                <TableHeaderCell sortKey="groesse" className="dark:text-[#f3f4f6]" icon={Ruler}>Größe (m²)</TableHeaderCell>
-                <TableHeaderCell sortKey="miete" className="dark:text-[#f3f4f6]" icon={Euro}>Miete (€)</TableHeaderCell>
-                <TableHeaderCell sortKey="pricePerSqm" className="dark:text-[#f3f4f6]" icon={Euro}>Miete pro m²</TableHeaderCell>
+                <TableHeaderCell sortKey="name" className="w-[200px] dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
+                <TableHeaderCell sortKey="groesse" className="w-[120px] dark:text-[#f3f4f6]" icon={Ruler}>Größe</TableHeaderCell>
+                <TableHeaderCell sortKey="miete" className="w-[110px] dark:text-[#f3f4f6]" icon={Euro}>Miete</TableHeaderCell>
+                <TableHeaderCell sortKey="pricePerSqm" className="w-[130px] dark:text-[#f3f4f6]" icon={Euro}>€/m²</TableHeaderCell>
                 <TableHeaderCell sortKey="haus" className="dark:text-[#f3f4f6]" icon={Building2}>Haus</TableHeaderCell>
-                <TableHeaderCell sortKey="status" className="dark:text-[#f3f4f6]" icon={CheckCircle2}>Status</TableHeaderCell>
+                <TableHeaderCell sortKey="status" className="w-[110px] dark:text-[#f3f4f6]" icon={CheckCircle2}>Status</TableHeaderCell>
                 <TableHeaderCell sortKey="name" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={MoreVertical} sortable={false}>Aktionen</TableHeaderCell>
               </TableRow>
             </TableHeader>
