@@ -230,8 +230,8 @@ export default function BetriebskostenClientView({
             <div className="space-y-4">
               {instructionSteps.map((step, index) => (
                 <div key={step.id} className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
-                    <span className="text-sm font-semibold text-primary">{index + 1}</span>
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary dark:text-primary-foreground">{index + 1}</span>
                   </div>
                   <div className="flex-1 pt-0.5">
                     <h4 className="font-medium text-sm mb-1">{step.title}</h4>
