@@ -67,7 +67,8 @@ async function initializePostHog() {
     loaded: function(posthog) {
       console.log('PostHog loaded successfully, reloading feature flags...');
       posthog.reloadFeatureFlags?.();
-    }
+    },
+    opt_in_site_apps: true
   });
 
   // Apply stored consent on load
