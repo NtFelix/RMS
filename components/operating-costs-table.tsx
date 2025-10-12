@@ -6,6 +6,7 @@ import { AbrechnungModal } from "./abrechnung-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { 
   ContextMenu, 
   ContextMenuTrigger, 
@@ -433,9 +434,9 @@ export function OperatingCostsTable({
                 </TableHead>
                 <TableHeaderCell sortKey="zeitraum" className="w-[250px] dark:text-[#f3f4f6]" icon={Calendar}>Zeitraum</TableHeaderCell>
                 <TableHeaderCell sortKey="haus" className="w-[150px] dark:text-[#f3f4f6]" icon={Building2}>Haus</TableHeaderCell>
-                <TableHeaderCell sortKey="" className="dark:text-[#f3f4f6]" icon={FileText} sortable={false}>Kostenarten</TableHeaderCell>
-                <TableHeaderCell sortKey="" className="dark:text-[#f3f4f6]" icon={Euro} sortable={false}>Beträge</TableHeaderCell>
-                <TableHeaderCell sortKey="" className="dark:text-[#f3f4f6]" icon={Calculator} sortable={false}>Berechnungsarten</TableHeaderCell>
+                <TableHeaderCell sortKey="" className="w-[140px] dark:text-[#f3f4f6]" icon={FileText} sortable={false}>Kostenarten</TableHeaderCell>
+                <TableHeaderCell sortKey="" className="w-[150px] dark:text-[#f3f4f6]" icon={Euro} sortable={false}>Beträge</TableHeaderCell>
+                <TableHeaderCell sortKey="" className="w-[160px] dark:text-[#f3f4f6]" icon={Calculator} sortable={false}>Berechnungsarten</TableHeaderCell>
                 <TableHeaderCell sortKey="wasserkosten" className="w-[130px] dark:text-[#f3f4f6]" icon={Droplets}>Wasserkosten</TableHeaderCell>
                 <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
               </TableRow>
@@ -488,19 +489,28 @@ export function OperatingCostsTable({
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{item.haus_name || 'N/A'}</TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
-                            {item.nebenkostenart && item.nebenkostenart.length > 0
-                              ? item.nebenkostenart.map((art: string, idx: number) => <div key={idx} className="py-0 leading-tight">{art || '-'}</div>)
-                              : '-'}
+                            {item.nebenkostenart && item.nebenkostenart.length > 0 ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400">
+                                {item.nebenkostenart.length} {item.nebenkostenart.length === 1 ? 'Kostenart' : 'Kostenarten'}
+                              </Badge>
+                            ) : '-'}
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
-                            {item.betrag && item.betrag.length > 0
-                              ? item.betrag.map((b: number | null, idx: number) => <div key={idx} className="py-0 leading-tight">{typeof b === 'number' ? formatCurrency(b) : '-'}</div>)
-                              : '-'}
+                            {item.betrag && item.betrag.length > 0 ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-medium">{typeof item.betrag[0] === 'number' ? formatCurrency(item.betrag[0]) : '-'}</span>
+                                {item.betrag.length > 1 && (
+                                  <span className="text-xs text-muted-foreground">+{item.betrag.length - 1} weitere</span>
+                                )}
+                              </div>
+                            ) : '-'}
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
-                            {item.berechnungsart && item.berechnungsart.length > 0
-                              ? item.berechnungsart.map((ba: string, idx: number) => <div key={idx} className="py-0 leading-tight">{ba || '-'}</div>)
-                              : '-'}
+                            {item.berechnungsart && item.berechnungsart.length > 0 ? (
+                              <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400">
+                                {item.berechnungsart.length} {item.berechnungsart.length === 1 ? 'Berechnungsart' : 'Berechnungsarten'}
+                              </Badge>
+                            ) : '-'}
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(item.wasserkosten)}</TableCell>
                           <TableCell 
