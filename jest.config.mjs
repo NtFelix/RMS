@@ -39,10 +39,14 @@ const customJestConfig = {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   // Memory optimization settings
-  maxWorkers: 2, // Limit the number of worker processes
-  workerIdleMemoryLimit: '512MB', // Restart workers when they use too much memory
+  maxWorkers: 1, // Limit the number of worker processes to prevent hanging
+  workerIdleMemoryLimit: '256MB', // Restart workers when they use too much memory
   // Increase timeout for slow tests
-  testTimeout: 30000,
+  testTimeout: 5000,
+  // Force exit after tests complete
+  forceExit: true,
+  // Detect open handles that prevent Jest from exiting
+  detectOpenHandles: true,
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

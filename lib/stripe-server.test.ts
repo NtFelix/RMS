@@ -69,8 +69,12 @@ describe('lib/stripe-server', () => {
       expect(result).toEqual({
         priceId: 'price_123',
         name: 'Premium Plan',
+        productName: 'Premium Plan',
+        description: 'Premium subscription plan',
         price: 2999,
         currency: 'eur',
+        interval: null,
+        interval_count: null,
         features: ['Feature 1', 'Feature 2', 'Feature 3'],
         limitWohnungen: 10
       });
