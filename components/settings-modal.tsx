@@ -680,19 +680,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           description: "Ihre Rechnungsadresse wurde erfolgreich gespeichert.",
           variant: "success",
         });
-        
-        // Update local state with the saved values from the form
-        setBillingAddress(prev => ({
-          ...prev,
-          name: billingAddress.name,
-          companyName: billingAddress.companyName,
-          line1: billingAddress.line1,
-          line2: billingAddress.line2,
-          city: billingAddress.city,
-          state: billingAddress.state,
-          postal_code: billingAddress.postal_code,
-          country: billingAddress.country
-        }));
       } else {
         throw new Error(result.error || "Ein unbekannter Fehler ist aufgetreten.");
       }
