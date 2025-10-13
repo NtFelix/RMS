@@ -262,16 +262,27 @@ jobs:
             PASSED=$(jq -r '.numPassedTests // 0' test-results.json)
             FAILED=$(jq -r '.numFailedTests // 0' test-results.json)
             TOTAL=$(jq -r '.numTotalTests // 0' test-results.json)
+            
+            # Extract test suite counts
+            SUITES_PASSED=$(jq -r '.numPassedTestSuites // 0' test-results.json)
+            SUITES_FAILED=$(jq -r '.numFailedTestSuites // 0' test-results.json)
+            SUITES_TOTAL=$(jq -r '.numTotalTestSuites // 0' test-results.json)
           else
             # If no test-results.json, check exit code from previous step
             if [ "${{ job.status }}" = "success" ]; then
               PASSED=0
               FAILED=0
               TOTAL=0
+              SUITES_PASSED=0
+              SUITES_FAILED=0
+              SUITES_TOTAL=0
             else
               PASSED=0
               FAILED=1
               TOTAL=1
+              SUITES_PASSED=0
+              SUITES_FAILED=1
+              SUITES_TOTAL=1
             fi
           fi
           
@@ -279,9 +290,16 @@ jobs:
           cat > test-summaries/group-${{ matrix.test-group }}.json <<EOF
           {
             "group": ${{ matrix.test-group }},
-            "passed": $PASSED,
-            "failed": $FAILED,
-            "total": $TOTAL,
+            "tests": {
+              "passed": $PASSED,
+              "failed": $FAILED,
+              "total": $TOTAL
+            },
+            "suites": {
+              "passed": $SUITES_PASSED,
+              "failed": $SUITES_FAILED,
+              "total": $SUITES_TOTAL
+            },
             "status": "${{ job.status }}"
           }
           EOF
@@ -321,35 +339,46 @@ jobs:
         if: always()
         run: |
           # Aggregate all test results
-          TOTAL_PASSED=0
-          TOTAL_FAILED=0
+          TOTAL_TESTS_PASSED=0
+          TOTAL_TESTS_FAILED=0
           TOTAL_TESTS=0
+          TOTAL_SUITES_PASSED=0
+          TOTAL_SUITES_FAILED=0
+          TOTAL_SUITES=0
           FAILED_GROUPS=""
           
           for file in test-summaries/*.json; do
             if [ -f "$file" ]; then
-              PASSED=$(jq -r '.passed' "$file")
-              FAILED=$(jq -r '.failed' "$file")
-              TOTAL=$(jq -r '.total' "$file")
+              TESTS_PASSED=$(jq -r '.tests.passed' "$file")
+              TESTS_FAILED=$(jq -r '.tests.failed' "$file")
+              TESTS_TOTAL=$(jq -r '.tests.total' "$file")
+              
+              SUITES_PASSED=$(jq -r '.suites.passed' "$file")
+              SUITES_FAILED=$(jq -r '.suites.failed' "$file")
+              SUITES_TOTAL=$(jq -r '.suites.total' "$file")
+              
               GROUP=$(jq -r '.group' "$file")
               STATUS=$(jq -r '.status' "$file")
               
-              TOTAL_PASSED=$((TOTAL_PASSED + PASSED))
-              TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
-              TOTAL_TESTS=$((TOTAL_TESTS + TOTAL))
+              TOTAL_TESTS_PASSED=$((TOTAL_TESTS_PASSED + TESTS_PASSED))
+              TOTAL_TESTS_FAILED=$((TOTAL_TESTS_FAILED + TESTS_FAILED))
+              TOTAL_TESTS=$((TOTAL_TESTS + TESTS_TOTAL))
               
-              if [ "$FAILED" -gt 0 ] || [ "$STATUS" != "success" ]; then
-                FAILED_GROUPS="$FAILED_GROUPS Group $GROUP: $FAILED failed\n"
+              TOTAL_SUITES_PASSED=$((TOTAL_SUITES_PASSED + SUITES_PASSED))
+              TOTAL_SUITES_FAILED=$((TOTAL_SUITES_FAILED + SUITES_FAILED))
+              TOTAL_SUITES=$((TOTAL_SUITES + SUITES_TOTAL))
+              
+              if [ "$TESTS_FAILED" -gt 0 ] || [ "$STATUS" != "success" ]; then
+                FAILED_GROUPS="$FAILED_GROUPS Group $GROUP: $TESTS_FAILED tests failed in $SUITES_FAILED suites\n"
               fi
             fi
           done
           
-          echo "Total Tests: $TOTAL_TESTS"
-          echo "Passed: $TOTAL_PASSED"
-          echo "Failed: $TOTAL_FAILED"
+          echo "Total Tests: $TOTAL_TESTS (Passed: $TOTAL_TESTS_PASSED, Failed: $TOTAL_TESTS_FAILED)"
+          echo "Total Suites: $TOTAL_SUITES (Passed: $TOTAL_SUITES_PASSED, Failed: $TOTAL_SUITES_FAILED)"
           
           # Only send Discord notification if tests failed
-          if [ "$TOTAL_FAILED" -gt 0 ]; then
+          if [ "$TOTAL_TESTS_FAILED" -gt 0 ] || [ "$TOTAL_SUITES_FAILED" -gt 0 ]; then
             # Get branch name
             BRANCH_NAME="${GITHUB_REF#refs/heads/}"
             
@@ -363,7 +392,7 @@ jobs:
           {
             "embeds": [{
               "title": "❌ Tests Failed",
-              "description": "**$TOTAL_FAILED** of **$TOTAL_TESTS** tests failed",
+              "description": "**$TOTAL_TESTS_FAILED** of **$TOTAL_TESTS** tests failed in **$TOTAL_SUITES_FAILED** of **$TOTAL_SUITES** test suites",
               "color": 15158332,
               "fields": [
                 {
@@ -387,14 +416,14 @@ jobs:
                   "inline": true
                 },
                 {
-                  "name": "Passed",
-                  "value": "✅ $TOTAL_PASSED",
-                  "inline": true
+                  "name": "Test Suites",
+                  "value": "✅ $TOTAL_SUITES_PASSED passed | ❌ $TOTAL_SUITES_FAILED failed",
+                  "inline": false
                 },
                 {
-                  "name": "Failed",
-                  "value": "❌ $TOTAL_FAILED",
-                  "inline": true
+                  "name": "Tests",
+                  "value": "✅ $TOTAL_TESTS_PASSED passed | ❌ $TOTAL_TESTS_FAILED failed",
+                  "inline": false
                 },
                 {
                   "name": "Commit Message",
