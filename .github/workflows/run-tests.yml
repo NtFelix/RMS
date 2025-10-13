@@ -169,10 +169,19 @@ jobs:
             exit 0
           fi
           
-          # Read test files from the JSON file
-          TEST_FILES=$(jq -r '.[]' test_files.json | tr '\n' ' ')
+          # Build jest command with proper arguments
+          JEST_ARGS="--maxWorkers=2 --passWithNoTests"
           
-          if [ -z "$TEST_FILES" ]; then
+          # Only add coverage for the first group to avoid merge conflicts
+          if [ "${{ matrix.is-first-group }}" = "true" ]; then
+            mkdir -p coverage
+            JEST_ARGS="$JEST_ARGS --coverage --testLocationInResults --json --outputFile=test-results.json"
+          fi
+          
+          # Read test files into an array to handle paths with special characters
+          mapfile -t TEST_FILES_ARRAY < <(jq -r '.[]' test_files.json)
+          
+          if [ ${#TEST_FILES_ARRAY[@]} -eq 0 ]; then
             echo "No test files to run in this group."
             if [ "${{ matrix.is-first-group }}" = "true" ]; then
               mkdir -p coverage
@@ -181,20 +190,10 @@ jobs:
             exit 0
           fi
           
-          # Set test files for this group
-          TEST_CMD="npx jest --maxWorkers=2 --passWithNoTests"
+          echo "Running test group ${{ matrix.test-group }} with ${#TEST_FILES_ARRAY[@]} test files"
           
-          # Only add coverage for the first group to avoid merge conflicts
-          if [ "${{ matrix.is-first-group }}" = "true" ]; then
-            mkdir -p coverage
-            TEST_CMD="$TEST_CMD --coverage --testLocationInResults --json --outputFile=test-results.json"
-          fi
-          
-          echo "Running test group ${{ matrix.test-group }} with command:"
-          echo "$TEST_CMD $TEST_FILES"
-          
-          # Execute tests
-          eval $TEST_CMD $TEST_FILES
+          # Execute tests with proper quoting
+          npx jest $JEST_ARGS "${TEST_FILES_ARRAY[@]}"
           TEST_EXIT_CODE=$?
           
           # If this is the first group, ensure coverage directory exists
