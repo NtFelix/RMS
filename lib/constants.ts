@@ -27,3 +27,69 @@ export const HERO_VIDEO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/
 
 // Document URLs
 export const EXAMPLE_BILL_PDF_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/Beispielabrechnung.pdf';
+
+// Countries for billing address
+export const BILLING_COUNTRIES = {
+  // DACH countries (prioritized)
+  dach: [
+    { value: 'DE', label: 'Deutschland' },
+    { value: 'AT', label: 'Österreich' },
+    { value: 'CH', label: 'Schweiz' },
+  ],
+  // Rest of Europe
+  europe: [
+    { value: 'AL', label: 'Albanien' },
+    { value: 'AD', label: 'Andorra' },
+    { value: 'BE', label: 'Belgien' },
+    { value: 'BA', label: 'Bosnien und Herzegowina' },
+    { value: 'BG', label: 'Bulgarien' },
+    { value: 'HR', label: 'Kroatien' },
+    { value: 'CY', label: 'Zypern' },
+    { value: 'CZ', label: 'Tschechien' },
+    { value: 'DK', label: 'Dänemark' },
+    { value: 'EE', label: 'Estland' },
+    { value: 'FI', label: 'Finnland' },
+    { value: 'FR', label: 'Frankreich' },
+    { value: 'GR', label: 'Griechenland' },
+    { value: 'GB', label: 'Großbritannien' },
+    { value: 'HU', label: 'Ungarn' },
+    { value: 'IS', label: 'Island' },
+    { value: 'IE', label: 'Irland' },
+    { value: 'IT', label: 'Italien' },
+    { value: 'XK', label: 'Kosovo' },
+    { value: 'LV', label: 'Lettland' },
+    { value: 'LI', label: 'Liechtenstein' },
+    { value: 'LT', label: 'Litauen' },
+    { value: 'LU', label: 'Luxemburg' },
+    { value: 'MT', label: 'Malta' },
+    { value: 'MD', label: 'Moldawien' },
+    { value: 'MC', label: 'Monaco' },
+    { value: 'ME', label: 'Montenegro' },
+    { value: 'NL', label: 'Niederlande' },
+    { value: 'MK', label: 'Nordmazedonien' },
+    { value: 'NO', label: 'Norwegen' },
+    { value: 'PL', label: 'Polen' },
+    { value: 'PT', label: 'Portugal' },
+    { value: 'RO', label: 'Rumänien' },
+    { value: 'SM', label: 'San Marino' },
+    { value: 'SE', label: 'Schweden' },
+    { value: 'RS', label: 'Serbien' },
+    { value: 'SK', label: 'Slowakei' },
+    { value: 'SI', label: 'Slowenien' },
+    { value: 'ES', label: 'Spanien' },
+    { value: 'TR', label: 'Türkei' },
+    { value: 'UA', label: 'Ukraine' },
+    { value: 'VA', label: 'Vatikanstadt' },
+  ],
+  // Major non-European countries
+  other: [
+    { value: 'US', label: 'Vereinigte Staaten' },
+    { value: 'CA', label: 'Kanada' },
+    { value: 'AU', label: 'Australien' },
+    { value: 'NZ', label: 'Neuseeland' },
+    { value: 'JP', label: 'Japan' },
+    { value: 'CN', label: 'China' },
+    { value: 'IN', label: 'Indien' },
+    { value: 'BR', label: 'Brasilien' },
+  ],
+} as const;
