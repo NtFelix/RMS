@@ -87,7 +87,7 @@ export function DocumentsSummaryCards({
   }, [])
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* Drag & Drop Upload Card */}
       <Card
         className={cn(

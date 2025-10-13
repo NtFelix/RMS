@@ -510,6 +510,15 @@ export function CloudStorageSimple({
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
+      
+      {/* Summary Cards Container */}
+      <DocumentsSummaryCards
+        totalSize={totalFileSize}
+        onUpload={handleUploadWithFiles}
+        onCreateFolder={handleCreateFolder}
+      />
+      
+      {/* Main File Container */}
       <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem] h-full flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-200 dark:border-gray-700">
@@ -520,13 +529,6 @@ export function CloudStorageSimple({
                 <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Dateien und Ordner</p>
               </div>
             </div>
-            
-            {/* Summary Cards */}
-            <DocumentsSummaryCards
-              totalSize={totalFileSize}
-              onUpload={handleUploadWithFiles}
-              onCreateFolder={handleCreateFolder}
-            />
             
             {/* Quick Actions */}
             <CloudStorageQuickActions
