@@ -134,6 +134,12 @@ if (typeof window !== 'undefined') {
       dispatchEvent: jest.fn(),
     })),
   });
+
+  // Mock window.scrollTo for animation libraries (Framer Motion, etc.)
+  Object.defineProperty(window, 'scrollTo', {
+    writable: true,
+    value: jest.fn(),
+  });
 }
 
 // Add polyfills for DOM methods only if Element exists (jsdom environment)
