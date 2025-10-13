@@ -31,6 +31,13 @@ const customJestConfig = {
     '!<rootDir>/.next/**',
     '!<rootDir>/*.config.{js,mjs}', // Updated to include mjs
     '!<rootDir>/coverage/**',
+    '!**/__tests__/**', // Exclude test files from coverage
+    '!**/*.test.{ts,tsx}', // Exclude test files from coverage
+    '!**/*.spec.{ts,tsx}', // Exclude spec files from coverage
+  ],
+  testMatch: [
+    '**/__tests__/**/*.{ts,tsx}',
+    '**/?(*.)+(spec|test).{ts,tsx}'
   ],
   transformIgnorePatterns: [
     "node_modules/(?!(isows|@supabase/ssr|@supabase/realtime-js|@supabase/supabase-js)/)"
