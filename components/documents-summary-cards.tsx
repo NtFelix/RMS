@@ -110,10 +110,13 @@ export function DocumentsSummaryCards({
             <Upload className="h-4 w-4 text-muted-foreground" />
           </div>
           <div>
+            <div className="text-2xl font-bold mb-1">
+              {isDragging ? "Ablegen" : "Hochladen"}
+            </div>
             <p className="text-xs text-muted-foreground">
               {isDragging 
                 ? "Dateien hier ablegen..." 
-                : "Klicken oder Dateien hierher ziehen"
+                : "Klicken oder hierher ziehen"
               }
             </p>
           </div>
@@ -144,8 +147,11 @@ export function DocumentsSummaryCards({
             <FolderPlus className="h-4 w-4 text-muted-foreground" />
           </div>
           <div>
+            <div className="text-2xl font-bold mb-1">
+              Neuer Ordner
+            </div>
             <p className="text-xs text-muted-foreground">
-              Neuen Ordner anlegen
+              Klicken zum Erstellen
             </p>
           </div>
         </div>
