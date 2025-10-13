@@ -51,7 +51,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
-      <Card className="bg-gray-50/80 dark:bg-[#22272e]/80 border border-gray-200 dark:border-[#3C4251] shadow-lg backdrop-blur-sm rounded-[2.5rem]">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2.5rem]">
         <CardHeader>
           <div className="flex flex-row items-start justify-between">
             <div>
@@ -77,7 +77,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
                 <Input
                   type="search"
                   placeholder="Aufgabe suchen..."
-                  className="pl-10 rounded-full border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-sm focus:shadow-md transition-all duration-200"
+                  className="pl-10 rounded-full"
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>

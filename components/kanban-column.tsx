@@ -59,7 +59,7 @@ export function KanbanColumn({
       } rounded-3xl p-3`}
     >
       <div ref={setNodeRef} className="h-full w-full">
-      <Card className="h-full shadow-md rounded-3xl border-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+      <Card className="h-full shadow-md rounded-3xl">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className={`flex items-center gap-2 text-lg ${

@@ -108,17 +108,17 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({ task, onTaskUpdated
       <Card
         ref={setNodeRef}
         style={style}
-        className={`cursor-pointer transition-all duration-200 hover:shadow-lg rounded-2xl border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm ${
+        className={`cursor-pointer transition-all duration-200 hover:shadow-md rounded-2xl ${
           isCompleting 
-            ? "bg-green-50/90 border-green-200 shadow-lg ring-2 ring-green-200" 
+            ? "bg-green-50 border-green-200 shadow-md" 
             : isDragging 
-            ? "opacity-50 shadow-xl scale-105 ring-2 ring-primary/30" 
-            : "hover:scale-[1.02] hover:shadow-lg hover:ring-1 hover:ring-primary/20"
+            ? "opacity-50 shadow-lg scale-105" 
+            : "hover:scale-[1.01]"
         }`}
         onClick={handleEdit}
         {...attributes}
       >
-        <CardContent className="p-5">
+        <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 pt-1">
               <Checkbox
@@ -154,7 +154,7 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({ task, onTaskUpdated
                   </Badge>
                   <div
                     {...listeners}
-                    className={`cursor-grab active:cursor-grabbing p-1.5 hover:bg-muted rounded-xl transition-all duration-150 ${
+                    className={`cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded transition-all duration-150 ${
                       isDragging ? 'bg-muted' : ''
                     }`}
                   >

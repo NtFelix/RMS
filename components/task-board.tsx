@@ -309,14 +309,14 @@ export function TaskBoard({
           : 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
       }}>
         {activeTask ? (
-          <Card className={`opacity-95 shadow-2xl border-0 z-50 will-change-transform transition-all duration-200 rounded-2xl backdrop-blur-sm ${
+          <Card className={`opacity-95 shadow-2xl border-2 z-50 will-change-transform transition-all duration-200 rounded-2xl ${
             dragDirection === 'todo-to-done' && (overId === 'done' || overId === 'done-large')
-              ? 'ring-2 ring-green-400 bg-green-50/90 rotate-2 scale-110'
+              ? 'border-green-400 bg-green-50 rotate-2 scale-105'
               : dragDirection === 'done-to-todo' && (overId === 'todo' || overId === 'todo-large')
-              ? 'ring-2 ring-yellow-400 bg-yellow-50/90 rotate-1 scale-110'
-              : 'ring-2 ring-primary/50 bg-white/90 dark:bg-gray-800/90 rotate-1 scale-110'
+              ? 'border-yellow-400 bg-yellow-50 rotate-1 scale-105'
+              : 'border-primary/50 bg-background rotate-1 scale-105'
           }`}>
-            <CardContent className="p-5">
+            <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 pt-1">
                   <Checkbox
