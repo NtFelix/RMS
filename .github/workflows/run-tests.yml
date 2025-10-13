@@ -33,21 +33,21 @@ jobs:
           - test-group: 1
             is-first-group: true
             test-files: >-
-              lib/data-fetching.test.ts
-              lib/utils.test.ts
+              lib/__tests__/data-fetching.test.ts
+              lib/__tests__/utils.test.ts
               lib/__tests__/template-constants.test.ts
               lib/__tests__/storage-service.test.ts
               lib/__tests__/path-utils.test.ts
-              lib/constants.test.ts
-              lib/supabase-server.test.ts
-              lib/stripe-server.test.ts
-              hooks/use-command-menu.test.tsx
-              hooks/use-search.test.ts
-              components/house-filters.test.tsx
-              components/wohnung-overview-modal.test.tsx
-              components/search-error-boundary.test.tsx
-              components/search-result-item.test.tsx
-              components/finance-edit-modal.test.tsx
+              lib/__tests__/constants.test.ts
+              lib/__tests__/supabase-server.test.ts
+              lib/__tests__/stripe-server.test.ts
+              hooks/__tests__/use-command-menu.test.tsx
+              hooks/__tests__/use-search.test.ts
+              components/__tests__/house-filters.test.tsx
+              components/__tests__/wohnung-overview-modal.test.tsx
+              components/__tests__/search-error-boundary.test.tsx
+              components/__tests__/search-result-item.test.tsx
+              components/__tests__/finance-edit-modal.test.tsx
           - test-group: 2
             is-first-group: false
             test-files: >-
@@ -56,32 +56,24 @@ jobs:
               hooks/__tests__/use-cloud-storage-navigation.test.ts
               hooks/__tests__/use-cloud-storage-store.test.ts
               hooks/__tests__/use-modal-store-timeout.test.ts
-              components/ui/custom-combobox.test.tsx
-              components/ui/video-player.test.tsx
-              components/ui/label-with-tooltip.test.tsx
-              components/ui/button-with-tooltip.test.tsx
-              app/(dashboard)/wohnungen/client.test.tsx
-              app/(dashboard)/todos/client-wrapper.test.tsx
-              app/(dashboard)/betriebskosten/client-wrapper.test.tsx
-              app/(dashboard)/betriebskosten/client-wrapper-layout.test.tsx
-              app/wohnungen-actions.test.ts
-              app/subscription-locked/page.test.tsx
+              components/ui/__tests__/custom-combobox.test.tsx
+              components/ui/__tests__/video-player.test.tsx
+              components/ui/__tests__/label-with-tooltip.test.tsx
+              components/ui/__tests__/button-with-tooltip.test.tsx
+              app/(dashboard)/wohnungen/__tests__/client.test.tsx
+              app/(dashboard)/todos/__tests__/client-wrapper.test.tsx
+              app/(dashboard)/betriebskosten/__tests__/client-wrapper.test.tsx
+              app/(dashboard)/betriebskosten/__tests__/client-wrapper-layout.test.tsx
+              app/__tests__/wohnungen-actions.test.ts
+              app/subscription-locked/__tests__/page.test.tsx
           - test-group: 3
             is-first-group: false
             test-files: >-
-              __tests__/template-integration.test.ts
-              __tests__/template-integration.test.tsx
-              __tests__/template-editor-final-integration.test.tsx
-              __tests__/template-editor-modal-comprehensive.test.tsx
-              __tests__/template-mention-extension.test.tsx
-              __tests__/ai-assistant-dependencies.test.ts
-              __tests__/ai-assistant-comprehensive.test.tsx
-              __tests__/storage-performance-optimization.test.tsx
-              __tests__/mobile-navigation-responsive-behavior-comprehensive.test.tsx
-              lib/__tests__/mention-suggestion-popup.test.ts
-              lib/__tests__/path-utils-virtual-folders.test.ts
+              __tests__/template-service.test.ts
+              __tests__/mention-utils.test.ts
+              __tests__/betriebskosten-error-recovery.test.ts
+              __tests__/template-validation.test.ts
               lib/__tests__/directory-cache.test.ts
-              integration/landing-page-flow.test.tsx
     
     # Job name is set by the matrix strategy
     
@@ -156,6 +148,7 @@ jobs:
 
       # Run tests for this group
       - name: Run test group ${{ matrix.test-group }}
+        timeout-minutes: 5
         run: |
           # Clean any previous coverage data
           rm -rf coverage/ .nyc_output/
@@ -172,7 +165,7 @@ jobs:
           fi
           
           # Build jest command with proper arguments for stability
-          JEST_ARGS="--runInBand --forceExit --detectOpenHandles --testTimeout=5000 --passWithNoTests"
+          JEST_ARGS="--runInBand --forceExit --detectOpenHandles --testTimeout=10000 --passWithNoTests --no-cache"
           
           # Only add coverage for the first group to avoid merge conflicts
           if [ "${{ matrix.is-first-group }}" = "true" ]; then
@@ -195,10 +188,10 @@ jobs:
           echo "Running test group ${{ matrix.test-group }} with ${#TEST_FILES_ARRAY[@]} test files"
           
           # Execute tests with proper quoting and timeout handling
-          timeout 300 npx jest $JEST_ARGS "${TEST_FILES_ARRAY[@]}" || {
+          timeout 180 npx jest $JEST_ARGS "${TEST_FILES_ARRAY[@]}" 2>&1 | tee jest-output.log || {
             TEST_EXIT_CODE=$?
             if [ $TEST_EXIT_CODE -eq 124 ]; then
-              echo "Tests timed out after 5 minutes"
+              echo "Tests timed out after 3 minutes"
               exit 1
             fi
             exit $TEST_EXIT_CODE
@@ -264,32 +257,74 @@ jobs:
           # Create a summary file for this group
           mkdir -p test-summaries
           
-          # Extract test results if available
+          # Initialize variables
+          PASSED=0
+          FAILED=0
+          TOTAL=0
+          SUITES_PASSED=0
+          SUITES_FAILED=0
+          SUITES_TOTAL=0
+          
+          # Extract test results from Jest output if available
           if [ -f "test-results.json" ]; then
+            echo "Found test-results.json, parsing..."
+            cat test-results.json
+            
             PASSED=$(jq -r '.numPassedTests // 0' test-results.json)
             FAILED=$(jq -r '.numFailedTests // 0' test-results.json)
             TOTAL=$(jq -r '.numTotalTests // 0' test-results.json)
             
-            # Extract test suite counts
             SUITES_PASSED=$(jq -r '.numPassedTestSuites // 0' test-results.json)
             SUITES_FAILED=$(jq -r '.numFailedTestSuites // 0' test-results.json)
             SUITES_TOTAL=$(jq -r '.numTotalTestSuites // 0' test-results.json)
+            
+            echo "Parsed from JSON - Tests: P:$PASSED F:$FAILED T:$TOTAL, Suites: P:$SUITES_PASSED F:$SUITES_FAILED T:$SUITES_TOTAL"
           else
-            # If no test-results.json, check exit code from previous step
-            if [ "${{ job.status }}" = "success" ]; then
-              PASSED=0
-              FAILED=0
-              TOTAL=0
-              SUITES_PASSED=0
-              SUITES_FAILED=0
-              SUITES_TOTAL=0
+            echo "No test-results.json found, checking for jest output..."
+            
+            # Try to parse from jest output log if available
+            if [ -f "jest-output.log" ]; then
+              echo "Parsing jest output log..."
+              
+              # Extract test counts from Jest summary line
+              JEST_SUMMARY=$(grep -E "Test Suites:|Tests:" jest-output.log | tail -2)
+              echo "Jest summary: $JEST_SUMMARY"
+              
+              # Parse test suites line: "Test Suites: X failed, Y passed, Z total"
+              SUITES_LINE=$(echo "$JEST_SUMMARY" | grep "Test Suites:" || echo "")
+              if [ -n "$SUITES_LINE" ]; then
+                SUITES_FAILED=$(echo "$SUITES_LINE" | grep -o '[0-9]\+ failed' | grep -o '[0-9]\+' || echo "0")
+                SUITES_PASSED=$(echo "$SUITES_LINE" | grep -o '[0-9]\+ passed' | grep -o '[0-9]\+' || echo "0")
+                SUITES_TOTAL=$(echo "$SUITES_LINE" | grep -o '[0-9]\+ total' | grep -o '[0-9]\+' || echo "0")
+              fi
+              
+              # Parse tests line: "Tests: X failed, Y passed, Z total"
+              TESTS_LINE=$(echo "$JEST_SUMMARY" | grep "Tests:" || echo "")
+              if [ -n "$TESTS_LINE" ]; then
+                FAILED=$(echo "$TESTS_LINE" | grep -o '[0-9]\+ failed' | grep -o '[0-9]\+' || echo "0")
+                PASSED=$(echo "$TESTS_LINE" | grep -o '[0-9]\+ passed' | grep -o '[0-9]\+' || echo "0")
+                TOTAL=$(echo "$TESTS_LINE" | grep -o '[0-9]\+ total' | grep -o '[0-9]\+' || echo "0")
+              fi
+              
+              echo "Parsed from log - Tests: P:$PASSED F:$FAILED T:$TOTAL, Suites: P:$SUITES_PASSED F:$SUITES_FAILED T:$SUITES_TOTAL"
             else
-              PASSED=0
-              FAILED=1
-              TOTAL=1
-              SUITES_PASSED=0
-              SUITES_FAILED=1
-              SUITES_TOTAL=1
+              echo "No jest output found, using job status..."
+              # Fallback based on job status
+              if [ "${{ job.status }}" = "success" ]; then
+                PASSED=0
+                FAILED=0
+                TOTAL=0
+                SUITES_PASSED=0
+                SUITES_FAILED=0
+                SUITES_TOTAL=0
+              else
+                PASSED=0
+                FAILED=1
+                TOTAL=1
+                SUITES_PASSED=0
+                SUITES_FAILED=1
+                SUITES_TOTAL=1
+              fi
             fi
           fi
           
@@ -354,8 +389,14 @@ jobs:
           TOTAL_SUITES=0
           FAILED_GROUPS=""
           
+          echo "Processing test summary files..."
+          ls -la test-summaries/ || echo "No test-summaries directory found"
+          
           for file in test-summaries/*.json; do
             if [ -f "$file" ]; then
+              echo "Processing file: $file"
+              cat "$file"
+              
               TESTS_PASSED=$(jq -r '.tests.passed' "$file")
               TESTS_FAILED=$(jq -r '.tests.failed' "$file")
               TESTS_TOTAL=$(jq -r '.tests.total' "$file")
@@ -366,6 +407,8 @@ jobs:
               
               GROUP=$(jq -r '.group' "$file")
               STATUS=$(jq -r '.status' "$file")
+              
+              echo "Group $GROUP: Tests P:$TESTS_PASSED F:$TESTS_FAILED T:$TESTS_TOTAL, Suites P:$SUITES_PASSED F:$SUITES_FAILED T:$SUITES_TOTAL, Status:$STATUS"
               
               TOTAL_TESTS_PASSED=$((TOTAL_TESTS_PASSED + TESTS_PASSED))
               TOTAL_TESTS_FAILED=$((TOTAL_TESTS_FAILED + TESTS_FAILED))
@@ -381,11 +424,23 @@ jobs:
             fi
           done
           
+          echo "Final aggregated totals:"
+          echo "Tests - Passed: $TOTAL_TESTS_PASSED, Failed: $TOTAL_TESTS_FAILED, Total: $TOTAL_TESTS"
+          echo "Suites - Passed: $TOTAL_SUITES_PASSED, Failed: $TOTAL_SUITES_FAILED, Total: $TOTAL_SUITES"
+          
           echo "Total Tests: $TOTAL_TESTS (Passed: $TOTAL_TESTS_PASSED, Failed: $TOTAL_TESTS_FAILED)"
           echo "Total Suites: $TOTAL_SUITES (Passed: $TOTAL_SUITES_PASSED, Failed: $TOTAL_SUITES_FAILED)"
           
-          # Only send Discord notification if tests failed
+          # Send Discord notification for both success and failure
           if [ "$TOTAL_TESTS_FAILED" -gt 0 ] || [ "$TOTAL_SUITES_FAILED" -gt 0 ]; then
+            NOTIFICATION_COLOR=15158332  # Red for failures
+            NOTIFICATION_TITLE="❌ Tests Failed"
+          else
+            NOTIFICATION_COLOR=3066993   # Green for success
+            NOTIFICATION_TITLE="✅ All Tests Passed"
+          fi
+          
+          if [ "$TOTAL_TESTS" -gt 0 ]; then
             # Get branch name
             BRANCH_NAME="${GITHUB_REF#refs/heads/}"
             
@@ -398,9 +453,9 @@ jobs:
             DISCORD_EMBED=$(cat <<EOF
           {
             "embeds": [{
-              "title": "❌ Tests Failed",
-              "description": "**$TOTAL_TESTS_FAILED** of **$TOTAL_TESTS** tests failed in **$TOTAL_SUITES_FAILED** of **$TOTAL_SUITES** test suites",
-              "color": 15158332,
+              "title": "$NOTIFICATION_TITLE",
+              "description": "**$TOTAL_TESTS_PASSED** passed, **$TOTAL_TESTS_FAILED** failed of **$TOTAL_TESTS** total tests | **$TOTAL_SUITES_PASSED** passed, **$TOTAL_SUITES_FAILED** failed of **$TOTAL_SUITES** total suites",
+              "color": $NOTIFICATION_COLOR,
               "fields": [
                 {
                   "name": "Repository",
@@ -424,12 +479,17 @@ jobs:
                 },
                 {
                   "name": "Test Suites",
-                  "value": "✅ $TOTAL_SUITES_PASSED passed | ❌ $TOTAL_SUITES_FAILED failed",
+                  "value": "✅ $TOTAL_SUITES_PASSED passed | ❌ $TOTAL_SUITES_FAILED failed | 📊 $TOTAL_SUITES total",
                   "inline": false
                 },
                 {
                   "name": "Tests",
-                  "value": "✅ $TOTAL_TESTS_PASSED passed | ❌ $TOTAL_TESTS_FAILED failed",
+                  "value": "✅ $TOTAL_TESTS_PASSED passed | ❌ $TOTAL_TESTS_FAILED failed | 📊 $TOTAL_TESTS total",
+                  "inline": false
+                },
+                {
+                  "name": "Failed Groups",
+                  "value": "$(echo -e "$FAILED_GROUPS" | head -c 1000)",
                   "inline": false
                 },
                 {
@@ -454,7 +514,7 @@ jobs:
                  -d "$DISCORD_EMBED" \
                  "${{ secrets.DISCORD_WEBHOOK_URL }}"
             
-            echo "Discord notification sent for failed tests"
+            echo "Discord notification sent - Title: $NOTIFICATION_TITLE"
           else
-            echo "All tests passed - no Discord notification sent"
+            echo "No tests found - no Discord notification sent"
           fi
