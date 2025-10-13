@@ -480,12 +480,25 @@ export function CloudStorageSimple({
   const displayError = storeError || navigationError
   
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="p-6">
-          {/* Quick Actions */}
-          <CloudStorageQuickActions
+    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
+      <div
+        className="absolute inset-0 z-[-1]"
+        style={{
+          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
+        }}
+      />
+      <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2.5rem] h-full flex flex-col">
+        {/* Header */}
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className="p-6">
+            <div className="flex flex-row items-start justify-between mb-6">
+              <div>
+                <h1 className="text-2xl font-semibold">Dateien</h1>
+                <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Dateien und Ordner</p>
+              </div>
+            </div>
+            {/* Quick Actions */}
+            <CloudStorageQuickActions
             onUpload={handleUpload}
             onCreateFolder={handleCreateFolder}
             onCreateFile={handleCreateFile}
@@ -500,8 +513,8 @@ export function CloudStorageSimple({
             onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
           />
 
-{/* Breadcrumb Navigation */}
-          <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
+            {/* Breadcrumb Navigation */}
+            <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
             <ol className="flex items-center space-x-1">
               {breadcrumbs.map((breadcrumb, index) => {
                 const isLast = index === breadcrumbs.length - 1
@@ -564,13 +577,13 @@ export function CloudStorageSimple({
                 </li>
               )}
             </ol>
-          </nav>
+            </nav>
+          </div>
         </div>
-      </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
+        {/* Content Area */}
+        <div className="flex-1 overflow-auto">
+          <div className="p-6">
           {/* Loading State */}
           {showLoading && (
             <div className="text-center py-16">
@@ -744,6 +757,7 @@ export function CloudStorageSimple({
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

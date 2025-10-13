@@ -74,23 +74,23 @@ export function CloudStorageQuickActions({
   return (
     <div className="space-y-4">
       {/* Search and primary actions row */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Search input and sort button on the left */}
-        <div className="flex items-center space-x-2">
-          <div className="relative flex-shrink-0">
+        <div className="flex flex-wrap gap-2">
+          <div className="relative w-full sm:w-auto sm:min-w-[300px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Dateien und Ordner durchsuchen..."
               value={searchQuery}
               onChange={(e) => onSearch(e.target.value)}
-              className="pl-10 h-9 w-80"
+              className="pl-10 rounded-full"
             />
           </div>
           
           {/* Sort dropdown next to search */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9">
+              <Button variant="ghost" className="h-9 rounded-full">
                 <SortAsc className="h-4 w-4 mr-2" />
                 Sortieren
               </Button>
@@ -114,7 +114,7 @@ export function CloudStorageQuickActions({
           {/* Categories dropdown next to sort */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9">
+              <Button variant="ghost" className="h-9 rounded-full">
                 <Filter className="h-4 w-4 mr-2" />
                 Kategorien
               </Button>
@@ -160,14 +160,14 @@ export function CloudStorageQuickActions({
         </div>
 
         {/* Primary action buttons and view controls on the right */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2 mt-1">
           {/* View mode toggle */}
-          <div className="flex border rounded-md">
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-full p-1">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => onViewMode('grid')}
-              className="rounded-r-none h-9 px-3"
+              className="h-8 px-3 rounded-full"
             >
               <Grid3X3 className="h-4 w-4" />
             </Button>
@@ -175,7 +175,7 @@ export function CloudStorageQuickActions({
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => onViewMode('list')}
-              className="rounded-l-none h-9 px-3"
+              className="h-8 px-3 rounded-full"
             >
               <List className="h-4 w-4" />
             </Button>
@@ -184,7 +184,7 @@ export function CloudStorageQuickActions({
           {/* Unified add/upload dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="h-9">
+              <Button className="sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Hinzufügen
               </Button>
@@ -211,29 +211,31 @@ export function CloudStorageQuickActions({
 
       {/* Bulk actions when items are selected */}
       {selectedCount > 0 && (
-        <div className="flex items-center space-x-2">
-          <Badge variant="secondary" className="px-3 py-1">
-            {selectedCount} ausgewählt
-          </Badge>
+        <div className="p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" className="px-3 py-1">
+              {selectedCount} ausgewählt
+            </Badge>
+          </div>
           
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center gap-2">
             {onBulkDownload && (
-              <Button variant="outline" size="sm" onClick={onBulkDownload}>
-                <Download className="h-4 w-4 mr-1" />
+              <Button variant="outline" size="sm" onClick={onBulkDownload} className="h-8 gap-2">
+                <Download className="h-4 w-4" />
                 Herunterladen
               </Button>
             )}
             
             {onBulkArchive && (
-              <Button variant="outline" size="sm" onClick={onBulkArchive}>
-                <Archive className="h-4 w-4 mr-1" />
+              <Button variant="outline" size="sm" onClick={onBulkArchive} className="h-8 gap-2">
+                <Archive className="h-4 w-4" />
                 Archivieren
               </Button>
             )}
             
             {onBulkDelete && (
-              <Button variant="outline" size="sm" onClick={onBulkDelete} className="text-destructive hover:text-destructive">
-                <Trash2 className="h-4 w-4 mr-1" />
+              <Button variant="outline" size="sm" onClick={onBulkDelete} className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950">
+                <Trash2 className="h-4 w-4" />
                 Löschen
               </Button>
             )}
