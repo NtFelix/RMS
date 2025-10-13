@@ -342,6 +342,7 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
                 onDownload={handleDownload}
                 onError={(error) => setError(error)}
                 className="h-full"
+                forceCustomViewer={true}
               />
             ) : isLoading ? (
               <div className="flex items-center justify-center h-full bg-muted/10">

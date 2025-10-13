@@ -16,9 +16,10 @@ interface PDFViewerProps {
   className?: string
   onDownload?: () => void
   onError?: (error: string) => void
+  forceCustomViewer?: boolean // Force use of custom PDF.js viewer, disable iframe fallback
 }
 
-export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }: PDFViewerProps) {
+export function PDFViewer({ fileUrl, fileName, className, onDownload, onError, forceCustomViewer = true }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [pdfDoc, setPdfDoc] = useState<any | null>(null)
@@ -52,6 +53,11 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
           pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/pdf.worker.min.js'
         }
         
+        // Ensure worker is properly configured
+        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/pdf.worker.min.js'
+        }
+        
         const loadingTask = pdfjsLib.getDocument(fileUrl)
         const pdf = await loadingTask.promise
         
@@ -61,8 +67,21 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
         setPageInput("1")
       } catch (err) {
         console.error('Error loading PDF with PDF.js:', err)
-        // Fallback: show iframe with browser's built-in PDF viewer
-        setError('fallback-to-iframe')
+        
+        // Try to provide more specific error handling
+        if (err instanceof Error) {
+          // Only fall back to iframe if not forced to use custom viewer and for specific errors
+          if (!forceCustomViewer && (err.message.includes('Invalid PDF') || err.message.includes('PDF header'))) {
+            setError('fallback-to-iframe')
+          } else {
+            // For other errors, show a proper error message instead of falling back
+            setError(`PDF konnte nicht geladen werden: ${err.message}`)
+            if (onError) onError(err.message)
+          }
+        } else {
+          setError('Unbekannter Fehler beim Laden der PDF')
+          if (onError) onError('Unbekannter Fehler beim Laden der PDF')
+        }
       } finally {
         setIsLoading(false)
       }
@@ -255,8 +274,8 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
   }
 
   if (error) {
-    // If error is fallback-to-iframe, show browser's built-in PDF viewer
-    if (error === 'fallback-to-iframe') {
+    // If error is fallback-to-iframe and not forced to use custom viewer, show browser's built-in PDF viewer
+    if (error === 'fallback-to-iframe' && !forceCustomViewer) {
       return (
         <div className={cn("flex flex-col h-full bg-muted/10", className)}>
           {/* Simple header for fallback */}
