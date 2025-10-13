@@ -171,8 +171,8 @@ jobs:
             exit 0
           fi
           
-          # Build jest command with proper arguments
-          JEST_ARGS="--maxWorkers=2 --passWithNoTests"
+          # Build jest command with proper arguments for stability
+          JEST_ARGS="--runInBand --forceExit --detectOpenHandles --testTimeout=5000 --passWithNoTests"
           
           # Only add coverage for the first group to avoid merge conflicts
           if [ "${{ matrix.is-first-group }}" = "true" ]; then
@@ -194,8 +194,15 @@ jobs:
           
           echo "Running test group ${{ matrix.test-group }} with ${#TEST_FILES_ARRAY[@]} test files"
           
-          # Execute tests with proper quoting
-          npx jest $JEST_ARGS "${TEST_FILES_ARRAY[@]}"
+          # Execute tests with proper quoting and timeout handling
+          timeout 300 npx jest $JEST_ARGS "${TEST_FILES_ARRAY[@]}" || {
+            TEST_EXIT_CODE=$?
+            if [ $TEST_EXIT_CODE -eq 124 ]; then
+              echo "Tests timed out after 5 minutes"
+              exit 1
+            fi
+            exit $TEST_EXIT_CODE
+          }
           TEST_EXIT_CODE=$?
           
           # If this is the first group, ensure coverage directory exists
