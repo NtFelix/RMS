@@ -128,16 +128,15 @@ jobs:
         id: test-files
         run: |
           # Create a JSON array of test files from the matrix variable
-          echo '[' > test_files.json
-          if [ -n "${{ matrix.test-files }}" ]; then
-            # Convert newline-separated list to JSON array
-            echo "${{ matrix.test-files }}" | while read -r line; do
-              [ -n "$line" ] && echo "\"$line\"," >> test_files.json
-            done
-            # Remove trailing comma and close array
-            sed -i '' -e '$ s/,$//' test_files.json
+          TEST_FILES_RAW="${{ matrix.test-files }}"
+          
+          if [ -z "$TEST_FILES_RAW" ]; then
+            echo "No test files specified for this group"
+            echo "[]" > test_files.json
+          else
+            # Convert newline-separated list to JSON array using jq
+            echo "$TEST_FILES_RAW" | tr '\n' '\0' | xargs -0 -n1 echo | grep -v '^[[:space:]]*$' | jq -R . | jq -s . > test_files.json
           fi
-          echo ']' >> test_files.json
           
           # Validate JSON
           if ! jq -e . test_files.json > /dev/null 2>&1; then
@@ -160,10 +159,22 @@ jobs:
           rm -rf coverage/ .nyc_output/
           
           # Check if we have any test files
-          if [ ! -s test_files.json ] || [ "$(jq 'length' test_files.json)" -eq 0 ]; then
+          if [ ! -f test_files.json ] || [ "$(jq 'length' test_files.json)" -eq 0 ]; then
             echo "No test files found in this group. Skipping test execution."
             # Create empty coverage directory if this is the first group
-            if ${{ matrix.is-first-group }}; then
+            if [ "${{ matrix.is-first-group }}" = "true" ]; then
+              mkdir -p coverage
+              echo '{"total": {"lines": {"pct": 100}, "statements": {"pct": 100}, "functions": {"pct": 100}, "branches": {"pct": 100}}}' > coverage/coverage-summary.json
+            fi
+            exit 0
+          fi
+          
+          # Read test files from the JSON file
+          TEST_FILES=$(jq -r '.[]' test_files.json | tr '\n' ' ')
+          
+          if [ -z "$TEST_FILES" ]; then
+            echo "No test files to run in this group."
+            if [ "${{ matrix.is-first-group }}" = "true" ]; then
               mkdir -p coverage
               echo '{"total": {"lines": {"pct": 100}, "statements": {"pct": 100}, "functions": {"pct": 100}, "branches": {"pct": 100}}}' > coverage/coverage-summary.json
             fi
@@ -174,45 +185,32 @@ jobs:
           TEST_CMD="npx jest --maxWorkers=2 --passWithNoTests"
           
           # Only add coverage for the first group to avoid merge conflicts
-          if ${{ matrix.is-first-group }}; then
+          if [ "${{ matrix.is-first-group }}" = "true" ]; then
             mkdir -p coverage
             TEST_CMD="$TEST_CMD --coverage --testLocationInResults --json --outputFile=test-results.json"
-          fi
-          
-          # Read test files from the JSON file
-          TEST_FILES=$(jq -r '.[]' test_files.json | tr '\n' ' ')
-          
-          if [ -z "$TEST_FILES" ]; then
-            echo "No test files to run in this group."
-            exit 0
           fi
           
           echo "Running test group ${{ matrix.test-group }} with command:"
           echo "$TEST_CMD $TEST_FILES"
           
-          # Execute tests with error handling
-          set +e
+          # Execute tests
           eval $TEST_CMD $TEST_FILES
           TEST_EXIT_CODE=$?
-          set -e
           
           # If this is the first group, ensure coverage directory exists
-          if ${{ matrix.is-first-group }} && [ ! -d "coverage" ]; then
+          if [ "${{ matrix.is-first-group }}" = "true" ] && [ ! -d "coverage" ]; then
             mkdir -p coverage
-          fi
-          
-          # Exit with the test status code
-          if [ $TEST_EXIT_CODE -ne 0 ]; then
-            echo "Tests failed with exit code $TEST_EXIT_CODE"
-            exit $TEST_EXIT_CODE
+            echo '{"total": {"lines": {"pct": 0}, "statements": {"pct": 0}, "functions": {"pct": 0}, "branches": {"pct": 0}}}' > coverage/coverage-summary.json
           fi
           
           # For the first group, verify coverage
-          if ${{ matrix.is-first-group }} && [ -d "coverage" ]; then
+          if [ "${{ matrix.is-first-group }}" = "true" ] && [ -d "coverage" ]; then
             echo "Coverage report generated at: $(pwd)/coverage"
-            ls -la coverage/
+            ls -la coverage/ || echo "Coverage directory is empty"
           fi
-        continue-on-error: true
+          
+          # Exit with the test status code
+          exit $TEST_EXIT_CODE
 
       # Upload test coverage to Codecov (only from first group and main/develop branches)
       - name: Upload coverage to Codecov
@@ -235,9 +233,9 @@ jobs:
         with:
           name: test-results
           path: |
-            coverage/**
+            coverage/
             test-results.json
-          if-no-files-found: warn
+          if-no-files-found: ignore
           retention-days: 7
           
       # Upload JUnit test results for better visualization
