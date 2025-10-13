@@ -56,10 +56,10 @@ export function KanbanColumn({
           : isOver 
           ? 'ring-2 ring-primary bg-primary/5' 
           : ''
-      } rounded-2xl p-2`}
+      } rounded-3xl p-3`}
     >
       <div ref={setNodeRef} className="h-full w-full">
-      <Card className="h-full shadow-md">
+      <Card className="h-full shadow-md rounded-3xl border-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className={`flex items-center gap-2 text-lg ${
@@ -78,7 +78,7 @@ export function KanbanColumn({
         </CardHeader>
         <CardContent className="pt-0 h-full">
           <div
-            className={`min-h-[500px] space-y-3 rounded-lg transition-all duration-200 p-3 ${
+            className={`min-h-[500px] space-y-4 rounded-2xl transition-all duration-200 p-4 ${
               isCompletionTarget 
                 ? 'bg-green-50/20 border-2 border-dashed border-green-400' 
                 : isReactivationTarget
@@ -100,7 +100,7 @@ export function KanbanColumn({
               ))}
             </SortableContext>
             {tasks.length === 0 && (
-              <div className={`flex flex-col items-center justify-center h-32 text-sm border-2 border-dashed rounded-lg transition-all duration-300 ${
+              <div className={`flex flex-col items-center justify-center h-32 text-sm border-2 border-dashed rounded-2xl transition-all duration-300 ${
                 isCompletionTarget 
                   ? 'border-green-400 bg-green-50/20 text-green-700' 
                   : isReactivationTarget
