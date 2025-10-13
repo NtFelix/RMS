@@ -134,8 +134,9 @@ jobs:
             echo "No test files specified for this group"
             echo "[]" > test_files.json
           else
-            # Convert newline-separated list to JSON array using jq
-            echo "$TEST_FILES_RAW" | tr '\n' '\0' | xargs -0 -n1 echo | grep -v '^[[:space:]]*$' | jq -R . | jq -s . > test_files.json
+            # Convert space and newline-separated list to JSON array
+            # First normalize whitespace, then split on spaces/newlines
+            echo "$TEST_FILES_RAW" | tr -s '[:space:]' '\n' | grep -v '^[[:space:]]*$' | jq -R . | jq -s . > test_files.json
           fi
           
           # Validate JSON
@@ -148,6 +149,7 @@ jobs:
           # Output for debugging
           echo "Test files in group ${{ matrix.test-group }}:"
           cat test_files.json
+          echo "Number of test files: $(jq 'length' test_files.json)"
           
           # Set output for use in subsequent steps
           echo "test_files=$(cat test_files.json | jq -c .)" >> $GITHUB_OUTPUT
