@@ -87,11 +87,12 @@ export function DocumentsSummaryCards({
   }, [])
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="flex flex-wrap gap-4">
       {/* Drag & Drop Upload Card */}
       <Card
         className={cn(
-          "relative overflow-hidden transition-all duration-200 cursor-pointer group",
+          "relative overflow-hidden rounded-3xl shadow-sm transition-all duration-200 cursor-pointer group flex-1",
+          "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]",
           "hover:shadow-md hover:scale-[1.02]",
           isDragging && "ring-2 ring-primary ring-offset-2 scale-[1.02]"
         )}
@@ -102,28 +103,20 @@ export function DocumentsSummaryCards({
         onClick={handleUploadClick}
       >
         <div className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className={cn(
-              "p-2 rounded-lg transition-colors",
-              isDragging 
-                ? "bg-primary/20" 
-                : "bg-blue-500/10 group-hover:bg-blue-500/20"
-            )}>
-              <Upload className={cn(
-                "h-5 w-5 transition-colors",
-                isDragging ? "text-primary" : "text-blue-500"
-              )} />
-            </div>
+          <div className="flex items-center justify-between space-y-0 pb-2">
+            <h3 className="text-sm font-medium">
+              Dateien hochladen
+            </h3>
+            <Upload className="h-4 w-4 text-muted-foreground" />
           </div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-1">
-            Dateien hochladen
-          </h3>
-          <p className="text-xs text-muted-foreground/70">
-            {isDragging 
-              ? "Dateien hier ablegen..." 
-              : "Klicken oder Dateien hierher ziehen"
-            }
-          </p>
+          <div>
+            <p className="text-xs text-muted-foreground">
+              {isDragging 
+                ? "Dateien hier ablegen..." 
+                : "Klicken oder Dateien hierher ziehen"
+              }
+            </p>
+          </div>
         </div>
         <input
           ref={fileInputRef}
@@ -136,38 +129,45 @@ export function DocumentsSummaryCards({
 
       {/* Create Folder Card */}
       <Card
-        className="relative overflow-hidden transition-all duration-200 cursor-pointer group hover:shadow-md hover:scale-[1.02]"
+        className={cn(
+          "relative overflow-hidden rounded-3xl shadow-sm transition-all duration-200 cursor-pointer group flex-1",
+          "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]",
+          "hover:shadow-md hover:scale-[1.02]"
+        )}
         onClick={onCreateFolder}
       >
         <div className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-lg bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
-              <FolderPlus className="h-5 w-5 text-green-500" />
-            </div>
+          <div className="flex items-center justify-between space-y-0 pb-2">
+            <h3 className="text-sm font-medium">
+              Ordner erstellen
+            </h3>
+            <FolderPlus className="h-4 w-4 text-muted-foreground" />
           </div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-1">
-            Ordner erstellen
-          </h3>
-          <p className="text-xs text-muted-foreground/70">
-            Neuen Ordner anlegen
-          </p>
+          <div>
+            <p className="text-xs text-muted-foreground">
+              Neuen Ordner anlegen
+            </p>
+          </div>
         </div>
       </Card>
 
       {/* Total Size Card */}
-      <Card className="relative overflow-hidden">
+      <Card className={cn(
+        "relative overflow-hidden rounded-3xl shadow-sm transition-opacity duration-200 flex-1",
+        "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]"
+      )}>
         <div className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-lg bg-purple-500/10">
-              <HardDrive className="h-5 w-5 text-purple-500" />
+          <div className="flex items-center justify-between space-y-0 pb-2">
+            <h3 className="text-sm font-medium">
+              Gesamtgröße
+            </h3>
+            <HardDrive className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold">
+              {formatFileSize(totalSize)}
             </div>
           </div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-1">
-            Gesamtgröße
-          </h3>
-          <p className="text-2xl font-semibold">
-            {formatFileSize(totalSize)}
-          </p>
         </div>
       </Card>
     </div>
