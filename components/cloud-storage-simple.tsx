@@ -16,6 +16,7 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
+import { DocumentsSummaryCards } from "@/components/documents-summary-cards"
 import { cn } from "@/lib/utils"
 
 interface CloudStorageSimpleProps {
@@ -301,6 +302,13 @@ export function CloudStorageSimple({
   )
   
   /**
+   * Calculate total file size
+   */
+  const totalFileSize = useMemo(() => {
+    return files.reduce((total, file) => total + (file.size || 0), 0)
+  }, [files])
+  
+  /**
    * Handle item selection
    */
   const handleItemSelect = useCallback((itemId: string, selected: boolean) => {
@@ -428,6 +436,21 @@ export function CloudStorageSimple({
   }, [currentNavPath, initialPath, openUploadModal, handleRefresh, toast])
 
   /**
+   * Handle upload with files (for drag & drop)
+   */
+  const handleUploadWithFiles = useCallback((files: File[]) => {
+    const targetPath = currentNavPath || initialPath
+    if (targetPath) {
+      openUploadModal(targetPath, () => {
+        handleRefresh()
+        toast({
+          description: "Dateien wurden erfolgreich hochgeladen."
+        })
+      }, files)
+    }
+  }, [currentNavPath, initialPath, openUploadModal, handleRefresh, toast])
+
+  /**
    * Handle create folder
    */
   const handleCreateFolder = useCallback(() => {
@@ -497,6 +520,14 @@ export function CloudStorageSimple({
                 <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Dateien und Ordner</p>
               </div>
             </div>
+            
+            {/* Summary Cards */}
+            <DocumentsSummaryCards
+              totalSize={totalFileSize}
+              onUpload={handleUploadWithFiles}
+              onCreateFolder={handleCreateFolder}
+            />
+            
             {/* Quick Actions */}
             <CloudStorageQuickActions
             onUpload={handleUpload}
