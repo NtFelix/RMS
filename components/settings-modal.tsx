@@ -940,7 +940,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       <Input
                         id="companyName"
                         value={billingAddress.companyName || ''}
-                        onChange={(e) => setBillingAddress({...billingAddress, companyName: e.target.value})}
+                        onChange={(e) => setBillingAddress(prev => ({...prev, companyName: e.target.value}))}
                         placeholder="Firmenname"
                         className="w-full"
                       />
@@ -952,7 +952,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       <Input
                         id="name"
                         value={billingAddress.name || ''}
-                        onChange={(e) => setBillingAddress({...billingAddress, name: e.target.value})}
+                        onChange={(e) => setBillingAddress(prev => ({...prev, name: e.target.value}))}
                         placeholder="Vor- und Nachname"
                         className="w-full"
                         required
@@ -967,7 +967,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     <Input
                       id="line1"
                       value={billingAddress.line1 || ''}
-                      onChange={(e) => setBillingAddress({...billingAddress, line1: e.target.value})}
+                      onChange={(e) => setBillingAddress(prev => ({...prev, line1: e.target.value}))}
                       placeholder="Musterstraße 123"
                       className="w-full"
                       required
@@ -981,7 +981,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     <Input
                       id="line2"
                       value={billingAddress.line2 || ''}
-                      onChange={(e) => setBillingAddress({...billingAddress, line2: e.target.value})}
+                      onChange={(e) => setBillingAddress(prev => ({...prev, line2: e.target.value}))}
                       placeholder="Zusätzliche Adresszeile"
                       className="w-full"
                     />
@@ -995,7 +995,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       <Input
                         id="postal_code"
                         value={billingAddress.postal_code || ''}
-                        onChange={(e) => setBillingAddress({...billingAddress, postal_code: e.target.value})}
+                        onChange={(e) => setBillingAddress(prev => ({...prev, postal_code: e.target.value}))}
                         placeholder="12345"
                         className="w-full"
                         required
@@ -1008,7 +1008,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       <Input
                         id="city"
                         value={billingAddress.city || ''}
-                        onChange={(e) => setBillingAddress({...billingAddress, city: e.target.value})}
+                        onChange={(e) => setBillingAddress(prev => ({...prev, city: e.target.value}))}
                         placeholder="Musterstadt"
                         className="w-full"
                         required
@@ -1022,7 +1022,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     </label>
                     <Select
                       value={billingAddress.country || 'DE'}
-                      onValueChange={(value) => setBillingAddress({...billingAddress, country: value})}
+                      onValueChange={(value) => setBillingAddress(prev => ({...prev, country: value}))}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Land auswählen" />
