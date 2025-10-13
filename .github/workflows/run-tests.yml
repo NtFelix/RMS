@@ -250,53 +250,175 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      # Create a comment on PR with test results
-      - name: Create test report comment
-        if: github.event_name == 'pull_request' && github.event.pull_request != ''
-        uses: actions/github-script@v7
-        env:
-          NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
-          RUNNER_OS: ${{ runner.os }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Save test results summary for this group
+      - name: Save test summary
+        if: always()
+        run: |
+          # Create a summary file for this group
+          mkdir -p test-summaries
+          
+          # Extract test results if available
+          if [ -f "test-results.json" ]; then
+            PASSED=$(jq -r '.numPassedTests // 0' test-results.json)
+            FAILED=$(jq -r '.numFailedTests // 0' test-results.json)
+            TOTAL=$(jq -r '.numTotalTests // 0' test-results.json)
+          else
+            # If no test-results.json, check exit code from previous step
+            if [ "${{ job.status }}" = "success" ]; then
+              PASSED=0
+              FAILED=0
+              TOTAL=0
+            else
+              PASSED=0
+              FAILED=1
+              TOTAL=1
+            fi
+          fi
+          
+          # Create summary JSON
+          cat > test-summaries/group-${{ matrix.test-group }}.json <<EOF
+          {
+            "group": ${{ matrix.test-group }},
+            "passed": $PASSED,
+            "failed": $FAILED,
+            "total": $TOTAL,
+            "status": "${{ job.status }}"
+          }
+          EOF
+          
+          cat test-summaries/group-${{ matrix.test-group }}.json
+      
+      # Upload test summary
+      - name: Upload test summary
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          script: |
-            try {
-              // Get existing comments
-              const { data: comments } = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number
-              });
+          name: test-summary-${{ matrix.test-group }}
+          path: test-summaries/
+          retention-days: 1
+
+  # Summary job that runs after all test groups complete
+  test-summary:
+    name: Test Summary & Notification
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Download all test summaries
+      - name: Download test summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-summary-*
+          path: test-summaries
+          merge-multiple: true
+      
+      # Aggregate results and send Discord notification
+      - name: Aggregate results and notify Discord
+        if: always()
+        run: |
+          # Aggregate all test results
+          TOTAL_PASSED=0
+          TOTAL_FAILED=0
+          TOTAL_TESTS=0
+          FAILED_GROUPS=""
+          
+          for file in test-summaries/*.json; do
+            if [ -f "$file" ]; then
+              PASSED=$(jq -r '.passed' "$file")
+              FAILED=$(jq -r '.failed' "$file")
+              TOTAL=$(jq -r '.total' "$file")
+              GROUP=$(jq -r '.group' "$file")
+              STATUS=$(jq -r '.status' "$file")
               
-              // Delete any existing test result comments
-              for (const comment of comments) {
-                if (comment.user.login === 'github-actions[bot]' && 
-                    comment.body.includes('### Test Results')) {
-                  await github.rest.issues.deleteComment({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    comment_id: comment.id
-                  });
+              TOTAL_PASSED=$((TOTAL_PASSED + PASSED))
+              TOTAL_FAILED=$((TOTAL_FAILED + FAILED))
+              TOTAL_TESTS=$((TOTAL_TESTS + TOTAL))
+              
+              if [ "$FAILED" -gt 0 ] || [ "$STATUS" != "success" ]; then
+                FAILED_GROUPS="$FAILED_GROUPS Group $GROUP: $FAILED failed\n"
+              fi
+            fi
+          done
+          
+          echo "Total Tests: $TOTAL_TESTS"
+          echo "Passed: $TOTAL_PASSED"
+          echo "Failed: $TOTAL_FAILED"
+          
+          # Only send Discord notification if tests failed
+          if [ "$TOTAL_FAILED" -gt 0 ]; then
+            # Get branch name
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+            
+            # Get commit info
+            COMMIT_SHA="${GITHUB_SHA:0:7}"
+            COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
+            COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+            
+            # Build Discord embed
+            DISCORD_EMBED=$(cat <<EOF
+          {
+            "embeds": [{
+              "title": "❌ Tests Failed",
+              "description": "**$TOTAL_FAILED** of **$TOTAL_TESTS** tests failed",
+              "color": 15158332,
+              "fields": [
+                {
+                  "name": "Repository",
+                  "value": "[${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})",
+                  "inline": true
+                },
+                {
+                  "name": "Branch",
+                  "value": "\`$BRANCH_NAME\`",
+                  "inline": true
+                },
+                {
+                  "name": "Commit",
+                  "value": "[\`$COMMIT_SHA\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                  "inline": true
+                },
+                {
+                  "name": "Author",
+                  "value": "$COMMIT_AUTHOR",
+                  "inline": true
+                },
+                {
+                  "name": "Passed",
+                  "value": "✅ $TOTAL_PASSED",
+                  "inline": true
+                },
+                {
+                  "name": "Failed",
+                  "value": "❌ $TOTAL_FAILED",
+                  "inline": true
+                },
+                {
+                  "name": "Commit Message",
+                  "value": "\`\`\`$COMMIT_MSG\`\`\`",
+                  "inline": false
+                },
+                {
+                  "name": "Workflow Run",
+                  "value": "[View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                  "inline": false
                 }
-              }
-              
-              // Create a new comment with test results
-              const commentBody = [
-                '### Test Results :white_check_mark:',
-                '',
-                `- **Node Version**: ${process.env.NODE_VERSION}`,
-                `- **OS**: ${process.env.RUNNER_OS}`,
-                '- **Test Command**: `npm test --coverage`',
-                `- **Workflow Run**: [#${process.env.GITHUB_RUN_NUMBER}](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
-              ].join('\n');
-              
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: commentBody
-              });
-            } catch (error) {
-              console.error('Error creating test report comment:', error);
-              // Don't fail the workflow if comment creation fails
-            }
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+            }]
+          }
+          EOF
+            )
+            
+            # Send to Discord
+            curl -H "Content-Type: application/json" \
+                 -d "$DISCORD_EMBED" \
+                 "${{ secrets.DISCORD_WEBHOOK_URL }}"
+            
+            echo "Discord notification sent for failed tests"
+          else
+            echo "All tests passed - no Discord notification sent"
+          fi
