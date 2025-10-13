@@ -2,11 +2,10 @@
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { PlusCircle } from "lucide-react";
-import { TaskFilters } from "@/components/task-filters";
+import { Input } from "@/components/ui/input";
+import { PlusCircle, Search } from "lucide-react";
 import { TaskBoard } from "@/components/task-board";
-import type { Task as TaskBoardTask } from "@/components/task-board";
-import { Toaster } from "@/components/ui/toaster";
+import { TaskBoardTask } from "@/types/Task";
 import { useModalStore } from "@/hooks/use-modal-store";
 
 interface TodosClientWrapperProps {
@@ -16,6 +15,7 @@ interface TodosClientWrapperProps {
 export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientWrapperProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [tasks, setTasks] = useState<TaskBoardTask[]>(initialTasks);
+  const { openAufgabeModal } = useModalStore();
 
   const handleTaskUpdated = useCallback((updatedTask: TaskBoardTask) => {
     setTasks(currentTasks => {
@@ -35,35 +35,62 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
     );
   }, []);
 
-  const handleAddTask = () => {
-    useModalStore.getState().openAufgabeModal(undefined, handleTaskUpdated);
-  };
+  const handleAddTask = useCallback(() => {
+    try {
+      openAufgabeModal(undefined, handleTaskUpdated);
+    } catch (error) {
+      console.error('Error opening task modal:', error);
+    }
+  }, [openAufgabeModal, handleTaskUpdated]);
 
   return (
-    <div className="flex flex-col gap-8 p-8">
-      <Card className="overflow-hidden rounded-2xl shadow-md">
+    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
+      <div
+        className="absolute inset-0 z-[-1]"
+        style={{
+          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
+        }}
+      />
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-center justify-between">
-            <CardTitle>Aufgaben Board</CardTitle>
-            <ButtonWithTooltip className="sm:w-auto" onClick={handleAddTask}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Aufgabe hinzufügen
-            </ButtonWithTooltip>
+          <div className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Aufgaben Board</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Aufgaben</p>
+            </div>
+            <div className="mt-1">
+              <ButtonWithTooltip className="sm:w-auto" onClick={handleAddTask}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Aufgabe hinzufügen
+              </ButtonWithTooltip>
+            </div>
           </div>
         </CardHeader>
+        <div className="px-6">
+          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+        </div>
         <CardContent className="flex flex-col gap-6">
-          <TaskFilters 
-            onSearchChange={setSearchQuery}
-          />
-          <TaskBoard 
-            searchQuery={searchQuery} 
-            tasks={tasks}
-            onTaskUpdated={handleTaskUpdated}
-            onTaskDeleted={handleTaskDeleted}
-          />
+          <div className="flex flex-col gap-6 mt-6">
+            <div className="flex justify-center">
+              <div className="relative w-full max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Aufgabe suchen..."
+                  className="pl-10 rounded-full"
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <TaskBoard 
+              searchQuery={searchQuery} 
+              tasks={tasks}
+              onTaskUpdated={handleTaskUpdated}
+              onTaskDeleted={handleTaskDeleted}
+            />
+          </div>
         </CardContent>
       </Card>
-      <Toaster />
     </div>
   );
 }

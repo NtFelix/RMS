@@ -32,11 +32,7 @@ import {
 } from "@dnd-kit/sortable"
 import { KanbanColumn } from "@/components/kanban-column"
 import { KanbanTaskCard } from "@/components/kanban-task-card"
-
-export interface Task extends Omit<TaskCardTask, 'status' | 'createdAt' | 'updatedAt'> {
-  erstellungsdatum: string
-  aenderungsdatum: string
-}
+import { TaskBoardTask as Task } from "@/types/Task"
 
 interface TaskBoardProps {
   searchQuery: string

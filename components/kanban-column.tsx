@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { KanbanTaskCard } from "@/components/kanban-task-card"
-import type { Task } from "@/components/task-board"
+import type { TaskBoardTask as Task } from "@/types/Task"
 
 interface KanbanColumnProps {
   id: string
