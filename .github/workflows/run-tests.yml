@@ -165,7 +165,7 @@ jobs:
           fi
           
           # Build jest command with proper arguments for stability
-          JEST_ARGS="--runInBand --forceExit --detectOpenHandles --testTimeout=10000 --passWithNoTests --maxWorkers=1 --no-cache"
+          JEST_ARGS="--runInBand --forceExit --detectOpenHandles --testTimeout=10000 --passWithNoTests --no-cache"
           
           # Only add coverage for the first group to avoid merge conflicts
           if [ "${{ matrix.is-first-group }}" = "true" ]; then
