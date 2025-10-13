@@ -329,150 +329,135 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
         )}
 
         {/* Content */}
-        <div className={cn(
-          "flex-1 overflow-hidden rounded-b-lg",
-          isPdf ? "bg-transparent" : "bg-muted/10"
-        )}>
-          {isPdf ? (
-            // PDF viewer handles its own loading and error states
-            fileUrl && !isLoading && !error ? (
-              <PDFViewer
-                fileUrl={fileUrl}
-                fileName={filePreviewData.name}
-                onDownload={handleDownload}
-                onError={(error) => setError(error)}
-                className="h-full"
-                forceCustomViewer={true}
-              />
-            ) : isLoading ? (
-              <div className="flex items-center justify-center h-full bg-muted/10">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-muted-foreground text-lg">Lade PDF...</p>
+        {isPdf ? (
+          // PDF viewer handles its own loading and error states
+          fileUrl && !isLoading && !error ? (
+            <PDFViewer
+              fileUrl={fileUrl}
+              fileName={filePreviewData.name}
+              onDownload={handleDownload}
+              onError={(error) => setError(error)}
+              className="flex-1 overflow-hidden rounded-b-lg"
+              forceCustomViewer={true}
+            />
+          ) : isLoading ? (
+            <div className="flex-1 flex items-center justify-center bg-muted/10 rounded-b-lg">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground text-lg">Lade PDF...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex-1 flex items-center justify-center bg-muted/10 rounded-b-lg">
+              <div className="text-center max-w-md">
+                <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <ExternalLink className="h-8 w-8 text-destructive" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
+                <p className="text-destructive mb-6">{error}</p>
+                <Button onClick={loadFileUrl} variant="outline">
+                  Erneut versuchen
+                </Button>
+              </div>
+            </div>
+          ) : null
+        ) : (
+          // Non-PDF content
+          isLoading ? (
+            <div className="flex-1 flex items-center justify-center bg-muted/10 rounded-b-lg">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground text-lg">Lade Datei...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex-1 flex items-center justify-center bg-muted/10 rounded-b-lg">
+              <div className="text-center max-w-md">
+                <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <ExternalLink className="h-8 w-8 text-destructive" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
+                <p className="text-destructive mb-6">{error}</p>
+                <Button onClick={loadFileUrl} variant="outline">
+                  Erneut versuchen
+                </Button>
+              </div>
+            </div>
+          ) : fileUrl ? (
+            isImage ? (
+              <div 
+                className="flex-1 flex items-center justify-center p-6 overflow-hidden bg-gradient-to-br from-muted/20 to-muted/5 rounded-b-lg"
+                onWheel={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault()
+                    if (e.deltaY < 0) {
+                      handleZoomIn()
+                    } else {
+                      handleZoomOut()
+                    }
+                  }
+                }}
+              >
+                <div className="relative overflow-hidden rounded-lg">
+                  <img
+                    src={fileUrl}
+                    alt={filePreviewData.name}
+                    className="max-w-none transition-all duration-300 ease-in-out shadow-2xl rounded-lg border border-border/20"
+                    style={{
+                      transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+                      transformOrigin: 'center',
+                      maxHeight: zoom <= 100 ? 'calc(98vh - 180px)' : 'none',
+                      maxWidth: zoom <= 100 ? 'calc(98vw - 80px)' : 'none'
+                    }}
+                    onError={() => setError('Bild konnte nicht geladen werden')}
+                    onLoad={() => {
+                      // Auto-fit large images to screen on initial load
+                      const img = document.querySelector('img[alt="' + filePreviewData.name + '"]') as HTMLImageElement
+                      if (img && zoom === 100) {
+                        const containerWidth = img.parentElement?.parentElement?.clientWidth || 0
+                        const containerHeight = img.parentElement?.parentElement?.clientHeight || 0
+                        const imgWidth = img.naturalWidth
+                        const imgHeight = img.naturalHeight
+                        
+                        if (imgWidth > containerWidth - 80 || imgHeight > containerHeight - 80) {
+                          const scaleX = (containerWidth - 80) / imgWidth
+                          const scaleY = (containerHeight - 80) / imgHeight
+                          const scale = Math.min(scaleX, scaleY, 1) * 100
+                          if (scale < 100) {
+                            setZoom(Math.round(scale))
+                          }
+                        }
+                      }
+                    }}
+                    draggable={false}
+                  />
                 </div>
               </div>
-            ) : error ? (
-              <div className="flex items-center justify-center h-full bg-muted/10">
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-muted/10 rounded-b-lg">
                 <div className="text-center max-w-md">
-                  <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                    <ExternalLink className="h-8 w-8 text-destructive" />
+                  <div className="bg-muted rounded-full p-6 w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                    <ExternalLink className="h-10 w-10 text-muted-foreground" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
-                  <p className="text-destructive mb-6">{error}</p>
-                  <Button onClick={loadFileUrl} variant="outline">
-                    Erneut versuchen
-                  </Button>
-                </div>
-              </div>
-            ) : null
-          ) : (
-            // Non-PDF content
-            <>
-              {isLoading && (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p className="text-muted-foreground text-lg">Lade Datei...</p>
-                  </div>
-                </div>
-              )}
-
-              {error && (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center max-w-md">
-                    <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                      <ExternalLink className="h-8 w-8 text-destructive" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
-                    <p className="text-destructive mb-6">{error}</p>
-                    <Button onClick={loadFileUrl} variant="outline">
-                      Erneut versuchen
+                  <h3 className="text-xl font-semibold mb-2">Vorschau nicht verfügbar</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Für diesen Dateityp ist keine Vorschau verfügbar. Sie können die Datei herunterladen oder extern öffnen.
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    <Button onClick={handleDownload} variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Herunterladen
+                    </Button>
+                    <Button onClick={handleOpenExternal} variant="outline">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Extern öffnen
                     </Button>
                   </div>
                 </div>
-              )}
-
-              {fileUrl && !isLoading && !error && (
-                <>
-                  {isImage && (
-                    <div 
-                      className="h-full flex items-center justify-center p-6 overflow-hidden bg-gradient-to-br from-muted/20 to-muted/5 rounded-b-lg"
-                      onWheel={(e) => {
-                        if (e.ctrlKey || e.metaKey) {
-                          e.preventDefault()
-                          if (e.deltaY < 0) {
-                            handleZoomIn()
-                          } else {
-                            handleZoomOut()
-                          }
-                        }
-                      }}
-                    >
-                      <div className="relative overflow-hidden rounded-lg">
-                        <img
-                          src={fileUrl}
-                          alt={filePreviewData.name}
-                          className="max-w-none transition-all duration-300 ease-in-out shadow-2xl rounded-lg border border-border/20"
-                          style={{
-                            transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
-                            transformOrigin: 'center',
-                            maxHeight: zoom <= 100 ? 'calc(98vh - 180px)' : 'none',
-                            maxWidth: zoom <= 100 ? 'calc(98vw - 80px)' : 'none'
-                          }}
-                          onError={() => setError('Bild konnte nicht geladen werden')}
-                          onLoad={() => {
-                            // Auto-fit large images to screen on initial load
-                            const img = document.querySelector('img[alt="' + filePreviewData.name + '"]') as HTMLImageElement
-                            if (img && zoom === 100) {
-                              const containerWidth = img.parentElement?.parentElement?.clientWidth || 0
-                              const containerHeight = img.parentElement?.parentElement?.clientHeight || 0
-                              const imgWidth = img.naturalWidth
-                              const imgHeight = img.naturalHeight
-                              
-                              if (imgWidth > containerWidth - 80 || imgHeight > containerHeight - 80) {
-                                const scaleX = (containerWidth - 80) / imgWidth
-                                const scaleY = (containerHeight - 80) / imgHeight
-                                const scale = Math.min(scaleX, scaleY, 1) * 100
-                                if (scale < 100) {
-                                  setZoom(Math.round(scale))
-                                }
-                              }
-                            }
-                          }}
-                          draggable={false}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {!isImage && (
-                    <div className="flex items-center justify-center h-full rounded-b-lg">
-                      <div className="text-center max-w-md">
-                        <div className="bg-muted rounded-full p-6 w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                          <ExternalLink className="h-10 w-10 text-muted-foreground" />
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2">Vorschau nicht verfügbar</h3>
-                        <p className="text-muted-foreground mb-6">
-                          Für diesen Dateityp ist keine Vorschau verfügbar. Sie können die Datei herunterladen oder extern öffnen.
-                        </p>
-                        <div className="flex gap-3 justify-center">
-                          <Button onClick={handleDownload} variant="outline">
-                            <Download className="h-4 w-4 mr-2" />
-                            Herunterladen
-                          </Button>
-                          <Button onClick={handleOpenExternal} variant="outline">
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Extern öffnen
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </div>
+              </div>
+            )
+          ) : null
+        )}
       </DialogContent>
     </Dialog>
   )
