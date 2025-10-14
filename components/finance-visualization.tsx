@@ -285,7 +285,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         )}
         {selectedChart === 'monthly-income' && (
           hasUserData ? (
-            <Card className="bg-white dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+            <Card className="rounded-[1.5rem]">
               <CardHeader>
                 <CardTitle>Monatliche Einnahmen</CardTitle>
                 <CardDescription>Monatliche Einnahmen für das Jahr {selectedYear}</CardDescription>
@@ -323,7 +323,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         )}
         {selectedChart === 'income-expense' && (
           hasUserData ? (
-            <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+            <Card className="rounded-[1.5rem]">
               <CardHeader>
                 <CardTitle>Einnahmen-Ausgaben-Verhältnis</CardTitle>
                 <CardDescription>Vergleich von Einnahmen und Ausgaben im Jahr {selectedYear}</CardDescription>
@@ -366,7 +366,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         )}
         {selectedChart === 'expense-categories' && (
           hasUserData ? (
-            <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+            <Card className="rounded-[1.5rem]">
               <CardHeader>
                 <CardTitle>Ausgabenkategorien</CardTitle>
                 <CardDescription>Verteilung der Ausgaben nach Kategorien in {selectedYear}</CardDescription>
