@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import BetriebskostenClientView from './client-wrapper';
+import BetriebskostenClientView from '../client-wrapper';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import WohnungenClientView from './client';
+import WohnungenClientView from '../client';
 import { useModalStore } from '@/hooks/use-modal-store';
 import type { Wohnung } from '@/types/Wohnung';
 

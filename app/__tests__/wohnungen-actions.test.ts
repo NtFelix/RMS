@@ -8,7 +8,7 @@ jest.mock('next/cache');
 jest.mock('@/lib/data-fetching');
 jest.mock('@/lib/stripe-server');
 
-import { wohnungServerAction } from './wohnungen-actions';
+import { wohnungServerAction } from '../wohnungen-actions';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { fetchUserProfile } from '@/lib/data-fetching';

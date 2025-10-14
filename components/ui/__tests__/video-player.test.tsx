@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { VideoPlayer } from './video-player'
+import { VideoPlayer } from '../video-player'
 
 // Mock navigator.userAgent for mobile detection
 Object.defineProperty(navigator, 'userAgent', {
@@ -14,6 +14,11 @@ Object.defineProperty(HTMLVideoElement.prototype, 'play', {
 })
 
 Object.defineProperty(HTMLVideoElement.prototype, 'pause', {
+  writable: true,
+  value: jest.fn()
+})
+
+Object.defineProperty(HTMLVideoElement.prototype, 'load', {
   writable: true,
   value: jest.fn()
 })

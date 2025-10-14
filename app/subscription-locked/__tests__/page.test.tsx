@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react'; // Added within
 import '@testing-library/jest-dom';
-import SubscriptionLockedPage from './page';
+import SubscriptionLockedPage from '../page';
 
 // Mock lucide-react icons
 jest.mock('lucide-react', () => {
