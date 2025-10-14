@@ -237,6 +237,9 @@ export default async function Dashboard() {
             <MaintenanceDonutChart />
           </div>
         </div>
+        
+        {/* Empty row for bottom spacing */}
+        <div className="col-span-1 md:col-span-6 h-4 md:h-8"></div>
       </div>
     </div>
   )
