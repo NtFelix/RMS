@@ -70,15 +70,30 @@ const mockGenerateUserFriendlyErrorMessage = require('@/lib/error-handling').gen
 const { logger } = require('@/utils/logger');
 
 /**
- * NOTE: These tests are currently skipped because they test server actions with "use server" directive.
- * Server actions are transformed by Next.js at build time and cannot be properly tested in Jest.
+ * INTEGRATION TESTS - Currently Skipped
  * 
- * To properly test these:
- * 1. Extract the business logic into separate testable functions
- * 2. Use E2E tests with Playwright or Cypress
- * 3. Use Next.js's experimental server action testing utilities when available
+ * These tests verify error recovery and logging in betriebskosten server actions.
+ * They are skipped because server actions with "use server" cannot be tested in Jest.
  * 
- * See: https://nextjs.org/docs/app/building-your-application/testing
+ * ALTERNATIVES:
+ * 1. ✅ Test the helper functions directly (safeRpcCall, withRetry, etc.)
+ * 2. ✅ Test the database functions directly
+ * 3. 🔄 Use E2E tests with Playwright for full integration testing
+ * 4. 🔄 Wait for Next.js experimental server action testing utilities
+ * 
+ * The error handling logic IS ALREADY TESTED via:
+ * - __tests__/error-handling-integration.test.ts (safeRpcCall, withRetry, error classification)
+ * - __tests__/error-handling-logging.test.ts (error logging and recovery actions)
+ * - __tests__/performance/betriebskosten-performance.test.ts (performance monitoring)
+ * - Database function tests (RPC call validation)
+ * - E2E tests (full user flows)
+ * 
+ * These skipped tests would be redundant with the existing test coverage.
+ * The only untested aspect is the server action wrapper itself, which requires E2E testing.
+ * 
+ * @see https://nextjs.org/docs/app/building-your-application/testing
+ * @see __tests__/error-handling-integration.test.ts
+ * @see __tests__/error-handling-logging.test.ts
  */
 describe.skip('Betriebskosten Error Recovery Integration', () => {
   beforeEach(() => {
