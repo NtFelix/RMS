@@ -9,6 +9,17 @@ import { Template, TemplatePayload } from '@/types/template';
 global.fetch = jest.fn();
 
 describe('TemplateService', () => {
+  // Suppress expected error logs in tests
+  let consoleErrorSpy: jest.SpyInstance;
+  
+  beforeAll(() => {
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+  });
+  
+  afterAll(() => {
+    consoleErrorSpy.mockRestore();
+  });
+  
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -168,6 +179,17 @@ describe('OptimisticTemplateService', () => {
   let service: OptimisticTemplateService;
   let onSuccess: jest.Mock;
   let onError: jest.Mock;
+  
+  // Suppress expected error logs in tests
+  let consoleErrorSpy: jest.SpyInstance;
+  
+  beforeAll(() => {
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+  });
+  
+  afterAll(() => {
+    consoleErrorSpy.mockRestore();
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
