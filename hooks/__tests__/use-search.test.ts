@@ -1,19 +1,19 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useSearch } from './use-search';
+import { useSearch } from '../use-search';
 
 // Mock the useDebounce hook
-jest.mock('./use-debounce', () => ({
+jest.mock('../use-debounce', () => ({
   useDebounce: jest.fn()
 }));
 
 // Mock the useSearchAnalytics hook
-jest.mock('./use-search-analytics', () => ({
+jest.mock('../use-search-analytics', () => ({
   useSearchAnalytics: jest.fn(() => ({
     trackSearch: jest.fn()
   }))
 }));
 
-import { useDebounce } from './use-debounce';
+import { useDebounce } from '../use-debounce';
 const mockUseDebounce = useDebounce as jest.MockedFunction<typeof useDebounce>;
 
 // Mock fetch
