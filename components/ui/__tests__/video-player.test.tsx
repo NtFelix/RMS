@@ -140,9 +140,6 @@ describe('VideoPlayer', () => {
   })
 
   it('auto-loads on desktop after delay', async () => {
-    // Set up fake timers
-    jest.useFakeTimers()
-    
     // Mock desktop user agent
     Object.defineProperty(navigator, 'userAgent', {
       writable: true,
@@ -154,14 +151,9 @@ describe('VideoPlayer', () => {
 
     render(<VideoPlayer src={mockSrc} />)
     
-    // Fast-forward time by 1 second to trigger auto-load
-    jest.advanceTimersByTime(1000)
-    
+    // Wait for the auto-load to trigger (1 second delay + some buffer)
     await waitFor(() => {
       expect(mockLoad).toHaveBeenCalled()
-    })
-    
-    // Clean up timers
-    jest.useRealTimers()
+    }, { timeout: 2000 })
   })
 })
