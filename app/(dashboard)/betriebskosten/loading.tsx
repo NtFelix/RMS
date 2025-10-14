@@ -10,20 +10,35 @@ export default function Loading() {
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
-      {/* Instruction Cards Skeleton */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[1, 2, 3, 4].map((idx) => (
-          <Card key={idx} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl">
-            <CardHeader className="pb-2">
-              <Skeleton className="h-5 w-48" />
-            </CardHeader>
-            <CardContent className="flex items-center justify-between gap-4">
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="h-9 w-28 rounded-full" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Instruction Guide Skeleton */}
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+        <CardHeader className="pb-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <Skeleton className="h-6 w-64 mb-2" />
+              <Skeleton className="h-4 w-96" />
+            </div>
+            <Skeleton className="h-8 w-24 rounded-lg" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex gap-4">
+                <Skeleton className="flex-shrink-0 w-8 h-8 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+            <Skeleton className="h-10 flex-1 rounded-full" />
+            <Skeleton className="h-10 w-40 rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Card Structure Skeleton */}
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
