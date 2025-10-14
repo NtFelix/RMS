@@ -16,13 +16,7 @@ export default async function Dashboard() {
   const summary = await getDashboardSummary();
   
   return (
-    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
-      <div
-        className="absolute inset-0 z-[-1]"
-        style={{
-          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
-        }}
-      />
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Dashboard</h1>
       </div>

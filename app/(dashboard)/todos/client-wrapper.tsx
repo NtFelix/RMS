@@ -44,7 +44,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
   }, [openAufgabeModal, handleTaskUpdated]);
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div
         className="absolute inset-0 z-[-1]"
         style={{
