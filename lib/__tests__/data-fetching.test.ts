@@ -1,8 +1,8 @@
 // lib/data-fetching.test.ts
-import { getCurrentWohnungenCount, fetchUserProfile } from './data-fetching';
-import { createSupabaseServerClient } from './supabase-server';
+import { getCurrentWohnungenCount, fetchUserProfile } from '../data-fetching';
+import { createSupabaseServerClient } from '../supabase-server';
 
-jest.mock('./supabase-server', () => ({
+jest.mock('../supabase-server', () => ({
   createSupabaseServerClient: jest.fn(),
 }));
 

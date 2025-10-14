@@ -53,6 +53,20 @@ jest.mock('../path-utils', () => ({
 }));
 
 describe('Storage Service', () => {
+  // Mock console methods to suppress logs during tests
+  let consoleLogSpy: jest.SpyInstance;
+  let consoleErrorSpy: jest.SpyInstance;
+  
+  beforeAll(() => {
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+  });
+  
+  afterAll(() => {
+    consoleLogSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+  
   beforeEach(() => {
     jest.clearAllMocks();
     

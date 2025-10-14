@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { FinanceEditModal } from './finance-edit-modal';
+import { FinanceEditModal } from '../finance-edit-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { toast } from '@/hooks/use-toast';
 
@@ -21,6 +21,26 @@ const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalSt
 const mockToast = toast as jest.MockedFunction<typeof toast>;
 
 describe('FinanceEditModal', () => {
+  // Suppress React act() warnings - these are expected in modal tests
+  const originalError = console.error;
+  
+  beforeAll(() => {
+    console.error = jest.fn((message) => {
+      if (
+        typeof message === 'string' && 
+        (message.includes('Warning: An update to') || 
+         message.includes('not wrapped in act'))
+      ) {
+        return;
+      }
+      originalError(message);
+    });
+  });
+  
+  afterAll(() => {
+    console.error = originalError;
+  });
+  
   const mockServerAction = jest.fn();
   const mockCloseFinanceModal = jest.fn();
   const mockSetFinanceModalDirty = jest.fn();

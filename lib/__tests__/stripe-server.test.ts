@@ -5,13 +5,23 @@
 // Mock Stripe before importing
 jest.mock('stripe');
 
-import { getPlanDetails } from './stripe-server';
+import { getPlanDetails } from '../stripe-server';
 import Stripe from 'stripe';
 
 const mockStripe = Stripe as jest.MockedClass<typeof Stripe>;
 
 describe('lib/stripe-server', () => {
   let originalEnv: NodeJS.ProcessEnv;
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeAll(() => {
+    // Suppress expected error logs in tests
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+  });
+
+  afterAll(() => {
+    consoleErrorSpy.mockRestore();
+  });
 
   beforeEach(() => {
     originalEnv = process.env;

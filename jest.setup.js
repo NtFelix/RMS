@@ -214,8 +214,27 @@ jest.mock('@/lib/ai-documentation-context', () => ({
 // Prevent timers from hanging tests
 jest.useFakeTimers({ advanceTimers: true });
 
+// Store original console.warn
+const originalWarn = console.warn;
+
 // Clean up after each test
 afterEach(() => {
-  jest.clearAllTimers();
-  jest.runOnlyPendingTimers();
+  // Temporarily suppress timer warnings
+  console.warn = jest.fn((message) => {
+    // Suppress fake timer warnings
+    if (typeof message === 'string' && message.includes('timers APIs are not replaced')) {
+      return;
+    }
+    originalWarn(message);
+  });
+  
+  try {
+    jest.clearAllTimers();
+    jest.runOnlyPendingTimers();
+  } catch (error) {
+    // Silently ignore if fake timers aren't active
+  } finally {
+    // Restore console.warn
+    console.warn = originalWarn;
+  }
 });

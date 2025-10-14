@@ -1,19 +1,19 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useSearch } from './use-search';
+import { useSearch } from '../use-search';
 
 // Mock the useDebounce hook
-jest.mock('./use-debounce', () => ({
+jest.mock('../use-debounce', () => ({
   useDebounce: jest.fn()
 }));
 
 // Mock the useSearchAnalytics hook
-jest.mock('./use-search-analytics', () => ({
+jest.mock('../use-search-analytics', () => ({
   useSearchAnalytics: jest.fn(() => ({
     trackSearch: jest.fn()
   }))
 }));
 
-import { useDebounce } from './use-debounce';
+import { useDebounce } from '../use-debounce';
 const mockUseDebounce = useDebounce as jest.MockedFunction<typeof useDebounce>;
 
 // Mock fetch
@@ -42,6 +42,28 @@ const mockLocalStorage = {
 Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
 
 describe('useSearch', () => {
+  // Suppress React act() warnings - these are expected in this test suite
+  // as we're testing async state updates
+  const originalError = console.error;
+  
+  beforeAll(() => {
+    console.error = jest.fn((message) => {
+      // Only suppress React act() warnings, let other errors through
+      if (
+        typeof message === 'string' && 
+        (message.includes('Warning: An update to') || 
+         message.includes('not wrapped in act'))
+      ) {
+        return;
+      }
+      originalError(message);
+    });
+  });
+  
+  afterAll(() => {
+    console.error = originalError;
+  });
+  
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetch.mockClear();

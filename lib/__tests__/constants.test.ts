@@ -1,4 +1,4 @@
-import { BERECHNUNGSART_OPTIONS, BERECHNUNGSART_VALUES } from './constants';
+import { BERECHNUNGSART_OPTIONS, BERECHNUNGSART_VALUES } from '../constants';
 
 describe('lib/constants', () => {
   describe('BERECHNUNGSART_OPTIONS', () => {
