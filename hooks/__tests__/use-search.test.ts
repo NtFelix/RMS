@@ -42,6 +42,28 @@ const mockLocalStorage = {
 Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
 
 describe('useSearch', () => {
+  // Suppress React act() warnings - these are expected in this test suite
+  // as we're testing async state updates
+  const originalError = console.error;
+  
+  beforeAll(() => {
+    console.error = jest.fn((message) => {
+      // Only suppress React act() warnings, let other errors through
+      if (
+        typeof message === 'string' && 
+        (message.includes('Warning: An update to') || 
+         message.includes('not wrapped in act'))
+      ) {
+        return;
+      }
+      originalError(message);
+    });
+  });
+  
+  afterAll(() => {
+    console.error = originalError;
+  });
+  
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetch.mockClear();
