@@ -33,7 +33,7 @@ export function StatCard({
   }
 
   return (
-    <Card className={`relative overflow-hidden rounded-2xl shadow-md transition-opacity duration-200 flex-1 summary-card ${className}`}>
+    <Card className={`relative overflow-hidden rounded-3xl shadow-sm transition-opacity duration-200 flex-1 ${className}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {icon}
