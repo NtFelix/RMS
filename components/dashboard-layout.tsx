@@ -137,7 +137,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           isMobile ? "pb-20 pt-6" : "pb-6 pt-6"
         )}>
           <div className={cn(
-            "flex-1 overflow-y-auto border shadow-sm",
+            "flex-1 overflow-y-auto overflow-x-hidden border shadow-sm",
             "rounded-[2rem] md:rounded-[2.5rem]",
             // Enhanced CSS-only fallback for mobile bottom margin
             "mb-4 md:mb-0",

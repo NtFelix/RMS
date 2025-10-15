@@ -16,17 +16,11 @@ export default async function Dashboard() {
   const summary = await getDashboardSummary();
   
   return (
-    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
-      <div
-        className="absolute inset-0 z-[-1]"
-        style={{
-          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
-        }}
-      />
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Dashboard</h1>
       </div>
-      <div className="grid gap-4 grid-cols-1 auto-rows-auto md:grid-cols-6 md:auto-rows-[140px] md:h-[calc(100vh-200px)]">
+      <div className="grid gap-4 grid-cols-1 auto-rows-auto md:grid-cols-6 md:auto-rows-[140px]">
         {/* Row 1: Three wider summary cards (2/3 width - 4 columns total) + Tenant Payment List (1/3 width - 2 columns) */}
         <Link href="/haeuser" className="col-span-1 row-span-1 md:col-span-1 md:row-span-1">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
@@ -237,9 +231,6 @@ export default async function Dashboard() {
             <MaintenanceDonutChart />
           </div>
         </div>
-        
-        {/* Empty row for bottom spacing */}
-        <div className="col-span-1 md:col-span-6 h-4 md:h-8"></div>
       </div>
     </div>
   )

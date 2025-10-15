@@ -150,7 +150,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
   }, [selectedHouses, router, refreshTable]);
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div
         className="absolute inset-0 z-[-1]"
         style={{
