@@ -3,6 +3,9 @@ name: Lighthouse CI
 on:
   pull_request:
     branches: [main, develop]
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
   workflow_dispatch:  # Allows manual triggering from the Actions tab
 
 jobs:
@@ -12,8 +15,32 @@ jobs:
     timeout-minutes: 10
     outputs:
       cache-key: ${{ steps.cache-build.outputs.cache-primary-key }}
+      should-run-lighthouse: ${{ steps.check-trigger.outputs.should-run }}
     
     steps:
+      - name: Check if Lighthouse should run
+        id: check-trigger
+        run: |
+          # Run Lighthouse on:
+          # 1. PR opened/reopened (not on every push to PR)
+          # 2. Push to main (merge)
+          # 3. Manual workflow dispatch
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "Reason: Manual trigger"
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "Reason: Push to main"
+          elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "Reason: PR opened/reopened"
+          else
+            echo "should-run=false" >> $GITHUB_OUTPUT
+            echo "Reason: Regular PR update - skipping Lighthouse"
+          fi
+    
+      - name: Checkout Repository
+        uses: actions/checkout@v4
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -42,6 +69,7 @@ jobs:
     name: Lighthouse Audit (${{ matrix.device }})
     runs-on: ubuntu-latest
     needs: build
+    if: needs.build.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 10
     
     strategy:
@@ -174,8 +202,8 @@ jobs:
   report:
     name: Generate Report
     runs-on: ubuntu-latest
-    needs: lighthouse
-    if: always()
+    needs: [build, lighthouse]
+    if: always() && needs.build.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 5
     
     permissions:
