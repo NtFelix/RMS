@@ -140,10 +140,22 @@ jobs:
           JSON_COUNT=$(find .lighthouseci -name "*.json" -type f | wc -l)
           if [ "$JSON_COUNT" -gt 0 ]; then
             echo "✓ Lighthouse $DEVICE audit completed successfully! Found $JSON_COUNT JSON report(s)"
+            echo "Files found:"
+            find .lighthouseci -name "*.json" -type f
           else
             echo "⚠ Warning: No JSON reports found for $DEVICE"
             exit 1
           fi
+
+      - name: Debug - Check files before upload
+        if: always()
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Checking .lighthouseci directory:"
+          ls -la .lighthouseci/ || echo "Directory not found"
+          echo "Finding JSON files:"
+          find . -name "*.json" -path "*/.lighthouseci/*" || echo "No JSON files found"
 
       - name: Upload Lighthouse report
         if: always()
