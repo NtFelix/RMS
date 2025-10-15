@@ -24,7 +24,9 @@ import {
   CheckCircle2, 
   AlertCircle,
   Circle,
-  CheckCircle 
+  CheckCircle,
+  PanelLeft,
+  PanelLeftClose
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
@@ -130,6 +132,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<string>("profile")
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false)
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
   const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0"); // Initialize with updated hardcoded version
@@ -1930,24 +1933,185 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           </DialogHeader>
           
           <div className="flex h-full overflow-hidden">
-            {/* Enhanced sidebar navigation */}
-            <nav className="w-48 min-w-[12rem] flex flex-col gap-2 py-4 px-3 mr-6 border-r border-border/50">
+            {/* Vertical Tab-Style Sidebar with Animated Indicators */}
+            <nav className={cn(
+              "flex flex-col bg-gradient-to-b from-background via-muted/5 to-background relative",
+              "transition-all duration-500 ease-out",
+              isSidebarCollapsed ? "w-20" : "w-72"
+            )}>
+              {/* Animated Background Accent */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
               
-              {tabs.map(tab => (
+              {/* Floating Toggle Pill */}
+              <div className={cn(
+                "relative z-10 flex items-center justify-between p-4 pb-6",
+                isSidebarCollapsed && "justify-center"
+              )}>
+                {!isSidebarCollapsed && (
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+                      <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg">
+                        <Monitor className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold tracking-tight">Einstellungen</h2>
+                      <p className="text-xs text-muted-foreground">Systemkonfiguration</p>
+                    </div>
+                  </div>
+                )}
+                
                 <button
-                  key={tab.value}
-                  onClick={() => setActiveTab(tab.value)}
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 outline-none text-left',
-                    activeTab === tab.value
-                      ? 'bg-primary text-primary-foreground shadow-sm font-medium scale-[1.02]'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground focus:bg-accent/60 focus:text-accent-foreground hover:scale-[1.01]',
+                    "relative group h-9 w-9 rounded-lg transition-all duration-300",
+                    "bg-muted/50 hover:bg-muted border border-border/50 hover:border-border",
+                    "hover:shadow-md active:scale-95",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                    isSidebarCollapsed && "mx-auto"
                   )}
+                  aria-label={isSidebarCollapsed ? "Erweitern" : "Einklappen"}
                 >
-                  <tab.icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="text-sm">{tab.label}</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    {isSidebarCollapsed ? (
+                      <PanelLeft className="h-4 w-4 transition-transform group-hover:scale-110" />
+                    ) : (
+                      <PanelLeftClose className="h-4 w-4 transition-transform group-hover:scale-110" />
+                    )}
+                  </div>
                 </button>
-              ))}
+              </div>
+              
+              {/* Vertical Tabs */}
+              <div className="relative flex-1 px-3 pb-3">
+                <div className="space-y-1.5">
+                  {tabs.map((tab, index) => {
+                    const isActive = activeTab === tab.value;
+                    return (
+                      <button
+                        key={tab.value}
+                        onClick={() => setActiveTab(tab.value)}
+                        className={cn(
+                          "group relative w-full overflow-hidden rounded-lg transition-all duration-300",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                          isSidebarCollapsed ? "h-14" : "h-16"
+                        )}
+                        style={{
+                          animationDelay: `${index * 50}ms`
+                        }}
+                      >
+                        {/* Background Layer */}
+                        <div className={cn(
+                          "absolute inset-0 transition-all duration-300",
+                          isActive
+                            ? "bg-gradient-to-r from-primary via-primary to-primary/90 opacity-100"
+                            : "bg-muted/30 opacity-0 group-hover:opacity-100"
+                        )} />
+                        
+                        {/* Border Glow */}
+                        {isActive && (
+                          <div className="absolute inset-0 rounded-lg border-2 border-primary/30 animate-pulse" />
+                        )}
+                        
+                        {/* Content */}
+                        <div className={cn(
+                          "relative flex items-center h-full transition-all duration-300",
+                          isSidebarCollapsed ? "justify-center px-2" : "px-4 gap-4"
+                        )}>
+                          {/* Icon Container */}
+                          <div className={cn(
+                            "relative flex items-center justify-center rounded-lg transition-all duration-300",
+                            isSidebarCollapsed ? "h-10 w-10" : "h-11 w-11",
+                            isActive
+                              ? "bg-primary-foreground/20 shadow-lg"
+                              : "bg-background/50 group-hover:bg-background/80"
+                          )}>
+                            <tab.icon className={cn(
+                              "transition-all duration-300",
+                              isActive ? "h-5 w-5 text-primary-foreground" : "h-5 w-5 text-muted-foreground group-hover:text-foreground group-hover:scale-110"
+                            )} />
+                          </div>
+                          
+                          {/* Label & Description */}
+                          {!isSidebarCollapsed && (
+                            <div className="flex-1 text-left min-w-0">
+                              <p className={cn(
+                                "text-sm font-semibold truncate transition-colors duration-300",
+                                isActive ? "text-primary-foreground" : "text-foreground group-hover:text-foreground"
+                              )}>
+                                {tab.label}
+                              </p>
+                              <p className={cn(
+                                "text-xs truncate transition-colors duration-300",
+                                isActive ? "text-primary-foreground/70" : "text-muted-foreground"
+                              )}>
+                                {index === 0 && "Persönliche Daten"}
+                                {index === 1 && "Abo & Zahlung"}
+                                {index === 2 && "Design & Theme"}
+                                {index === 3 && "Beta Features"}
+                                {index === 4 && "App Details"}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Active Indicator Arrow */}
+                          {isActive && !isSidebarCollapsed && (
+                            <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary-foreground/20">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground animate-pulse" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Hover Tooltip for Collapsed */}
+                        {isSidebarCollapsed && (
+                          <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <div className="relative">
+                              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 bg-popover border-l border-t border-border" />
+                              <div className="bg-popover border border-border rounded-lg shadow-xl px-3 py-2 min-w-max">
+                                <p className="text-sm font-medium text-popover-foreground">{tab.label}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {index === 0 && "Persönliche Daten"}
+                                  {index === 1 && "Abo & Zahlung"}
+                                  {index === 2 && "Design & Theme"}
+                                  {index === 3 && "Beta Features"}
+                                  {index === 4 && "App Details"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Footer Badge */}
+              <div className={cn(
+                "relative z-10 p-4 pt-2",
+                isSidebarCollapsed && "px-2"
+              )}>
+                <div className={cn(
+                  "relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-muted/50 to-muted/30 backdrop-blur-sm transition-all duration-300",
+                  isSidebarCollapsed ? "p-3" : "p-3"
+                )}>
+                  <div className={cn(
+                    "flex items-center gap-2.5",
+                    isSidebarCollapsed && "justify-center"
+                  )}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+                      <Info className="h-4 w-4 text-primary" />
+                    </div>
+                    {!isSidebarCollapsed && (
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate">Rent Manager</p>
+                        <p className="text-[10px] text-muted-foreground">{packageJsonVersion}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </nav>
             
             {/* Content area with enhanced scrolling */}
