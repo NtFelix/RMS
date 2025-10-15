@@ -143,7 +143,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
             )}
             animate={{
               boxShadow: isActive 
-                ? "0 4px 12px rgba(var(--primary-rgb, 59, 130, 246), 0.15)" 
+                ? "0 4px 12px rgba(var(--primary-rgb), 0.15)" 
                 : "0 0 0 rgba(0, 0, 0, 0)"
             }}
             transition={{ duration: 0.3 }}
@@ -231,7 +231,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
               <motion.div
                 animate={{
                   filter: isActive 
-                    ? "drop-shadow(0 2px 4px rgba(var(--primary-rgb, 59, 130, 246), 0.3))"
+                    ? "drop-shadow(0 2px 4px rgba(var(--primary-rgb), 0.3))"
                     : "drop-shadow(0 0 0 rgba(0, 0, 0, 0))"
                 }}
                 transition={{ duration: 0.3 }}
