@@ -1948,16 +1948,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 isSidebarCollapsed && "justify-center"
               )}>
                 {!isSidebarCollapsed && (
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-                      <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg">
-                        <Monitor className="h-5 w-5 text-primary-foreground" />
-                      </div>
-                    </div>
-                    <div>
-                      <h2 className="text-base font-bold tracking-tight">Einstellungen</h2>
-                    </div>
+                  <div>
+                    <h2 className="text-base font-bold tracking-tight">Einstellungen</h2>
                   </div>
                 )}
                 
