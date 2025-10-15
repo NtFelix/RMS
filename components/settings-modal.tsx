@@ -41,6 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSe
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
 import { BILLING_COUNTRIES } from "@/lib/constants";
+import { ThemeSwitcherCards } from "@/components/theme-switcher-cards";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -1145,8 +1146,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           >
             {darkModeEnabled && (
               <SettingsCard>
-                <div className="flex items-start justify-between gap-6">
-                  <div className="space-y-1 flex-1">
+                <div className="space-y-4">
+                  <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <Monitor className="h-4 w-4 text-muted-foreground" />
                       <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -1157,28 +1158,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       Wählen Sie zwischen hellem, dunklem Design oder folgen Sie den Systemeinstellungen.
                     </p>
                   </div>
-                  <div className="flex-shrink-0 w-36">
-                    <Select
-                      value={theme}
-                      onValueChange={(value) => {
-                        setTheme(value);
-                        toast({
-                          title: "Design geändert",
-                          description: `${themeLabels[value as keyof typeof themeLabels]} aktiviert.`,
-                          variant: "success",
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Wählen Sie ein Design" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Hell</SelectItem>
-                        <SelectItem value="dark">Dunkel</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <ThemeSwitcherCards />
                 </div>
               </SettingsCard>
             )}
