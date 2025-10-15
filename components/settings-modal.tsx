@@ -1983,9 +1983,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 </button>
               </div>
               
-              {/* Vertical Tabs */}
+              {/* Vertical Tabs - Pill Shaped */}
               <div className="relative flex-1 px-3 pb-3">
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {tabs.map((tab, index) => {
                     const isActive = activeTab === tab.value;
                     return (
@@ -1993,90 +1993,97 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         key={tab.value}
                         onClick={() => setActiveTab(tab.value)}
                         className={cn(
-                          "group relative w-full overflow-hidden rounded-lg transition-all duration-300",
+                          "group relative w-full overflow-hidden rounded-full transition-all duration-500 ease-out",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                          isSidebarCollapsed ? "h-14" : "h-16"
+                          "hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0",
+                          isSidebarCollapsed ? "h-14" : "h-14"
                         )}
                         style={{
-                          animationDelay: `${index * 50}ms`
+                          animationDelay: `${index * 50}ms`,
+                          transform: isActive ? 'scale(1.02)' : 'scale(1)'
                         }}
                       >
-                        {/* Background Layer */}
+                        {/* Animated Background Layer with Shimmer */}
                         <div className={cn(
-                          "absolute inset-0 transition-all duration-300",
+                          "absolute inset-0 transition-all duration-500",
                           isActive
                             ? "bg-gradient-to-r from-primary via-primary to-primary/90 opacity-100"
                             : "bg-muted/30 opacity-0 group-hover:opacity-100"
                         )} />
                         
-                        {/* Border Glow */}
+                        {/* Shimmer Effect for Active State */}
                         {isActive && (
-                          <div className="absolute inset-0 rounded-lg border-2 border-primary/30 animate-pulse" />
+                          <div 
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"
+                            style={{ backgroundSize: '200% 100%' }}
+                          />
                         )}
+                        
+                        {/* Border Glow with Pulse */}
+                        {isActive && (
+                          <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-pulse" />
+                        )}
+                        
+                        {/* Hover Glow Effect */}
+                        <div className={cn(
+                          "absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500",
+                          "bg-gradient-to-r from-primary/10 via-primary/5 to-transparent"
+                        )} />
                         
                         {/* Content */}
                         <div className={cn(
-                          "relative flex items-center h-full transition-all duration-300",
-                          isSidebarCollapsed ? "justify-center px-2" : "px-4 gap-4"
+                          "relative flex items-center h-full transition-all duration-500",
+                          isSidebarCollapsed ? "justify-center px-2" : "px-5 gap-4"
                         )}>
-                          {/* Icon Container */}
-                          <div className={cn(
-                            "relative flex items-center justify-center rounded-lg transition-all duration-300",
-                            isSidebarCollapsed ? "h-10 w-10" : "h-11 w-11",
-                            isActive
-                              ? "bg-primary-foreground/20 shadow-lg"
-                              : "bg-background/50 group-hover:bg-background/80"
-                          )}>
-                            <tab.icon className={cn(
-                              "transition-all duration-300",
-                              isActive ? "h-5 w-5 text-primary-foreground" : "h-5 w-5 text-muted-foreground group-hover:text-foreground group-hover:scale-110"
-                            )} />
+                          {/* Icon Container with Glow */}
+                          <div className="relative">
+                            {isActive && (
+                              <div className="absolute inset-0 bg-primary-foreground/30 blur-lg rounded-full animate-pulse" />
+                            )}
+                            <div className={cn(
+                              "relative flex items-center justify-center rounded-full transition-all duration-500",
+                              isSidebarCollapsed ? "h-10 w-10" : "h-11 w-11",
+                              isActive
+                                ? "bg-primary-foreground/20 shadow-lg scale-110"
+                                : "bg-background/50 group-hover:bg-background/80 group-hover:scale-110"
+                            )}>
+                              <tab.icon className={cn(
+                                "transition-all duration-500",
+                                isActive 
+                                  ? "h-5 w-5 text-primary-foreground drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" 
+                                  : "h-5 w-5 text-muted-foreground group-hover:text-foreground group-hover:scale-110 group-hover:rotate-3"
+                              )} />
+                            </div>
                           </div>
                           
-                          {/* Label & Description */}
+                          {/* Label */}
                           {!isSidebarCollapsed && (
                             <div className="flex-1 text-left min-w-0">
                               <p className={cn(
-                                "text-sm font-semibold truncate transition-colors duration-300",
-                                isActive ? "text-primary-foreground" : "text-foreground group-hover:text-foreground"
+                                "text-sm font-semibold truncate transition-all duration-500",
+                                isActive ? "text-primary-foreground tracking-wide" : "text-foreground group-hover:text-foreground"
                               )}>
                                 {tab.label}
-                              </p>
-                              <p className={cn(
-                                "text-xs truncate transition-colors duration-300",
-                                isActive ? "text-primary-foreground/70" : "text-muted-foreground"
-                              )}>
-                                {index === 0 && "Persönliche Daten"}
-                                {index === 1 && "Abo & Zahlung"}
-                                {index === 2 && "Design & Theme"}
-                                {index === 3 && "Beta Features"}
-                                {index === 4 && "App Details"}
                               </p>
                             </div>
                           )}
                           
-                          {/* Active Indicator Arrow */}
+                          {/* Active Indicator Dot with Pulse */}
                           {isActive && !isSidebarCollapsed && (
-                            <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary-foreground/20">
-                              <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground animate-pulse" />
+                            <div className="relative flex items-center justify-center w-7 h-7 rounded-full bg-primary-foreground/20">
+                              <div className="absolute inset-0 rounded-full bg-primary-foreground/20 animate-ping" />
+                              <div className="relative w-2 h-2 rounded-full bg-primary-foreground animate-pulse shadow-lg shadow-primary-foreground/50" />
                             </div>
                           )}
                         </div>
                         
-                        {/* Hover Tooltip for Collapsed */}
+                        {/* Hover Tooltip for Collapsed - Pill Shaped */}
                         {isSidebarCollapsed && (
-                          <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                          <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 group-hover:translate-x-1">
                             <div className="relative">
                               <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 bg-popover border-l border-t border-border" />
-                              <div className="bg-popover border border-border rounded-lg shadow-xl px-3 py-2 min-w-max">
-                                <p className="text-sm font-medium text-popover-foreground">{tab.label}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {index === 0 && "Persönliche Daten"}
-                                  {index === 1 && "Abo & Zahlung"}
-                                  {index === 2 && "Design & Theme"}
-                                  {index === 3 && "Beta Features"}
-                                  {index === 4 && "App Details"}
-                                </p>
+                              <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-2xl shadow-2xl px-4 py-2 min-w-max">
+                                <p className="text-sm font-semibold text-popover-foreground">{tab.label}</p>
                               </div>
                             </div>
                           </div>
