@@ -1984,10 +1984,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         key={tab.value}
                         onClick={() => setActiveTab(tab.value)}
                         className={cn(
-                          "group relative w-full overflow-hidden rounded-full transition-all duration-500 ease-out",
+                          "group relative overflow-hidden transition-all duration-500 ease-out",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                           "hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0",
-                          isSidebarCollapsed ? "h-11" : "h-11"
+                          isSidebarCollapsed 
+                            ? "h-11 w-11 rounded-full" 
+                            : "w-full h-11 rounded-full"
                         )}
                         style={{
                           animationDelay: `${index * 50}ms`,
@@ -1997,6 +1999,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         {/* Animated Background Layer */}
                         <div className={cn(
                           "absolute inset-0 transition-all duration-500",
+                          isSidebarCollapsed ? "rounded-full" : "rounded-full",
                           isActive
                             ? "bg-gradient-to-r from-primary via-primary to-primary/90 opacity-100"
                             : "bg-muted/30 opacity-0 group-hover:opacity-100"
