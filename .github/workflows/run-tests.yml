@@ -79,7 +79,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Setup Node.js
       - name: Setup Node.js
@@ -363,7 +363,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
       # Download all test summaries
       - name: Download test summaries
