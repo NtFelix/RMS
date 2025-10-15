@@ -1996,7 +1996,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                           "group relative w-full overflow-hidden rounded-full transition-all duration-500 ease-out",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                           "hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0",
-                          isSidebarCollapsed ? "h-14" : "h-14"
+                          isSidebarCollapsed ? "h-11" : "h-11"
                         )}
                         style={{
                           animationDelay: `${index * 50}ms`,
@@ -2033,7 +2033,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         {/* Content */}
                         <div className={cn(
                           "relative flex items-center h-full transition-all duration-500",
-                          isSidebarCollapsed ? "justify-center px-2" : "px-5 gap-4"
+                          isSidebarCollapsed ? "justify-center px-2" : "px-3 gap-2.5"
                         )}>
                           {/* Icon Container with Glow */}
                           <div className="relative">
@@ -2042,7 +2042,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                             )}
                             <div className={cn(
                               "relative flex items-center justify-center rounded-full transition-all duration-500",
-                              isSidebarCollapsed ? "h-10 w-10" : "h-11 w-11",
+                              isSidebarCollapsed ? "h-7 w-7" : "h-7 w-7",
                               isActive
                                 ? "bg-primary-foreground/20 shadow-lg scale-110"
                                 : "bg-background/50 group-hover:bg-background/80 group-hover:scale-110"
@@ -2050,8 +2050,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                               <tab.icon className={cn(
                                 "transition-all duration-500",
                                 isActive 
-                                  ? "h-5 w-5 text-primary-foreground drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" 
-                                  : "h-5 w-5 text-muted-foreground group-hover:text-foreground group-hover:scale-110 group-hover:rotate-3"
+                                  ? "h-4 w-4 text-primary-foreground drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" 
+                                  : "h-4 w-4 text-muted-foreground group-hover:text-foreground group-hover:scale-110 group-hover:rotate-3"
                               )} />
                             </div>
                           </div>
@@ -2060,7 +2060,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                           {!isSidebarCollapsed && (
                             <div className="flex-1 text-left min-w-0">
                               <p className={cn(
-                                "text-sm font-semibold truncate transition-all duration-500",
+                                "text-sm font-medium truncate transition-all duration-500",
                                 isActive ? "text-primary-foreground tracking-wide" : "text-foreground group-hover:text-foreground"
                               )}>
                                 {tab.label}
@@ -2070,9 +2070,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                           
                           {/* Active Indicator Dot with Pulse */}
                           {isActive && !isSidebarCollapsed && (
-                            <div className="relative flex items-center justify-center w-7 h-7 rounded-full bg-primary-foreground/20">
+                            <div className="relative flex items-center justify-center w-5 h-5 rounded-full bg-primary-foreground/20">
                               <div className="absolute inset-0 rounded-full bg-primary-foreground/20 animate-ping" />
-                              <div className="relative w-2 h-2 rounded-full bg-primary-foreground animate-pulse shadow-lg shadow-primary-foreground/50" />
+                              <div className="relative w-1.5 h-1.5 rounded-full bg-primary-foreground animate-pulse shadow-lg shadow-primary-foreground/50" />
                             </div>
                           )}
                         </div>
