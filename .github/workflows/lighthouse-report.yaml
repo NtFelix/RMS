@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      cache-key: ${{ steps.cache-build.outputs.cache-primary-key }}
+      build-cache-key: ${{ steps.build-cache-key.outputs.cache-key }}
       should-run-lighthouse: ${{ steps.check-trigger.outputs.should-run }}
     
     steps:
@@ -41,15 +41,33 @@ jobs:
     
       - name: Checkout Repository
         uses: actions/checkout@v4
-      - name: Checkout Repository
-        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      - name: Generate build cache key
+        id: build-cache-key
+        run: |
+          # Create a hash of all files that affect the build
+          BUILD_HASH=$(find app components lib hooks types utils public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" -o -name "*.json" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
+          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json', 'tailwind.config.ts') }}"
+          CACHE_KEY="build-${BUILD_HASH}-${PACKAGE_HASH}"
+          echo "cache-key=${CACHE_KEY}" >> $GITHUB_OUTPUT
+          echo "Build cache key: ${CACHE_KEY}"
+
+      - name: Restore build cache
+        id: restore-build-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .next
+          key: ${{ steps.build-cache-key.outputs.cache-key }}
+          restore-keys: |
+            build-
+
       - name: Cache node_modules
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
         id: cache-node-modules
         uses: actions/cache@v4
         with:
@@ -59,18 +77,27 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        if: steps.restore-build-cache.outputs.cache-hit != 'true' && steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline
 
       - name: Build application
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
         run: npm run build
 
-      - name: Cache build output
-        id: cache-build
+      - name: Save build cache
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: .next
-          key: build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ${{ steps.build-cache-key.outputs.cache-key }}
+
+      - name: Build status
+        run: |
+          if [ "${{ steps.restore-build-cache.outputs.cache-hit }}" == "true" ]; then
+            echo "✓ Build restored from cache"
+          else
+            echo "✓ Build completed and cached"
+          fi
 
   lighthouse:
     name: Lighthouse Audit (${{ matrix.device }})
@@ -120,7 +147,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .next
-          key: build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ${{ needs.build.outputs.build-cache-key }}
+          restore-keys: |
+            build-
           fail-on-cache-miss: true
 
       - name: Install Lighthouse CI tools
