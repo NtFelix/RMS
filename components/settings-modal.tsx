@@ -1926,7 +1926,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[900px] h-[80vh] max-w-[95vw] max-h-[95vh] overflow-hidden">
+        <DialogContent className="w-[900px] h-[80vh] max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
           <DialogHeader className="sr-only">
             <DialogTitle>Einstellungen</DialogTitle>
             <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
