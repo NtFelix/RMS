@@ -1975,7 +1975,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               </div>
               
               {/* Vertical Tabs - Pill Shaped */}
-              <div className="relative flex-1 px-3 pb-3">
+              <div className="relative flex-1 px-2 pb-3">
                 <div className="space-y-2">
                   {tabs.map((tab, index) => {
                     const isActive = activeTab === tab.value;
@@ -2019,7 +2019,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         {/* Content */}
                         <div className={cn(
                           "relative flex items-center h-full transition-all duration-500",
-                          isSidebarCollapsed ? "justify-center px-2" : "px-3 gap-2.5"
+                          isSidebarCollapsed ? "justify-center px-2" : "px-2 gap-2.5"
                         )}>
                           {/* Icon Container with Glow */}
                           <div className="relative">
