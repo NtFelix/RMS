@@ -4,6 +4,7 @@ import { useTheme } from "next-themes"
 import { Sun, Moon, Monitor, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { motion } from "framer-motion"
 
 interface ThemeSwitcherCardsProps {
   className?: string
@@ -70,21 +71,43 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
             aria-pressed={isActive}
           >
             {isActive && (
-              <CheckCircle2 
-                className="absolute top-3 right-3 h-5 w-5 text-primary" 
-                aria-hidden="true"
-                strokeWidth={2.5}
-              />
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <CheckCircle2 
+                  className="absolute top-3 right-3 h-5 w-5 text-primary" 
+                  aria-hidden="true"
+                  strokeWidth={2.5}
+                />
+              </motion.div>
             )}
-            <Icon 
-              className={cn(
-                "h-8 w-8 transition-colors",
-                isActive 
-                  ? "text-primary" 
-                  : "text-muted-foreground"
-              )}
-              aria-hidden="true"
-            />
+            <motion.div
+              animate={{
+                y: isActive ? -4 : 0,
+                scale: isActive ? 1.15 : 1,
+                rotate: isActive ? (option.value === "light" ? 0 : option.value === "dark" ? -10 : 0) : 0,
+              }}
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 20,
+                duration: 0.4
+              }}
+            >
+              <Icon 
+                className={cn(
+                  "h-8 w-8 transition-colors duration-300",
+                  isActive 
+                    ? "text-primary" 
+                    : "text-muted-foreground"
+                )}
+                aria-hidden="true"
+                strokeWidth={isActive ? 2.5 : 2}
+              />
+            </motion.div>
             <div className="flex flex-col items-center gap-1">
               <span 
                 className={cn(
