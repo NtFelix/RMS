@@ -107,7 +107,8 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
     if (theme !== previousTheme) {
       setPreviousTheme(theme)
     }
-  }, [theme, previousTheme])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme])
 
   const handleThemeChange = (value: string) => {
     setTheme(value)
