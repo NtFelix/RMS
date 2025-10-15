@@ -1944,8 +1944,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               
               {/* Floating Toggle Pill */}
               <div className={cn(
-                "relative z-10 flex items-center pb-6",
-                isSidebarCollapsed ? "justify-center p-4" : "justify-between p-4"
+                "relative z-10 flex items-center",
+                isSidebarCollapsed ? "justify-center px-2 pt-4 pb-6" : "justify-between p-4 pb-6"
               )}>
                 {!isSidebarCollapsed && (
                   <div>
@@ -1956,10 +1956,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <button
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                   className={cn(
-                    "relative group h-9 w-9 rounded-lg transition-all duration-300",
+                    "relative group rounded-lg transition-all duration-300",
                     "bg-muted/50 hover:bg-muted border border-border/50 hover:border-border",
                     "hover:shadow-md active:scale-95",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                    isSidebarCollapsed ? "h-11 w-11 rounded-full" : "h-9 w-9"
                   )}
                   aria-label={isSidebarCollapsed ? "Erweitern" : "Einklappen"}
                 >
