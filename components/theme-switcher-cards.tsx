@@ -36,7 +36,7 @@ const themeOptions = [
 ] as const
 
 // Animation variants for different icon types
-const getIconVariants = (iconType: string, isActive: boolean) => {
+const getIconVariants = (iconType: typeof themeOptions[number]['value']) => {
   const baseVariants = {
     inactive: {
       y: 0,
@@ -95,8 +95,6 @@ const getIconVariants = (iconType: string, isActive: boolean) => {
           opacity: 0.6,
         }
       }
-    default:
-      return baseVariants
   }
 }
 
@@ -129,7 +127,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
         const Icon = option.icon
         const isActive = theme === option.value
         const wasActive = previousTheme === option.value
-        const iconVariants = getIconVariants(option.value, isActive)
+        const iconVariants = getIconVariants(option.value)
         
         return (
           <motion.button
