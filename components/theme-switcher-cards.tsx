@@ -61,7 +61,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
               "relative flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
               "hover:scale-[1.02] hover:shadow-md",
               isActive
-                ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20 shadow-sm"
+                ? "border-primary bg-primary/5 shadow-sm"
                 : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/20 hover:border-gray-300 dark:hover:border-gray-700"
             )}
             aria-label={`${option.description} auswählen`}
@@ -69,7 +69,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
           >
             {isActive && (
               <CheckCircle2 
-                className="absolute top-3 right-3 h-5 w-5 text-blue-500" 
+                className="absolute top-3 right-3 h-5 w-5 text-primary" 
                 aria-hidden="true"
                 strokeWidth={2.5}
               />
@@ -78,7 +78,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
               className={cn(
                 "h-8 w-8 transition-colors",
                 isActive 
-                  ? "text-blue-500" 
+                  ? "text-primary" 
                   : "text-muted-foreground"
               )}
               aria-hidden="true"
@@ -88,7 +88,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
                 className={cn(
                   "text-sm font-semibold transition-colors",
                   isActive 
-                    ? "text-blue-600 dark:text-blue-400" 
+                    ? "text-primary" 
                     : "text-foreground"
                 )}
               >
@@ -98,7 +98,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
                 className={cn(
                   "text-xs transition-colors",
                   isActive 
-                    ? "text-blue-600/70 dark:text-blue-400/70" 
+                    ? "text-primary/70" 
                     : "text-muted-foreground"
                 )}
               >
