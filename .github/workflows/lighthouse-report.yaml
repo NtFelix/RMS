@@ -137,8 +137,9 @@ jobs:
           echo "Checking for generated reports..."
           ls -la .lighthouseci/ || echo "No .lighthouseci directory found"
           
-          if [ -f .lighthouseci/*.json ]; then
-            echo "✓ Lighthouse $DEVICE audit completed successfully!"
+          JSON_COUNT=$(find .lighthouseci -name "*.json" -type f | wc -l)
+          if [ "$JSON_COUNT" -gt 0 ]; then
+            echo "✓ Lighthouse $DEVICE audit completed successfully! Found $JSON_COUNT JSON report(s)"
           else
             echo "⚠ Warning: No JSON reports found for $DEVICE"
             exit 1
