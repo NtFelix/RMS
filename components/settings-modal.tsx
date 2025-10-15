@@ -1881,7 +1881,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     },
     {
       value: "information",
-      label: "Informationen",
+      label: "Mietfluss",
       icon: Info,
       content: (
         <div className="space-y-6">
@@ -1896,7 +1896,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     <Info className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-medium">Rent-Managing-System (RMS)</h4>
+                    <h4 className="text-sm font-medium">Mietfluss</h4>
                     <p className="text-sm text-muted-foreground">
                       Version: <span id="app-version" className="font-mono">{packageJsonVersion}</span>
                     </p>
@@ -1957,7 +1957,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     </div>
                     <div>
                       <h2 className="text-base font-bold tracking-tight">Einstellungen</h2>
-                      <p className="text-xs text-muted-foreground">Systemkonfiguration</p>
                     </div>
                   </div>
                 )}
@@ -2003,21 +2002,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                           transform: isActive ? 'scale(1.02)' : 'scale(1)'
                         }}
                       >
-                        {/* Animated Background Layer with Shimmer */}
+                        {/* Animated Background Layer */}
                         <div className={cn(
                           "absolute inset-0 transition-all duration-500",
                           isActive
                             ? "bg-gradient-to-r from-primary via-primary to-primary/90 opacity-100"
                             : "bg-muted/30 opacity-0 group-hover:opacity-100"
                         )} />
-                        
-                        {/* Shimmer Effect for Active State */}
-                        {isActive && (
-                          <div 
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"
-                            style={{ backgroundSize: '200% 100%' }}
-                          />
-                        )}
                         
                         {/* Border Glow with Pulse */}
                         {isActive && (
@@ -2067,14 +2058,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                               </p>
                             </div>
                           )}
-                          
-                          {/* Active Indicator Dot with Pulse */}
-                          {isActive && !isSidebarCollapsed && (
-                            <div className="relative flex items-center justify-center w-5 h-5 rounded-full bg-primary-foreground/20">
-                              <div className="absolute inset-0 rounded-full bg-primary-foreground/20 animate-ping" />
-                              <div className="relative w-1.5 h-1.5 rounded-full bg-primary-foreground animate-pulse shadow-lg shadow-primary-foreground/50" />
-                            </div>
-                          )}
                         </div>
                         
                         {/* Hover Tooltip for Collapsed - Pill Shaped */}
@@ -2094,31 +2077,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 </div>
               </div>
               
-              {/* Footer Badge */}
-              <div className={cn(
-                "relative z-10 p-4 pt-2",
-                isSidebarCollapsed && "px-2"
-              )}>
-                <div className={cn(
-                  "relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-muted/50 to-muted/30 backdrop-blur-sm transition-all duration-300",
-                  isSidebarCollapsed ? "p-3" : "p-3"
-                )}>
-                  <div className={cn(
-                    "flex items-center gap-2.5",
-                    isSidebarCollapsed && "justify-center"
-                  )}>
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-                      <Info className="h-4 w-4 text-primary" />
-                    </div>
-                    {!isSidebarCollapsed && (
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-foreground truncate">Rent Manager</p>
-                        <p className="text-[10px] text-muted-foreground">{packageJsonVersion}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
             </nav>
             
             {/* Content area with enhanced scrolling */}
