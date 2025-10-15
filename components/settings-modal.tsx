@@ -1944,34 +1944,45 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               
               {/* Floating Toggle Pill */}
               <div className={cn(
-                "relative z-10 flex items-center",
-                isSidebarCollapsed ? "justify-center px-2 pt-4 pb-6" : "justify-between p-4 pb-6"
+                "relative z-10",
+                isSidebarCollapsed ? "px-2 pt-4 pb-4" : "p-4 pb-4"
               )}>
-                {!isSidebarCollapsed && (
-                  <div>
-                    <h2 className="text-base font-bold tracking-tight">Einstellungen</h2>
+                {!isSidebarCollapsed ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold tracking-tight">Einstellungen</h2>
+                    </div>
+                    <button
+                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      className={cn(
+                        "relative group h-9 w-9 rounded-lg transition-all duration-300",
+                        "bg-muted/50 hover:bg-muted border border-border/50 hover:border-border",
+                        "hover:shadow-md active:scale-95",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      )}
+                      aria-label="Einklappen"
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <PanelLeftClose className="h-4 w-4 transition-transform group-hover:scale-110" />
+                      </div>
+                    </button>
                   </div>
-                )}
-                
-                <button
-                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className={cn(
-                    "relative group rounded-lg transition-all duration-300",
-                    "bg-muted/50 hover:bg-muted border border-border/50 hover:border-border",
-                    "hover:shadow-md active:scale-95",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                    isSidebarCollapsed ? "h-11 w-11 rounded-full" : "h-9 w-9"
-                  )}
-                  aria-label={isSidebarCollapsed ? "Erweitern" : "Einklappen"}
-                >
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    {isSidebarCollapsed ? (
-                      <PanelLeft className="h-4 w-4 transition-transform group-hover:scale-110" />
-                    ) : (
-                      <PanelLeftClose className="h-4 w-4 transition-transform group-hover:scale-110" />
+                ) : (
+                  <button
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    className={cn(
+                      "relative group h-11 w-11 rounded-full transition-all duration-300",
+                      "bg-muted/50 hover:bg-muted border border-border/50 hover:border-border",
+                      "hover:shadow-md active:scale-95",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     )}
-                  </div>
-                </button>
+                    aria-label="Erweitern"
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <PanelLeft className="h-4 w-4 transition-transform group-hover:scale-110" />
+                    </div>
+                  </button>
+                )}
               </div>
               
               {/* Vertical Tabs - Pill Shaped */}
