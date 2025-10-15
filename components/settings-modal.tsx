@@ -1935,9 +1935,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <div className="flex h-full overflow-hidden">
             {/* Vertical Tab-Style Sidebar with Animated Indicators */}
             <nav className={cn(
-              "flex flex-col bg-gradient-to-b from-background via-muted/5 to-background relative",
+              "flex flex-col bg-gradient-to-b from-background via-muted/5 to-background relative border-r border-border/50",
               "transition-all duration-500 ease-out",
-              isSidebarCollapsed ? "w-20" : "w-72"
+              isSidebarCollapsed ? "w-20" : "w-60"
             )}>
               {/* Animated Background Accent */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
@@ -2123,7 +2123,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             
             {/* Content area with enhanced scrolling */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto py-4 pr-2">
+              <div className="flex-1 overflow-y-auto py-4 px-6">
                 <div className="max-w-3xl">
                   {tabs.find(tab => tab.value === activeTab)?.content}
                 </div>
