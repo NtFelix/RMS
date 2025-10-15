@@ -40,11 +40,13 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
   const handleThemeChange = (value: string) => {
     setTheme(value)
     const selectedTheme = themeOptions.find(opt => opt.value === value)
-    toast({
-      title: "Design geändert",
-      description: `${selectedTheme?.description} aktiviert.`,
-      variant: "success",
-    })
+    if (selectedTheme) {
+      toast({
+        title: "Design geändert",
+        description: `${selectedTheme.description} aktiviert.`,
+        variant: "success",
+      })
+    }
   }
 
   return (
