@@ -133,14 +133,23 @@ jobs:
           cleanup
           trap - EXIT
           
-          echo "Lighthouse $DEVICE audit completed!"
+          # Verify reports were generated
+          echo "Checking for generated reports..."
+          ls -la .lighthouseci/ || echo "No .lighthouseci directory found"
+          
+          if [ -f .lighthouseci/*.json ]; then
+            echo "✓ Lighthouse $DEVICE audit completed successfully!"
+          else
+            echo "⚠ Warning: No JSON reports found for $DEVICE"
+            exit 1
+          fi
 
       - name: Upload Lighthouse report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-${{ matrix.device }}
-          path: .lighthouseci/*.json
+          path: .lighthouseci/
           retention-days: 7
           if-no-files-found: warn
 
@@ -179,10 +188,13 @@ jobs:
             const processDevice = async (device) => {
               try {
                 const dir = `lighthouse-results/lighthouse-${device}`;
-                const files = await fs.readdir(dir);
-                const jsonFile = files.find(f => f.endsWith('.json'));
+                const allFiles = await fs.readdir(dir, { recursive: true });
+                const jsonFile = allFiles.find(f => f.endsWith('.json') && f.includes('lhr-'));
                 
-                if (!jsonFile) return null;
+                if (!jsonFile) {
+                  console.log(`No JSON file found for ${device}. Files:`, allFiles);
+                  return null;
+                }
                 
                 const report = JSON.parse(await fs.readFile(path.join(dir, jsonFile), 'utf8'));
                 const categories = report.categories;
@@ -248,10 +260,13 @@ jobs:
             const processDevice = async (device) => {
               try {
                 const dir = `lighthouse-results/lighthouse-${device}`;
-                const files = await fs.readdir(dir);
-                const jsonFile = files.find(f => f.endsWith('.json'));
+                const allFiles = await fs.readdir(dir, { recursive: true });
+                const jsonFile = allFiles.find(f => f.endsWith('.json') && f.includes('lhr-'));
                 
-                if (!jsonFile) return null;
+                if (!jsonFile) {
+                  console.log(`No JSON file found for ${device}. Files:`, allFiles);
+                  return null;
+                }
                 
                 const report = JSON.parse(await fs.readFile(path.join(dir, jsonFile), 'utf8'));
                 const categories = report.categories;
