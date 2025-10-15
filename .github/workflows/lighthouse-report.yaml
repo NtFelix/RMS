@@ -206,17 +206,19 @@ jobs:
               return `| ${device} | ${getScoreEmoji(scores.performance)} ${scores.performance} | ${getScoreEmoji(scores.accessibility)} ${scores.accessibility} | ${getScoreEmoji(scores.bestPractices)} ${scores.bestPractices} | ${getScoreEmoji(scores.seo)} ${scores.seo} |`;
             };
             
-            const comment = `## ⚡ Lighthouse Audit Results
-
-| Device | Performance | Accessibility | Best Practices | SEO |
-|--------|-------------|---------------|----------------|-----|
-${formatRow('📱 Mobile', mobile)}
-${formatRow('🖥️ Desktop', desktop)}
-${formatRow('📱 Tablet', tablet)}
-
-**Legend:** 🟢 90+ | 🟡 75-89 | 🔴 <75
-
-[View detailed reports](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`;
+            const comment = [
+              '## ⚡ Lighthouse Audit Results',
+              '',
+              '| Device | Performance | Accessibility | Best Practices | SEO |',
+              '|--------|-------------|---------------|----------------|-----|',
+              formatRow('📱 Mobile', mobile),
+              formatRow('🖥️ Desktop', desktop),
+              formatRow('📱 Tablet', tablet),
+              '',
+              '**Legend:** 🟢 90+ | 🟡 75-89 | 🔴 <75',
+              '',
+              `[View detailed reports](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
+            ].join('\n');
             
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
