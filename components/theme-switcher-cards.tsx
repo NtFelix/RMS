@@ -9,33 +9,33 @@ interface ThemeSwitcherCardsProps {
   className?: string
 }
 
+const themeOptions = [
+  {
+    value: "light",
+    label: "Hell",
+    icon: Sun,
+    description: "Heller Modus",
+    subtitle: "Immer hell"
+  },
+  {
+    value: "dark",
+    label: "Dunkel",
+    icon: Moon,
+    description: "Dunkler Modus",
+    subtitle: "Immer dunkel"
+  },
+  {
+    value: "system",
+    label: "Auto",
+    icon: Monitor,
+    description: "System-Modus",
+    subtitle: "Folgt System"
+  }
+] as const
+
 export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
   const { theme, setTheme } = useTheme()
   const { toast } = useToast()
-
-  const themeOptions = [
-    {
-      value: "light",
-      label: "Hell",
-      icon: Sun,
-      description: "Heller Modus",
-      subtitle: "Immer hell"
-    },
-    {
-      value: "dark",
-      label: "Dunkel",
-      icon: Moon,
-      description: "Dunkler Modus",
-      subtitle: "Immer dunkel"
-    },
-    {
-      value: "system",
-      label: "Auto",
-      icon: Monitor,
-      description: "System-Modus",
-      subtitle: "Folgt System"
-    }
-  ]
 
   const handleThemeChange = (value: string) => {
     setTheme(value)
