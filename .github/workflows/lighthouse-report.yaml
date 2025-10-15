@@ -96,7 +96,7 @@ jobs:
           VIEWPORT_HEIGHT="${{ matrix.viewport-height }}"
           
           echo "Running Lighthouse audit for $DEVICE..."
-          mkdir -p .lighthouseci
+          echo "Working directory: $(pwd)"
           
           # Start Next.js server
           PORT=$PORT npm run start &
@@ -133,18 +133,23 @@ jobs:
           cleanup
           trap - EXIT
           
-          # Verify reports were generated
+          # Verify and copy reports
           echo "Checking for generated reports..."
           ls -la .lighthouseci/ || echo "No .lighthouseci directory found"
           
-          JSON_COUNT=$(find .lighthouseci -name "*.json" -type f 2>/dev/null | wc -l)
+          # Create output directory and copy reports
+          mkdir -p lighthouse-reports
+          if [ -d .lighthouseci ]; then
+            cp -r .lighthouseci/* lighthouse-reports/ 2>/dev/null || true
+            echo "Copied reports to lighthouse-reports/"
+            ls -la lighthouse-reports/
+          fi
+          
+          JSON_COUNT=$(find lighthouse-reports -name "*.json" -type f 2>/dev/null | wc -l)
           if [ "$JSON_COUNT" -gt 0 ]; then
             echo "✓ Lighthouse $DEVICE audit completed successfully! Found $JSON_COUNT JSON report(s)"
-            echo "Files found:"
-            find .lighthouseci -name "*.json" -type f
           else
             echo "⚠ Warning: No JSON reports found for $DEVICE"
-            echo "This step will continue to allow artifact upload debugging"
           fi
 
       - name: Debug - Check files before upload
@@ -152,17 +157,17 @@ jobs:
         run: |
           echo "Current directory:"
           pwd
-          echo "Checking .lighthouseci directory:"
-          ls -la .lighthouseci/ || echo "Directory not found"
+          echo "Checking lighthouse-reports directory:"
+          ls -la lighthouse-reports/ || echo "Directory not found"
           echo "Finding JSON files:"
-          find . -name "*.json" -path "*/.lighthouseci/*" || echo "No JSON files found"
+          find lighthouse-reports -name "*.json" -type f 2>/dev/null || echo "No JSON files found"
 
       - name: Upload Lighthouse report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-${{ matrix.device }}
-          path: .lighthouseci/
+          path: lighthouse-reports/
           retention-days: 7
           if-no-files-found: warn
 
