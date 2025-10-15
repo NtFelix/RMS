@@ -1935,12 +1935,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <div className="flex h-full overflow-hidden">
             {/* Vertical Tab-Style Sidebar with Animated Indicators */}
             <nav className={cn(
-              "flex flex-col bg-gradient-to-b from-background via-muted/5 to-background relative border-r border-border/50",
+              "flex flex-col bg-background relative border-r border-border/50",
               "transition-all duration-500 ease-out",
               isSidebarCollapsed ? "w-20" : "w-60"
             )}>
               {/* Animated Background Accent */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none" />
               
               {/* Floating Toggle Pill */}
               <div className={cn(
