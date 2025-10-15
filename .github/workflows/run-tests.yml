@@ -506,12 +506,19 @@ jobs:
           EOF
             )
             
-            # Send to Discord
-            curl -H "Content-Type: application/json" \
-                 -d "$DISCORD_EMBED" \
-                 "${{ secrets.DISCORD_WEBHOOK_URL }}"
+            # Send to Discord (only if webhook URL is configured)
+            DISCORD_WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_URL }}"
             
-            echo "Discord notification sent - Title: $NOTIFICATION_TITLE"
+            if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+              echo "Sending Discord notification..."
+              curl -H "Content-Type: application/json" \
+                   -d "$DISCORD_EMBED" \
+                   "$DISCORD_WEBHOOK_URL" || echo "Failed to send Discord notification"
+              
+              echo "Discord notification sent - Title: $NOTIFICATION_TITLE"
+            else
+              echo "Discord webhook URL not configured - skipping notification"
+            fi
           else
             echo "No tests found - no Discord notification sent"
           fi
