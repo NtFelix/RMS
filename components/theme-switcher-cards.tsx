@@ -110,7 +110,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme])
 
-  const handleThemeChange = (value: string) => {
+  const handleThemeChange = (value: typeof themeOptions[number]['value']) => {
     setTheme(value)
     const selectedTheme = themeOptions.find(opt => opt.value === value)
     if (selectedTheme) {
