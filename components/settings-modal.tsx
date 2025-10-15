@@ -1932,15 +1932,15 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
           </DialogHeader>
           
-          <div className="flex h-full overflow-hidden">
+          <div className="flex h-full overflow-hidden p-6">
             {/* Vertical Tab-Style Sidebar with Animated Indicators */}
             <nav className={cn(
-              "flex flex-col bg-background relative border-r border-border/50",
+              "flex flex-col bg-background relative border-r border-border/50 rounded-2xl",
               "transition-all duration-500 ease-out",
               isSidebarCollapsed ? "w-20" : "w-60"
             )}>
               {/* Animated Background Accent */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none rounded-2xl" />
               
               {/* Floating Toggle Pill */}
               <div className={cn(
@@ -2076,7 +2076,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             
             {/* Content area with enhanced scrolling */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto py-4 px-6">
+              <div className="flex-1 overflow-y-auto px-6">
                 <div className="max-w-3xl">
                   {tabs.find(tab => tab.value === activeTab)?.content}
                 </div>
