@@ -1988,7 +1988,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               {/* Vertical Tabs - Pill Shaped */}
               <div className={cn(
                 "relative flex-1 pb-3",
-                isSidebarCollapsed ? "px-2" : "pl-2 pr-4"
+                isSidebarCollapsed ? "px-2" : "pl-2 pr-5"
               )}>
                 <div className="space-y-2">
                   {tabs.map((tab, index) => {
