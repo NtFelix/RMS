@@ -1,372 +1,395 @@
 name: Lighthouse CI
 
 on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
   workflow_dispatch:  # Allows manual triggering from the Actions tab
 
-# Set a timeout for the entire job (in minutes)
 jobs:
-  lighthouse:
-    name: Lighthouse Audit
+  build:
+    name: Build Application
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    outputs:
+      build-cache-key: ${{ steps.build-cache-key.outputs.cache-key }}
+      should-run-lighthouse: ${{ steps.check-trigger.outputs.should-run }}
     
-    # GitHub Token Permissions for PR comments
+    steps:
+      - name: Check if Lighthouse should run
+        id: check-trigger
+        run: |
+          # Run Lighthouse on:
+          # 1. PR opened/reopened (not on every push to PR)
+          # 2. Push to main (merge)
+          # 3. Manual workflow dispatch
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "Reason: Manual trigger"
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "Reason: Push to main"
+          elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "Reason: PR opened/reopened"
+          else
+            echo "should-run=false" >> $GITHUB_OUTPUT
+            echo "Reason: Regular PR update - skipping Lighthouse"
+          fi
+    
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate build cache key
+        id: build-cache-key
+        run: |
+          # Create a hash of all files that affect the build
+          BUILD_HASH=$(find app components lib hooks types utils public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" -o -name "*.json" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
+          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json', 'tailwind.config.ts') }}"
+          CACHE_KEY="build-${BUILD_HASH}-${PACKAGE_HASH}"
+          echo "cache-key=${CACHE_KEY}" >> $GITHUB_OUTPUT
+          echo "Build cache key: ${CACHE_KEY}"
+
+      - name: Restore build cache
+        id: restore-build-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .next
+          key: ${{ steps.build-cache-key.outputs.cache-key }}
+          restore-keys: |
+            build-
+
+      - name: Cache node_modules
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        if: steps.restore-build-cache.outputs.cache-hit != 'true' && steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
+
+      - name: Build application
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
+        run: npm run build
+
+      - name: Save build cache
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .next
+          key: ${{ steps.build-cache-key.outputs.cache-key }}
+
+      - name: Build status
+        run: |
+          if [ "${{ steps.restore-build-cache.outputs.cache-hit }}" == "true" ]; then
+            echo "✓ Build restored from cache"
+          else
+            echo "✓ Build completed and cached"
+          fi
+
+  lighthouse:
+    name: Lighthouse Audit (${{ matrix.device }})
+    runs-on: ubuntu-latest
+    needs: build
+    if: needs.build.outputs.should-run-lighthouse == 'true'
+    timeout-minutes: 10
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [mobile, desktop, tablet]
+        include:
+          - device: mobile
+            form-factor: mobile
+            port: 3001
+          - device: desktop
+            form-factor: desktop
+            port: 3002
+          - device: tablet
+            form-factor: mobile
+            port: 3003
+            viewport-width: 768
+            viewport-height: 1024
+    
     permissions:
-      contents: read           # Read repository content
-      pull-requests: write     # Create PR comments
-      issues: write            # PRs are technically issues
-      checks: write           # Set check status
+      contents: read
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Cache Node.js dependencies and build outputs
-      - name: Cache Node.js modules
-        id: cache-node-modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-            ~/.cache
-            node_modules
-            .next/cache
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      # Setup Node.js with caching
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
 
-      # Install dependencies and tools
-      - name: Install dependencies
-        run: |
-          # Install project dependencies
-          if [ -f yarn.lock ]; then
-            yarn install --frozen-lockfile --prefer-offline
-          else
-            npm ci --prefer-offline
-          fi
-          
-          # Install Lighthouse CI and wait-on as dev dependencies
-          npm install --save-dev @lhci/cli wait-on
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
 
-      # Build the application
-      - name: Build application
-        run: npm run build
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .next
+          key: ${{ needs.build.outputs.build-cache-key }}
+          restore-keys: |
+            build-
+          fail-on-cache-miss: true
 
-      # Run Lighthouse audits
-      - name: Run Lighthouse audits
+      - name: Install Lighthouse CI tools
+        run: npm install --no-save @lhci/cli wait-on
+
+      - name: Run Lighthouse audit
         id: lighthouse
-        timeout-minutes: 12
+        timeout-minutes: 8
         run: |
-          # Create output directories
-          mkdir -p .lighthouseci/mobile .lighthouseci/desktop
+          DEVICE="${{ matrix.device }}"
+          FORM_FACTOR="${{ matrix.form-factor }}"
+          PORT="${{ matrix.port }}"
+          VIEWPORT_WIDTH="${{ matrix.viewport-width }}"
+          VIEWPORT_HEIGHT="${{ matrix.viewport-height }}"
           
-          # Function to kill all processes on a specific port
-          kill_port_processes() {
-            local port=$1
-            echo "Cleaning up processes on port $port..."
-            
-            # Find and kill processes using the port
-            lsof -ti:$port | xargs -r kill -9 2>/dev/null || true
-            
-            # Wait a moment for processes to terminate
+          echo "Running Lighthouse audit for $DEVICE..."
+          echo "Working directory: $(pwd)"
+          
+          # Start Next.js server
+          PORT=$PORT npm run start &
+          APP_PID=$!
+          
+          # Cleanup function
+          cleanup() {
+            echo "Cleaning up server (PID: $APP_PID)..."
+            kill -TERM $APP_PID 2>/dev/null || true
             sleep 2
-            
-            # Double-check that port is free
-            if lsof -i:$port >/dev/null 2>&1; then
-              echo "Warning: Port $port still in use after cleanup"
-              lsof -i:$port
-            else
-              echo "Port $port successfully freed"
-            fi
+            kill -KILL $APP_PID 2>/dev/null || true
+            wait $APP_PID 2>/dev/null || true
           }
+          trap cleanup EXIT
           
-          # Function to run Lighthouse and handle errors
-          run_lighthouse() {
-            local form_factor=$1
-            local port=$2
-            local output_dir=".lighthouseci/$form_factor"
-            local max_attempts=3
-            local attempt=1
-            local success=false
-            
-            echo "Starting Lighthouse $form_factor audit on port $port..."
-            
-            while [ $attempt -le $max_attempts ] && [ "$success" = false ]; do
-              echo "Running Lighthouse $form_factor audit (attempt $attempt/$max_attempts)..."
-              
-              # Clean up any existing processes on the port first
-              kill_port_processes $port
-              
-              # Start Next.js server in background with custom port
-              echo "Starting Next.js server on port $port..."
-              PORT=$port npm run start &
-              APP_PID=$!
-              
-              # Function to cleanup this specific run
-              cleanup() {
-                echo "Cleaning up Lighthouse $form_factor test (PID: $APP_PID)..."
-                
-                # Kill the specific process
-                if [ -n "$APP_PID" ] && kill -0 $APP_PID 2>/dev/null; then
-                  echo "Stopping Next.js server (PID: $APP_PID)..."
-                  kill -TERM $APP_PID 2>/dev/null || true
-                  
-                  # Wait for graceful shutdown
-                  sleep 3
-                  
-                  # Force kill if still running
-                  if kill -0 $APP_PID 2>/dev/null; then
-                    echo "Force killing server (PID: $APP_PID)..."
-                    kill -KILL $APP_PID 2>/dev/null || true
-                  fi
-                  
-                  wait $APP_PID 2>/dev/null || true
-                fi
-                
-                # Clean up any remaining processes on the port
-                kill_port_processes $port
-              }
-              
-              # Ensure cleanup happens on script exit or error
-              trap cleanup EXIT
-              
-              # Wait for server to be ready with custom port
-              echo "Waiting for server to be ready on http://localhost:$port..."
-              if npx wait-on --timeout 90000 http://localhost:$port; then
-                echo "Server is ready, starting Lighthouse audit..."
-                
-                # Run Lighthouse with custom port
-                if npx lhci collect \
-                  --url=http://localhost:$port \
-                  --settings.emulatedFormFactor=$form_factor \
-                  --settings.maxWaitForLoad=90000 \
-                  --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage" \
-                  --no-upload; then
-                  
-                  # Move reports to appropriate directory
-                  if ls .lighthouseci/lhr-*.json 1> /dev/null 2>&1; then
-                    mv .lighthouseci/lhr-*.json "$output_dir/"
-                    success=true
-                    echo "Lighthouse $form_factor audit completed successfully"
-                  else
-                    echo "Warning: No Lighthouse reports were generated"
-                  fi
-                else
-                  echo "Lighthouse $form_factor audit failed (attempt $attempt/$max_attempts)"
-                fi
-              else
-                echo "Error: Application failed to start within timeout on port $port"
-              fi
-              
-              # Cleanup and increment attempt counter
-              cleanup
-              trap - EXIT  # Remove the trap
-              
-              attempt=$((attempt + 1))
-              
-              # Small delay between retries
-              if [ $attempt -le $max_attempts ] && [ "$success" = false ]; then
-                echo "Retrying in 5 seconds..."
-                sleep 5
-              fi
-            done
-            
-            if [ "$success" = false ]; then
-              echo "Error: Failed to complete Lighthouse $form_factor audit after $max_attempts attempts"
-              return 1
-            fi
-          }
+          # Wait for server
+          echo "Waiting for server on http://localhost:$PORT..."
+          npx wait-on --timeout 60000 http://localhost:$PORT
           
-          # Run audits for mobile and desktop on different ports to avoid conflicts
-          run_lighthouse mobile 3001
-          run_lighthouse desktop 3002
-          
-          # Verify reports were generated
-          if [ -z "$(find .lighthouseci -name '*.json' -print -quit)" ]; then
-            echo "Error: No Lighthouse reports were generated"
-            exit 1
+          # Build Lighthouse settings
+          SETTINGS="--settings.emulatedFormFactor=$FORM_FACTOR"
+          if [ -n "$VIEWPORT_WIDTH" ]; then
+            SETTINGS="$SETTINGS --settings.screenEmulation.width=$VIEWPORT_WIDTH --settings.screenEmulation.height=$VIEWPORT_HEIGHT"
           fi
           
-          echo "All Lighthouse audits completed successfully!"
+          # Run Lighthouse
+          npx lhci collect \
+            --url=http://localhost:$PORT \
+            $SETTINGS \
+            --settings.maxWaitForLoad=60000 \
+            --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage" \
+            --no-upload
+          
+          cleanup
+          trap - EXIT
+          
+          # Verify and copy reports
+          echo "Checking for generated reports..."
+          ls -la .lighthouseci/ || echo "No .lighthouseci directory found"
+          
+          # Create output directory and copy reports
+          mkdir -p lighthouse-reports
+          if [ -d .lighthouseci ]; then
+            cp -r .lighthouseci/* lighthouse-reports/ 2>/dev/null || true
+            echo "Copied reports to lighthouse-reports/"
+            ls -la lighthouse-reports/
+          fi
+          
+          JSON_COUNT=$(find lighthouse-reports -name "*.json" -type f 2>/dev/null | wc -l)
+          if [ "$JSON_COUNT" -gt 0 ]; then
+            echo "✓ Lighthouse $DEVICE audit completed successfully! Found $JSON_COUNT JSON report(s)"
+          else
+            echo "⚠ Warning: No JSON reports found for $DEVICE"
+          fi
 
-      # Upload results as artifacts
-      - name: Upload Lighthouse reports
+      - name: Debug - Check files before upload
+        if: always()
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Checking lighthouse-reports directory:"
+          ls -la lighthouse-reports/ || echo "Directory not found"
+          echo "Finding JSON files:"
+          find lighthouse-reports -name "*.json" -type f 2>/dev/null || echo "No JSON files found"
+
+      - name: Upload Lighthouse report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lighthouse-reports
-          path: |
-            .lighthouseci/mobile
-            .lighthouseci/desktop
+          name: lighthouse-${{ matrix.device }}
+          path: lighthouse-reports/
           retention-days: 7
           if-no-files-found: warn
 
-      # Add a comment to the PR with the results (for PRs)
-      - name: Add PR comment with results
-        if: github.event_name == 'pull_request' && always()
+  report:
+    name: Generate Report
+    runs-on: ubuntu-latest
+    needs: [build, lighthouse]
+    if: always() && needs.build.outputs.should-run-lighthouse == 'true'
+    timeout-minutes: 5
+    
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: lighthouse-results
+
+      - name: Generate PR comment
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs').promises;
+            const path = require('path');
             
-            try { // Read and process Lighthouse reports
-              const processReport = async (reportPath) => {
-                try {
-                  const files = await fs.readdir(reportPath);
-                  const jsonFiles = files.filter(file => file.endsWith('.json'));
-                  
-                  if (jsonFiles.length === 0) return null;
-                  
-                  const report = JSON.parse(await fs.readFile(`${reportPath}/${jsonFiles[0]}`, 'utf8'));
-                  const { categories } = report;
-                  
-                  return Object.entries(categories).map(([key, value]) => ({
-                    name: value.title,
-                    score: Math.round(value.score * 100)
-                  }));
-                } catch (error) {
-                  core.warning(`Failed to process report at ${reportPath}: ${error.message}`);
+            const getScoreEmoji = (score) => {
+              if (score >= 90) return '🟢';
+              if (score >= 75) return '🟡';
+              return '🔴';
+            };
+            
+            const processDevice = async (device) => {
+              try {
+                const dir = `lighthouse-results/lighthouse-${device}`;
+                const allFiles = await fs.readdir(dir, { recursive: true });
+                const jsonFile = allFiles.find(f => f.endsWith('.json') && f.includes('lhr-'));
+                
+                if (!jsonFile) {
+                  console.log(`No JSON file found for ${device}. Files:`, allFiles);
                   return null;
                 }
-              };
-              
-              const mobileScores = await processReport('.lighthouseci/mobile');
-              const desktopScores = await processReport('.lighthouseci/desktop');
-              
-              if (!mobileScores && !desktopScores) {
-                core.warning('No valid Lighthouse reports found');
-                return;
+                
+                const report = JSON.parse(await fs.readFile(path.join(dir, jsonFile), 'utf8'));
+                const categories = report.categories;
+                
+                return {
+                  performance: Math.round(categories.performance.score * 100),
+                  accessibility: Math.round(categories.accessibility.score * 100),
+                  bestPractices: Math.round(categories['best-practices'].score * 100),
+                  seo: Math.round(categories.seo.score * 100)
+                };
+              } catch (error) {
+                console.log(`No data for ${device}: ${error.message}`);
+                return null;
               }
-              
-              const formatScores = (scores) => {
-                if (!scores) return '❌ No data';
-                return scores.map(s => `${s.name}: ${s.score}%`).join(' | ');
-              };
-              
-              // Build the comment using string concatenation to avoid YAML parsing issues
-              const comment = '## ⚡ Lighthouse Audit Results\n\n### 📱 Mobile\n' + 
-                formatScores(mobileScores) + 
-                '\n\n### 🖥️ Desktop\n' + 
-                formatScores(desktopScores) + 
-                '\n\n[View full report](' + 
-                process.env.GITHUB_SERVER_URL + '/' + 
-                process.env.GITHUB_REPOSITORY + 
-                '/actions/runs/' + 
-                process.env.GITHUB_RUN_ID + 
-                ')';
-              
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
-              
-              console.log('Successfully posted Lighthouse results to PR');
-            } catch (error) {
-              core.warning(`Failed to create PR comment: ${error.message}`);
-            }
+            };
+            
+            const [mobile, desktop, tablet] = await Promise.all([
+              processDevice('mobile'),
+              processDevice('desktop'),
+              processDevice('tablet')
+            ]);
+            
+            const formatRow = (device, scores) => {
+              if (!scores) return `| ${device} | ❌ No data | - | - | - |`;
+              return `| ${device} | ${getScoreEmoji(scores.performance)} ${scores.performance} | ${getScoreEmoji(scores.accessibility)} ${scores.accessibility} | ${getScoreEmoji(scores.bestPractices)} ${scores.bestPractices} | ${getScoreEmoji(scores.seo)} ${scores.seo} |`;
+            };
+            
+            const comment = [
+              '## ⚡ Lighthouse Audit Results',
+              '',
+              '| Device | Performance | Accessibility | Best Practices | SEO |',
+              '|--------|-------------|---------------|----------------|-----|',
+              formatRow('📱 Mobile', mobile),
+              formatRow('🖥️ Desktop', desktop),
+              formatRow('📱 Tablet', tablet),
+              '',
+              '**Legend:** 🟢 90+ | 🟡 75-89 | 🔴 <75',
+              '',
+              `[View detailed reports](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
+            ].join('\n');
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
 
-      # Add results to Actions Summary (runs for all events)
-      - name: Display Lighthouse Results Summary
+      - name: Generate Actions Summary
         if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs').promises;
+            const path = require('path');
             
-            try {
-              const processReport = async (reportPath) => {
-                try {
-                  const files = await fs.readdir(reportPath);
-                  const jsonFiles = files.filter(file => file.endsWith('.json'));
-                  
-                  if (jsonFiles.length === 0) return null;
-                  
-                  const report = JSON.parse(await fs.readFile(`${reportPath}/${jsonFiles[0]}`, 'utf8'));
-                  const { categories } = report;
-                  
-                  return Object.entries(categories).map(([key, value]) => ({
-                    name: value.title,
-                    score: Math.round(value.score * 100)
-                  }));
-                } catch (error) {
-                  core.warning(`Failed to process report at ${reportPath}: ${error.message}`);
+            const getScoreEmoji = (score) => {
+              if (score >= 90) return '🟢';
+              if (score >= 75) return '🟡';
+              return '🔴';
+            };
+            
+            const processDevice = async (device) => {
+              try {
+                const dir = `lighthouse-results/lighthouse-${device}`;
+                const allFiles = await fs.readdir(dir, { recursive: true });
+                const jsonFile = allFiles.find(f => f.endsWith('.json') && f.includes('lhr-'));
+                
+                if (!jsonFile) {
+                  console.log(`No JSON file found for ${device}. Files:`, allFiles);
                   return null;
                 }
-              };
-              
-              const mobileScores = await processReport('.lighthouseci/mobile');
-              const desktopScores = await processReport('.lighthouseci/desktop');
-              
-              if (!mobileScores && !desktopScores) {
-                core.warning('No valid Lighthouse reports found');
-                return;
-              }
-              
-              const formatScores = (scores) => {
-                if (!scores) return '❌ No data';
-                return scores.map(s => `**${s.name}:** ${s.score}%`).join(' • ');
-              };
-              
-              const getScoreEmoji = (score) => {
-                if (score >= 90) return '🟢';
-                if (score >= 75) return '🟡';
-                return '🔴';
-              };
-              
-              const formatScoresWithEmojis = (scores) => {
-                if (!scores) return '❌ No data';
-                return scores.map(s => `${getScoreEmoji(s.score)} **${s.name}:** ${s.score}%`).join('  \n');
-              };
-              
-              // Build Actions Summary
-              let summaryContent = '# ⚡ Lighthouse Audit Results\n\n';
-              
-              if (github.event_name === 'workflow_dispatch') {
-                summaryContent += '> 🎯 **Manual Run** • ';
-              } else {
-                summaryContent += '> 🔄 **Automatic Run** • ';
-              }
-              
-              summaryContent += `Branch: \` ${process.env.GITHUB_REF_NAME || 'unknown'}\`\n\n`;
-              
-              // Mobile Results
-              summaryContent += '## 📱 Mobile Results\n\n';
-              if (mobileScores) {
-                summaryContent += formatScoresWithEmojis(mobileScores) + '\n\n';
-              } else {
-                summaryContent += '❌ No mobile data available\n\n';
-              }
-              
-              // Desktop Results  
-              summaryContent += '## 🖥️ Desktop Results\n\n';
-              if (desktopScores) {
-                summaryContent += formatScoresWithEmojis(desktopScores) + '\n\n';
-              } else {
-                summaryContent += '❌ No desktop data available\n\n';
-              }
-              
-              // Artifacts Link
-              summaryContent += '## 📊 Detailed Reports\n\n';
-              summaryContent += `📁 **[Download Lighthouse Reports](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})**\n\n`;
-              
-              // Add timestamp
-              summaryContent += `---\n*Generated on ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} CET*`;
-              
-              await core.summary
-                .addRaw(summaryContent)
-                .write();
                 
-              console.log('Lighthouse results added to Actions Summary');
-            } catch (error) {
-              core.warning(`Failed to create summary: ${error.message}`);
-            }
+                const report = JSON.parse(await fs.readFile(path.join(dir, jsonFile), 'utf8'));
+                const categories = report.categories;
+                
+                return {
+                  performance: Math.round(categories.performance.score * 100),
+                  accessibility: Math.round(categories.accessibility.score * 100),
+                  bestPractices: Math.round(categories['best-practices'].score * 100),
+                  seo: Math.round(categories.seo.score * 100)
+                };
+              } catch (error) {
+                console.log(`No data for ${device}: ${error.message}`);
+                return null;
+              }
+            };
+            
+            const [mobile, desktop, tablet] = await Promise.all([
+              processDevice('mobile'),
+              processDevice('desktop'),
+              processDevice('tablet')
+            ]);
+            
+            const formatRow = (device, scores) => {
+              if (!scores) return `| ${device} | ❌ No data | - | - | - |`;
+              return `| ${device} | ${getScoreEmoji(scores.performance)} ${scores.performance} | ${getScoreEmoji(scores.accessibility)} ${scores.accessibility} | ${getScoreEmoji(scores.bestPractices)} ${scores.bestPractices} | ${getScoreEmoji(scores.seo)} ${scores.seo} |`;
+            };
+            
+            let summary = `# ⚡ Lighthouse Audit Results\n\n`;
+            summary += `> Branch: \`${process.env.GITHUB_REF_NAME}\` • Run: #${process.env.GITHUB_RUN_NUMBER}\n\n`;
+            summary += `| Device | Performance | Accessibility | Best Practices | SEO |\n`;
+            summary += `|--------|-------------|---------------|----------------|-----|\n`;
+            summary += `${formatRow('📱 Mobile', mobile)}\n`;
+            summary += `${formatRow('🖥️ Desktop', desktop)}\n`;
+            summary += `${formatRow('📱 Tablet', tablet)}\n\n`;
+            summary += `**Legend:** 🟢 90+ | 🟡 75-89 | 🔴 <75\n\n`;
+            summary += `---\n*Generated on ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} CET*`;
+            
+            await core.summary.addRaw(summary).write();
