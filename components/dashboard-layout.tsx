@@ -71,7 +71,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           <main className="flex flex-1 flex-col min-h-0 p-6 pt-6 md:pt-6 main-content-responsive responsive-transition prevent-layout-shift">
-            <div className="flex-1 overflow-y-auto rounded-2xl bg-white border shadow-sm mb-4 md:mb-0">
+            <div className="flex-1 overflow-y-auto rounded-2xl border shadow-sm mb-4 md:mb-0">
               <div className="p-6">
                 <div className="space-y-4">
                   <div className="h-8 bg-muted rounded animate-pulse" />
@@ -137,7 +137,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           isMobile ? "pb-20 pt-6" : "pb-6 pt-6"
         )}>
           <div className={cn(
-            "flex-1 overflow-y-auto bg-white dark:main-container border shadow-sm",
+            "flex-1 overflow-y-auto overflow-x-hidden border shadow-sm",
             "rounded-[2rem] md:rounded-[2.5rem]",
             // Enhanced CSS-only fallback for mobile bottom margin
             "mb-4 md:mb-0",

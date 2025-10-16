@@ -29,13 +29,13 @@ interface TreeNode {
 export function FileTreeView({ userId, className }: FileTreeViewProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([])
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['root']))
-  
-  const { 
-    currentPath, 
+
+  const {
+    currentPath,
     folders,
-    setFolders 
+    setFolders
   } = useCloudStorageStore()
-  
+
   // Helper function to get file count from cloud storage folders data
   const getFileCountFromStore = (path: string): number => {
     const folder = folders.find(f => f.path === path)
@@ -191,12 +191,12 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
       })
 
       // Add custom folders from the cloud storage store
-      const customFolders = folders.filter(folder => 
-        folder.type === 'storage' && 
+      const customFolders = folders.filter(folder =>
+        folder.type === 'storage' &&
         folder.path.startsWith(buildUserPath(userId)) &&
         folder.path.split('/').length === 2 // Only root level custom folders
       )
-      
+
       const customFolderNodes = customFolders.map(folder => ({
         id: `custom-${folder.name}`,
         name: folder.displayName || folder.name,
@@ -208,7 +208,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
         fileCount: folder.fileCount,
         isEmpty: folder.isEmpty
       }))
-      
+
       categories.push(...customFolderNodes)
 
       rootNode.children = categories
@@ -234,15 +234,15 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     const userPath = buildUserPath(userId)
     const relativePath = path.startsWith(userPath) ? path.substring(userPath.length + 1) : path
     const segments = relativePath.split('/').filter(Boolean)
-    
+
     if (segments.length > 0) {
       if (segments[0] === 'haeuser') {
-        breadcrumbs.push({ 
-          name: 'Häuser', 
-          path: buildUserPath(userId, 'haeuser'), 
-          type: 'category' 
+        breadcrumbs.push({
+          name: 'Häuser',
+          path: buildUserPath(userId, 'haeuser'),
+          type: 'category'
         })
-        
+
         if (segments.length > 1) {
           const house = houses.find(h => h.id === segments[1])
           if (house) {
@@ -251,7 +251,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
               path: buildHousePath(userId, house.id),
               type: 'house'
             })
-            
+
             if (segments.length > 2) {
               if (segments[2] === 'house_documents') {
                 breadcrumbs.push({
@@ -267,7 +267,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
                     path: buildApartmentPath(userId, house.id, apartment.id),
                     type: 'apartment'
                   })
-                  
+
                   if (segments.length > 3) {
                     if (segments[3] === 'apartment_documents') {
                       breadcrumbs.push({
@@ -372,7 +372,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
             </button>
           )}
           {!hasChildren && <div className="w-4 mr-1" />}
-          
+
           <Icon className={cn(
             "h-4 w-4 mr-2 flex-shrink-0",
             node.type === 'house' && "text-blue-500",
@@ -381,22 +381,22 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
             node.type === 'category' && "text-orange-500",
             node.type === 'archive' && "text-gray-500"
           )} />
-          
+
           <span className="text-sm truncate flex-1">{node.name}</span>
-          
+
           {node.fileCount > 0 && (
             <span className="text-xs text-muted-foreground ml-2">
               {node.fileCount}
             </span>
           )}
-          
+
           {node.isEmpty && (
             <span className="text-xs text-muted-foreground ml-2">
               leer
             </span>
           )}
         </div>
-        
+
         {hasChildren && isExpanded && (
           <div>
             {node.children.map(child => renderTreeNode(child, level + 1))}
