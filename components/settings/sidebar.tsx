@@ -2,19 +2,12 @@
 
 import { cn } from "@/lib/utils"
 import { PanelLeft, PanelLeftClose } from "lucide-react"
-import { ReactNode } from "react"
-
-interface Tab {
-  value: string
-  label: string
-  icon: React.ElementType
-  content: ReactNode
-}
+import { Tab } from "@/types/settings"
 
 interface SettingsSidebarProps {
   isSidebarCollapsed: boolean
   onToggleSidebar: () => void
-  tabs: Tab[]
+  tabs: Omit<Tab, 'content'>[]
   activeTab: string
   onTabChange: (tab: string) => void
 }
