@@ -44,14 +44,14 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
   }, [openAufgabeModal, handleTaskUpdated]);
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-gray-50/50 dark:bg-[#181818]">
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div
         className="absolute inset-0 z-[-1]"
         style={{
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2.5rem]">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
           <div className="flex flex-row items-start justify-between">
             <div>
