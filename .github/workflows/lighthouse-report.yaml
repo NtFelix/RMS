@@ -286,7 +286,7 @@ jobs:
 
       - name: Generate PR comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -358,7 +358,7 @@ jobs:
 
       - name: Generate Actions Summary
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -422,7 +422,7 @@ jobs:
       - name: Prepare Discord notification
         if: always()
         id: prepare-discord
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
