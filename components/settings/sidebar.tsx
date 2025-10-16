@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils"
 import { PanelLeft, PanelLeftClose } from "lucide-react"
 import { Tab } from "@/types/settings"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
 interface SettingsSidebarProps {
   isSidebarCollapsed: boolean
@@ -87,13 +88,13 @@ export function SettingsSidebar({
                   "group relative overflow-hidden motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-out",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                   "motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-lg motion-safe:active:translate-y-0",
+                  isActive && "scale-[1.02]",
                   isSidebarCollapsed 
                     ? "h-11 w-11 rounded-full" 
                     : "w-full h-11 rounded-full"
                 )}
                 style={{
-                  animationDelay: isActive ? `${index * 50}ms` : '0ms',
-                  transform: isActive ? 'scale(1.02)' : 'scale(1)'
+                  animationDelay: isActive ? `${index * 50}ms` : '0ms'
                 }}
               >
                 {/* Animated Background Layer */}
@@ -155,26 +156,17 @@ export function SettingsSidebar({
                   )}
                 </div>
                 
-                {/* Tooltip for Collapsed - Shows on hover and focus */}
+                {/* HoverCard for Collapsed - Shows on hover and focus */}
                 {isSidebarCollapsed && (
-                  <div 
-                    className={cn(
-                      "absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50",
-                      "opacity-0 invisible",
-                      "motion-safe:group-hover:opacity-100 motion-safe:group-hover:visible",
-                      "motion-safe:group-focus-within:opacity-100 motion-safe:group-focus-within:visible",
-                      "motion-safe:transition-all motion-safe:duration-300",
-                      "motion-safe:group-hover:translate-x-1 motion-safe:group-focus-within:translate-x-1"
-                    )}
-                    role="tooltip"
-                  >
-                    <div className="relative">
-                      <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 bg-popover border-l border-t border-border" />
-                      <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-2xl shadow-2xl px-4 py-2 min-w-max">
-                        <p className="text-sm font-semibold text-popover-foreground">{tab.label}</p>
+                  <HoverCard openDelay={100} closeDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50">
+                        <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-2xl shadow-2xl px-4 py-2 min-w-max">
+                          <p className="text-sm font-semibold text-popover-foreground">{tab.label}</p>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    </HoverCardTrigger>
+                  </HoverCard>
                 )}
               </button>
             );
