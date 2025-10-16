@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils"
 import { PanelLeft, PanelLeftClose } from "lucide-react"
 import { Tab } from "@/types/settings"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
 interface SettingsSidebarProps {
   isSidebarCollapsed: boolean
@@ -155,19 +154,6 @@ export function SettingsSidebar({
                     </div>
                   )}
                 </div>
-                
-                {/* HoverCard for Collapsed - Shows on hover and focus */}
-                {isSidebarCollapsed && (
-                  <HoverCard openDelay={100} closeDelay={100}>
-                    <HoverCardTrigger asChild>
-                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50">
-                        <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-2xl shadow-2xl px-4 py-2 min-w-max">
-                          <p className="text-sm font-semibold text-popover-foreground">{tab.label}</p>
-                        </div>
-                      </div>
-                    </HoverCardTrigger>
-                  </HoverCard>
-                )}
               </button>
             );
           })}
