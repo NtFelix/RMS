@@ -1,6 +1,6 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "./ui/button"
 import {
   Dialog,
   DialogContent,
@@ -8,43 +8,44 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { AlertCircle, Trash2 } from "lucide-react"
+} from "./ui/dialog"
 
-export function DeleteConfirmationDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  itemCount = 0,
-  isFolder = false,
-}: {
-  open: boolean
+type DeleteConfirmationDialogProps = {
+  isOpen: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
+  title?: string
+  description?: string
+  confirmText?: string
+  cancelText?: string
   itemCount?: number
-  isFolder?: boolean
-}) {
-  const itemText = itemCount > 1 ? `${itemCount} ${isFolder ? 'Ordner' : 'Dateien'}` : isFolder ? 'diesen Ordner' : 'diese Datei'
-  
+}
+
+export function DeleteConfirmationDialog({
+  isOpen,
+  onOpenChange,
+  onConfirm,
+  title = "Löschen bestätigen",
+  description = "Sind Sie sicher, dass Sie die ausgewählten Elemente löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+  confirmText = "Löschen",
+  cancelText = "Abbrechen",
+  itemCount
+}: DeleteConfirmationDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent>
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-destructive" />
-            <DialogTitle>Löschen bestätigen</DialogTitle>
-          </div>
-          <DialogDescription className="pt-2">
-            Möchten Sie wirklich {itemText} unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+          <DialogTitle>
+            {title}
+          </DialogTitle>
+          <DialogDescription>
+            {itemCount ? `Sie haben ${itemCount} Element${itemCount > 1 ? 'e' : ''} zum Löschen ausgewählt. ` : ''}
+            {description}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="sm:justify-between">
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-            className="mt-2 sm:mt-0"
-          >
-            Abbrechen
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {cancelText}
           </Button>
           <Button 
             variant="destructive" 
@@ -52,10 +53,8 @@ export function DeleteConfirmationDialog({
               onConfirm()
               onOpenChange(false)
             }}
-            className="gap-2"
           >
-            <Trash2 className="h-4 w-4" />
-            Endgültig löschen
+            {confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

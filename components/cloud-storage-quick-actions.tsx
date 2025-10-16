@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { DeleteConfirmationDialog } from "./delete-confirmation-dialog"
 
 interface QuickActionsProps {
   onUpload: () => void
@@ -64,6 +65,7 @@ export function CloudStorageQuickActions({
   onBulkArchive
 }: QuickActionsProps) {
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const createFileEnabled = useFeatureFlagEnabled('create-file-option')
 
   const handleFilterChange = (filter: string) => {
@@ -234,10 +236,23 @@ export function CloudStorageQuickActions({
             )}
             
             {onBulkDelete && (
-              <Button variant="outline" size="sm" onClick={onBulkDelete} className="h-8 gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
-                <Trash2 className="h-4 w-4" />
-                Löschen
-              </Button>
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsDeleteDialogOpen(true)} 
+                  className="h-8 gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Löschen
+                </Button>
+                <DeleteConfirmationDialog
+                  isOpen={isDeleteDialogOpen}
+                  onOpenChange={setIsDeleteDialogOpen}
+                  onConfirm={onBulkDelete}
+                  itemCount={selectedCount}
+                />
+              </>
             )}
           </div>
         </div>
