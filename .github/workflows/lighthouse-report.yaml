@@ -152,8 +152,33 @@ jobs:
             build-
           fail-on-cache-miss: true
 
+      - name: Cache Lighthouse CI tools
+        id: cache-lighthouse-tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules/@lhci
+            node_modules/wait-on
+            node_modules/.bin/lhci
+            node_modules/.bin/wait-on
+          key: ${{ runner.os }}-lighthouse-tools-${{ hashFiles('**/package-lock.json') }}-v1
+          restore-keys: |
+            ${{ runner.os }}-lighthouse-tools-
+
       - name: Install Lighthouse CI tools
+        if: steps.cache-lighthouse-tools.outputs.cache-hit != 'true'
         run: npm install --no-save @lhci/cli wait-on
+
+      - name: Verify Lighthouse CI tools
+        run: |
+          if [ "${{ steps.cache-lighthouse-tools.outputs.cache-hit }}" == "true" ]; then
+            echo "✓ Lighthouse CI tools restored from cache"
+          else
+            echo "✓ Lighthouse CI tools installed"
+          fi
+          npx lhci --version
+          npx wait-on --version
 
       - name: Run Lighthouse audit
         id: lighthouse
@@ -393,3 +418,203 @@ jobs:
             summary += `---\n*Generated on ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} CET*`;
             
             await core.summary.addRaw(summary).write();
+
+      - name: Prepare Discord notification
+        if: always()
+        id: prepare-discord
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            const getScoreColor = (score) => {
+              if (score >= 90) return 0x00ff00; // Green
+              if (score >= 75) return 0xffff00; // Yellow
+              return 0xff0000; // Red
+            };
+            
+            const getScoreEmoji = (score) => {
+              if (score >= 90) return '🟢';
+              if (score >= 75) return '🟡';
+              return '🔴';
+            };
+            
+            const processDevice = async (device) => {
+              try {
+                const dir = `lighthouse-results/lighthouse-${device}`;
+                const allFiles = await fs.readdir(dir, { recursive: true });
+                const jsonFile = allFiles.find(f => f.endsWith('.json') && f.includes('lhr-'));
+                
+                if (!jsonFile) return null;
+                
+                const report = JSON.parse(await fs.readFile(path.join(dir, jsonFile), 'utf8'));
+                const categories = report.categories;
+                
+                return {
+                  performance: Math.round(categories.performance.score * 100),
+                  accessibility: Math.round(categories.accessibility.score * 100),
+                  bestPractices: Math.round(categories['best-practices'].score * 100),
+                  seo: Math.round(categories.seo.score * 100)
+                };
+              } catch (error) {
+                return null;
+              }
+            };
+            
+            const [mobile, desktop, tablet] = await Promise.all([
+              processDevice('mobile'),
+              processDevice('desktop'),
+              processDevice('tablet')
+            ]);
+            
+            // Calculate average performance score for embed color
+            const scores = [mobile, desktop, tablet].filter(s => s !== null);
+            const avgPerformance = scores.length > 0 
+              ? Math.round(scores.reduce((sum, s) => sum + s.performance, 0) / scores.length)
+              : 0;
+            
+            const formatField = (device, emoji, scores) => {
+              if (!scores) {
+                return {
+                  name: `${emoji} ${device}`,
+                  value: '❌ No data available',
+                  inline: true
+                };
+              }
+              return {
+                name: `${emoji} ${device}`,
+                value: [
+                  `${getScoreEmoji(scores.performance)} **Performance:** ${scores.performance}`,
+                  `${getScoreEmoji(scores.accessibility)} **Accessibility:** ${scores.accessibility}`,
+                  `${getScoreEmoji(scores.bestPractices)} **Best Practices:** ${scores.bestPractices}`,
+                  `${getScoreEmoji(scores.seo)} **SEO:** ${scores.seo}`
+                ].join('\n'),
+                inline: true
+              };
+            };
+            
+            const eventType = process.env.GITHUB_EVENT_NAME;
+            const branch = process.env.GITHUB_REF_NAME;
+            const runNumber = process.env.GITHUB_RUN_NUMBER;
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const repoUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`;
+            
+            let title = '⚡ Lighthouse Audit Results';
+            let description = `**Branch:** \`${branch}\`\n**Run:** #${runNumber}`;
+            
+            if (eventType === 'pull_request') {
+              const prNumber = context.payload.pull_request?.number;
+              const prUrl = context.payload.pull_request?.html_url;
+              title = `⚡ Lighthouse Audit - PR #${prNumber}`;
+              description = `**PR:** [#${prNumber}](${prUrl})\n**Branch:** \`${branch}\``;
+            } else if (eventType === 'push') {
+              title = '⚡ Lighthouse Audit - Push to Main';
+            } else if (eventType === 'workflow_dispatch') {
+              title = '⚡ Lighthouse Audit - Manual Run';
+            }
+            
+            const embed = {
+              title,
+              description,
+              color: getScoreColor(avgPerformance),
+              fields: [
+                formatField('Mobile', '📱', mobile),
+                formatField('Desktop', '🖥️', desktop),
+                formatField('Tablet', '📱', tablet),
+                {
+                  name: '📊 Legend',
+                  value: '🟢 Excellent (90+) • 🟡 Good (75-89) • 🔴 Needs Work (<75)',
+                  inline: false
+                },
+                {
+                  name: '🔗 Links',
+                  value: `[View Full Report](${runUrl}) • [Repository](${repoUrl})`,
+                  inline: false
+                }
+              ],
+              timestamp: new Date().toISOString(),
+              footer: {
+                text: 'Lighthouse CI',
+                icon_url: 'https://raw.githubusercontent.com/GoogleChrome/lighthouse/main/assets/lighthouse-logo.png'
+              }
+            };
+            
+            await fs.writeFile('discord-payload.json', JSON.stringify({ embeds: [embed] }));
+            console.log('Discord payload prepared');
+
+      - name: Send Discord notification
+        if: always()
+        run: |
+          # Send the embed
+          curl -H "Content-Type: application/json" \
+            -d @discord-payload.json \
+            https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
+          
+          echo "Discord notification sent successfully"
+
+      - name: Create individual device zip files
+        if: always()
+        run: |
+          cd lighthouse-results
+          
+          # Create separate zip files for each device
+          for device in mobile desktop tablet; do
+            if [ -d "lighthouse-${device}" ]; then
+              echo "Creating zip for ${device}..."
+              cd "lighthouse-${device}"
+              zip -r "../../lighthouse-${device}-report.zip" . -i "*.json" "*.html" 2>/dev/null || true
+              cd ..
+              
+              if [ -f "../lighthouse-${device}-report.zip" ] && [ -s "../lighthouse-${device}-report.zip" ]; then
+                echo "✓ Created lighthouse-${device}-report.zip"
+              else
+                echo "⚠ Warning: Failed to create zip for ${device}"
+              fi
+            else
+              echo "⚠ Warning: No reports found for ${device}"
+            fi
+          done
+          
+          cd ..
+          echo "Listing created zip files:"
+          ls -lh lighthouse-*-report.zip 2>/dev/null || echo "No zip files created"
+
+      - name: Upload Mobile reports to Discord
+        if: always()
+        run: |
+          if [ -f lighthouse-mobile-report.zip ] && [ -s lighthouse-mobile-report.zip ]; then
+            echo "Uploading Mobile Lighthouse reports to Discord..."
+            curl -F "file=@lighthouse-mobile-report.zip" \
+              -F "content=📱 **Mobile Lighthouse Report** - Detailed analysis for mobile devices" \
+              https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
+            echo "✓ Mobile reports uploaded"
+          else
+            echo "⚠ No mobile reports to upload"
+          fi
+
+      - name: Upload Desktop reports to Discord
+        if: always()
+        run: |
+          if [ -f lighthouse-desktop-report.zip ] && [ -s lighthouse-desktop-report.zip ]; then
+            echo "Uploading Desktop Lighthouse reports to Discord..."
+            curl -F "file=@lighthouse-desktop-report.zip" \
+              -F "content=🖥️ **Desktop Lighthouse Report** - Detailed analysis for desktop devices" \
+              https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
+            echo "✓ Desktop reports uploaded"
+          else
+            echo "⚠ No desktop reports to upload"
+          fi
+
+      - name: Upload Tablet reports to Discord
+        if: always()
+        run: |
+          if [ -f lighthouse-tablet-report.zip ] && [ -s lighthouse-tablet-report.zip ]; then
+            echo "Uploading Tablet Lighthouse reports to Discord..."
+            curl -F "file=@lighthouse-tablet-report.zip" \
+              -F "content=📱 **Tablet Lighthouse Report** - Detailed analysis for tablet devices" \
+              https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
+            echo "✓ Tablet reports uploaded"
+          else
+            echo "⚠ No tablet reports to upload"
+          fi
