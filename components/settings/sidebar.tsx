@@ -127,8 +127,7 @@ export function SettingsSidebar({
                       <div className="absolute inset-0 bg-primary-foreground/30 blur-lg rounded-full motion-safe:animate-pulse motion-reduce:animate-none" />
                     )}
                     <div className={cn(
-                      "relative flex items-center justify-center rounded-full motion-safe:transition-all motion-safe:duration-500",
-                      isSidebarCollapsed ? "h-7 w-7" : "h-7 w-7",
+                      "relative flex items-center justify-center rounded-full motion-safe:transition-all motion-safe:duration-500 h-7 w-7",
                       isActive
                         ? "bg-primary-foreground/20 shadow-lg motion-safe:scale-110"
                         : "bg-background/50 motion-safe:group-hover:bg-background/80 motion-safe:group-hover:scale-110"
