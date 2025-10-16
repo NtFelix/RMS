@@ -152,8 +152,33 @@ jobs:
             build-
           fail-on-cache-miss: true
 
+      - name: Cache Lighthouse CI tools
+        id: cache-lighthouse-tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules/@lhci
+            node_modules/wait-on
+            node_modules/.bin/lhci
+            node_modules/.bin/wait-on
+          key: ${{ runner.os }}-lighthouse-tools-${{ hashFiles('**/package-lock.json') }}-v1
+          restore-keys: |
+            ${{ runner.os }}-lighthouse-tools-
+
       - name: Install Lighthouse CI tools
+        if: steps.cache-lighthouse-tools.outputs.cache-hit != 'true'
         run: npm install --no-save @lhci/cli wait-on
+
+      - name: Verify Lighthouse CI tools
+        run: |
+          if [ "${{ steps.cache-lighthouse-tools.outputs.cache-hit }}" == "true" ]; then
+            echo "✓ Lighthouse CI tools restored from cache"
+          else
+            echo "✓ Lighthouse CI tools installed"
+          fi
+          npx lhci --version
+          npx wait-on --version
 
       - name: Run Lighthouse audit
         id: lighthouse
@@ -528,24 +553,68 @@ jobs:
           
           echo "Discord notification sent successfully"
 
-      - name: Upload Lighthouse reports to Discord
+      - name: Create individual device zip files
         if: always()
         run: |
-          # Create a zip file with all reports
           cd lighthouse-results
-          zip -r ../lighthouse-reports.zip . -i "*.json" "*.html" 2>/dev/null || true
-          cd ..
           
-          # Check if zip file was created and has content
-          if [ -f lighthouse-reports.zip ] && [ -s lighthouse-reports.zip ]; then
-            echo "Uploading Lighthouse reports to Discord..."
-            
-            # Upload the zip file
-            curl -F "file=@lighthouse-reports.zip" \
-              -F "content=📦 **Lighthouse Report Artifacts** - Full reports attached" \
+          # Create separate zip files for each device
+          for device in mobile desktop tablet; do
+            if [ -d "lighthouse-${device}" ]; then
+              echo "Creating zip for ${device}..."
+              cd "lighthouse-${device}"
+              zip -r "../../lighthouse-${device}-report.zip" . -i "*.json" "*.html" 2>/dev/null || true
+              cd ..
+              
+              if [ -f "../lighthouse-${device}-report.zip" ] && [ -s "../lighthouse-${device}-report.zip" ]; then
+                echo "✓ Created lighthouse-${device}-report.zip"
+              else
+                echo "⚠ Warning: Failed to create zip for ${device}"
+              fi
+            else
+              echo "⚠ Warning: No reports found for ${device}"
+            fi
+          done
+          
+          cd ..
+          echo "Listing created zip files:"
+          ls -lh lighthouse-*-report.zip 2>/dev/null || echo "No zip files created"
+
+      - name: Upload Mobile reports to Discord
+        if: always()
+        run: |
+          if [ -f lighthouse-mobile-report.zip ] && [ -s lighthouse-mobile-report.zip ]; then
+            echo "Uploading Mobile Lighthouse reports to Discord..."
+            curl -F "file=@lighthouse-mobile-report.zip" \
+              -F "content=📱 **Mobile Lighthouse Report** - Detailed analysis for mobile devices" \
               https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
-            
-            echo "Reports uploaded successfully"
+            echo "✓ Mobile reports uploaded"
           else
-            echo "No reports to upload or zip file is empty"
+            echo "⚠ No mobile reports to upload"
+          fi
+
+      - name: Upload Desktop reports to Discord
+        if: always()
+        run: |
+          if [ -f lighthouse-desktop-report.zip ] && [ -s lighthouse-desktop-report.zip ]; then
+            echo "Uploading Desktop Lighthouse reports to Discord..."
+            curl -F "file=@lighthouse-desktop-report.zip" \
+              -F "content=🖥️ **Desktop Lighthouse Report** - Detailed analysis for desktop devices" \
+              https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
+            echo "✓ Desktop reports uploaded"
+          else
+            echo "⚠ No desktop reports to upload"
+          fi
+
+      - name: Upload Tablet reports to Discord
+        if: always()
+        run: |
+          if [ -f lighthouse-tablet-report.zip ] && [ -s lighthouse-tablet-report.zip ]; then
+            echo "Uploading Tablet Lighthouse reports to Discord..."
+            curl -F "file=@lighthouse-tablet-report.zip" \
+              -F "content=📱 **Tablet Lighthouse Report** - Detailed analysis for tablet devices" \
+              https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
+            echo "✓ Tablet reports uploaded"
+          else
+            echo "⚠ No tablet reports to upload"
           fi
