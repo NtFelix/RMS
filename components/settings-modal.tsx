@@ -28,7 +28,8 @@ import {
   PanelLeft,
   PanelLeftClose
 } from "lucide-react";
-import { SettingsSidebar } from "./settings/sidebar";
+import { SettingsSidebar } from "./settings/sidebar"
+import type { Tab } from "@/types/settings"
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -90,7 +91,6 @@ const stripePromise = loadStripe(
 // No separate import for lucide-react here as it's handled above
 
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
-type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
 
 // Enhanced card component for consistent styling
 const SettingsCard = ({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
