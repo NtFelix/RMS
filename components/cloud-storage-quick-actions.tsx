@@ -234,7 +234,7 @@ export function CloudStorageQuickActions({
             )}
             
             {onBulkDelete && (
-              <Button variant="outline" size="sm" onClick={onBulkDelete} className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950">
+              <Button variant="outline" size="sm" onClick={onBulkDelete} className="h-8 gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
                 <Trash2 className="h-4 w-4" />
                 Löschen
               </Button>
