@@ -24,8 +24,12 @@ import {
   CheckCircle2, 
   AlertCircle,
   Circle,
-  CheckCircle 
+  CheckCircle,
+  PanelLeft,
+  PanelLeftClose
 } from "lucide-react";
+import { SettingsSidebar } from "./settings/sidebar"
+import type { Tab } from "@/types/settings"
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -87,7 +91,6 @@ const stripePromise = loadStripe(
 // No separate import for lucide-react here as it's handled above
 
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
-type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
 
 // Enhanced card component for consistent styling
 const SettingsCard = ({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -130,6 +133,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<string>("profile")
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false)
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
   const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0"); // Initialize with updated hardcoded version
@@ -1878,7 +1882,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     },
     {
       value: "information",
-      label: "Informationen",
+      label: "Mietfluss",
       icon: Info,
       content: (
         <div className="space-y-6">
@@ -1893,7 +1897,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     <Info className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-medium">Rent-Managing-System (RMS)</h4>
+                    <h4 className="text-sm font-medium">Mietfluss</h4>
                     <p className="text-sm text-muted-foreground">
                       Version: <span id="app-version" className="font-mono">{packageJsonVersion}</span>
                     </p>
@@ -1923,36 +1927,25 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[900px] h-[80vh] max-w-[95vw] max-h-[95vh] overflow-hidden">
+        <DialogContent className="w-[900px] h-[80vh] max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
           <DialogHeader className="sr-only">
             <DialogTitle>Einstellungen</DialogTitle>
             <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
           </DialogHeader>
           
-          <div className="flex h-full overflow-hidden">
-            {/* Enhanced sidebar navigation */}
-            <nav className="w-48 min-w-[12rem] flex flex-col gap-2 py-4 px-3 mr-6 border-r border-border/50">
-              
-              {tabs.map(tab => (
-                <button
-                  key={tab.value}
-                  onClick={() => setActiveTab(tab.value)}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 outline-none text-left',
-                    activeTab === tab.value
-                      ? 'bg-primary text-primary-foreground shadow-sm font-medium scale-[1.02]'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground focus:bg-accent/60 focus:text-accent-foreground hover:scale-[1.01]',
-                  )}
-                >
-                  <tab.icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="text-sm">{tab.label}</span>
-                </button>
-              ))}
-            </nav>
+          <div className="flex h-full overflow-hidden p-6">
+            {/* Vertical Tab-Style Sidebar with Animated Indicators */}
+            <SettingsSidebar
+              isSidebarCollapsed={isSidebarCollapsed}
+              onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
             
             {/* Content area with enhanced scrolling */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto py-4 pr-2">
+              <div className="flex-1 overflow-y-auto px-6">
                 <div className="max-w-3xl">
                   {tabs.find(tab => tab.value === activeTab)?.content}
                 </div>
