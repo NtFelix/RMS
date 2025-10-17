@@ -231,41 +231,47 @@ export function FinanceTable({
   }
 
   const handleBulkDelete = async () => {
-    setIsBulkDeleting(true)
-    const selectedIds = Array.from(selectedFinances)
-    let successCount = 0
-    let errorCount = 0
+    if (selectedFinances.size === 0) return;
+    
+    setIsBulkDeleting(true);
+    const selectedIds = Array.from(selectedFinances);
+    
+    try {
+      const response = await fetch('/api/finanzen/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: selectedIds })
+      });
 
-    for (const financeId of selectedIds) {
-      try {
-        const response = await fetch(`/api/finanzen?id=${financeId}`, { method: 'DELETE' })
-        if (response.ok) {
-          successCount++
-        } else {
-          errorCount++
+      const result = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Erfolg",
+          description: `${selectedIds.length} Transaktionen erfolgreich gelöscht.`,
+          variant: "success",
+        });
+        
+        // Refresh the data after successful deletion
+        if (onRefresh) {
+          onRefresh();
         }
-      } catch (error) {
-        errorCount++
+      } else {
+        throw new Error(result.error || 'Fehler beim Löschen der Transaktionen');
       }
-    }
-
-    setIsBulkDeleting(false)
-    setShowBulkDeleteConfirm(false)
-    setSelectedFinances(new Set())
-
-    if (successCount > 0) {
-      toast({
-        title: "Erfolg",
-        description: `${successCount} Transaktionen erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.`,
-        variant: "success",
-      })
-      router.refresh()
-    } else {
+    } catch (error) {
+      console.error('Bulk delete error:', error);
       toast({
         title: "Fehler",
-        description: "Keine Transaktionen konnten gelöscht werden.",
+        description: "Beim Löschen der ausgewählten Transaktionen ist ein Fehler aufgetreten.",
         variant: "destructive",
-      })
+      });
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkDeleteConfirm(false);
+      setSelectedFinances(new Set());
     }
   }
 
