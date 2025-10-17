@@ -624,6 +624,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
             filter="all"
             searchQuery=""
             onEdit={handleEdit}
+            onRefresh={refreshFinances} // Pass the refresh function here
             selectedFinances={selectedFinances}
             onSelectionChange={setSelectedFinances}
             isFilterLoading={isFilterLoading}

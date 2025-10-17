@@ -41,6 +41,7 @@ interface FinanceTableProps {
   filter: string;
   searchQuery: string;
   onEdit?: (f: Finanz) => void;
+  onRefresh?: () => void;
   onDelete?: (id: string) => void;
   selectedFinances?: Set<string>;
   onSelectionChange?: (selected: Set<string>) => void;
@@ -67,6 +68,7 @@ export function FinanceTable({
   filter, 
   searchQuery, 
   onEdit, 
+  onRefresh,
   onDelete, 
   selectedFinances: externalSelectedFinances, 
   onSelectionChange,
@@ -448,29 +450,7 @@ export function FinanceTable({
                   key={finance.id}
                   finance={finance}
                   onEdit={() => onEdit?.(finance)}
-                  onStatusToggle={async () => {
-                    try {
-                      const response = await fetch(`/api/finanzen/${finance.id}`, {
-                        method: "PATCH", 
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ ist_einnahmen: !finance.ist_einnahmen }),
-                      })
-                      if (!response.ok) throw new Error("Fehler beim Umschalten des Status")
-                      toast({ 
-                        title: "Status geändert", 
-                        description: `Die Transaktion wurde als ${!finance.ist_einnahmen ? "Einnahme" : "Ausgabe"} markiert.` 
-                      })
-                      router.refresh()
-                    } catch (error) {
-                      console.error("Fehler beim Umschalten des Status:", error)
-                      toast({ 
-                        title: "Fehler", 
-                        description: "Der Status konnte nicht geändert werden.", 
-                        variant: "destructive" 
-                      })
-                    }
-                  }}
-                  onRefresh={() => router.refresh()}
+                  onRefresh={onRefresh} // Pass the onRefresh prop here
                 >
                   <TableRow 
                     ref={isLastElement ? lastTransactionElementRef : (el) => {
