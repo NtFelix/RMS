@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { X, Download, Trash2, Home, TrendingUp, TrendingDown } from "lucide-react"
+import { X, Download, Trash2, Home, TrendingUp, TrendingDown, Loader2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -46,8 +46,31 @@ export function FinanceBulkActionBar({
 }: FinanceBulkActionBarProps) {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [selectedApartment, setSelectedApartment] = useState<string>("none")
   const [selectedType, setSelectedType] = useState<string>("none")
+
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      setIsDeleting(true);
+      await onDelete();
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Error during bulk delete:', error);
+      toast({
+        title: "Fehler",
+        description: "Beim Löschen der ausgewählten Transaktionen ist ein Fehler aufgetreten.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   const [isUpdating, setIsUpdating] = useState(false)
 
   if (selectedFinances.size === 0) return null
@@ -285,12 +308,55 @@ export function FinanceBulkActionBar({
         <Button
           variant="outline"
           size="sm"
-          onClick={onDelete}
+          onClick={handleDeleteClick}
+          disabled={isDeleting}
           className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
         >
-          <Trash2 className="h-4 w-4" />
-          Löschen
+          {isDeleting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Wird gelöscht...
+            </>
+          ) : (
+            <>
+              <Trash2 className="h-4 w-4" />
+              Löschen ({selectedFinances.size})
+            </>
+          )}
         </Button>
+
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Sind Sie sicher?</DialogTitle>
+              <DialogDescription>
+                Möchten Sie wirklich {selectedFinances.size} ausgewählte Transaktion{selectedFinances.size !== 1 ? 'en' : ''} löschen?
+                Diese Aktion kann nicht rückgängig gemacht werden.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsDeleteDialogOpen(false)}
+                disabled={isDeleting}
+              >
+                Abbrechen
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Wird gelöscht...
+                  </>
+                ) : 'Löschen bestätigen'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Assign Apartment Dialog */}

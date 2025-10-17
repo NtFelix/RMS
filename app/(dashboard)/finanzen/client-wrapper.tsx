@@ -19,6 +19,7 @@ import { CustomCombobox } from "@/components/ui/custom-combobox";
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 
 interface Finanz {
   id: string;
@@ -340,6 +341,47 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     return stringValue
   }, [])
 
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedFinances.size === 0) return;
+
+    try {
+      const response = await fetch('/api/finanzen/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: Array.from(selectedFinances) })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Erfolg",
+          description: `${selectedFinances.size} Transaktionen erfolgreich gelöscht.`,
+          variant: "success",
+        });
+        
+        // Refresh the data after successful deletion
+        if (refreshFinances) {
+          refreshFinances();
+        }
+        
+        // Clear selection after successful deletion
+        setSelectedFinances(new Set());
+      } else {
+        throw new Error(result.error || 'Fehler beim Löschen der Transaktionen');
+      }
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      toast({
+        title: "Fehler",
+        description: "Beim Löschen der ausgewählten Transaktionen ist ein Fehler aufgetreten.",
+        variant: "destructive",
+      });
+    }
+  }, [selectedFinances, refreshFinances]);
+
   const handleBulkExport = useCallback(() => {
     const selectedFinancesData = finData.filter(f => selectedFinances.has(f.id))
     
@@ -614,7 +656,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
               wohnungsMap={wohnungsMap}
               onClearSelection={() => setSelectedFinances(new Set())}
               onExport={handleBulkExport}
-              onDelete={() => {/* TODO: Implement bulk delete */}}
+              onDelete={handleBulkDelete}
               onUpdate={handleBulkUpdateSuccess}
             />
           </div>
