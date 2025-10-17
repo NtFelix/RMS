@@ -160,15 +160,16 @@ jobs:
             ~/.npm
             node_modules/@lhci
             node_modules/wait-on
+            node_modules/which-module
             node_modules/.bin/lhci
             node_modules/.bin/wait-on
-          key: ${{ runner.os }}-lighthouse-tools-${{ hashFiles('**/package-lock.json') }}-v1
+          key: ${{ runner.os }}-lighthouse-tools-${{ hashFiles('**/package-lock.json') }}-v2
           restore-keys: |
-            ${{ runner.os }}-lighthouse-tools-
+            ${{ runner.os }}-lighthouse-tools-v2-
 
       - name: Install Lighthouse CI tools
         if: steps.cache-lighthouse-tools.outputs.cache-hit != 'true'
-        run: npm install --no-save @lhci/cli wait-on
+        run: npm install --no-save @lhci/cli wait-on which-module
 
       - name: Verify Lighthouse CI tools
         run: |
