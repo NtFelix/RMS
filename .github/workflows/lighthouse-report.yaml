@@ -168,7 +168,7 @@ jobs:
 
       - name: Install Lighthouse CI tools
         if: steps.cache-lighthouse-tools.outputs.cache-hit != 'true'
-        run: npm install --no-save @lhci/cli wait-on
+        run: npm install --no-save @lhci/cli wait-on which-module
 
       - name: Verify Lighthouse CI tools
         run: |
