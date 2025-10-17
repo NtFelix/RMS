@@ -29,17 +29,15 @@ interface Finanz {
 
 interface FinanceBulkActionBarProps {
   selectedFinances: Set<string>
-  finances: Finanz[]
   wohnungsMap: Record<string, string>
   onClearSelection: () => void
   onExport: () => void
   onDelete: () => void
-  onUpdate?: () => void // Callback to refresh the finance list after update
+  onUpdate?: (updatedFinances: Finanz[]) => void
 }
 
 export function FinanceBulkActionBar({
   selectedFinances,
-  finances,
   wohnungsMap,
   onClearSelection,
   onExport,
@@ -54,77 +52,117 @@ export function FinanceBulkActionBar({
 
   if (selectedFinances.size === 0) return null
 
+  const handleBulkUpdate = async (updates: Record<string, any>) => {
+    const selectedFinanceIds = Array.from(selectedFinances);
+
+    try {
+      const response = await fetch('/api/finanzen/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: selectedFinanceIds,
+          updates: updates
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Handle case where no valid records were found
+        if (response.status === 404 && result.missingIds) {
+          return {
+            success: false,
+            updatedCount: 0,
+            total: selectedFinanceIds.length,
+            missingIds: result.missingIds,
+            updatedRecords: Array.isArray(result.updatedRecords) ? result.updatedRecords : [],
+            error: result.error
+          };
+        }
+        throw new Error(result.error || 'Fehler bei der Aktualisierung');
+      }
+
+      return {
+        success: true,
+        updatedCount: result.updatedCount || 0,
+        total: selectedFinanceIds.length,
+        missingIds: result.missingIds,
+        updatedRecords: Array.isArray(result.updatedRecords) ? result.updatedRecords : []
+      };
+    } catch (error) {
+      console.error('Fehler bei der Massenaktualisierung:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        updatedCount: 0,
+        total: selectedFinanceIds.length,
+        updatedRecords: []
+      };
+    }
+  };
+
   const handleAssignApartment = async () => {
     if (selectedApartment === "none") {
       toast({
         title: "Fehlende Auswahl",
         description: "Bitte wählen Sie eine Wohnung aus, um fortzufahren.",
         variant: "destructive"
-      })
-      return
+      });
+      return;
     }
 
-    setIsUpdating(true)
+    setIsUpdating(true);
     
     try {
-      const selectedFinanceIds = Array.from(selectedFinances)
-      const updateResults = await Promise.allSettled(
-        selectedFinanceIds.map(async (financeId) => {
-          const finance = finances.find(f => f.id === financeId)
-          if (!finance) return { success: false }
-          
-          const response = await fetch(`/api/finanzen/${financeId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              wohnung_id: selectedApartment === "none" ? null : selectedApartment
-            }),
-          })
-          
-          return { success: response.ok }
-        })
-      )
+      const result = await handleBulkUpdate({
+        wohnung_id: selectedApartment === "none" ? null : selectedApartment
+      });
+
+      const failedUpdates = result.total - result.updatedCount;
       
-      const successfulUpdates = updateResults.filter(
-        (result): result is PromiseFulfilledResult<{ success: boolean }> => 
-          result.status === 'fulfilled' && result.value.success
-      )
-      
-      const failedUpdates = updateResults.length - successfulUpdates.length
-      
-      if (successfulUpdates.length > 0) {
+      if (result.updatedCount > 0) {
         toast({
           title: "Erfolgreich aktualisiert",
-          description: `${successfulUpdates.length} von ${updateResults.length} Transaktionen wurden erfolgreich aktualisiert.`,
+          description: `${result.updatedCount} von ${result.total} Transaktionen wurden erfolgreich aktualisiert.`,
           variant: "success"
-        })
+        });
       }
       
       if (failedUpdates > 0) {
         toast({
           title: "Teilweise Fehler",
-          description: `Bei ${failedUpdates} von ${updateResults.length} Transaktionen ist ein Fehler aufgetreten.`,
+          description: `Bei ${failedUpdates} von ${result.total} Transaktionen konnte die Aktualisierung nicht durchgeführt werden.`,
           variant: "destructive"
-        })
+        });
       }
       
-      if (successfulUpdates.length > 0) {
-        setIsAssignDialogOpen(false)
-        setSelectedApartment("none")
-        onUpdate?.()
-        onClearSelection()
+      // Only clear selection and close dialog if we had some successful updates
+      if (result.updatedCount > 0) {
+        if (result.updatedRecords?.length) {
+          onUpdate?.(result.updatedRecords);
+        }
+        setIsAssignDialogOpen(false);
+        setSelectedApartment("none");
+        onClearSelection();
+      } else if (result.error) {
+        // Show specific error message if no updates were successful
+        toast({
+          title: "Aktualisierung fehlgeschlagen",
+          description: result.error,
+          variant: "destructive"
+        });
       }
     } catch (error) {
-      console.error("Fehler beim Aktualisieren der Transaktionen:", error)
+      console.error("Fehler beim Aktualisieren der Transaktionen:", error);
       toast({
         title: "Fehler",
         description: "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
         variant: "destructive"
-      })
+      });
     } finally {
-      setIsUpdating(false)
+      setIsUpdating(false);
     }
-  }
+  };
 
   const handleChangeType = async () => {
     if (selectedType === "none") {
@@ -132,68 +170,62 @@ export function FinanceBulkActionBar({
         title: "Fehlende Auswahl",
         description: "Bitte wählen Sie einen Typ aus, um fortzufahren.",
         variant: "destructive"
-      })
-      return
+      });
+      return;
     }
 
-    setIsUpdating(true)
+    setIsUpdating(true);
     
     try {
-      const selectedFinanceIds = Array.from(selectedFinances)
-      const updateResults = await Promise.allSettled(
-        selectedFinanceIds.map(async (financeId) => {
-          const response = await fetch(`/api/finanzen/${financeId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ist_einnahmen: selectedType === "income"
-            }),
-          })
-          
-          return { success: response.ok }
-        })
-      )
+      const result = await handleBulkUpdate({
+        ist_einnahmen: selectedType === "income"
+      });
+
+      const failedUpdates = result.total - result.updatedCount;
       
-      const successfulUpdates = updateResults.filter(
-        (result): result is PromiseFulfilledResult<{ success: boolean }> => 
-          result.status === 'fulfilled' && result.value.success
-      )
-      
-      const failedUpdates = updateResults.length - successfulUpdates.length
-      
-      if (successfulUpdates.length > 0) {
+      if (result.updatedCount > 0) {
         toast({
           title: "Erfolgreich aktualisiert",
-          description: `${successfulUpdates.length} von ${updateResults.length} Transaktionen wurden erfolgreich aktualisiert.`,
+          description: `${result.updatedCount} von ${result.total} Transaktionen wurden erfolgreich aktualisiert.`,
           variant: "success"
-        })
+        });
       }
       
       if (failedUpdates > 0) {
         toast({
           title: "Teilweise Fehler",
-          description: `Bei ${failedUpdates} von ${updateResults.length} Transaktionen ist ein Fehler aufgetreten.`,
+          description: `Bei ${failedUpdates} von ${result.total} Transaktionen konnte die Aktualisierung nicht durchgeführt werden.`,
           variant: "destructive"
-        })
+        });
       }
       
-      if (successfulUpdates.length > 0) {
-        setIsTypeDialogOpen(false)
-        setSelectedType("none")
-        onUpdate?.()
-        onClearSelection()
+      // Only clear selection and close dialog if we had some successful updates
+      if (result.updatedCount > 0) {
+        if (result.updatedRecords?.length) {
+          onUpdate?.(result.updatedRecords);
+        }
+        setIsTypeDialogOpen(false);
+        setSelectedType("none");
+        onClearSelection();
+      } else if (result.error) {
+        // Show specific error message if no updates were successful
+        toast({
+          title: "Aktualisierung fehlgeschlagen",
+          description: result.error,
+          variant: "destructive"
+        });
       }
     } catch (error) {
-      console.error("Fehler beim Aktualisieren der Transaktionen:", error)
+      console.error("Fehler beim Aktualisieren der Transaktionen:", error);
       toast({
         title: "Fehler",
         description: "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
         variant: "destructive"
-      })
+      });
     } finally {
-      setIsUpdating(false)
+      setIsUpdating(false);
     }
-  }
+  };
 
   const apartmentOptions = Object.entries(wohnungsMap).map(([id, name]) => ({
     id,

@@ -237,6 +237,28 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     fetchBalance();
   }, [refreshSummaryData, fetchBalance]);
 
+  const handleBulkUpdateSuccess = useCallback((updatedFinances: Finanz[]) => {
+    if (!updatedFinances?.length) {
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const shouldRefreshSummary = updatedFinances.some(finance => (
+      finance.datum && new Date(finance.datum).getFullYear() === currentYear
+    ));
+
+    setFinData(prev => {
+      const updatesById = new Map(updatedFinances.map(finance => [finance.id, finance]));
+      return prev.map(item => updatesById.get(item.id) ? { ...item, ...updatesById.get(item.id)! } : item);
+    });
+
+    if (shouldRefreshSummary) {
+      refreshSummaryData();
+    }
+
+    fetchBalance();
+  }, [refreshSummaryData, fetchBalance]);
+
   const handleSuccess = useCallback((data: any) => {
     if (data) {
       handleAddFinance(data);
@@ -589,11 +611,11 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
             
             <FinanceBulkActionBar
               selectedFinances={selectedFinances}
-              finances={finData}
               wohnungsMap={wohnungsMap}
               onClearSelection={() => setSelectedFinances(new Set())}
               onExport={handleBulkExport}
               onDelete={() => {/* TODO: Implement bulk delete */}}
+              onUpdate={handleBulkUpdateSuccess}
             />
           </div>
           <FinanceTable
