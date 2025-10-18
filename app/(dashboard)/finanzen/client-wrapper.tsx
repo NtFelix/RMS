@@ -663,8 +663,8 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
           <FinanceTable
             finances={finData}
             wohnungen={wohnungen}
-            filter="all"
-            searchQuery=""
+            filter={filters.selectedType}
+            searchQuery={filters.searchQuery}
             onEdit={handleEdit}
             onRefresh={refreshFinances} // Pass the refresh function here
             selectedFinances={selectedFinances}
