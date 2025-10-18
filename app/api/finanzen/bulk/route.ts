@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
+export const runtime = 'edge';
+
+export const dynamic = 'force-dynamic';
+
 export async function PATCH(request: Request) {
   try {
     const { ids, updates } = await request.json();
