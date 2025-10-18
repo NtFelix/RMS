@@ -123,24 +123,9 @@ export function FinanceTable({
     return map
   }, [wohnungen])
 
-  // Sorting, filtering and search logic
-  const sortedAndFilteredData = useMemo(() => {
-    let result = [...finances]
-
-    // Apply filters
-    if (filter === "income") result = result.filter(f => f.ist_einnahmen)
-    else if (filter === "expenses") result = result.filter(f => !f.ist_einnahmen)
-
-    // Apply search
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(f =>
-        f.name.toLowerCase().includes(q) ||
-        (f.notiz && f.notiz.toLowerCase().includes(q)) ||
-        (f.Wohnungen?.name && f.Wohnungen.name.toLowerCase().includes(q)) ||
-        formatCurrency(f.betrag).toLowerCase().includes(q)
-      )
-    }
+  // Sorting logic - filtering is handled by the server
+  const sortedData = useMemo(() => {
+    let result = [...finances];
 
     // Apply sorting
     if (sortKey) {
@@ -181,9 +166,13 @@ export function FinanceTable({
     }
 
     return result
-  }, [finances, filter, searchQuery, sortKey, sortDirection])
+  }, [finances, sortKey, sortDirection])
 
-  const visibleFinanceIds = useMemo(() => sortedAndFilteredData.map((finance) => finance.id), [sortedAndFilteredData])
+  // Get IDs of all currently visible finance records for selection handling
+  const visibleFinanceIds = useMemo(() => 
+    sortedData.map((finance: Finanz) => finance.id), 
+    [sortedData]
+  )
 
   const allSelected = visibleFinanceIds.length > 0 && visibleFinanceIds.every((id) => selectedFinances.has(id))
   const partiallySelected = visibleFinanceIds.some((id) => selectedFinances.has(id)) && !allSelected
@@ -426,7 +415,7 @@ export function FinanceTable({
               </TableCell>
             </TableRow>
           )}
-          {!isFilterLoading && sortedAndFilteredData.length === 0 && !isLoading ? (
+          {!isFilterLoading && sortedData.length === 0 && !isLoading ? (
             <TableRow>
               <TableCell colSpan={7} className="text-center py-16">
                 <div className="flex flex-col items-center gap-4">
@@ -446,9 +435,9 @@ export function FinanceTable({
               </TableCell>
             </TableRow>
           ) : !isFilterLoading ? (
-            sortedAndFilteredData.map((finance, index) => {
-              const isLastElement = sortedAndFilteredData.length === index + 1;
-              const isLastRow = index === sortedAndFilteredData.length - 1
+            sortedData.map((finance: Finanz, index: number) => {
+              const isLastElement = sortedData.length === index + 1;
+              const isLastRow = index === sortedData.length - 1
               const isSelected = selectedFinances.has(finance.id)
               
               return (
@@ -557,7 +546,7 @@ export function FinanceTable({
               </TableCell>
             </TableRow>
           )}
-          {!isFilterLoading && !isLoading && !hasMore && sortedAndFilteredData.length > 0 && (
+          {!isFilterLoading && !isLoading && !hasMore && sortedData.length > 0 && (
             <TableRow>
               <TableCell colSpan={7} className="text-center py-8">
                 <div className="flex flex-col items-center gap-3">
@@ -570,7 +559,7 @@ export function FinanceTable({
                       Alle Transaktionen geladen
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {sortedAndFilteredData.length} {sortedAndFilteredData.length === 1 ? 'Eintrag' : 'Einträge'} insgesamt
+                      {sortedData.length} von {finances.length} Einträgen insgesamt
                     </div>
                   </div>
                 </div>
