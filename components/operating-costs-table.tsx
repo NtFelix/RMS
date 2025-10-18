@@ -30,7 +30,13 @@ import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil } from "lucide-react"
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
-import { saveWasserzaehlerDataOptimized, getWasserzaehlerModalDataAction, getAbrechnungModalDataAction, deleteNebenkosten as deleteNebenkostenServerAction } from "@/app/betriebskosten-actions" // Updated to use optimized actions
+import { 
+  saveWasserzaehlerDataOptimized, 
+  getWasserzaehlerModalDataAction, 
+  getAbrechnungModalDataAction, 
+  deleteNebenkosten as deleteNebenkostenServerAction,
+  bulkDeleteNebenkosten 
+} from "@/app/betriebskosten-actions" // Updated to use optimized actions
 import { toast } from "sonner" // For notifications
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useRouter } from "next/navigation"
@@ -279,33 +285,30 @@ export function OperatingCostsTable({
   };
 
   const handleBulkDelete = async () => {
-    setIsBulkDeleting(true)
-    const selectedIds = Array.from(selectedItems)
-    let successCount = 0
-    let errorCount = 0
-
-    for (const itemId of selectedIds) {
-      try {
-        const result = await deleteNebenkostenServerAction(itemId)
-        if (result.success) {
-          successCount++
-        } else {
-          errorCount++
-        }
-      } catch (error) {
-        errorCount++
-      }
+    if (!selectedItems.size) {
+      toast.error("Keine Betriebskostenabrechnungen zum Löschen ausgewählt");
+      return;
     }
 
-    setIsBulkDeleting(false)
-    setShowBulkDeleteConfirm(false)
-    setSelectedItems(new Set())
+    setIsBulkDeleting(true);
+    const selectedIds = Array.from(selectedItems);
 
-    if (successCount > 0) {
-      toast.success(`${successCount} Betriebskostenabrechnungen erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.`)
-      router.refresh()
-    } else {
-      toast.error("Keine Betriebskostenabrechnungen konnten gelöscht werden.")
+    try {
+      const result = await bulkDeleteNebenkosten(selectedIds);
+      
+      if (result.success) {
+        toast.success(result.message);
+        setSelectedItems(new Set());
+        router.refresh();
+      } else {
+        toast.error(result.message || "Fehler beim Löschen der Betriebskostenabrechnungen");
+      }
+    } catch (error) {
+      console.error("Error during bulk delete:", error);
+      toast.error("Ein unerwarteter Fehler ist aufgetreten");
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkDeleteConfirm(false);
     }
   }
 
