@@ -16,9 +16,10 @@ interface PDFViewerProps {
   className?: string
   onDownload?: () => void
   onError?: (error: string) => void
+  forceCustomViewer?: boolean // Force use of custom PDF.js viewer, disable iframe fallback
 }
 
-export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }: PDFViewerProps) {
+export function PDFViewer({ fileUrl, fileName, className, onDownload, onError, forceCustomViewer = true }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [pdfDoc, setPdfDoc] = useState<any | null>(null)
@@ -52,6 +53,11 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
           pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/pdf.worker.min.js'
         }
         
+        // Ensure worker is properly configured
+        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/pdf.worker.min.js'
+        }
+        
         const loadingTask = pdfjsLib.getDocument(fileUrl)
         const pdf = await loadingTask.promise
         
@@ -61,8 +67,21 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
         setPageInput("1")
       } catch (err) {
         console.error('Error loading PDF with PDF.js:', err)
-        // Fallback: show iframe with browser's built-in PDF viewer
-        setError('fallback-to-iframe')
+        
+        // Try to provide more specific error handling
+        if (err instanceof Error) {
+          // Only fall back to iframe if not forced to use custom viewer and for specific errors
+          if (!forceCustomViewer && (err.message.includes('Invalid PDF') || err.message.includes('PDF header'))) {
+            setError('fallback-to-iframe')
+          } else {
+            // For other errors, show a proper error message instead of falling back
+            setError(`PDF konnte nicht geladen werden: ${err.message}`)
+            if (onError) onError(err.message)
+          }
+        } else {
+          setError('Unbekannter Fehler beim Laden der PDF')
+          if (onError) onError('Unbekannter Fehler beim Laden der PDF')
+        }
       } finally {
         setIsLoading(false)
       }
@@ -255,10 +274,10 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
   }
 
   if (error) {
-    // If error is fallback-to-iframe, show browser's built-in PDF viewer
-    if (error === 'fallback-to-iframe') {
+    // If error is fallback-to-iframe and not forced to use custom viewer, show browser's built-in PDF viewer
+    if (error === 'fallback-to-iframe' && !forceCustomViewer) {
       return (
-        <div className={cn("flex flex-col h-full bg-muted/10", className)}>
+        <div className={cn("flex flex-col h-full", className)}>
           {/* Simple header for fallback */}
           <div className="flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur">
             <div className="flex-1 min-w-0 mr-4">
@@ -277,21 +296,19 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
           </div>
           
           {/* Fallback iframe */}
-          <div className="flex-1 p-4">
-            <iframe
-              src={`${fileUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
-              className="w-full h-full border-0 rounded-lg shadow-lg"
-              title={fileName}
-              style={{ backgroundColor: 'white' }}
-            />
-          </div>
+          <iframe
+            src={`${fileUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
+            className="flex-1 w-full border-0 rounded-b-lg"
+            title={fileName}
+            style={{ backgroundColor: 'white' }}
+          />
         </div>
       )
     }
     
     // Regular error state
     return (
-      <div className={cn("flex items-center justify-center h-full bg-muted/10", className)}>
+      <div className={cn("flex items-center justify-center h-full", className)}>
         <div className="text-center max-w-md">
           <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <ChevronRight className="h-8 w-8 text-destructive" />
@@ -307,7 +324,7 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
   }
 
   return (
-    <div className={cn("flex flex-col h-full bg-muted/10", className)}>
+    <div className={cn("flex flex-col h-full", className)}>
       {/* Toolbar */}
       <div className="flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur">
         <div className="flex items-center gap-2">
@@ -408,23 +425,21 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
       {/* PDF Canvas */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-auto bg-gradient-to-br from-muted/20 to-muted/5 p-4"
+        className="flex-1 overflow-auto bg-gradient-to-br from-muted/20 to-muted/5 flex justify-center items-start p-4"
       >
-        <div className="flex justify-center">
-          <div className="relative">
-            <canvas
-              ref={canvasRef}
-              className={cn(
-                "shadow-2xl rounded-lg border border-border/20 bg-white transition-opacity duration-200",
-                isRendering && "opacity-50"
-              )}
-            />
-            {isRendering && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/50 rounded-lg">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
+        <div className="relative">
+          <canvas
+            ref={canvasRef}
+            className={cn(
+              "shadow-2xl rounded-lg border border-border/20 bg-white transition-opacity duration-200",
+              isRendering && "opacity-50"
             )}
-          </div>
+          />
+          {isRendering && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/50 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          )}
         </div>
       </div>
 

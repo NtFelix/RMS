@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils"
 import { StorageObject, VirtualFolder } from "@/hooks/use-simple-cloud-storage-store"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useSimpleCloudStorageStore } from "@/hooks/use-simple-cloud-storage-store"
+import { DeleteConfirmationDialog } from "./delete-confirmation-dialog"
 
 // Global dropdown manager to ensure only one dropdown is open at a time
 // Using a more React-friendly approach that works with SSR and strict mode
@@ -96,6 +97,7 @@ export function CloudStorageItemCard({
 }: ItemCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const { openFilePreviewModal, openFileRenameModal, openMarkdownEditorModal } = useModalStore()
   const { currentPath, renameFile } = useSimpleCloudStorageStore()
 
@@ -342,9 +344,10 @@ export function CloudStorageItemCard({
         <>
           <ContextMenuSeparator />
           <ContextMenuItem 
-            onSelect={() => {
-              // onSelect automatically closes the context menu
-              onDelete()
+            onSelect={(event) => {
+              event.preventDefault()
+              setIsDropdownOpen(false)
+              setIsDeleteDialogOpen(true)
             }}
             className="text-destructive"
           >
@@ -356,9 +359,21 @@ export function CloudStorageItemCard({
     </>
   )
 
+  const deleteConfirmationDialog = onDelete ? (
+    <DeleteConfirmationDialog
+      isOpen={isDeleteDialogOpen}
+      onOpenChange={setIsDeleteDialogOpen}
+      onConfirm={onDelete}
+      title={type === 'folder' ? 'Ordner löschen' : 'Datei löschen'}
+      description={`Sie sind dabei, "${getDisplayName()}" zu löschen. Diese Aktion kann nicht rückgängig gemacht werden.`}
+      itemCount={1}
+    />
+  ) : null
+
   if (viewMode === 'grid') {
     return (
-      <ContextMenu>
+      <>
+        <ContextMenu>
         <ContextMenuTrigger>
           <Card
             className={cn(
@@ -527,10 +542,10 @@ export function CloudStorageItemCard({
                     {onDelete && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={(e) => {
-                          e.preventDefault()
+                        <DropdownMenuItem onSelect={(event) => {
+                          event.preventDefault()
                           setIsDropdownOpen(false)
-                          onDelete()
+                          setIsDeleteDialogOpen(true)
                         }} className="text-destructive">
                           <Trash2 className="h-4 w-4 mr-2" />
                           {type === 'folder' ? 'Ordner löschen' : 'Löschen'}
@@ -573,13 +588,16 @@ export function CloudStorageItemCard({
         <ContextMenuContent className="w-48">
           {contextMenuItems}
         </ContextMenuContent>
-      </ContextMenu>
+        </ContextMenu>
+        {deleteConfirmationDialog}
+      </>
     )
   }
 
   // List view
   return (
-    <ContextMenu>
+    <>
+      <ContextMenu>
       <ContextMenuTrigger>
         <div
           className={cn(
@@ -661,9 +679,9 @@ export function CloudStorageItemCard({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete()
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setIsDeleteDialogOpen(true)
                 }}
                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                 title={type === 'folder' ? 'Ordner löschen' : 'Datei löschen'}
@@ -677,6 +695,8 @@ export function CloudStorageItemCard({
       <ContextMenuContent className="w-48">
         {contextMenuItems}
       </ContextMenuContent>
-    </ContextMenu>
+      </ContextMenu>
+      {deleteConfirmationDialog}
+    </>
   )
 }
