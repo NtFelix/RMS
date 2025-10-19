@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
-import { deleteFinanceAction } from "@/app/finanzen-actions"; // Added import
+import { financeServerAction, deleteFinanceAction } from "@/app/finanzen-actions";
 
 interface Finance {
   id: string
@@ -37,19 +37,61 @@ interface FinanceContextMenuProps {
   children: React.ReactNode
   finance: Finance
   onEdit: () => void
-  onStatusToggle: () => void
-  onRefresh: () => void
+  onRefresh?: () => void
 }
 
 export function FinanceContextMenu({
   children,
   finance,
   onEdit,
-  onStatusToggle,
   onRefresh,
 }: FinanceContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [isUpdatingStatus, setIsUpdatingStatus] = React.useState(false);
+
+  const handleStatusToggle = async () => {
+    if (isUpdatingStatus) return;
+    setIsUpdatingStatus(true);
+
+    const newStatus = !finance.ist_einnahmen;
+    const originalData = {
+      name: finance.name,
+      betrag: finance.betrag,
+      ist_einnahmen: newStatus,
+      wohnung_id: finance.wohnung_id,
+      datum: finance.datum,
+      notiz: finance.notiz,
+    };
+
+    try {
+      const result = await financeServerAction(finance.id, originalData);
+
+      if (result.success) {
+        toast({
+          title: "Status aktualisiert",
+          description: `Die Transaktion wurde erfolgreich als ${newStatus ? "Einnahme" : "Ausgabe"} markiert.`,
+          variant: "success",
+        });
+        onRefresh && onRefresh();
+      } else {
+        toast({
+          title: "Fehler bei der Aktualisierung",
+          description: result.error?.message || "Der Status konnte nicht aktualisiert werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Fehler beim Umschalten des Transaktionsstatus:", error);
+      toast({
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   const handleDelete = async () => {
     try {
@@ -63,7 +105,7 @@ export function FinanceContextMenu({
           variant: "success",
         });
         setTimeout(() => {
-          onRefresh();
+          onRefresh && onRefresh();
         }, 100); // Delay of 100 milliseconds
       } else {
         toast({
@@ -94,7 +136,11 @@ export function FinanceContextMenu({
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem onClick={onStatusToggle} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem 
+            onClick={handleStatusToggle} 
+            disabled={isUpdatingStatus}
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <ArrowUpDown className="h-4 w-4" />
             <span>
               {finance.ist_einnahmen 

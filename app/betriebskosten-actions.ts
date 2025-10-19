@@ -139,7 +139,46 @@ export async function deleteNebenkosten(id: string) {
   }
 
   revalidatePath("/dashboard/betriebskosten");
-  return { success: true };
+  return { success: true, message: "Nebenkosten erfolgreich gelöscht" };
+}
+
+/**
+ * Deletes multiple Nebenkosten records in a single database operation
+ * @param ids Array of Nebenkosten IDs to delete
+ * @returns Object with success status, count of deleted items, and optional message
+ */
+export async function bulkDeleteNebenkosten(ids: string[]) {
+  if (!ids || ids.length === 0) {
+    return { success: false, count: 0, message: "Keine IDs zum Löschen angegeben" };
+  }
+
+  const supabase = await createClient();
+  
+  try {
+    // Use in_ operator to delete multiple records in a single query
+    const { count, error } = await supabase
+      .from("Nebenkosten")
+      .delete()
+      .in("id", ids);
+
+    if (error) throw error;
+
+    // Invalidate cache and refresh data
+    revalidatePath("/dashboard/betriebskosten");
+    
+    return { 
+      success: true, 
+      count: count || 0, 
+      message: `${count} Betriebskostenabrechnung${count !== 1 ? 'en' : ''} erfolgreich gelöscht` 
+    };
+  } catch (error) {
+    console.error("Error bulk deleting Nebenkosten:", error);
+    return { 
+      success: false, 
+      count: 0, 
+      message: error instanceof Error ? error.message : "Fehler beim Löschen der Betriebskostenabrechnungen" 
+    };
+  }
 }
 
 export async function createRechnungenBatch(rechnungen: RechnungData[]) {
