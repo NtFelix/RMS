@@ -10,7 +10,7 @@ import { TaskContextMenu } from "@/components/task-context-menu"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { toast } from "@/hooks/use-toast"
 import { toggleTaskStatusAction } from "@/app/todos-actions"
-import type { Task } from "@/components/task-board"
+import type { TaskBoardTask as Task } from "@/types/Task"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { memo, useCallback, useMemo } from "react"
@@ -108,7 +108,7 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({ task, onTaskUpdated
       <Card
         ref={setNodeRef}
         style={style}
-        className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+        className={`cursor-pointer transition-all duration-200 hover:shadow-md rounded-2xl ${
           isCompleting 
             ? "bg-green-50 border-green-200 shadow-md" 
             : isDragging 
