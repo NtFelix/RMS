@@ -4,7 +4,7 @@ import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react"
 
 export default function Loading() {
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818] animate-in fade-in-0 duration-300">
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div
         className="absolute inset-0 z-[-1]"
         style={{
