@@ -9,7 +9,7 @@ import { Nebenkosten } from "@/lib/data-fetching"
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten"
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { SummaryCards } from "./summary-cards"
-import { toast } from "sonner"
+import { toast } from "@/hooks/use-toast"
 
 export function OperatingCostsOverviewModal({
   isOpen,
@@ -42,7 +42,11 @@ export function OperatingCostsOverviewModal({
   // PDF export function
   const exportToPDF = async () => {
     setIsExporting(true)
-    toast.info("PDF wird erstellt...")
+    toast({
+      title: "Export gestartet",
+      description: "PDF wird erstellt...",
+      variant: "default"
+    })
     
     try {
       const { default: jsPDF } = await import('jspdf')
@@ -55,7 +59,11 @@ export function OperatingCostsOverviewModal({
         (jsPDF.API as any).autoTable = autoTableModule.default
       } else {
         console.error("Could not initialize jspdf-autotable plugin")
-        toast.error("PDF-Plugin konnte nicht initialisiert werden")
+        toast({
+          title: "Fehler",
+          description: "PDF-Plugin konnte nicht initialisiert werden",
+          variant: "destructive"
+        })
         return
       }
 
@@ -197,11 +205,19 @@ export function OperatingCostsOverviewModal({
 
       // Save the PDF
       doc.save(filename)
-      toast.success("PDF erfolgreich erstellt und heruntergeladen!")
+      toast({
+        title: "Export erfolgreich",
+        description: "PDF erfolgreich erstellt und heruntergeladen!",
+        variant: "success"
+      })
 
     } catch (error) {
       console.error("PDF export error:", error)
-      toast.error("Fehler beim Erstellen der PDF-Datei")
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Erstellen der PDF-Datei",
+        variant: "destructive"
+      })
     } finally {
       setIsExporting(false)
     }

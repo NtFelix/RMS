@@ -37,7 +37,7 @@ import {
   deleteNebenkosten as deleteNebenkostenServerAction,
   bulkDeleteNebenkosten 
 } from "@/app/betriebskosten-actions" // Updated to use optimized actions
-import { toast } from "sonner" // For notifications
+import { toast } from "@/hooks/use-toast" // For notifications
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useRouter } from "next/navigation"
 
@@ -204,11 +204,19 @@ export function OperatingCostsTable({
         );
       } else {
         console.error("Error fetching Wasserzähler modal data:", result.message);
-        toast.error(`Fehler beim Laden der Wasserzählerdaten: ${result.message || "Unbekannter Fehler"}`);
+        toast({
+          title: "Fehler",
+          description: `Fehler beim Laden der Wasserzählerdaten: ${result.message || "Unbekannter Fehler"}`,
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error("Error calling getWasserzaehlerModalDataAction:", error);
-      toast.error("Ein unerwarteter Fehler ist beim Abrufen der Daten aufgetreten.");
+      toast({
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist beim Abrufen der Daten aufgetreten.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoadingWasserzaehlerModal(false);
     }
@@ -218,25 +226,41 @@ export function OperatingCostsTable({
     try {
       const result = await saveWasserzaehlerDataOptimized(data);
       if (result.success) {
-        toast.success(result.message || "Wasserzählerdaten erfolgreich gespeichert!");
+        toast({
+          title: "Erfolg",
+          description: result.message || "Wasserzählerdaten erfolgreich gespeichert!",
+          variant: "success"
+        });
         // Return success result to the modal
         return { success: true };
       } else {
         // Handle validation errors specifically
         if (result.validationErrors && result.validationErrors.length > 0) {
           const validationMessage = result.validationErrors.join('\n');
-          toast.error(`Validierungsfehler:\n${validationMessage}`);
+          toast({
+            title: "Validierungsfehler",
+            description: validationMessage,
+            variant: "destructive"
+          });
           return { success: false, message: `Validierungsfehler: ${validationMessage}` };
         }
-        
+
         const errorMessage = result.message || "Die Wasserzählerstände konnten nicht gespeichert werden.";
-        toast.error(errorMessage);
+        toast({
+          title: "Fehler",
+          description: errorMessage,
+          variant: "destructive"
+        });
         return { success: false, message: errorMessage };
       }
     } catch (error) {
       console.error("Error calling saveWasserzaehlerDataOptimized:", error);
       const errorMessage = error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten.";
-      toast.error(errorMessage);
+      toast({
+        title: "Fehler",
+        description: errorMessage,
+        variant: "destructive"
+      });
       return { success: false, message: errorMessage };
     }
   };
@@ -266,12 +290,20 @@ export function OperatingCostsTable({
         setIsAbrechnungModalOpen(true);
       } else {
         console.error("Error fetching Abrechnung modal data:", result.message);
-        toast.error(`Fehler beim Laden der Abrechnungsdaten: ${result.message || "Unbekannter Fehler"}`);
+        toast({
+          title: "Fehler",
+          description: `Fehler beim Laden der Abrechnungsdaten: ${result.message || "Unbekannter Fehler"}`,
+          variant: "destructive"
+        });
         setAbrechnungModalData(null);
       }
     } catch (error) {
       console.error("Error calling getAbrechnungModalDataAction:", error);
-      toast.error("Ein unerwarteter Fehler ist beim Abrufen der Daten für die Abrechnung aufgetreten.");
+      toast({
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist beim Abrufen der Daten für die Abrechnung aufgetreten.",
+        variant: "destructive"
+      });
       setAbrechnungModalData(null);
     } finally {
       setIsLoadingAbrechnungData(false);
@@ -286,7 +318,11 @@ export function OperatingCostsTable({
 
   const handleBulkDelete = async () => {
     if (!selectedItems.size) {
-      toast.error("Keine Betriebskostenabrechnungen zum Löschen ausgewählt");
+      toast({
+        title: "Aktion nicht möglich",
+        description: "Keine Betriebskostenabrechnungen zum Löschen ausgewählt.",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -297,15 +333,27 @@ export function OperatingCostsTable({
       const result = await bulkDeleteNebenkosten(selectedIds);
       
       if (result.success) {
-        toast.success(result.message);
+        toast({
+          title: "Erfolg",
+          description: `Erfolgreich ${selectedItems.size} Betriebskostenabrechnung${selectedItems.size > 1 ? 'en' : ''} gelöscht.`,
+          variant: "success"
+        });
         setSelectedItems(new Set());
         router.refresh();
       } else {
-        toast.error(result.message || "Fehler beim Löschen der Betriebskostenabrechnungen");
+        toast({
+          title: "Fehler",
+          description: result.message || "Fehler beim Löschen der Betriebskostenabrechnungen",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error("Error during bulk delete:", error);
-      toast.error("Ein unerwarteter Fehler ist aufgetreten");
+      toast({
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
+        variant: "destructive"
+      });
     } finally {
       setIsBulkDeleting(false);
       setShowBulkDeleteConfirm(false);
@@ -357,7 +405,11 @@ export function OperatingCostsTable({
     link.download = `betriebskosten_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
 
-    toast.success(`${selectedItems.size} Betriebskostenabrechnungen exportiert.`)
+    toast({
+      title: "Export erfolgreich",
+      description: `${selectedItems.size} Betriebskostenabrechnungen exportiert.`,
+      variant: "success"
+    })
   }
 
   const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon, sortable = true }: { sortKey: OperatingCostsSortKey, children: React.ReactNode, className?: string, icon: React.ElementType, sortable?: boolean }) => (
