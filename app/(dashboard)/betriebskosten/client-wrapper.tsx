@@ -121,7 +121,11 @@ export default function BetriebskostenClientView({
     if (!selectedItemIdForDelete) return;
     const result = await deleteNebenkostenServerAction(selectedItemIdForDelete);
     if (result.success) {
-      toast({ title: "Erfolg", description: "Nebenkosten-Eintrag erfolgreich gelöscht." });
+      toast({ 
+        title: "Erfolg", 
+        description: "Nebenkosten-Eintrag erfolgreich gelöscht.",
+        variant: "success"
+      });
       setFilteredNebenkosten(prev => prev.filter(item => item.id !== selectedItemIdForDelete));
     } else {
       toast({
