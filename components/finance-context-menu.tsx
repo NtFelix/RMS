@@ -55,17 +55,19 @@ export function FinanceContextMenu({
     setIsUpdatingStatus(true);
 
     const newStatus = !finance.ist_einnahmen;
-    const originalData = {
-      name: finance.name,
-      betrag: finance.betrag,
-      ist_einnahmen: newStatus,
-      wohnung_id: finance.wohnung_id,
-      datum: finance.datum,
-      notiz: finance.notiz,
+    
+    // Only send the fields that are actually changing
+    const payload = {
+      name: finance.name, // Required field
+      betrag: finance.betrag, // Required field
+      ist_einnahmen: newStatus, // The field we're changing
+      wohnung_id: finance.wohnung_id || null, // Required for validation
+      datum: finance.datum || null, // Required for validation
+      notiz: finance.notiz || null, // Required for validation
     };
 
     try {
-      const result = await financeServerAction(finance.id, originalData);
+      const result = await financeServerAction(finance.id, payload);
 
       if (result.success) {
         toast({
