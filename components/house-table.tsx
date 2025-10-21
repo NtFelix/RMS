@@ -203,42 +203,54 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   }
 
   const handleBulkDelete = async () => {
-    setIsBulkDeleting(true)
-    const selectedIds = Array.from(selectedHouses)
-    let successCount = 0
-    let errorCount = 0
+    if (selectedHouses.size === 0) return;
 
-    for (const houseId of selectedIds) {
-      try {
-        const response = await fetch(`/api/haeuser/${houseId}`, { method: 'DELETE' })
-        if (response.ok) {
-          successCount++
-        } else {
-          errorCount++
-        }
-      } catch (error) {
-        errorCount++
+    setIsBulkDeleting(true);
+    const selectedIds = Array.from(selectedHouses);
+
+    try {
+      const response = await fetch('/api/haeuser/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Fehler beim Löschen der Häuser.');
       }
-    }
 
-    setIsBulkDeleting(false)
-    setShowBulkDeleteConfirm(false)
-    setSelectedHouses(new Set())
-
-    if (successCount > 0) {
-      toast({
-        title: "Erfolg",
-        description: `${successCount} Häuser erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.`,
-        variant: "success",
-      })
-      await fetchHouses()
-      router.refresh()
-    } else {
+      const { successCount } = await response.json();
+      const failedCount = selectedIds.length - successCount;
+      
+      setShowBulkDeleteConfirm(false);
+      setSelectedHouses(new Set());
+      
+      if (successCount > 0) {
+        toast({
+          title: "Erfolg",
+          description: `${successCount} Häuser erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`,
+          variant: "success",
+        });
+        
+        await fetchHouses();
+        router.refresh();
+      } else {
+        toast({
+          title: "Fehler",
+          description: "Keine Häuser konnten gelöscht werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Bulk delete error:", error);
       toast({
         title: "Fehler",
-        description: "Keine Häuser konnten gelöscht werden.",
+        description: error instanceof Error ? error.message : "Ein Fehler ist beim Löschen der Häuser aufgetreten.",
         variant: "destructive",
-      })
+      });
+    } finally {
+      setIsBulkDeleting(false);
     }
   }
 
