@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
-import { PlusCircle, Home, Key, Euro, Ruler, Search, X, Download, Trash2, Building2 } from "lucide-react";
+import { PlusCircle, Home, Key, Euro, Ruler, Search, X, Download, Trash2, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -455,10 +455,20 @@ export default function WohnungenClientView({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowBulkDeleteConfirm(true)}
+                    disabled={isBulkDeleting}
                     className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Löschen
+                    {isBulkDeleting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Wird gelöscht...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4" />
+                        Löschen ({selectedApartments.size})
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
