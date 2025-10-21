@@ -80,21 +80,12 @@ export default function SubscriptionClientPage({ initialProfile, error: initialE
         throw new Error(`Failed to create checkout session: ${errorBody}`);
       }
 
-      const { sessionId, url } = await response.json();
+      const { url } = await response.json();
 
       if (url) {
         window.location.href = url;
       } else {
-        const stripe = await stripePromise;
-        if (stripe && sessionId) {
-          const { error: stripeError } = await stripe.redirectToCheckout({ sessionId });
-          if (stripeError) {
-            console.error('Stripe redirectToCheckout error:', stripeError);
-            toast({ title: 'Error', description: stripeError.message || 'Failed to redirect to Stripe.', variant: 'destructive' });
-          }
-        } else {
-          throw new Error('Stripe.js not loaded or session ID missing.');
-        }
+        throw new Error('Failed to create a checkout session. Please try again.');
       }
     } catch (err) {
       console.error('Subscription error:', err);

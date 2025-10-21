@@ -61,22 +61,66 @@ export function useKeyboardNavigation({
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault();
+        event.stopPropagation();
         selectNext();
         return true;
 
       case 'ArrowUp':
         event.preventDefault();
+        event.stopPropagation();
         selectPrevious();
+        return true;
+
+      case 'Home':
+        event.preventDefault();
+        event.stopPropagation();
+        if (itemCount > 0) {
+          setSelectedIndex(0);
+        }
+        return true;
+
+      case 'End':
+        event.preventDefault();
+        event.stopPropagation();
+        if (itemCount > 0) {
+          setSelectedIndex(itemCount - 1);
+        }
+        return true;
+
+      case 'PageDown':
+        event.preventDefault();
+        event.stopPropagation();
+        if (itemCount > 0) {
+          const jumpSize = Math.min(5, itemCount - 1);
+          setSelectedIndex((prev) => Math.min(prev + jumpSize, itemCount - 1));
+        }
+        return true;
+
+      case 'PageUp':
+        event.preventDefault();
+        event.stopPropagation();
+        if (itemCount > 0) {
+          const jumpSize = Math.min(5, itemCount - 1);
+          setSelectedIndex((prev) => Math.max(prev - jumpSize, 0));
+        }
         return true;
 
       case 'Enter':
       case 'Tab':
         event.preventDefault();
+        event.stopPropagation();
+        selectCurrentItem();
+        return true;
+
+      case ' ': // Space key
+        event.preventDefault();
+        event.stopPropagation();
         selectCurrentItem();
         return true;
 
       case 'Escape':
         event.preventDefault();
+        event.stopPropagation();
         if (onEscape) {
           onEscape();
         }
@@ -85,7 +129,7 @@ export function useKeyboardNavigation({
       default:
         return false;
     }
-  }, [selectNext, selectPrevious, selectCurrentItem, onEscape]);
+  }, [selectNext, selectPrevious, selectCurrentItem, onEscape, itemCount, setSelectedIndex]);
 
   return {
     selectedIndex,

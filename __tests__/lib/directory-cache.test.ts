@@ -21,6 +21,17 @@ Object.defineProperty(window, 'performance', {
 describe('DirectoryCacheManager', () => {
   let cache: DirectoryCacheManager
   let mockFetchFn: jest.Mock
+  
+  // Suppress expected warning logs in tests
+  let consoleWarnSpy: jest.SpyInstance;
+  
+  beforeAll(() => {
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+  });
+  
+  afterAll(() => {
+    consoleWarnSpy.mockRestore();
+  });
 
   const createMockContents = (path: string): DirectoryContents => ({
     files: [

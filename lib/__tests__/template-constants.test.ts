@@ -18,16 +18,16 @@ describe('Template Constants', () => {
   describe('TEMPLATE_CATEGORIES', () => {
     it('contains expected German template categories', () => {
       expect(TEMPLATE_CATEGORIES).toContain('Mail');
-      expect(TEMPLATE_CATEGORIES).toContain('Brief');
-      expect(TEMPLATE_CATEGORIES).toContain('Vertrag');
-      expect(TEMPLATE_CATEGORIES).toContain('Rechnung');
-      expect(TEMPLATE_CATEGORIES).toContain('Mahnung');
-      expect(TEMPLATE_CATEGORIES).toContain('Kündigung');
+      expect(TEMPLATE_CATEGORIES).toContain('Dokumente');
       expect(TEMPLATE_CATEGORIES).toContain('Sonstiges');
     });
 
     it('has correct length', () => {
-      expect(TEMPLATE_CATEGORIES).toHaveLength(7);
+      expect(TEMPLATE_CATEGORIES).toHaveLength(3);
+    });
+
+    it('is a readonly array', () => {
+      expect(Array.isArray(TEMPLATE_CATEGORIES)).toBe(true);
     });
   });
 

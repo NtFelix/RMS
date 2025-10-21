@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, User, Trash2, Euro } from "lucide-react"
+import { Edit, User, Trash2, Euro, FileText } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +22,7 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { deleteTenantAction } from "@/app/mieter-actions"; // Added import
 import { useModalStore } from "@/hooks/use-modal-store";
+import { useFeatureFlagEnabled } from "posthog-js/react"
 
 import { Tenant } from "@/types/Tenant";
 
@@ -40,7 +41,8 @@ export function TenantContextMenu({
 }: TenantContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
-  const { openKautionModal } = useModalStore()
+  const { openKautionModal, openTenantMailTemplatesModal } = useModalStore()
+  const templatesEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   const handleKaution = () => {
     try {
@@ -120,6 +122,11 @@ export function TenantContextMenu({
     }
   };
 
+  const handleTemplates = () => {
+    // Open tenant mail templates modal with tenant name and email
+    openTenantMailTemplatesModal(tenant.name, tenant.email);
+  };
+
   return (
     <>
       <ContextMenu>
@@ -133,6 +140,12 @@ export function TenantContextMenu({
             <Euro className="h-4 w-4" />
             <span>Kaution</span>
           </ContextMenuItem>
+          {templatesEnabled && (
+            <ContextMenuItem onClick={handleTemplates} className="flex items-center gap-2 cursor-pointer">
+              <FileText className="h-4 w-4" />
+              <span>Vorlagen</span>
+            </ContextMenuItem>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem 
             onClick={() => setDeleteDialogOpen(true)}

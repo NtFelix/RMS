@@ -10,21 +10,42 @@ import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-// Consolidated lucide-react import to include all used icons
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor, FlaskConical } from "lucide-react";
+// Only import icons that are actually used in this component
+import { 
+  User as UserIcon, 
+  Mail, 
+  Lock, 
+  CreditCard, 
+  Trash2, 
+  DownloadCloud, 
+  Info, 
+  Monitor, 
+  FlaskConical, 
+  CheckCircle2, 
+  AlertCircle,
+  Circle,
+  CheckCircle,
+  PanelLeft,
+  PanelLeftClose
+} from "lucide-react";
+import { SettingsSidebar } from "./settings/sidebar"
+import type { Tab } from "@/types/settings"
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
-import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
+import { Elements, AddressElement } from '@stripe/react-stripe-js';
+import { getUserProfileForSettings, getBillingAddress, updateBillingAddress, createSetupIntent } from '@/app/user-profile-actions'; // Import the server actions
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import SubscriptionPaymentMethods from '@/components/subscription-payment-methods';
 import SubscriptionPaymentHistory from '@/components/subscription-payment-history';
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
+import { BILLING_COUNTRIES } from "@/lib/constants";
+import { ThemeSwitcherCards } from "@/components/theme-switcher-cards";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -70,7 +91,6 @@ const stripePromise = loadStripe(
 // No separate import for lucide-react here as it's handled above
 
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
-type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
 
 // Enhanced card component for consistent styling
 const SettingsCard = ({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -113,6 +133,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<string>("profile")
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false)
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
   const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0"); // Initialize with updated hardcoded version
@@ -121,6 +142,33 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
+  const [isSavingBilling, setIsSavingBilling] = useState<boolean>(false);
+  const [isBillingAddressLoading, setIsBillingAddressLoading] = useState<boolean>(false);
+  // Billing address state with proper typing
+  const [billingAddress, setBillingAddress] = useState<{
+    name: string;
+    companyName: string;
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  }>({
+    name: "",
+    companyName: "",
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    postal_code: "",
+    country: "DE", // Default to Germany
+  });
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [addressElementValue, setAddressElementValue] = useState<any>(null);
+  const [isAddressComplete, setIsAddressComplete] = useState(false);
+  const [emailError, setEmailError] = useState<boolean>(false)
+  const [passwordError, setPasswordError] = useState<boolean>(false)
 
   // PostHog early access features
   const posthog = usePostHog()
@@ -162,8 +210,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     }
   }
 
-
-
   // Account deletion states
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
   const [reauthCode, setReauthCode] = useState<string>("")
@@ -172,6 +218,47 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   // State for subscription tab
   const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
+
+  // Load billing address when modal is opened or profile changes
+  useEffect(() => {
+    const loadBillingAddress = async () => {
+      if (open && profile?.stripe_customer_id) {
+        setIsBillingAddressLoading(true);
+        try {
+          const result = await getBillingAddress(profile.stripe_customer_id);
+          
+          if ('error' in result) {
+            console.error('Error loading billing address:', result.error);
+            return;
+          }
+          
+          // Update the billing address state with the loaded data
+          setBillingAddress(prev => ({
+            ...prev,
+            name: result.name || '',
+            companyName: result.companyName || '',
+            line1: result.address?.line1 || '',
+            line2: result.address?.line2 || '',
+            city: result.address?.city || '',
+            state: result.address?.state || '',
+            postal_code: result.address?.postal_code || '',
+            country: result.address?.country || 'DE',
+          }));
+          
+          // Set the address as complete if we have the required fields
+          if (result.address?.line1 && result.address.city && result.address.postal_code && result.address.country) {
+            setIsAddressComplete(true);
+          }
+        } catch (error) {
+          console.error('Error loading billing address:', error);
+        } finally {
+          setIsBillingAddressLoading(false);
+        }
+      }
+    };
+    
+    loadBillingAddress();
+  }, [open, profile?.stripe_customer_id]);
   // isLoadingSub removed as Pricing component is removed
   const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
   // isCancellingSubscription removed
@@ -328,14 +415,31 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      if (open && activeTab === 'subscription') {
-        await refreshUserProfile(); // Fetch profile
-        // Plan fetching removed from here. Pricing component will fetch its own plans.
+      if (open && (activeTab === 'subscription' || activeTab === 'profile')) {
+        await refreshUserProfile();
       }
     };
 
     fetchInitialData();
   }, [open, activeTab]);
+
+  useEffect(() => {
+    if (open && profile?.stripe_customer_id) {
+      const fetchClientSecret = async () => {
+        const result = await createSetupIntent(profile.stripe_customer_id!);
+        if ('error' in result) {
+          toast({
+            title: "Fehler",
+            description: "Stripe konnte nicht initialisiert werden.",
+            variant: "destructive",
+          });
+        } else {
+          setClientSecret(result.clientSecret);
+        }
+      };
+      fetchClientSecret();
+    }
+  }, [open, profile]);
 
   // When modal opens, initialize guide setting from cookie
   useEffect(() => {
@@ -523,15 +627,90 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       })
     }
   }
-  const handleEmailSave = async () => {
-    if (email !== confirmEmail) {
+
+  const handleBillingAddressSave = async () => {
+    if (!profile?.stripe_customer_id) {
       toast({
         title: "Fehler",
-        description: "E-Mail stimmt nicht überein",
+        description: "Stripe-Kunden-ID nicht gefunden.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if all required fields are filled
+    const requiredFields = [
+      billingAddress.name,
+      billingAddress.line1,
+      billingAddress.city,
+      billingAddress.postal_code,
+      billingAddress.country
+    ];
+    
+    const allFieldsFilled = requiredFields.every(field => Boolean(field));
+    
+    if (!allFieldsFilled) {
+      toast({
+        title: "Fehler",
+        description: "Bitte füllen Sie alle erforderlichen Adressfelder aus.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSavingBilling(true);
+    
+    try {
+      const result = await updateBillingAddress(
+        profile.stripe_customer_id,
+        {
+          name: billingAddress.name,
+          address: {
+            line1: billingAddress.line1,
+            line2: billingAddress.line2 || '',
+            city: billingAddress.city,
+            state: billingAddress.state || '',
+            postal_code: billingAddress.postal_code,
+            country: billingAddress.country,
+          },
+          companyName: billingAddress.companyName || '',
+        }
+      );
+      
+      // Update the address complete state
+      setIsAddressComplete(allFieldsFilled);
+
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: "Ihre Rechnungsadresse wurde erfolgreich gespeichert.",
+          variant: "success",
+        });
+      } else {
+        throw new Error(result.error || "Ein unbekannter Fehler ist aufgetreten.");
+      }
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: `Fehler beim Speichern der Rechnungsadresse: ${(error as Error).message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingBilling(false);
+    }
+  };
+
+  const handleEmailSave = async () => {
+    if (email !== confirmEmail) {
+      setEmailError(true)
+      toast({
+        title: "Fehler",
+        description: "Die E-Mail-Adressen stimmen nicht überein.",
         variant: "destructive",
       })
       return
     }
+    setEmailError(false)
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ email })
     setLoading(false)
@@ -551,13 +730,15 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   }
   const handlePasswordSave = async () => {
     if (password !== confirmPassword) {
+      setPasswordError(true)
       toast({
         title: "Fehler",
-        description: "Passwörter stimmen nicht überein",
+        description: "Die Passwörter stimmen nicht überein.",
         variant: "destructive",
       })
       return
     }
+    setPasswordError(false)
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
@@ -712,6 +893,189 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             </SettingsCard>
           </SettingsSection>
 
+          <SettingsSection
+            title="Rechnungsadresse"
+            description="Verwalten Sie Ihre Rechnungsadresse für Rechnungen."
+          >
+            <SettingsCard>
+              {isFetchingStatus || isBillingAddressLoading ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="flex justify-end pt-4">
+                    <Skeleton className="h-9 w-48" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="companyName" className="text-sm font-medium leading-none">
+                        Firmenname (optional)
+                      </label>
+                      <Input
+                        id="companyName"
+                        value={billingAddress.companyName || ''}
+                        onChange={(e) => setBillingAddress(prev => ({...prev, companyName: e.target.value}))}
+                        placeholder="Firmenname"
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="name" className="text-sm font-medium leading-none">
+                        Name <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="name"
+                        value={billingAddress.name || ''}
+                        onChange={(e) => setBillingAddress(prev => ({...prev, name: e.target.value}))}
+                        placeholder="Vor- und Nachname"
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="line1" className="text-sm font-medium leading-none">
+                      Straße und Hausnummer <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      id="line1"
+                      value={billingAddress.line1 || ''}
+                      onChange={(e) => setBillingAddress(prev => ({...prev, line1: e.target.value}))}
+                      placeholder="Musterstraße 123"
+                      className="w-full"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="line2" className="text-sm font-medium leading-none">
+                      Adresszeile 2 (optional)
+                    </label>
+                    <Input
+                      id="line2"
+                      value={billingAddress.line2 || ''}
+                      onChange={(e) => setBillingAddress(prev => ({...prev, line2: e.target.value}))}
+                      placeholder="Zusätzliche Adresszeile"
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="postal_code" className="text-sm font-medium leading-none">
+                        PLZ <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="postal_code"
+                        value={billingAddress.postal_code || ''}
+                        onChange={(e) => setBillingAddress(prev => ({...prev, postal_code: e.target.value}))}
+                        placeholder="12345"
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="city" className="text-sm font-medium leading-none">
+                        Stadt <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="city"
+                        value={billingAddress.city || ''}
+                        onChange={(e) => setBillingAddress(prev => ({...prev, city: e.target.value}))}
+                        placeholder="Musterstadt"
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="country" className="text-sm font-medium leading-none">
+                      Land <span className="text-destructive">*</span>
+                    </label>
+                    <Select
+                      value={billingAddress.country || 'DE'}
+                      onValueChange={(value) => setBillingAddress(prev => ({...prev, country: value}))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Land auswählen" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] overflow-y-auto">
+                        {/* DACH countries at the top */}
+                        {BILLING_COUNTRIES.dach.map((country) => (
+                          <SelectItem key={country.value} value={country.value}>
+                            {country.label}
+                          </SelectItem>
+                        ))}
+                        
+                        <SelectSeparator className="my-1" />
+                        
+                        {/* Rest of Europe */}
+                        {BILLING_COUNTRIES.europe.map((country) => (
+                          <SelectItem key={country.value} value={country.value}>
+                            {country.label}
+                          </SelectItem>
+                        ))}
+                        
+                        <SelectSeparator className="my-1" />
+                        
+                        {/* Major non-European countries */}
+                        {BILLING_COUNTRIES.other.map((country) => (
+                          <SelectItem key={country.value} value={country.value}>
+                            {country.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex justify-end pt-4">
+                    <Button 
+                      onClick={handleBillingAddressSave} 
+                      disabled={isSavingBilling || !billingAddress.name || !billingAddress.line1 || !billingAddress.postal_code || !billingAddress.city || !billingAddress.country}
+                      size="sm"
+                    >
+                      {isSavingBilling ? "Speichern..." : "Rechnungsadresse speichern"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </SettingsCard>
+          </SettingsSection>
+
           <SettingsSection 
             title="Gefährliche Aktionen"
             description="Irreversible Aktionen, die Ihr Konto dauerhaft beeinträchtigen."
@@ -786,8 +1150,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           >
             {darkModeEnabled && (
               <SettingsCard>
-                <div className="flex items-start justify-between gap-6">
-                  <div className="space-y-1 flex-1">
+                <div className="space-y-4">
+                  <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <Monitor className="h-4 w-4 text-muted-foreground" />
                       <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -798,28 +1162,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                       Wählen Sie zwischen hellem, dunklem Design oder folgen Sie den Systemeinstellungen.
                     </p>
                   </div>
-                  <div className="flex-shrink-0 w-36">
-                    <Select
-                      value={theme}
-                      onValueChange={(value) => {
-                        setTheme(value);
-                        toast({
-                          title: "Design geändert",
-                          description: `${themeLabels[value as keyof typeof themeLabels]} aktiviert.`,
-                          variant: "success",
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Wählen Sie ein Design" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Hell</SelectItem>
-                        <SelectItem value="dark">Dunkel</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <ThemeSwitcherCards />
                 </div>
               </SettingsCard>
             )}
@@ -886,13 +1229,27 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      E-Mail bestätigen
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative h-4 w-4 flex items-center justify-center">
+                        {emailError ? (
+                          <AlertCircle className="h-4 w-4 text-destructive absolute transition-opacity duration-200" />
+                        ) : email && confirmEmail && email === confirmEmail ? (
+                          <CheckCircle className="h-4 w-4 text-green-500 absolute transition-all duration-200" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-muted-foreground/50 absolute transition-all duration-200" />
+                        )}
+                      </div>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        E-Mail bestätigen
+                      </label>
+                    </div>
                     <Input
                       type="email"
                       value={confirmEmail}
-                      onChange={e => setConfirmEmail(e.target.value)}
+                      onChange={e => {
+                        setConfirmEmail(e.target.value)
+                        setEmailError(false)
+                      }}
                       className="w-full"
                       disabled={loading}
                     />
@@ -930,13 +1287,27 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Passwort bestätigen
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative h-4 w-4 flex items-center justify-center">
+                        {passwordError ? (
+                          <AlertCircle className="h-4 w-4 text-destructive absolute transition-opacity duration-200" />
+                        ) : password && confirmPassword && password === confirmPassword ? (
+                          <CheckCircle className="h-4 w-4 text-green-500 absolute transition-all duration-200" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-muted-foreground/50 absolute transition-all duration-200" />
+                        )}
+                      </div>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Passwort bestätigen
+                      </label>
+                    </div>
                     <Input
                       type="password"
                       value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
+                      onChange={e => {
+                        setConfirmPassword(e.target.value)
+                        setPasswordError(false)
+                      }}
                       className="w-full"
                       disabled={loading}
                     />
@@ -1511,7 +1882,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     },
     {
       value: "information",
-      label: "Informationen",
+      label: "Mietfluss",
       icon: Info,
       content: (
         <div className="space-y-6">
@@ -1526,7 +1897,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     <Info className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-medium">Rent-Managing-System (RMS)</h4>
+                    <h4 className="text-sm font-medium">Mietfluss</h4>
                     <p className="text-sm text-muted-foreground">
                       Version: <span id="app-version" className="font-mono">{packageJsonVersion}</span>
                     </p>
@@ -1556,36 +1927,25 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[900px] h-[80vh] max-w-[95vw] max-h-[95vh] overflow-hidden">
+        <DialogContent className="w-[900px] h-[80vh] max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
           <DialogHeader className="sr-only">
             <DialogTitle>Einstellungen</DialogTitle>
             <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
           </DialogHeader>
           
-          <div className="flex h-full overflow-hidden">
-            {/* Enhanced sidebar navigation */}
-            <nav className="w-48 min-w-[12rem] flex flex-col gap-2 py-4 px-3 mr-6 border-r border-border/50">
-              
-              {tabs.map(tab => (
-                <button
-                  key={tab.value}
-                  onClick={() => setActiveTab(tab.value)}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 outline-none text-left',
-                    activeTab === tab.value
-                      ? 'bg-primary text-primary-foreground shadow-sm font-medium scale-[1.02]'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground focus:bg-accent/60 focus:text-accent-foreground hover:scale-[1.01]',
-                  )}
-                >
-                  <tab.icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="text-sm">{tab.label}</span>
-                </button>
-              ))}
-            </nav>
+          <div className="flex h-full overflow-hidden p-6">
+            {/* Vertical Tab-Style Sidebar with Animated Indicators */}
+            <SettingsSidebar
+              isSidebarCollapsed={isSidebarCollapsed}
+              onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
             
             {/* Content area with enhanced scrolling */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto py-4 pr-2">
+              <div className="flex-1 overflow-y-auto px-6">
                 <div className="max-w-3xl">
                   {tabs.find(tab => tab.value === activeTab)?.content}
                 </div>

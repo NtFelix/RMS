@@ -114,7 +114,7 @@ export function UserSettings() {
         <CustomDropdownSeparator />
         {templateModalEnabled && (
           <CustomDropdownItem 
-            onClick={openTemplatesModal}
+            onClick={() => openTemplatesModal()}
             aria-label={ARIA_LABELS.templatesModal}
           >
             <FileText className="mr-2 h-4 w-4" aria-hidden="true" />

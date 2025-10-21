@@ -37,6 +37,7 @@ import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
 import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
 import { TemplatesModal } from "@/components/templates-modal"; // Added
+import { TenantMailTemplatesModal } from "@/components/tenant-mail-templates-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
 import { AIAssistantModal } from "@/components/ai-assistant-modal"; // Added
@@ -118,7 +119,12 @@ export default function DashboardRootLayout({
     closeMarkdownEditorModal,
     // Templates Modal state
     isTemplatesModalOpen,
+    templatesModalInitialCategory,
     closeTemplatesModal,
+    // Tenant Mail Templates Modal state
+    isTenantMailTemplatesModalOpen,
+    tenantMailTemplatesModalData,
+    closeTenantMailTemplatesModal,
     // AI Assistant Modal state
     isAIAssistantModalOpen,
   } = useModalStore()
@@ -237,6 +243,14 @@ export default function DashboardRootLayout({
       <TemplatesModal
         isOpen={isTemplatesModalOpen}
         onClose={closeTemplatesModal}
+        initialCategory={templatesModalInitialCategory}
+      />
+      {/* TenantMailTemplatesModal - Read-only mail templates for tenants */}
+      <TenantMailTemplatesModal
+        isOpen={isTenantMailTemplatesModalOpen}
+        onClose={closeTenantMailTemplatesModal}
+        tenantName={tenantMailTemplatesModalData?.tenantName}
+        tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
       />
       {/* AI Assistant Modal - Global AI assistant modal */}
       <AIAssistantModal />
@@ -255,6 +269,7 @@ export default function DashboardRootLayout({
           description={confirmationModalConfig.description}
           confirmText={confirmationModalConfig.confirmText}
           cancelText={confirmationModalConfig.cancelText}
+          variant={confirmationModalConfig.variant}
         />
       )}
         {/* </GlobalDragDropProvider> */}

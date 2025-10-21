@@ -1,0 +1,524 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.jsx'
+      - '**/package.json'
+      - '**/package-lock.json'
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  NODE_ENV: test
+  CI: true
+  NODE_OPTIONS: --max-old-space-size=4096
+  JEST_TIMEOUT: '10000'
+  FORCE_COLOR: '1'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test-group: [1, 2, 3]
+        include:
+          - test-group: 1
+            is-first-group: true
+            test-files: >-
+              lib/__tests__/data-fetching.test.ts
+              lib/__tests__/utils.test.ts
+              lib/__tests__/template-constants.test.ts
+              lib/__tests__/storage-service.test.ts
+              lib/__tests__/path-utils.test.ts
+              lib/__tests__/constants.test.ts
+              lib/__tests__/supabase-server.test.ts
+              lib/__tests__/stripe-server.test.ts
+              hooks/__tests__/use-command-menu.test.tsx
+              hooks/__tests__/use-search.test.ts
+              components/__tests__/house-filters.test.tsx
+              components/__tests__/wohnung-overview-modal.test.tsx
+              components/__tests__/search-error-boundary.test.tsx
+              components/__tests__/search-result-item.test.tsx
+              components/__tests__/finance-edit-modal.test.tsx
+          - test-group: 2
+            is-first-group: false
+            test-files: >-
+              hooks/__tests__/use-cloud-storage-upload.test.ts
+              hooks/__tests__/use-keyboard-navigation.test.ts
+              hooks/__tests__/use-cloud-storage-navigation.test.ts
+              hooks/__tests__/use-cloud-storage-store.test.ts
+              hooks/__tests__/use-modal-store-timeout.test.ts
+              components/ui/__tests__/custom-combobox.test.tsx
+              components/ui/__tests__/video-player.test.tsx
+              components/ui/__tests__/label-with-tooltip.test.tsx
+              components/ui/__tests__/button-with-tooltip.test.tsx
+              app/(dashboard)/wohnungen/__tests__/client.test.tsx
+              app/(dashboard)/todos/__tests__/client-wrapper.test.tsx
+              app/(dashboard)/betriebskosten/__tests__/client-wrapper.test.tsx
+              app/(dashboard)/betriebskosten/__tests__/client-wrapper-layout.test.tsx
+              app/__tests__/wohnungen-actions.test.ts
+              app/subscription-locked/__tests__/page.test.tsx
+          - test-group: 3
+            is-first-group: false
+            test-files: >-
+              __tests__/template-service.test.ts
+              __tests__/mention-utils.test.ts
+              __tests__/betriebskosten-error-recovery.test.ts
+              __tests__/template-validation.test.ts
+              lib/__tests__/directory-cache.test.ts
+    
+    # Job name is set by the matrix strategy
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Cache node_modules (shared with Lighthouse workflow)
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      # Cache Jest test results
+      - name: Cache Jest
+        uses: actions/cache@v4
+        id: cache-jest
+        with:
+          path: .jest/cache
+          key: ${{ runner.os }}-jest-${{ hashFiles('**/*.test.ts', '**/*.test.tsx') }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-jest-
+
+      # Install dependencies (skip if cache hit)
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
+
+      # Get test files for this group
+      - name: Get test files list
+        id: test-files
+        run: |
+          # Create a JSON array of test files from the matrix variable
+          TEST_FILES_RAW="${{ matrix.test-files }}"
+          
+          if [ -z "$TEST_FILES_RAW" ]; then
+            echo "No test files specified for this group"
+            echo "[]" > test_files.json
+          else
+            # Convert space and newline-separated list to JSON array
+            # First normalize whitespace, then split on spaces/newlines
+            echo "$TEST_FILES_RAW" | tr -s '[:space:]' '\n' | grep -v '^[[:space:]]*$' | jq -R . | jq -s . > test_files.json
+          fi
+          
+          # Validate JSON
+          if ! jq -e . test_files.json > /dev/null 2>&1; then
+            echo "Error: Invalid JSON in test_files.json"
+            cat test_files.json
+            exit 1
+          fi
+          
+          # Output for debugging
+          echo "Test files in group ${{ matrix.test-group }}:"
+          cat test_files.json
+          echo "Number of test files: $(jq 'length' test_files.json)"
+          
+          # Set output for use in subsequent steps
+          echo "test_files=$(cat test_files.json | jq -c .)" >> $GITHUB_OUTPUT
+
+      # Run tests for this group
+      - name: Run test group ${{ matrix.test-group }}
+        timeout-minutes: 5
+        run: |
+          # Clean any previous coverage data
+          rm -rf coverage/ .nyc_output/
+          
+          # Check if we have any test files
+          if [ ! -f test_files.json ] || [ "$(jq 'length' test_files.json)" -eq 0 ]; then
+            echo "No test files found in this group. Skipping test execution."
+            # Create empty coverage directory if this is the first group
+            if [ "${{ matrix.is-first-group }}" = "true" ]; then
+              mkdir -p coverage
+              echo '{"total": {"lines": {"pct": 100}, "statements": {"pct": 100}, "functions": {"pct": 100}, "branches": {"pct": 100}}}' > coverage/coverage-summary.json
+            fi
+            exit 0
+          fi
+          
+          # Build jest command with proper arguments for stability
+          JEST_ARGS="--runInBand --forceExit --detectOpenHandles --testTimeout=10000 --passWithNoTests --no-cache"
+          
+          # Only add coverage for the first group to avoid merge conflicts
+          if [ "${{ matrix.is-first-group }}" = "true" ]; then
+            mkdir -p coverage
+            JEST_ARGS="$JEST_ARGS --coverage --testLocationInResults --json --outputFile=test-results.json"
+          fi
+          
+          # Read test files into an array to handle paths with special characters
+          mapfile -t TEST_FILES_ARRAY < <(jq -r '.[]' test_files.json)
+          
+          if [ ${#TEST_FILES_ARRAY[@]} -eq 0 ]; then
+            echo "No test files to run in this group."
+            if [ "${{ matrix.is-first-group }}" = "true" ]; then
+              mkdir -p coverage
+              echo '{"total": {"lines": {"pct": 100}, "statements": {"pct": 100}, "functions": {"pct": 100}, "branches": {"pct": 100}}}' > coverage/coverage-summary.json
+            fi
+            exit 0
+          fi
+          
+          echo "Running test group ${{ matrix.test-group }} with ${#TEST_FILES_ARRAY[@]} test files"
+          
+          # Execute tests with proper quoting and timeout handling
+          timeout 180 npx jest $JEST_ARGS "${TEST_FILES_ARRAY[@]}" 2>&1 | tee jest-output.log || {
+            TEST_EXIT_CODE=$?
+            if [ $TEST_EXIT_CODE -eq 124 ]; then
+              echo "Tests timed out after 3 minutes"
+              exit 1
+            fi
+            exit $TEST_EXIT_CODE
+          }
+          TEST_EXIT_CODE=$?
+          
+          # If this is the first group, ensure coverage directory exists
+          if [ "${{ matrix.is-first-group }}" = "true" ] && [ ! -d "coverage" ]; then
+            mkdir -p coverage
+            echo '{"total": {"lines": {"pct": 0}, "statements": {"pct": 0}, "functions": {"pct": 0}, "branches": {"pct": 0}}}' > coverage/coverage-summary.json
+          fi
+          
+          # For the first group, verify coverage
+          if [ "${{ matrix.is-first-group }}" = "true" ] && [ -d "coverage" ]; then
+            echo "Coverage report generated at: $(pwd)/coverage"
+            ls -la coverage/ || echo "Coverage directory is empty"
+          fi
+          
+          # Exit with the test status code
+          exit $TEST_EXIT_CODE
+
+      # Upload test coverage to Codecov (only from first group and main/develop branches)
+      - name: Upload coverage to Codecov
+        if: always() && matrix.is-first-group && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        run: |
+          if [ -f "coverage/lcov.info" ]; then
+            echo "Uploading lcov.info to Codecov..."
+            npx codecov --file=coverage/lcov.info --token=${{ secrets.CODECOV_TOKEN }}
+          elif [ -f "coverage/coverage-final.json" ]; then
+            echo "Uploading coverage-final.json to Codecov..."
+            npx codecov --file=coverage/coverage-final.json --token=${{ secrets.CODECOV_TOKEN }}
+          else
+            echo "No coverage files found. Skipping Codecov upload."
+          fi
+
+      # Upload test results as artifacts (only from first group)
+      - name: Upload test results
+        if: always() && matrix.is-first-group
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            coverage/
+            test-results.json
+          if-no-files-found: ignore
+          retention-days: 7
+          
+      # Upload JUnit test results for better visualization
+      - name: Upload JUnit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-group-${{ matrix.test-group }}
+          path: |
+            junit-*.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # Save test results summary for this group
+      - name: Save test summary
+        if: always()
+        run: |
+          # Create a summary file for this group
+          mkdir -p test-summaries
+          
+          # Initialize variables
+          PASSED=0
+          FAILED=0
+          TOTAL=0
+          SUITES_PASSED=0
+          SUITES_FAILED=0
+          SUITES_TOTAL=0
+          
+          # Extract test results from Jest output if available
+          if [ -f "test-results.json" ]; then
+            echo "Found test-results.json, parsing..."
+            cat test-results.json
+            
+            PASSED=$(jq -r '.numPassedTests // 0' test-results.json)
+            FAILED=$(jq -r '.numFailedTests // 0' test-results.json)
+            TOTAL=$(jq -r '.numTotalTests // 0' test-results.json)
+            
+            SUITES_PASSED=$(jq -r '.numPassedTestSuites // 0' test-results.json)
+            SUITES_FAILED=$(jq -r '.numFailedTestSuites // 0' test-results.json)
+            SUITES_TOTAL=$(jq -r '.numTotalTestSuites // 0' test-results.json)
+            
+            echo "Parsed from JSON - Tests: P:$PASSED F:$FAILED T:$TOTAL, Suites: P:$SUITES_PASSED F:$SUITES_FAILED T:$SUITES_TOTAL"
+          else
+            echo "No test-results.json found, checking for jest output..."
+            
+            # Try to parse from jest output log if available
+            if [ -f "jest-output.log" ]; then
+              echo "Parsing jest output log..."
+              
+              # Extract test counts from Jest summary line
+              JEST_SUMMARY=$(grep -E "Test Suites:|Tests:" jest-output.log | tail -2)
+              echo "Jest summary: $JEST_SUMMARY"
+              
+              # Parse test suites line: "Test Suites: X failed, Y passed, Z total"
+              SUITES_LINE=$(echo "$JEST_SUMMARY" | grep "Test Suites:" || echo "")
+              if [ -n "$SUITES_LINE" ]; then
+                SUITES_FAILED=$(echo "$SUITES_LINE" | grep -o '[0-9]\+ failed' | grep -o '[0-9]\+' || echo "0")
+                SUITES_PASSED=$(echo "$SUITES_LINE" | grep -o '[0-9]\+ passed' | grep -o '[0-9]\+' || echo "0")
+                SUITES_TOTAL=$(echo "$SUITES_LINE" | grep -o '[0-9]\+ total' | grep -o '[0-9]\+' || echo "0")
+              fi
+              
+              # Parse tests line: "Tests: X failed, Y passed, Z total"
+              TESTS_LINE=$(echo "$JEST_SUMMARY" | grep "Tests:" || echo "")
+              if [ -n "$TESTS_LINE" ]; then
+                FAILED=$(echo "$TESTS_LINE" | grep -o '[0-9]\+ failed' | grep -o '[0-9]\+' || echo "0")
+                PASSED=$(echo "$TESTS_LINE" | grep -o '[0-9]\+ passed' | grep -o '[0-9]\+' || echo "0")
+                TOTAL=$(echo "$TESTS_LINE" | grep -o '[0-9]\+ total' | grep -o '[0-9]\+' || echo "0")
+              fi
+              
+              echo "Parsed from log - Tests: P:$PASSED F:$FAILED T:$TOTAL, Suites: P:$SUITES_PASSED F:$SUITES_FAILED T:$SUITES_TOTAL"
+            else
+              echo "No jest output found, using job status..."
+              # Fallback based on job status
+              if [ "${{ job.status }}" = "success" ]; then
+                PASSED=0
+                FAILED=0
+                TOTAL=0
+                SUITES_PASSED=0
+                SUITES_FAILED=0
+                SUITES_TOTAL=0
+              else
+                PASSED=0
+                FAILED=1
+                TOTAL=1
+                SUITES_PASSED=0
+                SUITES_FAILED=1
+                SUITES_TOTAL=1
+              fi
+            fi
+          fi
+          
+          # Create summary JSON
+          cat > test-summaries/group-${{ matrix.test-group }}.json <<EOF
+          {
+            "group": ${{ matrix.test-group }},
+            "tests": {
+              "passed": $PASSED,
+              "failed": $FAILED,
+              "total": $TOTAL
+            },
+            "suites": {
+              "passed": $SUITES_PASSED,
+              "failed": $SUITES_FAILED,
+              "total": $SUITES_TOTAL
+            },
+            "status": "${{ job.status }}"
+          }
+          EOF
+          
+          cat test-summaries/group-${{ matrix.test-group }}.json
+      
+      # Upload test summary
+      - name: Upload test summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summary-${{ matrix.test-group }}
+          path: test-summaries/
+          retention-days: 1
+
+  # Summary job that runs after all test groups complete
+  test-summary:
+    name: Test Summary & Notification
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Download all test summaries
+      - name: Download test summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-summary-*
+          path: test-summaries
+          merge-multiple: true
+      
+      # Aggregate results and send Discord notification
+      - name: Aggregate results and notify Discord
+        if: always()
+        run: |
+          # Aggregate all test results
+          TOTAL_TESTS_PASSED=0
+          TOTAL_TESTS_FAILED=0
+          TOTAL_TESTS=0
+          TOTAL_SUITES_PASSED=0
+          TOTAL_SUITES_FAILED=0
+          TOTAL_SUITES=0
+          FAILED_GROUPS=""
+          
+          echo "Processing test summary files..."
+          ls -la test-summaries/ || echo "No test-summaries directory found"
+          
+          for file in test-summaries/*.json; do
+            if [ -f "$file" ]; then
+              echo "Processing file: $file"
+              cat "$file"
+              
+              TESTS_PASSED=$(jq -r '.tests.passed' "$file")
+              TESTS_FAILED=$(jq -r '.tests.failed' "$file")
+              TESTS_TOTAL=$(jq -r '.tests.total' "$file")
+              
+              SUITES_PASSED=$(jq -r '.suites.passed' "$file")
+              SUITES_FAILED=$(jq -r '.suites.failed' "$file")
+              SUITES_TOTAL=$(jq -r '.suites.total' "$file")
+              
+              GROUP=$(jq -r '.group' "$file")
+              STATUS=$(jq -r '.status' "$file")
+              
+              echo "Group $GROUP: Tests P:$TESTS_PASSED F:$TESTS_FAILED T:$TESTS_TOTAL, Suites P:$SUITES_PASSED F:$SUITES_FAILED T:$SUITES_TOTAL, Status:$STATUS"
+              
+              TOTAL_TESTS_PASSED=$((TOTAL_TESTS_PASSED + TESTS_PASSED))
+              TOTAL_TESTS_FAILED=$((TOTAL_TESTS_FAILED + TESTS_FAILED))
+              TOTAL_TESTS=$((TOTAL_TESTS + TESTS_TOTAL))
+              
+              TOTAL_SUITES_PASSED=$((TOTAL_SUITES_PASSED + SUITES_PASSED))
+              TOTAL_SUITES_FAILED=$((TOTAL_SUITES_FAILED + SUITES_FAILED))
+              TOTAL_SUITES=$((TOTAL_SUITES + SUITES_TOTAL))
+              
+              if [ "$TESTS_FAILED" -gt 0 ] || [ "$STATUS" != "success" ]; then
+                FAILED_GROUPS="$FAILED_GROUPS Group $GROUP: $TESTS_FAILED tests failed in $SUITES_FAILED suites\n"
+              fi
+            fi
+          done
+          
+          echo "Final aggregated totals:"
+          echo "Tests - Passed: $TOTAL_TESTS_PASSED, Failed: $TOTAL_TESTS_FAILED, Total: $TOTAL_TESTS"
+          echo "Suites - Passed: $TOTAL_SUITES_PASSED, Failed: $TOTAL_SUITES_FAILED, Total: $TOTAL_SUITES"
+          
+          echo "Total Tests: $TOTAL_TESTS (Passed: $TOTAL_TESTS_PASSED, Failed: $TOTAL_TESTS_FAILED)"
+          echo "Total Suites: $TOTAL_SUITES (Passed: $TOTAL_SUITES_PASSED, Failed: $TOTAL_SUITES_FAILED)"
+          
+          # Send Discord notification for both success and failure
+          if [ "$TOTAL_TESTS_FAILED" -gt 0 ] || [ "$TOTAL_SUITES_FAILED" -gt 0 ]; then
+            NOTIFICATION_COLOR=15158332  # Red for failures
+            NOTIFICATION_TITLE="❌ Tests Failed"
+          else
+            NOTIFICATION_COLOR=3066993   # Green for success
+            NOTIFICATION_TITLE="✅ All Tests Passed"
+          fi
+          
+          if [ "$TOTAL_TESTS" -gt 0 ]; then
+            # Get branch name
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+            
+            # Get commit info
+            COMMIT_SHA="${GITHUB_SHA:0:7}"
+            COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
+            COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+            
+            # Build Discord embed
+            DISCORD_EMBED=$(cat <<EOF
+          {
+            "embeds": [{
+              "title": "$NOTIFICATION_TITLE",
+              "description": "**$TOTAL_TESTS_PASSED** passed, **$TOTAL_TESTS_FAILED** failed of **$TOTAL_TESTS** total tests | **$TOTAL_SUITES_PASSED** passed, **$TOTAL_SUITES_FAILED** failed of **$TOTAL_SUITES** total suites",
+              "color": $NOTIFICATION_COLOR,
+              "fields": [
+                {
+                  "name": "Repository",
+                  "value": "[${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})",
+                  "inline": true
+                },
+                {
+                  "name": "Branch",
+                  "value": "\`$BRANCH_NAME\`",
+                  "inline": true
+                },
+                {
+                  "name": "Commit",
+                  "value": "[\`$COMMIT_SHA\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                  "inline": true
+                },
+                {
+                  "name": "Author",
+                  "value": "$COMMIT_AUTHOR",
+                  "inline": true
+                },
+                {
+                  "name": "Test Suites",
+                  "value": "✅ $TOTAL_SUITES_PASSED passed | ❌ $TOTAL_SUITES_FAILED failed | 📊 $TOTAL_SUITES total",
+                  "inline": false
+                },
+                {
+                  "name": "Tests",
+                  "value": "✅ $TOTAL_TESTS_PASSED passed | ❌ $TOTAL_TESTS_FAILED failed | 📊 $TOTAL_TESTS total",
+                  "inline": false
+                },
+                {
+                  "name": "Failed Groups",
+                  "value": "$(echo -e "$FAILED_GROUPS" | head -c 1000)",
+                  "inline": false
+                },
+                {
+                  "name": "Commit Message",
+                  "value": "\`\`\`$COMMIT_MSG\`\`\`",
+                  "inline": false
+                },
+                {
+                  "name": "Workflow Run",
+                  "value": "[View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                  "inline": false
+                }
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+            }]
+          }
+          EOF
+            )
+            
+            # Send to Discord (only if webhook URL is configured)
+            DISCORD_WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_URL }}"
+            
+            if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+              echo "Sending Discord notification..."
+              curl -H "Content-Type: application/json" \
+                   -d "$DISCORD_EMBED" \
+                   "$DISCORD_WEBHOOK_URL" || echo "Failed to send Discord notification"
+              
+              echo "Discord notification sent - Title: $NOTIFICATION_TITLE"
+            else
+              echo "Discord webhook URL not configured - skipping notification"
+            fi
+          else
+            echo "No tests found - no Discord notification sent"
+          fi
