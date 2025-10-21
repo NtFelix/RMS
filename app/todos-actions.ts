@@ -149,6 +149,42 @@ export async function bulkUpdateTaskStatusesAction(
   }
 }
 
+export async function bulkDeleteTasksAction(
+  taskIds: string[]
+): Promise<{ success: boolean; deletedCount?: number; error?: { message: string } }> {
+  if (!taskIds || taskIds.length === 0) {
+    return { success: false, error: { message: "Keine Aufgaben zum Löschen ausgewählt." } };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { count, error } = await supabase
+      .from("Aufgaben")
+      .delete()
+      .in("id", taskIds);
+
+    if (error) {
+      console.error("Supabase error in bulkDeleteTasksAction:", error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    // Revalidate the tasks page to reflect the changes
+    revalidatePath("/todos");
+    
+    return { 
+      success: true, 
+      deletedCount: count || 0
+    };
+
+  } catch (e: unknown) {
+    console.error("Unexpected error in bulkDeleteTasksAction:", e);
+    if (e instanceof Error) {
+      return { success: false, error: { message: e.message } };
+    }
+    return { success: false, error: { message: "Ein unbekannter Fehler ist aufgetreten." } };
+  }
+}
+
 export async function deleteTaskAction(taskId: string): Promise<{ success: boolean; taskId?: string; error?: { message: string } }> {
   try {
     const supabase = await createClient();

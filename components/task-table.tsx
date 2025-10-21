@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { useRouter } from "next/navigation"
 import { ChevronsUpDown, ArrowUp, ArrowDown, CheckSquare, FileText, Calendar, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
-import { deleteTaskAction } from "@/app/todos-actions"
+import { bulkDeleteTasksAction } from "@/app/todos-actions"
 import { toast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -156,41 +156,48 @@ export function TaskTable({
   }
 
   const handleBulkDelete = async () => {
-    setIsBulkDeleting(true)
-    const selectedIds = Array.from(selectedTasks)
-    let successCount = 0
-    let errorCount = 0
+    if (selectedTasks.size === 0) return;
+    
+    setIsBulkDeleting(true);
+    const selectedIds = Array.from(selectedTasks);
 
-    for (const taskId of selectedIds) {
-      try {
-        const result = await deleteTaskAction(taskId)
-        if (result.success) {
-          successCount++
+    try {
+      const { success, deletedCount, error } = await bulkDeleteTasksAction(selectedIds);
+      
+      if (success && deletedCount !== undefined) {
+        const failedCount = selectedIds.length - deletedCount;
+        
+        setShowBulkDeleteConfirm(false);
+        setSelectedTasks(new Set());
+        
+        if (deletedCount > 0) {
+          toast({
+            title: "Erfolg",
+            description: `${deletedCount} ${deletedCount === 1 ? 'Aufgabe' : 'Aufgaben'} erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`,
+            variant: "success",
+          });
+          
+          // Refresh the page to reflect the changes
+          router.refresh();
         } else {
-          errorCount++
+          toast({
+            title: "Fehler",
+            description: "Keine Aufgaben konnten gelöscht werden.",
+            variant: "destructive",
+          });
         }
-      } catch (error) {
-        errorCount++
+      } else if (error) {
+        throw new Error(error.message);
       }
-    }
-
-    setIsBulkDeleting(false)
-    setShowBulkDeleteConfirm(false)
-    setSelectedTasks(new Set())
-
-    if (successCount > 0) {
-      toast({
-        title: "Erfolg",
-        description: `${successCount} Aufgaben erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.`,
-        variant: "success",
-      })
-      router.refresh()
-    } else {
+    } catch (error) {
+      console.error("Fehler beim Löschen der Aufgaben:", error);
       toast({
         title: "Fehler",
-        description: "Keine Aufgaben konnten gelöscht werden.",
+        description: error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten.",
         variant: "destructive",
-      })
+      });
+    } finally {
+      setIsBulkDeleting(false);
     }
   }
 
