@@ -161,42 +161,45 @@ export default function WohnungenClientView({
   }, [selectedApartments, apartments, escapeCsvValue])
 
   const handleBulkDelete = useCallback(async () => {
-    setIsBulkDeleting(true)
-    const selectedIds = Array.from(selectedApartments)
-    let successCount = 0
-    let errorCount = 0
+    if (selectedApartments.size === 0) return;
 
-    for (const apartmentId of selectedIds) {
-      try {
-        const response = await fetch(`/api/wohnungen/${apartmentId}`, { method: 'DELETE' })
-        if (response.ok) {
-          successCount++
-        } else {
-          errorCount++
-        }
-      } catch (error) {
-        errorCount++
+    setIsBulkDeleting(true);
+    const selectedIds = Array.from(selectedApartments);
+
+    try {
+      const response = await fetch('/api/apartments/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Fehler beim Löschen der Wohnungen.');
       }
-    }
 
-    setIsBulkDeleting(false)
-    setShowBulkDeleteConfirm(false)
-    setSelectedApartments(new Set())
-
-    if (successCount > 0) {
+      const { successCount } = await response.json();
+      
+      setShowBulkDeleteConfirm(false);
+      setSelectedApartments(new Set());
+      
       toast({
         title: "Erfolg",
-        description: `${successCount} Wohnungen erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.`,
+        description: `${successCount} Wohnungen erfolgreich gelöscht.`,
         variant: "success",
-      })
-      await refreshTable()
-      router.refresh()
-    } else {
+      });
+
+      await refreshTable();
+      router.refresh();
+    } catch (error) {
+      console.error("Bulk delete error:", error);
       toast({
         title: "Fehler",
-        description: "Keine Wohnungen konnten gelöscht werden.",
+        description: error instanceof Error ? error.message : "Ein Fehler ist beim Löschen der Wohnungen aufgetreten.",
         variant: "destructive",
-      })
+      });
+    } finally {
+      setIsBulkDeleting(false);
     }
   }, [selectedApartments, router, refreshTable]);
 
