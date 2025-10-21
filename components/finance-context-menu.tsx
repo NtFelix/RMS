@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
-import { financeServerAction, deleteFinanceAction } from "@/app/finanzen-actions";
+import { toggleFinanceStatusAction, deleteFinanceAction } from "@/app/finanzen-actions";
 
 interface Finance {
   id: string
@@ -54,20 +54,9 @@ export function FinanceContextMenu({
     if (isUpdatingStatus) return;
     setIsUpdatingStatus(true);
 
-    const newStatus = !finance.ist_einnahmen;
-    
-    // Only send the fields that are actually changing
-    const payload = {
-      name: finance.name, // Required field
-      betrag: finance.betrag, // Required field
-      ist_einnahmen: newStatus, // The field we're changing
-      wohnung_id: finance.wohnung_id || null, // Required for validation
-      datum: finance.datum || null, // Required for validation
-      notiz: finance.notiz || null, // Required for validation
-    };
-
     try {
-      const result = await financeServerAction(finance.id, payload);
+      const result = await toggleFinanceStatusAction(finance.id, finance.ist_einnahmen);
+      const newStatus = !finance.ist_einnahmen;
 
       if (result.success) {
         toast({
