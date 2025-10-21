@@ -27,7 +27,7 @@ import {
 import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler, Rechnung, Haus } from "../lib/data-fetching" // Adjusted path, Added Rechnung and Haus
 import { OptimizedNebenkosten, WasserzaehlerModalData, AbrechnungModalData } from "@/types/optimized-betriebskosten";
 import { isoToGermanDate } from "@/utils/date-calculations"
-import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil } from "lucide-react"
+import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
 import { 
@@ -464,10 +464,20 @@ export function OperatingCostsTable({
               variant="outline"
               size="sm"
               onClick={() => setShowBulkDeleteConfirm(true)}
+              disabled={isBulkDeleting}
               className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
             >
-              <Trash2 className="h-4 w-4" />
-              Löschen
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Wird gelöscht...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Löschen ({selectedItems.size})
+                </>
+              )}
             </Button>
           </div>
         </div>
