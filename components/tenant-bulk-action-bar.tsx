@@ -76,50 +76,63 @@ export function TenantBulkActionBar({
       return
     }
 
+    if (selectedTenants.size === 0) {
+      toast({
+        title: "Keine Mieter ausgewählt",
+        description: "Bitte wählen Sie mindestens einen Mieter aus.",
+        variant: "destructive"
+      })
+      return
+    }
+
     setIsUpdating(true)
     
     try {
-      const selectedTenantIds = Array.from(selectedTenants)
-      const updateResults = await Promise.allSettled(
-        selectedTenantIds.map(tenantId => 
-          updateTenantApartment(tenantId, selectedApartment === "none" ? "" : selectedApartment)
-        )
-      )
+      const response = await fetch('/api/mieter/bulk-update', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ids: Array.from(selectedTenants),
+          updates: {
+            wohnung_id: selectedApartment === "none" ? null : selectedApartment
+          }
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Fehler beim Aktualisieren der Mieter')
+      }
+
+      const successCount = result.successCount || 0
+      const totalCount = selectedTenants.size
       
-      const successfulUpdates = updateResults.filter(
-        (result): result is PromiseFulfilledResult<{ success: boolean }> => 
-          result.status === 'fulfilled' && result.value.success
-      )
-      
-      const failedUpdates = updateResults.length - successfulUpdates.length
-      
-      if (successfulUpdates.length > 0) {
+      if (successCount > 0) {
         toast({
           title: "Erfolgreich aktualisiert",
-          description: `${successfulUpdates.length} von ${updateResults.length} Mietern wurden erfolgreich aktualisiert.`,
+          description: `${successCount} von ${totalCount} Mietern wurden erfolgreich aktualisiert.`,
           variant: "success"
         })
-      }
-      
-      if (failedUpdates > 0) {
-        toast({
-          title: "Teilweise Fehler",
-          description: `Bei ${failedUpdates} von ${updateResults.length} Mietern ist ein Fehler aufgetreten.`,
-          variant: "destructive"
-        })
-      }
-      
-      if (successfulUpdates.length > 0) {
+        
         setIsAssignDialogOpen(false)
         setSelectedApartment("none")
         onUpdate?.()
         onClearSelection()
+      } else {
+        toast({
+          title: "Keine Änderungen",
+          description: "Es wurden keine Mieter aktualisiert.",
+          variant: "destructive"
+        })
       }
     } catch (error) {
       console.error("Fehler beim Aktualisieren der Mieter:", error)
       toast({
         title: "Fehler",
-        description: "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
+        description: error instanceof Error ? error.message : "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
         variant: "destructive"
       })
     } finally {
