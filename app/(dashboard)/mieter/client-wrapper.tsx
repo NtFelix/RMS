@@ -169,41 +169,53 @@ export default function MieterClientView({
   }, [selectedTenants, initialTenants, wohnungsMap, escapeCsvValue])
 
   const handleBulkDelete = useCallback(async () => {
-    setIsBulkDeleting(true)
-    const selectedIds = Array.from(selectedTenants)
-    let successCount = 0
-    let errorCount = 0
-
-    for (const tenantId of selectedIds) {
-      try {
-        const result = await deleteTenantAction(tenantId)
-        if (result.success) {
-          successCount++
-        } else {
-          errorCount++
-        }
-      } catch (error) {
-        errorCount++
-      }
-    }
-
-    setIsBulkDeleting(false)
-    setShowBulkDeleteConfirm(false)
-    setSelectedTenants(new Set())
-
-    if (successCount > 0) {
+    if (selectedTenants.size === 0) {
       toast({
-        title: "Erfolg",
-        description: `${successCount} Mieter erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.`,
-        variant: "success",
-      })
-      router.refresh()
-    } else {
-      toast({
-        title: "Fehler",
-        description: "Keine Mieter konnten gelöscht werden.",
+        title: "Keine Mieter ausgewählt",
+        description: "Bitte wählen Sie mindestens einen Mieter zum Löschen aus.",
         variant: "destructive",
       })
+      return
+    }
+
+    setIsBulkDeleting(true)
+
+    try {
+      const response = await fetch('/api/mieter/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ids: Array.from(selectedTenants)
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Fehler beim Löschen der Mieter')
+      }
+
+      setShowBulkDeleteConfirm(false)
+      setSelectedTenants(new Set())
+
+      toast({
+        title: "Erfolg",
+        description: `${result.successCount} Mieter erfolgreich gelöscht.`,
+        variant: "success",
+      })
+
+      router.refresh()
+    } catch (error) {
+      console.error('Bulk delete error:', error)
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Fehler beim Löschen der Mieter",
+        variant: "destructive",
+      })
+    } finally {
+      setIsBulkDeleting(false)
     }
   }, [selectedTenants, router]);
 
