@@ -217,50 +217,44 @@ export default function WohnungenClientView({
     
     try {
       const selectedIds = Array.from(selectedApartments)
-      const updateResults = await Promise.allSettled(
-        selectedIds.map(async (apartmentId) => {
-          const apartment = apartments.find(a => a.id === apartmentId)
-          if (!apartment) return { success: false }
-          
-          const response = await fetch(`/api/wohnungen?id=${apartmentId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: apartment.name,
-              groesse: apartment.groesse,
-              miete: apartment.miete,
-              haus_id: selectedHouse === "none" ? null : selectedHouse
-            })
-          })
-          
-          return { success: response.ok }
+      if (selectedIds.length === 0) return
+
+      const response = await fetch('/api/apartments/bulk-update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: selectedIds,
+          updates: {
+            haus_id: selectedHouse === "none" ? null : selectedHouse
+          }
         })
-      )
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Fehler beim Aktualisieren der Wohnungen.')
+      }
+
+      const { successCount } = await response.json()
+      const failedCount = selectedIds.length - successCount
       
-      const successfulUpdates = updateResults.filter(
-        (result): result is PromiseFulfilledResult<{ success: boolean }> => 
-          result.status === 'fulfilled' && result.value.success
-      )
-      
-      const failedUpdates = updateResults.length - successfulUpdates.length
-      
-      if (successfulUpdates.length > 0) {
+      if (successCount > 0) {
         toast({
           title: "Erfolgreich aktualisiert",
-          description: `${successfulUpdates.length} von ${updateResults.length} Wohnungen wurden erfolgreich aktualisiert.`,
+          description: `${successCount} von ${selectedIds.length} Wohnungen wurden erfolgreich aktualisiert.`,
           variant: "success"
         })
       }
       
-      if (failedUpdates > 0) {
+      if (failedCount > 0) {
         toast({
           title: "Teilweise Fehler",
-          description: `Bei ${failedUpdates} von ${updateResults.length} Wohnungen ist ein Fehler aufgetreten.`,
+          description: `Bei ${failedCount} von ${selectedIds.length} Wohnungen ist ein Fehler aufgetreten.`,
           variant: "destructive"
         })
       }
       
-      if (successfulUpdates.length > 0) {
+      if (successCount > 0) {
         setIsAssignDialogOpen(false)
         setSelectedHouse("none")
         await refreshTable()
