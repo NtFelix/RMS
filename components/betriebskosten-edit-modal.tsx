@@ -529,7 +529,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       }
       
       // Only show success and close if everything was successful
-      toast({ title: "Betriebskosten erfolgreich gespeichert" });
+      toast({ 
+        title: "Erfolg",
+        description: "Betriebskosten erfolgreich gespeichert",
+        variant: "success" 
+      });
       if (betriebskostenModalOnSuccess) betriebskostenModalOnSuccess();
       closeBetriebskostenModal();
     } else {

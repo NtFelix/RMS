@@ -1,17 +1,25 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
-import { FinanceTransactions } from "@/components/finance-transactions";
+import { FinanceTable } from "@/components/finance-table";
+import { FinanceBulkActionBar } from "@/components/finance-bulk-action-bar";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { SummaryCard } from "@/components/summary-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { StatCard } from "@/components/stat-card";
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
+import { CustomCombobox } from "@/components/ui/custom-combobox";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 
 interface Finanz {
   id: string;
@@ -68,6 +76,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableYears, setAvailableYears] = useState<number[]>(initialAvailableYears);
+  const [selectedFinances, setSelectedFinances] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState({
     searchQuery: '',
     selectedApartment: 'Alle Wohnungen',
@@ -229,6 +238,28 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     fetchBalance();
   }, [refreshSummaryData, fetchBalance]);
 
+  const handleBulkUpdateSuccess = useCallback((updatedFinances: Finanz[]) => {
+    if (!updatedFinances?.length) {
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const shouldRefreshSummary = updatedFinances.some(finance => (
+      finance.datum && new Date(finance.datum).getFullYear() === currentYear
+    ));
+
+    setFinData(prev => {
+      const updatesById = new Map(updatedFinances.map(finance => [finance.id, finance]));
+      return prev.map(item => updatesById.get(item.id) ? { ...item, ...updatesById.get(item.id)! } : item);
+    });
+
+    if (shouldRefreshSummary) {
+      refreshSummaryData();
+    }
+
+    fetchBalance();
+  }, [refreshSummaryData, fetchBalance]);
+
   const handleSuccess = useCallback((data: any) => {
     if (data) {
       handleAddFinance(data);
@@ -247,14 +278,148 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
   }, [wohnungen, handleSuccess]);
 
-  const handleAddTransaction = () => {
+  const handleAddTransaction = useCallback(() => {
     useModalStore.getState().openFinanceModal(undefined, wohnungen, handleSuccess);
-  };
+  }, [wohnungen, handleSuccess]);
 
   const refreshFinances = async () => {
     await loadMoreTransactions(true);
     await refreshSummaryData();
     await fetchBalance();
+  };
+
+  // Constants for filter options
+  const ALL_APARTMENTS_FILTER = 'Alle Wohnungen';
+  const ALL_YEARS_FILTER = 'Alle Jahre';
+
+  // Filter options
+  const apartmentOptions = useMemo(() => 
+    [ALL_APARTMENTS_FILTER, ...wohnungen.map(w => w.name)].map(a => ({ value: a, label: a })), 
+    [wohnungen]
+  );
+
+  const yearOptions = useMemo(() => 
+    [ALL_YEARS_FILTER, ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })), 
+    [availableYears]
+  );
+
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters({
+      ...filters,
+      [key]: value
+    });
+  };
+
+  // Summary calculation for StatCards
+  const summary = useMemo(() => {
+    const totalTransactions = finData.length;
+    const incomeCount = finData.filter(f => f.ist_einnahmen).length;
+    const expenseCount = totalTransactions - incomeCount;
+
+    // Average transaction amount
+    const transactionAmounts = finData.map(f => f.betrag).filter(amount => amount > 0);
+    const avgTransaction = transactionAmounts.length ? transactionAmounts.reduce((s, v) => s + v, 0) / transactionAmounts.length : 0;
+
+    return { totalTransactions, incomeCount, expenseCount, avgTransaction };
+  }, [finData]);
+
+  // Wohnungen map for bulk actions
+  const wohnungsMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    wohnungen?.forEach(w => { map[w.id] = w.name })
+    return map
+  }, [wohnungen]);
+
+  // Helper function to properly escape CSV values
+  const escapeCsvValue = useCallback((value: string | null | undefined): string => {
+    if (!value) return ''
+    const stringValue = String(value)
+    // If the value contains comma, quote, or newline, wrap it in quotes and escape internal quotes
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+      return `"${stringValue.replace(/"/g, '""')}"`
+    }
+    return stringValue
+  }, [])
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedFinances.size === 0) return;
+
+    try {
+      const response = await fetch('/api/finanzen/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: Array.from(selectedFinances) })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Erfolg",
+          description: `${selectedFinances.size} Transaktionen erfolgreich gelöscht.`,
+          variant: "success",
+        });
+        
+        // Refresh the data after successful deletion
+        if (refreshFinances) {
+          refreshFinances();
+        }
+        
+        // Clear selection after successful deletion
+        setSelectedFinances(new Set());
+      } else {
+        throw new Error(result.error || 'Fehler beim Löschen der Transaktionen');
+      }
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      toast({
+        title: "Fehler",
+        description: "Beim Löschen der ausgewählten Transaktionen ist ein Fehler aufgetreten.",
+        variant: "destructive",
+      });
+    }
+  }, [selectedFinances, refreshFinances]);
+
+  const handleBulkExport = useCallback(() => {
+    const selectedFinancesData = finData.filter(f => selectedFinances.has(f.id))
+    
+    // Create CSV header
+    const headers = ['Bezeichnung', 'Wohnung', 'Datum', 'Betrag', 'Typ', 'Notiz']
+    const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
+    
+    // Create CSV rows with proper escaping
+    const csvRows = selectedFinancesData.map(f => {
+      const row = [
+        f.name,
+        f.Wohnungen?.name || '',
+        f.datum || '',
+        f.betrag.toString(),
+        f.ist_einnahmen ? 'Einnahme' : 'Ausgabe',
+        f.notiz || ''
+      ]
+      return row.map(value => escapeCsvValue(value)).join(',')
+    })
+    
+    const csvContent = [csvHeader, ...csvRows].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `finanzen_export_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+  }, [selectedFinances, finData, escapeCsvValue]);
+
+  const handleExportCsv = () => {
+    const params = new URLSearchParams();
+    if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
+    if (filters.selectedApartment) params.append('selectedApartment', filters.selectedApartment);
+    if (filters.selectedYear) params.append('selectedYear', filters.selectedYear);
+    if (filters.selectedType) params.append('selectedType', filters.selectedType);
+
+    const url = `/api/finanzen/export?${params.toString()}`;
+    window.open(url, '_blank');
   };
 
   const fetchAvailableYears = useCallback(async () => {
@@ -299,7 +464,15 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
 
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+      <div
+        className="absolute inset-0 z-[-1]"
+        style={{
+          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
+        }}
+      />
+      
+      {/* Summary Cards for Current Year */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {isSummaryLoading && hasInitialData ? (
           <>
@@ -361,6 +534,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         key={summaryData?.year} 
       />
       
+      {/* Filtered Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         {balanceLoading ? (
           <>
@@ -403,23 +577,106 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
           </>
         )}
       </div>
-      
-      <FinanceTransactions
-        finances={finData}
-        wohnungen={wohnungen}
-        availableYears={availableYears}
-        onEdit={handleEdit}
-        onAddTransaction={handleAddTransaction}
-        loadFinances={() => loadMoreTransactions(false)}
-        reloadRef={reloadRef}
-        hasMore={hasMore}
-        isLoading={isLoading}
-        isFilterLoading={isFilterLoading}
-        error={error}
-        fullReload={refreshFinances}
-        filters={filters}
-        onFiltersChange={setFilters}
-      />
+
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+        <CardHeader>
+          <div className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Finanzverwaltung</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
+            </div>
+            <div className="mt-1">
+              <ButtonWithTooltip onClick={handleAddTransaction} className="sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Transaktion hinzufügen
+              </ButtonWithTooltip>
+            </div>
+          </div>
+        </CardHeader>
+        <div className="px-6">
+          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+        </div>
+        <CardContent className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 mt-6">
+            {/* Filter Controls */}
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
+                <CustomCombobox
+                  options={apartmentOptions}
+                  value={filters.selectedApartment}
+                  onChange={(value) => handleFilterChange('selectedApartment', value ?? ALL_APARTMENTS_FILTER)}
+                  placeholder="Wohnung auswählen"
+                  searchPlaceholder="Wohnung suchen..."
+                  emptyText="Keine Wohnung gefunden"
+                  width="w-full"
+                />
+                <CustomCombobox
+                  options={yearOptions}
+                  value={filters.selectedYear}
+                  onChange={(value) => handleFilterChange('selectedYear', value ?? ALL_YEARS_FILTER)}
+                  placeholder="Jahr auswählen"
+                  searchPlaceholder="Jahr suchen..."
+                  emptyText="Kein Jahr gefunden"
+                  width="w-full"
+                />
+                <CustomCombobox
+                  options={[
+                    { value: "Alle Transaktionen", label: "Alle Transaktionen" },
+                    { value: "Einnahme", label: "Einnahme" },
+                    { value: "Ausgabe", label: "Ausgabe" }
+                  ]}
+                  value={filters.selectedType}
+                  onChange={(value) => handleFilterChange('selectedType', value ?? 'Alle Transaktionen')}
+                  placeholder="Transaktionstyp auswählen"
+                  searchPlaceholder="Typ suchen..."
+                  emptyText="Kein Typ gefunden"
+                  width="w-full"
+                />
+                <div className="relative col-span-1 sm:col-span-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    type="search" 
+                    placeholder="Transaktion suchen..." 
+                    className="pl-10" 
+                    value={filters.searchQuery} 
+                    onChange={(e) => handleFilterChange('searchQuery', e.target.value)} 
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-4 md:mt-0">
+                <ButtonWithTooltip variant="outline" onClick={handleExportCsv}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Als CSV exportieren
+                </ButtonWithTooltip>
+              </div>
+            </div>
+            
+            <FinanceBulkActionBar
+              selectedFinances={selectedFinances}
+              wohnungsMap={wohnungsMap}
+              onClearSelection={() => setSelectedFinances(new Set())}
+              onExport={handleBulkExport}
+              onDelete={handleBulkDelete}
+              onUpdate={handleBulkUpdateSuccess}
+            />
+          </div>
+          <FinanceTable
+            finances={finData}
+            wohnungen={wohnungen}
+            filter={filters.selectedType}
+            searchQuery={filters.searchQuery}
+            onEdit={handleEdit}
+            onRefresh={refreshFinances} // Pass the refresh function here
+            selectedFinances={selectedFinances}
+            onSelectionChange={setSelectedFinances}
+            isFilterLoading={isFilterLoading}
+            hasMore={hasMore}
+            isLoading={isLoading}
+            error={error}
+            loadFinances={() => loadMoreTransactions(false)}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
