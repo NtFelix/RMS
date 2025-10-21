@@ -16,7 +16,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
-import { toggleTaskStatusAction } from "@/app/todos-actions"
+import { bulkUpdateTaskStatusesAction } from "@/app/todos-actions"
 
 interface TaskBulkActionBarProps {
   selectedTasks: Set<string>
@@ -48,40 +48,33 @@ export function TaskBulkActionBar({
     
     try {
       const selectedTaskIds = Array.from(selectedTasks)
-      const updateResults = await Promise.allSettled(
-        selectedTaskIds.map(taskId => 
-          toggleTaskStatusAction(taskId, newStatus)
-        )
-      )
+      const { success, updatedCount, error } = await bulkUpdateTaskStatusesAction(selectedTaskIds, newStatus)
       
-      const successfulUpdates = updateResults.filter(
-        (result): result is PromiseFulfilledResult<{ success: boolean }> => 
-          result.status === 'fulfilled' && result.value.success
-      )
-      
-      const failedUpdates = updateResults.length - successfulUpdates.length
-      
-      if (successfulUpdates.length > 0) {
-        toast({
-          title: "Erfolgreich aktualisiert",
-          description: `${successfulUpdates.length} von ${updateResults.length} Aufgaben wurden erfolgreich aktualisiert.`,
-          variant: "success"
-        })
-      }
-      
-      if (failedUpdates > 0) {
-        toast({
-          title: "Teilweise Fehler",
-          description: `Bei ${failedUpdates} von ${updateResults.length} Aufgaben ist ein Fehler aufgetreten.`,
-          variant: "destructive"
-        })
-      }
-      
-      if (successfulUpdates.length > 0) {
+      if (success && updatedCount) {
+        const failedUpdates = selectedTaskIds.length - updatedCount
+        
+        if (updatedCount > 0) {
+          toast({
+            title: "Erfolgreich aktualisiert",
+            description: `${updatedCount} von ${selectedTaskIds.length} Aufgaben wurden erfolgreich aktualisiert.`,
+            variant: "success"
+          })
+        }
+        
+        if (failedUpdates > 0) {
+          toast({
+            title: "Teilweise Fehler",
+            description: `Bei ${failedUpdates} von ${selectedTaskIds.length} Aufgaben ist ein Fehler aufgetreten.`,
+            variant: "destructive"
+          })
+        }
+        
         setIsStatusDialogOpen(false)
         setSelectedStatus("completed")
         onUpdate?.()
         onClearSelection()
+      } else if (error) {
+        throw new Error(error.message)
       }
     } catch (error) {
       console.error("Fehler beim Aktualisieren der Aufgaben:", error)
