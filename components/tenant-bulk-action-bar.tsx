@@ -46,19 +46,60 @@ export function TenantBulkActionBar({
   if (selectedTenants.size === 0) return null
 
   const handleDeleteClick = () => {
+    if (selectedTenants.size === 0) {
+      toast({
+        title: "Keine Mieter ausgewählt",
+        description: "Bitte wählen Sie mindestens einen Mieter zum Löschen aus.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+
     try {
-      setIsDeleting(true);
-      await onDelete();
-      setIsDeleteDialogOpen(false);
+      const response = await fetch('/api/mieter/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ids: Array.from(selectedTenants)
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Fehler beim Löschen der Mieter');
+      }
+
+      const successCount = result.successCount || 0;
+      
+      if (successCount > 0) {
+        toast({
+          title: "Erfolg",
+          description: `${successCount} Mieter erfolgreich gelöscht.`,
+          variant: "success",
+        });
+        
+        // Clear selection and close dialog
+        onClearSelection();
+        setIsDeleteDialogOpen(false);
+        
+        // Trigger parent to refresh the list
+        onUpdate?.();
+      } else {
+        throw new Error("Keine Mieter konnten gelöscht werden.");
+      }
     } catch (error) {
-      console.error('Error during bulk delete:', error);
+      console.error('Bulk delete error:', error);
       toast({
         title: "Fehler",
-        description: "Beim Löschen der ausgewählten Mieter ist ein Fehler aufgetreten.",
+        description: error instanceof Error ? error.message : "Fehler beim Löschen der Mieter",
         variant: "destructive",
       });
     } finally {
