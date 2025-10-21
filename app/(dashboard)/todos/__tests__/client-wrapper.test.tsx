@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TodosClientWrapper from '../client-wrapper';
 import { useModalStore } from '@/hooks/use-modal-store';
-import type { Task as TaskBoardTask } from '@/components/task-board';
+import type { TaskBoardTask } from '@/types/Task';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');

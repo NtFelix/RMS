@@ -56,6 +56,34 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
   }
 }
 
+export async function toggleFinanceStatusAction(id: string, currentStatus: boolean): Promise<{ success: boolean; error?: any; data?: any }> {
+  const supabase = await createClient();
+
+  try {
+    // Only update the ist_einnahmen field
+    const { data, error } = await supabase
+      .from('Finanzen')
+      .update({ 
+        ist_einnahmen: !currentStatus,
+        aenderungsdatum: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error toggling finance status:', error);
+      return { success: false, error };
+    }
+
+    revalidatePath("/finanzen");
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Unexpected error in toggleFinanceStatusAction:', error);
+    return { success: false, error: { message: error.message || 'Ein unerwarteter Fehler ist aufgetreten.' } };
+  }
+}
+
 export async function deleteFinanceAction(financeId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
     const supabase = await createClient();

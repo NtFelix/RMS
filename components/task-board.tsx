@@ -32,11 +32,7 @@ import {
 } from "@dnd-kit/sortable"
 import { KanbanColumn } from "@/components/kanban-column"
 import { KanbanTaskCard } from "@/components/kanban-task-card"
-
-export interface Task extends Omit<TaskCardTask, 'status' | 'createdAt' | 'updatedAt'> {
-  erstellungsdatum: string
-  aenderungsdatum: string
-}
+import { TaskBoardTask as Task } from "@/types/Task"
 
 interface TaskBoardProps {
   searchQuery: string
@@ -313,7 +309,7 @@ export function TaskBoard({
           : 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
       }}>
         {activeTask ? (
-          <Card className={`opacity-95 shadow-2xl border-2 z-50 will-change-transform transition-all duration-200 ${
+          <Card className={`opacity-95 shadow-2xl border-2 z-50 will-change-transform transition-all duration-200 rounded-2xl ${
             dragDirection === 'todo-to-done' && (overId === 'done' || overId === 'done-large')
               ? 'border-green-400 bg-green-50 rotate-2 scale-105'
               : dragDirection === 'done-to-todo' && (overId === 'todo' || overId === 'todo-large')
