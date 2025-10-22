@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { usePathname } from 'next/navigation';
-import Navigation from './navigation';
+import Navigation from '../navigation';
 import { createClient } from '@/utils/supabase/client';
 
 // Mock dependencies
@@ -45,14 +45,18 @@ jest.mock('@/components/ui/pill-container', () => ({
 }));
 
 jest.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onSelect }: any) => (
-    <button onClick={onSelect}>{children}</button>
-  ),
-  DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuSeparator: () => <hr />,
-}));
+    DropdownMenu: ({ children }: any) => <div>{children}</div>,
+    DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
+    DropdownMenuItem: ({ children, onSelect }: any) => (
+      <button onClick={onSelect}>{children}</button>
+    ),
+    DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
+    DropdownMenuSeparator: () => <hr />,
+  }));
+
+  jest.mock('../produckte-dropdown', () => ({
+    ProdukteDropdown: () => <button>Produkte</button>,
+  }));
 
 const mockSupabaseClient = {
   auth: {
@@ -232,7 +236,7 @@ describe('Navigation - Jetzt loslegen Feature', () => {
       render(<Navigation onLogin={mockOnLogin} />);
 
       expect(screen.getByText('Startseite')).toBeInTheDocument();
-      expect(screen.getByText('Funktionen')).toBeInTheDocument();
+      expect(screen.getByText('Produkte')).toBeInTheDocument();
       expect(screen.getByText('Preise')).toBeInTheDocument();
     });
 
@@ -244,22 +248,22 @@ describe('Navigation - Jetzt loslegen Feature', () => {
     });
 
     it('handles navigation clicks with smooth scroll', async () => {
-      const user = userEvent.setup();
-      const mockScrollIntoView = jest.fn();
-      
-      // Mock querySelector and scrollIntoView
-      const mockElement = { scrollIntoView: mockScrollIntoView };
-      jest.spyOn(document, 'querySelector').mockReturnValue(mockElement as any);
+        const user = userEvent.setup();
+        const mockScrollIntoView = jest.fn();
 
-      (usePathname as jest.Mock).mockReturnValue('/');
-      render(<Navigation onLogin={mockOnLogin} />);
+        // Mock querySelector and scrollIntoView
+        const mockElement = { scrollIntoView: mockScrollIntoView };
+        jest.spyOn(document, 'querySelector').mockReturnValue(mockElement as any);
 
-      const featuresButton = screen.getByText('Funktionen');
-      await user.click(featuresButton);
+        (usePathname as jest.Mock).mockReturnValue('/');
+        render(<Navigation onLogin={mockOnLogin} />);
 
-      expect(document.querySelector).toHaveBeenCalledWith('#features');
-      expect(mockScrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
-    });
+        const featuresButton = screen.getByText('Startseite');
+        await user.click(featuresButton);
+
+        expect(document.querySelector).toHaveBeenCalledWith('#hero');
+        expect(mockScrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
+      });
   });
 
   describe('Mobile Navigation', () => {

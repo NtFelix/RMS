@@ -8,6 +8,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LOGO_URL } from "@/lib/constants"
 import { Button } from '@/components/ui/button' // Corrected import path
+import { ProdukteDropdown } from "./produckte-dropdown"
 
 interface DashboardMenuItemProps {
   onClick?: () => void;
@@ -41,7 +42,7 @@ import {
 
 const navItems = [
   { name: "Startseite", href: "#hero", icon: Home },
-  { name: "Funktionen", href: "#features", icon: Check },
+  { name: "Produkte", href: "#features", icon: Check },
   { name: "Preise", href: "#pricing", icon: DollarSign },
 ]
 
@@ -140,7 +141,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
               />
             </div>
             <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-              <span className="text-primary">Miet</span>fluss
+              <span className="text-primary">Immobilien</span>Verwalter
             </span>
           </Link>
         </div>
@@ -157,7 +158,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 />
               </div>
               <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-                <span className="text-primary">Miet</span>fluss
+                <span className="text-primary">Immobilien</span>Verwalter
               </span>
             </Link>
           </PillContainer>
@@ -169,16 +170,20 @@ export default function Navigation({ onLogin }: NavigationProps) {
             {pathname === "/" ? (
               // Home page navigation with smooth scroll
               <>
-                {navItems.map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={() => handleNavClick(item.href)}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2"
-                  >
-                    {item.icon && <item.icon className="w-4 h-4" />}
-                    <span>{item.name}</span>
-                  </button>
-                ))}
+                {navItems.map((item) =>
+                  item.name === "Produkte" ? (
+                    <ProdukteDropdown key={item.name} />
+                  ) : (
+                    <button
+                      key={item.name}
+                      onClick={() => handleNavClick(item.href)}
+                      className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2"
+                    >
+                      {item.icon && <item.icon className="w-4 h-4" />}
+                      <span>{item.name}</span>
+                    </button>
+                  )
+                )}
                 {/* Static navigation items */}
                 {staticNavItems.map((item) => (
                   <Link
