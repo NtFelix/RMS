@@ -106,9 +106,11 @@ export function SummaryCard({
       <Card
         className={cn(
           // Main-Style-Äquivalent: abgeleitet von main, ohne Opacity-Loading (Skeleton übernimmt)
-          "relative overflow-hidden rounded-2xl shadow-md transition-opacity duration-200 summary-card",
+          "relative overflow-hidden rounded-3xl shadow-sm transition-opacity duration-200",
+          // Background color matching dashboard cards
+          "bg-gray-50 dark:bg-[#22272e]",
           // sichtbare Border wie im Main-Design
-          "border",
+          "border border-gray-200 dark:border-[#3C4251]",
           // Add cursor pointer and hover scale when onClick is provided
           onClick && "cursor-pointer hover:scale-[1.02] transition-transform duration-200",
           className
@@ -156,9 +158,11 @@ export function SummaryCardSkeleton({ className }: { className?: string }) {
   return (
     <Card
       className={cn(
-        "relative overflow-hidden rounded-2xl shadow-md transition-opacity duration-200 summary-card",
+        "relative overflow-hidden rounded-3xl shadow-sm transition-opacity duration-200",
+        // Background color matching dashboard cards
+        "bg-gray-50 dark:bg-[#22272e]",
         // konsistent zur Hauptkarte: sichtbare Border
-        "border",
+        "border border-gray-200 dark:border-[#3C4251]",
         className
       )}
     >
