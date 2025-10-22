@@ -1,7 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import posthog from 'posthog-js';
 import { createClient } from '@/utils/supabase/server';
 import { 
   fetchDocumentationContext, 
@@ -74,6 +73,14 @@ interface RateLimitData {
   sessions: Map<string, { count: number; resetTime: number }>;
 }
 
+interface PosthogClient {
+  capture: (event: string, properties: Record<string, any>) => Promise<void>;
+}
+
+const POSTHOG_HOST = process.env.POSTHOG_HOST || 'https://eu.i.posthog.com';
+const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY;
+const POSTHOG_ENDPOINT = `${POSTHOG_HOST.endsWith('/') ? POSTHOG_HOST.slice(0, -1) : POSTHOG_HOST}/capture/`;
+
 const RATE_LIMIT_CONFIG: RateLimitConfig = {
   windowMs: 60 * 1000, // 1 minute window
   maxRequests: 30, // Max requests per IP per minute
@@ -105,16 +112,32 @@ const genAI = new GoogleGenAI({
 });
 
 // Initialize PostHog for Edge Runtime
-let posthogClient: typeof posthog | null = null;
+let posthogClient: PosthogClient | null = null;
 
-if (process.env.POSTHOG_API_KEY) {
-  posthogClient = posthog;
-  posthogClient.init(process.env.POSTHOG_API_KEY, {
-    api_host: process.env.POSTHOG_HOST || 'https://eu.i.posthog.com',
-    person_profiles: 'never', // For server-side usage
-    capture_pageview: false,
-    capture_pageleave: false,
-  });
+if (POSTHOG_API_KEY) {
+  posthogClient = {
+    async capture(event, properties) {
+      try {
+        await fetch(POSTHOG_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            api_key: POSTHOG_API_KEY,
+            event,
+            properties: {
+              ...properties,
+              $lib: 'nextjs-edge'
+            },
+            timestamp: new Date().toISOString()
+          })
+        });
+      } catch (error) {
+        console.error('PostHog capture failed', error);
+      }
+    }
+  };
 }
 
 // Rate limiting functions
