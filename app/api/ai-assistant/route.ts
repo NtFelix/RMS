@@ -118,23 +118,40 @@ if (POSTHOG_API_KEY) {
   posthogClient = {
     async capture(event, properties) {
       try {
-        await fetch(POSTHOG_ENDPOINT, {
+        const response = await fetch(POSTHOG_ENDPOINT, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mietfluss-AI-Assistant/1.0',
           },
           body: JSON.stringify({
             api_key: POSTHOG_API_KEY,
             event,
             properties: {
               ...properties,
-              $lib: 'nextjs-edge'
+              $lib: 'nextjs-edge',
+              $lib_version: '1.0.0',
+              distinct_id: properties?.distinct_id || 'anonymous',
             },
             timestamp: new Date().toISOString()
           })
         });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`PostHog capture failed with status ${response.status}: ${errorText}`, {
+            event,
+            status: response.status,
+            statusText: response.statusText,
+            responseBody: errorText
+          });
+        }
       } catch (error) {
-        console.error('PostHog capture failed', error);
+        console.error('PostHog capture request failed', {
+          error: error instanceof Error ? error.message : String(error),
+          event,
+          endpoint: POSTHOG_ENDPOINT
+        });
       }
     }
   };
