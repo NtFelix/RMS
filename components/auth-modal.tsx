@@ -436,7 +436,7 @@ export default function AuthModal({
         <DialogHeader className="sr-only">
           <DialogTitle>Authentication</DialogTitle>
         </DialogHeader>
-        <Card className="mx-auto w-full max-w-md border-none">
+        <Card className="mx-auto w-full max-w-md border-none bg-transparent shadow-none">
           {renderContent()}
         </Card>
       </DialogContent>
