@@ -123,7 +123,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
           <PillContainer>
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-foreground hover:text-foreground/80 transition-colors flex items-center space-x-2"
+              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
             >
               <Menu className="w-5 h-5" />
               <span className="text-sm font-medium">Menü</span>
@@ -173,7 +173,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <button
                     key={item.name}
                     onClick={() => handleNavClick(item.href)}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2"
+                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
                   >
                     {item.icon && <item.icon className="w-4 h-4" />}
                     <span>{item.name}</span>
@@ -184,7 +184,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2"
+                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
                   >
                     {item.icon && <item.icon className="w-4 h-4" />}
                     <span>{item.name}</span>
@@ -194,7 +194,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
             ) : (
               // Other pages navigation
               <>
-                <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300">
+                <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200">
                   Startseite
                 </Link>
                 {staticNavItems.map((item) => (
