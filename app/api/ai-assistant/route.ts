@@ -79,7 +79,7 @@ interface PosthogClient {
 
 const POSTHOG_HOST = process.env.POSTHOG_HOST || 'https://eu.i.posthog.com';
 const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY;
-const POSTHOG_ENDPOINT = `${POSTHOG_HOST.endsWith('/') ? POSTHOG_HOST.slice(0, -1) : POSTHOG_HOST}/capture/`;
+const POSTHOG_ENDPOINT = new URL('/capture/', POSTHOG_HOST).href;
 
 const RATE_LIMIT_CONFIG: RateLimitConfig = {
   windowMs: 60 * 1000, // 1 minute window
