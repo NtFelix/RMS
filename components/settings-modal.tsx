@@ -1927,13 +1927,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[900px] h-[80vh] max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
+        <DialogContent className="w-full h-[80vh] max-w-5xl max-h-[95vh] overflow-hidden p-0 mx-4 sm:mx-auto">
           <DialogHeader className="sr-only">
             <DialogTitle>Einstellungen</DialogTitle>
             <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
           </DialogHeader>
           
-          <div className="flex h-full overflow-hidden p-6">
+          <div className="flex h-full overflow-hidden">
             {/* Vertical Tab-Style Sidebar with Animated Indicators */}
             <SettingsSidebar
               isSidebarCollapsed={isSidebarCollapsed}
@@ -1945,8 +1945,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             
             {/* Content area with enhanced scrolling */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto px-6">
-                <div className="max-w-3xl">
+              <div className="flex-1 overflow-y-auto">
+                <div className="w-full max-w-none p-4 sm:p-6">
                   {tabs.find(tab => tab.value === activeTab)?.content}
                 </div>
               </div>

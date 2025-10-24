@@ -23,7 +23,7 @@ export function SettingsSidebar({
     <nav className={cn(
       "flex flex-col bg-background relative border-r border-border/50 rounded-2xl",
       "motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-out",
-      isSidebarCollapsed ? "w-20" : "w-60"
+      isSidebarCollapsed ? "w-16" : "w-56"
     )}>
       {/* Background Accent - No animation needed */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none rounded-2xl" />
