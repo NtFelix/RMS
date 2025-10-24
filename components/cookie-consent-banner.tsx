@@ -53,7 +53,10 @@ export function CookieConsentBanner() {
         <p id="cookie-consent-description" className="text-sm text-muted-foreground">
           Wir verwenden Cookies, um Ihnen die beste Erfahrung auf unserer Website zu bieten. 
           Sie können Ihre Einstellungen jederzeit ändern. Weitere Informationen finden Sie in unserer{' '}
-          <Link href="/datenschutz" className="text-foreground dark:text-white font-medium underline-offset-4 hover:underline hover:text-primary dark:hover:text-primary">
+          <Link 
+            href="/datenschutz" 
+            className="font-medium underline-offset-4 hover:underline text-primary hover:text-primary/90 dark:text-white dark:hover:text-white/90"
+          >
             Datenschutzerklärung
           </Link>.
         </p>
