@@ -194,9 +194,11 @@ export default function Navigation({ onLogin }: NavigationProps) {
             ) : (
               // Other pages navigation
               <>
-                <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200">
-                  Startseite
-                </Link>
+                <Button asChild variant="ghost" className="rounded-full text-foreground">
+                  <Link href="/">
+                    Startseite
+                  </Link>
+                </Button>
                 {staticNavItems.map((item) => (
                   <Link
                     key={item.name}
