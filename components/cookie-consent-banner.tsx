@@ -42,7 +42,7 @@ export function CookieConsentBanner() {
 
   return (
     <div 
-      className="fixed inset-x-4 bottom-4 sm:inset-x-auto sm:right-4 sm:max-w-md p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+      className="fixed inset-x-4 bottom-4 sm:inset-x-auto sm:right-4 sm:max-w-md p-6 bg-card text-card-foreground rounded-2xl shadow-lg border border-border z-50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cookie-consent-title"
@@ -50,10 +50,13 @@ export function CookieConsentBanner() {
     >
       <div className="space-y-4">
         <h3 id="cookie-consent-title" className="text-lg font-medium">Cookie-Einstellungen</h3>
-        <p id="cookie-consent-description" className="text-sm text-gray-600 dark:text-gray-300">
+        <p id="cookie-consent-description" className="text-sm text-muted-foreground">
           Wir verwenden Cookies, um Ihnen die beste Erfahrung auf unserer Website zu bieten. 
           Sie können Ihre Einstellungen jederzeit ändern. Weitere Informationen finden Sie in unserer{' '}
-          <Link href="/datenschutz" className="text-primary underline hover:underline">
+          <Link 
+            href="/datenschutz" 
+            className="font-medium underline-offset-4 hover:underline text-primary hover:text-primary/90 dark:text-white dark:hover:text-white/90"
+          >
             Datenschutzerklärung
           </Link>.
         </p>
