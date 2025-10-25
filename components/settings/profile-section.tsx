@@ -8,32 +8,12 @@ import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dial
 import { createClient } from "@/utils/supabase/client"
 import { Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
-import { getUserProfileForSettings, getBillingAddress, updateBillingAddress } from '@/app/user-profile-actions'; // Import the server actions
-import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
+import type { UserProfileWithSubscription } from '@/types/user';
+import { getUserProfileForSettings, getBillingAddress, updateBillingAddress } from '@/app/user-profile-actions';
+import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { BILLING_COUNTRIES } from "@/lib/constants";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
-
-// Define a more specific type for the profile state in this component
-interface UserProfileWithSubscription extends SupabaseProfile {
-  currentWohnungenCount?: number;
-  activePlan?: {
-    priceId: string;
-    name: string;
-    productName?: string;
-    description?: string;
-    price: number | null;
-    currency: string;
-    interval?: string | null;
-    interval_count?: number | null;
-    features: string[];
-    limitWohnungen: number | null;
-  } | null;
-  stripe_customer_id?: string | null;
-  stripe_subscription_id?: string | null;
-  stripe_cancel_at_period_end?: boolean | null; // Added for UI clarity
-}
 
 const ProfileSection = () => {
   const supabase = createClient()

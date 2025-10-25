@@ -3,32 +3,13 @@
 import { useState, useEffect } from "react"
 import { CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Profile as SupabaseProfile } from '@/types/supabase';
+import type { UserProfileWithSubscription } from '@/types/user';
 import { getUserProfileForSettings, createSetupIntent } from '@/app/user-profile-actions';
 import SubscriptionPaymentMethods from '@/components/subscription-payment-methods';
 import SubscriptionPaymentHistory from '@/components/subscription-payment-history';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
-
-interface UserProfileWithSubscription extends SupabaseProfile {
-  currentWohnungenCount?: number;
-  activePlan?: {
-    priceId: string;
-    name: string;
-    productName?: string;
-    description?: string;
-    price: number | null;
-    currency: string;
-    interval?: string | null;
-    interval_count?: number | null;
-    features: string[];
-    limitWohnungen: number | null;
-  } | null;
-  stripe_customer_id?: string | null;
-  stripe_subscription_id?: string | null;
-  stripe_cancel_at_period_end?: boolean | null;
-}
 
 const SubscriptionSection = () => {
   const { toast } = useToast()
