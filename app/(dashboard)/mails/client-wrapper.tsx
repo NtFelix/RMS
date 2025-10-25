@@ -115,7 +115,7 @@ export default function MailsClientView({
         </div>
         <CardContent className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 mt-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 w-full">
               <CustomCombobox
                 options={[{ value: "all", label: "Alle Typen" }, { value: "inbox", label: "Posteingang" }, { value: "outbox", label: "Postausgang" }]}
                 value={filters.type}
@@ -152,7 +152,7 @@ export default function MailsClientView({
                 emptyText="Kein Status gefunden"
                 width="w-full"
               />
-              <div className="relative col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4">
+              <div className="relative col-span-1 sm:col-span-2 md:col-span-4 lg:col-span-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
