@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { usePostHog, useActiveFeatureFlags } from 'posthog-js/react'
 import { FlaskConical, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +38,8 @@ const FeaturePreviewSection = () => {
       default: return stage.charAt(0).toUpperCase() + stage.slice(1);
     }
   }
+
+  const activeFlagsString = useMemo(() => JSON.stringify(activeFlags || []), [activeFlags]);
 
   useEffect(() => {
     if (!posthog || !posthog.__loaded) {
@@ -95,7 +97,7 @@ const FeaturePreviewSection = () => {
       setUseLocalFeatures(true);
       setIsLoadingFeatures(false)
     }
-  }, [posthog, posthog?.__loaded, JSON.stringify(activeFlags)])
+  }, [posthog, posthog?.__loaded, activeFlagsString])
 
   const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
     if (useLocalFeatures) {
