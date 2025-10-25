@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SimpleScrollArea } from "@/components/ui/simple-scroll-area"
 import { UserSettings } from "@/components/user-settings"
-import { createClient } from "@/utils/supabase/client"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 
@@ -68,7 +67,7 @@ export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
-  // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
+  // User email handling is managed by the UserSettings component
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   const mailsEnabled = useFeatureFlagEnabled('mails-tab')
   
