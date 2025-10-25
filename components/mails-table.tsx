@@ -5,69 +5,155 @@
 
 import React, { useState, useMemo } from "react"
 
+
+
 import { CheckedState } from "@radix-ui/react-checkbox"
+
+
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+
+
 import { Checkbox } from "@/components/ui/checkbox"
 
+
+
 import { Button } from "@/components/ui/button"
+
+
 
 import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff } from "lucide-react"
 
 
 
+
+
+
+
 interface Mail {
+
+
 
   id: string;
 
+
+
   date: string;
+
+
 
   subject: string;
 
+
+
   recipient: string;
+
+
 
   status: 'sent' | 'draft';
 
+
+
   type: 'inbox' | 'outbox';
+
+
 
   hasAttachment: boolean;
 
+
+
   source: 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP';
+
+
 
   read: boolean;
 
+
+
   favorite: boolean;
 
+
+
 }
+
+
+
+
 
 
 
 type MailSortKey = "date" | "subject" | "recipient" | "status" | "type" | "source" | ""
 
+
+
 type SortDirection = "asc" | "desc"
+
+
+
+
 
 
 
 interface MailsTableProps {
 
+
+
   mails: Mail[];
+
+
 
   filter: string;
 
+
+
   searchQuery: string;
+
+
 
   selectedMails?: Set<string>;
 
+
+
   onSelectionChange?: (selected: Set<string>) => void;
+
+
 
 }
 
 
 
+
+
+
+
+const formatDate = (dateString: string) => {
+
+
+
+  const [year, month, day] = dateString.split('-');
+
+
+
+  return `${day}.${month}.${year}`;
+
+
+
+};
+
+
+
+
+
+
+
 export function MailsTable({ mails, filter, searchQuery, selectedMails: externalSelectedMails, onSelectionChange }: MailsTableProps) {
 
+
+
   const [sortKey, setSortKey] = useState<MailSortKey>("date")
+
+
 
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
@@ -379,7 +465,7 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
                       </TableCell>
 
-                      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{mail.date}</TableCell>
+                      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{formatDate(mail.date)}</TableCell>
 
                       <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.subject}</TableCell>
 
