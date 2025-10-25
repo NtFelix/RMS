@@ -47,8 +47,7 @@ export default function MailsClientView({
     type: "all",
     attachment: "all",
     source: "all",
-    read: "all",
-    favorite: "all",
+    read_favorite: "all",
   });
   const [selectedMails, setSelectedMails] = useState<Set<string>>(new Set());
 
@@ -75,9 +74,9 @@ export default function MailsClientView({
       if (filters.attachment === "with" && !mail.hasAttachment) return false;
       if (filters.attachment === "without" && mail.hasAttachment) return false;
       if (filters.source !== "all" && mail.source !== filters.source) return false;
-      if (filters.read === "read" && !mail.read) return false;
-      if (filters.read === "unread" && mail.read) return false;
-      if (filters.favorite === "favorite" && !mail.favorite) return false;
+      if (filters.read_favorite === "read" && !mail.read) return false;
+      if (filters.read_favorite === "unread" && mail.read) return false;
+      if (filters.read_favorite === "favorite" && !mail.favorite) return false;
       if (filters.searchQuery && !mail.subject.toLowerCase().includes(filters.searchQuery.toLowerCase()) && !mail.recipient.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
       return true;
     });
@@ -116,16 +115,7 @@ export default function MailsClientView({
         </div>
         <CardContent className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 mt-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 w-full">
-              <CustomCombobox
-                options={[{ value: "all", label: "Alle E-Mails" }, { value: "sent", label: "Gesendet" }, { value: "draft", label: "Entwurf" }]}
-                value={filters.status}
-                onChange={(value) => handleFilterChange('status', value ?? 'all')}
-                placeholder="Status auswählen"
-                searchPlaceholder="Status suchen..."
-                emptyText="Kein Status gefunden"
-                width="w-full"
-              />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
               <CustomCombobox
                 options={[{ value: "all", label: "Alle Typen" }, { value: "inbox", label: "Posteingang" }, { value: "outbox", label: "Postausgang" }]}
                 value={filters.type}
@@ -154,24 +144,15 @@ export default function MailsClientView({
                 width="w-full"
               />
               <CustomCombobox
-                options={[{ value: "all", label: "Alle" }, { value: "read", label: "Gelesen" }, { value: "unread", label: "Ungelesen" }]}
-                value={filters.read}
-                onChange={(value) => handleFilterChange('read', value ?? 'all')}
-                placeholder="Gelesen/Ungelesen auswählen"
+                options={[{ value: "all", label: "Alle" }, { value: "read", label: "Gelesen" }, { value: "unread", label: "Ungelesen" }, { value: "favorite", label: "Favorit" }]}
+                value={filters.read_favorite}
+                onChange={(value) => handleFilterChange('read_favorite', value ?? 'all')}
+                placeholder="Status auswählen"
                 searchPlaceholder="Status suchen..."
                 emptyText="Kein Status gefunden"
                 width="w-full"
               />
-              <CustomCombobox
-                options={[{ value: "all", label: "Alle" }, { value: "favorite", label: "Favorit" }]}
-                value={filters.favorite}
-                onChange={(value) => handleFilterChange('favorite', value ?? 'all')}
-                placeholder="Favorit auswählen"
-                searchPlaceholder="Favorit suchen..."
-                emptyText="Kein Favorit gefunden"
-                width="w-full"
-              />
-              <div className="relative col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-6">
+              <div className="relative col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
