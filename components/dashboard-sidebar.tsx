@@ -118,9 +118,11 @@ export function DashboardSidebar() {
             <nav className="grid gap-1 px-2 pr-4">
               {sidebarNavItems.map((item) => {
                 const isActive = isRouteActive(item.href)
-                const isDocuments = item.href === '/dateien'
-                const isMails = item.href === '/mails'
-                const hidden = (isDocuments && !documentsEnabled) || (isMails && !mailsEnabled)
+                const featureFlags = new Map([
+                  ['/dateien', documentsEnabled],
+                  ['/mails', mailsEnabled],
+                ]);
+                const hidden = featureFlags.has(item.href) && !featureFlags.get(item.href);
                 
                 return (
                   <Link
