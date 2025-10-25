@@ -71,6 +71,12 @@ export function DashboardSidebar() {
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   const mailsEnabled = useFeatureFlagEnabled('mails-tab')
+  
+  // Feature flags for navigation items
+  const featureFlags = new Map([
+    ['/dateien', documentsEnabled],
+    ['/mails', mailsEnabled],
+  ]);
 
   return (
     <>
@@ -117,13 +123,7 @@ export function DashboardSidebar() {
           <div className="pt-4 pb-4 overflow-y-auto min-h-0">
             <nav className="grid gap-1 px-2 pr-4">
               {sidebarNavItems
-                .filter(item => {
-                  const featureFlags = new Map([
-                    ['/dateien', documentsEnabled],
-                    ['/mails', mailsEnabled],
-                  ]);
-                  return !(featureFlags.has(item.href) && !featureFlags.get(item.href));
-                })
+                .filter(item => !featureFlags.has(item.href) || featureFlags.get(item.href))
                 .map((item) => {
                   const isActive = isRouteActive(item.href);
                   
