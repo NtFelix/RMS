@@ -35,12 +35,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       content: <ProfileSection />,
     },
     {
-      value: "display",
-      label: "Darstellung",
-      icon: Monitor,
-      content: <DisplaySection />,
-    },
-    {
       value: "security",
       label: "Sicherheit",
       icon: Lock,
@@ -51,6 +45,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Abo",
       icon: CreditCard,
       content: <SubscriptionSection />,
+    },
+    {
+      value: "display",
+      label: "Darstellung",
+      icon: Monitor,
+      content: <DisplaySection />,
     },
     {
       value: "export",
