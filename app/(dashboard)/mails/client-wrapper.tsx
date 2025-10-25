@@ -57,16 +57,35 @@ export default function MailsClientView({
   }, []);
 
   const filteredMails = useMemo(() => {
-    return initialMails.filter(mail => {
-      if (activeTab === "inbox" && mail.type !== 'inbox') return false;
-      if (activeTab === "drafts" && mail.status !== 'draft') return false;
-      if (activeTab === "sent" && mail.status !== 'sent') return false;
-      if (activeTab === "favorites" && !mail.favorite) return false;
-      if (activeTab === "archive" && mail.status !== 'archiv') return false;
-      if (searchQuery && !mail.subject.toLowerCase().includes(searchQuery.toLowerCase()) && !mail.recipient.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      return true;
+    const mailsByTab = initialMails.filter(mail => {
+      switch (activeTab) {
+        case 'inbox':
+          return mail.type === 'inbox';
+        case 'drafts':
+          return mail.status === 'draft';
+        case 'sent':
+          return mail.status === 'sent';
+        case 'favorites':
+          return mail.favorite;
+        case 'archive':
+          return mail.status === 'archiv';
+        default:
+          return true;
+      }
     });
+
+    if (!searchQuery) {
+      return mailsByTab;
+    }
+
+    return mailsByTab.filter(mail =>
+      mail.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      mail.recipient.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   }, [initialMails, activeTab, searchQuery]);
+
+  console.log("activeTab", activeTab);
+  console.log("filteredMails", filteredMails);
 
   const tabs = [
     { id: "inbox", label: "Posteingang", icon: Inbox },
@@ -136,8 +155,6 @@ export default function MailsClientView({
           </div>
           <MailsTable
             mails={filteredMails}
-            filter={activeTab}
-            searchQuery={searchQuery}
             selectedMails={selectedMails}
             onSelectionChange={setSelectedMails}
           />

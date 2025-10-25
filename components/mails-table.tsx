@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button"
 
 
 
-import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff, FileEdit, Send } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen } from "lucide-react"
 
 
 
@@ -51,7 +51,7 @@ interface Mail {
 
 
 
-  status: 'sent' | 'draft';
+  status: 'sent' | 'draft' | 'archiv';
 
 
 
@@ -99,15 +99,15 @@ interface MailsTableProps {
 
 
 
+
+
+
+
   mails: Mail[];
 
 
 
-  filter: string;
 
-
-
-  searchQuery: string;
 
 
 
@@ -115,11 +115,27 @@ interface MailsTableProps {
 
 
 
+
+
+
+
   onSelectionChange?: (selected: Set<string>) => void;
 
 
 
+
+
+
+
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -131,11 +147,23 @@ const formatDate = (dateString: string) => {
 
 
 
+
+
+
+
   const [year, month, day] = dateString.split('-');
 
 
 
+
+
+
+
   return `${day}.${month}.${year}`;
+
+
+
+
 
 
 
@@ -147,7 +175,19 @@ const formatDate = (dateString: string) => {
 
 
 
-export function MailsTable({ mails, filter, searchQuery, selectedMails: externalSelectedMails, onSelectionChange }: MailsTableProps) {
+
+
+
+
+
+
+
+
+export function MailsTable({ mails, selectedMails: externalSelectedMails, onSelectionChange }: MailsTableProps) {
+
+
+
+
 
 
 
@@ -155,7 +195,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+
+
+
+
 
 
 
@@ -167,7 +215,19 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
+
+
+
+
   const selectedMails = externalSelectedMails ?? internalSelectedMails
+
+
+
+
 
 
 
@@ -179,11 +239,6 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
-  const sortedAndFilteredData = useMemo(() => {
-
-
-
-    let result = [...mails]
 
 
 
@@ -191,15 +246,8 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
-    if (filter !== "all" && filter !== "") {
 
-
-
-        result = result.filter(m => m.status === filter);
-
-
-
-    }
+  const sortedMails = useMemo(() => {
 
 
 
@@ -207,31 +255,7 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
-    if (searchQuery) {
-
-
-
-      const q = searchQuery.toLowerCase()
-
-
-
-      result = result.filter(m =>
-
-
-
-        m.subject.toLowerCase().includes(q) ||
-
-
-
-        m.recipient.toLowerCase().includes(q)
-
-
-
-      )
-
-
-
-    }
+    let result = [...mails];
 
 
 
@@ -243,27 +267,59 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
       result.sort((a, b) => {
 
 
 
-        let valA = a[sortKey]
-
-
-
-        let valB = b[sortKey]
 
 
 
 
+        let valA = a[sortKey];
 
 
 
-        if (valA === undefined || valA === null) valA = ''
 
 
 
-        if (valB === undefined || valB === null) valB = ''
+
+        let valB = b[sortKey];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        if (valA === undefined || valA === null) valA = "";
+
+
+
+
+
+
+
+        if (valB === undefined || valB === null) valB = "";
+
+
+
+
+
+
+
+
 
 
 
@@ -275,7 +331,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
         const strB = String(valB);
+
+
+
+
 
 
 
@@ -283,7 +347,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
-      })
+
+
+
+
+      });
+
+
+
+
 
 
 
@@ -295,11 +367,7 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
-    return result
-
-
-
-  }, [mails, filter, searchQuery, sortKey, sortDirection])
+    return result;
 
 
 
@@ -307,7 +375,31 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
-  const visibleMailIds = useMemo(() => sortedAndFilteredData.map((mail) => mail.id), [sortedAndFilteredData])
+  }, [mails, sortKey, sortDirection]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  const visibleMailIds = useMemo(() => sortedMails.map((mail) => mail.id), [sortedMails])
+
+
+
+
+
+
+
+
 
 
 
@@ -319,7 +411,19 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
   const partiallySelected = visibleMailIds.some((id) => selectedMails.has(id)) && !allSelected
+
+
+
+
+
+
+
+
 
 
 
@@ -331,7 +435,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     const isChecked = checked === true
+
+
+
+
 
 
 
@@ -339,7 +451,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     if (isChecked) {
+
+
+
+
 
 
 
@@ -347,7 +467,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     } else {
+
+
+
+
 
 
 
@@ -355,7 +483,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -363,7 +499,19 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
   }
+
+
+
+
+
+
+
+
 
 
 
@@ -375,7 +523,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     const isChecked = checked === true
+
+
+
+
 
 
 
@@ -383,7 +539,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     if (isChecked) {
+
+
+
+
 
 
 
@@ -391,7 +555,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     } else {
+
+
+
+
 
 
 
@@ -399,7 +571,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -407,7 +587,19 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
   }
+
+
+
+
+
+
+
+
 
 
 
@@ -419,7 +611,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     if (sortKey === key) {
+
+
+
+
 
 
 
@@ -427,7 +627,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     } else {
+
+
+
+
 
 
 
@@ -435,7 +643,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
       setSortDirection("asc")
+
+
+
+
 
 
 
@@ -443,7 +659,19 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
   }
+
+
+
+
+
+
+
+
 
 
 
@@ -455,7 +683,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     if (sortKey !== key) {
+
+
+
+
 
 
 
@@ -463,7 +699,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -471,7 +715,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
       <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
+
+
+
+
 
 
 
@@ -479,11 +731,23 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
       <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
 
 
 
+
+
+
+
     )
+
+
+
+
 
 
 
@@ -495,7 +759,19 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
+
+
+
+
   const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon, sortable = true }: { sortKey: MailSortKey, children: React.ReactNode, className?: string, icon: React.ElementType, sortable?: boolean }) => (
+
+
+
+
 
 
 
@@ -503,7 +779,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
       <div
+
+
+
+
 
 
 
@@ -511,7 +795,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
         className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}>
+
+
+
+
 
 
 
@@ -519,7 +811,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
         {children}
+
+
+
+
 
 
 
@@ -527,7 +827,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
       </div>
+
+
+
+
 
 
 
@@ -535,7 +843,83 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
   )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  const getStatusIcon = (mail: Mail) => {
+
+
+
+
+
+
+
+    if (mail.status === 'draft') return <FileEdit className="h-4 w-4" />;
+
+
+
+
+
+
+
+    if (mail.status === 'sent') return <Send className="h-4 w-4" />;
+
+
+
+
+
+
+
+    if (mail.status === 'archiv') return <Archive className="h-4 w-4" />;
+
+
+
+
+
+
+
+    if (!mail.read) return <MailOpen className="h-4 w-4" />;
+
+
+
+
+
+
+
+    return <Mail className="h-4 w-4" />;
+
+
+
+
+
+
+
+  }
+
+
+
+
+
+
+
+
 
 
 
@@ -547,7 +931,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
     <div className="rounded-lg">
+
+
+
+
 
 
 
@@ -555,7 +947,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
         <div className="inline-block min-w-full align-middle">
+
+
+
+
 
 
 
@@ -563,7 +963,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
             <TableHeader>
+
+
+
+
 
 
 
@@ -571,7 +979,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                 <TableHead className="w-12 pl-0 pr-0 -ml-2">
+
+
+
+
 
 
 
@@ -579,7 +995,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                     <Checkbox
+
+
+
+
 
 
 
@@ -587,7 +1011,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
+
+
+
+
 
 
 
@@ -595,7 +1027,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       className="transition-transform duration-100 hover:scale-105"
+
+
+
+
 
 
 
@@ -603,7 +1043,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                   </div>
+
+
+
+
 
 
 
@@ -611,7 +1059,23 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
+                <TableHeaderCell sortKey="status" className="w-[50px] dark:text-[#f3f4f6]" icon={Mail}></TableHeaderCell>
+
+
+
+
+
+
+
                 <TableHeaderCell sortKey="date" className="w-[150px] dark:text-[#f3f4f6]" icon={Calendar}>Datum</TableHeaderCell>
+
+
+
+
 
 
 
@@ -619,11 +1083,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                 <TableHeaderCell sortKey="recipient" className="dark:text-[#f3f4f6]" icon={User}>Empfänger</TableHeaderCell>
 
 
 
-                <TableHeaderCell sortKey="status" className="dark:text-[#f3f4f6]" icon={Mail}>Status</TableHeaderCell>
+
 
 
 
@@ -631,7 +1099,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                 <TableHeaderCell sortKey="" className="dark:text-[#f3f4f6]" icon={Paperclip} sortable={false}>Anhang</TableHeaderCell>
+
+
+
+
 
 
 
@@ -639,7 +1115,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                 <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={MoreVertical} sortable={false}>Aktionen</TableHeaderCell>
+
+
+
+
 
 
 
@@ -647,7 +1131,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
             </TableHeader>
+
+
+
+
 
 
 
@@ -655,7 +1147,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
-              {sortedAndFilteredData.length === 0 ? (
+
+
+
+
+              {sortedMails.length === 0 ? (
+
+
+
+
 
 
 
@@ -663,7 +1163,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                   <TableCell colSpan={9} className="h-24 text-center">
+
+
+
+
 
 
 
@@ -671,7 +1179,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                   </TableCell>
+
+
+
+
 
 
 
@@ -679,15 +1195,31 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
               ) : (
 
 
 
-                sortedAndFilteredData.map((mail, index) => {
 
 
 
-                  const isLastRow = index === sortedAndFilteredData.length - 1
+
+                sortedMails.map((mail, index) => {
+
+
+
+
+
+
+
+                  const isLastRow = index === sortedMails.length - 1
+
+
+
+
 
 
 
@@ -695,7 +1227,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                   
+
+
+
+
 
 
 
@@ -703,7 +1243,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                     <TableRow 
+
+
+
+
 
 
 
@@ -711,7 +1259,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
+
+
+
+
 
 
 
@@ -719,7 +1275,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                           ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
+
+
+
+
 
 
 
@@ -727,7 +1291,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       }`}
+
+
+
+
 
 
 
@@ -735,7 +1307,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       <TableCell 
+
+
+
+
 
 
 
@@ -743,11 +1323,23 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                         onClick={(event) => event.stopPropagation()}
 
 
 
+
+
+
+
                       >
+
+
+
+
 
 
 
@@ -755,7 +1347,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                           aria-label={`E-Mail ${mail.subject} auswählen`}
+
+
+
+
 
 
 
@@ -763,7 +1363,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                           onCheckedChange={(checked) => handleSelectMail(mail.id, checked)}
+
+
+
+
 
 
 
@@ -771,7 +1379,23 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       </TableCell>
+
+
+
+
+
+
+
+                      <TableCell className={`py-4`}>{getStatusIcon(mail)}</TableCell>
+
+
+
+
 
 
 
@@ -779,7 +1403,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.subject}</TableCell>
+
+
+
+
 
 
 
@@ -787,7 +1419,7 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.status === 'draft' ? <FileEdit className="h-4 w-4" /> : <Send className="h-4 w-4" />}</TableCell>
+
 
 
 
@@ -795,7 +1427,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.hasAttachment ? <Paperclip className="h-4 w-4" /> : ''}</TableCell>
+
+
+
+
 
 
 
@@ -803,7 +1443,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       <TableCell 
+
+
+
+
 
 
 
@@ -811,7 +1459,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                         onClick={(event) => event.stopPropagation()}
+
+
+
+
 
 
 
@@ -819,7 +1475,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                         <div className="flex items-center justify-end">
+
+
+
+
 
 
 
@@ -827,7 +1491,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                           {mail.read ? <EyeOff className="h-4 w-4 text-gray-400 mr-2" /> : <Eye className="h-4 w-4 text-blue-500 mr-2" />}
+
+
+
+
 
 
 
@@ -835,7 +1507,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                             variant="ghost"
+
+
+
+
 
 
 
@@ -843,7 +1523,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                             className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+
+
+
+
 
 
 
@@ -851,7 +1539,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                             <span className="sr-only">Menü öffnen</span>
+
+
+
+
 
 
 
@@ -859,7 +1555,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                           </Button>
+
+
+
+
 
 
 
@@ -867,7 +1571,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                       </TableCell>
+
+
+
+
 
 
 
@@ -875,7 +1587,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
                   )
+
+
+
+
 
 
 
@@ -883,7 +1603,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
               )}
+
+
+
+
 
 
 
@@ -891,7 +1619,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
           </Table>
+
+
+
+
 
 
 
@@ -899,7 +1635,15 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
       </div>
+
+
+
+
 
 
 
@@ -907,11 +1651,23 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
+
+
+
+
   )
 
 
 
+
+
+
+
 }
+
+
+
+
 
 
 
