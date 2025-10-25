@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { Info, Monitor } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
@@ -11,7 +10,6 @@ import { ThemeSwitcherCards } from "@/components/theme-switcher-cards";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 
 const DisplaySection = () => {
-  const { toast } = useToast()
   const darkModeEnabled = useFeatureFlagEnabled('dark-mode')
   const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true);
 
