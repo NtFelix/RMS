@@ -1,6 +1,6 @@
 "use client"
 
-import { DownloadCloud, Info } from "lucide-react";
+import { DownloadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDataExport } from '@/hooks/useDataExport';
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
