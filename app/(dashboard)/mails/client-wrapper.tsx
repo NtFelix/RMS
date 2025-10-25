@@ -10,6 +10,7 @@ import { MailsTable } from "@/components/mails-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { CustomCombobox } from "@/components/ui/custom-combobox";
 
 interface Mail {
   id: string;
@@ -17,6 +18,11 @@ interface Mail {
   subject: string;
   recipient: string;
   status: 'sent' | 'draft';
+  type: 'inbox' | 'outbox';
+  hasAttachment: boolean;
+  source: 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP';
+  read: boolean;
+  favorite: boolean;
 }
 
 interface MailsClientViewProps {
@@ -35,8 +41,15 @@ function AddMailButton({ onAdd }: { onAdd: () => void }) {
 export default function MailsClientView({
   initialMails,
 }: MailsClientViewProps) {
-  const [filter, setFilter] = useState<"sent" | "draft" | "all">("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [filters, setFilters] = useState({
+    status: "all",
+    searchQuery: "",
+    type: "all",
+    attachment: "all",
+    source: "all",
+    read: "all",
+    favorite: "all",
+  });
   const [selectedMails, setSelectedMails] = useState<Set<string>>(new Set());
 
   const summary = useMemo(() => {
@@ -50,6 +63,25 @@ export default function MailsClientView({
     // TODO: Implement mail creation logic
     console.log("Neue E-Mail hinzufügen");
   }, []);
+
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const filteredMails = useMemo(() => {
+    return initialMails.filter(mail => {
+      if (filters.status !== "all" && mail.status !== filters.status) return false;
+      if (filters.type !== "all" && mail.type !== filters.type) return false;
+      if (filters.attachment === "with" && !mail.hasAttachment) return false;
+      if (filters.attachment === "without" && mail.hasAttachment) return false;
+      if (filters.source !== "all" && mail.source !== filters.source) return false;
+      if (filters.read === "read" && !mail.read) return false;
+      if (filters.read === "unread" && mail.read) return false;
+      if (filters.favorite === "favorite" && !mail.favorite) return false;
+      if (filters.searchQuery && !mail.subject.toLowerCase().includes(filters.searchQuery.toLowerCase()) && !mail.recipient.toLowerCase().includes(filters.searchQuery.toLowerCase())) return false;
+      return true;
+    });
+  }, [initialMails, filters]);
 
   return (
     <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
@@ -84,38 +116,76 @@ export default function MailsClientView({
         </div>
         <CardContent className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 mt-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: "all" as const, label: "Alle E-Mails" },
-                  { value: "sent" as const, label: "Gesendet" },
-                  { value: "draft" as const, label: "Entwurf" },
-                ].map(({ value, label }) => (
-                  <Button
-                    key={value}
-                    variant={filter === value ? "default" : "ghost"}
-                    onClick={() => setFilter(value)}
-                    className="h-9 rounded-full"
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 w-full">
+              <CustomCombobox
+                options={[{ value: "all", label: "Alle E-Mails" }, { value: "sent", label: "Gesendet" }, { value: "draft", label: "Entwurf" }]}
+                value={filters.status}
+                onChange={(value) => handleFilterChange('status', value ?? 'all')}
+                placeholder="Status auswählen"
+                searchPlaceholder="Status suchen..."
+                emptyText="Kein Status gefunden"
+                width="w-full"
+              />
+              <CustomCombobox
+                options={[{ value: "all", label: "Alle Typen" }, { value: "inbox", label: "Posteingang" }, { value: "outbox", label: "Postausgang" }]}
+                value={filters.type}
+                onChange={(value) => handleFilterChange('type', value ?? 'all')}
+                placeholder="Typ auswählen"
+                searchPlaceholder="Typ suchen..."
+                emptyText="Kein Typ gefunden"
+                width="w-full"
+              />
+              <CustomCombobox
+                options={[{ value: "all", label: "Alle Anhänge" }, { value: "with", label: "Mit Anhang" }, { value: "without", label: "Ohne Anhang" }]}
+                value={filters.attachment}
+                onChange={(value) => handleFilterChange('attachment', value ?? 'all')}
+                placeholder="Anhang auswählen"
+                searchPlaceholder="Anhang suchen..."
+                emptyText="Kein Anhang gefunden"
+                width="w-full"
+              />
+              <CustomCombobox
+                options={[{ value: "all", label: "Alle Quellen" }, { value: "Mietfluss", label: "Mietfluss" }, { value: "Outlook", label: "Outlook (coming soon)" }, { value: "Gmail", label: "Gmail (coming soon)" }, { value: "SMTP", label: "SMTP (coming soon)" }]}
+                value={filters.source}
+                onChange={(value) => handleFilterChange('source', value ?? 'all')}
+                placeholder="Quelle auswählen"
+                searchPlaceholder="Quelle suchen..."
+                emptyText="Keine Quelle gefunden"
+                width="w-full"
+              />
+              <CustomCombobox
+                options={[{ value: "all", label: "Alle" }, { value: "read", label: "Gelesen" }, { value: "unread", label: "Ungelesen" }]}
+                value={filters.read}
+                onChange={(value) => handleFilterChange('read', value ?? 'all')}
+                placeholder="Gelesen/Ungelesen auswählen"
+                searchPlaceholder="Status suchen..."
+                emptyText="Kein Status gefunden"
+                width="w-full"
+              />
+              <CustomCombobox
+                options={[{ value: "all", label: "Alle" }, { value: "favorite", label: "Favorit" }]}
+                value={filters.favorite}
+                onChange={(value) => handleFilterChange('favorite', value ?? 'all')}
+                placeholder="Favorit auswählen"
+                searchPlaceholder="Favorit suchen..."
+                emptyText="Kein Favorit gefunden"
+                width="w-full"
+              />
+              <div className="relative col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-6">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="E-Mails suchen..."
                   className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
                 />
               </div>
             </div>
           </div>
           <MailsTable
-            mails={initialMails}
-            filter={filter}
-            searchQuery={searchQuery}
+            mails={filteredMails}
+            filter={filters.status}
+            searchQuery={filters.searchQuery}
             selectedMails={selectedMails}
             onSelectionChange={setSelectedMails}
           />

@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 import { Button } from "@/components/ui/button"
 
-import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff } from "lucide-react"
 
 
 
@@ -29,11 +29,21 @@ interface Mail {
 
   status: 'sent' | 'draft';
 
+  type: 'inbox' | 'outbox';
+
+  hasAttachment: boolean;
+
+  source: 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP';
+
+  read: boolean;
+
+  favorite: boolean;
+
 }
 
 
 
-type MailSortKey = "date" | "subject" | "recipient" | "status" | ""
+type MailSortKey = "date" | "subject" | "recipient" | "status" | "type" | "source" | ""
 
 type SortDirection = "asc" | "desc"
 
@@ -77,9 +87,11 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
 
 
-    if (filter === "sent") result = result.filter(m => m.status === 'sent')
+    if (filter !== "all" && filter !== "") {
 
-    else if (filter === "draft") result = result.filter(m => m.status === 'draft')
+        result = result.filter(m => m.status === filter);
+
+    }
 
 
 
@@ -293,6 +305,12 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
                 <TableHeaderCell sortKey="status" className="dark:text-[#f3f4f6]" icon={Mail}>Status</TableHeaderCell>
 
+                <TableHeaderCell sortKey="type" className="dark:text-[#f3f4f6]" icon={Mail}>Typ</TableHeaderCell>
+
+                <TableHeaderCell sortKey="" className="dark:text-[#f3f4f6]" icon={Paperclip} sortable={false}>Anhang</TableHeaderCell>
+
+                <TableHeaderCell sortKey="source" className="dark:text-[#f3f4f6]" icon={Mail}>Quelle</TableHeaderCell>
+
                 <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={MoreVertical} sortable={false}>Aktionen</TableHeaderCell>
 
               </TableRow>
@@ -305,7 +323,7 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
                 <TableRow>
 
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={9} className="h-24 text-center">
 
                     Keine E-Mails gefunden.
 
@@ -369,6 +387,12 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
                       <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.status}</TableCell>
 
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.type}</TableCell>
+
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.hasAttachment ? <Paperclip className="h-4 w-4" /> : ''}</TableCell>
+
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.source}</TableCell>
+
                       <TableCell 
 
                         className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
@@ -377,21 +401,29 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
 
                       >
 
-                        <Button
+                        <div className="flex items-center justify-end">
 
-                          variant="ghost"
+                          {mail.favorite && <Star className="h-4 w-4 text-yellow-400 mr-2" />}
 
-                          size="icon"
+                          {mail.read ? <EyeOff className="h-4 w-4 text-gray-400 mr-2" /> : <Eye className="h-4 w-4 text-blue-500 mr-2" />}
 
-                          className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          <Button
 
-                        >
+                            variant="ghost"
 
-                          <span className="sr-only">Menü öffnen</span>
+                            size="icon"
 
-                          <MoreVertical className="h-3.5 w-3.5" />
+                            className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
 
-                        </Button>
+                          >
+
+                            <span className="sr-only">Menü öffnen</span>
+
+                            <MoreVertical className="h-3.5 w-3.5" />
+
+                          </Button>
+
+                        </div>
 
                       </TableCell>
 
@@ -416,5 +448,7 @@ export function MailsTable({ mails, filter, searchQuery, selectedMails: external
   )
 
 }
+
+
 
 
