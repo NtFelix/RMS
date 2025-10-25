@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard, Folder } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard, Folder, Mail } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
@@ -57,6 +57,11 @@ const sidebarNavItems = [
     href: "/dateien",
     icon: Folder,
   },
+  {
+    title: "E-Mails",
+    href: "/mails",
+    icon: Mail,
+  },
 ]
 
 export function DashboardSidebar() {
@@ -65,6 +70,7 @@ export function DashboardSidebar() {
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
+  const mailsEnabled = useFeatureFlagEnabled('mails-tab')
 
   return (
     <>
@@ -113,7 +119,8 @@ export function DashboardSidebar() {
               {sidebarNavItems.map((item) => {
                 const isActive = isRouteActive(item.href)
                 const isDocuments = item.href === '/dateien'
-                const hidden = isDocuments && !documentsEnabled
+                const isMails = item.href === '/mails'
+                const hidden = (isDocuments && !documentsEnabled) || (isMails && !mailsEnabled)
                 
                 return (
                   <Link
