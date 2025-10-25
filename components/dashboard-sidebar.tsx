@@ -116,36 +116,36 @@ export function DashboardSidebar() {
           {/* Navigation section - takes remaining space */}
           <div className="pt-4 pb-4 overflow-y-auto min-h-0">
             <nav className="grid gap-1 px-2 pr-4">
-              {sidebarNavItems.map((item) => {
-                const isActive = isRouteActive(item.href)
-                const featureFlags = new Map([
-                  ['/dateien', documentsEnabled],
-                  ['/mails', mailsEnabled],
-                ]);
-                const hidden = featureFlags.has(item.href) && !featureFlags.get(item.href);
-                
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      "group flex items-center gap-3 rounded-lg px-3 py-2 mr-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20",
-                      getActiveStateClasses(item.href),
-                      hidden && "invisible pointer-events-none",
-                    )}
-                    data-active={isActive}
-                    aria-current={isActive ? "page" : undefined}
-                    aria-hidden={hidden || undefined}
-                    tabIndex={hidden ? -1 : undefined}
-                  >
-                    <item.icon className="h-4 w-4 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
-                    <span className="transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
-                      {item.title}
-                    </span>
-                  </Link>
-                )
-              })}
+              {sidebarNavItems
+                .filter(item => {
+                  const featureFlags = new Map([
+                    ['/dateien', documentsEnabled],
+                    ['/mails', mailsEnabled],
+                  ]);
+                  return !(featureFlags.has(item.href) && !featureFlags.get(item.href));
+                })
+                .map((item) => {
+                  const isActive = isRouteActive(item.href);
+                  
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className={cn(
+                        "group flex items-center gap-3 rounded-lg px-3 py-2 mr-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20",
+                        getActiveStateClasses(item.href)
+                      )}
+                      data-active={isActive}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <item.icon className="h-4 w-4 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                      <span className="transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
+                        {item.title}
+                      </span>
+                    </Link>
+                  )
+                })}
             </nav>
           </div>
           
