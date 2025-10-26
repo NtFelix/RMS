@@ -60,7 +60,7 @@ export interface LegacyMail {
 export function convertToLegacyMail(mail: Mail): LegacyMail {
   return {
     id: mail.id,
-    date: new Date(mail.datum_erhalten).toISOString().split('T')[0],
+    date: mail.datum_erhalten, // Keep full ISO timestamp for proper date/time display
     subject: mail.betreff || '(Kein Betreff)',
     recipient: mail.empfaenger,
     status: mail.ordner === 'drafts' ? 'draft' : mail.ordner === 'archive' ? 'archiv' : 'sent',
