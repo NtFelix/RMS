@@ -46,10 +46,29 @@ export function MailBulkActionBar({
 }: MailBulkActionBarProps) {
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isReadStatusDialogOpen, setIsReadStatusDialogOpen] = useState(false)
   const [selectedFolder, setSelectedFolder] = useState<string>("inbox")
+  const [selectedReadStatus, setSelectedReadStatus] = useState<"read" | "unread">("read")
   const [isProcessing, setIsProcessing] = useState(false)
 
   if (selectedMails.size === 0) return null
+
+  const handleMarkReadStatus = async () => {
+    setIsProcessing(true)
+    try {
+      if (selectedReadStatus === "read") {
+        await onMarkAsRead()
+      } else {
+        await onMarkAsUnread()
+      }
+      setIsReadStatusDialogOpen(false)
+      setSelectedReadStatus("read")
+    } catch (error) {
+      toast.error("Fehler beim Aktualisieren des Lesestatus")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   const handleMoveToFolder = async () => {
     if (!selectedFolder) {
@@ -119,20 +138,11 @@ export function MailBulkActionBar({
           <Button
             variant="outline"
             size="sm"
-            onClick={onMarkAsRead}
+            onClick={() => setIsReadStatusDialogOpen(true)}
             className="h-8 gap-2"
           >
             <Eye className="h-4 w-4" />
-            Als gelesen
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onMarkAsUnread}
-            className="h-8 gap-2"
-          >
-            <EyeOff className="h-4 w-4" />
-            Als ungelesen
+            Lesestatus
           </Button>
           <Button
             variant="outline"
@@ -190,6 +200,70 @@ export function MailBulkActionBar({
           </Button>
         </div>
       </div>
+
+      {/* Read Status Dialog */}
+      <Dialog open={isReadStatusDialogOpen} onOpenChange={setIsReadStatusDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Lesestatus ändern</DialogTitle>
+            <DialogDescription>
+              Ändern Sie den Lesestatus von {selectedMails.size} {selectedMails.size === 1 ? 'ausgewählter E-Mail' : 'ausgewählten E-Mails'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="readStatus" className="text-right">
+                Status
+              </Label>
+              <Select
+                value={selectedReadStatus}
+                onValueChange={(value) => setSelectedReadStatus(value as "read" | "unread")}
+                disabled={isProcessing}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Status auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="read">
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      Als gelesen markieren
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="unread">
+                    <div className="flex items-center gap-2">
+                      <EyeOff className="h-4 w-4" />
+                      Als ungelesen markieren
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsReadStatusDialogOpen(false)}
+              disabled={isProcessing}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              type="button"
+              onClick={handleMarkReadStatus}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Wird aktualisiert...
+                </>
+              ) : 'Anwenden'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Move to Folder Dialog */}
       <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
