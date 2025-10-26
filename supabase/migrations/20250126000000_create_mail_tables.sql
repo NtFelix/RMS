@@ -22,25 +22,67 @@ create table public."Mail_Metadaten" (
   constraint Mail_Metadaten_user_id_fkey foreign KEY (user_id) references auth.users (id) on update CASCADE on delete CASCADE
 ) TABLESPACE pg_default;
 
--- Create function to delete storage files when email is deleted
+-- Drop the old trigger and function (if exists)
+DROP TRIGGER IF EXISTS delete_mail_storage_trigger ON public."Mail_Metadaten";
+DROP FUNCTION IF EXISTS delete_mail_storage_files();
+
+-- Create new simplified function that just logs
+-- Storage files are deleted by the application (lib/email-utils.ts)
 CREATE OR REPLACE FUNCTION delete_mail_storage_files()
 RETURNS TRIGGER AS $$
-DECLARE
-  folder_path text;
 BEGIN
-  -- Construct the folder path: user_id/email_id/
-  folder_path := OLD.user_id::text || '/' || OLD.id::text;
+  -- Log the deletion for audit purposes
+  RAISE NOTICE 'Email deleted: user_id=%, email_id=%, dateipfad=%', 
+    OLD.user_id, OLD.id, OLD.dateipfad;
   
-  -- Delete all files in the email folder from storage
-  -- This will delete body.json.gz and all attachments
-  PERFORM storage.delete_folder('mails', folder_path);
+  -- Storage files are deleted by the application before this trigger runs
+  -- See: lib/email-utils.ts -> deleteEmailPermanently()
   
   RETURN OLD;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
--- Create trigger to automatically delete storage files when email is deleted
+-- Recreate the trigger
 CREATE TRIGGER delete_mail_storage_trigger
   BEFORE DELETE ON public."Mail_Metadaten"
   FOR EACH ROW
   EXECUTE FUNCTION delete_mail_storage_files();
+
+-- Create RLS policies for the mails storage bucket
+-- These policies allow users to manage their own email files
+
+-- Policy 1: Users can read their own email files
+CREATE POLICY "Users can read mails files"
+ON storage.objects FOR SELECT
+USING (
+  bucket_id = 'mails' AND 
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Policy 2: Users can insert their own email files
+CREATE POLICY "Users can insert mails files"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'mails' AND 
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Policy 3: Users can update their own email files
+CREATE POLICY "Users can update mails files"
+ON storage.objects FOR UPDATE
+USING (
+  bucket_id = 'mails' AND 
+  (storage.foldername(name))[1] = auth.uid()::text
+)
+WITH CHECK (
+  bucket_id = 'mails' AND 
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Policy 4: Users can delete their own email files
+CREATE POLICY "Users can delete mails files"
+ON storage.objects FOR DELETE
+USING (
+  bucket_id = 'mails' AND 
+  (storage.foldername(name))[1] = auth.uid()::text
+);

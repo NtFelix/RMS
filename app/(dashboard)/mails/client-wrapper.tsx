@@ -142,13 +142,25 @@ export default function MailsClientView({
 
   const handleDeletePermanently = useCallback(async (mailId: string) => {
     try {
+      // Close the detail panel if this email is currently selected
+      if (selectedMail?.id === mailId) {
+        setSelectedMail(null);
+      }
+      
       await deleteEmailPermanently(mailId, userId);
       toast.success('E-Mail endgültig gelöscht');
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Löschen');
+      console.error('Error deleting email:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        mailId,
+        userId
+      });
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Löschen';
+      toast.error(errorMessage);
     }
-  }, [router, userId]);
+  }, [router, userId, selectedMail]);
 
   const filteredMails = useMemo(() => {
     const mailsByTab = initialMails.filter(mail => {
