@@ -1063,7 +1063,7 @@ export function MailsTable({ mails, selectedMails: externalSelectedMails, onSele
 
 
 
-                <TableHeaderCell sortKey="status" className="w-[50px] dark:text-[#f3f4f6]" icon={Mail}></TableHeaderCell>
+                <TableHeaderCell sortKey="status" className="w-[50px] dark:text-[#f3f4f6]" icon={Mail}>{null}</TableHeaderCell>
 
 
 

@@ -24,6 +24,8 @@ interface Mail {
   favorite: boolean;
 }
 
+export type { Mail };
+
 interface MailsClientViewProps {
   initialMails: Mail[];
 }
