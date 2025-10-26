@@ -127,6 +127,14 @@ interface MailsTableProps {
 
 
 
+  onMailClick?: (mail: Mail) => void;
+
+
+
+
+
+
+
 }
 
 
@@ -183,7 +191,7 @@ const formatDate = (dateString: string) => {
 
 
 
-export function MailsTable({ mails, selectedMails: externalSelectedMails, onSelectionChange }: MailsTableProps) {
+export function MailsTable({ mails, selectedMails: externalSelectedMails, onSelectionChange, onMailClick }: MailsTableProps) {
 
 
 
@@ -1296,6 +1304,14 @@ export function MailsTable({ mails, selectedMails: externalSelectedMails, onSele
 
 
                       }`}
+
+
+
+
+
+
+
+                      onClick={() => onMailClick?.(mail)}
 
 
 

@@ -7,6 +7,7 @@ import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { PlusCircle, Mail, Send, Clock, Inbox, FileEdit, Star, Archive } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import { MailsTable } from "@/components/mails-table";
+import { MailDetailPanel } from "@/components/mail-detail-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -45,6 +46,7 @@ export default function MailsClientView({
   const [activeTab, setActiveTab] = useState("inbox");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMails, setSelectedMails] = useState<Set<string>>(new Set());
+  const [selectedMail, setSelectedMail] = useState<Mail | null>(null);
 
   const summary = useMemo(() => {
     const total = initialMails.length;
@@ -56,6 +58,14 @@ export default function MailsClientView({
   const handleAddMail = useCallback(() => {
     // TODO: Implement mail creation logic
     console.log("Neue E-Mail hinzufügen");
+  }, []);
+
+  const handleMailClick = useCallback((mail: Mail) => {
+    setSelectedMail(mail);
+  }, []);
+
+  const handleClosePanel = useCallback(() => {
+    setSelectedMail(null);
   }, []);
 
   const filteredMails = useMemo(() => {
@@ -98,7 +108,7 @@ export default function MailsClientView({
   ];
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818] relative">
       <div className="flex flex-wrap gap-4">
         <StatCard
           title="E-Mails Gesamt"
@@ -159,9 +169,16 @@ export default function MailsClientView({
             mails={filteredMails}
             selectedMails={selectedMails}
             onSelectionChange={setSelectedMails}
+            onMailClick={handleMailClick}
           />
         </CardContent>
       </Card>
+      {selectedMail && (
+        <MailDetailPanel
+          mail={selectedMail}
+          onClose={handleClosePanel}
+        />
+      )}
     </div>
   );
 }
