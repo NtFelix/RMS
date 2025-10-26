@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useEffect } from "react"
+import React, { useEffect, useState, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
-import { X, Mail, User, Calendar, Paperclip, Star, Archive, Trash2, Reply, Forward } from "lucide-react"
+import { X, Mail, User, Calendar, Paperclip, Star, Archive, Trash2, Reply, Forward, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -42,6 +42,10 @@ const getStatusBadge = (status: Mail['status']) => {
 };
 
 export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
+  const [panelWidth, setPanelWidth] = useState(50); // percentage
+  const [isResizing, setIsResizing] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
   // Prevent body scroll when panel is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -49,6 +53,67 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
       document.body.style.overflow = 'unset';
     };
   }, []);
+
+  // Handle resize
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const handleDoubleClick = useCallback(() => {
+    setPanelWidth(50); // Reset to default 50%
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const windowWidth = window.innerWidth;
+      const newWidth = ((windowWidth - e.clientX) / windowWidth) * 100;
+      
+      // Constrain between 30% and 80%
+      const constrainedWidth = Math.min(Math.max(newWidth, 30), 80);
+      setPanelWidth(constrainedWidth);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isResizing || !e.touches[0]) return;
+
+      const windowWidth = window.innerWidth;
+      const newWidth = ((windowWidth - e.touches[0].clientX) / windowWidth) * 100;
+      
+      // Constrain between 30% and 80%
+      const constrainedWidth = Math.min(Math.max(newWidth, 30), 80);
+      setPanelWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove);
+      document.addEventListener('touchend', handleMouseUp);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
 
   // Mock email content - in a real app, this would be fetched based on mail.id
   const getEmailContent = () => {
@@ -103,12 +168,31 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/20 dark:bg-black/40 z-[9998] animate-in fade-in duration-300"
-        onClick={onClose}
+        className={`fixed inset-0 bg-black/20 dark:bg-black/40 z-[9998] animate-in fade-in duration-300 ${isResizing ? 'cursor-ew-resize' : ''}`}
+        onClick={!isResizing ? onClose : undefined}
       />
       
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-screen w-full md:w-2/3 lg:w-1/2 bg-white dark:bg-[#22272e] border-l border-gray-200 dark:border-gray-700 shadow-2xl z-[9999] flex flex-col animate-in slide-in-from-right duration-300">
+      <div 
+        ref={panelRef}
+        className="fixed right-0 top-0 h-screen bg-white dark:bg-[#22272e] border-l border-gray-200 dark:border-gray-700 shadow-2xl z-[9999] flex flex-col"
+        style={{ 
+          width: `${panelWidth}%`,
+          transition: isResizing ? 'none' : 'width 0.3s ease-out'
+        }}
+      >
+        {/* Resize Handle */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-2 -ml-1 hover:w-3 bg-transparent hover:bg-primary/30 cursor-ew-resize transition-all group z-10 flex items-center justify-center"
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onDoubleClick={handleDoubleClick}
+          title="Ziehen zum Ändern der Größe, Doppelklick zum Zurücksetzen"
+        >
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-gray-800 rounded-full p-1 shadow-lg">
+            <GripVertical className="h-4 w-4 text-primary" />
+          </div>
+        </div>
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3">
