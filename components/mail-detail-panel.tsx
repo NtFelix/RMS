@@ -44,6 +44,8 @@ const getStatusBadge = (status: Mail['status']) => {
 export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
   const [panelWidth, setPanelWidth] = useState(50); // percentage
   const [isResizing, setIsResizing] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(true);
+  const [isClosing, setIsClosing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Prevent body scroll when panel is open
@@ -52,6 +54,16 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
     return () => {
       document.body.style.overflow = 'unset';
     };
+  }, []);
+
+  // Handle initial animation
+  useEffect(() => {
+    // Start animation immediately
+    const timer = setTimeout(() => {
+      setIsAnimating(false);
+    }, 250); // Match animation duration
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Handle resize
@@ -68,6 +80,13 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
   const handleDoubleClick = useCallback(() => {
     setPanelWidth(50); // Reset to default 50%
   }, []);
+
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 220); // Slightly less than animation duration for smooth feel
+  }, [onClose]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -168,17 +187,26 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
     <>
       {/* Backdrop */}
       <div 
-        className={`fixed inset-0 bg-black/20 dark:bg-black/40 z-[9998] animate-in fade-in duration-300 ${isResizing ? 'cursor-ew-resize' : ''}`}
-        onClick={!isResizing ? onClose : undefined}
+        className={`fixed inset-0 bg-black/20 dark:bg-black/40 z-[9998] transition-opacity duration-200 ${isResizing ? 'cursor-ew-resize' : ''}`}
+        style={{
+          opacity: isAnimating || isClosing ? 0 : 1
+        }}
+        onClick={!isResizing ? handleClose : undefined}
       />
       
       {/* Panel */}
       <div 
         ref={panelRef}
-        className="fixed right-0 top-0 h-screen bg-white dark:bg-[#22272e] border-l border-gray-200 dark:border-gray-700 shadow-2xl z-[9999] flex flex-col"
+        className="fixed right-0 top-0 h-screen bg-white dark:bg-[#22272e] border-l border-gray-200 dark:border-gray-700 shadow-2xl z-[9999] flex flex-col origin-right"
         style={{ 
           width: `${panelWidth}%`,
-          transition: isResizing ? 'none' : 'width 0.3s ease-out'
+          transform: isAnimating || isClosing 
+            ? 'translateX(100%) scale(0.95)' 
+            : 'translateX(0) scale(1)',
+          transition: isResizing 
+            ? 'none' 
+            : 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s ease-out',
+          opacity: isAnimating || isClosing ? 0.8 : 1
         }}
       >
         {/* Resize Handle */}
@@ -202,7 +230,7 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={onClose}
+          onClick={handleClose}
           className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
         >
           <X className="h-4 w-4" />
