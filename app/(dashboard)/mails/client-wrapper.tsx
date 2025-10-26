@@ -108,7 +108,7 @@ export default function MailsClientView({
   ];
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818] relative">
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div className="flex flex-wrap gap-4">
         <StatCard
           title="E-Mails Gesamt"

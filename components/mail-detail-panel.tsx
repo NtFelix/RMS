@@ -1,6 +1,7 @@
 "use client"
 
-import React from "react"
+import React, { useEffect } from "react"
+import { createPortal } from "react-dom"
 import { X, Mail, User, Calendar, Paperclip, Star, Archive, Trash2, Reply, Forward } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -41,6 +42,14 @@ const getStatusBadge = (status: Mail['status']) => {
 };
 
 export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
+  // Prevent body scroll when panel is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   // Mock email content - in a real app, this would be fetched based on mail.id
   const getEmailContent = () => {
     // Generate different content based on mail subject
@@ -90,16 +99,16 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
 
   const emailContent = getEmailContent();
 
-  return (
+  const panelContent = (
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40 animate-in fade-in duration-300"
+        className="fixed inset-0 bg-black/20 dark:bg-black/40 z-[9998] animate-in fade-in duration-300"
         onClick={onClose}
       />
       
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-full md:w-2/3 lg:w-1/2 bg-white dark:bg-[#22272e] border-l border-gray-200 dark:border-gray-700 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed right-0 top-0 h-screen w-full md:w-2/3 lg:w-1/2 bg-white dark:bg-[#22272e] border-l border-gray-200 dark:border-gray-700 shadow-2xl z-[9999] flex flex-col animate-in slide-in-from-right duration-300">
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3">
@@ -210,4 +219,7 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
     </div>
     </>
   );
+
+  // Render using portal to ensure it's at the top level of the DOM
+  return typeof window !== 'undefined' ? createPortal(panelContent, document.body) : null;
 }
