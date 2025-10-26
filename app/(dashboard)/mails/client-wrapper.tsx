@@ -11,9 +11,16 @@ import { MailDetailPanel } from "@/components/mail-detail-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { getEmailCounts } from "@/lib/email-utils";
+import { 
+  getEmailCounts, 
+  updateEmailReadStatus, 
+  toggleEmailFavorite, 
+  moveEmailToFolder,
+  deleteEmailPermanently 
+} from "@/lib/email-utils";
 import { useRouter } from "next/navigation";
 import type { LegacyMail } from "@/types/Mail";
+import { toast } from "sonner";
 
 // Re-export for backward compatibility
 export type Mail = LegacyMail;
@@ -90,6 +97,56 @@ export default function MailsClientView({
       console.error('Error refreshing emails:', error);
     } finally {
       setIsRefreshing(false);
+    }
+  }, [router, userId]);
+
+  const handleToggleRead = useCallback(async (mailId: string, isRead: boolean) => {
+    try {
+      await updateEmailReadStatus(mailId, isRead);
+      toast.success(isRead ? 'Als gelesen markiert' : 'Als ungelesen markiert');
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Aktualisieren');
+    }
+  }, [router]);
+
+  const handleToggleFavorite = useCallback(async (mailId: string, isFavorite: boolean) => {
+    try {
+      await toggleEmailFavorite(mailId, isFavorite);
+      toast.success(isFavorite ? 'Als Favorit markiert' : 'Favorit entfernt');
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Aktualisieren');
+    }
+  }, [router]);
+
+  const handleArchive = useCallback(async (mailId: string) => {
+    try {
+      await moveEmailToFolder(mailId, 'archive');
+      toast.success('E-Mail archiviert');
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Archivieren');
+    }
+  }, [router]);
+
+  const handleDelete = useCallback(async (mailId: string) => {
+    try {
+      await moveEmailToFolder(mailId, 'trash');
+      toast.success('E-Mail in Papierkorb verschoben');
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Löschen');
+    }
+  }, [router]);
+
+  const handleDeletePermanently = useCallback(async (mailId: string) => {
+    try {
+      await deleteEmailPermanently(mailId, userId);
+      toast.success('E-Mail endgültig gelöscht');
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Löschen');
     }
   }, [router, userId]);
 
@@ -211,6 +268,11 @@ export default function MailsClientView({
             selectedMails={selectedMails}
             onSelectionChange={setSelectedMails}
             onMailClick={handleMailClick}
+            onToggleRead={handleToggleRead}
+            onToggleFavorite={handleToggleFavorite}
+            onArchive={handleArchive}
+            onDelete={handleDelete}
+            onDeletePermanently={handleDeletePermanently}
           />
         </CardContent>
       </Card>

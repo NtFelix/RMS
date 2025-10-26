@@ -1,29 +1,13 @@
 
 "use client"
 
-
-
 import React, { useState, useMemo } from "react"
-
-
-
 import { CheckedState } from "@radix-ui/react-checkbox"
-
-
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-
-
-
 import { Checkbox } from "@/components/ui/checkbox"
-
-
-
 import { Button } from "@/components/ui/button"
-
-
-
 import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen } from "lucide-react"
+import { MailContextMenu, MailActionsDropdown } from "@/components/mail-context-menu"
 
 
 
@@ -96,45 +80,15 @@ type SortDirection = "asc" | "desc"
 
 
 interface MailsTableProps {
-
-
-
-
-
-
-
   mails: Mail[];
-
-
-
-
-
-
-
   selectedMails?: Set<string>;
-
-
-
-
-
-
-
   onSelectionChange?: (selected: Set<string>) => void;
-
-
-
-
-
-
-
   onMailClick?: (mail: Mail) => void;
-
-
-
-
-
-
-
+  onToggleRead?: (mailId: string, isRead: boolean) => void;
+  onToggleFavorite?: (mailId: string, isFavorite: boolean) => void;
+  onArchive?: (mailId: string) => void;
+  onDelete?: (mailId: string) => void;
+  onDeletePermanently?: (mailId: string) => void;
 }
 
 
@@ -175,7 +129,17 @@ const formatDate = (dateString: string) => {
 
 
 
-export function MailsTable({ mails, selectedMails: externalSelectedMails, onSelectionChange, onMailClick }: MailsTableProps) {
+export function MailsTable({ 
+  mails, 
+  selectedMails: externalSelectedMails, 
+  onSelectionChange, 
+  onMailClick,
+  onToggleRead,
+  onToggleFavorite,
+  onArchive,
+  onDelete,
+  onDeletePermanently
+}: MailsTableProps) {
 
 
 
@@ -1200,110 +1164,27 @@ export function MailsTable({ mails, selectedMails: externalSelectedMails, onSele
 
 
                 sortedMails.map((mail, index) => {
-
-
-
-
-
-
-
                   const isLastRow = index === sortedMails.length - 1
-
-
-
-
-
-
-
                   const isSelected = selectedMails.has(mail.id)
-
-
-
-
-
-
-
                   
-
-
-
-
-
-
-
                   return (
-
-
-
-
-
-
-
-                    <TableRow 
-
-
-
-
-
-
-
+                    <MailContextMenu
                       key={mail.id}
-
-
-
-
-
-
-
-                      className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
-
-
-
-
-
-
-
-                        isSelected 
-
-
-
-
-
-
-
-                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
-
-
-
-
-
-
-
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-
-
-
-
-
-
-
-                      }`}
-
-
-
-
-
-
-
-                      onClick={() => onMailClick?.(mail)}
-
-
-
-
-
-
-
+                      mail={mail}
+                      onToggleRead={onToggleRead}
+                      onToggleFavorite={onToggleFavorite}
+                      onArchive={onArchive}
+                      onDelete={onDelete}
+                      onDeletePermanently={onDeletePermanently}
                     >
+                      <TableRow 
+                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
+                          isSelected 
+                            ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                        }`}
+                        onClick={() => onMailClick?.(mail)}
+                      >
 
 
 
@@ -1480,86 +1361,16 @@ export function MailsTable({ mails, selectedMails: externalSelectedMails, onSele
 
 
                         <div className="flex items-center justify-end">
-
-
-
-
-
-
-
                           {mail.favorite && <Star className="h-4 w-4 text-yellow-400 mr-2" />}
-
-
-
-
-
-
-
                           {mail.read ? <EyeOff className="h-4 w-4 text-gray-400 mr-2" /> : <Eye className="h-4 w-4 text-blue-500 mr-2" />}
-
-
-
-
-
-
-
-                          <Button
-
-
-
-
-
-
-
-                            variant="ghost"
-
-
-
-
-
-
-
-                            size="icon"
-
-
-
-
-
-
-
-                            className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-
-
-
-
-
-
-
-                          >
-
-
-
-
-
-
-
-                            <span className="sr-only">Menü öffnen</span>
-
-
-
-
-
-
-
-                            <MoreVertical className="h-3.5 w-3.5" />
-
-
-
-
-
-
-
-                          </Button>
+                          <MailActionsDropdown
+                            mail={mail}
+                            onToggleRead={onToggleRead}
+                            onToggleFavorite={onToggleFavorite}
+                            onArchive={onArchive}
+                            onDelete={onDelete}
+                            onDeletePermanently={onDeletePermanently}
+                          />
 
 
 
@@ -1576,21 +1387,8 @@ export function MailsTable({ mails, selectedMails: externalSelectedMails, onSele
 
 
                       </TableCell>
-
-
-
-
-
-
-
                     </TableRow>
-
-
-
-
-
-
-
+                    </MailContextMenu>
                   )
 
 
