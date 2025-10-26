@@ -1,34 +1,26 @@
 
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { PlusCircle, Mail, Send, Clock, Inbox, FileEdit, Star, Archive } from "lucide-react";
+import { PlusCircle, Mail, Send, Clock, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import { MailsTable } from "@/components/mails-table";
 import { MailDetailPanel } from "@/components/mail-detail-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { getEmailCounts } from "@/lib/email-utils";
+import { useRouter } from "next/navigation";
+import type { LegacyMail } from "@/types/Mail";
 
-interface Mail {
-  id: string;
-  date: string;
-  subject: string;
-  recipient: string;
-  status: 'sent' | 'draft' | 'archiv';
-  type: 'inbox' | 'outbox';
-  hasAttachment: boolean;
-  source: 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP';
-  read: boolean;
-  favorite: boolean;
-}
-
-export type { Mail };
+// Re-export for backward compatibility
+export type Mail = LegacyMail;
 
 interface MailsClientViewProps {
-  initialMails: Mail[];
+  initialMails: LegacyMail[];
+  userId: string;
 }
 
 function AddMailButton({ onAdd }: { onAdd: () => void }) {
@@ -42,17 +34,35 @@ function AddMailButton({ onAdd }: { onAdd: () => void }) {
 
 export default function MailsClientView({
   initialMails,
+  userId,
 }: MailsClientViewProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("inbox");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMails, setSelectedMails] = useState<Set<string>>(new Set());
-  const [selectedMail, setSelectedMail] = useState<Mail | null>(null);
+  const [selectedMail, setSelectedMail] = useState<LegacyMail | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [emailCounts, setEmailCounts] = useState<Record<string, number>>({});
+
+  // Fetch email counts on mount
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const counts = await getEmailCounts(userId);
+        setEmailCounts(counts);
+      } catch (error) {
+        console.error('Error fetching email counts:', error);
+      }
+    };
+    fetchCounts();
+  }, [userId]);
 
   const summary = useMemo(() => {
     const total = initialMails.length;
     const sentCount = initialMails.filter(m => m.status === 'sent').length;
     const draftCount = initialMails.filter(m => m.status === 'draft').length;
-    return { total, sentCount, draftCount };
+    const unreadCount = initialMails.filter(m => !m.read).length;
+    return { total, sentCount, draftCount, unreadCount };
   }, [initialMails]);
 
   const handleAddMail = useCallback(() => {
@@ -60,13 +70,28 @@ export default function MailsClientView({
     console.log("Neue E-Mail hinzufügen");
   }, []);
 
-  const handleMailClick = useCallback((mail: Mail) => {
+  const handleMailClick = useCallback((mail: LegacyMail) => {
     setSelectedMail(mail);
   }, []);
 
   const handleClosePanel = useCallback(() => {
     setSelectedMail(null);
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // Refresh the page to get latest data
+      router.refresh();
+      // Refresh counts
+      const counts = await getEmailCounts(userId);
+      setEmailCounts(counts);
+    } catch (error) {
+      console.error('Error refreshing emails:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [router, userId]);
 
   const filteredMails = useMemo(() => {
     const mailsByTab = initialMails.filter(mail => {
@@ -117,6 +142,12 @@ export default function MailsClientView({
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
         <StatCard
+          title="Ungelesen"
+          value={summary.unreadCount}
+          icon={<Inbox className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+        />
+        <StatCard
           title="Gesendet / Entwurf"
           value={`${summary.sentCount} / ${summary.draftCount}`}
           icon={<Send className="h-4 w-4 text-muted-foreground" />}
@@ -130,7 +161,17 @@ export default function MailsClientView({
               <CardTitle>E-Mail-Verwaltung</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre E-Mails</p>
             </div>
-            <div className="mt-1">
+            <div className="mt-1 flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="h-9"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Aktualisieren
+              </Button>
               <AddMailButton onAdd={handleAddMail} />
             </div>
           </div>
@@ -177,6 +218,7 @@ export default function MailsClientView({
         <MailDetailPanel
           mail={selectedMail}
           onClose={handleClosePanel}
+          userId={userId}
         />
       )}
     </div>

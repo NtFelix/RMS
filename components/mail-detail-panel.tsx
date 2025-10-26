@@ -2,11 +2,16 @@
 
 import React, { useEffect, useState, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
-import { X, Mail, User, Calendar, Paperclip, Star, Archive, Trash2, Reply, Forward, GripVertical } from "lucide-react"
+import { X, Mail, User, Calendar, Paperclip, Star, Archive, Trash2, Reply, Forward, GripVertical, Download, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { fetchEmailById, fetchEmailBody, listEmailAttachments, downloadAttachment, updateEmailReadStatus, toggleEmailFavorite, moveEmailToFolder } from "@/lib/email-utils"
+import type { EmailBody, EmailAttachment } from "@/lib/email-utils"
+import DOMPurify from 'dompurify'
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 interface Mail {
   id: string;
@@ -24,6 +29,7 @@ interface Mail {
 interface MailDetailPanelProps {
   mail: Mail;
   onClose: () => void;
+  userId?: string;
 }
 
 const formatDate = (dateString: string) => {
@@ -41,12 +47,22 @@ const getStatusBadge = (status: Mail['status']) => {
   return <Badge className={variant.className}>{variant.label}</Badge>;
 };
 
-export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
+export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps) {
+  const router = useRouter();
   const [panelWidth, setPanelWidth] = useState(50); // percentage
   const [isResizing, setIsResizing] = useState(false);
   const [isAnimating, setIsAnimating] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  
+  // Email content state
+  const [emailBody, setEmailBody] = useState<EmailBody | null>(null);
+  const [attachments, setAttachments] = useState<EmailAttachment[]>([]);
+  const [isLoadingBody, setIsLoadingBody] = useState(false);
+  const [isLoadingAttachments, setIsLoadingAttachments] = useState(false);
+  const [showHtml, setShowHtml] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(mail.favorite);
+  const [isRead, setIsRead] = useState(mail.read);
 
   // Prevent body scroll when panel is open
   useEffect(() => {
@@ -55,6 +71,55 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
       document.body.style.overflow = 'unset';
     };
   }, []);
+
+  // Fetch email body and attachments
+  useEffect(() => {
+    const loadEmailContent = async () => {
+      try {
+        // Fetch full email metadata
+        const emailMetadata = await fetchEmailById(mail.id);
+        
+        // Mark as read if not already
+        if (!emailMetadata.ist_gelesen) {
+          await updateEmailReadStatus(mail.id, true);
+          setIsRead(true);
+          router.refresh();
+        }
+
+        // Fetch email body if path exists
+        if (emailMetadata.dateipfad) {
+          setIsLoadingBody(true);
+          try {
+            const body = await fetchEmailBody(emailMetadata.dateipfad);
+            setEmailBody(body);
+          } catch (error) {
+            console.error('Error loading email body:', error);
+            toast.error('Fehler beim Laden des E-Mail-Inhalts');
+          } finally {
+            setIsLoadingBody(false);
+          }
+        }
+
+        // Fetch attachments if email has them
+        if (emailMetadata.hat_anhang && userId) {
+          setIsLoadingAttachments(true);
+          try {
+            const attachmentList = await listEmailAttachments(userId, mail.id);
+            setAttachments(attachmentList);
+          } catch (error) {
+            console.error('Error loading attachments:', error);
+          } finally {
+            setIsLoadingAttachments(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading email:', error);
+        toast.error('Fehler beim Laden der E-Mail');
+      }
+    };
+
+    loadEmailContent();
+  }, [mail.id, userId, router]);
 
   // Handle initial animation
   useEffect(() => {
@@ -87,6 +152,48 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
       onClose();
     }, 220); // Slightly less than animation duration for smooth feel
   }, [onClose]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    try {
+      await toggleEmailFavorite(mail.id, !isFavorite);
+      setIsFavorite(!isFavorite);
+      router.refresh();
+      toast.success(isFavorite ? 'Favorit entfernt' : 'Als Favorit markiert');
+    } catch (error) {
+      toast.error('Fehler beim Aktualisieren');
+    }
+  }, [mail.id, isFavorite, router]);
+
+  const handleArchive = useCallback(async () => {
+    try {
+      await moveEmailToFolder(mail.id, 'archive');
+      toast.success('E-Mail archiviert');
+      router.refresh();
+      handleClose();
+    } catch (error) {
+      toast.error('Fehler beim Archivieren');
+    }
+  }, [mail.id, router, handleClose]);
+
+  const handleDelete = useCallback(async () => {
+    try {
+      await moveEmailToFolder(mail.id, 'trash');
+      toast.success('E-Mail in Papierkorb verschoben');
+      router.refresh();
+      handleClose();
+    } catch (error) {
+      toast.error('Fehler beim Löschen');
+    }
+  }, [mail.id, router, handleClose]);
+
+  const handleDownloadAttachment = useCallback(async (attachment: EmailAttachment) => {
+    try {
+      await downloadAttachment(attachment.path, attachment.name);
+      toast.success('Anhang heruntergeladen');
+    } catch (error) {
+      toast.error('Fehler beim Herunterladen');
+    }
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -134,54 +241,13 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
     };
   }, [isResizing]);
 
-  // Mock email content - in a real app, this would be fetched based on mail.id
-  const getEmailContent = () => {
-    // Generate different content based on mail subject
-    if (mail.subject.toLowerCase().includes('willkommen')) {
-      return `
-        <p>Sehr geehrte Damen und Herren,</p>
-        
-        <p>herzlich willkommen bei Mietfluss! Wir freuen uns, Sie als neuen Nutzer begrüßen zu dürfen.</p>
-        
-        <p>Mit unserer Plattform können Sie Ihre Immobilien effizient verwalten, Mieter organisieren und Finanzen im Blick behalten.</p>
-        
-        <p>Bei Fragen stehen wir Ihnen jederzeit zur Verfügung.</p>
-        
-        <p>Mit freundlichen Grüßen<br/>
-        Ihr Mietfluss Team</p>
-      `;
-    } else if (mail.subject.toLowerCase().includes('rechnung')) {
-      return `
-        <p>Sehr geehrte Damen und Herren,</p>
-        
-        <p>anbei erhalten Sie Ihre Rechnung für den aktuellen Abrechnungszeitraum.</p>
-        
-        <p>Rechnungsnummer: 2024-07-001<br/>
-        Rechnungsdatum: ${formatDate(mail.date)}<br/>
-        Betrag: 49,99 €</p>
-        
-        <p>Die Zahlung erfolgt automatisch über Ihre hinterlegte Zahlungsmethode.</p>
-        
-        <p>Mit freundlichen Grüßen<br/>
-        Ihr Mietfluss Team</p>
-      `;
-    } else {
-      return `
-        <p>Sehr geehrte Damen und Herren,</p>
-        
-        <p>vielen Dank für Ihre Anfrage bezüglich der Mietverwaltung.</p>
-        
-        <p>Wir freuen uns, Ihnen mitteilen zu können, dass alle Unterlagen vollständig eingegangen sind und bearbeitet werden.</p>
-        
-        <p>Bei weiteren Fragen stehen wir Ihnen gerne zur Verfügung.</p>
-        
-        <p>Mit freundlichen Grüßen<br/>
-        Ihr Mietfluss Team</p>
-      `;
-    }
-  };
-
-  const emailContent = getEmailContent();
+  // Sanitize HTML content
+  const sanitizedHtml = emailBody?.html 
+    ? DOMPurify.sanitize(emailBody.html, {
+        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span'],
+        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style']
+      })
+    : null;
 
   const panelContent = (
     <>
@@ -257,13 +323,15 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
             <Button
               variant="ghost"
               size="icon"
+              onClick={handleToggleFavorite}
               className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-              <Star className={`h-4 w-4 ${mail.favorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+              <Star className={`h-4 w-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
             </Button>
             <Button
               variant="ghost"
               size="icon"
+              onClick={handleArchive}
               className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <Archive className="h-4 w-4" />
@@ -271,6 +339,7 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
             <Button
               variant="ghost"
               size="icon"
+              onClick={handleDelete}
               className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <Trash2 className="h-4 w-4" />
@@ -296,13 +365,27 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
               <div className="flex items-center gap-3 text-sm">
                 <Paperclip className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Anhänge:</span>
+                {isLoadingAttachments && <Loader2 className="h-3 w-3 animate-spin" />}
               </div>
               <div className="ml-7 flex flex-col gap-2">
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors">
-                  <Paperclip className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium dark:text-[#f3f4f6]">Rechnung_2024-07.pdf</span>
-                  <span className="text-xs text-muted-foreground ml-auto">245 KB</span>
-                </div>
+                {attachments.length > 0 ? (
+                  attachments.map((attachment) => (
+                    <div
+                      key={attachment.path}
+                      onClick={() => handleDownloadAttachment(attachment)}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                    >
+                      <Paperclip className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium dark:text-[#f3f4f6]">{attachment.name}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {(attachment.size / 1024).toFixed(1)} KB
+                      </span>
+                      <Download className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  ))
+                ) : !isLoadingAttachments ? (
+                  <div className="text-sm text-muted-foreground">Keine Anhänge gefunden</div>
+                ) : null}
               </div>
             </div>
           )}
@@ -311,10 +394,46 @@ export function MailDetailPanel({ mail, onClose }: MailDetailPanelProps) {
 
       {/* Mail Content */}
       <ScrollArea className="flex-1 p-6">
-        <div 
-          className="prose prose-sm dark:prose-invert max-w-none dark:text-[#f3f4f6]"
-          dangerouslySetInnerHTML={{ __html: emailContent }}
-        />
+        {isLoadingBody ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : emailBody ? (
+          <div className="space-y-4">
+            {emailBody.html && emailBody.plain && (
+              <div className="flex gap-2 mb-4">
+                <Button
+                  variant={showHtml ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowHtml(true)}
+                >
+                  HTML
+                </Button>
+                <Button
+                  variant={!showHtml ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowHtml(false)}
+                >
+                  Text
+                </Button>
+              </div>
+            )}
+            {showHtml && sanitizedHtml ? (
+              <div 
+                className="prose prose-sm dark:prose-invert max-w-none dark:text-[#f3f4f6]"
+                dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+              />
+            ) : (
+              <div className="whitespace-pre-wrap font-mono text-sm dark:text-[#f3f4f6]">
+                {emailBody.plain || 'Kein Inhalt verfügbar'}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center text-muted-foreground py-8">
+            E-Mail-Inhalt nicht verfügbar
+          </div>
+        )}
       </ScrollArea>
 
       {/* Action Buttons */}
