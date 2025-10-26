@@ -58,13 +58,36 @@ export interface LegacyMail {
 
 // Convert database Mail to legacy format for UI compatibility
 export function convertToLegacyMail(mail: Mail): LegacyMail {
+  // Determine status based on folder
+  let status: 'sent' | 'draft' | 'archiv' = 'sent';
+  if (mail.ordner === 'drafts') {
+    status = 'draft';
+  } else if (mail.ordner === 'archive') {
+    status = 'archiv';
+  } else if (mail.ordner === 'sent') {
+    status = 'sent';
+  } else if (mail.ordner === 'inbox' || mail.ordner === 'trash' || mail.ordner === 'spam') {
+    // For inbox, trash, and spam, we don't have a specific status, so default to 'sent'
+    // This is a limitation of the LegacyMail type which only has 3 status options
+    status = 'sent';
+  }
+
+  // Determine type based on folder
+  let type: 'inbox' | 'outbox' = 'inbox';
+  if (mail.ordner === 'sent') {
+    type = 'outbox';
+  } else {
+    // For inbox, drafts, trash, archive, spam - all show as inbox type
+    type = 'inbox';
+  }
+
   return {
     id: mail.id,
     date: mail.datum_erhalten, // Keep full ISO timestamp for proper date/time display
     subject: mail.betreff || '(Kein Betreff)',
     recipient: mail.empfaenger,
-    status: mail.ordner === 'drafts' ? 'draft' : mail.ordner === 'archive' ? 'archiv' : 'sent',
-    type: mail.ordner === 'sent' ? 'outbox' : 'inbox',
+    status: status,
+    type: type,
     hasAttachment: mail.hat_anhang,
     source: (mail.quelle.charAt(0).toUpperCase() + mail.quelle.slice(1)) as 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP',
     read: mail.ist_gelesen,

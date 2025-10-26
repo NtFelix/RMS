@@ -1304,7 +1304,11 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.type}</TableCell>
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
+                        {mail.status === 'draft' ? 'Entwurf' : 
+                         mail.status === 'archiv' ? 'Archiv' : 
+                         mail.type === 'outbox' ? 'Gesendet' : 'Posteingang'}
+                      </TableCell>
 
 
 
