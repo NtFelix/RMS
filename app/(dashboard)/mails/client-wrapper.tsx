@@ -8,6 +8,7 @@ import { PlusCircle, Mail, Send, Clock, Inbox, FileEdit, Star, Archive, RefreshC
 import { StatCard } from "@/components/stat-card";
 import { MailsTable } from "@/components/mails-table";
 import { MailDetailPanel } from "@/components/mail-detail-panel";
+import { MailBulkActionBar } from "@/components/mail-bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -162,6 +163,142 @@ export default function MailsClientView({
     }
   }, [router, userId, selectedMail]);
 
+  // Bulk action handlers
+  const handleBulkExport = useCallback(() => {
+    const selectedMailsData = initialMails.filter(m => selectedMails.has(m.id));
+    
+    const headers = ['Datum', 'Betreff', 'Empfänger', 'Status', 'Typ', 'Quelle'];
+    const csvHeader = headers.join(',');
+    
+    const escapeCsvValue = (value: string) => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    };
+    
+    const csvRows = selectedMailsData.map(m => {
+      const row = [
+        m.date,
+        m.subject,
+        m.recipient,
+        m.status,
+        m.type,
+        m.source,
+      ];
+      return row.map(v => escapeCsvValue(String(v))).join(',');
+    });
+    
+    const csv = [csvHeader, ...csvRows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `emails_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success(`${selectedMails.size} E-Mails exportiert`);
+  }, [selectedMails, initialMails]);
+
+  const handleBulkMarkAsRead = useCallback(async () => {
+    try {
+      const promises = Array.from(selectedMails).map(id => 
+        updateEmailReadStatus(id, true)
+      );
+      await Promise.all(promises);
+      toast.success(`${selectedMails.size} E-Mails als gelesen markiert`);
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Aktualisieren');
+    }
+  }, [selectedMails, router]);
+
+  const handleBulkMarkAsUnread = useCallback(async () => {
+    try {
+      const promises = Array.from(selectedMails).map(id => 
+        updateEmailReadStatus(id, false)
+      );
+      await Promise.all(promises);
+      toast.success(`${selectedMails.size} E-Mails als ungelesen markiert`);
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Aktualisieren');
+    }
+  }, [selectedMails, router]);
+
+  const handleBulkToggleFavorite = useCallback(async () => {
+    try {
+      const promises = Array.from(selectedMails).map(id => {
+        const mail = initialMails.find(m => m.id === id);
+        return toggleEmailFavorite(id, !mail?.favorite);
+      });
+      await Promise.all(promises);
+      toast.success(`${selectedMails.size} E-Mails aktualisiert`);
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Aktualisieren');
+    }
+  }, [selectedMails, initialMails, router]);
+
+  const handleBulkArchive = useCallback(async () => {
+    try {
+      const promises = Array.from(selectedMails).map(id => 
+        moveEmailToFolder(id, 'archive')
+      );
+      await Promise.all(promises);
+      toast.success(`${selectedMails.size} E-Mails archiviert`);
+      setSelectedMails(new Set());
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Archivieren');
+    }
+  }, [selectedMails, router]);
+
+  const handleBulkDelete = useCallback(async () => {
+    try {
+      const promises = Array.from(selectedMails).map(id => 
+        moveEmailToFolder(id, 'trash')
+      );
+      await Promise.all(promises);
+      toast.success(`${selectedMails.size} E-Mails in Papierkorb verschoben`);
+      setSelectedMails(new Set());
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Löschen');
+    }
+  }, [selectedMails, router]);
+
+  const handleBulkDeletePermanently = useCallback(async () => {
+    try {
+      const promises = Array.from(selectedMails).map(id => 
+        deleteEmailPermanently(id, userId)
+      );
+      await Promise.all(promises);
+      toast.success(`${selectedMails.size} E-Mails endgültig gelöscht`);
+      setSelectedMails(new Set());
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Löschen');
+    }
+  }, [selectedMails, userId, router]);
+
+  const handleBulkMoveToFolder = useCallback(async (folder: string) => {
+    try {
+      const promises = Array.from(selectedMails).map(id => 
+        moveEmailToFolder(id, folder)
+      );
+      await Promise.all(promises);
+      toast.success(`${selectedMails.size} E-Mails verschoben`);
+      setSelectedMails(new Set());
+      router.refresh();
+    } catch (error) {
+      toast.error('Fehler beim Verschieben');
+    }
+  }, [selectedMails, router]);
+
   const filteredMails = useMemo(() => {
     const mailsByTab = initialMails.filter(mail => {
       switch (activeTab) {
@@ -275,6 +412,19 @@ export default function MailsClientView({
               </div>
             </div>
           </div>
+          <MailBulkActionBar
+            selectedMails={selectedMails}
+            mails={filteredMails}
+            onClearSelection={() => setSelectedMails(new Set())}
+            onExport={handleBulkExport}
+            onMarkAsRead={handleBulkMarkAsRead}
+            onMarkAsUnread={handleBulkMarkAsUnread}
+            onToggleFavorite={handleBulkToggleFavorite}
+            onArchive={handleBulkArchive}
+            onDelete={handleBulkDelete}
+            onDeletePermanently={handleBulkDeletePermanently}
+            onMoveToFolder={handleBulkMoveToFolder}
+          />
           <MailsTable
             mails={filteredMails}
             selectedMails={selectedMails}
