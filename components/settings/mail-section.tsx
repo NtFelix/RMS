@@ -9,6 +9,16 @@ import { Mail, Plus, Trash2, CheckCircle2, XCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SettingsCard, SettingsSection } from "@/components/settings/shared"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
 
 interface MailAccount {
   id: string
@@ -25,6 +35,9 @@ const MailSection = () => {
   const [newMailPrefix, setNewMailPrefix] = useState("")
   const [selectedDomain, setSelectedDomain] = useState("@mietfluss.de")
   const [isCreating, setIsCreating] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [accountToDelete, setAccountToDelete] = useState<MailAccount | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     loadMailAccounts()
@@ -121,18 +134,21 @@ const MailSection = () => {
     }
   }
 
-  const handleDeleteMailAccount = async (id: string, email: string) => {
+  const handleDeleteMailAccount = async () => {
+    if (!accountToDelete) return
+
+    setIsDeleting(true)
     try {
       const { error } = await supabase
         .from("Mail_Accounts")
         .delete()
-        .eq("id", id)
+        .eq("id", accountToDelete.id)
 
       if (error) throw error
 
       toast({
         title: "Erfolg",
-        description: `E-Mail-Konto ${email} wurde gelöscht.`,
+        description: `E-Mail-Konto ${accountToDelete.mailadresse} wurde gelöscht.`,
         variant: "success",
       })
 
@@ -144,7 +160,16 @@ const MailSection = () => {
         description: "E-Mail-Konto konnte nicht gelöscht werden.",
         variant: "destructive",
       })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+      setAccountToDelete(null)
     }
+  }
+
+  const initiateDelete = (account: MailAccount) => {
+    setAccountToDelete(account)
+    setShowDeleteConfirm(true)
   }
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
@@ -273,7 +298,7 @@ const MailSection = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteMailAccount(account.id, account.mailadresse)}
+                        onClick={() => initiateDelete(account)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -367,6 +392,27 @@ const MailSection = () => {
           </SettingsCard>
         </div>
       </SettingsSection>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>E-Mail-Konto löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie das E-Mail-Konto <strong>{accountToDelete?.mailadresse}</strong> wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMailAccount}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Lösche..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
