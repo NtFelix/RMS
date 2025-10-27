@@ -864,7 +864,11 @@ export function MailsTable({
 
 
 
-      return !mail.read ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />;
+      return !mail.read ? (
+        <MailOpen className="h-4 w-4 stroke-[3]" />
+      ) : (
+        <Mail className="h-4 w-4" />
+      );
 
 
 
@@ -936,7 +940,11 @@ export function MailsTable({
 
 
 
-    return !mail.read ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />;
+    return !mail.read ? (
+      <MailOpen className="h-4 w-4 stroke-[3]" />
+    ) : (
+      <Mail className="h-4 w-4" />
+    );
 
 
 
