@@ -1207,6 +1207,8 @@ export function MailsTable({
                           }
                         }}
                         className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
+                          !mail.read ? 'font-semibold' : ''
+                        } ${
                           isSelected 
                             ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
