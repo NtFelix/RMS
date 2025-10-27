@@ -26,7 +26,6 @@ interface MailBulkActionBarProps {
   onMarkAsUnread: () => void
   onToggleFavorite: () => void
   onArchive: () => void
-  onDelete: () => void
   onDeletePermanently: () => void
   onMoveToFolder: (folder: string) => void
 }
@@ -40,7 +39,6 @@ export function MailBulkActionBar({
   onMarkAsUnread,
   onToggleFavorite,
   onArchive,
-  onDelete,
   onDeletePermanently,
   onMoveToFolder,
 }: MailBulkActionBarProps) {
@@ -183,20 +181,11 @@ export function MailBulkActionBar({
           <Button
             variant="outline"
             size="sm"
-            onClick={onDelete}
-            className="h-8 gap-2"
-          >
-            <Trash2 className="h-4 w-4" />
-            In Papierkorb
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={() => setIsDeleteDialogOpen(true)}
             className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
           >
             <Trash2 className="h-4 w-4" />
-            Endgültig löschen
+            Löschen
           </Button>
         </div>
       </div>
@@ -322,13 +311,13 @@ export function MailBulkActionBar({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Permanently Dialog */}
+      {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>E-Mails endgültig löschen?</DialogTitle>
+            <DialogTitle>E-Mails löschen?</DialogTitle>
             <DialogDescription>
-              Möchten Sie wirklich {selectedMails.size} {selectedMails.size === 1 ? 'E-Mail' : 'E-Mails'} endgültig löschen?
+              Möchten Sie wirklich {selectedMails.size} {selectedMails.size === 1 ? 'E-Mail' : 'E-Mails'} löschen?
               Diese Aktion kann nicht rückgängig gemacht werden.
             </DialogDescription>
           </DialogHeader>
@@ -350,7 +339,7 @@ export function MailBulkActionBar({
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Wird gelöscht...
                 </>
-              ) : 'Endgültig löschen'}
+              ) : 'Löschen'}
             </Button>
           </DialogFooter>
         </DialogContent>

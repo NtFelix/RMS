@@ -87,7 +87,6 @@ interface MailsTableProps {
   onToggleRead?: (mailId: string, isRead: boolean) => void;
   onToggleFavorite?: (mailId: string, isFavorite: boolean) => void;
   onArchive?: (mailId: string) => void;
-  onDelete?: (mailId: string) => void;
   onDeletePermanently?: (mailId: string) => void;
 }
 
@@ -137,7 +136,6 @@ export function MailsTable({
   onToggleRead,
   onToggleFavorite,
   onArchive,
-  onDelete,
   onDeletePermanently
 }: MailsTableProps) {
 
@@ -1174,7 +1172,6 @@ export function MailsTable({
                       onToggleRead={onToggleRead}
                       onToggleFavorite={onToggleFavorite}
                       onArchive={onArchive}
-                      onDelete={onDelete}
                       onDeletePermanently={onDeletePermanently}
                     >
                       <TableRow 
@@ -1372,7 +1369,6 @@ export function MailsTable({
                             onToggleRead={onToggleRead}
                             onToggleFavorite={onToggleFavorite}
                             onArchive={onArchive}
-                            onDelete={onDelete}
                             onDeletePermanently={onDeletePermanently}
                           />
 

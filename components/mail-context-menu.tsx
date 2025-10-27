@@ -21,8 +21,7 @@ import {
   Trash2, 
   Mail, 
   MailOpen,
-  MoreVertical,
-  AlertTriangle
+  MoreVertical
 } from "lucide-react"
 import { useState } from "react"
 import {
@@ -55,7 +54,6 @@ interface MailContextMenuProps {
   onToggleRead?: (mailId: string, isRead: boolean) => void;
   onToggleFavorite?: (mailId: string, isFavorite: boolean) => void;
   onArchive?: (mailId: string) => void;
-  onDelete?: (mailId: string) => void;
   onDeletePermanently?: (mailId: string) => void;
 }
 
@@ -65,7 +63,6 @@ export function MailContextMenu({
   onToggleRead,
   onToggleFavorite,
   onArchive,
-  onDelete,
   onDeletePermanently,
 }: MailContextMenuProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -104,17 +101,12 @@ export function MailContextMenu({
             <Archive className="mr-2 h-4 w-4" />
             Archivieren
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => onDelete?.(mail.id)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            In Papierkorb verschieben
-          </ContextMenuItem>
-          <ContextMenuSeparator />
           <ContextMenuItem 
             onClick={() => setShowDeleteDialog(true)}
             className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
           >
-            <AlertTriangle className="mr-2 h-4 w-4" />
-            Endgültig löschen
+            <Trash2 className="mr-2 h-4 w-4" />
+            Löschen
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -122,7 +114,7 @@ export function MailContextMenu({
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>E-Mail endgültig löschen?</AlertDialogTitle>
+            <AlertDialogTitle>E-Mail löschen?</AlertDialogTitle>
             <AlertDialogDescription>
               Diese Aktion kann nicht rückgängig gemacht werden. Die E-Mail und alle Anhänge werden permanent gelöscht.
             </AlertDialogDescription>
@@ -133,7 +125,7 @@ export function MailContextMenu({
               onClick={handleDeletePermanently}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
-              Endgültig löschen
+              Löschen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -147,7 +139,6 @@ interface MailActionsDropdownProps {
   onToggleRead?: (mailId: string, isRead: boolean) => void;
   onToggleFavorite?: (mailId: string, isFavorite: boolean) => void;
   onArchive?: (mailId: string) => void;
-  onDelete?: (mailId: string) => void;
   onDeletePermanently?: (mailId: string) => void;
 }
 
@@ -156,7 +147,6 @@ export function MailActionsDropdown({
   onToggleRead,
   onToggleFavorite,
   onArchive,
-  onDelete,
   onDeletePermanently,
 }: MailActionsDropdownProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -202,17 +192,12 @@ export function MailActionsDropdown({
             <Archive className="mr-2 h-4 w-4" />
             Archivieren
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDelete?.(mail.id)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            In Papierkorb verschieben
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuItem 
             onClick={() => setShowDeleteDialog(true)}
             className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
           >
-            <AlertTriangle className="mr-2 h-4 w-4" />
-            Endgültig löschen
+            <Trash2 className="mr-2 h-4 w-4" />
+            Löschen
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -220,7 +205,7 @@ export function MailActionsDropdown({
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>E-Mail endgültig löschen?</AlertDialogTitle>
+            <AlertDialogTitle>E-Mail löschen?</AlertDialogTitle>
             <AlertDialogDescription>
               Diese Aktion kann nicht rückgängig gemacht werden. Die E-Mail und alle Anhänge werden permanent gelöscht.
             </AlertDialogDescription>
@@ -231,7 +216,7 @@ export function MailActionsDropdown({
               onClick={handleDeletePermanently}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
-              Endgültig löschen
+              Löschen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

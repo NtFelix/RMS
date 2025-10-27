@@ -131,16 +131,6 @@ export default function MailsClientView({
     }
   }, [router]);
 
-  const handleDelete = useCallback(async (mailId: string) => {
-    try {
-      await moveEmailToFolder(mailId, 'trash');
-      toast.success('E-Mail in Papierkorb verschoben');
-      router.refresh();
-    } catch (error) {
-      toast.error('Fehler beim Löschen');
-    }
-  }, [router]);
-
   const handleDeletePermanently = useCallback(async (mailId: string) => {
     try {
       // Close the detail panel if this email is currently selected
@@ -254,20 +244,6 @@ export default function MailsClientView({
       router.refresh();
     } catch (error) {
       toast.error('Fehler beim Archivieren');
-    }
-  }, [selectedMails, router]);
-
-  const handleBulkDelete = useCallback(async () => {
-    try {
-      const promises = Array.from(selectedMails).map(id => 
-        moveEmailToFolder(id, 'trash')
-      );
-      await Promise.all(promises);
-      toast.success(`${selectedMails.size} E-Mails in Papierkorb verschoben`);
-      setSelectedMails(new Set());
-      router.refresh();
-    } catch (error) {
-      toast.error('Fehler beim Löschen');
     }
   }, [selectedMails, router]);
 
@@ -421,7 +397,6 @@ export default function MailsClientView({
             onMarkAsUnread={handleBulkMarkAsUnread}
             onToggleFavorite={handleBulkToggleFavorite}
             onArchive={handleBulkArchive}
-            onDelete={handleBulkDelete}
             onDeletePermanently={handleBulkDeletePermanently}
             onMoveToFolder={handleBulkMoveToFolder}
           />
@@ -433,7 +408,6 @@ export default function MailsClientView({
             onToggleRead={handleToggleRead}
             onToggleFavorite={handleToggleFavorite}
             onArchive={handleArchive}
-            onDelete={handleDelete}
             onDeletePermanently={handleDeletePermanently}
           />
         </CardContent>
