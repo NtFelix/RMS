@@ -170,7 +170,10 @@ export function MailActionsDropdown({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => onToggleRead?.(mail.id, !mail.read)}>
+          <DropdownMenuItem 
+            onClick={() => onToggleRead?.(mail.id, !mail.read)}
+            className="focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item"
+          >
             {mail.read ? (
               <>
                 <Mail className="mr-2 h-4 w-4" />
@@ -183,18 +186,24 @@ export function MailActionsDropdown({
               </>
             )}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onToggleFavorite?.(mail.id, !mail.favorite)}>
+          <DropdownMenuItem 
+            onClick={() => onToggleFavorite?.(mail.id, !mail.favorite)}
+            className="focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item"
+          >
             <Star className={`mr-2 h-4 w-4 ${mail.favorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
             {mail.favorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onArchive?.(mail.id)}>
+          <DropdownMenuItem 
+            onClick={() => onArchive?.(mail.id)}
+            className="focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item"
+          >
             <Archive className="mr-2 h-4 w-4" />
             Archivieren
           </DropdownMenuItem>
           <DropdownMenuItem 
             onClick={() => setShowDeleteDialog(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+            className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950 hover:bg-red-50 hover:scale-[1.02]"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Löschen

@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen, Loader2 } from "lucide-react"
-import { MailContextMenu, MailActionsDropdown } from "@/components/mail-context-menu"
+import { MailContextMenu } from "@/components/mail-context-menu"
 
 
 
@@ -182,6 +182,9 @@ export function MailsTable({
     })
     if (node) observer.current.observe(node)
   }, [isLoading, hasMore, loadMails])
+
+  // Context menu refs for programmatic triggering
+  const contextMenuRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
 
 
 
@@ -1195,7 +1198,14 @@ export function MailsTable({
                       onDeletePermanently={onDeletePermanently}
                     >
                       <TableRow 
-                        ref={isLastRow ? lastMailElementRef : null}
+                        ref={(node) => {
+                          if (node) {
+                            contextMenuRefs.current.set(mail.id, node)
+                          }
+                          if (isLastRow && node) {
+                            lastMailElementRef(node)
+                          }
+                        }}
                         className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
                           isSelected 
                             ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
@@ -1385,13 +1395,28 @@ export function MailsTable({
                         <div className="flex items-center justify-end">
                           {mail.favorite && <Star className="h-4 w-4 text-yellow-400 mr-2" />}
                           {mail.read ? <EyeOff className="h-4 w-4 text-gray-400 mr-2" /> : <Eye className="h-4 w-4 text-blue-500 mr-2" />}
-                          <MailActionsDropdown
-                            mail={mail}
-                            onToggleRead={onToggleRead}
-                            onToggleFavorite={onToggleFavorite}
-                            onArchive={onArchive}
-                            onDeletePermanently={onDeletePermanently}
-                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const rowElement = contextMenuRefs.current.get(mail.id)
+                              if (rowElement) {
+                                const contextMenuEvent = new MouseEvent('contextmenu', {
+                                  bubbles: true,
+                                  cancelable: true,
+                                  view: window,
+                                  clientX: e.clientX,
+                                  clientY: e.clientY,
+                                })
+                                rowElement.dispatchEvent(contextMenuEvent)
+                              }
+                            }}
+                          >
+                            <span className="sr-only">Menü öffnen</span>
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </Button>
 
 
 
