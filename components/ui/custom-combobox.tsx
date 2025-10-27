@@ -563,7 +563,7 @@ export function CustomCombobox({
                     aria-selected={value === option.value}
                     aria-disabled={option.disabled}
                     className={cn(
-                      "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 my-0.5 text-sm outline-none transition-colors",
+                      "relative flex cursor-default select-none items-center rounded-lg p-2 mb-2 last:mb-0 text-sm outline-none transition-colors",
                       option.disabled
                         ? "pointer-events-none opacity-50"
                         : [
