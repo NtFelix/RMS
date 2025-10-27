@@ -33,7 +33,7 @@ interface MailsClientViewProps {
 
 function AddMailButton({ onAdd }: { onAdd: () => void }) {
   return (
-    <ButtonWithTooltip onClick={onAdd} className="sm:w-auto">
+    <ButtonWithTooltip onClick={onAdd} size="sm" className="h-9 sm:w-auto">
       <PlusCircle className="mr-2 h-4 w-4" />
       Neue E-Mail
     </ButtonWithTooltip>
