@@ -12,6 +12,7 @@ import { MailBulkActionBar } from "@/components/mail-bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { PAGINATION } from "@/constants";
 import { 
   getEmailCounts, 
   updateEmailReadStatus, 
@@ -51,6 +52,10 @@ export default function MailsClientView({
   const [selectedMail, setSelectedMail] = useState<LegacyMail | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [emailCounts, setEmailCounts] = useState<Record<string, number>>({});
+  const [displayedMails, setDisplayedMails] = useState<LegacyMail[]>(initialMails.slice(0, PAGINATION.DEFAULT_PAGE_SIZE));
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(initialMails.length > PAGINATION.DEFAULT_PAGE_SIZE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Fetch email counts on mount
   useEffect(() => {
@@ -275,7 +280,8 @@ export default function MailsClientView({
     }
   }, [selectedMails, router]);
 
-  const filteredMails = useMemo(() => {
+  // Filter all mails based on tab and search
+  const allFilteredMails = useMemo(() => {
     const mailsByTab = initialMails.filter(mail => {
       switch (activeTab) {
         case 'inbox':
@@ -302,6 +308,35 @@ export default function MailsClientView({
       mail.recipient.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [initialMails, activeTab, searchQuery]);
+
+  // Update displayed mails when filters change
+  useEffect(() => {
+    setDisplayedMails(allFilteredMails.slice(0, PAGINATION.DEFAULT_PAGE_SIZE));
+    setPage(1);
+    setHasMore(allFilteredMails.length > PAGINATION.DEFAULT_PAGE_SIZE);
+  }, [allFilteredMails]);
+
+  // Load more mails function
+  const loadMoreMails = useCallback(() => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    
+    // Simulate async loading with setTimeout to prevent blocking
+    setTimeout(() => {
+      const nextPage = page + 1;
+      const startIndex = 0;
+      const endIndex = nextPage * PAGINATION.DEFAULT_PAGE_SIZE;
+      const newDisplayedMails = allFilteredMails.slice(startIndex, endIndex);
+      
+      setDisplayedMails(newDisplayedMails);
+      setPage(nextPage);
+      setHasMore(endIndex < allFilteredMails.length);
+      setIsLoadingMore(false);
+    }, 100);
+  }, [page, allFilteredMails, hasMore, isLoadingMore]);
+
+  const filteredMails = displayedMails;
 
   console.log("activeTab", activeTab);
   console.log("filteredMails", filteredMails);
@@ -409,6 +444,9 @@ export default function MailsClientView({
             onToggleFavorite={handleToggleFavorite}
             onArchive={handleArchive}
             onDeletePermanently={handleDeletePermanently}
+            hasMore={hasMore}
+            isLoading={isLoadingMore}
+            loadMails={loadMoreMails}
           />
         </CardContent>
       </Card>

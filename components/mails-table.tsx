@@ -1,12 +1,12 @@
 
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useRef, useCallback } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen, Loader2 } from "lucide-react"
 import { MailContextMenu, MailActionsDropdown } from "@/components/mail-context-menu"
 
 
@@ -88,6 +88,9 @@ interface MailsTableProps {
   onToggleFavorite?: (mailId: string, isFavorite: boolean) => void;
   onArchive?: (mailId: string) => void;
   onDeletePermanently?: (mailId: string) => void;
+  hasMore?: boolean;
+  isLoading?: boolean;
+  loadMails?: () => void;
 }
 
 
@@ -136,7 +139,10 @@ export function MailsTable({
   onToggleRead,
   onToggleFavorite,
   onArchive,
-  onDeletePermanently
+  onDeletePermanently,
+  hasMore = false,
+  isLoading = false,
+  loadMails
 }: MailsTableProps) {
 
 
@@ -162,6 +168,20 @@ export function MailsTable({
 
 
   const [internalSelectedMails, setInternalSelectedMails] = useState<Set<string>>(new Set())
+
+  // Infinite scroll observer
+  const observer = useRef<IntersectionObserver | null>(null)
+
+  const lastMailElementRef = useCallback((node: HTMLTableRowElement) => {
+    if (isLoading) return
+    if (observer.current) observer.current.disconnect()
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMails && loadMails()
+      }
+    })
+    if (node) observer.current.observe(node)
+  }, [isLoading, hasMore, loadMails])
 
 
 
@@ -1175,6 +1195,7 @@ export function MailsTable({
                       onDeletePermanently={onDeletePermanently}
                     >
                       <TableRow 
+                        ref={isLastRow ? lastMailElementRef : null}
                         className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
                           isSelected 
                             ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
@@ -1405,6 +1426,16 @@ export function MailsTable({
 
 
 
+              )}
+              {isLoading && (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">Weitere E-Mails werden geladen...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
               )}
 
 
