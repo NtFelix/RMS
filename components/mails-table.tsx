@@ -848,6 +848,54 @@ export function MailsTable({
 
 
 
+    // For inbox emails, show read/unread status with mail icons
+
+
+
+
+
+
+
+    if (mail.type === 'inbox') {
+
+
+
+
+
+
+
+      return !mail.read ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    // For outbox emails, show status-specific icons
+
+
+
+
+
+
+
     if (mail.status === 'draft') return <FileEdit className="h-4 w-4" />;
 
 
@@ -872,7 +920,7 @@ export function MailsTable({
 
 
 
-    if (!mail.read) return <MailOpen className="h-4 w-4" />;
+    
 
 
 
@@ -880,7 +928,15 @@ export function MailsTable({
 
 
 
-    return <Mail className="h-4 w-4" />;
+    // Fallback to read/unread icons
+
+
+
+
+
+
+
+    return !mail.read ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />;
 
 
 
