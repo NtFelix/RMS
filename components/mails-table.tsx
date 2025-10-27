@@ -1048,7 +1048,7 @@ export function MailsTable({
 
 
 
-                <TableHeaderCell sortKey="date" className="w-[150px] dark:text-[#f3f4f6]" icon={Calendar}>Datum</TableHeaderCell>
+                <TableHeaderCell sortKey="recipient" className="dark:text-[#f3f4f6]" icon={User}>Empfänger</TableHeaderCell>
 
 
 
@@ -1064,15 +1064,7 @@ export function MailsTable({
 
 
 
-                <TableHeaderCell sortKey="recipient" className="dark:text-[#f3f4f6]" icon={User}>Empfänger</TableHeaderCell>
-
-
-
-
-
-
-
-                <TableHeaderCell sortKey="type" className="dark:text-[#f3f4f6]" icon={Mail}>Typ</TableHeaderCell>
+                <TableHeaderCell sortKey="date" className="w-[150px] dark:text-[#f3f4f6]" icon={Calendar}>Datum</TableHeaderCell>
 
 
 
@@ -1144,7 +1136,7 @@ export function MailsTable({
 
 
 
-                  <TableCell colSpan={9} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
 
 
 
@@ -1310,7 +1302,7 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{formatDate(mail.date)}</TableCell>
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.recipient}</TableCell>
 
 
 
@@ -1326,19 +1318,7 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.recipient}</TableCell>
-
-
-
-
-
-
-
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
-                        {mail.status === 'draft' ? 'Entwurf' : 
-                         mail.status === 'archiv' ? 'Archiv' : 
-                         mail.type === 'outbox' ? 'Gesendet' : 'Posteingang'}
-                      </TableCell>
+                      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{formatDate(mail.date)}</TableCell>
 
 
 
@@ -1456,7 +1436,7 @@ export function MailsTable({
               )}
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-sm text-muted-foreground">Weitere E-Mails werden geladen...</span>
