@@ -10,6 +10,13 @@ import { useToast } from "@/hooks/use-toast"
 import { SettingsCard, SettingsSection } from "@/components/settings/shared"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogHeader,
@@ -220,15 +227,19 @@ const MailSection = () => {
                     }
                   }}
                 />
-                <select
+                <Select
                   value={selectedDomain}
-                  onChange={(e) => setSelectedDomain(e.target.value)}
-                  className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+                  onValueChange={setSelectedDomain}
                   disabled={isCreating}
                 >
-                  <option value="@mietfluss.de">@mietfluss.de</option>
-                  <option value="@mietfluss.com">@mietfluss.com</option>
-                </select>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Domain wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="@mietfluss.de">@mietfluss.de</SelectItem>
+                    <SelectItem value="@mietfluss.com">@mietfluss.com</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button
                 onClick={handleCreateMailAccount}
