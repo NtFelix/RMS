@@ -255,72 +255,81 @@ const MailSection = () => {
             {loading ? (
               <div className="space-y-3 mt-6">
                 {[1, 2].map((i) => (
-                  <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-3 flex-1">
-                      <Skeleton className="h-10 w-10 rounded-full" />
+                  <div key={i} className="flex items-center justify-between p-5 border rounded-xl bg-gray-50/50 dark:bg-gray-800/30">
+                    <div className="flex items-center gap-4 flex-1">
+                      <Skeleton className="h-12 w-12 rounded-full" />
                       <div className="space-y-2 flex-1">
                         <Skeleton className="h-4 w-48" />
                         <Skeleton className="h-3 w-32" />
                       </div>
                     </div>
-                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-9 w-24" />
                   </div>
                 ))}
               </div>
             ) : mailAccounts.length > 0 ? (
               <div className="space-y-3 mt-6">
-                {mailAccounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="p-2 rounded-full bg-primary/10">
-                        <Mail className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm">{account.mailadresse}</p>
-                          {account.ist_aktiv ? (
-                            <Badge variant="default" className="text-xs">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Aktiv
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Inaktiv
-                            </Badge>
-                          )}
+                {mailAccounts.map((account, index) => {
+                  const isLastRow = index === mailAccounts.length - 1
+                  return (
+                    <div
+                      key={account.id}
+                      className={`group relative flex items-center justify-between p-5 border rounded-xl bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100/80 dark:hover:bg-gray-800/50 transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] hover:shadow-sm ${
+                        isLastRow ? 'mb-0' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                          <Mail className="h-5 w-5 text-primary" />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Erstellt am {new Date(account.erstellungsdatum).toLocaleDateString("de-DE")}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-sm truncate">{account.mailadresse}</p>
+                            {account.ist_aktiv ? (
+                              <Badge variant="default" className="text-xs shrink-0 bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Aktiv
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs shrink-0">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Inaktiv
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Erstellt am {new Date(account.erstellungsdatum).toLocaleDateString("de-DE")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleActive(account.id, account.ist_aktiv)}
+                          className="h-9 hover:bg-white dark:hover:bg-gray-700"
+                        >
+                          {account.ist_aktiv ? "Deaktivieren" : "Aktivieren"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => initiateDelete(account)}
+                          className="h-9 w-9 p-0 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleToggleActive(account.id, account.ist_aktiv)}
-                      >
-                        {account.ist_aktiv ? "Deaktivieren" : "Aktivieren"}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => initiateDelete(account)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Mail className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Noch keine E-Mail-Konten erstellt.</p>
+              <div className="text-center py-12 text-muted-foreground">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+                  <Mail className="h-8 w-8 text-primary/50" />
+                </div>
+                <p className="text-sm font-medium">Noch keine E-Mail-Konten erstellt.</p>
                 <p className="text-xs mt-1">Erstellen Sie Ihr erstes Mietfluss E-Mail-Konto oben.</p>
               </div>
             )}
@@ -334,69 +343,69 @@ const MailSection = () => {
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Gmail Card */}
-          <SettingsCard className="relative opacity-60 cursor-not-allowed">
-            <div className="absolute top-3 right-3">
+          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity">
+            <div className="absolute top-4 right-4 z-10">
               <Badge variant="secondary" className="text-xs">
                 Demnächst
               </Badge>
             </div>
-            <div className="flex flex-col items-center text-center space-y-3 pt-2">
-              <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/20">
-                <Mail className="h-6 w-6 text-red-600 dark:text-red-400" />
+            <div className="flex flex-col items-center text-center space-y-4 py-2">
+              <div className="p-4 rounded-full bg-red-100 dark:bg-red-900/20 ring-4 ring-red-50 dark:ring-red-900/10">
+                <Mail className="h-7 w-7 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h4 className="font-medium text-sm">Gmail</h4>
-                <p className="text-xs text-muted-foreground mt-1">
+                <h4 className="font-semibold text-sm mb-1">Gmail</h4>
+                <p className="text-xs text-muted-foreground">
                   Verbinden Sie Ihr Gmail-Konto
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled className="w-full">
+              <Button variant="outline" size="sm" disabled className="w-full mt-2">
                 Verbinden
               </Button>
             </div>
           </SettingsCard>
 
           {/* Outlook Card */}
-          <SettingsCard className="relative opacity-60 cursor-not-allowed">
-            <div className="absolute top-3 right-3">
+          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity">
+            <div className="absolute top-4 right-4 z-10">
               <Badge variant="secondary" className="text-xs">
                 Demnächst
               </Badge>
             </div>
-            <div className="flex flex-col items-center text-center space-y-3 pt-2">
-              <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/20">
-                <Mail className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div className="flex flex-col items-center text-center space-y-4 py-2">
+              <div className="p-4 rounded-full bg-blue-100 dark:bg-blue-900/20 ring-4 ring-blue-50 dark:ring-blue-900/10">
+                <Mail className="h-7 w-7 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h4 className="font-medium text-sm">Outlook</h4>
-                <p className="text-xs text-muted-foreground mt-1">
+                <h4 className="font-semibold text-sm mb-1">Outlook</h4>
+                <p className="text-xs text-muted-foreground">
                   Verbinden Sie Ihr Outlook-Konto
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled className="w-full">
+              <Button variant="outline" size="sm" disabled className="w-full mt-2">
                 Verbinden
               </Button>
             </div>
           </SettingsCard>
 
           {/* IMAP Card */}
-          <SettingsCard className="relative opacity-60 cursor-not-allowed">
-            <div className="absolute top-3 right-3">
+          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity">
+            <div className="absolute top-4 right-4 z-10">
               <Badge variant="secondary" className="text-xs">
                 Demnächst
               </Badge>
             </div>
-            <div className="flex flex-col items-center text-center space-y-3 pt-2">
-              <div className="p-3 rounded-full bg-gray-100 dark:bg-gray-900/20">
-                <Mail className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+            <div className="flex flex-col items-center text-center space-y-4 py-2">
+              <div className="p-4 rounded-full bg-gray-100 dark:bg-gray-900/20 ring-4 ring-gray-50 dark:ring-gray-900/10">
+                <Mail className="h-7 w-7 text-gray-600 dark:text-gray-400" />
               </div>
               <div>
-                <h4 className="font-medium text-sm">IMAP</h4>
-                <p className="text-xs text-muted-foreground mt-1">
+                <h4 className="font-semibold text-sm mb-1">IMAP</h4>
+                <p className="text-xs text-muted-foreground">
                   Verbinden Sie per IMAP
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled className="w-full">
+              <Button variant="outline" size="sm" disabled className="w-full mt-2">
                 Verbinden
               </Button>
             </div>
