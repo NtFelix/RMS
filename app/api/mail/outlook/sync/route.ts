@@ -24,19 +24,28 @@ export async function POST() {
       .single()
 
     if (accountError || !account) {
+      console.error("Account lookup error:", accountError)
       return NextResponse.json(
-        { error: "No Outlook account connected" },
+        { 
+          error: "No Outlook account connected",
+          details: accountError?.message 
+        },
         { status: 404 }
       )
     }
 
+    console.log("Found Outlook account:", account.id)
+
     // Call edge function directly via Supabase Functions
+    console.log("Calling sync-outlook-emails edge function...")
     const { data, error } = await supabase.functions.invoke('sync-outlook-emails', {
       body: {
         accountId: account.id,
         userId: user.id,
       },
     })
+    
+    console.log("Edge function response:", { data, error })
 
     if (error) {
       console.error("Edge function error:", error)
@@ -62,9 +71,13 @@ export async function POST() {
       )
     }
 
+    // The queue processor is triggered automatically by pg_cron every 10 seconds
+    // No need to manually trigger it here
+
     return NextResponse.json({
       success: true,
-      messageCount: data?.messageCount || 0,
+      message: data?.message || "Email import started",
+      queueId: data?.queueId,
       syncedAt: data?.syncedAt,
     })
   } catch (error) {

@@ -180,7 +180,7 @@ const MailSection = () => {
 
       toast({
         title: "Erfolg",
-        description: `${result.messageCount} E-Mails synchronisiert.`,
+        description: result.message || "E-Mail-Import wurde gestartet. Die E-Mails werden im Hintergrund importiert.",
         variant: "success",
       })
 

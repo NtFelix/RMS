@@ -199,75 +199,37 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch emails from Microsoft Graph API
-    console.log('Fetching emails from Outlook...')
-    console.log('Access token length:', accessToken?.length || 0)
-    console.log('Token preview:', accessToken ? `${accessToken.substring(0, 20)}...${accessToken.substring(accessToken.length - 20)}` : 'none')
-    console.log('Provider tenant ID:', account.provider_tenant_id)
+    // Queue email import task using PGMQ
+    console.log('Queuing email import task...')
+    console.log('Queue params:', {
+      p_account_id: accountId,
+      p_user_id: userId,
+      p_sync_job_id: syncJobId,
+      p_next_link: null,
+      p_page_number: 1,
+    })
 
-    let messagesResponse = await fetch(
-      'https://graph.microsoft.com/v1.0/me/messages?$top=100&$orderby=receivedDateTime desc&$select=id,subject,from,receivedDateTime,bodyPreview,isRead,hasAttachments',
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    )
+    const { data: importJobId, error: queueError } = await supabase
+      .rpc('queue_email_import', {
+        p_account_id: accountId,
+        p_user_id: userId,
+        p_sync_job_id: syncJobId,
+        p_next_link: null,
+        p_page_number: 1,
+      })
 
-    console.log('Messages response status:', messagesResponse.status)
+    console.log('Queue RPC result:', { importJobId, queueError })
 
-    // If we get 401, try refreshing the token and retry once
-    if (messagesResponse.status === 401 && account.refresh_token_encrypted) {
-      console.log('Got 401, attempting token refresh and retry...')
-
-      try {
-        accessToken = await refreshToken(supabase, account, accountId)
-
-        // Retry the fetch with new token
-        messagesResponse = await fetch(
-          'https://graph.microsoft.com/v1.0/me/messages?$top=100&$orderby=receivedDateTime desc&$select=id,subject,from,receivedDateTime,bodyPreview,isRead,hasAttachments',
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        )
-
-        console.log('Retry response status:', messagesResponse.status)
-      } catch (refreshError) {
-        console.error('Token refresh failed during retry:', refreshError)
-      }
-    }
-
-    if (!messagesResponse.ok) {
-      let errorText = ''
-      let errorJson = null
-      
-      try {
-        errorText = await messagesResponse.text()
-        errorJson = JSON.parse(errorText)
-        console.error('Failed to fetch messages (JSON):', errorJson)
-      } catch (e) {
-        console.error('Failed to fetch messages (text):', errorText)
-      }
-      
-      console.error('Response status:', messagesResponse.status)
-      console.error('Response headers:', Object.fromEntries(messagesResponse.headers.entries()))
-
-      await supabase
-        .from('Mail_Accounts')
-        .update({
-          last_sync_error: new Date().toISOString(),
-          sync_enabled: messagesResponse.status === 401 ? false : account.sync_enabled,
-        })
-        .eq('id', accountId)
+    if (queueError) {
+      console.error('Failed to queue import task:', queueError)
+      console.error('Queue error details:', JSON.stringify(queueError, null, 2))
 
       if (syncJobId) {
         await supabase
           .from('Mail_Sync_Jobs')
           .update({
             status: 'failed',
-            fehler_nachricht: `Failed to fetch emails: ${messagesResponse.status} - ${errorText.substring(0, 200)}`,
+            fehler_nachricht: `Failed to queue import task: ${queueError.message || JSON.stringify(queueError)}`,
             end_datum: new Date().toISOString(),
           })
           .eq('id', syncJobId)
@@ -275,21 +237,24 @@ Deno.serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          error: 'Failed to fetch emails',
-          status: messagesResponse.status,
-          details: errorText.substring(0, 500)
+          error: 'Failed to queue import task',
+          details: queueError.message || JSON.stringify(queueError)
         }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
-    const messagesData = await messagesResponse.json()
-    const messages = messagesData.value || []
+    console.log(`Queued import task with job ID: ${importJobId}`)
 
-    console.log(`Fetched ${messages.length} emails`)
-
-    // TODO: Store emails in a separate table (e.g., Emails table)
-    // For now, we'll just log the count and update sync status
+    // Update sync job to processing (will be completed by queue processor)
+    if (syncJobId) {
+      await supabase
+        .from('Mail_Sync_Jobs')
+        .update({
+          status: 'processing',
+        })
+        .eq('id', syncJobId)
+    }
 
     // Update last sync time
     const syncedAt = new Date().toISOString()
@@ -301,26 +266,15 @@ Deno.serve(async (req) => {
       })
       .eq('id', accountId)
 
-    // Update job status
-    if (syncJobId) {
-      await supabase
-        .from('Mail_Sync_Jobs')
-        .update({
-          status: 'completed',
-          nachrichten_sync: messages.length,
-          end_datum: syncedAt,
-        })
-        .eq('id', syncJobId)
-    }
-
-    console.log(`Sync completed successfully for account ${accountId}`)
+    console.log(`Sync initiated successfully for account ${accountId}`)
 
     return new Response(
       JSON.stringify({
         success: true,
-        messageCount: messages.length,
+        importJobId: importJobId,
+        syncJobId: syncJobId,
         syncedAt,
-        jobId: syncJobId,
+        message: 'Email import queued successfully',
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
