@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
     "User.Read"
   ].join(" ")
 
-  const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
+  // Use 'common' endpoint for multi-tenant apps that support all Microsoft accounts
+  const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
     `client_id=${clientId}` +
     `&response_type=code` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +

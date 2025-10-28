@@ -22,9 +22,9 @@ export async function GET(request: NextRequest) {
     // Decode state to get user ID
     const { userId } = JSON.parse(Buffer.from(state, "base64").toString())
 
-    // Exchange code for tokens
+    // Exchange code for tokens using 'common' endpoint for multi-tenant support
     const tokenResponse = await fetch(
-      `https://login.microsoftonline.com/${process.env.OUTLOOK_TENANT_ID}/oauth2/v2.0/token`,
+      `https://login.microsoftonline.com/common/oauth2/v2.0/token`,
       {
         method: "POST",
         headers: {
@@ -48,6 +48,19 @@ export async function GET(request: NextRequest) {
 
     const tokens = await tokenResponse.json()
 
+    // Decode the access token to get tenant ID (JWT payload)
+    let tenantId = process.env.OUTLOOK_TENANT_ID
+    try {
+      const tokenParts = tokens.access_token.split('.')
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString())
+        tenantId = payload.tid || tenantId
+        console.log('Extracted tenant ID from token:', tenantId)
+      }
+    } catch (e) {
+      console.error('Failed to decode token:', e)
+    }
+
     // Get user profile from Microsoft Graph
     const profileResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
       headers: {
@@ -56,7 +69,8 @@ export async function GET(request: NextRequest) {
     })
 
     if (!profileResponse.ok) {
-      console.error("Failed to fetch user profile")
+      const errorText = await profileResponse.text()
+      console.error("Failed to fetch user profile:", errorText)
       return NextResponse.redirect(`${appUrl}?outlook_error=profile_fetch_failed`)
     }
 
@@ -86,7 +100,7 @@ export async function GET(request: NextRequest) {
           refresh_token_encrypted: tokens.refresh_token,
           token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
           provider_user_id: profile.id,
-          provider_tenant_id: process.env.OUTLOOK_TENANT_ID,
+          provider_tenant_id: tenantId,
           ist_aktiv: true,
           sync_enabled: true,
           last_sync_at: new Date().toISOString(),
@@ -104,7 +118,7 @@ export async function GET(request: NextRequest) {
           refresh_token_encrypted: tokens.refresh_token,
           token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
           provider_user_id: profile.id,
-          provider_tenant_id: process.env.OUTLOOK_TENANT_ID,
+          provider_tenant_id: tenantId,
           ist_aktiv: true,
           sync_enabled: true,
           erstellungsdatum: new Date().toISOString().split('T')[0],
