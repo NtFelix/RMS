@@ -73,6 +73,16 @@ const MailSection = () => {
   }
 
   const handleCreateMailAccount = async () => {
+    // Check if user already has 2 email accounts
+    if (mailAccounts.length >= 2) {
+      toast({
+        title: "Limit erreicht",
+        description: "Sie können maximal 2 E-Mail-Konten erstellen.",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (!newMailPrefix.trim()) {
       toast({
         title: "Fehler",
@@ -82,12 +92,12 @@ const MailSection = () => {
       return
     }
 
-    // Validate email prefix (only alphanumeric, dots, hyphens, underscores)
-    const emailRegex = /^[a-zA-Z0-9._-]+$/
+    // Validate email prefix must contain a dot and follow firstname.lastname format
+    const emailRegex = /^[a-z]+\.[a-z]+$/
     if (!emailRegex.test(newMailPrefix)) {
       toast({
         title: "Fehler",
-        description: "Der E-Mail-Präfix darf nur Buchstaben, Zahlen, Punkte, Bindestriche und Unterstriche enthalten.",
+        description: "Der E-Mail-Präfix muss im Format 'vorname.nachname' sein (nur Kleinbuchstaben und ein Punkt).",
         variant: "destructive",
       })
       return
@@ -209,7 +219,7 @@ const MailSection = () => {
     <div className="space-y-6">
       <SettingsSection
         title="Mietfluss E-Mail-Konten"
-        description="Erstellen und verwalten Sie Ihre @mietfluss.de oder @mietfluss.com E-Mail-Adressen."
+        description={`Erstellen und verwalten Sie Ihre @mietfluss.de oder @mietfluss.com E-Mail-Adressen. (${mailAccounts.length}/2 erstellt)`}
       >
         <SettingsCard>
           <div className="space-y-4">
@@ -218,9 +228,9 @@ const MailSection = () => {
                 <Input
                   value={newMailPrefix}
                   onChange={(e) => setNewMailPrefix(e.target.value.toLowerCase())}
-                  placeholder="name"
+                  placeholder="vorname.nachname"
                   className="flex-1"
-                  disabled={isCreating}
+                  disabled={isCreating || mailAccounts.length >= 2}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       handleCreateMailAccount()
@@ -243,12 +253,12 @@ const MailSection = () => {
               </div>
               <Button
                 onClick={handleCreateMailAccount}
-                disabled={isCreating || !newMailPrefix.trim()}
+                disabled={isCreating || !newMailPrefix.trim() || mailAccounts.length >= 2}
                 size="sm"
                 className="w-full sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                {isCreating ? "Erstellen..." : "E-Mail erstellen"}
+                {isCreating ? "Erstellen..." : mailAccounts.length >= 2 ? "Limit erreicht (2/2)" : "E-Mail erstellen"}
               </Button>
             </div>
 
