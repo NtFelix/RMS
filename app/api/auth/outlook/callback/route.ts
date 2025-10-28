@@ -1,0 +1,126 @@
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/utils/supabase/server"
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const code = searchParams.get("code")
+  const state = searchParams.get("state")
+  const error = searchParams.get("error")
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+
+  if (error) {
+    console.error("OAuth error:", error)
+    return NextResponse.redirect(`${appUrl}?outlook_error=${error}`)
+  }
+
+  if (!code || !state) {
+    return NextResponse.redirect(`${appUrl}?outlook_error=missing_params`)
+  }
+
+  try {
+    // Decode state to get user ID
+    const { userId } = JSON.parse(Buffer.from(state, "base64").toString())
+
+    // Exchange code for tokens
+    const tokenResponse = await fetch(
+      `https://login.microsoftonline.com/${process.env.OUTLOOK_TENANT_ID}/oauth2/v2.0/token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          client_id: process.env.OUTLOOK_CLIENT_ID!,
+          client_secret: process.env.OUTLOOK_CLIENT_SECRET!,
+          code,
+          redirect_uri: process.env.OUTLOOK_REDIRECT_URI!,
+          grant_type: "authorization_code",
+        }),
+      }
+    )
+
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.text()
+      console.error("Token exchange failed:", errorData)
+      return NextResponse.redirect(`${appUrl}?outlook_error=token_exchange_failed`)
+    }
+
+    const tokens = await tokenResponse.json()
+
+    // Get user profile from Microsoft Graph
+    const profileResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
+      headers: {
+        Authorization: `Bearer ${tokens.access_token}`,
+      },
+    })
+
+    if (!profileResponse.ok) {
+      console.error("Failed to fetch user profile")
+      return NextResponse.redirect(`${appUrl}?outlook_error=profile_fetch_failed`)
+    }
+
+    const profile = await profileResponse.json()
+
+    // Store tokens and profile in Mail_Accounts table
+    const supabase = await createClient()
+    
+    const email = profile.mail || profile.userPrincipalName
+    
+    // Check if email already exists for this user
+    const { data: existing } = await supabase
+      .from("Mail_Accounts")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("mailadresse", email)
+      .single()
+
+    let dbError
+    
+    if (existing) {
+      // Update existing record
+      const result = await supabase
+        .from("Mail_Accounts")
+        .update({
+          access_token_encrypted: tokens.access_token,
+          refresh_token_encrypted: tokens.refresh_token,
+          token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+          provider_user_id: profile.id,
+          provider_tenant_id: process.env.OUTLOOK_TENANT_ID,
+          ist_aktiv: true,
+          sync_enabled: true,
+          last_sync_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id)
+      dbError = result.error
+    } else {
+      // Insert new record
+      const result = await supabase
+        .from("Mail_Accounts")
+        .insert({
+          user_id: userId,
+          mailadresse: email,
+          access_token_encrypted: tokens.access_token,
+          refresh_token_encrypted: tokens.refresh_token,
+          token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+          provider_user_id: profile.id,
+          provider_tenant_id: process.env.OUTLOOK_TENANT_ID,
+          ist_aktiv: true,
+          sync_enabled: true,
+          erstellungsdatum: new Date().toISOString().split('T')[0],
+          last_sync_at: new Date().toISOString(),
+        })
+      dbError = result.error
+    }
+
+    if (dbError) {
+      console.error("Database error:", dbError)
+      return NextResponse.redirect(`${appUrl}?outlook_error=database_error`)
+    }
+
+    return NextResponse.redirect(`${appUrl}?outlook_success=true`)
+  } catch (error) {
+    console.error("Outlook OAuth callback error:", error)
+    return NextResponse.redirect(`${appUrl}?outlook_error=unknown`)
+  }
+}

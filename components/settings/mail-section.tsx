@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/utils/supabase/client"
-import { Mail, Plus, Trash2, CheckCircle2, XCircle } from "lucide-react"
+import { Mail, Plus, Trash2, CheckCircle2, XCircle, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SettingsCard, SettingsSection } from "@/components/settings/shared"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -34,6 +34,14 @@ interface MailAccount {
   erstellungsdatum: string
 }
 
+interface OutlookConnection {
+  email: string
+  is_active: boolean
+  sync_enabled: boolean
+  connected_at: string
+  last_sync_at: string | null
+}
+
 const MailSection = () => {
   const supabase = createClient()
   const { toast } = useToast()
@@ -45,9 +53,35 @@ const MailSection = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<MailAccount | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [outlookConnection, setOutlookConnection] = useState<OutlookConnection | null>(null)
+  const [isLoadingOutlook, setIsLoadingOutlook] = useState(true)
+  const [isConnectingOutlook, setIsConnectingOutlook] = useState(false)
+  const [isDisconnectingOutlook, setIsDisconnectingOutlook] = useState(false)
+  const [isSyncingOutlook, setIsSyncingOutlook] = useState(false)
 
   useEffect(() => {
     loadMailAccounts()
+    loadOutlookStatus()
+    
+    // Check for OAuth callback results
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("outlook_success")) {
+      toast({
+        title: "Erfolg",
+        description: "Outlook-Konto erfolgreich verbunden.",
+        variant: "success",
+      })
+      // Clean up URL
+      window.history.replaceState({}, "", window.location.pathname)
+      loadOutlookStatus()
+    } else if (params.get("outlook_error")) {
+      toast({
+        title: "Fehler",
+        description: "Outlook-Verbindung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        variant: "destructive",
+      })
+      window.history.replaceState({}, "", window.location.pathname)
+    }
   }, [])
 
   const loadMailAccounts = async () => {
@@ -69,6 +103,97 @@ const MailSection = () => {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadOutlookStatus = async () => {
+    setIsLoadingOutlook(true)
+    try {
+      const response = await fetch("/api/auth/outlook/status")
+      if (response.ok) {
+        const data = await response.json()
+        setOutlookConnection(data.connected ? data.connection : null)
+      }
+    } catch (error) {
+      console.error("Error loading Outlook status:", error)
+    } finally {
+      setIsLoadingOutlook(false)
+    }
+  }
+
+  const handleConnectOutlook = async () => {
+    setIsConnectingOutlook(true)
+    try {
+      window.location.href = "/api/auth/outlook"
+    } catch (error) {
+      console.error("Error connecting Outlook:", error)
+      toast({
+        title: "Fehler",
+        description: "Outlook-Verbindung konnte nicht gestartet werden.",
+        variant: "destructive",
+      })
+      setIsConnectingOutlook(false)
+    }
+  }
+
+  const handleDisconnectOutlook = async () => {
+    setIsDisconnectingOutlook(true)
+    try {
+      const response = await fetch("/api/auth/outlook/disconnect", {
+        method: "POST",
+      })
+
+      if (!response.ok) throw new Error("Failed to disconnect")
+
+      toast({
+        title: "Erfolg",
+        description: "Outlook-Konto wurde getrennt.",
+        variant: "success",
+      })
+
+      setOutlookConnection(null)
+    } catch (error) {
+      console.error("Error disconnecting Outlook:", error)
+      toast({
+        title: "Fehler",
+        description: "Outlook-Konto konnte nicht getrennt werden.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDisconnectingOutlook(false)
+    }
+  }
+
+  const handleSyncOutlook = async () => {
+    setIsSyncingOutlook(true)
+    try {
+      const response = await fetch("/api/mail/outlook/sync", {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Sync failed")
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "Erfolg",
+        description: `${result.messageCount} E-Mails synchronisiert.`,
+        variant: "success",
+      })
+
+      loadOutlookStatus()
+    } catch (error) {
+      console.error("Error syncing Outlook:", error)
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "E-Mails konnten nicht synchronisiert werden.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSyncingOutlook(false)
     }
   }
 
@@ -376,25 +501,90 @@ const MailSection = () => {
           </SettingsCard>
 
           {/* Outlook Card */}
-          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity">
-            <div className="absolute top-4 right-4 z-10">
-              <Badge variant="secondary" className="text-xs">
-                Demnächst
-              </Badge>
-            </div>
+          <SettingsCard className="relative hover:shadow-md transition-all">
+            {outlookConnection && (
+              <div className="absolute top-4 right-4 z-10">
+                <Badge variant="default" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Verbunden
+                </Badge>
+              </div>
+            )}
             <div className="flex flex-col items-center text-center space-y-4 py-2">
               <div className="p-4 rounded-full bg-blue-100 dark:bg-blue-900/20 ring-4 ring-blue-50 dark:ring-blue-900/10">
                 <Mail className="h-7 w-7 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-semibold text-sm mb-1">Outlook</h4>
-                <p className="text-xs text-muted-foreground">
-                  Verbinden Sie Ihr Outlook-Konto
-                </p>
+                {isLoadingOutlook ? (
+                  <Skeleton className="h-4 w-32 mx-auto" />
+                ) : outlookConnection ? (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-foreground">
+                      {outlookConnection.email}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {outlookConnection.sync_enabled ? "Sync aktiviert" : "Sync deaktiviert"}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Verbinden Sie Ihr Outlook-Konto
+                  </p>
+                )}
               </div>
-              <Button variant="outline" size="sm" disabled className="w-full mt-2">
-                Verbinden
-              </Button>
+              {isLoadingOutlook ? (
+                <Skeleton className="h-9 w-full" />
+              ) : outlookConnection ? (
+                <div className="flex gap-2 w-full mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSyncOutlook}
+                    disabled={isSyncingOutlook || isDisconnectingOutlook}
+                    className="flex-1"
+                  >
+                    {isSyncingOutlook ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Sync...
+                      </>
+                    ) : (
+                      "Synchronisieren"
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDisconnectOutlook}
+                    disabled={isDisconnectingOutlook || isSyncingOutlook}
+                    className="hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 hover:border-red-300"
+                  >
+                    {isDisconnectingOutlook ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Trennen"
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleConnectOutlook}
+                  disabled={isConnectingOutlook}
+                  className="w-full mt-2"
+                >
+                  {isConnectingOutlook ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Verbinden...
+                    </>
+                  ) : (
+                    "Verbinden"
+                  )}
+                </Button>
+              )}
             </div>
           </SettingsCard>
 
