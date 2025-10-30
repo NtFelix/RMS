@@ -49,6 +49,7 @@ interface SyncStatus {
   pagesProcessed: number
   status: 'idle' | 'processing' | 'completed' | 'failed'
   lastUpdated: string | null
+  duplicatesSkipped?: number
 }
 
 const MailSection = () => {
@@ -62,6 +63,8 @@ const MailSection = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<MailAccount | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showSyncConfirm, setShowSyncConfirm] = useState(false)
+  const [existingEmailCount, setExistingEmailCount] = useState(0)
   const [outlookConnection, setOutlookConnection] = useState<OutlookConnection | null>(null)
   const [isLoadingOutlook, setIsLoadingOutlook] = useState(true)
   const [isConnectingOutlook, setIsConnectingOutlook] = useState(false)
@@ -106,6 +109,7 @@ const MailSection = () => {
 
     const checkSyncStatus = async () => {
       try {
+        // Get latest import job
         const { data: importJobs, error } = await supabase
           .from('Mail_Import_Jobs')
           .select('status, total_messages_imported, total_pages_processed, aktualisiert_am')
@@ -114,20 +118,28 @@ const MailSection = () => {
           .limit(1)
           .single()
 
+        // Get total emails in database for this account
+        const { count: totalInDb } = await supabase
+          .from('Mail_Metadaten')
+          .select('*', { count: 'exact', head: true })
+          .eq('mail_account_id', outlookConnection.account_id)
+          .eq('quelle', 'outlook')
+
         if (!error && importJobs) {
           const isProcessing = importJobs.status === 'processing' || importJobs.status === 'queued'
           setSyncStatus({
             isImporting: isProcessing,
-            totalImported: importJobs.total_messages_imported || 0,
+            totalImported: totalInDb || 0, // Use actual DB count
             pagesProcessed: importJobs.total_pages_processed || 0,
             status: importJobs.status as any,
             lastUpdated: importJobs.aktualisiert_am,
           })
         } else {
-          // No active import
+          // No active import, but show total emails
           setSyncStatus(prev => ({
             ...prev,
             isImporting: false,
+            totalImported: totalInDb || 0,
             status: 'idle',
           }))
         }
@@ -244,6 +256,27 @@ const MailSection = () => {
   }
 
   const handleSyncOutlook = async () => {
+    // Check if emails already exist
+    if (outlookConnection?.account_id) {
+      const { count } = await supabase
+        .from('Mail_Metadaten')
+        .select('*', { count: 'exact', head: true })
+        .eq('mail_account_id', outlookConnection.account_id)
+        .eq('quelle', 'outlook')
+
+      if (count && count > 0) {
+        setExistingEmailCount(count)
+        setShowSyncConfirm(true)
+        return
+      }
+    }
+
+    // Proceed with sync
+    performSync()
+  }
+
+  const performSync = async () => {
+    setShowSyncConfirm(false)
     setIsSyncingOutlook(true)
     try {
       const response = await fetch("/api/mail/outlook/sync", {
@@ -758,6 +791,35 @@ const MailSection = () => {
               className="bg-red-600 hover:bg-red-700"
             >
               {isDeleting ? "Lösche..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showSyncConfirm} onOpenChange={setShowSyncConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>E-Mails erneut synchronisieren?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Sie haben bereits <strong>{existingEmailCount} E-Mails</strong> aus diesem Outlook-Konto importiert.
+              </p>
+              <p>
+                Beim erneuten Synchronisieren werden nur neue E-Mails importiert. 
+                Bereits vorhandene E-Mails werden automatisch übersprungen und nicht dupliziert.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                💡 Tipp: Verwenden Sie diese Funktion, um neue E-Mails abzurufen, die seit dem letzten Import eingegangen sind.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={performSync}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Neue E-Mails importieren
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
