@@ -844,10 +844,7 @@ const MailSection = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={performSync}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
+            <AlertDialogAction onClick={performSync}>
               Neue E-Mails importieren
             </AlertDialogAction>
           </AlertDialogFooter>
