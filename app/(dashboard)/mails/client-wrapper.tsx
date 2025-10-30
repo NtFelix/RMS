@@ -176,7 +176,7 @@ export default function MailsClientView({
       const row = [
         m.date,
         m.subject,
-        m.recipient,
+        m.sender,
         m.status,
         m.type,
         m.source,
@@ -305,7 +305,7 @@ export default function MailsClientView({
 
     return mailsByTab.filter(mail =>
       mail.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mail.recipient.toLowerCase().includes(searchQuery.toLowerCase())
+      mail.sender.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [initialMails, activeTab, searchQuery]);
 

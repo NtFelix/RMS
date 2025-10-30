@@ -31,7 +31,7 @@ interface Mail {
 
 
 
-  recipient: string;
+  sender: string;
 
 
 
@@ -67,7 +67,7 @@ interface Mail {
 
 
 
-type MailSortKey = "date" | "subject" | "recipient" | "status" | "type" | "source" | ""
+type MailSortKey = "date" | "subject" | "sender" | "status" | "type" | "source" | ""
 
 
 
@@ -1112,7 +1112,7 @@ export function MailsTable({
 
 
 
-                <TableHeaderCell sortKey="recipient" className="dark:text-[#f3f4f6]" icon={User}>Empfänger</TableHeaderCell>
+                <TableHeaderCell sortKey="sender" className="dark:text-[#f3f4f6]" icon={User}>Absender</TableHeaderCell>
 
 
 
@@ -1366,7 +1366,7 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.recipient}</TableCell>
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.sender}</TableCell>
 
 
 

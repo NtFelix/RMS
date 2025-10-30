@@ -39,7 +39,7 @@ interface Mail {
   id: string;
   date: string;
   subject: string;
-  recipient: string;
+  sender: string;
   status: 'sent' | 'draft' | 'archiv';
   type: 'inbox' | 'outbox';
   hasAttachment: boolean;

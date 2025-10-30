@@ -47,7 +47,7 @@ export interface LegacyMail {
   id: string;
   date: string;
   subject: string;
-  recipient: string;
+  sender: string;
   status: 'sent' | 'draft' | 'archiv';
   type: 'inbox' | 'outbox';
   hasAttachment: boolean;
@@ -85,7 +85,7 @@ export function convertToLegacyMail(mail: Mail): LegacyMail {
     id: mail.id,
     date: mail.datum_erhalten, // Keep full ISO timestamp for proper date/time display
     subject: mail.betreff || '(Kein Betreff)',
-    recipient: mail.empfaenger,
+    sender: mail.absender,
     status: status,
     type: type,
     hasAttachment: mail.hat_anhang,

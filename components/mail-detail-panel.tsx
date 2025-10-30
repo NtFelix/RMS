@@ -17,7 +17,7 @@ interface Mail {
   id: string;
   date: string;
   subject: string;
-  recipient: string;
+  sender: string;
   status: 'sent' | 'draft' | 'archiv';
   type: 'inbox' | 'outbox';
   hasAttachment: boolean;
@@ -357,8 +357,8 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
         <div className="space-y-3">
           <div className="flex items-center gap-3 text-sm">
             <User className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Empfänger:</span>
-            <span className="font-medium dark:text-[#f3f4f6]">{mail.recipient}</span>
+            <span className="text-muted-foreground">Absender:</span>
+            <span className="font-medium dark:text-[#f3f4f6]">{mail.sender}</span>
           </div>
           <div className="flex items-center gap-3 text-sm">
             <Calendar className="h-4 w-4 text-muted-foreground" />
