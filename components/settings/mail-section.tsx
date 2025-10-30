@@ -306,11 +306,24 @@ const MailSection = () => {
       loadOutlookStatus()
     } catch (error) {
       console.error("Error syncing Outlook:", error)
+      
+      // Check if re-authentication is required
+      const errorResponse = error instanceof Error ? error.message : ""
+      const requiresReauth = errorResponse.includes("Token refresh failed") || 
+                            errorResponse.includes("re-authentication")
+      
       toast({
         title: "Fehler",
-        description: error instanceof Error ? error.message : "E-Mails konnten nicht synchronisiert werden.",
+        description: requiresReauth 
+          ? "Ihre Outlook-Verbindung ist abgelaufen. Bitte verbinden Sie Ihr Konto erneut."
+          : (error instanceof Error ? error.message : "E-Mails konnten nicht synchronisiert werden."),
         variant: "destructive",
       })
+      
+      // If re-auth required, reload status to show disconnect button
+      if (requiresReauth) {
+        loadOutlookStatus()
+      }
     } finally {
       setIsSyncingOutlook(false)
     }
@@ -685,7 +698,23 @@ const MailSection = () => {
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground">
-                        {outlookConnection.sync_enabled ? "Bereit zum Synchronisieren" : "Sync deaktiviert"}
+                        {outlookConnection.needs_reauth ? (
+                          <span className="text-amber-600 dark:text-amber-500">
+                            ⚠️ Erneute Authentifizierung erforderlich
+                          </span>
+                        ) : outlookConnection.token_expired ? (
+                          <span className="text-red-600 dark:text-red-500">
+                            Token abgelaufen - bitte neu verbinden
+                          </span>
+                        ) : outlookConnection.token_expires_in_hours !== null && outlookConnection.token_expires_in_hours < 24 ? (
+                          <span className="text-amber-600 dark:text-amber-500">
+                            Token läuft in {outlookConnection.token_expires_in_hours}h ab
+                          </span>
+                        ) : outlookConnection.sync_enabled ? (
+                          "Bereit zum Synchronisieren"
+                        ) : (
+                          "Sync deaktiviert"
+                        )}
                       </p>
                     )}
                   </div>

@@ -67,9 +67,10 @@ export async function POST() {
       return NextResponse.json(
         { 
           error: data.error,
-          details: data.details
+          details: data.details,
+          requiresReauth: data.requiresReauth || false
         },
-        { status: 500 }
+        { status: data.requiresReauth ? 401 : 500 }
       )
     }
 

@@ -30,6 +30,7 @@ async function refreshToken(supabase: any, account: any, accountId: string) {
         client_secret: outlookClientSecret,
         refresh_token: account.refresh_token_encrypted,
         grant_type: 'refresh_token',
+        scope: 'openid profile email offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read',
       }),
     }
   )
@@ -161,24 +162,48 @@ Deno.serve(async (req) => {
     const tokenExpiresAt = account.token_expires_at ? new Date(account.token_expires_at) : null
     const now = new Date()
 
+    // Refresh 5 minutes before expiry to avoid edge cases
+    const refreshThreshold = new Date(now.getTime() + 5 * 60 * 1000)
+
     console.log('Token expiration check:', {
       tokenExpiresAt: tokenExpiresAt?.toISOString(),
       now: now.toISOString(),
-      isExpired: tokenExpiresAt ? tokenExpiresAt <= now : 'no expiration date',
+      refreshThreshold: refreshThreshold.toISOString(),
+      shouldRefresh: tokenExpiresAt ? tokenExpiresAt <= refreshThreshold : 'no expiration date',
       hasRefreshToken: !!account.refresh_token_encrypted
     })
 
-    // Refresh token if expired or no expiration date
-    if ((!tokenExpiresAt || tokenExpiresAt <= now) && account.refresh_token_encrypted) {
+    // Refresh token if expired/expiring soon or no expiration date
+    if ((!tokenExpiresAt || tokenExpiresAt <= refreshThreshold) && account.refresh_token_encrypted) {
       try {
         accessToken = await refreshToken(supabase, account, accountId)
       } catch (error) {
+        console.error('Token refresh error:', error)
+
+        // Check if this is a permanent failure (invalid_grant means re-auth needed)
+        const errorMessage = error.message || ''
+        const isPermanentFailure = errorMessage.includes('AADSTS70000') ||
+          errorMessage.includes('AADSTS70008') ||
+          errorMessage.includes('invalid_grant') ||
+          errorMessage.includes('AADSTS50076') ||
+          errorMessage.includes('AADSTS50079') ||
+          errorMessage.includes('interaction_required')
+
+        // Only disable sync on permanent failures, not temporary network issues
+        const updateData: any = {
+          last_sync_error: new Date().toISOString(),
+        }
+
+        if (isPermanentFailure) {
+          updateData.sync_enabled = false
+          console.log('Permanent token failure detected, disabling sync')
+        } else {
+          console.log('Temporary token refresh failure, keeping sync enabled')
+        }
+
         await supabase
           .from('Mail_Accounts')
-          .update({
-            last_sync_error: new Date().toISOString(),
-            sync_enabled: false,
-          })
+          .update(updateData)
           .eq('id', accountId)
 
         if (syncJobId) {
@@ -186,14 +211,19 @@ Deno.serve(async (req) => {
             .from('Mail_Sync_Jobs')
             .update({
               status: 'failed',
-              fehler_nachricht: 'Token refresh failed',
+              fehler_nachricht: isPermanentFailure
+                ? 'Token refresh failed - re-authentication required'
+                : 'Token refresh failed - will retry',
               end_datum: new Date().toISOString(),
             })
             .eq('id', syncJobId)
         }
 
         return new Response(
-          JSON.stringify({ error: 'Token refresh failed' }),
+          JSON.stringify({
+            error: 'Token refresh failed',
+            requiresReauth: isPermanentFailure
+          }),
           { status: 401, headers: { 'Content-Type': 'application/json' } }
         )
       }
