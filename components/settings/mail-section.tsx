@@ -634,32 +634,32 @@ const MailSection = () => {
         title="E-Mail-Verbindungen"
         description="Verbinden Sie externe E-Mail-Konten mit Mietfluss."
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {/* Gmail Card */}
-          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity">
+          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity overflow-hidden">
             <div className="absolute top-4 right-4 z-10">
               <Badge variant="secondary" className="text-xs">
                 Demnächst
               </Badge>
             </div>
-            <div className="flex flex-col items-center text-center space-y-4 py-2">
+            <div className="flex flex-col items-center text-center space-y-4 py-2 min-w-0">
               <div className="p-4 rounded-full bg-red-100 dark:bg-red-900/20 ring-4 ring-red-50 dark:ring-red-900/10">
                 <Mail className="h-7 w-7 text-red-600 dark:text-red-400" />
               </div>
-              <div>
+              <div className="min-w-0 w-full">
                 <h4 className="font-semibold text-sm mb-1">Gmail</h4>
                 <p className="text-xs text-muted-foreground">
                   Verbinden Sie Ihr Gmail-Konto
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled className="w-full mt-2">
+              <Button variant="outline" size="sm" disabled className="w-full mt-2 min-w-0">
                 Verbinden
               </Button>
             </div>
           </SettingsCard>
 
           {/* Outlook Card */}
-          <SettingsCard className="relative hover:shadow-md transition-all">
+          <SettingsCard className="relative hover:shadow-md transition-all overflow-hidden">
             {outlookConnection && (
               <div className="absolute top-4 right-4 z-10">
                 <Badge variant="default" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
@@ -668,19 +668,19 @@ const MailSection = () => {
                 </Badge>
               </div>
             )}
-            <div className="flex flex-col items-center text-center space-y-4 py-2">
+            <div className="flex flex-col items-center text-center space-y-4 py-2 min-w-0">
               <div className={`p-4 rounded-full bg-blue-100 dark:bg-blue-900/20 ring-4 ring-blue-50 dark:ring-blue-900/10 transition-all ${
                 syncStatus.isImporting ? 'animate-pulse' : ''
               }`}>
                 <Mail className="h-7 w-7 text-blue-600 dark:text-blue-400" />
               </div>
-              <div className="w-full">
+              <div className="w-full min-w-0">
                 <h4 className="font-semibold text-sm mb-1">Outlook</h4>
                 {isLoadingOutlook ? (
                   <Skeleton className="h-4 w-32 mx-auto" />
                 ) : outlookConnection ? (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground">
+                    <p className="text-xs font-medium text-foreground truncate px-2">
                       {outlookConnection.email}
                     </p>
                     
@@ -775,21 +775,21 @@ const MailSection = () => {
               {isLoadingOutlook ? (
                 <Skeleton className="h-9 w-full" />
               ) : outlookConnection ? (
-                <div className="flex gap-2 w-full mt-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full mt-2 min-w-0">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleSyncOutlook}
                     disabled={isSyncingOutlook || isDisconnectingOutlook || syncStatus.isImporting}
-                    className="flex-1"
+                    className="flex-1 min-w-0"
                   >
                     {isSyncingOutlook || syncStatus.isImporting ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Sync...
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin flex-shrink-0" />
+                        <span className="truncate">Sync...</span>
                       </>
                     ) : (
-                      "Synchronisieren"
+                      <span className="truncate">Synchronisieren</span>
                     )}
                   </Button>
                   <Button
@@ -797,12 +797,12 @@ const MailSection = () => {
                     size="sm"
                     onClick={handleDisconnectOutlook}
                     disabled={isDisconnectingOutlook || isSyncingOutlook || syncStatus.isImporting}
-                    className="hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 hover:border-red-300"
+                    className="hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 hover:border-red-300 sm:w-auto min-w-0"
                   >
                     {isDisconnectingOutlook ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      "Trennen"
+                      <span className="truncate">Trennen</span>
                     )}
                   </Button>
                 </div>
@@ -828,23 +828,23 @@ const MailSection = () => {
           </SettingsCard>
 
           {/* IMAP Card */}
-          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity">
+          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity overflow-hidden">
             <div className="absolute top-4 right-4 z-10">
               <Badge variant="secondary" className="text-xs">
                 Demnächst
               </Badge>
             </div>
-            <div className="flex flex-col items-center text-center space-y-4 py-2">
+            <div className="flex flex-col items-center text-center space-y-4 py-2 min-w-0">
               <div className="p-4 rounded-full bg-gray-100 dark:bg-gray-900/20 ring-4 ring-gray-50 dark:ring-gray-900/10">
                 <Mail className="h-7 w-7 text-gray-600 dark:text-gray-400" />
               </div>
-              <div>
+              <div className="min-w-0 w-full">
                 <h4 className="font-semibold text-sm mb-1">IMAP</h4>
                 <p className="text-xs text-muted-foreground">
                   Verbinden Sie per IMAP
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled className="w-full mt-2">
+              <Button variant="outline" size="sm" disabled className="w-full mt-2 min-w-0">
                 Verbinden
               </Button>
             </div>
