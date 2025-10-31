@@ -19,13 +19,13 @@ export default async function MailsPage() {
     redirect('/auth/login');
   }
 
-  // Fetch emails from database
-  const { data: emails, error: emailsError } = await supabase
+  // Fetch initial page of emails from database
+  const { data: emails, error: emailsError, count } = await supabase
     .from('Mail_Metadaten')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('user_id', user.id)
     .order('datum_erhalten', { ascending: false })
-    .limit(100);
+    .range(0, 49); // First 50 emails
 
   // Convert to legacy format for UI compatibility
   const mails: LegacyMail[] = emails && !emailsError 

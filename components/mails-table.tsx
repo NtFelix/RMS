@@ -175,12 +175,25 @@ export function MailsTable({
   const lastMailElementRef = useCallback((node: HTMLTableRowElement) => {
     if (isLoading) return
     if (observer.current) observer.current.disconnect()
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        loadMails && loadMails()
+    
+    observer.current = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && loadMails) {
+          console.log('[MailsTable] Loading more mails...')
+          loadMails()
+        }
+      },
+      {
+        root: null, // viewport
+        rootMargin: '200px', // Trigger 200px before reaching the element
+        threshold: 0.1 // Trigger when 10% visible
       }
-    })
-    if (node) observer.current.observe(node)
+    )
+    
+    if (node) {
+      console.log('[MailsTable] Observing last row')
+      observer.current.observe(node)
+    }
   }, [isLoading, hasMore, loadMails])
 
   // Context menu refs for programmatic triggering

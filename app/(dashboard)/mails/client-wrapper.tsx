@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { PlusCircle, Mail, Send, Clock, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
@@ -52,10 +52,10 @@ export default function MailsClientView({
   const [selectedMail, setSelectedMail] = useState<LegacyMail | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [emailCounts, setEmailCounts] = useState<Record<string, number>>({});
-  const [displayedMails, setDisplayedMails] = useState<LegacyMail[]>(initialMails.slice(0, PAGINATION.DEFAULT_PAGE_SIZE));
+  const [mailData, setMailData] = useState<LegacyMail[]>(initialMails);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(initialMails.length > PAGINATION.DEFAULT_PAGE_SIZE);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Fetch email counts on mount
   useEffect(() => {
@@ -71,12 +71,12 @@ export default function MailsClientView({
   }, [userId]);
 
   const summary = useMemo(() => {
-    const total = initialMails.length;
-    const sentCount = initialMails.filter(m => m.status === 'sent').length;
-    const draftCount = initialMails.filter(m => m.status === 'draft').length;
-    const unreadCount = initialMails.filter(m => !m.read).length;
+    const total = mailData.length;
+    const sentCount = mailData.filter(m => m.status === 'sent').length;
+    const draftCount = mailData.filter(m => m.status === 'draft').length;
+    const unreadCount = mailData.filter(m => !m.read).length;
     return { total, sentCount, draftCount, unreadCount };
-  }, [initialMails]);
+  }, [mailData]);
 
   const handleAddMail = useCallback(() => {
     // TODO: Implement mail creation logic
@@ -160,7 +160,7 @@ export default function MailsClientView({
 
   // Bulk action handlers
   const handleBulkExport = useCallback(() => {
-    const selectedMailsData = initialMails.filter(m => selectedMails.has(m.id));
+    const selectedMailsData = mailData.filter(m => selectedMails.has(m.id));
     
     const headers = ['Datum', 'Betreff', 'Empfänger', 'Status', 'Typ', 'Quelle'];
     const csvHeader = headers.join(',');
@@ -227,7 +227,7 @@ export default function MailsClientView({
   const handleBulkToggleFavorite = useCallback(async () => {
     try {
       const promises = Array.from(selectedMails).map(id => {
-        const mail = initialMails.find(m => m.id === id);
+        const mail = mailData.find(m => m.id === id);
         return toggleEmailFavorite(id, !mail?.favorite);
       });
       await Promise.all(promises);
@@ -236,7 +236,7 @@ export default function MailsClientView({
     } catch (error) {
       toast.error('Fehler beim Aktualisieren');
     }
-  }, [selectedMails, initialMails, router]);
+  }, [selectedMails, mailData, router]);
 
   const handleBulkArchive = useCallback(async () => {
     try {
@@ -281,8 +281,8 @@ export default function MailsClientView({
   }, [selectedMails, router]);
 
   // Filter all mails based on tab and search
-  const allFilteredMails = useMemo(() => {
-    const mailsByTab = initialMails.filter(mail => {
+  const filteredMails = useMemo(() => {
+    const mailsByTab = mailData.filter(mail => {
       switch (activeTab) {
         case 'inbox':
           return mail.type === 'inbox';
@@ -307,36 +307,60 @@ export default function MailsClientView({
       mail.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mail.sender.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [initialMails, activeTab, searchQuery]);
+  }, [mailData, activeTab, searchQuery]);
 
-  // Update displayed mails when filters change
-  useEffect(() => {
-    setDisplayedMails(allFilteredMails.slice(0, PAGINATION.DEFAULT_PAGE_SIZE));
-    setPage(1);
-    setHasMore(allFilteredMails.length > PAGINATION.DEFAULT_PAGE_SIZE);
-  }, [allFilteredMails]);
-
-  // Load more mails function
-  const loadMoreMails = useCallback(() => {
-    if (isLoadingMore || !hasMore) return;
-
-    setIsLoadingMore(true);
+  // Load more mails function - matches finance page pattern
+  const loadMoreMails = useCallback(async () => {
+    if (isLoading || !hasMore) return;
     
-    // Simulate async loading with setTimeout to prevent blocking
-    setTimeout(() => {
+    setIsLoading(true);
+    
+    try {
       const nextPage = page + 1;
-      const startIndex = 0;
-      const endIndex = nextPage * PAGINATION.DEFAULT_PAGE_SIZE;
-      const newDisplayedMails = allFilteredMails.slice(startIndex, endIndex);
+      const response = await fetch(`/api/mails?page=${nextPage}&pageSize=${PAGINATION.DEFAULT_PAGE_SIZE}`);
       
-      setDisplayedMails(newDisplayedMails);
+      if (!response.ok) {
+        throw new Error('Failed to fetch more emails');
+      }
+      
+      const newMails = await response.json();
+      const totalCount = parseInt(response.headers.get('X-Total-Count') || '0', 10);
+      
+      // Convert to legacy format
+      const convertedMails = newMails.map((email: any) => ({
+        id: email.id,
+        date: email.datum_erhalten,
+        subject: email.betreff || '(Kein Betreff)',
+        sender: email.absender,
+        status: email.ordner === 'sent' ? 'sent' : email.ordner === 'drafts' ? 'draft' : 'archiv',
+        type: email.ordner === 'inbox' ? 'inbox' : 'outbox',
+        hasAttachment: email.hat_anhang,
+        source: email.quelle === 'outlook' ? 'Outlook' : email.quelle === 'gmail' ? 'Gmail' : 'SMTP',
+        read: email.ist_gelesen,
+        favorite: email.ist_favorit,
+      }));
+      
+      // Append new mails, avoiding duplicates
+      setMailData(prev => {
+        const existingIds = new Set(prev.map(m => m.id));
+        const uniqueNewMails = convertedMails.filter(m => !existingIds.has(m.id));
+        return [...prev, ...uniqueNewMails];
+      });
+      
       setPage(nextPage);
-      setHasMore(endIndex < allFilteredMails.length);
-      setIsLoadingMore(false);
-    }, 100);
-  }, [page, allFilteredMails, hasMore, isLoadingMore]);
+      
+      // Check if there are more records to load
+      const loadedCount = mailData.length + convertedMails.length;
+      setHasMore(loadedCount < totalCount);
+    } catch (error) {
+      console.error('Error loading more mails:', error);
+      toast.error('Fehler beim Laden weiterer E-Mails');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, hasMore, isLoading, mailData.length]);
 
-  const filteredMails = displayedMails;
+
 
   console.log("activeTab", activeTab);
   console.log("filteredMails", filteredMails);
@@ -445,7 +469,7 @@ export default function MailsClientView({
             onArchive={handleArchive}
             onDeletePermanently={handleDeletePermanently}
             hasMore={hasMore}
-            isLoading={isLoadingMore}
+            isLoading={isLoading}
             loadMails={loadMoreMails}
           />
         </CardContent>
