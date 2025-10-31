@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/utils/supabase/client"
-import { Mail, Plus, Trash2, CheckCircle2, XCircle } from "lucide-react"
+import { Mail, Plus, Trash2, CheckCircle2, XCircle, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SettingsCard, SettingsSection } from "@/components/settings/shared"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -34,21 +34,161 @@ interface MailAccount {
   erstellungsdatum: string
 }
 
+interface OutlookConnection {
+  email: string
+  is_active: boolean
+  sync_enabled: boolean
+  connected_at: string
+  last_sync_at: string | null
+  account_id?: string
+  needs_reauth?: boolean
+  token_expired?: boolean
+  token_expires_in_hours?: number | null
+}
+
+interface SyncStatus {
+  isImporting: boolean
+  totalImported: number
+  pagesProcessed: number
+  status: 'idle' | 'processing' | 'completed' | 'failed'
+  lastUpdated: string | null
+  duplicatesSkipped?: number
+}
+
 const MailSection = () => {
   const supabase = createClient()
   const { toast } = useToast()
   const [mailAccounts, setMailAccounts] = useState<MailAccount[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Helper function to format relative time
+  const formatRelativeTime = (dateString: string | null) => {
+    if (!dateString) return null
+    
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Gerade eben'
+    if (diffMins < 60) return `vor ${diffMins} Min.`
+    if (diffHours < 24) return `vor ${diffHours} Std.`
+    if (diffDays < 7) return `vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''}`
+    
+    // For older dates, show the actual date
+    return date.toLocaleDateString('de-DE', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
   const [newMailPrefix, setNewMailPrefix] = useState("")
   const [selectedDomain, setSelectedDomain] = useState("@mietfluss.de")
   const [isCreating, setIsCreating] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<MailAccount | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showSyncConfirm, setShowSyncConfirm] = useState(false)
+  const [existingEmailCount, setExistingEmailCount] = useState(0)
+  const [outlookConnection, setOutlookConnection] = useState<OutlookConnection | null>(null)
+  const [isLoadingOutlook, setIsLoadingOutlook] = useState(true)
+  const [isConnectingOutlook, setIsConnectingOutlook] = useState(false)
+  const [isDisconnectingOutlook, setIsDisconnectingOutlook] = useState(false)
+  const [isSyncingOutlook, setIsSyncingOutlook] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    isImporting: false,
+    totalImported: 0,
+    pagesProcessed: 0,
+    status: 'idle',
+    lastUpdated: null,
+  })
 
   useEffect(() => {
     loadMailAccounts()
+    loadOutlookStatus()
+    
+    // Check for OAuth callback results
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("outlook_success")) {
+      toast({
+        title: "Erfolg",
+        description: "Outlook-Konto erfolgreich verbunden.",
+        variant: "success",
+      })
+      // Clean up URL
+      window.history.replaceState({}, "", window.location.pathname)
+      loadOutlookStatus()
+    } else if (params.get("outlook_error")) {
+      toast({
+        title: "Fehler",
+        description: "Outlook-Verbindung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        variant: "destructive",
+      })
+      window.history.replaceState({}, "", window.location.pathname)
+    }
   }, [])
+
+  // Poll sync status when Outlook is connected
+  useEffect(() => {
+    if (!outlookConnection?.account_id) return
+
+    const checkSyncStatus = async () => {
+      try {
+        // Get latest import job
+        const { data: importJobs, error } = await supabase
+          .from('Mail_Import_Jobs')
+          .select('status, total_messages_imported, total_pages_processed, aktualisiert_am')
+          .eq('account_id', outlookConnection.account_id)
+          .order('erstellt_am', { ascending: false })
+          .limit(1)
+          .single()
+
+        // Get total emails in database for this account
+        const { count: totalInDb } = await supabase
+          .from('Mail_Metadaten')
+          .select('*', { count: 'exact', head: true })
+          .eq('mail_account_id', outlookConnection.account_id)
+          .eq('quelle', 'outlook')
+
+        if (!error && importJobs) {
+          const isProcessing = importJobs.status === 'processing' || importJobs.status === 'queued'
+          setSyncStatus({
+            isImporting: isProcessing,
+            totalImported: totalInDb || 0, // Use actual DB count
+            pagesProcessed: importJobs.total_pages_processed || 0,
+            status: importJobs.status as any,
+            lastUpdated: importJobs.aktualisiert_am,
+          })
+        } else {
+          // No active import, but show total emails
+          setSyncStatus(prev => ({
+            ...prev,
+            isImporting: false,
+            totalImported: totalInDb || 0,
+            status: 'idle',
+          }))
+        }
+      } catch (error) {
+        console.error('Error checking sync status:', error)
+      }
+    }
+
+    // Check immediately
+    checkSyncStatus()
+
+    // Poll every 3 seconds if importing
+    const interval = setInterval(() => {
+      if (syncStatus.isImporting || isSyncingOutlook) {
+        checkSyncStatus()
+      }
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [outlookConnection?.account_id, syncStatus.isImporting, isSyncingOutlook])
 
   const loadMailAccounts = async () => {
     setLoading(true)
@@ -69,6 +209,152 @@ const MailSection = () => {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadOutlookStatus = async () => {
+    setIsLoadingOutlook(true)
+    try {
+      const response = await fetch("/api/auth/outlook/status")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.connected) {
+          // Get account_id from Mail_Accounts
+          const { data: account } = await supabase
+            .from('Mail_Accounts')
+            .select('id')
+            .not('provider_user_id', 'is', null)
+            .single()
+          
+          setOutlookConnection({
+            ...data.connection,
+            account_id: account?.id
+          })
+        } else {
+          setOutlookConnection(null)
+        }
+      }
+    } catch (error) {
+      console.error("Error loading Outlook status:", error)
+    } finally {
+      setIsLoadingOutlook(false)
+    }
+  }
+
+  const handleConnectOutlook = async () => {
+    setIsConnectingOutlook(true)
+    try {
+      window.location.href = "/api/auth/outlook"
+    } catch (error) {
+      console.error("Error connecting Outlook:", error)
+      toast({
+        title: "Fehler",
+        description: "Outlook-Verbindung konnte nicht gestartet werden.",
+        variant: "destructive",
+      })
+      setIsConnectingOutlook(false)
+    }
+  }
+
+  const handleDisconnectOutlook = async () => {
+    setIsDisconnectingOutlook(true)
+    try {
+      const response = await fetch("/api/auth/outlook/disconnect", {
+        method: "POST",
+      })
+
+      if (!response.ok) throw new Error("Failed to disconnect")
+
+      toast({
+        title: "Erfolg",
+        description: "Outlook-Konto wurde getrennt.",
+        variant: "success",
+      })
+
+      setOutlookConnection(null)
+    } catch (error) {
+      console.error("Error disconnecting Outlook:", error)
+      toast({
+        title: "Fehler",
+        description: "Outlook-Konto konnte nicht getrennt werden.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDisconnectingOutlook(false)
+    }
+  }
+
+  const handleSyncOutlook = async () => {
+    // Check if emails already exist
+    if (outlookConnection?.account_id) {
+      const { count } = await supabase
+        .from('Mail_Metadaten')
+        .select('*', { count: 'exact', head: true })
+        .eq('mail_account_id', outlookConnection.account_id)
+        .eq('quelle', 'outlook')
+
+      if (count && count > 0) {
+        setExistingEmailCount(count)
+        setShowSyncConfirm(true)
+        return
+      }
+    }
+
+    // Proceed with sync
+    performSync()
+  }
+
+  const performSync = async () => {
+    setShowSyncConfirm(false)
+    setIsSyncingOutlook(true)
+    try {
+      const response = await fetch("/api/mail/outlook/sync", {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Sync failed")
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "Erfolg",
+        description: result.message || "E-Mail-Import wurde gestartet. Die E-Mails werden im Hintergrund importiert.",
+        variant: "success",
+      })
+
+      // Set initial importing state
+      setSyncStatus(prev => ({
+        ...prev,
+        isImporting: true,
+        status: 'processing',
+      }))
+
+      loadOutlookStatus()
+    } catch (error) {
+      console.error("Error syncing Outlook:", error)
+      
+      // Check if re-authentication is required
+      const errorResponse = error instanceof Error ? error.message : ""
+      const requiresReauth = errorResponse.includes("Token refresh failed") || 
+                            errorResponse.includes("re-authentication")
+      
+      toast({
+        title: "Fehler",
+        description: requiresReauth 
+          ? "Ihre Outlook-Verbindung ist abgelaufen. Bitte verbinden Sie Ihr Konto erneut."
+          : (error instanceof Error ? error.message : "E-Mails konnten nicht synchronisiert werden."),
+        variant: "destructive",
+      })
+      
+      // If re-auth required, reload status to show disconnect button
+      if (requiresReauth) {
+        loadOutlookStatus()
+      }
+    } finally {
+      setIsSyncingOutlook(false)
     }
   }
 
@@ -351,71 +637,217 @@ const MailSection = () => {
         title="E-Mail-Verbindungen"
         description="Verbinden Sie externe E-Mail-Konten mit Mietfluss."
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {/* Gmail Card */}
-          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity">
+          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity overflow-hidden">
             <div className="absolute top-4 right-4 z-10">
               <Badge variant="secondary" className="text-xs">
                 Demnächst
               </Badge>
             </div>
-            <div className="flex flex-col items-center text-center space-y-4 py-2">
+            <div className="flex flex-col items-center text-center space-y-4 py-2 min-w-0">
               <div className="p-4 rounded-full bg-red-100 dark:bg-red-900/20 ring-4 ring-red-50 dark:ring-red-900/10">
                 <Mail className="h-7 w-7 text-red-600 dark:text-red-400" />
               </div>
-              <div>
+              <div className="min-w-0 w-full">
                 <h4 className="font-semibold text-sm mb-1">Gmail</h4>
                 <p className="text-xs text-muted-foreground">
                   Verbinden Sie Ihr Gmail-Konto
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled className="w-full mt-2">
+              <Button variant="outline" size="sm" disabled className="w-full mt-2 min-w-0">
                 Verbinden
               </Button>
             </div>
           </SettingsCard>
 
           {/* Outlook Card */}
-          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity">
-            <div className="absolute top-4 right-4 z-10">
-              <Badge variant="secondary" className="text-xs">
-                Demnächst
-              </Badge>
-            </div>
-            <div className="flex flex-col items-center text-center space-y-4 py-2">
-              <div className="p-4 rounded-full bg-blue-100 dark:bg-blue-900/20 ring-4 ring-blue-50 dark:ring-blue-900/10">
+          <SettingsCard className="relative hover:shadow-md transition-all overflow-hidden">
+            {outlookConnection && (
+              <div className="absolute top-4 right-4 z-10">
+                <Badge variant="default" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Verbunden
+                </Badge>
+              </div>
+            )}
+            <div className="flex flex-col items-center text-center space-y-4 py-2 min-w-0">
+              <div className={`p-4 rounded-full bg-blue-100 dark:bg-blue-900/20 ring-4 ring-blue-50 dark:ring-blue-900/10 transition-all ${
+                syncStatus.isImporting ? 'animate-pulse' : ''
+              }`}>
                 <Mail className="h-7 w-7 text-blue-600 dark:text-blue-400" />
               </div>
-              <div>
+              <div className="w-full min-w-0">
                 <h4 className="font-semibold text-sm mb-1">Outlook</h4>
-                <p className="text-xs text-muted-foreground">
-                  Verbinden Sie Ihr Outlook-Konto
-                </p>
+                {isLoadingOutlook ? (
+                  <Skeleton className="h-4 w-32 mx-auto" />
+                ) : outlookConnection ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground truncate px-2">
+                      {outlookConnection.email}
+                    </p>
+                    
+                    {/* Sync Status Display */}
+                    {syncStatus.isImporting ? (
+                      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                          <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                            Importiere E-Mails...
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Importiert:</span>
+                            <span className="font-semibold text-blue-600 dark:text-blue-400">
+                              {syncStatus.totalImported} E-Mails
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Seiten:</span>
+                            <span className="font-medium text-foreground">
+                              {syncStatus.pagesProcessed}
+                            </span>
+                          </div>
+                          {outlookConnection?.last_sync_at && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Letzter Sync:</span>
+                              <span className="font-medium text-foreground">
+                                {formatRelativeTime(outlookConnection.last_sync_at)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {/* Progress bar */}
+                        <div className="w-full bg-blue-100 dark:bg-blue-900/50 rounded-full h-1.5 overflow-hidden">
+                          <div className="h-full bg-blue-600 dark:bg-blue-400 rounded-full animate-pulse" 
+                               style={{ width: '100%' }} />
+                        </div>
+                      </div>
+                    ) : syncStatus.totalImported > 0 ? (
+                      <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-2">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center justify-center gap-2">
+                            <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
+                            <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                              {syncStatus.totalImported} E-Mails importiert
+                            </span>
+                          </div>
+                          {outlookConnection?.last_sync_at && (
+                            <div className="text-center text-xs text-green-600/70 dark:text-green-400/70">
+                              Letzter Sync: {formatRelativeTime(outlookConnection.last_sync_at)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground text-center">
+                          {outlookConnection.needs_reauth ? (
+                            <span className="text-amber-600 dark:text-amber-500">
+                              ⚠️ Erneute Authentifizierung erforderlich
+                            </span>
+                          ) : outlookConnection.token_expired ? (
+                            <span className="text-red-600 dark:text-red-500">
+                              Token abgelaufen - bitte neu verbinden
+                            </span>
+                          ) : outlookConnection.token_expires_in_hours !== null && outlookConnection.token_expires_in_hours !== undefined && outlookConnection.token_expires_in_hours < 24 ? (
+                            <span className="text-amber-600 dark:text-amber-500">
+                              Token läuft in {outlookConnection.token_expires_in_hours}h ab
+                            </span>
+                          ) : outlookConnection.sync_enabled ? (
+                            "Bereit zum Synchronisieren"
+                          ) : (
+                            "Sync deaktiviert"
+                          )}
+                        </p>
+                        {outlookConnection?.last_sync_at && !outlookConnection.needs_reauth && !outlookConnection.token_expired && (
+                          <p className="text-xs text-muted-foreground/70 text-center">
+                            Letzter Sync: {formatRelativeTime(outlookConnection.last_sync_at)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Verbinden Sie Ihr Outlook-Konto
+                  </p>
+                )}
               </div>
-              <Button variant="outline" size="sm" disabled className="w-full mt-2">
-                Verbinden
-              </Button>
+              {isLoadingOutlook ? (
+                <Skeleton className="h-9 w-full" />
+              ) : outlookConnection ? (
+                <div className="flex flex-col sm:flex-row gap-2 w-full mt-2 min-w-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSyncOutlook}
+                    disabled={isSyncingOutlook || isDisconnectingOutlook || syncStatus.isImporting}
+                    className="flex-1 min-w-0"
+                  >
+                    {isSyncingOutlook || syncStatus.isImporting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin flex-shrink-0" />
+                        <span className="truncate">Sync...</span>
+                      </>
+                    ) : (
+                      <span className="truncate">Synchronisieren</span>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDisconnectOutlook}
+                    disabled={isDisconnectingOutlook || isSyncingOutlook || syncStatus.isImporting}
+                    className="hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 hover:border-red-300 sm:w-auto min-w-0"
+                  >
+                    {isDisconnectingOutlook ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <span className="truncate">Trennen</span>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleConnectOutlook}
+                  disabled={isConnectingOutlook}
+                  className="w-full mt-2"
+                >
+                  {isConnectingOutlook ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Verbinden...
+                    </>
+                  ) : (
+                    "Verbinden"
+                  )}
+                </Button>
+              )}
             </div>
           </SettingsCard>
 
           {/* IMAP Card */}
-          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity">
+          <SettingsCard className="relative opacity-60 cursor-not-allowed hover:opacity-70 transition-opacity overflow-hidden">
             <div className="absolute top-4 right-4 z-10">
               <Badge variant="secondary" className="text-xs">
                 Demnächst
               </Badge>
             </div>
-            <div className="flex flex-col items-center text-center space-y-4 py-2">
+            <div className="flex flex-col items-center text-center space-y-4 py-2 min-w-0">
               <div className="p-4 rounded-full bg-gray-100 dark:bg-gray-900/20 ring-4 ring-gray-50 dark:ring-gray-900/10">
                 <Mail className="h-7 w-7 text-gray-600 dark:text-gray-400" />
               </div>
-              <div>
+              <div className="min-w-0 w-full">
                 <h4 className="font-semibold text-sm mb-1">IMAP</h4>
                 <p className="text-xs text-muted-foreground">
                   Verbinden Sie per IMAP
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled className="w-full mt-2">
+              <Button variant="outline" size="sm" disabled className="w-full mt-2 min-w-0">
                 Verbinden
               </Button>
             </div>
@@ -439,6 +871,32 @@ const MailSection = () => {
               className="bg-red-600 hover:bg-red-700"
             >
               {isDeleting ? "Lösche..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showSyncConfirm} onOpenChange={setShowSyncConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>E-Mails erneut synchronisieren?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Sie haben bereits <strong>{existingEmailCount} E-Mails</strong> aus diesem Outlook-Konto importiert.
+              </p>
+              <p>
+                Beim erneuten Synchronisieren werden nur neue E-Mails importiert. 
+                Bereits vorhandene E-Mails werden automatisch übersprungen und nicht dupliziert.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                💡 Tipp: Verwenden Sie diese Funktion, um neue E-Mails abzurufen, die seit dem letzten Import eingegangen sind.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={performSync}>
+              Neue E-Mails importieren
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
