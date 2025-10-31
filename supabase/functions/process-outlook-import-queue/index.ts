@@ -25,14 +25,15 @@ async function refreshToken(supabase: any, account: any, accountId: string) {
         client_secret: outlookClientSecret,
         refresh_token: account.refresh_token_encrypted,
         grant_type: 'refresh_token',
+        scope: 'openid profile email offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read',
       }),
     }
   )
 
   if (!tokenResponse.ok) {
     const errorText = await tokenResponse.text()
-    console.error('Token refresh failed:', errorText)
-    throw new Error('Token refresh failed')
+    console.error(`Token refresh failed (${tokenResponse.status}):`, errorText)
+    throw new Error(`Token refresh failed: ${errorText.substring(0, 200)}`)
   }
 
   const tokens = await tokenResponse.json()
@@ -54,7 +55,11 @@ async function getAccessToken(supabase: any, account: any, accountId: string) {
   const tokenExpiresAt = account.token_expires_at ? new Date(account.token_expires_at) : null
   const now = new Date()
 
-  if (!tokenExpiresAt || tokenExpiresAt <= now) {
+  // Refresh 5 minutes before expiry to avoid edge cases
+  const refreshThreshold = new Date(now.getTime() + 5 * 60 * 1000)
+
+  if (!tokenExpiresAt || tokenExpiresAt <= refreshThreshold) {
+    console.log('Token expired or expiring soon, refreshing...')
     accessToken = await refreshToken(supabase, account, accountId)
   }
 
@@ -113,7 +118,7 @@ Deno.serve(async (req) => {
         .eq('id', task.job_id)
     }
 
-    // Get account details
+    // Get account details (fetch fresh data to get latest tokens)
     const { data: account, error: accountError } = await supabase
       .from('Mail_Accounts')
       .select('*')
@@ -146,12 +151,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Get access token
-    let accessToken: string
-    try {
-      accessToken = await getAccessToken(supabase, account, task.account_id)
-    } catch (error) {
-      console.error('Failed to get access token:', error)
+    // Check if sync is still enabled
+    if (!account.sync_enabled) {
+      console.log('Sync disabled for account, aborting')
 
       // Delete message from queue
       await supabase.rpc('pgmq_delete', {
@@ -164,14 +166,84 @@ Deno.serve(async (req) => {
           .from('Mail_Import_Jobs')
           .update({
             status: 'failed',
-            fehler_nachricht: 'Failed to get access token',
+            fehler_nachricht: 'Sync disabled',
             completed_at: new Date().toISOString(),
           })
           .eq('id', task.job_id)
       }
 
       return new Response(
-        JSON.stringify({ error: 'Failed to get access token' }),
+        JSON.stringify({ error: 'Sync disabled' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Get access token (will refresh if needed)
+    let accessToken: string
+    try {
+      accessToken = await getAccessToken(supabase, account, task.account_id)
+      console.log('Access token obtained successfully')
+    } catch (error) {
+      console.error('Failed to get access token:', error)
+
+      // Check if this is a permanent failure
+      const errorMessage = error.message || ''
+      const isPermanentFailure = errorMessage.includes('AADSTS70000') ||
+        errorMessage.includes('AADSTS70008') ||
+        errorMessage.includes('invalid_grant') ||
+        errorMessage.includes('AADSTS50076') ||
+        errorMessage.includes('AADSTS50079') ||
+        errorMessage.includes('interaction_required')
+
+      if (isPermanentFailure) {
+        // Disable sync for permanent failures
+        await supabase
+          .from('Mail_Accounts')
+          .update({
+            sync_enabled: false,
+            last_sync_error: new Date().toISOString(),
+          })
+          .eq('id', task.account_id)
+
+        console.log('Permanent token failure, disabled sync')
+      }
+
+      // Delete message from queue
+      await supabase.rpc('pgmq_delete', {
+        queue_name: 'outlook_email_import',
+        msg_id: msgId
+      })
+
+      if (task.job_id) {
+        await supabase
+          .from('Mail_Import_Jobs')
+          .update({
+            status: 'failed',
+            fehler_nachricht: isPermanentFailure
+              ? 'Token refresh failed - re-authentication required'
+              : 'Failed to get access token',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', task.job_id)
+      }
+
+      // Update sync job
+      if (task.sync_job_id) {
+        await supabase
+          .from('Mail_Sync_Jobs')
+          .update({
+            status: 'failed',
+            fehler_nachricht: 'Token refresh failed',
+            end_datum: new Date().toISOString(),
+          })
+          .eq('id', task.sync_job_id)
+      }
+
+      return new Response(
+        JSON.stringify({
+          error: 'Failed to get access token',
+          requiresReauth: isPermanentFailure
+        }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       )
     }
@@ -184,7 +256,7 @@ Deno.serve(async (req) => {
       fetchUrl = `https://graph.microsoft.com/v1.0/me/messages?$top=${BATCH_SIZE}&$orderby=receivedDateTime desc&$select=id,subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments,importance,categories`
     }
 
-    console.log('Fetching emails from:', fetchUrl)
+    console.log('Fetching emails from:', fetchUrl.substring(0, 100) + '...')
 
     const messagesResponse = await fetch(fetchUrl, {
       headers: {
@@ -194,7 +266,19 @@ Deno.serve(async (req) => {
 
     if (!messagesResponse.ok) {
       const errorText = await messagesResponse.text()
-      console.error('Failed to fetch messages:', errorText)
+      console.error(`Failed to fetch messages (${messagesResponse.status}):`, errorText)
+
+      // If 401, the token might be invalid even after refresh
+      if (messagesResponse.status === 401) {
+        console.error('Token appears to be invalid, disabling sync')
+        await supabase
+          .from('Mail_Accounts')
+          .update({
+            sync_enabled: false,
+            last_sync_error: new Date().toISOString(),
+          })
+          .eq('id', task.account_id)
+      }
 
       // Delete message from queue
       await supabase.rpc('pgmq_delete', {
@@ -207,14 +291,30 @@ Deno.serve(async (req) => {
           .from('Mail_Import_Jobs')
           .update({
             status: 'failed',
-            fehler_nachricht: `Failed to fetch emails: ${messagesResponse.status}`,
+            fehler_nachricht: `Failed to fetch emails: ${messagesResponse.status} - ${errorText.substring(0, 200)}`,
             completed_at: new Date().toISOString(),
           })
           .eq('id', task.job_id)
       }
 
+      // Update sync job as failed
+      if (task.sync_job_id) {
+        await supabase
+          .from('Mail_Sync_Jobs')
+          .update({
+            status: 'failed',
+            fehler_nachricht: `Failed to fetch emails: ${messagesResponse.status}`,
+            end_datum: new Date().toISOString(),
+          })
+          .eq('id', task.sync_job_id)
+      }
+
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch emails' }),
+        JSON.stringify({
+          error: 'Failed to fetch emails',
+          status: messagesResponse.status,
+          details: errorText.substring(0, 200)
+        }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       )
     }
@@ -244,6 +344,9 @@ Deno.serve(async (req) => {
 
     // Insert emails one by one to handle duplicates gracefully
     let insertedCount = 0
+    let duplicateCount = 0
+    let errorCount = 0
+
     for (const email of emailsToInsert) {
       const { error: insertError } = await supabase
         .from('Mail_Metadaten')
@@ -253,8 +356,13 @@ Deno.serve(async (req) => {
 
       if (insertError) {
         if (insertError.code === '23505') {
-          console.log(`Email ${email.quelle_id} already exists, skipping`)
+          // Duplicate key constraint violation
+          duplicateCount++
+          if (duplicateCount <= 3) {
+            console.log(`Email ${email.quelle_id} already exists, skipping`)
+          }
         } else {
+          errorCount++
           console.error('Error inserting email:', insertError)
         }
       } else {
@@ -262,7 +370,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Inserted ${insertedCount} new emails (${emails.length - insertedCount} duplicates skipped)`)
+    console.log(`Page ${task.page_number} results: ${insertedCount} new, ${duplicateCount} duplicates, ${errorCount} errors`)
+
+    // Continue to next page even if all emails were duplicates
+    // This is important because newer emails might exist on later pages
 
     // Update job tracking with current progress
     if (task.job_id) {
