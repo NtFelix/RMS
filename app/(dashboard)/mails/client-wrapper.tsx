@@ -362,8 +362,8 @@ export default function MailsClientView({
       } else {
         // Append new mails, avoiding duplicates
         setMailData(prev => {
-          const existingIds = new Set(prev.map(m => m.id));
-          const uniqueNewMails = convertedMails.filter(m => !existingIds.has(m.id));
+          const existingIds = new Set(prev.map((m: LegacyMail) => m.id));
+          const uniqueNewMails = convertedMails.filter((m: LegacyMail) => !existingIds.has(m.id));
           return [...prev, ...uniqueNewMails];
         });
         setPage(targetPage);
