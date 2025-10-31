@@ -41,6 +41,9 @@ interface OutlookConnection {
   connected_at: string
   last_sync_at: string | null
   account_id?: string
+  needs_reauth?: boolean
+  token_expired?: boolean
+  token_expires_in_hours?: number | null
 }
 
 interface SyncStatus {
@@ -748,7 +751,7 @@ const MailSection = () => {
                             <span className="text-red-600 dark:text-red-500">
                               Token abgelaufen - bitte neu verbinden
                             </span>
-                          ) : outlookConnection.token_expires_in_hours !== null && outlookConnection.token_expires_in_hours < 24 ? (
+                          ) : outlookConnection.token_expires_in_hours !== null && outlookConnection.token_expires_in_hours !== undefined && outlookConnection.token_expires_in_hours < 24 ? (
                             <span className="text-amber-600 dark:text-amber-500">
                               Token läuft in {outlookConnection.token_expires_in_hours}h ab
                             </span>
