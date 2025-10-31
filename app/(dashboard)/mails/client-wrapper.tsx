@@ -56,6 +56,8 @@ export default function MailsClientView({
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [sortKey, setSortKey] = useState<string>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Fetch email counts on mount
   useEffect(() => {
@@ -280,6 +282,11 @@ export default function MailsClientView({
     }
   }, [selectedMails, router]);
 
+  // Reload data when sort changes
+  useEffect(() => {
+    loadMoreMails(true);
+  }, [sortKey, sortDirection]);
+
   // Filter all mails based on tab and search
   const filteredMails = useMemo(() => {
     const mailsByTab = mailData.filter(mail => {
@@ -310,14 +317,22 @@ export default function MailsClientView({
   }, [mailData, activeTab, searchQuery]);
 
   // Load more mails function - matches finance page pattern
-  const loadMoreMails = useCallback(async () => {
-    if (isLoading || !hasMore) return;
+  const loadMoreMails = useCallback(async (resetData = false) => {
+    if (isLoading || (!hasMore && !resetData)) return;
     
     setIsLoading(true);
     
+    const targetPage = resetData ? 1 : page + 1;
+    
     try {
-      const nextPage = page + 1;
-      const response = await fetch(`/api/mails?page=${nextPage}&pageSize=${PAGINATION.DEFAULT_PAGE_SIZE}`);
+      const params = new URLSearchParams({
+        page: targetPage.toString(),
+        pageSize: PAGINATION.DEFAULT_PAGE_SIZE.toString(),
+        sortKey: sortKey,
+        sortDirection: sortDirection,
+      });
+      
+      const response = await fetch(`/api/mails?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch more emails');
@@ -340,17 +355,22 @@ export default function MailsClientView({
         favorite: email.ist_favorit,
       }));
       
-      // Append new mails, avoiding duplicates
-      setMailData(prev => {
-        const existingIds = new Set(prev.map(m => m.id));
-        const uniqueNewMails = convertedMails.filter(m => !existingIds.has(m.id));
-        return [...prev, ...uniqueNewMails];
-      });
-      
-      setPage(nextPage);
+      if (resetData) {
+        // Replace all data when resetting (e.g., after sort change)
+        setMailData(convertedMails);
+        setPage(1);
+      } else {
+        // Append new mails, avoiding duplicates
+        setMailData(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const uniqueNewMails = convertedMails.filter(m => !existingIds.has(m.id));
+          return [...prev, ...uniqueNewMails];
+        });
+        setPage(targetPage);
+      }
       
       // Check if there are more records to load
-      const loadedCount = mailData.length + convertedMails.length;
+      const loadedCount = resetData ? convertedMails.length : mailData.length + convertedMails.length;
       setHasMore(loadedCount < totalCount);
     } catch (error) {
       console.error('Error loading more mails:', error);
@@ -358,7 +378,7 @@ export default function MailsClientView({
     } finally {
       setIsLoading(false);
     }
-  }, [page, hasMore, isLoading, mailData.length]);
+  }, [page, hasMore, isLoading, mailData.length, sortKey, sortDirection]);
 
 
 
@@ -470,7 +490,13 @@ export default function MailsClientView({
             onDeletePermanently={handleDeletePermanently}
             hasMore={hasMore}
             isLoading={isLoading}
-            loadMails={loadMoreMails}
+            loadMails={() => loadMoreMails(false)}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortChange={(key, direction) => {
+              setSortKey(key);
+              setSortDirection(direction);
+            }}
           />
         </CardContent>
       </Card>

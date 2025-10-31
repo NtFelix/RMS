@@ -91,6 +91,9 @@ interface MailsTableProps {
   hasMore?: boolean;
   isLoading?: boolean;
   loadMails?: () => void;
+  sortKey?: string;
+  sortDirection?: 'asc' | 'desc';
+  onSortChange?: (key: string, direction: 'asc' | 'desc') => void;
 }
 
 
@@ -142,24 +145,11 @@ export function MailsTable({
   onDeletePermanently,
   hasMore = false,
   isLoading = false,
-  loadMails
+  loadMails,
+  sortKey: externalSortKey = "date",
+  sortDirection: externalSortDirection = "desc",
+  onSortChange
 }: MailsTableProps) {
-
-
-
-
-
-
-
-  const [sortKey, setSortKey] = useState<MailSortKey>("date")
-
-
-
-
-
-
-
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
 
 
@@ -237,135 +227,8 @@ export function MailsTable({
 
 
 
-  const sortedMails = useMemo(() => {
-
-
-
-
-
-
-
-    let result = [...mails];
-
-
-
-
-
-
-
-    if (sortKey) {
-
-
-
-
-
-
-
-      result.sort((a, b) => {
-
-
-
-
-
-
-
-        let valA = a[sortKey];
-
-
-
-
-
-
-
-        let valB = b[sortKey];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        if (valA === undefined || valA === null) valA = "";
-
-
-
-
-
-
-
-        if (valB === undefined || valB === null) valB = "";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        const strA = String(valA);
-
-
-
-
-
-
-
-        const strB = String(valB);
-
-
-
-
-
-
-
-        return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
-
-
-
-
-
-
-
-      });
-
-
-
-
-
-
-
-    }
-
-
-
-
-
-
-
-    return result;
-
-
-
-
-
-
-
-  }, [mails, sortKey, sortDirection]);
+  // No client-side sorting - data comes pre-sorted from server
+  const sortedMails = mails;
 
 
 
@@ -598,61 +461,13 @@ export function MailsTable({
 
 
   const handleSort = (key: MailSortKey) => {
-
-
-
-
-
-
-
-    if (sortKey === key) {
-
-
-
-
-
-
-
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-
-
-
-
-
-
-
+    if (!onSortChange) return;
+    
+    if (externalSortKey === key) {
+      onSortChange(key, externalSortDirection === "asc" ? "desc" : "asc");
     } else {
-
-
-
-
-
-
-
-      setSortKey(key)
-
-
-
-
-
-
-
-      setSortDirection("asc")
-
-
-
-
-
-
-
+      onSortChange(key, "asc");
     }
-
-
-
-
-
-
-
   }
 
 
@@ -670,77 +485,14 @@ export function MailsTable({
 
 
   const renderSortIcon = (key: MailSortKey) => {
-
-
-
-
-
-
-
-    if (sortKey !== key) {
-
-
-
-
-
-
-
+    if (externalSortKey !== key) {
       return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-
-
-
-
-
-
-
     }
-
-
-
-
-
-
-
-    return sortDirection === "asc" ? (
-
-
-
-
-
-
-
+    return externalSortDirection === "asc" ? (
       <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
-
-
-
-
-
-
-
     ) : (
-
-
-
-
-
-
-
       <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
-
-
-
-
-
-
-
     )
-
-
-
-
-
-
-
   }
 
 

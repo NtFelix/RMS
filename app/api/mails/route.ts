@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') ?? '1', 10)
     const pageSize = parseInt(searchParams.get('pageSize') ?? PAGINATION.DEFAULT_PAGE_SIZE.toString(), 10)
+    const sortKey = searchParams.get('sortKey') || 'datum_erhalten'
+    const sortDirection = (searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc'
     
     const supabase = await createClient()
     
@@ -23,12 +25,23 @@ export async function GET(request: NextRequest) {
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
-    // Fetch emails with pagination
+    // Map frontend sort keys to database column names
+    const sortKeyMap: Record<string, string> = {
+      'date': 'datum_erhalten',
+      'subject': 'betreff',
+      'sender': 'absender',
+      'status': 'ordner',
+      'source': 'quelle',
+    }
+    
+    const dbSortKey = sortKeyMap[sortKey] || sortKey
+
+    // Fetch emails with pagination and sorting
     const { data: emails, error: emailsError, count } = await supabase
       .from('Mail_Metadaten')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)
-      .order('datum_erhalten', { ascending: false })
+      .order(dbSortKey, { ascending: sortDirection === 'asc' })
       .range(from, to)
 
     if (emailsError) {
