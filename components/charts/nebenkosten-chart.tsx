@@ -90,9 +90,9 @@ export function NebenkostenChart() {
     if (active && payload && payload.length) {
       const data = payload[0];
       return (
-        <div className="bg-white dark:bg-gray-800 p-2 border rounded shadow-lg">
-          <p className="text-sm font-medium">{data.name}</p>
-          <p className="text-sm text-blue-600 dark:text-blue-400">
+        <div className="grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
+          <p className="font-medium text-foreground">{data.name}</p>
+          <p className="font-mono font-medium tabular-nums text-foreground">
             {new Intl.NumberFormat('de-DE', { 
               style: 'currency', 
               currency: 'EUR' 
