@@ -9,6 +9,7 @@ import { getDashboardSummary } from "@/lib/data-fetching"
 import { RevenueExpensesChart } from "@/components/charts/revenue-expenses-chart"
 import { OccupancyChart } from "@/components/charts/occupancy-chart"
 import { MaintenanceDonutChart } from "@/components/charts/maintenance-donut-chart"
+import { NebenkostenChart } from "@/components/charts/nebenkosten-chart"
 import { LastTransactionsContainer } from "@/components/last-transactions-container"
 
 export default async function Dashboard() {
@@ -220,7 +221,7 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        {/* Row 8: Last Transactions (left 50%) + Instandhaltung Chart (right 50%) */}
+        {/* Row 8: Last Transactions (left 50%) + Nebenkosten Chart (right 50%) */}
         <div className="col-span-1 row-span-1 md:col-span-3 md:row-span-3">
           <div className="h-[300px] md:h-full overflow-hidden">
             <LastTransactionsContainer />
@@ -228,7 +229,7 @@ export default async function Dashboard() {
         </div>
         <div className="col-span-1 row-span-1 md:col-span-3 md:row-span-3">
           <div className="h-[300px] md:h-full overflow-hidden">
-            <MaintenanceDonutChart />
+            <NebenkostenChart />
           </div>
         </div>
       </div>
