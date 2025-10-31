@@ -326,6 +326,8 @@ Deno.serve(async (req) => {
     console.log(`Fetched ${emails.length} emails, has next page: ${!!nextLink}`)
 
     // Store emails in Mail_Metadaten table
+    // For now, just store metadata - body preview is enough for list view
+    // Full body can be fetched later if needed
     const emailsToInsert = emails.map((msg: any) => ({
       mail_account_id: task.account_id,
       user_id: task.user_id,
@@ -340,6 +342,7 @@ Deno.serve(async (req) => {
       ist_gelesen: msg.isRead || false,
       hat_anhang: msg.hasAttachments || false,
       ordner: 'inbox',
+      dateipfad: null, // For Outlook emails, we'll fetch body on-demand using quelle_id
     }))
 
     // Insert emails one by one to handle duplicates gracefully

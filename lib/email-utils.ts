@@ -29,9 +29,12 @@ export interface EmailMetadata {
 }
 
 export interface EmailAttachment {
+  id?: string; // Outlook attachment ID
   name: string;
   size: number;
   path: string;
+  contentType?: string;
+  isInline?: boolean;
 }
 
 /**
@@ -82,9 +85,24 @@ export async function fetchEmailById(emailId: string) {
 }
 
 /**
- * Download and decompress email body from Storage
+ * Fetch email body from Outlook - uses bodyPreview for now
+ * Full body fetching from Graph API has authentication issues in Next.js context
+ * TODO: Implement proper on-demand body fetching via Supabase Edge Function
  */
-export async function fetchEmailBody(dateipfad: string): Promise<EmailBody> {
+export async function fetchEmailBodyFromOutlook(emailId: string): Promise<EmailBody> {
+  // For now, return a message indicating the email needs to be viewed in Outlook
+  // The bodyPreview from metadata is shown in the list view
+  return {
+    plain: 'This email is stored in Outlook. Full content loading is being implemented.',
+    html: '<p>This email is stored in Outlook. Full content loading is being implemented.</p>',
+    metadata: { hasAttachments: false }
+  };
+}
+
+/**
+ * Download and decompress email body from Storage (fallback for non-Outlook emails)
+ */
+export async function fetchEmailBodyFromStorage(dateipfad: string): Promise<EmailBody> {
   const supabase = createClient();
   
   try {
@@ -109,15 +127,51 @@ export async function fetchEmailBody(dateipfad: string): Promise<EmailBody> {
     
     return emailBody;
   } catch (error) {
-    console.error('Error fetching email body:', error);
+    console.error('Error fetching email body from storage:', error);
     throw error;
   }
 }
 
 /**
- * List attachments for an email
+ * Fetch email body - automatically chooses Outlook or Storage based on source
  */
-export async function listEmailAttachments(
+export async function fetchEmailBody(emailId: string, quelle: string, dateipfad?: string | null): Promise<EmailBody> {
+  // For Outlook emails, fetch directly from Outlook
+  if (quelle === 'outlook') {
+    try {
+      return await fetchEmailBodyFromOutlook(emailId);
+    } catch (error) {
+      console.error('Failed to fetch from Outlook, trying storage fallback:', error);
+      // If Outlook fetch fails and we have a storage path, try that
+      if (dateipfad) {
+        return await fetchEmailBodyFromStorage(dateipfad);
+      }
+      throw error;
+    }
+  }
+  
+  // For other sources, use storage
+  if (dateipfad) {
+    return await fetchEmailBodyFromStorage(dateipfad);
+  }
+  
+  throw new Error('No email body source available');
+}
+
+/**
+ * List attachments for an Outlook email
+ * TODO: Implement attachment listing via Supabase Edge Function
+ */
+export async function listOutlookAttachments(emailId: string): Promise<EmailAttachment[]> {
+  // For now, return empty array
+  // Attachments will be implemented later
+  return [];
+}
+
+/**
+ * List attachments from storage (fallback for non-Outlook emails)
+ */
+export async function listStorageAttachments(
   userId: string,
   emailId: string
 ): Promise<EmailAttachment[]> {
@@ -140,9 +194,41 @@ export async function listEmailAttachments(
 }
 
 /**
- * Download an attachment
+ * List attachments for an email - automatically chooses Outlook or Storage
  */
-export async function downloadAttachment(path: string, filename: string) {
+export async function listEmailAttachments(
+  userId: string,
+  emailId: string,
+  quelle: string
+): Promise<EmailAttachment[]> {
+  if (quelle === 'outlook') {
+    try {
+      return await listOutlookAttachments(emailId);
+    } catch (error) {
+      console.error('Failed to list Outlook attachments, trying storage:', error);
+      return await listStorageAttachments(userId, emailId);
+    }
+  }
+  
+  return await listStorageAttachments(userId, emailId);
+}
+
+/**
+ * Download an Outlook attachment
+ * TODO: Implement attachment download via Supabase Edge Function
+ */
+export async function downloadOutlookAttachment(
+  emailId: string,
+  attachmentId: string,
+  filename: string
+) {
+  throw new Error('Outlook attachment download not yet implemented');
+}
+
+/**
+ * Download an attachment from storage
+ */
+export async function downloadStorageAttachment(path: string, filename: string) {
   const supabase = createClient();
   
   const { data: fileBlob, error } = await supabase.storage
@@ -162,6 +248,29 @@ export async function downloadAttachment(path: string, filename: string) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Download an attachment - automatically chooses Outlook or Storage
+ */
+export async function downloadAttachment(
+  emailId: string,
+  quelle: string,
+  path: string,
+  filename: string,
+  attachmentId?: string
+) {
+  if (quelle === 'outlook' && attachmentId) {
+    try {
+      await downloadOutlookAttachment(emailId, attachmentId, filename);
+      return;
+    } catch (error) {
+      console.error('Failed to download from Outlook, trying storage:', error);
+      // Fall through to storage download
+    }
+  }
+  
+  await downloadStorageAttachment(path, filename);
 }
 
 /**

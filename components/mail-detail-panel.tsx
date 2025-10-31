@@ -91,25 +91,31 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
           router.refresh();
         }
 
-        // Fetch email body if path exists
-        if (emailMetadata.dateipfad) {
-          setIsLoadingBody(true);
-          try {
-            const body = await fetchEmailBody(emailMetadata.dateipfad);
-            setEmailBody(body);
-          } catch (error) {
-            console.error('Error loading email body:', error);
-            toast.error('Fehler beim Laden des E-Mail-Inhalts');
-          } finally {
-            setIsLoadingBody(false);
-          }
+        // Fetch email body - now supports Outlook and Storage
+        setIsLoadingBody(true);
+        try {
+          const body = await fetchEmailBody(
+            mail.id,
+            emailMetadata.quelle,
+            emailMetadata.dateipfad
+          );
+          setEmailBody(body);
+        } catch (error) {
+          console.error('Error loading email body:', error);
+          toast.error('Fehler beim Laden des E-Mail-Inhalts');
+        } finally {
+          setIsLoadingBody(false);
         }
 
         // Fetch attachments if email has them
         if (emailMetadata.hat_anhang && userId) {
           setIsLoadingAttachments(true);
           try {
-            const attachmentList = await listEmailAttachments(userId, mail.id);
+            const attachmentList = await listEmailAttachments(
+              userId,
+              mail.id,
+              emailMetadata.quelle
+            );
             setAttachments(attachmentList);
           } catch (error) {
             console.error('Error loading attachments:', error);
@@ -193,12 +199,18 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
 
   const handleDownloadAttachment = useCallback(async (attachment: EmailAttachment) => {
     try {
-      await downloadAttachment(attachment.path, attachment.name);
+      await downloadAttachment(
+        mail.id,
+        mail.source.toLowerCase(),
+        attachment.path,
+        attachment.name,
+        attachment.id
+      );
       toast.success('Anhang heruntergeladen');
     } catch (error) {
       toast.error('Fehler beim Herunterladen');
     }
-  }, []);
+  }, [mail.id, mail.source]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
