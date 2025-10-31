@@ -57,6 +57,32 @@ const MailSection = () => {
   const { toast } = useToast()
   const [mailAccounts, setMailAccounts] = useState<MailAccount[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Helper function to format relative time
+  const formatRelativeTime = (dateString: string | null) => {
+    if (!dateString) return null
+    
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Gerade eben'
+    if (diffMins < 60) return `vor ${diffMins} Min.`
+    if (diffHours < 24) return `vor ${diffHours} Std.`
+    if (diffDays < 7) return `vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''}`
+    
+    // For older dates, show the actual date
+    return date.toLocaleDateString('de-DE', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
   const [newMailPrefix, setNewMailPrefix] = useState("")
   const [selectedDomain, setSelectedDomain] = useState("@mietfluss.de")
   const [isCreating, setIsCreating] = useState(false)
@@ -680,6 +706,14 @@ const MailSection = () => {
                               {syncStatus.pagesProcessed}
                             </span>
                           </div>
+                          {outlookConnection?.last_sync_at && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Letzter Sync:</span>
+                              <span className="font-medium text-foreground">
+                                {formatRelativeTime(outlookConnection.last_sync_at)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {/* Progress bar */}
                         <div className="w-full bg-blue-100 dark:bg-blue-900/50 rounded-full h-1.5 overflow-hidden">
@@ -689,33 +723,47 @@ const MailSection = () => {
                       </div>
                     ) : syncStatus.totalImported > 0 ? (
                       <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-2">
-                        <div className="flex items-center justify-center gap-2">
-                          <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
-                          <span className="text-xs font-medium text-green-700 dark:text-green-400">
-                            {syncStatus.totalImported} E-Mails importiert
-                          </span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center justify-center gap-2">
+                            <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
+                            <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                              {syncStatus.totalImported} E-Mails importiert
+                            </span>
+                          </div>
+                          {outlookConnection?.last_sync_at && (
+                            <div className="text-center text-xs text-green-600/70 dark:text-green-400/70">
+                              Letzter Sync: {formatRelativeTime(outlookConnection.last_sync_at)}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground">
-                        {outlookConnection.needs_reauth ? (
-                          <span className="text-amber-600 dark:text-amber-500">
-                            ⚠️ Erneute Authentifizierung erforderlich
-                          </span>
-                        ) : outlookConnection.token_expired ? (
-                          <span className="text-red-600 dark:text-red-500">
-                            Token abgelaufen - bitte neu verbinden
-                          </span>
-                        ) : outlookConnection.token_expires_in_hours !== null && outlookConnection.token_expires_in_hours < 24 ? (
-                          <span className="text-amber-600 dark:text-amber-500">
-                            Token läuft in {outlookConnection.token_expires_in_hours}h ab
-                          </span>
-                        ) : outlookConnection.sync_enabled ? (
-                          "Bereit zum Synchronisieren"
-                        ) : (
-                          "Sync deaktiviert"
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground text-center">
+                          {outlookConnection.needs_reauth ? (
+                            <span className="text-amber-600 dark:text-amber-500">
+                              ⚠️ Erneute Authentifizierung erforderlich
+                            </span>
+                          ) : outlookConnection.token_expired ? (
+                            <span className="text-red-600 dark:text-red-500">
+                              Token abgelaufen - bitte neu verbinden
+                            </span>
+                          ) : outlookConnection.token_expires_in_hours !== null && outlookConnection.token_expires_in_hours < 24 ? (
+                            <span className="text-amber-600 dark:text-amber-500">
+                              Token läuft in {outlookConnection.token_expires_in_hours}h ab
+                            </span>
+                          ) : outlookConnection.sync_enabled ? (
+                            "Bereit zum Synchronisieren"
+                          ) : (
+                            "Sync deaktiviert"
+                          )}
+                        </p>
+                        {outlookConnection?.last_sync_at && !outlookConnection.needs_reauth && !outlookConnection.token_expired && (
+                          <p className="text-xs text-muted-foreground/70 text-center">
+                            Letzter Sync: {formatRelativeTime(outlookConnection.last_sync_at)}
+                          </p>
                         )}
-                      </p>
+                      </div>
                     )}
                   </div>
                 ) : (
