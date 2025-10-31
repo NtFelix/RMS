@@ -185,7 +185,13 @@ export function calculateFinancialSummary(
   }
   
   // Process each transaction
-  (transactions || []).forEach(item => {
+  (transactions || [])
+    .filter(item => {
+      if (!item.datum) return false;
+      const itemDate = new Date(item.datum);
+      return itemDate.getFullYear() === year;
+    })
+    .forEach(item => {
     if (!item.datum) return;
     
     const itemDate = new Date(item.datum);
