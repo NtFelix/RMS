@@ -19,6 +19,7 @@ const EMPTY_COLOR = 'var(--chart-color-empty)';
 
 interface NebenkostenChartProps {
   nebenkostenData: NebenkostenChartDatum[];
+  year: number;
 }
 
 interface TooltipProps {
@@ -52,15 +53,17 @@ const CustomTooltip = ({ active, payload }: TooltipProps) => {
   return null;
 };
 
-export function NebenkostenChart({ nebenkostenData }: NebenkostenChartProps) {
+export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProps) {
   const data = nebenkostenData.length > 0 ? nebenkostenData : EMPTY_STATE;
   const colors = data === EMPTY_STATE ? [EMPTY_COLOR] : COLORS;
 
   return (
     <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
       <CardHeader className="flex-shrink-0 pb-2">
-        <CardTitle className="text-lg">Nebenkosten nach Kategorie</CardTitle>
-        <CardDescription>Verteilung der Betriebskosten im letzten Jahr</CardDescription>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Nebenkosten nach Kategorie</CardTitle>
+        </div>
+        <CardDescription>Verteilung der Betriebskosten (Jahr {year})</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-2 min-h-0">
         <ResponsiveContainer width="100%" height="100%">

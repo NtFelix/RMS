@@ -19,6 +19,8 @@ export default async function Dashboard() {
     getNebenkostenChartData()
   ]);
   
+  const { data: nebenkostenChartData, year: nebenkostenYear } = nebenkostenData;
+  
   return (
     <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div>
@@ -232,7 +234,7 @@ export default async function Dashboard() {
         </div>
         <div className="col-span-1 row-span-1 md:col-span-3 md:row-span-3">
           <div className="h-[300px] md:h-full overflow-hidden">
-            <NebenkostenChart nebenkostenData={nebenkostenData} />
+            <NebenkostenChart nebenkostenData={nebenkostenChartData} year={nebenkostenYear} />
           </div>
         </div>
       </div>
