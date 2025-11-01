@@ -4,7 +4,18 @@ import type { NebenkostenChartDatum } from "@/lib/data-fetching";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
 
-const COLORS = ["#34d399", "#f59e42", "#818cf8", "#f87171", "#a78bfa", "#fb923c", "#4ade80", "#fbbf24"];
+const COLORS = [
+  'var(--chart-color-1)',
+  'var(--chart-color-2)',
+  'var(--chart-color-3)',
+  'var(--chart-color-4)',
+  'var(--chart-color-5)',
+  'var(--chart-color-6)',
+  'var(--chart-color-7)',
+  'var(--chart-color-8)'
+];
+
+const EMPTY_COLOR = 'var(--chart-color-empty)';
 
 interface NebenkostenChartProps {
   nebenkostenData: NebenkostenChartDatum[];
@@ -43,6 +54,7 @@ const CustomTooltip = ({ active, payload }: TooltipProps) => {
 
 export function NebenkostenChart({ nebenkostenData }: NebenkostenChartProps) {
   const data = nebenkostenData.length > 0 ? nebenkostenData : EMPTY_STATE;
+  const colors = data === EMPTY_STATE ? [EMPTY_COLOR] : COLORS;
 
   return (
     <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
@@ -65,7 +77,10 @@ export function NebenkostenChart({ nebenkostenData }: NebenkostenChartProps) {
               paddingAngle={2}
             >
               {data.map((entry, idx) => (
-                <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                <Cell 
+                  key={`cell-${idx}`} 
+                  fill={colors[idx % colors.length]} 
+                />
               ))}
             </Pie>
             <Legend wrapperStyle={{ fontSize: 10 }} />
