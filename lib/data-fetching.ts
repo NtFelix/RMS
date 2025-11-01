@@ -74,6 +74,19 @@ export type Nebenkosten = {
   anzahlMieter?: number; // Number of tenants (calculated field)
 };
 
+export type NebenkostenChartData = {
+  year: number;
+  data: {
+    name: string;
+    value: number;
+  }[];
+};
+
+export type NebenkostenChartDatum = {
+  name: string;
+  value: number;
+};
+
 // Added as per subtask
 export interface Rechnung {
   id:string;
@@ -198,6 +211,71 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   }
 
   return data as Nebenkosten[];
+}
+
+export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
+  const supabase = createSupabaseServerClient();
+
+  // First, get the most recent year with data
+  const { data: latestYearData } = await supabase
+    .from("Nebenkosten")
+    .select("startdatum")
+    .order("startdatum", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!latestYearData?.startdatum) {
+    console.log("No Nebenkosten data found");
+    return { year: new Date().getFullYear(), data: [] };
+  }
+
+  // Extract the year from the most recent entry
+  const latestYear = new Date(latestYearData.startdatum).getFullYear();
+  const yearStart = `${latestYear}-01-01`;
+  const yearEnd = `${latestYear}-12-31`;
+
+  // Fetch only the data for the most recent year with data
+  const { data, error } = await supabase
+    .from("Nebenkosten")
+    .select("nebenkostenart, betrag, startdatum, enddatum")
+    .lte('startdatum', yearEnd)
+    .gte('enddatum', yearStart)
+    .order("startdatum", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching Nebenkosten chart data:", error);
+    return { year: latestYear, data: [] };
+  }
+
+  const categoryTotals: Record<string, number> = {};
+
+  (data as Nebenkosten[] | null)?.forEach((record) => {
+    const arten = record.nebenkostenart ?? [];
+    const betraege = record.betrag ?? [];
+
+    arten.forEach((art, index) => {
+      if (!art) {
+        return;
+      }
+
+      const amount = Number(betraege[index]);
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return;
+      }
+
+      categoryTotals[art] = (categoryTotals[art] ?? 0) + amount;
+    });
+  });
+
+  const formattedData = Object.entries(categoryTotals)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  return {
+    year: latestYear,
+    data: formattedData
+  };
 }
 
 // getHausGesamtFlaeche function removed - replaced by get_nebenkosten_with_metrics database function
