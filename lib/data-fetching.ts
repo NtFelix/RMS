@@ -258,8 +258,7 @@ export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
         return;
       }
 
-      const rawAmount = betraege[index];
-      const amount = typeof rawAmount === "number" ? rawAmount : Number(rawAmount ?? 0);
+      const amount = Number(betraege[index]);
 
       if (!Number.isFinite(amount) || amount <= 0) {
         return;
