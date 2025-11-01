@@ -260,17 +260,37 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                         data={displayData.incomeByApartment}
                         cx="50%"
                         cy="50%"
-                        labelLine={true}
+                        labelLine={false}
                         outerRadius={150}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        nameKey="name"
                       >
                         {displayData.incomeByApartment.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => `${value} €`} />
+                      <Tooltip 
+                        formatter={(value: number) => `${value} €`}
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '0.5rem',
+                          padding: '0.5rem 1rem',
+                          fontSize: '14px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                        }}
+                        itemStyle={{
+                          color: '#1a202c',
+                          padding: '4px 0',
+                          textTransform: 'capitalize'
+                        }}
+                        labelStyle={{
+                          fontWeight: 600,
+                          color: '#2d3748',
+                          marginBottom: '4px'
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -379,17 +399,37 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                         data={displayData.expenseCategories}
                         cx="50%"
                         cy="50%"
-                        labelLine={true}
+                        labelLine={false}
                         outerRadius={150}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        nameKey="name"
                       >
                         {displayData.expenseCategories.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => `${value} €`} />
+                      <Tooltip 
+                        formatter={(value: number) => `${value} €`}
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '0.5rem',
+                          padding: '0.5rem 1rem',
+                          fontSize: '14px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                        }}
+                        itemStyle={{
+                          color: '#1a202c',
+                          padding: '4px 0',
+                          textTransform: 'capitalize'
+                        }}
+                        labelStyle={{
+                          fontWeight: 600,
+                          color: '#2d3748',
+                          marginBottom: '4px'
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
