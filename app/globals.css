@@ -139,6 +139,17 @@
     /* Z-index management */
     --z-index-dropdown: 1000;
     --z-index-sticky: 1020;
+    
+    /* Chart colors */
+    --chart-color-1: #34d399;
+    --chart-color-2: #f59e42;
+    --chart-color-3: #818cf8;
+    --chart-color-4: #f87171;
+    --chart-color-5: #a78bfa;
+    --chart-color-6: #fb923c;
+    --chart-color-7: #4ade80;
+    --chart-color-8: #fbbf24;
+    --chart-color-empty: #94a3b8; /* For empty/placeholder data */
     --z-index-fixed: 1030;
     --z-index-modal-backdrop: 1040;
     --z-index-modal: 1050;

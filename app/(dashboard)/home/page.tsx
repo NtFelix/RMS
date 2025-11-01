@@ -5,15 +5,21 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { TenantPaymentBento } from "@/components/tenant-payment-bento"
-import { getDashboardSummary } from "@/lib/data-fetching"
+import { getDashboardSummary, getNebenkostenChartData } from "@/lib/data-fetching"
 import { RevenueExpensesChart } from "@/components/charts/revenue-expenses-chart"
 import { OccupancyChart } from "@/components/charts/occupancy-chart"
 import { MaintenanceDonutChart } from "@/components/charts/maintenance-donut-chart"
+import { NebenkostenChart } from "@/components/charts/nebenkosten-chart"
 import { LastTransactionsContainer } from "@/components/last-transactions-container"
 
 export default async function Dashboard() {
   // Fetch real data from database
-  const summary = await getDashboardSummary();
+  const [summary, nebenkostenData] = await Promise.all([
+    getDashboardSummary(),
+    getNebenkostenChartData()
+  ]);
+  
+  const { data: nebenkostenChartData, year: nebenkostenYear } = nebenkostenData;
   
   return (
     <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
@@ -220,7 +226,7 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        {/* Row 8: Last Transactions (left 50%) + Instandhaltung Chart (right 50%) */}
+        {/* Row 8: Last Transactions (left 50%) + Nebenkosten Chart (right 50%) */}
         <div className="col-span-1 row-span-1 md:col-span-3 md:row-span-3">
           <div className="h-[300px] md:h-full overflow-hidden">
             <LastTransactionsContainer />
@@ -228,7 +234,7 @@ export default async function Dashboard() {
         </div>
         <div className="col-span-1 row-span-1 md:col-span-3 md:row-span-3">
           <div className="h-[300px] md:h-full overflow-hidden">
-            <MaintenanceDonutChart />
+            <NebenkostenChart nebenkostenData={nebenkostenChartData} year={nebenkostenYear} />
           </div>
         </div>
       </div>
