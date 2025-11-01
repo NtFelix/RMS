@@ -208,18 +208,30 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
 export async function getNebenkostenChartData(): Promise<NebenkostenChartDatum[]> {
   const supabase = createSupabaseServerClient();
 
-  const now = new Date();
-  const oneYearAgo = new Date(now);
-  oneYearAgo.setFullYear(now.getFullYear() - 1);
+  // First, get the most recent year with data
+  const { data: latestYearData } = await supabase
+    .from("Nebenkosten")
+    .select("startdatum")
+    .order("startdatum", { ascending: false })
+    .limit(1)
+    .single();
 
-  const startDate = oneYearAgo.toISOString().split('T')[0];
-  const endDate = now.toISOString().split('T')[0];
+  if (!latestYearData?.startdatum) {
+    console.log("No Nebenkosten data found");
+    return [];
+  }
 
+  // Extract the year from the most recent entry
+  const latestYear = new Date(latestYearData.startdatum).getFullYear();
+  const yearStart = `${latestYear}-01-01`;
+  const yearEnd = `${latestYear}-12-31`;
+
+  // Fetch only the data for the most recent year with data
   const { data, error } = await supabase
     .from("Nebenkosten")
     .select("nebenkostenart, betrag, startdatum, enddatum")
-    .gte("enddatum", startDate)
-    .lte("startdatum", endDate)
+    .lte('startdatum', yearEnd)
+    .gte('enddatum', yearStart)
     .order("startdatum", { ascending: false });
 
   if (error) {
