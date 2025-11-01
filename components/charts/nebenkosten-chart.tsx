@@ -54,8 +54,9 @@ const CustomTooltip = ({ active, payload }: TooltipProps) => {
 };
 
 export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProps) {
-  const data = nebenkostenData.length > 0 ? nebenkostenData : EMPTY_STATE;
-  const colors = data === EMPTY_STATE ? [EMPTY_COLOR] : COLORS;
+  const hasData = nebenkostenData.length > 0;
+  const data = hasData ? nebenkostenData : EMPTY_STATE;
+  const colors = hasData ? COLORS : [EMPTY_COLOR];
 
   return (
     <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
@@ -87,7 +88,7 @@ export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProp
               ))}
             </Pie>
             <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Tooltip content={<CustomTooltip />} />
+            {hasData && <Tooltip content={<CustomTooltip />} />}
           </PieChart>
         </ResponsiveContainer>
       </CardContent>
