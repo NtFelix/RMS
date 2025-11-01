@@ -74,6 +74,11 @@ export type Nebenkosten = {
   anzahlMieter?: number; // Number of tenants (calculated field)
 };
 
+export type NebenkostenChartDatum = {
+  name: string;
+  value: number;
+};
+
 // Added as per subtask
 export interface Rechnung {
   id:string;
@@ -198,6 +203,55 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   }
 
   return data as Nebenkosten[];
+}
+
+export async function getNebenkostenChartData(): Promise<NebenkostenChartDatum[]> {
+  const supabase = createSupabaseServerClient();
+
+  const now = new Date();
+  const oneYearAgo = new Date(now);
+  oneYearAgo.setFullYear(now.getFullYear() - 1);
+
+  const startDate = oneYearAgo.toISOString().split('T')[0];
+  const endDate = now.toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from("Nebenkosten")
+    .select("nebenkostenart, betrag, startdatum, enddatum")
+    .gte("enddatum", startDate)
+    .lte("startdatum", endDate)
+    .order("startdatum", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching Nebenkosten chart data:", error);
+    return [];
+  }
+
+  const categoryTotals: Record<string, number> = {};
+
+  (data as Nebenkosten[] | null)?.forEach((record) => {
+    const arten = record.nebenkostenart ?? [];
+    const betraege = record.betrag ?? [];
+
+    arten.forEach((art, index) => {
+      if (!art) {
+        return;
+      }
+
+      const rawAmount = betraege[index];
+      const amount = typeof rawAmount === "number" ? rawAmount : Number(rawAmount ?? 0);
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return;
+      }
+
+      categoryTotals[art] = (categoryTotals[art] ?? 0) + amount;
+    });
+  });
+
+  return Object.entries(categoryTotals)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
 }
 
 // getHausGesamtFlaeche function removed - replaced by get_nebenkosten_with_metrics database function
