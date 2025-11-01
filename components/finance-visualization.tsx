@@ -72,6 +72,31 @@ interface FinanceVisualizationProps {
 // Farben für Pie Chart
 const COLORS = ["#2c3e50", "#34495e", "#16a34a", "#ca8a04", "#dc2626", "#2563eb"]
 
+// Custom label renderer for pie charts - positions labels outside with percentage
+const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, fill, index }: any) => {
+  const RADIAN = Math.PI / 180;
+  const radius = outerRadius + 30; // Position outside the pie
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  // Get the color for this segment
+  const segmentColor = COLORS[index % COLORS.length];
+
+  return (
+    <text 
+      x={x} 
+      y={y} 
+      fill={segmentColor}
+      textAnchor={x > cx ? 'start' : 'end'} 
+      dominantBaseline="central"
+      className="text-sm font-semibold"
+      style={{ fontSize: '14px' }}
+    >
+      {`${name} ${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+};
+
 // Helper function to check if chart data is empty
 const isChartDataEmpty = (data: ChartData): boolean => {
   return (
@@ -260,7 +285,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                         data={displayData.incomeByApartment}
                         cx="50%"
                         cy="50%"
-                        labelLine={false}
+                        labelLine={true}
+                        label={renderCustomLabel}
                         outerRadius={150}
                         fill="#8884d8"
                         dataKey="value"
@@ -271,7 +297,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                         ))}
                       </Pie>
                       <Tooltip 
-                        formatter={(value: number) => `${value} €`}
+                        formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
                         contentStyle={{
                           backgroundColor: 'white',
                           border: '1px solid #e2e8f0',
@@ -399,7 +425,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                         data={displayData.expenseCategories}
                         cx="50%"
                         cy="50%"
-                        labelLine={false}
+                        labelLine={true}
+                        label={renderCustomLabel}
                         outerRadius={150}
                         fill="#8884d8"
                         dataKey="value"
@@ -410,7 +437,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                         ))}
                       </Pie>
                       <Tooltip 
-                        formatter={(value: number) => `${value} €`}
+                        formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
                         contentStyle={{
                           backgroundColor: 'white',
                           border: '1px solid #e2e8f0',
