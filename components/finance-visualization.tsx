@@ -89,8 +89,8 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
       fill={segmentColor}
       textAnchor={x > cx ? 'start' : 'end'} 
       dominantBaseline="central"
-      className="text-sm font-semibold"
-      style={{ fontSize: '14px' }}
+      className="text-base font-semibold"
+      style={{ fontSize: '16px' }}
     >
       {`${name} ${(percent * 100).toFixed(0)}%`}
     </text>
