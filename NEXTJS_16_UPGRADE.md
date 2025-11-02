@@ -8,6 +8,7 @@ Your RMS project has been successfully upgraded to Next.js 16.0.1 with all break
 ### 1. ✅ Middleware → Proxy Migration (Breaking Change)
 - **Renamed**: `middleware.ts` → `proxy.ts`
 - **Updated**: Export function name from `middleware` to `proxy`
+- **Added**: `export const runtime = 'edge'` for Cloudflare Pages compatibility
 - **Status**: Complete - Next.js 16 deprecates the middleware naming in favor of proxy
 
 ### 2. ✅ Configuration Updates
@@ -121,10 +122,13 @@ const nextConfig = {
 - Image optimization settings remain unchanged (intentionally using 60s cache TTL)
 - TypeScript and ESLint are configured to ignore build errors (as per your existing setup)
 - Build explicitly uses `--turbopack` flag due to PostHog config wrapper adding webpack config
+- **Cloudflare Pages**: The proxy file now includes `export const runtime = 'edge'` which is required for Cloudflare Pages deployment
 
 ## Known Warnings
 
 ⚠️ **images.domains deprecation**: You may see a warning about `images.domains` being deprecated in favor of `images.remotePatterns`. This is a non-breaking warning and can be addressed later if you're using external image domains.
+
+⚠️ **Cloudflare Pages**: The deployment logs show that `@cloudflare/next-on-pages` is deprecated. Consider migrating to OpenNext adapter in the future: https://opennext.js.org/cloudflare
 
 ---
 

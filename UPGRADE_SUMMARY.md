@@ -24,6 +24,8 @@ Your RMS project has been successfully upgraded to **Next.js 16.0.1** with all b
 - middleware.ts
 + proxy.ts
 
++ export const runtime = 'edge'  // Required for Cloudflare Pages
++
 - export async function middleware(request: NextRequest)
 + export async function proxy(request: NextRequest)
 ```
