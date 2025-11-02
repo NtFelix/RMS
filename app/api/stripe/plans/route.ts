@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 
 // Define the Plan interface that will be returned by the API
 interface Plan {
@@ -24,9 +25,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-10-29.clover', // Latest Stripe API version
-  });
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
 
   try {
     const prices = await stripe.prices.list({
