@@ -8,7 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "test": "NODE_ENV=test jest",
-    "postinstall": "mkdir -p public/js && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/js/pdf.worker.min.js"
+    "postinstall": "mkdir -p public/js && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/js/pdf.worker.min.js",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "cf:dev": "wrangler dev",
+    "cf:tail": "wrangler tail"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

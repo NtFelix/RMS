@@ -6,6 +6,10 @@ const nextConfig = {
   // swcMinify is now enabled by default in Next.js 15+
   productionBrowserSourceMaps: false,
   compress: true,
+  
+  // Output configuration for Cloudflare Workers
+  output: 'standalone',
+  
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -14,15 +18,17 @@ const nextConfig = {
   },
   images: {
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 60, // Keeping 60s instead of Next.js 16 default (4 hours)
+    minimumCacheTTL: 60,
     unoptimized: false,
+    // Cloudflare Images loader (optional)
+    // loader: 'custom',
+    // loaderFile: './lib/cloudflare-image-loader.js',
   },
-  // Removed experimental flags - optimizeCss and scrollRestoration are now stable/default
   
   // Turbopack configuration (Next.js 16 default)
   turbopack: {
     resolveAlias: {
-      // Stub 'ws' module for Turbopack (equivalent to webpack config below)
+      // Stub 'ws' module for Turbopack
       ws: false,
     },
   },

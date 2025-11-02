@@ -2,9 +2,6 @@ import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
 import { createServerClient } from "@supabase/ssr"
 
-// Required for Cloudflare Pages deployment
-export const runtime = 'edge'
-
 export async function proxy(request: NextRequest) {
   // Initialize response
   let response = NextResponse.next({

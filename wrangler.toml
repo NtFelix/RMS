@@ -1,0 +1,90 @@
+# Wrangler configuration for Mietfluss (RMS) on Cloudflare Workers/Pages
+# Documentation: https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "mietfluss"
+compatibility_date = "2024-11-02"
+compatibility_flags = ["nodejs_compat"]
+
+# Pages configuration
+pages_build_output_dir = ".vercel/output/static"
+
+# Account details (set via environment or CLI)
+# account_id = "your-account-id"  # Set via wrangler login or CLOUDFLARE_ACCOUNT_ID env var
+
+# Main worker configuration
+main = ".worker-next/index.mjs"
+
+# Node.js compatibility for Next.js
+node_compat = true
+
+# Build configuration
+[build]
+command = "npm run build"
+
+# Environment variables (non-sensitive)
+[vars]
+NODE_ENV = "production"
+
+# KV Namespaces (if needed for caching)
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "your-kv-namespace-id"
+
+# D1 Database (if migrating from Supabase)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "mietfluss-db"
+# database_id = "your-d1-database-id"
+
+# R2 Buckets (for file storage)
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "mietfluss-files"
+
+# Durable Objects (for real-time features)
+# [[durable_objects.bindings]]
+# name = "REALTIME"
+# class_name = "RealtimeObject"
+
+# Service bindings
+# [[services]]
+# binding = "API"
+# service = "mietfluss-api"
+
+# Routes configuration
+[env.production]
+name = "mietfluss"
+routes = [
+  { pattern = "mietfluss.com", zone_name = "mietfluss.com" },
+  { pattern = "www.mietfluss.com", zone_name = "mietfluss.com" }
+]
+
+[env.staging]
+name = "mietfluss-staging"
+routes = [
+  { pattern = "staging.mietfluss.com", zone_name = "mietfluss.com" }
+]
+
+[env.development]
+name = "mietfluss-dev"
+
+# Limits and performance
+[limits]
+cpu_ms = 50  # CPU time limit per request (50ms default)
+
+# Observability
+[observability]
+enabled = true
+
+# Tail consumers for logging
+# [[tail_consumers]]
+# service = "mietfluss-logger"
+
+# Triggers (cron jobs)
+# [triggers]
+# crons = ["0 0 * * *"]  # Daily at midnight
+
+# Unsafe bindings (use with caution)
+# [unsafe]
+# bindings = [
+#   { name = "C
