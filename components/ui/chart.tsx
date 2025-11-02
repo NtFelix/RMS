@@ -100,19 +100,44 @@ ${colorConfig
   )
 }
 
+// Types for Tooltip payload items
+export interface TooltipPayloadItem<T = any> {
+  name: string
+  value: number | string
+  payload: T
+  color: string
+  dataKey: string | number
+  fill: string
+  stroke: string
+  strokeWidth: number
+  type?: string
+  formatter?: (value: any, name: any, item: any) => React.ReactNode
+}
+
+export interface ChartTooltipContentProps extends Omit<React.ComponentProps<"div">, 'payload'> {
+  active?: boolean
+  payload?: TooltipPayloadItem[]
+  label?: string | number
+  hideLabel?: boolean
+  hideIndicator?: boolean
+  indicator?: "line" | "dot" | "dashed"
+  nameKey?: string
+  labelKey?: string
+  labelFormatter?: (label: string | number, payload: TooltipPayloadItem) => React.ReactNode
+  labelClassName?: string
+  formatter?: (
+    value: any,
+    name: string | number,
+    item: TooltipPayloadItem,
+    index: number,
+    payload: TooltipPayloadItem[]
+  ) => React.ReactNode
+  color?: string
+}
+
 const ChartTooltip = RechartsPrimitive.Tooltip
 
-const ChartTooltipContent = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-    React.ComponentProps<"div"> & {
-      hideLabel?: boolean
-      hideIndicator?: boolean
-      indicator?: "line" | "dot" | "dashed"
-      nameKey?: string
-      labelKey?: string
-    }
->(
+const ChartTooltipContent = React.forwardRef<HTMLDivElement, ChartTooltipContentProps>(
   (
     {
       active,
@@ -126,47 +151,48 @@ const ChartTooltipContent = React.forwardRef<
       labelClassName,
       formatter,
       color,
-      nameKey,
-      labelKey,
+      nameKey = "name",
+      labelKey = "value",
+      ...rest
     },
     ref
   ) => {
     const { config } = useChart()
 
-    const tooltipLabel = React.useMemo(() => {
+    const tooltipLabel = React.useMemo<React.ReactNode>(() => {
       if (hideLabel || !payload?.length) {
         return null
       }
 
-      const [item] = payload
-      const key = `${labelKey || item.dataKey || item.name || "value"}`
-      const itemConfig = getPayloadConfigFromPayload(config, item, key)
-      const value =
-        !labelKey && typeof label === "string"
-          ? config[label as keyof typeof config]?.label || label
-          : itemConfig?.label
+      if (labelFormatter && payload[0]) {
+        return labelFormatter(label || '', payload[0])
+      }
 
-      if (labelFormatter) {
+      if (label !== undefined && label !== null) {
         return (
           <div className={cn("font-medium", labelClassName)}>
-            {labelFormatter(value, payload)}
+            {label}
           </div>
         )
       }
 
-      if (!value) {
-        return null
+      const value = payload[0]?.[nameKey as keyof TooltipPayloadItem]
+      if (value) {
+        return (
+          <div className={cn("font-medium", labelClassName)}>
+            {String(value)}
+          </div>
+        )
       }
 
-      return <div className={cn("font-medium", labelClassName)}>{value}</div>
+      return null
     }, [
-      label,
-      labelFormatter,
-      payload,
       hideLabel,
+      payload,
+      labelFormatter,
+      label,
       labelClassName,
-      config,
-      labelKey,
+      nameKey
     ])
 
     if (!active || !payload?.length) {
@@ -260,11 +286,12 @@ const ChartLegend = RechartsPrimitive.Legend
 
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
-      hideIcon?: boolean
-      nameKey?: string
-    }
+  React.ComponentProps<"div"> & {
+    payload?: LegendPayloadItem[]
+    verticalAlign?: "top" | "bottom"
+    hideIcon?: boolean
+    nameKey?: string
+  }
 >(
   (
     { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey },
@@ -315,6 +342,20 @@ const ChartLegendContent = React.forwardRef<
   }
 )
 ChartLegendContent.displayName = "ChartLegend"
+
+// Interface for legend payload items
+export interface LegendPayloadItem {
+  value: string | number
+  id: string
+  type?: string
+  valueFormatter?: (value: any, payload: any, i: number) => any
+  color?: string
+  fill?: string
+  stroke?: string
+  dataKey?: string | number
+  name?: string
+  [key: string]: any
+}
 
 // Helper to extract item config from a payload.
 function getPayloadConfigFromPayload(
