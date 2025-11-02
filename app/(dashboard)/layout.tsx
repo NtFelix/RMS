@@ -1,46 +1,44 @@
 "use client" // Make this a client component
 import type React from "react"
+import dynamic from "next/dynamic"
 import { AuthProvider } from "@/components/auth-provider"
 import { CommandMenu } from "@/components/command-menu"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { useModalStore } from "@/hooks/use-modal-store" // Added
-import { TenantEditModal } from "@/components/tenant-edit-modal" // Added
 // Importing server action from its new location
 import { handleSubmit as tenantServerAction } from "@/app/mieter-actions" // Adjusted import path
-import { HouseEditModal } from "@/components/house-edit-modal" // Added
 import { handleSubmit as houseServerAction } from "@/app/(dashboard)/haeuser/actions" // Added
-import { FinanceEditModal } from "@/components/finance-edit-modal" // Added
 import { financeServerAction } from "@/app/finanzen-actions" // Added - Adjusted path due to tool limitation
-import { WohnungEditModal } from "@/components/wohnung-edit-modal" // Added
 import { wohnungServerAction } from "@/app/wohnungen-actions" // Added - Adjusted path
-import { AufgabeEditModal } from "@/components/aufgabe-edit-modal" // Added
 import { aufgabeServerAction } from "@/app/todos-actions" // Added
-import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal"; // Added
-import { WasserzaehlerModal } from "@/components/wasserzaehler-modal"; // Added
-import { KautionModal } from "@/components/kaution-modal"; // Added
 import { updateKautionAction } from "@/app/mieter-actions"; // Added
-// Assuming betriebskosten-actions.ts exports server actions, adjust if needed
-// For now, let's assume no specific serverAction prop is needed for BetriebskostenEditModal
-// as it seemed to handle its actions internally or via imported functions.
-// We will check this during integration.
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
-import { HausOverviewModal } from "@/components/haus-overview-modal"; // Added
-import { WohnungOverviewModal } from "@/components/wohnung-overview-modal"; // Added
-import { ApartmentTenantDetailsModal } from "@/components/apartment-tenant-details-modal"; // Added
-import { FileUploadModal } from "@/components/file-upload-modal"; // Added
-import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
-import { FileRenameModal } from "@/components/file-rename-modal"; // Added
-import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
-import { CreateFileModal } from "@/components/create-file-modal"; // Added
-import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confirmation-modal"; // Added
-import { FileMoveModal } from "@/components/file-move-modal"; // Added
-import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
-import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
-import { TemplatesModal } from "@/components/templates-modal"; // Added
-import { TenantMailTemplatesModal } from "@/components/tenant-mail-templates-modal"; // Added
-import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
-import { AIAssistantModal } from "@/components/ai-assistant-modal"; // Added
+
+// Dynamic imports for modals (loaded only when needed)
+const TenantEditModal = dynamic(() => import("@/components/tenant-edit-modal").then(mod => ({ default: mod.TenantEditModal })), { ssr: false })
+const HouseEditModal = dynamic(() => import("@/components/house-edit-modal").then(mod => ({ default: mod.HouseEditModal })), { ssr: false })
+const FinanceEditModal = dynamic(() => import("@/components/finance-edit-modal").then(mod => ({ default: mod.FinanceEditModal })), { ssr: false })
+const WohnungEditModal = dynamic(() => import("@/components/wohnung-edit-modal").then(mod => ({ default: mod.WohnungEditModal })), { ssr: false })
+const AufgabeEditModal = dynamic(() => import("@/components/aufgabe-edit-modal").then(mod => ({ default: mod.AufgabeEditModal })), { ssr: false })
+const BetriebskostenEditModal = dynamic(() => import("@/components/betriebskosten-edit-modal").then(mod => ({ default: mod.BetriebskostenEditModal })), { ssr: false })
+const WasserzaehlerModal = dynamic(() => import("@/components/wasserzaehler-modal").then(mod => ({ default: mod.WasserzaehlerModal })), { ssr: false })
+const KautionModal = dynamic(() => import("@/components/kaution-modal").then(mod => ({ default: mod.KautionModal })), { ssr: false })
+const ConfirmationDialog = dynamic(() => import("@/components/ui/confirmation-dialog").then(mod => ({ default: mod.ConfirmationDialog })), { ssr: false })
+const HausOverviewModal = dynamic(() => import("@/components/haus-overview-modal").then(mod => ({ default: mod.HausOverviewModal })), { ssr: false })
+const WohnungOverviewModal = dynamic(() => import("@/components/wohnung-overview-modal").then(mod => ({ default: mod.WohnungOverviewModal })), { ssr: false })
+const ApartmentTenantDetailsModal = dynamic(() => import("@/components/apartment-tenant-details-modal").then(mod => ({ default: mod.ApartmentTenantDetailsModal })), { ssr: false })
+const FileUploadModal = dynamic(() => import("@/components/file-upload-modal").then(mod => ({ default: mod.FileUploadModal })), { ssr: false })
+const FilePreviewModal = dynamic(() => import("@/components/file-preview-modal").then(mod => ({ default: mod.FilePreviewModal })), { ssr: false })
+const FileRenameModal = dynamic(() => import("@/components/file-rename-modal").then(mod => ({ default: mod.FileRenameModal })), { ssr: false })
+const CreateFolderModal = dynamic(() => import("@/components/create-folder-modal").then(mod => ({ default: mod.CreateFolderModal })), { ssr: false })
+const CreateFileModal = dynamic(() => import("@/components/create-file-modal").then(mod => ({ default: mod.CreateFileModal })), { ssr: false })
+const FolderDeleteConfirmationModal = dynamic(() => import("@/components/folder-delete-confirmation-modal").then(mod => ({ default: mod.FolderDeleteConfirmationModal })), { ssr: false })
+const FileMoveModal = dynamic(() => import("@/components/file-move-modal").then(mod => ({ default: mod.FileMoveModal })), { ssr: false })
+const ShareDocumentModal = dynamic(() => import("@/components/share-document-modal").then(mod => ({ default: mod.ShareDocumentModal })), { ssr: false })
+const MarkdownEditorModal = dynamic(() => import("@/components/markdown-editor-modal").then(mod => ({ default: mod.MarkdownEditorModal })), { ssr: false })
+const TemplatesModal = dynamic(() => import("@/components/templates-modal").then(mod => ({ default: mod.TemplatesModal })), { ssr: false })
+const TenantMailTemplatesModal = dynamic(() => import("@/components/tenant-mail-templates-modal").then(mod => ({ default: mod.TenantMailTemplatesModal })), { ssr: false })
+const AIAssistantModal = dynamic(() => import("@/components/ai-assistant-modal").then(mod => ({ default: mod.AIAssistantModal })), { ssr: false })
 
 export default function DashboardRootLayout({
   children,
