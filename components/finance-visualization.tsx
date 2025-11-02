@@ -73,6 +73,28 @@ interface FinanceVisualizationProps {
 // Farben für Pie Chart
 const COLORS = ["#2c3e50", "#34495e", "#16a34a", "#ca8a04", "#dc2626", "#2563eb"]
 
+// Shared Tooltip styles
+const chartTooltipStyles = {
+  contentStyle: {
+    backgroundColor: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '0.5rem',
+    padding: '0.5rem 1rem',
+    fontSize: '14px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+  },
+  itemStyle: {
+    color: '#1a202c',
+    padding: '4px 0',
+    textTransform: 'capitalize' as const
+  },
+  labelStyle: {
+    fontWeight: 600,
+    color: '#2d3748',
+    marginBottom: '4px'
+  }
+}
+
 // Custom label renderer for pie charts - positions labels outside with percentage
 const renderCustomLabel = (props: PieLabelRenderProps) => {
   // Type assertion for the props we need
@@ -308,24 +330,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                       </Pie>
                       <Tooltip 
                         formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '0.5rem',
-                          padding: '0.5rem 1rem',
-                          fontSize: '14px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-                        }}
-                        itemStyle={{
-                          color: '#1a202c',
-                          padding: '4px 0',
-                          textTransform: 'capitalize'
-                        }}
-                        labelStyle={{
-                          fontWeight: 600,
-                          color: '#2d3748',
-                          marginBottom: '4px'
-                        }}
+                        {...chartTooltipStyles}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -448,24 +453,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                       </Pie>
                       <Tooltip 
                         formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '0.5rem',
-                          padding: '0.5rem 1rem',
-                          fontSize: '14px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-                        }}
-                        itemStyle={{
-                          color: '#1a202c',
-                          padding: '4px 0',
-                          textTransform: 'capitalize'
-                        }}
-                        labelStyle={{
-                          fontWeight: 600,
-                          color: '#2d3748',
-                          marginBottom: '4px'
-                        }}
+                        {...chartTooltipStyles}
                       />
                     </PieChart>
                   </ResponsiveContainer>
