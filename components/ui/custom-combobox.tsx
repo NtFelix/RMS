@@ -448,7 +448,7 @@ export function CustomCombobox({
             aria-label="Options"
             className={cn(
               isInModal ? "absolute" : "fixed",
-              "bg-popover border border-border rounded-2xl shadow-xl p-0 pointer-events-auto backdrop-blur-sm",
+              "bg-popover border border-border rounded-2xl shadow-xl p-2 pointer-events-auto backdrop-blur-sm",
               width
             )}
             style={{
@@ -472,9 +472,9 @@ export function CustomCombobox({
               e.stopPropagation()
             }}
           >
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-2">
             {/* Custom search input with aggressive focus management */}
-            <div className="flex items-center border-b px-3 py-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-popover px-2">
               <input
                 ref={inputRef}
                 type="text"
@@ -510,7 +510,7 @@ export function CustomCombobox({
                 onClick={(e) => {
                   e.stopPropagation()
                 }}
-                className="flex h-8 w-full rounded-lg bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-9 w-full rounded-md bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
@@ -523,7 +523,7 @@ export function CustomCombobox({
             {/* Custom options list with proper scrolling */}
             <div 
               data-scroll-area=""
-              className="max-h-[300px] overflow-y-auto p-2"
+              className="flex max-h-[300px] flex-col gap-2 overflow-y-auto"
               style={{ 
                 pointerEvents: 'auto',
                 overscrollBehavior: 'contain',
@@ -546,7 +546,7 @@ export function CustomCombobox({
             >
               {filteredOptions.length === 0 ? (
                 <div 
-                  className="py-6 text-center text-sm text-muted-foreground"
+                  className="rounded-lg px-4 py-6 text-center text-sm text-muted-foreground"
                   role="option"
                   aria-disabled="true"
                 >
@@ -563,7 +563,7 @@ export function CustomCombobox({
                     aria-selected={value === option.value}
                     aria-disabled={option.disabled}
                     className={cn(
-                      "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 my-0.5 text-sm outline-none transition-colors",
+                      "relative flex w-full cursor-default select-none items-center gap-2 rounded-lg p-2 text-sm outline-none transition-all duration-150",
                       option.disabled
                         ? "pointer-events-none opacity-50"
                         : [

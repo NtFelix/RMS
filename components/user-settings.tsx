@@ -126,7 +126,10 @@ export function UserSettings() {
           <span>Einstellungen</span>
         </CustomDropdownItem>
         <CustomDropdownSeparator />
-        <CustomDropdownItem onClick={handleLogout} disabled={isLoadingLogout}>
+        <CustomDropdownItem 
+          onClick={handleLogout} 
+          disabled={isLoadingLogout}
+        >
           <LogOut className="mr-2 h-4 w-4" />
           <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
         </CustomDropdownItem>
