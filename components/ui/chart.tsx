@@ -287,7 +287,7 @@ const ChartLegend = RechartsPrimitive.Legend
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
-    payload?: any[]
+    payload?: LegendPayloadItem[]
     verticalAlign?: "top" | "bottom"
     hideIcon?: boolean
     nameKey?: string
@@ -342,6 +342,20 @@ const ChartLegendContent = React.forwardRef<
   }
 )
 ChartLegendContent.displayName = "ChartLegend"
+
+// Interface for legend payload items
+export interface LegendPayloadItem {
+  value: string | number
+  id: string
+  type?: string
+  valueFormatter?: (value: any, payload: any, i: number) => any
+  color?: string
+  fill?: string
+  stroke?: string
+  dataKey?: string | number
+  name?: string
+  [key: string]: any
+}
 
 // Helper to extract item config from a payload.
 function getPayloadConfigFromPayload(
