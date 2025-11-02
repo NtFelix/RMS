@@ -3,7 +3,7 @@ import { updateSession } from "@/utils/supabase/middleware"
 import { createServerClient } from "@supabase/ssr"
 
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Initialize response
   let response = NextResponse.next({
     request: {
