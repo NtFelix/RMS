@@ -7,6 +7,7 @@ import {
   BarChart,
   Pie,
   PieChart,
+  PieLabelRenderProps,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -73,7 +74,16 @@ interface FinanceVisualizationProps {
 const COLORS = ["#2c3e50", "#34495e", "#16a34a", "#ca8a04", "#dc2626", "#2563eb"]
 
 // Custom label renderer for pie charts - positions labels outside with percentage
-const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, fill, index }: any) => {
+const renderCustomLabel = (props: PieLabelRenderProps) => {
+  // Type assertion for the props we need
+  const cx = (props as any).cx as number || 0;
+  const cy = (props as any).cy as number || 0;
+  const midAngle = (props as any).midAngle as number || 0;
+  const innerRadius = (props as any).innerRadius as number || 0;
+  const outerRadius = (props as any).outerRadius as number || 0;
+  const percent = (props as any).percent as number || 0;
+  const name = (props as any).name as string || '';
+  const index = (props as any).index as number || 0;
   const RADIAN = Math.PI / 180;
   const radius = outerRadius + 30; // Position outside the pie
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
