@@ -474,7 +474,7 @@ export function CustomCombobox({
           >
           <div className="flex flex-col gap-2">
             {/* Custom search input with aggressive focus management */}
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-popover px-3 py-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-popover px-2">
               <input
                 ref={inputRef}
                 type="text"
@@ -510,7 +510,7 @@ export function CustomCombobox({
                 onClick={(e) => {
                   e.stopPropagation()
                 }}
-                className="flex h-8 w-full rounded-lg bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-9 w-full rounded-md bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
