@@ -13,16 +13,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { toast } from "@/hooks/use-toast"
-import { Loader2, Plus, Trash2, Edit2, X, Check } from "lucide-react"
+import { Loader2, Plus, Trash2, Edit2, X, Check, CircleGauge, Calendar } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -250,15 +244,15 @@ export function WasserZaehlerModal() {
   return (
     <>
       <Dialog open={isWasserZaehlerModalOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Wasserzähler verwalten</DialogTitle>
             <DialogDescription>
-              Wasserzähler für Wohnung: {wasserZaehlerModalData?.wohnungName}
+              Wasserzähler für Wohnung: <span className="font-medium">{wasserZaehlerModalData?.wohnungName}</span>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 overflow-y-auto flex-1">
             {/* Add new Wasserzähler */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Neuen Wasserzähler hinzufügen</Label>
@@ -306,113 +300,151 @@ export function WasserZaehlerModal() {
             </div>
 
             {/* List of existing Wasserzähler */}
-            <div className="border rounded-lg">
+            <div className="space-y-3">
               {isLoading ? (
                 <div className="flex items-center justify-center p-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : zaehlerList.length === 0 ? (
-                <div className="text-center p-8 text-muted-foreground">
-                  Keine Wasserzähler vorhanden
-                </div>
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                    <CircleGauge className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      Keine Wasserzähler vorhanden
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Fügen Sie oben einen neuen Wasserzähler hinzu
+                    </p>
+                  </CardContent>
+                </Card>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Zähler-ID</TableHead>
-                      <TableHead>Eichungsdatum</TableHead>
-                      <TableHead>Erstellungsdatum</TableHead>
-                      <TableHead className="w-[100px] text-right">Aktionen</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {zaehlerList.map((zaehler) => (
-                      <TableRow key={zaehler.id}>
-                        <TableCell>
-                          {editingId === zaehler.id ? (
-                            <Input
-                              value={editCustomId}
-                              onChange={(e) => setEditCustomId(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  handleUpdateZaehler(zaehler.id)
-                                } else if (e.key === "Escape") {
-                                  cancelEdit()
-                                }
-                              }}
-                              disabled={isSaving}
-                              placeholder="Zähler-ID"
-                              autoFocus
-                            />
-                          ) : (
-                            <span>{zaehler.custom_id || "-"}</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {editingId === zaehler.id ? (
-                            <Input
-                              type="date"
-                              value={editEichungsdatum}
-                              onChange={(e) => setEditEichungsdatum(e.target.value)}
-                              disabled={isSaving}
-                              placeholder="Eichungsdatum"
-                            />
-                          ) : (
-                            <span className="text-muted-foreground">{formatDate(zaehler.eichungsdatum)}</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-muted-foreground">{formatDate(zaehler.erstellungsdatum)}</span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {editingId === zaehler.id ? (
-                            <div className="flex gap-1 justify-end">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleUpdateZaehler(zaehler.id)}
-                                disabled={!editCustomId.trim() || isSaving}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={cancelEdit}
-                                disabled={isSaving}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
+                <div className="grid gap-3">
+                  {zaehlerList.map((zaehler) => (
+                    <Card key={zaehler.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        {editingId === zaehler.id ? (
+                          // Edit Mode
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 mt-1">
+                                <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                  <CircleGauge className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                              </div>
+                              <div className="flex-1 space-y-3">
+                                <div>
+                                  <Label htmlFor={`edit-custom-id-${zaehler.id}`} className="text-xs text-muted-foreground">
+                                    Zähler-ID
+                                  </Label>
+                                  <Input
+                                    id={`edit-custom-id-${zaehler.id}`}
+                                    value={editCustomId}
+                                    onChange={(e) => setEditCustomId(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        handleUpdateZaehler(zaehler.id)
+                                      } else if (e.key === "Escape") {
+                                        cancelEdit()
+                                      }
+                                    }}
+                                    disabled={isSaving}
+                                    placeholder="Zähler-ID"
+                                    autoFocus
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor={`edit-eichungsdatum-${zaehler.id}`} className="text-xs text-muted-foreground">
+                                    Eichungsdatum
+                                  </Label>
+                                  <Input
+                                    id={`edit-eichungsdatum-${zaehler.id}`}
+                                    type="date"
+                                    value={editEichungsdatum}
+                                    onChange={(e) => setEditEichungsdatum(e.target.value)}
+                                    disabled={isSaving}
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateZaehler(zaehler.id)}
+                                    disabled={!editCustomId.trim() || isSaving}
+                                    className="flex-1"
+                                  >
+                                    <Check className="h-4 w-4 mr-2" />
+                                    Speichern
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={cancelEdit}
+                                    disabled={isSaving}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
-                          ) : (
-                            <div className="flex gap-1 justify-end">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => startEdit(zaehler)}
-                                disabled={isSaving}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setZaehlerToDelete(zaehler.id)
-                                  setDeleteDialogOpen(true)
-                                }}
-                                disabled={isSaving}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                          </div>
+                        ) : (
+                          // View Mode
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0">
+                              <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                <CircleGauge className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                              </div>
                             </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-base truncate">
+                                    {zaehler.custom_id || "Unbenannt"}
+                                  </h4>
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {zaehler.eichungsdatum && (
+                                      <Badge variant="secondary" className="text-xs font-normal">
+                                        <Calendar className="h-3 w-3 mr-1" />
+                                        Eichung: {formatDate(zaehler.eichungsdatum)}
+                                      </Badge>
+                                    )}
+                                    <Badge variant="outline" className="text-xs font-normal">
+                                      Erstellt: {formatDate(zaehler.erstellungsdatum)}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <div className="flex gap-1 flex-shrink-0">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => startEdit(zaehler)}
+                                    disabled={isSaving}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setZaehlerToDelete(zaehler.id)
+                                      setDeleteDialogOpen(true)
+                                    }}
+                                    disabled={isSaving}
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
             </div>
           </div>
