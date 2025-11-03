@@ -17,6 +17,7 @@ import { AufgabeEditModal } from "@/components/aufgabe-edit-modal" // Added
 import { aufgabeServerAction } from "@/app/todos-actions" // Added
 import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal"; // Added
 import { WasserzaehlerModal } from "@/components/wasserzaehler-modal"; // Added
+import { WasserZaehlerModal } from "@/components/wasser-zaehler-modal"; // Added for Wasser_Zaehler table
 import { KautionModal } from "@/components/kaution-modal"; // Added
 import { updateKautionAction } from "@/app/mieter-actions"; // Added
 // Assuming betriebskosten-actions.ts exports server actions, adjust if needed
@@ -156,6 +157,8 @@ export default function DashboardRootLayout({
       <BetriebskostenEditModal />
       {/* WasserzaehlerModal - Handles its own state via modal store */}
       <WasserzaehlerModal />
+      {/* WasserZaehlerModal - Manages Wasser_Zaehler entries for apartments */}
+      <WasserZaehlerModal />
       {/* KautionModal - Handles kaution management */}
       <KautionModal serverAction={updateKautionAction} />
       {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
