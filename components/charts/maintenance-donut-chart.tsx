@@ -147,7 +147,7 @@ export function MaintenanceDonutChart() {
   };
 
   return (
-    <Card className="h-full flex flex-col rounded-xl">
+    <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
       <CardHeader className="flex-shrink-0 pb-2">
         <CardTitle className="text-lg">Ausgaben nach Kategorie</CardTitle>
         <CardDescription>Verteilung der Betriebskosten</CardDescription>

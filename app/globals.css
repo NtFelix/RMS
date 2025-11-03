@@ -139,6 +139,17 @@
     /* Z-index management */
     --z-index-dropdown: 1000;
     --z-index-sticky: 1020;
+    
+    /* Chart colors */
+    --chart-color-1: #34d399;
+    --chart-color-2: #f59e42;
+    --chart-color-3: #818cf8;
+    --chart-color-4: #f87171;
+    --chart-color-5: #a78bfa;
+    --chart-color-6: #fb923c;
+    --chart-color-7: #4ade80;
+    --chart-color-8: #fbbf24;
+    --chart-color-empty: #94a3b8; /* For empty/placeholder data */
     --z-index-fixed: 1030;
     --z-index-modal-backdrop: 1040;
     --z-index-modal: 1050;
@@ -162,6 +173,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
     --primary: 210 29% 24%; /* #2c3e50 */
+    --primary-rgb: 44, 62, 80; /* RGB equivalent of #2c3e50 */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 29% 29%; /* #34495e */
     --secondary-foreground: 210 40% 98%;
@@ -193,6 +205,7 @@
     --popover: 210 11% 13.7%; /* #22272e - bg-elevated */
     --popover-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
     --primary: 220 39% 25%; /* #2D4A6B - darker blue primary for hover states */
+    --primary-rgb: 45, 74, 107; /* RGB equivalent of #2D4A6B */
     --primary-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
     --secondary: 215 14% 16%; /* #23272a - bg-secondary (original) */
     --secondary-foreground: 214 15% 76%; /* #BFC8D9 - text-secondary */

@@ -4,14 +4,13 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard, Folder } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard, Folder, Mail } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SimpleScrollArea } from "@/components/ui/simple-scroll-area"
 import { UserSettings } from "@/components/user-settings"
-import { createClient } from "@/utils/supabase/client"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 
@@ -57,14 +56,26 @@ const sidebarNavItems = [
     href: "/dateien",
     icon: Folder,
   },
+  {
+    title: "E-Mails",
+    href: "/mails",
+    icon: Mail,
+  },
 ]
 
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
-  // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
+  // User email handling is managed by the UserSettings component
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
+  const mailsEnabled = useFeatureFlagEnabled('mails-tab')
+  
+  // Feature flags for navigation items
+  const featureFlags = new Map([
+    ['/dateien', documentsEnabled],
+    ['/mails', mailsEnabled],
+  ]);
 
   return (
     <>
@@ -110,33 +121,30 @@ export function DashboardSidebar() {
           {/* Navigation section - takes remaining space */}
           <div className="pt-4 pb-4 overflow-y-auto min-h-0">
             <nav className="grid gap-1 px-2 pr-4">
-              {sidebarNavItems.map((item) => {
-                const isActive = isRouteActive(item.href)
-                const isDocuments = item.href === '/dateien'
-                const hidden = isDocuments && !documentsEnabled
-                
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      "group flex items-center gap-3 rounded-lg px-3 py-2 mr-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20",
-                      getActiveStateClasses(item.href),
-                      hidden && "invisible pointer-events-none",
-                    )}
-                    data-active={isActive}
-                    aria-current={isActive ? "page" : undefined}
-                    aria-hidden={hidden || undefined}
-                    tabIndex={hidden ? -1 : undefined}
-                  >
-                    <item.icon className="h-4 w-4 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
-                    <span className="transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
-                      {item.title}
-                    </span>
-                  </Link>
-                )
-              })}
+              {sidebarNavItems
+                .filter(item => !featureFlags.has(item.href) || featureFlags.get(item.href))
+                .map((item) => {
+                  const isActive = isRouteActive(item.href);
+                  
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className={cn(
+                        "group flex items-center gap-3 rounded-lg px-3 py-2 mr-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20",
+                        getActiveStateClasses(item.href)
+                      )}
+                      data-active={isActive}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <item.icon className="h-4 w-4 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                      <span className="transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
+                        {item.title}
+                      </span>
+                    </Link>
+                  )
+                })}
             </nav>
           </div>
           

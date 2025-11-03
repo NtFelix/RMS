@@ -33,6 +33,17 @@ const createMockDirectoryContents = (path: string): DirectoryContents => ({
 
 describe('DirectoryCacheManager', () => {
   let cache: DirectoryCacheManager
+  
+  // Suppress expected warning logs in tests
+  let consoleWarnSpy: jest.SpyInstance;
+  
+  beforeAll(() => {
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+  });
+  
+  afterAll(() => {
+    consoleWarnSpy.mockRestore();
+  });
 
   beforeEach(() => {
     cache = new DirectoryCacheManager({

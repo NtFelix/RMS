@@ -4,10 +4,16 @@ import { useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { PlusCircle, Users, BadgeCheck, Euro } from "lucide-react";
+import { PlusCircle, Users, BadgeCheck, Euro, Search } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
-import { TenantFilters } from "@/components/tenant-filters";
 import { TenantTable } from "@/components/tenant-table";
+import { TenantBulkActionBar } from "@/components/tenant-bulk-action-bar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { deleteTenantAction } from "@/app/mieter-actions";
+import { toast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 
 import type { Tenant } from "@/types/Tenant";
@@ -36,8 +42,12 @@ export default function MieterClientView({
   initialWohnungen,
   serverAction,
 }: MieterClientViewProps) {
+  const router = useRouter()
   const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const { openTenantModal } = useModalStore();
 
   // Summary calculation for StatCards
@@ -105,18 +115,124 @@ export default function MieterClientView({
     }
   }, [initialTenants, initialWohnungen, openTenantModal]);
 
+  // Wohnungen map for bulk actions
+  const wohnungsMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    initialWohnungen?.forEach(w => { map[w.id] = w.name })
+    return map
+  }, [initialWohnungen])
+
+  // Helper function to properly escape CSV values
+  const escapeCsvValue = useCallback((value: string | null | undefined): string => {
+    if (!value) return ''
+    const stringValue = String(value)
+    // If the value contains comma, quote, or newline, wrap it in quotes and escape internal quotes
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+      return `"${stringValue.replace(/"/g, '""')}"`
+    }
+    return stringValue
+  }, [])
+
+  const handleBulkExport = useCallback(() => {
+    const selectedTenantsData = initialTenants.filter(t => selectedTenants.has(t.id))
+    
+    // Create CSV header
+    const headers = ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug']
+    const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
+    
+    // Create CSV rows with proper escaping
+    const csvRows = selectedTenantsData.map(t => {
+      const row = [
+        t.name,
+        t.email || '',
+        t.telefonnummer || '',
+        t.wohnung_id ? wohnungsMap[t.wohnung_id] || '' : '',
+        t.einzug || '',
+        t.auszug || ''
+      ]
+      return row.map(value => escapeCsvValue(value)).join(',')
+    })
+    
+    const csvContent = [csvHeader, ...csvRows].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `mieter_export_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+
+    toast({
+      title: "Export erfolgreich",
+      description: `${selectedTenants.size} Mieter exportiert.`,
+      variant: "success",
+    })
+  }, [selectedTenants, initialTenants, wohnungsMap, escapeCsvValue])
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedTenants.size === 0) {
+      toast({
+        title: "Keine Mieter ausgewählt",
+        description: "Bitte wählen Sie mindestens einen Mieter zum Löschen aus.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsBulkDeleting(true)
+
+    try {
+      const response = await fetch('/api/mieter/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ids: Array.from(selectedTenants)
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Fehler beim Löschen der Mieter')
+      }
+
+      setShowBulkDeleteConfirm(false)
+      setSelectedTenants(new Set())
+
+      toast({
+        title: "Erfolg",
+        description: `${result.successCount} Mieter erfolgreich gelöscht.`,
+        variant: "success",
+      })
+
+      router.refresh()
+    } catch (error) {
+      console.error('Bulk delete error:', error)
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Fehler beim Löschen der Mieter",
+        variant: "destructive",
+      })
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }, [selectedTenants, router]);
+
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div className="flex flex-wrap gap-4">
         <StatCard
           title="Mieter gesamt"
           value={summary.total}
           icon={<Users className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
         <StatCard
           title="Aktiv / Ehemalig"
           value={`${summary.activeCount} / ${summary.formerCount}`}
           icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
         <StatCard
           title="Ø Nebenkosten"
@@ -124,30 +240,90 @@ export default function MieterClientView({
           unit="€"
           decimals
           icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
       </div>
-      <Card className="overflow-hidden rounded-2xl shadow-md">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-center justify-between">
-            <CardTitle>Mieterverwaltung</CardTitle>
-            <AddTenantButton onAdd={handleAddTenant} />
+          <div className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Mieterverwaltung</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Mieter</p>
+            </div>
+            <div className="mt-1">
+              <AddTenantButton onAdd={handleAddTenant} />
+            </div>
           </div>
         </CardHeader>
+        <div className="px-6">
+          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+        </div>
         <CardContent className="flex flex-col gap-6">
-          <TenantFilters 
-            activeFilter={filter}
-            onFilterChange={setFilter}
-            onSearchChange={setSearchQuery}
-          />
+          <div className="flex flex-col gap-4 mt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "current" as const, label: "Aktuelle Mieter" },
+                  { value: "previous" as const, label: "Vorherige Mieter" },
+                  { value: "all" as const, label: "Alle Mieter" },
+                ].map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={filter === value ? "default" : "ghost"}
+                    onClick={() => setFilter(value)}
+                    className="h-9 rounded-full"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Mieter suchen..."
+                  className="pl-10 rounded-full"
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <TenantBulkActionBar
+              selectedTenants={selectedTenants}
+              tenants={initialTenants}
+              wohnungsMap={wohnungsMap}
+              onClearSelection={() => setSelectedTenants(new Set())}
+              onExport={handleBulkExport}
+              onDelete={() => setShowBulkDeleteConfirm(true)}
+            />
+          </div>
           <TenantTable
-            tenants={initialTenants} // Directly use initialTenants or manage a separate 'filteredTenants' state if needed
+            tenants={initialTenants}
             wohnungen={initialWohnungen}
             filter={filter}
             searchQuery={searchQuery}
             onEdit={handleEditTenantInTable}
+            selectedTenants={selectedTenants}
+            onSelectionChange={setSelectedTenants}
           />
         </CardContent>
       </Card>
+
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mehrere Mieter löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie wirklich {selectedTenants.size} Mieter löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+              {isBulkDeleting ? "Lösche..." : `${selectedTenants.size} Mieter löschen`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

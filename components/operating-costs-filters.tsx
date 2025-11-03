@@ -38,54 +38,52 @@ export function OperatingCostsFilters({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={activeFilter === "all" ? "default" : "outline"}
-            onClick={() => handleFilterClick("all")}
-            className="h-9"
-          >
-            Alle
-          </Button>
-          <Button
-            variant={activeFilter === "pending" ? "default" : "outline"}
-            onClick={() => handleFilterClick("pending")}
-            className="h-9"
-          >
-            Noch nicht erledigt
-          </Button>
-          <Button
-            variant={activeFilter === "previous" ? "default" : "outline"}
-            onClick={() => handleFilterClick("previous")}
-            className="h-9"
-          >
-            Vorherige Abrechnungen
-          </Button>
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={activeFilter === "all" ? "default" : "ghost"}
+          onClick={() => handleFilterClick("all")}
+          className="h-9 rounded-full"
+        >
+          Alle Abrechnungen
+        </Button>
+        <Button
+          variant={activeFilter === "current_year" ? "default" : "ghost"}
+          onClick={() => handleFilterClick("current_year")}
+          className="h-9 rounded-full"
+        >
+          Aktuelles Jahr
+        </Button>
+        <Button
+          variant={activeFilter === "previous" ? "default" : "ghost"}
+          onClick={() => handleFilterClick("previous")}
+          className="h-9 rounded-full"
+        >
+          Vorherige Abrechnungen
+        </Button>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row w-full sm:w-auto">
+        <div className="relative w-full sm:w-[200px]">
+          <CustomCombobox
+            options={houseOptions}
+            value={selectedHouseId}
+            onChange={(value) => {
+              onHouseChange?.(value ?? ALL_HOUSES_VALUE)
+            }}
+            placeholder="Haus auswählen"
+            searchPlaceholder="Haus suchen..."
+            emptyText="Kein Haus gefunden"
+            width="w-full"
+          />
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row w-full sm:w-auto">
-          <div className="relative w-full sm:w-[200px]">
-            <CustomCombobox
-              options={houseOptions}
-              value={selectedHouseId}
-              onChange={(value) => {
-                onHouseChange?.(value ?? ALL_HOUSES_VALUE)
-              }}
-              placeholder="Haus auswählen"
-              searchPlaceholder="Haus suchen..."
-              emptyText="Kein Haus gefunden"
-              width="w-full"
-            />
-          </div>
-          <div className="relative w-full sm:w-[300px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Betriebskostenabrechnungen suchen..."
-              className="pl-10"
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
-          </div>
+        <div className="relative w-full sm:w-[300px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Abrechnungen suchen..."
+            className="pl-10 rounded-full"
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
         </div>
       </div>
     </div>

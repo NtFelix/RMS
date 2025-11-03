@@ -134,6 +134,12 @@ if (typeof window !== 'undefined') {
       dispatchEvent: jest.fn(),
     })),
   });
+
+  // Mock window.scrollTo for animation libraries (Framer Motion, etc.)
+  Object.defineProperty(window, 'scrollTo', {
+    writable: true,
+    value: jest.fn(),
+  });
 }
 
 // Add polyfills for DOM methods only if Element exists (jsdom environment)
@@ -166,9 +172,6 @@ jest.mock('@/app/betriebskosten-actions', () => ({
   deleteRechnungenByNebenkostenId: jest.fn(),
 }));
 
-
-// Removed global mock for haeuser actions to allow proper testing
-
 // Mock hooks to prevent actual imports during testing
 jest.mock('@/hooks/use-modal-store', () => ({
   useModalStore: jest.fn(),
@@ -178,3 +181,60 @@ jest.mock('@/hooks/use-toast', () => ({
   useToast: jest.fn(),
   toast: jest.fn(),
 }));
+
+// Mock complex AI-related dependencies to prevent hanging
+jest.mock('@/hooks/use-ai-cache-client', () => ({
+  useAICacheClient: () => ({
+    cacheResponse: jest.fn(),
+    getCachedResponse: jest.fn(),
+    hasCachedResponse: jest.fn(),
+    stats: { hits: 0, misses: 0 }
+  }),
+  useAICacheWarming: () => ({
+    preloadFrequentQueries: jest.fn()
+  })
+}));
+
+jest.mock('@/lib/ai-input-validation', () => ({
+  validateAIInput: jest.fn(() => ({ isValid: true, error: null, warning: null })),
+  validateAIContext: jest.fn(() => ({ isValid: true, error: null, warning: null })),
+  sanitizeInput: jest.fn((input) => input),
+  getInputSuggestions: jest.fn(() => [])
+}));
+
+jest.mock('@/lib/ai-documentation-context', () => ({
+  categorizeAIError: jest.fn(() => ({
+    errorType: 'unknown_error',
+    errorMessage: 'Test error',
+    retryable: false
+  })),
+  trackAIRequestFailure: jest.fn()
+}));
+
+// Prevent timers from hanging tests
+jest.useFakeTimers({ advanceTimers: true });
+
+// Store original console.warn
+const originalWarn = console.warn;
+
+// Clean up after each test
+afterEach(() => {
+  // Temporarily suppress timer warnings
+  console.warn = jest.fn((message) => {
+    // Suppress fake timer warnings
+    if (typeof message === 'string' && message.includes('timers APIs are not replaced')) {
+      return;
+    }
+    originalWarn(message);
+  });
+  
+  try {
+    jest.clearAllTimers();
+    jest.runOnlyPendingTimers();
+  } catch (error) {
+    // Silently ignore if fake timers aren't active
+  } finally {
+    // Restore console.warn
+    console.warn = originalWarn;
+  }
+});

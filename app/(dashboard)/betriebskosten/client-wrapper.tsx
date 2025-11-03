@@ -121,7 +121,11 @@ export default function BetriebskostenClientView({
     if (!selectedItemIdForDelete) return;
     const result = await deleteNebenkostenServerAction(selectedItemIdForDelete);
     if (result.success) {
-      toast({ title: "Erfolg", description: "Nebenkosten-Eintrag erfolgreich gelöscht." });
+      toast({ 
+        title: "Erfolg", 
+        description: "Nebenkosten-Eintrag erfolgreich gelöscht.",
+        variant: "success"
+      });
       setFilteredNebenkosten(prev => prev.filter(item => item.id !== selectedItemIdForDelete));
     } else {
       toast({
@@ -168,132 +172,127 @@ export default function BetriebskostenClientView({
     }
   }, []);
 
-  // Instruction cards data
-  const instructionCards = [
+  // Instruction steps data
+  const instructionSteps = [
     {
       id: 1,
-      icon: PlusCircle,
-      title: '1. Abrechnung anlegen',
-      description: 'Lege eine neue Betriebskostenabrechnung für ein Jahr und ein Haus an.',
-      button: (
-        <ButtonWithTooltip 
-          onClick={handleOpenCreateModal} 
-          className="whitespace-nowrap"
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Erstellen
-        </ButtonWithTooltip>
-      )
+      title: 'Abrechnung anlegen',
+      description: 'Erstelle eine neue Betriebskostenabrechnung für ein Jahr und ein Haus.',
     },
     {
       id: 2,
-      icon: Droplets,
-      title: '2. Wasserzähler eintragen',
-      description: 'Rechtsklick auf eine Abrechnungszeile → "Wasserzähler" auswählen und Zählerstände erfassen.',
-      button: (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={scrollToTable} 
-          className="whitespace-nowrap"
-        >
-          Zur Tabelle
-        </Button>
-      )
+      title: 'Drei-Punkte-Menü öffnen',
+      description: 'Klicke auf die drei Punkte (⋮) in der Aktionen-Spalte einer Abrechnungszeile.',
     },
     {
       id: 3,
-      icon: FileText,
-      title: '3. Über Übersicht prüfen',
-      description: 'Rechtsklick → "Übersicht" um Details und Plausibilitäten zu kontrollieren.',
-      button: (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={scrollToTable} 
-          className="whitespace-nowrap"
-        >
-          Zur Tabelle
-        </Button>
-      )
+      title: 'Wasserzähler eintragen',
+      description: 'Wähle "Wasserzähler" aus dem Menü und erfasse die Zählerstände.',
     },
     {
       id: 4,
-      icon: FileText,
-      title: '4. Abrechnung erstellen',
-      description: 'Rechtsklick → "Abrechnung erstellen" um die finale Abrechnung pro Mieter zu generieren.',
-      button: (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={scrollToTable} 
-          className="whitespace-nowrap"
-        >
-          Zur Tabelle
-        </Button>
-      )
+      title: 'Übersicht prüfen',
+      description: 'Wähle "Übersicht" um Details und Plausibilitäten zu kontrollieren.',
+    },
+    {
+      id: 5,
+      title: 'Abrechnung erstellen',
+      description: 'Wähle "Abrechnung erstellen" um die finale Abrechnung pro Mieter zu generieren.',
     }
   ];
 
   return (
-    <div className="flex flex-col gap-8 p-8">
-      {/* Instruction Cards */}
+    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+      <div
+        className="absolute inset-0 z-[-1]"
+        style={{
+          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
+        }}
+      />
+      {/* Instruction Guide */}
       {showGuide && (
-        <>
-          <div className="flex justify-end -mb-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleDismissGuide} 
-              className="text-muted-foreground"
-            >
-              <X className="h-4 w-4 mr-1" /> Anleitung ausblenden
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {instructionCards.map((card) => {
-              const Icon = card.icon;
-              return (
-                <Card 
-                  key={card.id}
-                  className="relative overflow-hidden rounded-2xl shadow-md border summary-card"
-                >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Icon className="h-4 w-4" />
-                      {card.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
-                    <p>{card.description}</p>
-                    {card.button}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </>
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+          <CardHeader className="pb-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-lg">Anleitung: Betriebskostenabrechnung</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Folge diesen Schritten, um eine vollständige Betriebskostenabrechnung zu erstellen
+                </p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleDismissGuide} 
+                className="text-muted-foreground -mt-1"
+              >
+                <X className="h-4 w-4 mr-1" /> Ausblenden
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {instructionSteps.map((step, index) => (
+                <div key={step.id} className="flex gap-4">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary dark:text-primary-foreground">{index + 1}</span>
+                  </div>
+                  <div className="flex-1 pt-0.5">
+                    <h4 className="font-medium text-sm mb-1">{step.title}</h4>
+                    <p className="text-sm text-muted-foreground">{step.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+              <ButtonWithTooltip 
+                onClick={handleOpenCreateModal} 
+                className="flex-1"
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Neue Abrechnung erstellen
+              </ButtonWithTooltip>
+              <Button 
+                variant="outline" 
+                onClick={scrollToTable}
+                className="flex-1"
+              >
+                Zur Tabelle springen
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Main Content Area including Card, Table, Modals */}
-      <Card className="overflow-hidden rounded-2xl shadow-md">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-center justify-between">
-            <CardTitle>Betriebskostenübersicht</CardTitle>
-            <ButtonWithTooltip onClick={handleOpenCreateModal} className="sm:w-auto">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Betriebskostenabrechnung erstellen
-            </ButtonWithTooltip>
+          <div className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Betriebskostenübersicht</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Betriebskostenabrechnungen</p>
+            </div>
+            <div className="mt-1">
+              <ButtonWithTooltip onClick={handleOpenCreateModal} className="sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Betriebskostenabrechnung erstellen
+              </ButtonWithTooltip>
+            </div>
           </div>
         </CardHeader>
+        <div className="px-6">
+          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+        </div>
         <CardContent className="flex flex-col gap-6">
-          <OperatingCostsFilters
-            onFilterChange={setFilter}
-            onSearchChange={setSearchQuery}
-            onHouseChange={setSelectedHouseId}
-            haeuser={initialHaeuser}
-            selectedHouseId={selectedHouseId}
-          />
+          <div className="flex flex-col gap-4 mt-6">
+            <OperatingCostsFilters
+              onFilterChange={setFilter}
+              onSearchChange={setSearchQuery}
+              onHouseChange={setSelectedHouseId}
+              haeuser={initialHaeuser}
+              selectedHouseId={selectedHouseId}
+            />
+          </div>
           <div ref={tableRef}>
             <OperatingCostsTable
               nebenkosten={filteredNebenkosten}

@@ -11,6 +11,7 @@ import { useErrorHandler } from '@/components/documentation-error-boundary';
 import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { cn } from '@/lib/utils';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 
 interface SearchProps {
   onSearch: (query: string) => void;
@@ -37,6 +38,7 @@ export function DocumentationSearch({
   const debouncedQuery = useDebounce(query, 300);
   const inputRef = useRef<HTMLInputElement>(null);
   const { handleError } = useErrorHandler();
+  const isAIDocumentationMode = useFeatureFlagEnabled('ai-documentation-mode');
   
   // AI Assistant store
   const { 
@@ -143,22 +145,24 @@ export function DocumentationSearch({
             )}
 
             {/* AI Toggle Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleAIToggle}
-              className={cn(
-                "h-12 w-12 p-0 rounded-full transition-all duration-300 hover:scale-105 active:scale-95",
-                currentMode === 'ai' 
-                  ? "bg-primary/20 hover:bg-primary/30 text-primary shadow-md hover:shadow-lg" 
-                  : "hover:bg-primary/10 text-muted-foreground hover:text-primary hover:shadow-md"
-              )}
-              disabled={isLoading}
-              aria-label={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
-              title={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
-            >
-              <Atom className="h-6 w-6" />
-            </Button>
+            {isAIDocumentationMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleAIToggle}
+                className={cn(
+                  "h-12 w-12 p-0 rounded-full transition-all duration-300 hover:scale-105 active:scale-95",
+                  currentMode === 'ai'
+                    ? "bg-primary/20 hover:bg-primary/30 text-primary shadow-md hover:shadow-lg"
+                    : "hover:bg-primary/10 text-muted-foreground hover:text-primary hover:shadow-md"
+                )}
+                disabled={isLoading}
+                aria-label={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
+                title={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
+              >
+                <Atom className="h-6 w-6" />
+              </Button>
+            )}
           </div>
         </div>
         
@@ -167,7 +171,7 @@ export function DocumentationSearch({
       </div>
 
       {/* Mode Indicator */}
-      {currentMode === 'ai' && (
+      {isAIDocumentationMode && currentMode === 'ai' && (
         <div className="flex items-center justify-center gap-2 mt-2">
           <Badge variant="secondary" className="text-xs">
             <Atom className="w-3 h-3 mr-1" />

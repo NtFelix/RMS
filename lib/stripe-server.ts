@@ -1,13 +1,12 @@
 import Stripe from 'stripe';
+import { STRIPE_CONFIG } from './constants/stripe';
 
 export async function getPlanDetails(priceId: string) {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY is not set');
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-06-30.basil', // Use the latest API version
-  });
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
 
   try {
     const price = await stripe.prices.retrieve(priceId, {

@@ -1,240 +1,732 @@
-import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { BetriebskostenEditModal } from './betriebskosten-edit-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
-import { BetriebskostenEditModal } from '../betriebskosten-edit-modal';
+import {
+  createNebenkosten,
+  updateNebenkosten,
+  getNebenkostenDetailsAction,
+  createRechnungenBatch,
+  deleteRechnungenByNebenkostenId
+} from '@/app/betriebskosten-actions';
+import { getMieterByHausIdAction } from '@/app/mieter-actions';
+import { useToast } from '@/hooks/use-toast';
 
-// Create a simple mock component factory
-const createMockComponent = (name: string) => ({ children, ...props }: { children?: React.ReactNode }) => (
-  <div data-testid={name} {...props}>
-    {children}
-  </div>
-);
+jest.mock('@/app/mieter-actions');
 
-// Mock Dialog components
-jest.mock('@/components/ui/dialog', () => ({
-  __esModule: true,
-  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => 
-    open ? <div data-testid="dialog">{children}</div> : null,
-  DialogContent: ({ children, isDirty, onAttemptClose, ...props }: { children: React.ReactNode; isDirty?: boolean; onAttemptClose?: () => void }) => (
-    <div data-testid="dialog-content" {...props}>{children}</div>
-  ),
-  DialogHeader: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dialog-header">{children}</div>
-  ),
-  DialogTitle: ({ children }: { children: React.ReactNode }) => (
-    <h1 data-testid="dialog-title">{children}</h1>
-  ),
-  DialogDescription: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dialog-description">{children}</div>
-  ),
-  DialogFooter: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dialog-footer">{children}</div>
-  )
-}));
+// Mock dependencies are now handled globally in jest.setup.js
 
-// Mock modal store
-jest.mock('@/hooks/use-modal-store', () => ({
-  __esModule: true,
-  useModalStore: jest.fn()
-}));
-
-// Mock UI components
-jest.mock('@/components/ui/input', () => ({
-  Input: ({ ...props }) => <input data-testid="input" {...props} />
-}));
-
-jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, ...props }) => <button data-testid="button" {...props}>{children}</button>
-}));
-
-jest.mock('@/components/ui/label', () => ({
-  Label: ({ children, ...props }) => <label data-testid="label" {...props}>{children}</label>
-}));
-
-jest.mock('@/components/ui/textarea', () => ({
-  Textarea: ({ ...props }) => <textarea data-testid="textarea" {...props} />
-}));
-
-jest.mock('@/components/ui/select', () => ({
-  Select: ({ children }) => <div data-testid="select">{children}</div>,
-  SelectContent: ({ children }) => <div data-testid="select-content">{children}</div>,
-  SelectItem: ({ children, ...props }) => <div data-testid="select-item" {...props}>{children}</div>,
-  SelectTrigger: ({ children, ...props }) => <div data-testid="select-trigger" {...props}>{children}</div>,
-  SelectValue: ({ ...props }) => <div data-testid="select-value" {...props} />
-}));
-
-jest.mock('@/components/ui/custom-combobox', () => ({
-  CustomCombobox: ({ value, options, placeholder, searchPlaceholder, emptyText, width, ...props }) => (
-    <div data-testid="combobox" {...props} />
-  ),
-  ComboboxOption: ({ children, ...props }) => <div data-testid="combobox-option" {...props}>{children}</div>
-}));
-
-jest.mock('@/components/ui/skeleton', () => ({
-  Skeleton: ({ ...props }) => <div data-testid="skeleton" {...props} />
-}));
-
-jest.mock('@/components/ui/label-with-tooltip', () => ({
-  LabelWithTooltip: ({ children, infoText, ...props }) => <label data-testid="label-with-tooltip" {...props}>{children}</label>
-}));
-
-// Mock actions
-jest.mock('@/app/betriebskosten-actions', () => ({
-  getNebenkostenDetailsAction: jest.fn().mockResolvedValue({ success: true, data: null }),
-  createNebenkosten: jest.fn().mockResolvedValue({ success: true }),
-  updateNebenkosten: jest.fn().mockResolvedValue({ success: true }),
-  createRechnungenBatch: jest.fn().mockResolvedValue({ success: true }),
-  deleteRechnungenByNebenkostenId: jest.fn().mockResolvedValue({ success: true })
-}));
-
-jest.mock('@/app/mieter-actions', () => ({
-  __esModule: true,
-  getMieterByHausIdAction: jest.fn().mockResolvedValue({ success: true, data: [] })
-}));
-
-// Mock other dependencies
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn().mockReturnValue({
-    push: jest.fn(),
-    replace: jest.fn(),
-    refresh: jest.fn()
-  })
-}));
-
-jest.mock('@/utils/supabase/client', () => ({
-  createClient: jest.fn().mockReturnValue({
-    auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user' } } })
-    }
-  })
-}));
-
-jest.mock('@/utils/format', () => ({
-  formatNumber: jest.fn((num) => num?.toString() || '0')
-}));
-
-jest.mock('@/hooks/use-toast', () => ({
-  useToast: jest.fn().mockReturnValue({
-    toast: jest.fn()
-  })
-}));
-
+// Mock constants
 jest.mock('@/lib/constants', () => ({
   BERECHNUNGSART_OPTIONS: [
-    { value: 'nach Rechnung', label: 'Nach Rechnung' },
-    { value: 'nach Verbrauch', label: 'Nach Verbrauch' }
-  ]
+    { value: 'pro Flaeche', label: 'pro Fläche' },
+    { value: 'pro Mieter', label: 'pro Mieter' },
+    { value: 'pauschal', label: 'pauschal' },
+    { value: 'nach Rechnung', label: 'nach Rechnung' },
+  ],
 }));
 
-jest.mock('lucide-react', () => ({
-  PlusCircle: () => <div data-testid="plus-circle-icon" />,
-  Trash2: () => <div data-testid="trash-icon" />
-}));
-
-// Mock data for testing
-const mockNebenkosten = {
-  id: '1',
-  name: 'Test Nebenkosten',
-  jahr: '2023',
-  haeuser_id: '1',
-  nebenkostenart: ['nach Rechnung'],
-  betrag: [150.00],
-  berechnungsart: ['nach Rechnung'],
-  wasserkosten: 0.00,
-  Haeuser: { name: 'House 1' },
-  kosten: [
-    { art: 'Gas', betrag: '100.00', berechnungsart: 'nach Rechnung' },
-    { art: 'Strom', betrag: '50.00', berechnungsart: 'nach Rechnung' }
-  ]
-};
-
-const mockUserData = {
-  id: 'test-user',
-  name: 'Test User'
-};
+const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
+const mockToast = useToast as jest.MockedFunction<typeof useToast>;
+const mockCreateNebenkosten = createNebenkosten as jest.MockedFunction<typeof createNebenkosten>;
+const mockUpdateNebenkosten = updateNebenkosten as jest.MockedFunction<typeof updateNebenkosten>;
+const mockGetNebenkostenDetailsAction = getNebenkostenDetailsAction as jest.MockedFunction<typeof getNebenkostenDetailsAction>;
+const mockCreateRechnungenBatch = createRechnungenBatch as jest.MockedFunction<typeof createRechnungenBatch>;
+const mockDeleteRechnungenByNebenkostenId = deleteRechnungenByNebenkostenId as jest.MockedFunction<typeof deleteRechnungenByNebenkostenId>;
+const mockGetMieterByHausIdAction = getMieterByHausIdAction as jest.MockedFunction<typeof getMieterByHausIdAction>;
 
 describe('BetriebskostenEditModal', () => {
-  describe('State Management', () => {
-    const mockHaeuser = [
-      { id: '1', name: 'Test Haus 1' },
-      { id: '2', name: 'Test Haus 2' }
-    ];
+  const mockHaeuser = [{ id: 'h1', name: 'Haus A', ort: 'Ort', strasse: 'Strasse', user_id: 'u1' }];
+  const mockCloseBetriebskostenModal = jest.fn();
+  const mockSetBetriebskostenModalDirty = jest.fn();
+  const mockBetriebskostenModalOnSuccess = jest.fn();
+  const mockOpenConfirmationModal = jest.fn();
+  const mockToastFn = jest.fn();
 
-    beforeEach(() => {
-      jest.clearAllMocks();
-      jest.mocked(useModalStore).mockReturnValue({
-        isBetriebskostenModalOpen: true,
-        closeBetriebskostenModal: jest.fn(),
-        betriebskostenInitialData: null,
-        betriebskostenModalHaeuser: mockHaeuser,
-        betriebskostenModalOnSuccess: jest.fn(),
-        isBetriebskostenModalDirty: false,
-        setBetriebskostenModalDirty: jest.fn(),
-        openConfirmationModal: jest.fn(),
-        userId: 'test-user'
-      });
-    });
+  const defaultStoreState = {
+    isBetriebskostenModalOpen: true,
+    closeBetriebskostenModal: mockCloseBetriebskostenModal,
+    betriebskostenInitialData: null,
+    betriebskostenModalHaeuser: mockHaeuser,
+    betriebskostenModalOnSuccess: mockBetriebskostenModalOnSuccess,
+    isBetriebskostenModalDirty: false,
+    setBetriebskostenModalDirty: mockSetBetriebskostenModalDirty,
+    openConfirmationModal: mockOpenConfirmationModal,
+  };
 
-    it('should handle loading state correctly', async () => {
-      // First, let's test if the component renders without errors
-      let renderError = null;
-      try {
-        const { container } = render(<BetriebskostenEditModal />);
-        
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Mock store
+    mockUseModalStore.mockReturnValue(defaultStoreState);
+    
+    // Mock toast
+    mockToast.mockReturnValue({ toast: mockToastFn });
+    
+    // Mock server actions with default successful responses
+    mockCreateNebenkosten.mockResolvedValue({ success: true, data: { id: 'new-id' } });
+    mockUpdateNebenkosten.mockResolvedValue({ success: true });
+    mockGetNebenkostenDetailsAction.mockResolvedValue({ success: true, data: null });
+    mockCreateRechnungenBatch.mockResolvedValue({ success: true });
+    mockDeleteRechnungenByNebenkostenId.mockResolvedValue({ success: true });
+    mockGetMieterByHausIdAction.mockResolvedValue({ success: true, data: [] });
+  });
 
-        
-        // Check if the dialog is rendered when modal is open
-        expect(screen.getByTestId('dialog')).toBeInTheDocument();
-        expect(screen.getByTestId('dialog-content')).toBeInTheDocument();
-        expect(screen.getByTestId('dialog-title')).toBeInTheDocument();
-        expect(screen.getByTestId('dialog-title')).toHaveTextContent('Neue Betriebskostenabrechnung');
-
-        expect(screen.getByText('Füllen Sie die Details für die Betriebskostenabrechnung aus.')).toBeInTheDocument();
-      } catch (error) {
-        renderError = error;
-        console.error('Render error:', error);
-        throw error;
-      }
-    });
-
-    it('should handle tenant selection correctly', async () => {
-      await act(async () => {
-        render(<BetriebskostenEditModal />);
-      });
-
-      const dialog = screen.getByTestId('dialog-content');
-      expect(dialog).toBeInTheDocument();
-      expect(screen.getByTestId('dialog-title')).toBeInTheDocument();
-      expect(screen.getByTestId('dialog-title')).toHaveTextContent('Neue Betriebskostenabrechnung');
-
-      expect(screen.getByText('Jahr *')).toBeInTheDocument();
-      expect(screen.getByText('Haus *')).toBeInTheDocument();
-      expect(screen.getByText('Wasserkosten (€)')).toBeInTheDocument();
-      expect(screen.getByText('Kostenaufstellung')).toBeInTheDocument();
-
-      // Check that the form elements are present
-      expect(screen.getByPlaceholderText('Kostenart')).toBeInTheDocument();
-      expect(screen.getByText('Kostenposition hinzufügen')).toBeInTheDocument();
-      expect(screen.getByText('Speichern')).toBeInTheDocument();
-      expect(screen.getByText('Abbrechen')).toBeInTheDocument();
-    });
-
-    it('should handle saving correctly', async () => {
-      await act(async () => {
-        render(<BetriebskostenEditModal />);
-      });
-
-      const dialog = screen.getByTestId('dialog-content');
-      expect(dialog).toBeInTheDocument();
-      expect(screen.getByTestId('dialog-title')).toBeInTheDocument();
-      expect(screen.getByTestId('dialog-title')).toHaveTextContent('Neue Betriebskostenabrechnung');
-
-      // Find the save button (should be the submit button)
-      const saveButton = screen.getByText('Speichern');
-      expect(saveButton).toBeInTheDocument();
+  describe('Rendering', () => {
+    it('renders create modal when no initial data is provided', async () => {
+      render(<BetriebskostenEditModal />);
       
-      // The button should be enabled and ready for interaction
-      expect(saveButton).not.toBeDisabled();
+      expect(screen.getByText('Neue Betriebskostenabrechnung')).toBeInTheDocument();
+      expect(screen.getByText('Füllen Sie die Details für die Betriebskostenabrechnung aus.')).toBeInTheDocument();
+      
+      // Wait for the loading state to finish and check for the submit button
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Speichern|Laden/ })).toBeInTheDocument();
+      });
+    });
+
+    it('renders edit modal when initial data is provided', () => {
+      const initialData = { id: '1' };
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: initialData,
+      });
+
+      render(<BetriebskostenEditModal />);
+      
+      expect(screen.getByText('Betriebskosten bearbeiten')).toBeInTheDocument();
+    });
+
+    it('does not render when modal is closed', () => {
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        isBetriebskostenModalOpen: false,
+      });
+
+      const { container } = render(<BetriebskostenEditModal />);
+      expect(container.firstChild).toBeNull();
+    });
+
+    it('renders all form fields', () => {
+      render(<BetriebskostenEditModal />);
+      
+      expect(screen.getByText('Haus *')).toBeInTheDocument(); // CustomCombobox doesn't have proper label association
+      expect(screen.getByLabelText('Startdatum *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Enddatum *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Wasserkosten (€)')).toBeInTheDocument();
+      expect(screen.getByText('Kostenaufstellung')).toBeInTheDocument();
+      expect(screen.getByText('-1 Jahr')).toBeInTheDocument();
+      expect(screen.getByText('+1 Jahr')).toBeInTheDocument();
+    });
+
+    it('navigates to next year when "+1 Jahr" button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      // First set a specific year to test from
+      const startYear = 2023;
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, `01.01.${startYear}`);
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, `31.12.${startYear}`);
+      
+      const nextYearButton = screen.getByText('+1 Jahr');
+      await user.click(nextYearButton);
+      
+      expect(screen.getByDisplayValue(`01.01.${startYear + 1}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`31.12.${startYear + 1}`)).toBeInTheDocument();
+      expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
+    });
+
+    it('navigates to previous year when "-1 Jahr" button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      // First set a specific year to test from
+      const startYear = 2023;
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, `01.01.${startYear}`);
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, `31.12.${startYear}`);
+      
+      const previousYearButton = screen.getByText('-1 Jahr');
+      await user.click(previousYearButton);
+      
+      expect(screen.getByDisplayValue(`01.01.${startYear - 1}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`31.12.${startYear - 1}`)).toBeInTheDocument();
+      expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
+    });
+
+    it('renders for new entry with one default cost item', () => {
+      render(<BetriebskostenEditModal />);
+      
+      expect(screen.getAllByPlaceholderText('Kostenart')).toHaveLength(1);
+      expect(screen.getAllByPlaceholderText('Betrag (€)')).toHaveLength(1);
+      expect(screen.getAllByRole('combobox')).toHaveLength(2); // 1 for Haus, 1 for Berechnungsart
+    });
+  });
+
+  describe('Data Loading and Population', () => {
+    it('populates form fields when editing existing entry', async () => {
+      const mockEntry = {
+        id: '1',
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
+        haeuser_id: 'h1',
+        nebenkostenart: ['Strom', 'Wasser'],
+        betrag: [100, 50],
+        berechnungsart: ['pro Flaeche', 'pro Mieter'],
+        wasserkosten: 20,
+        Haeuser: { name: 'Haus A' },
+        user_id: 'u1',
+        Rechnungen: [],
+      };
+
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: mockEntry });
+      mockGetMieterByHausIdAction.mockResolvedValue({ success: true, data: [] });
+
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: '1' },
+      });
+
+      render(<BetriebskostenEditModal />);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('01.01.2023')).toBeInTheDocument();
+      });
+
+      expect(screen.getByDisplayValue('31.12.2023')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('20')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Strom')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('100')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Wasser')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('50')).toBeInTheDocument();
+    });
+
+    it('shows loading state while fetching details', () => {
+      mockGetNebenkostenDetailsAction.mockImplementation(() => new Promise(() => {})); // Never resolves
+      
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: '1' },
+      });
+
+      render(<BetriebskostenEditModal />);
+
+      expect(screen.getByText('Lade Details...')).toBeInTheDocument();
+    });
+
+    it('handles error when loading details fails', async () => {
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ 
+        success: false, 
+        message: 'Failed to load details' 
+      });
+
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: '1' },
+      });
+
+      render(<BetriebskostenEditModal />);
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith({
+          title: 'Fehler beim Laden der Details',
+          description: 'Failed to load details',
+          variant: 'destructive',
+        });
+      });
+    });
+  });
+
+  describe('Cost Items Management', () => {
+    it('allows adding and removing cost items', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      const addButton = screen.getByText('Kostenposition hinzufügen');
+      await user.click(addButton);
+      
+      expect(screen.getAllByPlaceholderText('Kostenart')).toHaveLength(2);
+
+      const removeButtons = screen.getAllByLabelText('Kostenposition entfernen');
+      expect(removeButtons[0]).not.toBeDisabled();
+      
+      await user.click(removeButtons[0]);
+      expect(screen.getAllByPlaceholderText('Kostenart')).toHaveLength(1);
+      expect(screen.getByLabelText('Kostenposition entfernen')).toBeDisabled();
+    });
+
+    it('updates cost item fields on user input', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Heizung');
+      expect(artInput).toHaveValue('Heizung');
+      expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
+
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.type(betragInput, '200');
+      expect(betragInput).toHaveValue(200);
+    });
+
+    it('handles "nach Rechnung" calculation type correctly', async () => {
+      const user = userEvent.setup();
+      const mockMieter = [
+        { id: 'm1', name: 'Mieter 1' },
+        { id: 'm2', name: 'Mieter 2' },
+      ];
+      
+      mockGetMieterByHausIdAction.mockResolvedValue({ success: true, data: mockMieter });
+      
+      render(<BetriebskostenEditModal />);
+
+      // Set 2024 dates manually first
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, '01.01.2024');
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, '31.12.2024');
+
+      // Wait for tenants to load and then check for "nach Rechnung" functionality
+      // This test is simplified since the Select component interaction is complex in JSDOM
+      await waitFor(() => {
+        expect(mockGetMieterByHausIdAction).toHaveBeenCalledWith('h1', '2024-01-01', '2024-12-31');
+      });
+    });
+  });
+
+  describe('Form Submission', () => {
+    it('shows validation error for missing required fields', async () => {
+      const user = userEvent.setup();
+      
+      // Mock store with empty house list to trigger validation error
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenModalHaeuser: [], // Empty house list
+      });
+      
+      render(<BetriebskostenEditModal />);
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Fehlende Eingaben',
+            variant: 'destructive',
+          })
+        );
+      });
+      
+      expect(mockCreateNebenkosten).not.toHaveBeenCalled();
+    });
+
+    it('shows validation error for empty cost item art', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      // Fill required fields but leave cost item art empty
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith({
+          title: 'Validierungsfehler',
+          description: expect.stringContaining('Art der Kosten darf nicht leer sein'),
+          variant: 'destructive',
+        });
+      });
+      
+      expect(mockCreateNebenkosten).not.toHaveBeenCalled();
+    });
+
+    it('shows error if jahr or haus is missing', async () => {
+      const user = userEvent.setup();
+      
+      // Mock store with empty house list to simulate missing house
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenModalHaeuser: [], // Empty house list
+      });
+      
+      render(<BetriebskostenEditModal />);
+      
+      // Dates should be empty by default when no houses are available
+      // Add a valid cost item
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Test Kosten');
+      
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.type(betragInput, '100');
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith({
+          title: 'Fehlende Eingaben',
+          description: 'Startdatum, Enddatum und Haus sind Pflichtfelder.',
+          variant: 'destructive',
+        });
+      });
+      
+      expect(mockCreateNebenkosten).not.toHaveBeenCalled();
+    });
+
+    it('shows error for invalid betrag in cost item', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      // Fill required fields
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
+      
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Test Kosten');
+      
+      // Enter invalid amount (non-numeric) - note: number inputs might not accept 'abc'
+      // So we'll test with an empty betrag which should trigger validation
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.clear(betragInput); // Clear to make it empty
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith({
+          title: 'Validierungsfehler',
+          description: expect.stringContaining('ist keine gültige Zahl'),
+          variant: 'destructive',
+        });
+      });
+      
+      expect(mockCreateNebenkosten).not.toHaveBeenCalled();
+    });
+
+
+
+    it('successfully creates new Nebenkosten entry', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      // Set 2024 dates manually
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, '01.01.2024');
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, '31.12.2024');
+      
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Müll');
+      
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.type(betragInput, '150');
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockCreateNebenkosten).toHaveBeenCalledWith({
+          startdatum: '2024-01-01',
+          enddatum: '2024-12-31',
+          nebenkostenart: ['Müll'],
+          betrag: [150],
+          berechnungsart: ['pro Flaeche'], // Default value
+          wasserkosten: null,
+          haeuser_id: 'h1',
+        });
+      });
+      
+      expect(mockCloseBetriebskostenModal).toHaveBeenCalled();
+    });
+
+    it('successfully updates existing Nebenkosten entry', async () => {
+      const user = userEvent.setup();
+      const mockEntry = {
+        id: 'test-id-123',
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
+        haeuser_id: 'h1',
+        nebenkostenart: ['Strom'],
+        betrag: [100],
+        berechnungsart: ['pauschal'],
+        wasserkosten: 20,
+        Haeuser: { name: 'Haus A' },
+        user_id: 'u1',
+        Rechnungen: [],
+      };
+
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: mockEntry });
+      
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: 'test-id-123' },
+      });
+
+      render(<BetriebskostenEditModal />);
+      
+      // Wait for data to load
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Strom')).toBeInTheDocument();
+      });
+
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockUpdateNebenkosten).toHaveBeenCalledWith('test-id-123', expect.any(Object));
+      });
+      
+      expect(mockCloseBetriebskostenModal).toHaveBeenCalled();
+    });
+
+    it('calls updateNebenkosten with transformed data for existing entry', async () => {
+      const user = userEvent.setup();
+      const mockEntry = {
+        id: 'test-id-456',
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
+        haeuser_id: 'h1',
+        nebenkostenart: ['Strom', 'Wasser'],
+        betrag: [100, 50],
+        berechnungsart: ['pauschal', 'pro Flaeche'],
+        wasserkosten: 20,
+        Haeuser: { name: 'Haus A' },
+        user_id: 'u1',
+        Rechnungen: [],
+      };
+
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: mockEntry });
+      
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: 'test-id-456' },
+      });
+
+      render(<BetriebskostenEditModal />);
+      
+      // Wait for data to load
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Strom')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Wasser')).toBeInTheDocument();
+      });
+
+      // Set 2024 dates manually
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, '01.01.2024');
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, '31.12.2024');
+
+      // Modify the water costs
+      const wasserkostenInput = screen.getByLabelText('Wasserkosten (€)');
+      await user.clear(wasserkostenInput);
+      await user.type(wasserkostenInput, '30');
+
+      // Modify the first cost item
+      const artInputs = screen.getAllByPlaceholderText('Kostenart');
+      await user.clear(artInputs[0]);
+      await user.type(artInputs[0], 'Heizung');
+
+      const betragInputs = screen.getAllByPlaceholderText('Betrag (€)');
+      await user.clear(betragInputs[0]);
+      await user.type(betragInputs[0], '150');
+
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockUpdateNebenkosten).toHaveBeenCalledWith('test-id-456', {
+          startdatum: '2024-01-01',
+          enddatum: '2024-12-31',
+          nebenkostenart: ['Heizung', 'Wasser'],
+          betrag: [150, 50],
+          berechnungsart: ['pauschal', 'pro Flaeche'],
+          wasserkosten: 30,
+          haeuser_id: 'h1',
+        });
+      });
+      
+      expect(mockCloseBetriebskostenModal).toHaveBeenCalled();
+    });
+
+    it('shows error toast on submission failure', async () => {
+      const user = userEvent.setup();
+      mockCreateNebenkosten.mockResolvedValueOnce({ 
+        success: false, 
+        message: 'Database error' 
+      });
+      
+      render(<BetriebskostenEditModal />);
+      
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
+      
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Test');
+      
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.type(betragInput, '100');
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith({
+          title: 'Fehler beim Speichern',
+          description: 'Database error',
+          variant: 'destructive',
+        });
+      });
+    });
+
+    it('disables form during submission', async () => {
+      const user = userEvent.setup();
+      let resolveCreateNebenkosten: (value: any) => void;
+      const createPromise = new Promise(resolve => {
+        resolveCreateNebenkosten = resolve;
+      });
+      mockCreateNebenkosten.mockReturnValue(createPromise);
+      
+      render(<BetriebskostenEditModal />);
+      
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
+      
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Test');
+      
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.type(betragInput, '100');
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      expect(screen.getByRole('button', { name: 'Speichern...' })).toBeDisabled();
+      expect(startdatumInput).toBeDisabled();
+      
+      resolveCreateNebenkosten!({ success: true });
+    });
+  });
+
+  describe('Modal Closing', () => {
+    it('calls closeBetriebskostenModal when cancel button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      const cancelButton = screen.getByRole('button', { name: 'Abbrechen' });
+      await user.click(cancelButton);
+      
+      expect(mockCloseBetriebskostenModal).toHaveBeenCalledWith({ force: true });
+    });
+
+    it('closes modal after successful submission', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
+      
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Test');
+      
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.type(betragInput, '100');
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockCloseBetriebskostenModal).toHaveBeenCalled();
+      });
+    });
+
+    it('calls onSuccess callback after successful submission', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
+      
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Test');
+      
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.type(betragInput, '100');
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockBetriebskostenModalOnSuccess).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Dirty State Management', () => {
+    it('sets dirty state to false when modal opens', () => {
+      render(<BetriebskostenEditModal />);
+      
+      expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(false);
+    });
+
+    it('sets dirty state to true when form data changes', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      // Use the "+1 Jahr" button to trigger dirty state
+      const nextYearButton = screen.getByText('+1 Jahr');
+      await user.click(nextYearButton);
+      
+      expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
+    });
+
+    it('resets dirty state to false after successful submission', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      // Use the "Dieses Jahr" button to set current year dates
+      const dieseJahrButton = screen.getByText('Dieses Jahr');
+      await user.click(dieseJahrButton);
+      
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Test');
+      
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.type(betragInput, '100');
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(false);
+      });
     });
   });
 });

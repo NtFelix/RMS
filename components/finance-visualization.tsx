@@ -7,6 +7,7 @@ import {
   BarChart,
   Pie,
   PieChart,
+  PieLabelRenderProps,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -72,6 +73,62 @@ interface FinanceVisualizationProps {
 // Farben für Pie Chart
 const COLORS = ["#2c3e50", "#34495e", "#16a34a", "#ca8a04", "#dc2626", "#2563eb"]
 
+// Shared Tooltip styles
+const chartTooltipStyles = {
+  contentStyle: {
+    backgroundColor: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '0.5rem',
+    padding: '0.5rem 1rem',
+    fontSize: '14px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+  },
+  itemStyle: {
+    color: '#1a202c',
+    padding: '4px 0',
+    textTransform: 'capitalize' as const
+  },
+  labelStyle: {
+    fontWeight: 600,
+    color: '#2d3748',
+    marginBottom: '4px'
+  }
+}
+
+// Custom label renderer for pie charts - positions labels outside with percentage
+const renderCustomLabel = (props: PieLabelRenderProps) => {
+  // Type assertion for the props we need
+  const cx = (props as any).cx as number || 0;
+  const cy = (props as any).cy as number || 0;
+  const midAngle = (props as any).midAngle as number || 0;
+  const innerRadius = (props as any).innerRadius as number || 0;
+  const outerRadius = (props as any).outerRadius as number || 0;
+  const percent = (props as any).percent as number || 0;
+  const name = (props as any).name as string || '';
+  const index = (props as any).index as number || 0;
+  const RADIAN = Math.PI / 180;
+  const radius = outerRadius + 30; // Position outside the pie
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  // Get the color for this segment
+  const segmentColor = COLORS[index % COLORS.length];
+
+  return (
+    <text 
+      x={x} 
+      y={y} 
+      fill={segmentColor}
+      textAnchor={x > cx ? 'start' : 'end'} 
+      dominantBaseline="central"
+      className="text-base font-semibold"
+      style={{ fontSize: '16px' }}
+    >
+      {`${name} ${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+};
+
 // Helper function to check if chart data is empty
 const isChartDataEmpty = (data: ChartData): boolean => {
   return (
@@ -84,7 +141,7 @@ const isChartDataEmpty = (data: ChartData): boolean => {
 
 // Empty state component
 const EmptyChartState = ({ title, description }: { title: string; description: string }) => (
-  <Card className="rounded-xl">
+  <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
     <CardHeader>
       <CardTitle>{title}</CardTitle>
       <CardDescription>{description}</CardDescription>
@@ -176,7 +233,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
   }, [chartData])
 
   return (
-    <Card className="p-4 rounded-xl">
+    <Card className="p-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <ToggleGroup type="single" value={selectedChart} onValueChange={setSelectedChart} className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <ToggleGroupItem value="apartment-income">Wohnung</ToggleGroupItem>
@@ -247,7 +304,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         <div className="animate-in fade-in-0 duration-500">
         {selectedChart === 'apartment-income' && (
           hasUserData ? (
-            <Card className="rounded-xl">
+            <Card className="rounded-[1.5rem]">
               <CardHeader>
                 <CardTitle>Einnahmen nach Wohnung</CardTitle>
                 <CardDescription>Verteilung der Mieteinnahmen nach Wohnungen in {selectedYear}</CardDescription>
@@ -261,16 +318,20 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                         cx="50%"
                         cy="50%"
                         labelLine={true}
+                        label={renderCustomLabel}
                         outerRadius={150}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        nameKey="name"
                       >
                         {displayData.incomeByApartment.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => `${value} €`} />
+                      <Tooltip 
+                        formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                        {...chartTooltipStyles}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -285,7 +346,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         )}
         {selectedChart === 'monthly-income' && (
           hasUserData ? (
-            <Card className="rounded-xl">
+            <Card className="rounded-[1.5rem]">
               <CardHeader>
                 <CardTitle>Monatliche Einnahmen</CardTitle>
                 <CardDescription>Monatliche Einnahmen für das Jahr {selectedYear}</CardDescription>
@@ -323,7 +384,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         )}
         {selectedChart === 'income-expense' && (
           hasUserData ? (
-            <Card className="rounded-xl">
+            <Card className="rounded-[1.5rem]">
               <CardHeader>
                 <CardTitle>Einnahmen-Ausgaben-Verhältnis</CardTitle>
                 <CardDescription>Vergleich von Einnahmen und Ausgaben im Jahr {selectedYear}</CardDescription>
@@ -366,7 +427,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         )}
         {selectedChart === 'expense-categories' && (
           hasUserData ? (
-            <Card className="rounded-xl">
+            <Card className="rounded-[1.5rem]">
               <CardHeader>
                 <CardTitle>Ausgabenkategorien</CardTitle>
                 <CardDescription>Verteilung der Ausgaben nach Kategorien in {selectedYear}</CardDescription>
@@ -380,16 +441,20 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
                         cx="50%"
                         cy="50%"
                         labelLine={true}
+                        label={renderCustomLabel}
                         outerRadius={150}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        nameKey="name"
                       >
                         {displayData.expenseCategories.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => `${value} €`} />
+                      <Tooltip 
+                        formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                        {...chartTooltipStyles}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
