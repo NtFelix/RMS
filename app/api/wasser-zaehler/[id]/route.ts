@@ -18,7 +18,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { custom_id } = body
+    const { custom_id, eichungsdatum } = body
 
     // Verify the Wasserzähler belongs to the user
     const { data: existing, error: fetchError } = await supabase
@@ -35,7 +35,10 @@ export async function PATCH(
     // Update Wasserzähler
     const { data, error } = await supabase
       .from('Wasser_Zaehler')
-      .update({ custom_id: custom_id || null })
+      .update({ 
+        custom_id: custom_id || null,
+        eichungsdatum: eichungsdatum || null,
+      })
       .eq('id', id)
       .eq('user_id', user.id)
       .select()

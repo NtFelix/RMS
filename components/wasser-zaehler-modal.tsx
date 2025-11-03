@@ -38,6 +38,8 @@ interface WasserZaehler {
   id: string
   custom_id: string | null
   wohnung_id: string
+  erstellungsdatum: string
+  eichungsdatum: string | null
 }
 
 export function WasserZaehlerModal() {
@@ -52,8 +54,10 @@ export function WasserZaehlerModal() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
   const [newCustomId, setNewCustomId] = React.useState("")
+  const [newEichungsdatum, setNewEichungsdatum] = React.useState("")
   const [editingId, setEditingId] = React.useState<string | null>(null)
-  const [editValue, setEditValue] = React.useState("")
+  const [editCustomId, setEditCustomId] = React.useState("")
+  const [editEichungsdatum, setEditEichungsdatum] = React.useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [zaehlerToDelete, setZaehlerToDelete] = React.useState<string | null>(null)
 
@@ -99,6 +103,7 @@ export function WasserZaehlerModal() {
         body: JSON.stringify({
           custom_id: newCustomId.trim(),
           wohnung_id: wasserZaehlerModalData.wohnungId,
+          eichungsdatum: newEichungsdatum || null,
         }),
       })
 
@@ -110,6 +115,7 @@ export function WasserZaehlerModal() {
       const newZaehler = await response.json()
       setZaehlerList((prev) => [...prev, newZaehler])
       setNewCustomId("")
+      setNewEichungsdatum("")
       setWasserZaehlerModalDirty(true)
       
       toast({
@@ -130,14 +136,17 @@ export function WasserZaehlerModal() {
   }
 
   const handleUpdateZaehler = async (id: string) => {
-    if (!editValue.trim()) return
+    if (!editCustomId.trim()) return
 
     setIsSaving(true)
     try {
       const response = await fetch(`/api/wasser-zaehler/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ custom_id: editValue.trim() }),
+        body: JSON.stringify({ 
+          custom_id: editCustomId.trim(),
+          eichungsdatum: editEichungsdatum || null,
+        }),
       })
 
       if (!response.ok) {
@@ -150,7 +159,8 @@ export function WasserZaehlerModal() {
         prev.map((z) => (z.id === id ? updatedZaehler : z))
       )
       setEditingId(null)
-      setEditValue("")
+      setEditCustomId("")
+      setEditEichungsdatum("")
       setWasserZaehlerModalDirty(true)
       
       toast({
@@ -208,19 +218,33 @@ export function WasserZaehlerModal() {
 
   const startEdit = (zaehler: WasserZaehler) => {
     setEditingId(zaehler.id)
-    setEditValue(zaehler.custom_id || "")
+    setEditCustomId(zaehler.custom_id || "")
+    setEditEichungsdatum(zaehler.eichungsdatum || "")
   }
 
   const cancelEdit = () => {
     setEditingId(null)
-    setEditValue("")
+    setEditCustomId("")
+    setEditEichungsdatum("")
   }
 
   const handleClose = () => {
     setNewCustomId("")
+    setNewEichungsdatum("")
     setEditingId(null)
-    setEditValue("")
+    setEditCustomId("")
+    setEditEichungsdatum("")
     closeWasserZaehlerModal()
+  }
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-"
+    const date = new Date(dateString)
+    return date.toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
   }
 
   return (
@@ -236,38 +260,49 @@ export function WasserZaehlerModal() {
 
           <div className="space-y-4 py-4">
             {/* Add new Wasserzähler */}
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Label htmlFor="custom_id" className="sr-only">
-                  Zähler-ID
-                </Label>
-                <Input
-                  id="custom_id"
-                  placeholder="Zähler-ID eingeben..."
-                  value={newCustomId}
-                  onChange={(e) => setNewCustomId(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && newCustomId.trim()) {
-                      handleAddZaehler()
-                    }
-                  }}
-                  disabled={isSaving}
-                />
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Neuen Wasserzähler hinzufügen</Label>
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-2">
+                  <Input
+                    id="custom_id"
+                    placeholder="Zähler-ID eingeben..."
+                    value={newCustomId}
+                    onChange={(e) => setNewCustomId(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newCustomId.trim()) {
+                        handleAddZaehler()
+                      }
+                    }}
+                    disabled={isSaving}
+                  />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Input
+                    id="eichungsdatum"
+                    type="date"
+                    placeholder="Eichungsdatum (optional)"
+                    value={newEichungsdatum}
+                    onChange={(e) => setNewEichungsdatum(e.target.value)}
+                    disabled={isSaving}
+                  />
+                </div>
+                <Button
+                  onClick={handleAddZaehler}
+                  disabled={!newCustomId.trim() || isSaving}
+                  size="default"
+                  className="self-start"
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Hinzufügen
+                    </>
+                  )}
+                </Button>
               </div>
-              <Button
-                onClick={handleAddZaehler}
-                disabled={!newCustomId.trim() || isSaving}
-                size="default"
-              >
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Hinzufügen
-                  </>
-                )}
-              </Button>
             </div>
 
             {/* List of existing Wasserzähler */}
@@ -285,6 +320,8 @@ export function WasserZaehlerModal() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Zähler-ID</TableHead>
+                      <TableHead>Eichungsdatum</TableHead>
+                      <TableHead>Erstellungsdatum</TableHead>
                       <TableHead className="w-[100px] text-right">Aktionen</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -293,25 +330,48 @@ export function WasserZaehlerModal() {
                       <TableRow key={zaehler.id}>
                         <TableCell>
                           {editingId === zaehler.id ? (
-                            <div className="flex gap-2">
-                              <Input
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    handleUpdateZaehler(zaehler.id)
-                                  } else if (e.key === "Escape") {
-                                    cancelEdit()
-                                  }
-                                }}
-                                disabled={isSaving}
-                                autoFocus
-                              />
+                            <Input
+                              value={editCustomId}
+                              onChange={(e) => setEditCustomId(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleUpdateZaehler(zaehler.id)
+                                } else if (e.key === "Escape") {
+                                  cancelEdit()
+                                }
+                              }}
+                              disabled={isSaving}
+                              placeholder="Zähler-ID"
+                              autoFocus
+                            />
+                          ) : (
+                            <span>{zaehler.custom_id || "-"}</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {editingId === zaehler.id ? (
+                            <Input
+                              type="date"
+                              value={editEichungsdatum}
+                              onChange={(e) => setEditEichungsdatum(e.target.value)}
+                              disabled={isSaving}
+                              placeholder="Eichungsdatum"
+                            />
+                          ) : (
+                            <span className="text-muted-foreground">{formatDate(zaehler.eichungsdatum)}</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-muted-foreground">{formatDate(zaehler.erstellungsdatum)}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {editingId === zaehler.id ? (
+                            <div className="flex gap-1 justify-end">
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleUpdateZaehler(zaehler.id)}
-                                disabled={!editValue.trim() || isSaving}
+                                disabled={!editCustomId.trim() || isSaving}
                               >
                                 <Check className="h-4 w-4" />
                               </Button>
@@ -325,11 +385,6 @@ export function WasserZaehlerModal() {
                               </Button>
                             </div>
                           ) : (
-                            <span>{zaehler.custom_id || "-"}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {editingId !== zaehler.id && (
                             <div className="flex gap-1 justify-end">
                               <Button
                                 size="sm"

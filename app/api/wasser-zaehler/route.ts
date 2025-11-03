@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { custom_id, wohnung_id } = body
+    const { custom_id, wohnung_id, eichungsdatum } = body
 
     if (!wohnung_id) {
       return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400 })
@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
       .insert({
         custom_id: custom_id || null,
         wohnung_id,
+        eichungsdatum: eichungsdatum || null,
         user_id: user.id,
       })
       .select()
