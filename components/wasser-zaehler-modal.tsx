@@ -14,11 +14,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
-import { Loader2, Plus, Trash2, Edit2, X, Check, CircleGauge, Calendar as CalendarIcon } from "lucide-react"
+import { 
+  Loader2, 
+  Plus, 
+  Trash2, 
+  Edit2, 
+  X, 
+  Check, 
+  CircleGauge, 
+  Calendar as CalendarIcon,
+  Gauge,
+  Clock,
+  Hash
+} from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -346,7 +359,7 @@ export function WasserZaehlerModal() {
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : zaehlerList.length === 0 ? (
-                <Card className="border-dashed">
+                <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
                   <CardContent className="flex flex-col items-center justify-center p-8 text-center">
                     <CircleGauge className="h-12 w-12 text-muted-foreground/50 mb-3" />
                     <p className="text-sm text-muted-foreground">
@@ -360,136 +373,132 @@ export function WasserZaehlerModal() {
               ) : (
                 <div className="grid gap-3">
                   {zaehlerList.map((zaehler) => (
-                    <Card key={zaehler.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
+                    <Card key={zaehler.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-shadow">
+                      <CardContent className="p-0">
                         {editingId === zaehler.id ? (
                           // Edit Mode
-                          <div className="space-y-3">
-                            <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0 mt-1">
+                          <div className="p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
                                 <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                                   <CircleGauge className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                                 </div>
+                                <span className="text-sm font-medium text-muted-foreground">Bearbeiten</span>
                               </div>
-                              <div className="flex-1 space-y-3">
-                                <div>
-                                  <Label htmlFor={`edit-custom-id-${zaehler.id}`} className="text-xs text-muted-foreground">
-                                    Zähler-ID
-                                  </Label>
-                                  <Input
-                                    id={`edit-custom-id-${zaehler.id}`}
-                                    value={editCustomId}
-                                    onChange={(e) => setEditCustomId(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        handleUpdateZaehler(zaehler.id)
-                                      } else if (e.key === "Escape") {
-                                        cancelEdit()
-                                      }
-                                    }}
-                                    disabled={isSaving}
-                                    placeholder="Zähler-ID"
-                                    autoFocus
-                                    className="mt-1"
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor={`edit-eichungsdatum-${zaehler.id}`} className="text-xs text-muted-foreground">
-                                    Eichungsdatum
-                                  </Label>
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        className={cn(
-                                          "w-full justify-start text-left font-normal mt-1",
-                                          !editEichungsdatum && "text-muted-foreground"
-                                        )}
-                                        disabled={isSaving}
-                                      >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {editEichungsdatum ? (
-                                          format(editEichungsdatum, "dd.MM.yyyy", { locale: de })
-                                        ) : (
-                                          <span>Datum wählen</span>
-                                        )}
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <Calendar
-                                        mode="single"
-                                        selected={editEichungsdatum}
-                                        onSelect={setEditEichungsdatum}
-                                        locale={de}
-                                        captionLayout="dropdown"
-                                        fromYear={1990}
-                                        toYear={new Date().getFullYear() + 10}
-                                        initialFocus
-                                      />
-                                      {editEichungsdatum && (
-                                        <div className="p-3 border-t">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="w-full"
-                                            onClick={() => setEditEichungsdatum(undefined)}
-                                          >
-                                            Datum löschen
-                                          </Button>
-                                        </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleUpdateZaehler(zaehler.id)}
+                                  disabled={!editCustomId.trim() || isSaving}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Speichern
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={cancelEdit}
+                                  disabled={isSaving}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            <Separator />
+                            
+                            <div className="space-y-3">
+                              <div>
+                                <Label htmlFor={`edit-custom-id-${zaehler.id}`} className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Hash className="h-3 w-3" />
+                                  Zähler-ID
+                                </Label>
+                                <Input
+                                  id={`edit-custom-id-${zaehler.id}`}
+                                  value={editCustomId}
+                                  onChange={(e) => setEditCustomId(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleUpdateZaehler(zaehler.id)
+                                    } else if (e.key === "Escape") {
+                                      cancelEdit()
+                                    }
+                                  }}
+                                  disabled={isSaving}
+                                  placeholder="Zähler-ID"
+                                  autoFocus
+                                  className="mt-1.5"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor={`edit-eichungsdatum-${zaehler.id}`} className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <CalendarIcon className="h-3 w-3" />
+                                  Eichungsdatum
+                                </Label>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      className={cn(
+                                        "w-full justify-start text-left font-normal mt-1.5",
+                                        !editEichungsdatum && "text-muted-foreground"
                                       )}
-                                    </PopoverContent>
-                                  </Popover>
-                                </div>
-                                <div className="flex gap-2 pt-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleUpdateZaehler(zaehler.id)}
-                                    disabled={!editCustomId.trim() || isSaving}
-                                    className="flex-1"
-                                  >
-                                    <Check className="h-4 w-4 mr-2" />
-                                    Speichern
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={cancelEdit}
-                                    disabled={isSaving}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
+                                      disabled={isSaving}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {editEichungsdatum ? (
+                                        format(editEichungsdatum, "dd.MM.yyyy", { locale: de })
+                                      ) : (
+                                        <span>Datum wählen</span>
+                                      )}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={editEichungsdatum}
+                                      onSelect={setEditEichungsdatum}
+                                      locale={de}
+                                      captionLayout="dropdown"
+                                      fromYear={1990}
+                                      toYear={new Date().getFullYear() + 10}
+                                      initialFocus
+                                    />
+                                    {editEichungsdatum && (
+                                      <div className="p-3 border-t">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="w-full"
+                                          onClick={() => setEditEichungsdatum(undefined)}
+                                        >
+                                          Datum löschen
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </PopoverContent>
+                                </Popover>
                               </div>
                             </div>
                           </div>
                         ) : (
                           // View Mode
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0">
-                              <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                                <CircleGauge className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-semibold text-base truncate">
-                                    {zaehler.custom_id || "Unbenannt"}
-                                  </h4>
-                                  <div className="flex flex-wrap gap-2 mt-2">
-                                    {zaehler.eichungsdatum && (
-                                      <Badge variant="secondary" className="text-xs font-normal">
-                                        <CalendarIcon className="h-3 w-3 mr-1" />
-                                        Eichung: {formatDate(zaehler.eichungsdatum)}
-                                      </Badge>
-                                    )}
-                                    <Badge variant="outline" className="text-xs font-normal">
-                                      Erstellt: {formatDate(zaehler.erstellungsdatum)}
-                                    </Badge>
+                          <div>
+                            {/* Header */}
+                            <div className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <CircleGauge className="h-5 w-5 text-primary" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold text-base">
+                                      {zaehler.custom_id || "Unbenannt"}
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground">Wasserzähler</p>
                                   </div>
                                 </div>
-                                <div className="flex gap-1 flex-shrink-0">
+                                <div className="flex gap-1">
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -512,6 +521,60 @@ export function WasserZaehlerModal() {
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
+                              </div>
+                            </div>
+
+                            <Separator className="bg-gray-200 dark:bg-gray-700" />
+
+                            {/* Information Grid */}
+                            <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                              {/* Zählerstand (Placeholder) */}
+                              <div className="flex items-start gap-2">
+                                <div className="flex-shrink-0 mt-0.5">
+                                  <Gauge className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
+                                  <p className="text-sm font-medium text-muted-foreground italic">
+                                    Noch nicht erfasst
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Eichungsdatum */}
+                              <div className="flex items-start gap-2">
+                                <div className="flex-shrink-0 mt-0.5">
+                                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs text-muted-foreground mb-1">Eichungsdatum</p>
+                                  <p className="text-sm font-medium">
+                                    {zaehler.eichungsdatum ? formatDate(zaehler.eichungsdatum) : (
+                                      <span className="text-muted-foreground italic">Nicht gesetzt</span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Letzte Ablesung (Placeholder) */}
+                              <div className="flex items-start gap-2">
+                                <div className="flex-shrink-0 mt-0.5">
+                                  <Clock className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs text-muted-foreground mb-1">Letzte Ablesung</p>
+                                  <p className="text-sm font-medium text-muted-foreground italic">
+                                    Noch keine Ablesung
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-4 pb-4">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <span>Erstellt am {formatDate(zaehler.erstellungsdatum)}</span>
                               </div>
                             </div>
                           </div>
