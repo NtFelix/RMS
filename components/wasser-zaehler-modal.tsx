@@ -14,9 +14,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
-import { Loader2, Plus, Trash2, Edit2, X, Check, CircleGauge, Calendar } from "lucide-react"
+import { Loader2, Plus, Trash2, Edit2, X, Check, CircleGauge, Calendar as CalendarIcon } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format } from "date-fns"
+import { de } from "date-fns/locale"
+import { cn } from "@/lib/utils"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,10 +53,10 @@ export function WasserZaehlerModal() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
   const [newCustomId, setNewCustomId] = React.useState("")
-  const [newEichungsdatum, setNewEichungsdatum] = React.useState("")
+  const [newEichungsdatum, setNewEichungsdatum] = React.useState<Date | undefined>(undefined)
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [editCustomId, setEditCustomId] = React.useState("")
-  const [editEichungsdatum, setEditEichungsdatum] = React.useState("")
+  const [editEichungsdatum, setEditEichungsdatum] = React.useState<Date | undefined>(undefined)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [zaehlerToDelete, setZaehlerToDelete] = React.useState<string | null>(null)
 
@@ -97,7 +102,7 @@ export function WasserZaehlerModal() {
         body: JSON.stringify({
           custom_id: newCustomId.trim(),
           wohnung_id: wasserZaehlerModalData.wohnungId,
-          eichungsdatum: newEichungsdatum || null,
+          eichungsdatum: newEichungsdatum ? format(newEichungsdatum, "yyyy-MM-dd") : null,
         }),
       })
 
@@ -109,7 +114,7 @@ export function WasserZaehlerModal() {
       const newZaehler = await response.json()
       setZaehlerList((prev) => [...prev, newZaehler])
       setNewCustomId("")
-      setNewEichungsdatum("")
+      setNewEichungsdatum(undefined)
       setWasserZaehlerModalDirty(true)
       
       toast({
@@ -139,7 +144,7 @@ export function WasserZaehlerModal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           custom_id: editCustomId.trim(),
-          eichungsdatum: editEichungsdatum || null,
+          eichungsdatum: editEichungsdatum ? format(editEichungsdatum, "yyyy-MM-dd") : null,
         }),
       })
 
@@ -154,7 +159,7 @@ export function WasserZaehlerModal() {
       )
       setEditingId(null)
       setEditCustomId("")
-      setEditEichungsdatum("")
+      setEditEichungsdatum(undefined)
       setWasserZaehlerModalDirty(true)
       
       toast({
@@ -213,21 +218,21 @@ export function WasserZaehlerModal() {
   const startEdit = (zaehler: WasserZaehler) => {
     setEditingId(zaehler.id)
     setEditCustomId(zaehler.custom_id || "")
-    setEditEichungsdatum(zaehler.eichungsdatum || "")
+    setEditEichungsdatum(zaehler.eichungsdatum ? new Date(zaehler.eichungsdatum) : undefined)
   }
 
   const cancelEdit = () => {
     setEditingId(null)
     setEditCustomId("")
-    setEditEichungsdatum("")
+    setEditEichungsdatum(undefined)
   }
 
   const handleClose = () => {
     setNewCustomId("")
-    setNewEichungsdatum("")
+    setNewEichungsdatum(undefined)
     setEditingId(null)
     setEditCustomId("")
-    setEditEichungsdatum("")
+    setEditEichungsdatum(undefined)
     closeWasserZaehlerModal()
   }
 
@@ -272,14 +277,49 @@ export function WasserZaehlerModal() {
                   />
                 </div>
                 <div className="flex-1 space-y-2">
-                  <Input
-                    id="eichungsdatum"
-                    type="date"
-                    placeholder="Eichungsdatum (optional)"
-                    value={newEichungsdatum}
-                    onChange={(e) => setNewEichungsdatum(e.target.value)}
-                    disabled={isSaving}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !newEichungsdatum && "text-muted-foreground"
+                        )}
+                        disabled={isSaving}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newEichungsdatum ? (
+                          format(newEichungsdatum, "dd.MM.yyyy", { locale: de })
+                        ) : (
+                          <span>Eichungsdatum (optional)</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newEichungsdatum}
+                        onSelect={setNewEichungsdatum}
+                        locale={de}
+                        captionLayout="dropdown"
+                        fromYear={1990}
+                        toYear={new Date().getFullYear() + 10}
+                        initialFocus
+                      />
+                      {newEichungsdatum && (
+                        <div className="p-3 border-t">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setNewEichungsdatum(undefined)}
+                          >
+                            Datum löschen
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <Button
                   onClick={handleAddZaehler}
@@ -357,14 +397,49 @@ export function WasserZaehlerModal() {
                                   <Label htmlFor={`edit-eichungsdatum-${zaehler.id}`} className="text-xs text-muted-foreground">
                                     Eichungsdatum
                                   </Label>
-                                  <Input
-                                    id={`edit-eichungsdatum-${zaehler.id}`}
-                                    type="date"
-                                    value={editEichungsdatum}
-                                    onChange={(e) => setEditEichungsdatum(e.target.value)}
-                                    disabled={isSaving}
-                                    className="mt-1"
-                                  />
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        className={cn(
+                                          "w-full justify-start text-left font-normal mt-1",
+                                          !editEichungsdatum && "text-muted-foreground"
+                                        )}
+                                        disabled={isSaving}
+                                      >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {editEichungsdatum ? (
+                                          format(editEichungsdatum, "dd.MM.yyyy", { locale: de })
+                                        ) : (
+                                          <span>Datum wählen</span>
+                                        )}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <Calendar
+                                        mode="single"
+                                        selected={editEichungsdatum}
+                                        onSelect={setEditEichungsdatum}
+                                        locale={de}
+                                        captionLayout="dropdown"
+                                        fromYear={1990}
+                                        toYear={new Date().getFullYear() + 10}
+                                        initialFocus
+                                      />
+                                      {editEichungsdatum && (
+                                        <div className="p-3 border-t">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full"
+                                            onClick={() => setEditEichungsdatum(undefined)}
+                                          >
+                                            Datum löschen
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </PopoverContent>
+                                  </Popover>
                                 </div>
                                 <div className="flex gap-2 pt-2">
                                   <Button
@@ -405,7 +480,7 @@ export function WasserZaehlerModal() {
                                   <div className="flex flex-wrap gap-2 mt-2">
                                     {zaehler.eichungsdatum && (
                                       <Badge variant="secondary" className="text-xs font-normal">
-                                        <Calendar className="h-3 w-3 mr-1" />
+                                        <CalendarIcon className="h-3 w-3 mr-1" />
                                         Eichung: {formatDate(zaehler.eichungsdatum)}
                                       </Badge>
                                     )}
