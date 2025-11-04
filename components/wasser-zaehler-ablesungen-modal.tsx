@@ -105,35 +105,26 @@ export function WasserZaehlerAblesenModal({
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Fetch all apartments in this house
-      const wohnungenResponse = await fetch(`/api/wohnungen`);
-      if (!wohnungenResponse.ok) throw new Error("Failed to fetch apartments");
-      const allWohnungen: Wohnung[] = await wohnungenResponse.json();
-      const wohnungen = allWohnungen.filter((w: any) => w.haus_id === hausId);
+      // Use optimized server action to fetch all data in one call
+      const { getWasserZaehlerForHausAction } = await import('@/app/wasser-zaehler-actions');
+      const result = await getWasserZaehlerForHausAction(hausId);
 
-      // Fetch all water meters for these apartments
-      const zaehlerPromises = wohnungen.map(w => 
-        fetch(`/api/wasser-zaehler?wohnung_id=${w.id}`).then(r => r.json())
-      );
-      const zaehlerResults = await Promise.all(zaehlerPromises);
-      const allZaehler: (WasserZaehler & { wohnung: Wohnung })[] = [];
-      
-      zaehlerResults.forEach((zaehlerList, index) => {
-        zaehlerList.forEach((z: WasserZaehler) => {
-          allZaehler.push({ ...z, wohnung: wohnungen[index] });
-        });
-      });
+      if (!result.success || !result.data) {
+        throw new Error(result.message || "Failed to fetch data");
+      }
 
-      // Fetch tenants for these apartments
-      const mieterResponse = await fetch(`/api/mieter`);
-      if (!mieterResponse.ok) throw new Error("Failed to fetch tenants");
-      const allMieter: Mieter[] = await mieterResponse.json();
-      
-      // Fetch existing readings for these meters
-      const readingsPromises = allZaehler.map(z =>
-        fetch(`/api/wasser-ablesungen?wasser_zaehler_id=${z.id}`).then(r => r.json())
+      const { wohnungen, waterMeters, waterReadings, mieter: allMieter } = result.data;
+
+      // Map meters with their apartment info
+      const allZaehler: (WasserZaehler & { wohnung: Wohnung })[] = waterMeters.map((z: WasserZaehler) => ({
+        ...z,
+        wohnung: wohnungen.find((w: any) => w.id === z.wohnung_id)!
+      }));
+
+      // Group readings by meter
+      const readingsResults = allZaehler.map(zaehler => 
+        waterReadings.filter((r: any) => r.wasser_zaehler_id === zaehler.id)
       );
-      const readingsResults = await Promise.all(readingsPromises);
 
       // Build zaehler info list
       const zaehlerInfoList: WasserZaehlerInfo[] = allZaehler.map((zaehler, index) => {
