@@ -263,109 +263,135 @@ export function WasserZaehlerAblesenModal({
               </div>
             ) : (
               groupedEntries.map(([wohnungName, entries]) => (
-                <div key={wohnungName} className="space-y-3">
-                  {/* Apartment Group Header */}
-                  <div className="p-4 border rounded-3xl mb-4 bg-white dark:bg-zinc-900 shadow-sm">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-start gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground mt-1" />
-                        <div>
-                          <h3 className="font-semibold">{wohnungName}</h3>
-                        </div>
-                      </div>
-                      <Badge 
-                        variant="secondary" 
-                        className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium"
-                      >
-                        <Droplet className="h-3 w-3" />
-                        <span>{entries.length} {entries.length === 1 ? 'Zähler' : 'Zähler'}</span>
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Water meters in this apartment */}
-                  {entries.map((entry) => {
-                    const consumptionChange = entry.latest_reading && entry.previous_reading
-                      ? ((entry.latest_reading.verbrauch - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch) * 100
-                      : null;
-                    
-                    return (
-                      <Card 
-                        key={entry.zaehler_id} 
-                        className="ml-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300"
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 flex-1">
-                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <Gauge className="h-5 w-5 text-primary" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h4 className="font-semibold text-base">
-                                    {entry.custom_id ? `Zähler ${entry.custom_id}` : 'Unbenannter Zähler'}
-                                  </h4>
-                                  {entry.mieter_name && (
-                                    <Badge variant="outline" className="text-xs">
-                                      <User className="h-3 w-3 mr-1" />
-                                      {entry.mieter_name}
-                                    </Badge>
-                                  )}
-                                  <Badge variant="secondary" className="text-xs">
-                                    {entry.wohnung_groesse} m²
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                  <Badge variant="outline" className="text-xs gap-1">
-                                    <Activity className="h-3 w-3" />
-                                    {entry.reading_count} {entry.reading_count === 1 ? 'Ablesung' : 'Ablesungen'}
-                                  </Badge>
-                                  {entry.latest_reading && (
-                                    <>
-                                      <Badge variant="outline" className="text-xs gap-1">
-                                        <CalendarIcon className="h-3 w-3" />
-                                        {isoToGermanDate(entry.latest_reading.ablese_datum)}
-                                      </Badge>
-                                      <Badge variant="outline" className="text-xs gap-1">
-                                        <Gauge className="h-3 w-3" />
-                                        {entry.latest_reading.zaehlerstand} m³
-                                      </Badge>
-                                      <Badge variant="outline" className="text-xs gap-1">
-                                        <Droplet className="h-3 w-3" />
-                                        {entry.latest_reading.verbrauch} m³
-                                      </Badge>
-                                    </>
-                                  )}
-                                  {consumptionChange !== null && !isNaN(consumptionChange) && (
-                                    <Badge 
-                                      variant={consumptionChange > 20 ? "destructive" : consumptionChange < -10 ? "default" : "secondary"}
-                                      className="text-xs gap-1"
-                                    >
-                                      {consumptionChange > 0 ? (
-                                        <TrendingUp className="h-3 w-3" />
-                                      ) : (
-                                        <TrendingDown className="h-3 w-3" />
-                                      )}
-                                      {consumptionChange > 0 ? '+' : ''}{consumptionChange.toFixed(1)}%
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenAblesenModal(entry)}
-                              className="gap-2 ml-4"
-                            >
-                              <Droplet className="h-4 w-4" />
-                              Ablesungen verwalten
-                            </Button>
+                <Card 
+                  key={wohnungName} 
+                  className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden"
+                >
+                  <CardContent className="p-0">
+                    {/* Apartment Group Header */}
+                    <div className="p-5 border-b border-gray-200 dark:border-[#3C4251] bg-gradient-to-r from-gray-50 to-transparent dark:from-zinc-800/50 dark:to-transparent">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                            <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                          <div>
+                            <h3 className="font-semibold text-base">{wohnungName}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {entries.length} {entries.length === 1 ? 'Wasserzähler' : 'Wasserzähler'}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge 
+                          variant="secondary" 
+                          className="flex items-center gap-1.5 px-3 py-1.5"
+                        >
+                          <Droplet className="h-3.5 w-3.5" />
+                          <span className="font-medium">{entries.length}</span>
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Water meters in this apartment */}
+                    <div className="p-4 space-y-3">
+                      {entries.map((entry, index) => {
+                        const consumptionChange = entry.latest_reading && entry.previous_reading
+                          ? ((entry.latest_reading.verbrauch - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch) * 100
+                          : null;
+                        
+                        return (
+                          <Card 
+                            key={entry.zaehler_id} 
+                            className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-zinc-800/50 dark:to-zinc-900/50 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-2xl overflow-hidden hover:shadow-md hover:border-primary/50 transition-all duration-300"
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10">
+                                    <Gauge className="h-6 w-6 text-primary" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                                      <h4 className="font-semibold text-base">
+                                        {entry.custom_id ? `Zähler ${entry.custom_id}` : 'Unbenannter Zähler'}
+                                      </h4>
+                                      {entry.mieter_name && (
+                                        <Badge variant="outline" className="text-xs">
+                                          <User className="h-3 w-3 mr-1" />
+                                          {entry.mieter_name}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Meter Statistics */}
+                                    <div className="grid grid-cols-2 gap-2 mb-3">
+                                      <div className="flex items-center gap-1.5">
+                                        <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">
+                                          {entry.reading_count} {entry.reading_count === 1 ? 'Ablesung' : 'Ablesungen'}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">
+                                          {entry.wohnung_groesse} m²
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Latest Reading Info */}
+                                    {entry.latest_reading ? (
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
+                                          <CalendarIcon className="h-3 w-3" />
+                                          {isoToGermanDate(entry.latest_reading.ablese_datum)}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
+                                          <Gauge className="h-3 w-3" />
+                                          {entry.latest_reading.zaehlerstand} m³
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
+                                          <Droplet className="h-3 w-3" />
+                                          {entry.latest_reading.verbrauch} m³
+                                        </Badge>
+                                        {consumptionChange !== null && !isNaN(consumptionChange) && (
+                                          <Badge 
+                                            variant={consumptionChange > 20 ? "destructive" : consumptionChange < -10 ? "default" : "secondary"}
+                                            className="text-xs gap-1"
+                                          >
+                                            {consumptionChange > 0 ? (
+                                              <TrendingUp className="h-3 w-3" />
+                                            ) : (
+                                              <TrendingDown className="h-3 w-3" />
+                                            )}
+                                            {consumptionChange > 0 ? '+' : ''}{consumptionChange.toFixed(1)}%
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <Badge variant="secondary" className="text-xs">
+                                        Keine Ablesungen vorhanden
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleOpenAblesenModal(entry)}
+                                  className="gap-2 flex-shrink-0"
+                                >
+                                  <Droplet className="h-4 w-4" />
+                                  <span className="hidden sm:inline">Verwalten</span>
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
               ))
             )
           ) : (
