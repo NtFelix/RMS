@@ -35,6 +35,7 @@ import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -373,11 +374,19 @@ export function WasserZaehlerModal() {
               ) : (
                 <div className="grid gap-3">
                   {zaehlerList.map((zaehler) => (
-                    <Card key={zaehler.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-shadow">
+                    <Card key={zaehler.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
                       <CardContent className="p-0">
-                        {editingId === zaehler.id ? (
-                          // Edit Mode
-                          <div className="p-4 space-y-4">
+                        <AnimatePresence mode="wait">
+                          {editingId === zaehler.id ? (
+                            // Edit Mode
+                            <motion.div
+                              key="edit"
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 10 }}
+                              transition={{ duration: 0.2, ease: "easeInOut" }}
+                              className="p-4 space-y-4"
+                            >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -408,7 +417,11 @@ export function WasserZaehlerModal() {
                             <Separator />
                             
                             <div className="space-y-3">
-                              <div>
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.2, delay: 0.1 }}
+                              >
                                 <Label htmlFor={`edit-custom-id-${zaehler.id}`} className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Hash className="h-3 w-3" />
                                   Zähler-ID
@@ -429,8 +442,12 @@ export function WasserZaehlerModal() {
                                   autoFocus
                                   className="mt-1.5"
                                 />
-                              </div>
-                              <div>
+                              </motion.div>
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.2, delay: 0.2 }}
+                              >
                                 <Label htmlFor={`edit-eichungsdatum-${zaehler.id}`} className="text-xs text-muted-foreground flex items-center gap-1">
                                   <CalendarIcon className="h-3 w-3" />
                                   Eichungsdatum
@@ -478,12 +495,18 @@ export function WasserZaehlerModal() {
                                     )}
                                   </PopoverContent>
                                 </Popover>
-                              </div>
+                              </motion.div>
                             </div>
-                          </div>
-                        ) : (
-                          // View Mode
-                          <div>
+                            </motion.div>
+                          ) : (
+                            // View Mode
+                            <motion.div
+                              key="view"
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.2, ease: "easeInOut" }}
+                            >
                             {/* Header */}
                             <div className="p-4">
                               <div className="flex items-center justify-between">
@@ -529,7 +552,12 @@ export function WasserZaehlerModal() {
                             {/* Information Grid */}
                             <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                               {/* Zählerstand (Placeholder) */}
-                              <div className="flex items-start gap-2">
+                              <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.3, delay: 0.1 }}
+                                className="flex items-start gap-2"
+                              >
                                 <div className="flex-shrink-0 mt-0.5">
                                   <Gauge className="h-4 w-4 text-muted-foreground" />
                                 </div>
@@ -539,10 +567,15 @@ export function WasserZaehlerModal() {
                                     Noch nicht erfasst
                                   </p>
                                 </div>
-                              </div>
+                              </motion.div>
 
                               {/* Eichungsdatum */}
-                              <div className="flex items-start gap-2">
+                              <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.3, delay: 0.2 }}
+                                className="flex items-start gap-2"
+                              >
                                 <div className="flex-shrink-0 mt-0.5">
                                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                                 </div>
@@ -554,10 +587,15 @@ export function WasserZaehlerModal() {
                                     )}
                                   </p>
                                 </div>
-                              </div>
+                              </motion.div>
 
                               {/* Letzte Ablesung (Placeholder) */}
-                              <div className="flex items-start gap-2">
+                              <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.3, delay: 0.3 }}
+                                className="flex items-start gap-2"
+                              >
                                 <div className="flex-shrink-0 mt-0.5">
                                   <Clock className="h-4 w-4 text-muted-foreground" />
                                 </div>
@@ -567,7 +605,7 @@ export function WasserZaehlerModal() {
                                     Noch keine Ablesung
                                   </p>
                                 </div>
-                              </div>
+                              </motion.div>
                             </div>
 
                             {/* Footer */}
@@ -577,8 +615,9 @@ export function WasserZaehlerModal() {
                                 <span>Erstellt am {formatDate(zaehler.erstellungsdatum)}</span>
                               </div>
                             </div>
-                          </div>
-                        )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </CardContent>
                     </Card>
                   ))}
