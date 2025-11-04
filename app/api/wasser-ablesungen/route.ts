@@ -32,16 +32,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
     }
 
-    // Fetch Wasser_Ablesungen with related data
+    // Fetch Wasser_Ablesungen
     const { data, error } = await supabase
       .from('Wasser_Ablesungen')
-      .select(`
-        *,
-        Mieter:mieter_id (
-          id,
-          name
-        )
-      `)
+      .select('*')
       .eq('wasser_zaehler_id', wasserZaehlerId)
       .eq('user_id', user.id)
       .order('ablese_datum', { ascending: false })
@@ -69,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { ablese_datum, mieter_id, zaehlerstand, verbrauch, nebenkosten_id, wasser_zaehler_id } = body
+    const { ablese_datum, zaehlerstand, verbrauch, wasser_zaehler_id } = body
 
     if (!wasser_zaehler_id) {
       return NextResponse.json({ error: 'wasser_zaehler_id is required' }, { status: 400 })
@@ -92,20 +86,12 @@ export async function POST(request: NextRequest) {
       .from('Wasser_Ablesungen')
       .insert({
         ablese_datum: ablese_datum || null,
-        mieter_id: mieter_id || null,
         zaehlerstand: zaehlerstand || null,
         verbrauch: verbrauch || 0,
-        nebenkosten_id: nebenkosten_id || null,
         wasser_zaehler_id,
         user_id: user.id,
       })
-      .select(`
-        *,
-        Mieter:mieter_id (
-          id,
-          name
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {

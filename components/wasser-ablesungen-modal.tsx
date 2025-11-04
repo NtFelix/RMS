@@ -53,16 +53,10 @@ import {
 interface WasserAblesung {
   id: string
   ablese_datum: string | null
-  mieter_id: string | null
   zaehlerstand: number | null
   verbrauch: number
-  nebenkosten_id: string | null
   wasser_zaehler_id: string
   user_id: string
-  Mieter?: {
-    id: string
-    name: string
-  }
 }
 
 export function WasserAblesenModal() {

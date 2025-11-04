@@ -18,7 +18,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { ablese_datum, zaehlerstand, verbrauch, mieter_id, nebenkosten_id } = body
+    const { ablese_datum, zaehlerstand, verbrauch } = body
 
     // Verify the Wasser_Ablesung belongs to the user
     const { data: existing, error: fetchError } = await supabase
@@ -39,18 +39,10 @@ export async function PATCH(
         ablese_datum: ablese_datum || null,
         zaehlerstand: zaehlerstand || null,
         verbrauch: verbrauch || 0,
-        mieter_id: mieter_id || null,
-        nebenkosten_id: nebenkosten_id || null,
       })
       .eq('id', id)
       .eq('user_id', user.id)
-      .select(`
-        *,
-        Mieter:mieter_id (
-          id,
-          name
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {
