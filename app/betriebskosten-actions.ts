@@ -1422,7 +1422,7 @@ async function getAbrechnungModalDataFallback(
     });
   }
 
-  // Fetch wasserzaehler readings
+  // Fetch wasserzaehler readings (legacy table - for backward compatibility)
   const { data: wasserzaehlerReadings, error: wasserzaehlerError } = await supabase
     .from("Wasserzaehler")
     .select("*")
@@ -1434,6 +1434,54 @@ async function getAbrechnungModalDataFallback(
       userId,
       nebenkostenId
     });
+  }
+
+  // Fetch water meters for apartments in this house
+  const apartmentIds = (tenants || []).map((t: any) => t.wohnung_id).filter(Boolean);
+  let waterMeters: WasserZaehler[] = [];
+  let waterReadings: WasserAblesung[] = [];
+
+  if (apartmentIds.length > 0) {
+    // Fetch water meters for these apartments
+    const { data: metersData, error: metersError } = await supabase
+      .from("Wasser_Zaehler")
+      .select("*")
+      .in("wohnung_id", apartmentIds)
+      .eq("user_id", userId);
+
+    if (metersError) {
+      logger.error('Failed to fetch water meters in fallback', metersError || undefined, {
+        userId,
+        nebenkostenId,
+        apartmentIds
+      });
+    } else if (metersData) {
+      waterMeters = metersData as WasserZaehler[];
+
+      // Fetch water readings for these meters within the billing period
+      const meterIds = waterMeters.map(m => m.id);
+      if (meterIds.length > 0) {
+        const { data: readingsData, error: readingsError } = await supabase
+          .from("Wasser_Ablesungen")
+          .select("*")
+          .in("wasser_zaehler_id", meterIds)
+          .gte("ablese_datum", nebenkostenData.startdatum)
+          .lte("ablese_datum", nebenkostenData.enddatum)
+          .eq("user_id", userId);
+
+        if (readingsError) {
+          logger.error('Failed to fetch water readings in fallback', readingsError || undefined, {
+            userId,
+            nebenkostenId,
+            meterIds,
+            periodStart: nebenkostenData.startdatum,
+            periodEnd: nebenkostenData.enddatum
+          });
+        } else if (readingsData) {
+          waterReadings = readingsData as WasserAblesung[];
+        }
+      }
+    }
   }
 
   // Aggregate basic metrics for the modal (compatible with component expectations)
@@ -1450,15 +1498,19 @@ async function getAbrechnungModalDataFallback(
     } as Nebenkosten,
     tenants: tenants || [],
     rechnungen: rechnungen || [],
-    water_meters: [], // TODO: Fetch from Wasser_Zaehler table
-    water_readings: [] // TODO: Fetch from Wasser_Ablesungen table
+    water_meters: waterMeters,
+    water_readings: waterReadings
   };
 
   logger.info('Successfully fetched Abrechnung modal data (fallback)', {
     userId,
     nebenkostenId,
     tenantCount: modalData.tenants.length,
-    rechnungenCount: modalData.rechnungen.length
+    rechnungenCount: modalData.rechnungen.length,
+    waterMetersCount: modalData.water_meters.length,
+    waterReadingsCount: modalData.water_readings.length,
+    periodStart: nebenkostenData.startdatum,
+    periodEnd: nebenkostenData.enddatum
   });
 
   return { success: true, data: modalData };

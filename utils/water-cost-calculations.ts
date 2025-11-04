@@ -184,6 +184,19 @@ export function calculateTenantWaterConsumption(
         reading.ablese_datum <= periodEnd
       );
 
+      // Debug logging for troubleshooting
+      if (process.env.NODE_ENV === 'development' && waterReadings.length > 0) {
+        console.log('[Water Calculation Debug]', {
+          meterId: meter.id,
+          meterCustomId: meter.custom_id,
+          totalReadings: waterReadings.length,
+          matchingReadings: meterReadings.length,
+          periodStart,
+          periodEnd,
+          readingDates: waterReadings.map(r => r.ablese_datum)
+        });
+      }
+
       // Sum up consumption from all readings
       const meterConsumption = meterReadings.reduce((sum, reading) => sum + reading.verbrauch, 0);
       
