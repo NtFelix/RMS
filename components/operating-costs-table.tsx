@@ -31,6 +31,7 @@ import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, C
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
 import { WasserZaehlerVerwaltungModal } from "./wasser-zaehler-verwaltung-modal" // Added
+import { WasserZaehlerAblesenModal } from "./wasser-zaehler-ablesungen-modal" // Added
 import { 
   saveWasserzaehlerDataOptimized, 
   getWasserzaehlerModalDataAction, 
@@ -83,6 +84,8 @@ export function OperatingCostsTable({
   const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
   const [isWasserZaehlerVerwaltungOpen, setIsWasserZaehlerVerwaltungOpen] = useState(false)
   const [selectedHausForVerwaltung, setSelectedHausForVerwaltung] = useState<{ id: string; name: string } | null>(null)
+  const [isWasserZaehlerAblesenOpen, setIsWasserZaehlerAblesenOpen] = useState(false)
+  const [selectedNebenkostenForAblesen, setSelectedNebenkostenForAblesen] = useState<OptimizedNebenkosten | null>(null)
 
   // Use external selection state if provided, otherwise use internal
   const selectedItems = externalSelectedItems ?? internalSelectedItems
@@ -643,17 +646,14 @@ export function OperatingCostsTable({
                         <ContextMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedHausForVerwaltung({
-                              id: item.haeuser_id || '',
-                              name: item.haus_name || 'Unbekanntes Haus'
-                            });
-                            setIsWasserZaehlerVerwaltungOpen(true);
+                            setSelectedNebenkostenForAblesen(item);
+                            setIsWasserZaehlerAblesenOpen(true);
                           }}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <Droplets className="h-4 w-4" />
                           <div className="flex items-center gap-2">
-                            <span>Wasserzähler verwalten</span>
+                            <span>Wasserzähler</span>
                             <Badge variant="secondary" className="text-xs px-1.5 py-0">neu</Badge>
                           </div>
                         </ContextMenuItem>
@@ -745,6 +745,22 @@ export function OperatingCostsTable({
           }}
           hausId={selectedHausForVerwaltung.id}
           hausName={selectedHausForVerwaltung.name}
+        />
+      )}
+
+      {/* Wasser_Zaehler Ablesungen Modal (neu) */}
+      {selectedNebenkostenForAblesen && (
+        <WasserZaehlerAblesenModal
+          isOpen={isWasserZaehlerAblesenOpen}
+          onClose={() => {
+            setIsWasserZaehlerAblesenOpen(false);
+            setSelectedNebenkostenForAblesen(null);
+          }}
+          hausId={selectedNebenkostenForAblesen.haeuser_id || ''}
+          hausName={selectedNebenkostenForAblesen.haus_name || 'Unbekanntes Haus'}
+          startdatum={selectedNebenkostenForAblesen.startdatum || ''}
+          enddatum={selectedNebenkostenForAblesen.enddatum || ''}
+          nebenkostenId={selectedNebenkostenForAblesen.id}
         />
       )}
     </div>
