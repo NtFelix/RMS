@@ -326,6 +326,7 @@ export function AbrechnungModal({
         betrag,
         berechnungsart,
         wasserkosten, // Total building water cost
+        wasserverbrauch, // Total building water consumption
         gesamtFlaeche,
       } = nebenkostenItem!;
 
@@ -511,6 +512,7 @@ export function AbrechnungModal({
         waterMeters,
         waterReadings,
         wasserkosten || 0,
+        wasserverbrauch || 0, // Total building consumption from Nebenkosten
         itemStartdatum || startdatum,
         itemEnddatum || enddatum
       );

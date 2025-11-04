@@ -244,12 +244,14 @@ describe('Water Cost Calculations', () => {
       const meters = [meter2];
       const readings = [reading3];
       const totalBuildingWaterCost = 540; // 540 EUR for 180 m³ = 3 EUR/m³
+      const totalBuildingConsumption = 180; // Official building consumption
 
       const result = calculateTenantWaterCosts(
         tenants,
         meters,
         readings,
         totalBuildingWaterCost,
+        totalBuildingConsumption,
         periodStart,
         periodEnd
       );
@@ -266,12 +268,14 @@ describe('Water Cost Calculations', () => {
       const meters = [meter1];
       const readings = [reading1, reading2];
       const totalBuildingWaterCost = 600; // 600 EUR for 200 m³ = 3 EUR/m³
+      const totalBuildingConsumption = 200;
 
       const result = calculateTenantWaterCosts(
         tenants,
         meters,
         readings,
         totalBuildingWaterCost,
+        totalBuildingConsumption,
         periodStart,
         periodEnd
       );
@@ -298,12 +302,14 @@ describe('Water Cost Calculations', () => {
       const meters = [meter1];
       const readings = [reading1, reading2]; // 100 m³ on 05.06, 100 m³ on 31.12
       const totalBuildingWaterCost = 600; // 3 EUR/m³
+      const totalBuildingConsumption = 200;
 
       const result = calculateTenantWaterCosts(
         tenants,
         meters,
         readings,
         totalBuildingWaterCost,
+        totalBuildingConsumption,
         periodStart,
         periodEnd
       );
@@ -331,6 +337,7 @@ describe('Water Cost Calculations', () => {
       const meters = [meter1, meter2];
       const readings = [reading1, reading2, reading3];
       const totalBuildingWaterCost = 1140; // 380 m³ total * 3 EUR/m³
+      const totalBuildingConsumption = 380;
 
       const result = getTenantWaterCost(
         'tenant-3',
@@ -338,6 +345,7 @@ describe('Water Cost Calculations', () => {
         meters,
         readings,
         totalBuildingWaterCost,
+        totalBuildingConsumption,
         periodStart,
         periodEnd
       );
@@ -353,6 +361,7 @@ describe('Water Cost Calculations', () => {
       const meters = [meter1];
       const readings = [reading1];
       const totalBuildingWaterCost = 300;
+      const totalBuildingConsumption = 100;
 
       const result = getTenantWaterCost(
         'non-existent',
@@ -360,6 +369,7 @@ describe('Water Cost Calculations', () => {
         meters,
         readings,
         totalBuildingWaterCost,
+        totalBuildingConsumption,
         periodStart,
         periodEnd
       );
@@ -374,12 +384,14 @@ describe('Water Cost Calculations', () => {
       const meters = [meter1];
       const readings: WasserAblesung[] = []; // No readings
       const totalBuildingWaterCost = 0;
+      const totalBuildingConsumption = 0;
 
       const result = calculateTenantWaterCosts(
         tenants,
         meters,
         readings,
         totalBuildingWaterCost,
+        totalBuildingConsumption,
         periodStart,
         periodEnd
       );
@@ -395,12 +407,14 @@ describe('Water Cost Calculations', () => {
       const meters: WasserZaehler[] = []; // No meters
       const readings: WasserAblesung[] = [];
       const totalBuildingWaterCost = 100;
+      const totalBuildingConsumption = 0;
 
       const result = calculateTenantWaterCosts(
         tenants,
         meters,
         readings,
         totalBuildingWaterCost,
+        totalBuildingConsumption,
         periodStart,
         periodEnd
       );
@@ -429,12 +443,14 @@ describe('Water Cost Calculations', () => {
       const meters = [meter1];
       const readings = [reading2]; // 100 m³ for whole year
       const totalBuildingWaterCost = 300;
+      const totalBuildingConsumption = 100;
 
       const result = calculateTenantWaterCosts(
         tenants,
         meters,
         readings,
         totalBuildingWaterCost,
+        totalBuildingConsumption,
         periodStart,
         periodEnd
       );

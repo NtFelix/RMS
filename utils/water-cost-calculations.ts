@@ -265,6 +265,7 @@ export function calculateTenantWaterCosts(
   waterMeters: WasserZaehler[],
   waterReadings: WasserAblesung[],
   totalBuildingWaterCost: number,
+  totalBuildingConsumption: number,
   periodStart: string,
   periodEnd: string
 ): TenantWaterCost[] {
@@ -277,11 +278,9 @@ export function calculateTenantWaterCosts(
     periodEnd
   );
 
-  // Calculate total consumption across all tenants
-  const totalConsumption = tenantConsumptions.reduce((sum, tc) => sum + tc.totalConsumption, 0);
-
-  // Calculate price per cubic meter
-  const pricePerCubicMeter = totalConsumption > 0 ? totalBuildingWaterCost / totalConsumption : 0;
+  // Calculate price per cubic meter using the official building consumption from Nebenkosten
+  // This ensures the price is based on the actual total, not the sum of individual readings
+  const pricePerCubicMeter = totalBuildingConsumption > 0 ? totalBuildingWaterCost / totalBuildingConsumption : 0;
 
   // Group tenants by apartment to identify WGs
   const tenantsByApartment = new Map<string, TenantWaterConsumption[]>();
@@ -345,6 +344,7 @@ export function getTenantWaterCost(
   waterMeters: WasserZaehler[],
   waterReadings: WasserAblesung[],
   totalBuildingWaterCost: number,
+  totalBuildingConsumption: number,
   periodStart: string,
   periodEnd: string
 ): TenantWaterCost | null {
@@ -353,6 +353,7 @@ export function getTenantWaterCost(
     waterMeters,
     waterReadings,
     totalBuildingWaterCost,
+    totalBuildingConsumption,
     periodStart,
     periodEnd
   );

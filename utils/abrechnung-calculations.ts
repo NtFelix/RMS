@@ -174,14 +174,16 @@ export function calculateWaterCostDistribution(
   waterReadings: WasserAblesung[]
 ): WaterCostBreakdown {
   const totalBuildingWaterCost = nebenkosten.wasserkosten || 0;
+  const totalBuildingConsumption = nebenkosten.wasserverbrauch || 0;
   
-  // Use the new calculation system
+  // Use the new calculation system with official building consumption
   const tenantWaterCost = getTenantWaterCost(
     tenant.id,
     allTenants,
     waterMeters,
     waterReadings,
     totalBuildingWaterCost,
+    totalBuildingConsumption,
     nebenkosten.startdatum,
     nebenkosten.enddatum
   );
@@ -190,25 +192,13 @@ export function calculateWaterCostDistribution(
     // Tenant has no water consumption
     return {
       totalBuildingWaterCost,
-      totalBuildingConsumption: 0,
+      totalBuildingConsumption,
       pricePerCubicMeter: 0,
       tenantConsumption: 0,
       totalCost: 0,
       meterReading: undefined
     };
   }
-
-  // Calculate total building consumption from all tenants
-  const allTenantCosts = calculateTenantWaterCosts(
-    allTenants,
-    waterMeters,
-    waterReadings,
-    totalBuildingWaterCost,
-    nebenkosten.startdatum,
-    nebenkosten.enddatum
-  );
-  
-  const totalBuildingConsumption = allTenantCosts.reduce((sum, tc) => sum + tc.consumption, 0);
 
   // Get meter reading details if available
   let meterReading: WaterCostBreakdown['meterReading'];
