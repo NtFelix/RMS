@@ -62,12 +62,10 @@ export interface RechnungData {
 }
 
 // Implement createNebenkosten function
+// Note: wasserverbrauch is automatically calculated by database trigger
 export async function createNebenkosten(formData: NebenkostenFormData) {
   const supabase = await createClient();
 
-  // Ensure array fields are correctly formatted if Supabase expects them as such
-  // Supabase client typically handles JS arrays correctly for postgres array types (text[], numeric[])
-  // user_id will now be fetched from the session within this server action
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     console.error("User not authenticated for createNebenkosten");
@@ -83,7 +81,7 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
     .from("Nebenkosten")
     .insert([preparedData])
     .select()
-    .single(); // Assuming we want the single created record back
+    .single();
 
   if (error) {
     console.error("Error creating Nebenkosten:", error);
@@ -95,25 +93,16 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
 }
 
 // Implement updateNebenkosten function
+// Note: wasserverbrauch is automatically recalculated by database trigger when dates change
 export async function updateNebenkosten(id: string, formData: Partial<NebenkostenFormData>) {
   const supabase = await createClient();
 
-  // For updates, we might not change user_id, but if we were to allow it or set it based on who's updating:
-  // const { data: { user } } = await supabase.auth.getUser();
-  // if (!user) {
-  //   console.error("User not authenticated for updateNebenkosten");
-  //   return { success: false, message: "User not authenticated", data: null };
-  // }
-  // // Add user_id to formData if it's part of the update logic, e.g., formData.user_id = user.id;
-  // // However, typically, one wouldn't change the user_id of an existing record.
-  // // The provided formData will not have user_id, so this is more of a note.
-
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .update(formData) // formData here is Partial<NebenkostenFormData>, so no user_id from client
+    .update(formData)
     .eq("id", id)
     .select()
-    .single(); // Assuming we want the single updated record back
+    .single();
 
   if (error) {
     console.error("Error updating Nebenkosten:", error);
