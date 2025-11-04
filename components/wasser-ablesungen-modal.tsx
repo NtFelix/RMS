@@ -27,7 +27,8 @@ import {
   Clock,
   User,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  AlertTriangle
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -78,10 +79,12 @@ export function WasserAblesenModal() {
   const [newAbleseDatum, setNewAbleseDatum] = React.useState<Date | undefined>(undefined)
   const [newZaehlerstand, setNewZaehlerstand] = React.useState("")
   const [newVerbrauch, setNewVerbrauch] = React.useState("")
+  const [newVerbrauchWarning, setNewVerbrauchWarning] = React.useState("")
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [editAbleseDatum, setEditAbleseDatum] = React.useState<Date | undefined>(undefined)
   const [editZaehlerstand, setEditZaehlerstand] = React.useState("")
   const [editVerbrauch, setEditVerbrauch] = React.useState("")
+  const [editVerbrauchWarning, setEditVerbrauchWarning] = React.useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [ablesenToDelete, setAblesenToDelete] = React.useState<string | null>(null)
 
@@ -100,7 +103,13 @@ export function WasserAblesenModal() {
       const response = await fetch(`/api/wasser-ablesungen?wasser_zaehler_id=${wasserAblesenModalData.wasserZaehlerId}`)
       if (response.ok) {
         const data = await response.json()
-        setAblesenList(data)
+        // Sort by date descending (newest first)
+        const sortedData = data.sort((a: WasserAblesung, b: WasserAblesung) => {
+          const dateA = a.ablese_datum ? new Date(a.ablese_datum).getTime() : 0
+          const dateB = b.ablese_datum ? new Date(b.ablese_datum).getTime() : 0
+          return dateB - dateA
+        })
+        setAblesenList(sortedData)
       } else {
         throw new Error("Fehler beim Laden der Ablesungen")
       }
@@ -113,6 +122,91 @@ export function WasserAblesenModal() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Smart calculation for new reading
+  const handleNewZaehlerstandChange = (value: string) => {
+    setNewZaehlerstand(value)
+    
+    const currentReading = parseFloat(value)
+    if (isNaN(currentReading) || !value.trim()) {
+      setNewVerbrauch("")
+      setNewVerbrauchWarning("")
+      return
+    }
+
+    // Get the most recent reading (first in sorted list)
+    const previousReading = ablesenList[0]
+    
+    if (previousReading && previousReading.zaehlerstand !== null) {
+      const consumption = currentReading - previousReading.zaehlerstand
+      setNewVerbrauch(consumption.toFixed(2))
+      
+      // Only show warnings for significant differences
+      if (consumption < 0) {
+        setNewVerbrauchWarning("error|Negativer Verbrauch - Zählerstand ist niedriger als vorherige Ablesung")
+      } else if (previousReading.verbrauch > 0) {
+        const changePercent = ((consumption - previousReading.verbrauch) / previousReading.verbrauch) * 100
+        if (changePercent > 50) {
+          setNewVerbrauchWarning(`warning|Verbrauch ist ${changePercent.toFixed(0)}% höher als letzte Ablesung (${previousReading.verbrauch} m³)`)
+        } else if (changePercent < -50) {
+          setNewVerbrauchWarning(`info|Verbrauch ist ${Math.abs(changePercent).toFixed(0)}% niedriger als letzte Ablesung (${previousReading.verbrauch} m³)`)
+        } else {
+          setNewVerbrauchWarning("")
+        }
+      } else if (consumption > 1000) {
+        setNewVerbrauchWarning("warning|Sehr hoher Verbrauch - bitte überprüfen")
+      } else {
+        setNewVerbrauchWarning("")
+      }
+    } else {
+      // No previous reading, user must enter consumption manually
+      setNewVerbrauch("")
+      setNewVerbrauchWarning("")
+    }
+  }
+
+  // Smart calculation for editing
+  const handleEditZaehlerstandChange = (value: string, currentAblesung: WasserAblesung) => {
+    setEditZaehlerstand(value)
+    
+    const currentReading = parseFloat(value)
+    if (isNaN(currentReading) || !value.trim()) {
+      setEditVerbrauch("")
+      setEditVerbrauchWarning("")
+      return
+    }
+
+    // Find the previous reading (next in the sorted list)
+    const currentIndex = ablesenList.findIndex(a => a.id === currentAblesung.id)
+    const previousReading = currentIndex < ablesenList.length - 1 ? ablesenList[currentIndex + 1] : null
+    
+    if (previousReading && previousReading.zaehlerstand !== null) {
+      const consumption = currentReading - previousReading.zaehlerstand
+      setEditVerbrauch(consumption.toFixed(2))
+      
+      // Only show warnings for significant differences
+      if (consumption < 0) {
+        setEditVerbrauchWarning("error|Negativer Verbrauch - Zählerstand ist niedriger als vorherige Ablesung")
+      } else if (previousReading.verbrauch > 0) {
+        const changePercent = ((consumption - previousReading.verbrauch) / previousReading.verbrauch) * 100
+        if (changePercent > 50) {
+          setEditVerbrauchWarning(`warning|Verbrauch ist ${changePercent.toFixed(0)}% höher als vorherige Ablesung (${previousReading.verbrauch} m³)`)
+        } else if (changePercent < -50) {
+          setEditVerbrauchWarning(`info|Verbrauch ist ${Math.abs(changePercent).toFixed(0)}% niedriger als vorherige Ablesung (${previousReading.verbrauch} m³)`)
+        } else {
+          setEditVerbrauchWarning("")
+        }
+      } else if (consumption > 1000) {
+        setEditVerbrauchWarning("warning|Sehr hoher Verbrauch - bitte überprüfen")
+      } else {
+        setEditVerbrauchWarning("")
+      }
+    } else {
+      // No previous reading
+      setEditVerbrauch("")
+      setEditVerbrauchWarning("")
     }
   }
 
@@ -249,6 +343,7 @@ export function WasserAblesenModal() {
     setEditAbleseDatum(ablesung.ablese_datum ? new Date(ablesung.ablese_datum) : undefined)
     setEditZaehlerstand(ablesung.zaehlerstand?.toString() || "")
     setEditVerbrauch(ablesung.verbrauch.toString())
+    setEditVerbrauchWarning("")
   }
 
   const cancelEdit = () => {
@@ -256,16 +351,19 @@ export function WasserAblesenModal() {
     setEditAbleseDatum(undefined)
     setEditZaehlerstand("")
     setEditVerbrauch("")
+    setEditVerbrauchWarning("")
   }
 
   const handleClose = () => {
     setNewAbleseDatum(undefined)
     setNewZaehlerstand("")
     setNewVerbrauch("")
+    setNewVerbrauchWarning("")
     setEditingId(null)
     setEditAbleseDatum(undefined)
     setEditZaehlerstand("")
     setEditVerbrauch("")
+    setEditVerbrauchWarning("")
     closeWasserAblesenModal()
   }
 
@@ -286,6 +384,46 @@ export function WasserAblesenModal() {
     const previous = ablesenList[index + 1]
     if (!current.verbrauch || !previous.verbrauch) return null
     return ((current.verbrauch - previous.verbrauch) / previous.verbrauch) * 100
+  }
+
+  // Render warning alert (button-sized)
+  const renderWarningAlert = (warning: string) => {
+    if (!warning) return null
+    
+    const [type, message] = warning.split("|")
+    
+    const getIcon = () => {
+      switch (type) {
+        case "error":
+          return <X className="h-4 w-4" />
+        case "warning":
+          return <AlertTriangle className="h-4 w-4" />
+        case "info":
+          return <TrendingDown className="h-4 w-4" />
+        default:
+          return null
+      }
+    }
+    
+    const getStyles = () => {
+      switch (type) {
+        case "error":
+          return "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
+        case "warning":
+          return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800"
+        case "info":
+          return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+        default:
+          return ""
+      }
+    }
+    
+    return (
+      <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border ${getStyles()}`}>
+        {getIcon()}
+        <span className="text-sm font-medium">{message}</span>
+      </div>
+    )
   }
 
   return (
@@ -358,7 +496,7 @@ export function WasserAblesenModal() {
                     step="0.01"
                     placeholder="Zählerstand (m³)"
                     value={newZaehlerstand}
-                    onChange={(e) => setNewZaehlerstand(e.target.value)}
+                    onChange={(e) => handleNewZaehlerstandChange(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newZaehlerstand.trim()) {
                         handleAddAblesung()
@@ -378,6 +516,7 @@ export function WasserAblesenModal() {
                   />
                 </div>
               </div>
+              {newVerbrauchWarning && renderWarningAlert(newVerbrauchWarning)}
               <Button
                 onClick={handleAddAblesung}
                 disabled={!newZaehlerstand.trim() || isSaving}
@@ -520,7 +659,12 @@ export function WasserAblesenModal() {
                                       type="number"
                                       step="0.01"
                                       value={editZaehlerstand}
-                                      onChange={(e) => setEditZaehlerstand(e.target.value)}
+                                      onChange={(e) => {
+                                        const currentAblesung = ablesenList.find(a => a.id === editingId)
+                                        if (currentAblesung) {
+                                          handleEditZaehlerstandChange(e.target.value, currentAblesung)
+                                        }
+                                      }}
                                       disabled={isSaving}
                                       placeholder="Zählerstand"
                                       className="mt-1.5"
@@ -542,6 +686,11 @@ export function WasserAblesenModal() {
                                     />
                                   </div>
                                 </div>
+                                {editVerbrauchWarning && (
+                                  <div className="mt-3">
+                                    {renderWarningAlert(editVerbrauchWarning)}
+                                  </div>
+                                )}
                               </motion.div>
                             ) : (
                               // View Mode
