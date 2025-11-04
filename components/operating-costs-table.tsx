@@ -285,7 +285,8 @@ export function OperatingCostsTable({
           nebenkostenId: item.id,
           tenantsCount: Array.isArray(result.data.tenants) ? result.data.tenants.length : 'n/a',
           rechnungenCount: Array.isArray(result.data.rechnungen) ? result.data.rechnungen.length : 'n/a',
-          wasserzaehlerCount: Array.isArray(result.data.wasserzaehler_readings) ? result.data.wasserzaehler_readings.length : 'n/a',
+          waterMetersCount: Array.isArray(result.data.water_meters) ? result.data.water_meters.length : 'n/a',
+          waterReadingsCount: Array.isArray(result.data.water_readings) ? result.data.water_readings.length : 'n/a',
           firstTenant: Array.isArray(result.data.tenants) && result.data.tenants.length > 0 ? {
             id: (result.data.tenants[0] as any).id,
             name: (result.data.tenants[0] as any).name,
@@ -705,7 +706,8 @@ export function OperatingCostsTable({
           nebenkostenItem={selectedNebenkostenForAbrechnung}
           tenants={abrechnungModalData.tenants ?? []}
           rechnungen={abrechnungModalData.rechnungen ?? []}
-          wasserzaehlerReadings={abrechnungModalData.wasserzaehler_readings ?? []}
+          waterMeters={abrechnungModalData.water_meters ?? []}
+          waterReadings={abrechnungModalData.water_readings ?? []}
           ownerName={ownerName}
           ownerAddress={(() => {
             const selectedHaus = allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id);
