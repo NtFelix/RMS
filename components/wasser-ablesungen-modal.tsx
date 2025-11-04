@@ -25,7 +25,6 @@ import {
   Calendar as CalendarIcon,
   Gauge,
   Clock,
-  User,
   TrendingUp,
   TrendingDown,
   AlertTriangle
@@ -719,43 +718,28 @@ export function WasserAblesenModal() {
                                         <p className="text-xs text-muted-foreground">Ablesung</p>
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      {consumptionChange !== null && (
-                                        <Badge 
-                                          variant={consumptionChange > 20 ? "destructive" : consumptionChange < -10 ? "default" : "secondary"}
-                                          className="gap-1"
-                                        >
-                                          {consumptionChange > 0 ? (
-                                            <TrendingUp className="h-3 w-3" />
-                                          ) : (
-                                            <TrendingDown className="h-3 w-3" />
-                                          )}
-                                          {consumptionChange > 0 ? '+' : ''}{consumptionChange.toFixed(1)}%
-                                        </Badge>
-                                      )}
-                                      <div className="flex gap-1">
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => startEdit(ablesung)}
-                                          disabled={isSaving}
-                                          className="h-8 w-8 p-0"
-                                        >
-                                          <Edit2 className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => {
-                                            setAblesenToDelete(ablesung.id)
-                                            setDeleteDialogOpen(true)
-                                          }}
-                                          disabled={isSaving}
-                                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => startEdit(ablesung)}
+                                        disabled={isSaving}
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          setAblesenToDelete(ablesung.id)
+                                          setDeleteDialogOpen(true)
+                                        }}
+                                        disabled={isSaving}
+                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
                                     </div>
                                   </div>
                                 </div>
@@ -807,14 +791,31 @@ export function WasserAblesenModal() {
                                     className="flex items-start gap-2"
                                   >
                                     <div className="flex-shrink-0 mt-0.5">
-                                      <User className="h-4 w-4 text-muted-foreground" />
+                                      {(() => {
+                                        const change = getConsumptionChange(index)
+                                        if (change === null) return <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                        return change > 0 ? <TrendingUp className="h-4 w-4 text-muted-foreground" /> : <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                                      })()}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-xs text-muted-foreground mb-1">Mieter</p>
+                                      <p className="text-xs text-muted-foreground mb-1">Verbrauchsänderung</p>
                                       <p className="text-sm font-medium">
-                                        {ablesung.Mieter?.name || (
-                                          <span className="text-muted-foreground italic">Nicht zugeordnet</span>
-                                        )}
+                                        {(() => {
+                                          const change = getConsumptionChange(index)
+                                          if (change === null) {
+                                            return <span className="text-muted-foreground italic">Keine Vergleichsdaten</span>
+                                          }
+                                          const changeClass = change > 20 
+                                            ? "text-red-600 dark:text-red-400" 
+                                            : change < -10 
+                                            ? "text-green-600 dark:text-green-400" 
+                                            : ""
+                                          return (
+                                            <span className={changeClass}>
+                                              {change > 0 ? '+' : ''}{change.toFixed(1)}%
+                                            </span>
+                                          )
+                                        })()}
                                       </p>
                                     </div>
                                   </motion.div>
