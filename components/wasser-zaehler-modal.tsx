@@ -25,7 +25,8 @@ import {
   Calendar as CalendarIcon,
   Gauge,
   Clock,
-  Hash
+  Hash,
+  Droplet
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -61,6 +62,7 @@ export function WasserZaehlerModal() {
     wasserZaehlerModalData,
     closeWasserZaehlerModal,
     setWasserZaehlerModalDirty,
+    openWasserAblesenModal,
   } = useModalStore()
 
   const [zaehlerList, setZaehlerList] = React.useState<WasserZaehler[]>([])
@@ -522,6 +524,16 @@ export function WasserZaehlerModal() {
                                   </div>
                                 </div>
                                 <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openWasserAblesenModal(zaehler.id, wasserZaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined)}
+                                    disabled={isSaving}
+                                    className="h-8 w-8 p-0"
+                                    title="Ablesungen verwalten"
+                                  >
+                                    <Droplet className="h-4 w-4" />
+                                  </Button>
                                   <Button
                                     size="sm"
                                     variant="ghost"

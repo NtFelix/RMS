@@ -417,6 +417,18 @@ export interface ModalState {
   openWasserZaehlerModal: (wohnungId: string, wohnungName: string) => void;
   closeWasserZaehlerModal: (options?: CloseModalOptions) => void;
   setWasserZaehlerModalDirty: (isDirty: boolean) => void;
+
+  // Wasser_Ablesungen Modal State
+  isWasserAblesenModalOpen: boolean;
+  wasserAblesenModalData?: {
+    wasserZaehlerId: string;
+    wohnungName: string;
+    customId?: string;
+  };
+  isWasserAblesenModalDirty: boolean;
+  openWasserAblesenModal: (wasserZaehlerId: string, wohnungName: string, customId?: string) => void;
+  closeWasserAblesenModal: (options?: CloseModalOptions) => void;
+  setWasserAblesenModalDirty: (isDirty: boolean) => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -583,6 +595,12 @@ const initialWasserZaehlerModalState = {
   isWasserZaehlerModalDirty: false,
 };
 
+const initialWasserAblesenModalState = {
+  isWasserAblesenModalOpen: false,
+  wasserAblesenModalData: undefined,
+  isWasserAblesenModalDirty: false,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -608,6 +626,7 @@ const createInitialModalState = () => ({
   ...initialTemplatesModalState,
   ...initialTenantMailTemplatesModalState,
   ...initialWasserZaehlerModalState,
+  ...initialWasserAblesenModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -1123,5 +1142,18 @@ export const useModalStore = create<ModalState>((set, get) => {
     },
     closeWasserZaehlerModal: createCloseHandler('isWasserZaehlerModalDirty', initialWasserZaehlerModalState),
     setWasserZaehlerModalDirty: (isDirty) => set({ isWasserZaehlerModalDirty: isDirty }),
+
+    // Wasser_Ablesungen Modal
+    openWasserAblesenModal: (wasserZaehlerId: string, wohnungName: string, customId?: string) => set({
+      isWasserAblesenModalOpen: true,
+      wasserAblesenModalData: {
+        wasserZaehlerId,
+        wohnungName,
+        customId,
+      },
+      isWasserAblesenModalDirty: false,
+    }),
+    closeWasserAblesenModal: createCloseHandler('isWasserAblesenModalDirty', initialWasserAblesenModalState),
+    setWasserAblesenModalDirty: (isDirty) => set({ isWasserAblesenModalDirty: isDirty }),
   };
 });

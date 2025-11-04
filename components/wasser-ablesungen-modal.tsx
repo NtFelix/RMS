@@ -1,0 +1,712 @@
+"use client"
+
+import * as React from "react"
+import { useModalStore } from "@/hooks/use-modal-store"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { toast } from "@/hooks/use-toast"
+import { 
+  Loader2, 
+  Plus, 
+  Trash2, 
+  Edit2, 
+  X, 
+  Check, 
+  Droplet, 
+  Calendar as CalendarIcon,
+  Gauge,
+  Clock,
+  User,
+  TrendingUp,
+  TrendingDown
+} from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Separator } from "@/components/ui/separator"
+import { format } from "date-fns"
+import { de } from "date-fns/locale"
+import { cn } from "@/lib/utils"
+import { motion, AnimatePresence } from "framer-motion"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+interface WasserAblesung {
+  id: string
+  ablese_datum: string | null
+  mieter_id: string | null
+  zaehlerstand: number | null
+  verbrauch: number
+  nebenkosten_id: string | null
+  wasser_zaehler_id: string
+  user_id: string
+  Mieter?: {
+    id: string
+    name: string
+  }
+}
+
+export function WasserAblesenModal() {
+  const {
+    isWasserAblesenModalOpen,
+    wasserAblesenModalData,
+    closeWasserAblesenModal,
+    setWasserAblesenModalDirty,
+  } = useModalStore()
+
+  const [ablesenList, setAblesenList] = React.useState<WasserAblesung[]>([])
+  const [isLoading, setIsLoading] = React.useState(false)
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [newAbleseDatum, setNewAbleseDatum] = React.useState<Date | undefined>(undefined)
+  const [newZaehlerstand, setNewZaehlerstand] = React.useState("")
+  const [newVerbrauch, setNewVerbrauch] = React.useState("")
+  const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [editAbleseDatum, setEditAbleseDatum] = React.useState<Date | undefined>(undefined)
+  const [editZaehlerstand, setEditZaehlerstand] = React.useState("")
+  const [editVerbrauch, setEditVerbrauch] = React.useState("")
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [ablesenToDelete, setAblesenToDelete] = React.useState<string | null>(null)
+
+  // Load existing Wasser_Ablesungen when modal opens
+  React.useEffect(() => {
+    if (isWasserAblesenModalOpen && wasserAblesenModalData?.wasserZaehlerId) {
+      loadAblesungen()
+    }
+  }, [isWasserAblesenModalOpen, wasserAblesenModalData?.wasserZaehlerId])
+
+  const loadAblesungen = async () => {
+    if (!wasserAblesenModalData?.wasserZaehlerId) return
+
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/wasser-ablesungen?wasser_zaehler_id=${wasserAblesenModalData.wasserZaehlerId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setAblesenList(data)
+      } else {
+        throw new Error("Fehler beim Laden der Ablesungen")
+      }
+    } catch (error) {
+      console.error("Error loading Wasser_Ablesungen:", error)
+      toast({
+        title: "Fehler",
+        description: "Ablesungen konnten nicht geladen werden.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAddAblesung = async () => {
+    if (!newZaehlerstand.trim() || !wasserAblesenModalData?.wasserZaehlerId) return
+
+    setIsSaving(true)
+    try {
+      const response = await fetch("/api/wasser-ablesungen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ablese_datum: newAbleseDatum ? format(newAbleseDatum, "yyyy-MM-dd") : null,
+          zaehlerstand: parseFloat(newZaehlerstand),
+          verbrauch: parseFloat(newVerbrauch) || 0,
+          wasser_zaehler_id: wasserAblesenModalData.wasserZaehlerId,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Fehler beim Hinzufügen")
+      }
+
+      const newAblesung = await response.json()
+      setAblesenList((prev) => [newAblesung, ...prev])
+      setNewAbleseDatum(undefined)
+      setNewZaehlerstand("")
+      setNewVerbrauch("")
+      setWasserAblesenModalDirty(true)
+      
+      toast({
+        title: "Erfolg",
+        description: "Ablesung erfolgreich hinzugefügt.",
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("Error adding Wasser_Ablesung:", error)
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Ablesung konnte nicht hinzugefügt werden.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleUpdateAblesung = async (id: string) => {
+    if (!editZaehlerstand.trim()) return
+
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/wasser-ablesungen/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          ablese_datum: editAbleseDatum ? format(editAbleseDatum, "yyyy-MM-dd") : null,
+          zaehlerstand: parseFloat(editZaehlerstand),
+          verbrauch: parseFloat(editVerbrauch) || 0,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Fehler beim Aktualisieren")
+      }
+
+      const updatedAblesung = await response.json()
+      setAblesenList((prev) =>
+        prev.map((a) => (a.id === id ? updatedAblesung : a))
+      )
+      setEditingId(null)
+      setEditAbleseDatum(undefined)
+      setEditZaehlerstand("")
+      setEditVerbrauch("")
+      setWasserAblesenModalDirty(true)
+      
+      toast({
+        title: "Erfolg",
+        description: "Ablesung erfolgreich aktualisiert.",
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("Error updating Wasser_Ablesung:", error)
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Ablesung konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDeleteAblesung = async () => {
+    if (!ablesenToDelete) return
+
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/wasser-ablesungen/${ablesenToDelete}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Fehler beim Löschen")
+      }
+
+      setAblesenList((prev) => prev.filter((a) => a.id !== ablesenToDelete))
+      setDeleteDialogOpen(false)
+      setAblesenToDelete(null)
+      setWasserAblesenModalDirty(true)
+      
+      toast({
+        title: "Erfolg",
+        description: "Ablesung erfolgreich gelöscht.",
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("Error deleting Wasser_Ablesung:", error)
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Ablesung konnte nicht gelöscht werden.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const startEdit = (ablesung: WasserAblesung) => {
+    setEditingId(ablesung.id)
+    setEditAbleseDatum(ablesung.ablese_datum ? new Date(ablesung.ablese_datum) : undefined)
+    setEditZaehlerstand(ablesung.zaehlerstand?.toString() || "")
+    setEditVerbrauch(ablesung.verbrauch.toString())
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditAbleseDatum(undefined)
+    setEditZaehlerstand("")
+    setEditVerbrauch("")
+  }
+
+  const handleClose = () => {
+    setNewAbleseDatum(undefined)
+    setNewZaehlerstand("")
+    setNewVerbrauch("")
+    setEditingId(null)
+    setEditAbleseDatum(undefined)
+    setEditZaehlerstand("")
+    setEditVerbrauch("")
+    closeWasserAblesenModal()
+  }
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-"
+    const date = new Date(dateString)
+    return date.toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  }
+
+  // Calculate consumption change between readings
+  const getConsumptionChange = (index: number) => {
+    if (index >= ablesenList.length - 1) return null
+    const current = ablesenList[index]
+    const previous = ablesenList[index + 1]
+    if (!current.verbrauch || !previous.verbrauch) return null
+    return ((current.verbrauch - previous.verbrauch) / previous.verbrauch) * 100
+  }
+
+  return (
+    <>
+      <Dialog open={isWasserAblesenModalOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Wasserzähler-Ablesungen verwalten</DialogTitle>
+            <DialogDescription>
+              Ablesungen für Wohnung: <span className="font-medium">{wasserAblesenModalData?.wohnungName}</span>
+              {wasserAblesenModalData?.customId && (
+                <> • Zähler-ID: <span className="font-medium">{wasserAblesenModalData.customId}</span></>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 overflow-y-auto flex-1">
+            {/* Add new Ablesung */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Neue Ablesung hinzufügen</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="space-y-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !newAbleseDatum && "text-muted-foreground"
+                        )}
+                        disabled={isSaving}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newAbleseDatum ? (
+                          format(newAbleseDatum, "dd.MM.yyyy", { locale: de })
+                        ) : (
+                          <span>Datum</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newAbleseDatum}
+                        onSelect={setNewAbleseDatum}
+                        locale={de}
+                        captionLayout="dropdown"
+                        fromYear={1990}
+                        toYear={new Date().getFullYear() + 10}
+                        initialFocus
+                      />
+                      {newAbleseDatum && (
+                        <div className="p-3 border-t">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setNewAbleseDatum(undefined)}
+                          >
+                            Datum löschen
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Zählerstand (m³)"
+                    value={newZaehlerstand}
+                    onChange={(e) => setNewZaehlerstand(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newZaehlerstand.trim()) {
+                        handleAddAblesung()
+                      }
+                    }}
+                    disabled={isSaving}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Verbrauch (m³)"
+                    value={newVerbrauch}
+                    onChange={(e) => setNewVerbrauch(e.target.value)}
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={handleAddAblesung}
+                disabled={!newZaehlerstand.trim() || isSaving}
+                size="default"
+                className="w-full"
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ablesung hinzufügen
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* List of existing Ablesungen */}
+            <div className="space-y-3">
+              {isLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : ablesenList.length === 0 ? (
+                <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
+                  <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                    <Droplet className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      Keine Ablesungen vorhanden
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Fügen Sie oben eine neue Ablesung hinzu
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-3">
+                  {ablesenList.map((ablesung, index) => {
+                    const consumptionChange = getConsumptionChange(index)
+                    
+                    return (
+                      <Card key={ablesung.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
+                        <CardContent className="p-0">
+                          <AnimatePresence mode="wait">
+                            {editingId === ablesung.id ? (
+                              // Edit Mode
+                              <motion.div
+                                key="edit"
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                transition={{ duration: 0.2, ease: "easeInOut" }}
+                                className="p-4 space-y-4"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                      <Droplet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <span className="text-sm font-medium text-muted-foreground">Bearbeiten</span>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleUpdateAblesung(ablesung.id)}
+                                      disabled={!editZaehlerstand.trim() || isSaving}
+                                    >
+                                      <Check className="h-4 w-4 mr-1" />
+                                      Speichern
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={cancelEdit}
+                                      disabled={isSaving}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                
+                                <Separator />
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <CalendarIcon className="h-3 w-3" />
+                                      Datum
+                                    </Label>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          className={cn(
+                                            "w-full justify-start text-left font-normal mt-1.5",
+                                            !editAbleseDatum && "text-muted-foreground"
+                                          )}
+                                          disabled={isSaving}
+                                        >
+                                          <CalendarIcon className="mr-2 h-4 w-4" />
+                                          {editAbleseDatum ? (
+                                            format(editAbleseDatum, "dd.MM.yyyy", { locale: de })
+                                          ) : (
+                                            <span>Datum wählen</span>
+                                          )}
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                          mode="single"
+                                          selected={editAbleseDatum}
+                                          onSelect={setEditAbleseDatum}
+                                          locale={de}
+                                          captionLayout="dropdown"
+                                          fromYear={1990}
+                                          toYear={new Date().getFullYear() + 10}
+                                          initialFocus
+                                        />
+                                        {editAbleseDatum && (
+                                          <div className="p-3 border-t">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="w-full"
+                                              onClick={() => setEditAbleseDatum(undefined)}
+                                            >
+                                              Datum löschen
+                                            </Button>
+                                          </div>
+                                        )}
+                                      </PopoverContent>
+                                    </Popover>
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <Gauge className="h-3 w-3" />
+                                      Zählerstand
+                                    </Label>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={editZaehlerstand}
+                                      onChange={(e) => setEditZaehlerstand(e.target.value)}
+                                      disabled={isSaving}
+                                      placeholder="Zählerstand"
+                                      className="mt-1.5"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <Droplet className="h-3 w-3" />
+                                      Verbrauch
+                                    </Label>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={editVerbrauch}
+                                      onChange={(e) => setEditVerbrauch(e.target.value)}
+                                      disabled={isSaving}
+                                      placeholder="Verbrauch"
+                                      className="mt-1.5"
+                                    />
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ) : (
+                              // View Mode
+                              <motion.div
+                                key="view"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2, ease: "easeInOut" }}
+                              >
+                                {/* Header */}
+                                <div className="p-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <Droplet className="h-5 w-5 text-primary" />
+                                      </div>
+                                      <div>
+                                        <h4 className="font-semibold text-base">
+                                          {formatDate(ablesung.ablese_datum)}
+                                        </h4>
+                                        <p className="text-xs text-muted-foreground">Ablesung</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {consumptionChange !== null && (
+                                        <Badge 
+                                          variant={consumptionChange > 20 ? "destructive" : consumptionChange < -10 ? "default" : "secondary"}
+                                          className="gap-1"
+                                        >
+                                          {consumptionChange > 0 ? (
+                                            <TrendingUp className="h-3 w-3" />
+                                          ) : (
+                                            <TrendingDown className="h-3 w-3" />
+                                          )}
+                                          {consumptionChange > 0 ? '+' : ''}{consumptionChange.toFixed(1)}%
+                                        </Badge>
+                                      )}
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => startEdit(ablesung)}
+                                          disabled={isSaving}
+                                          className="h-8 w-8 p-0"
+                                        >
+                                          <Edit2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => {
+                                            setAblesenToDelete(ablesung.id)
+                                            setDeleteDialogOpen(true)
+                                          }}
+                                          disabled={isSaving}
+                                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <Separator className="bg-gray-200 dark:bg-gray-700" />
+
+                                {/* Information Grid */}
+                                <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.1 }}
+                                    className="flex items-start gap-2"
+                                  >
+                                    <div className="flex-shrink-0 mt-0.5">
+                                      <Gauge className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
+                                      <p className="text-sm font-medium">
+                                        {ablesung.zaehlerstand !== null ? `${ablesung.zaehlerstand} m³` : (
+                                          <span className="text-muted-foreground italic">Nicht gesetzt</span>
+                                        )}
+                                      </p>
+                                    </div>
+                                  </motion.div>
+
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.2 }}
+                                    className="flex items-start gap-2"
+                                  >
+                                    <div className="flex-shrink-0 mt-0.5">
+                                      <Droplet className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs text-muted-foreground mb-1">Verbrauch</p>
+                                      <p className="text-sm font-medium">
+                                        {ablesung.verbrauch} m³
+                                      </p>
+                                    </div>
+                                  </motion.div>
+
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.3 }}
+                                    className="flex items-start gap-2"
+                                  >
+                                    <div className="flex-shrink-0 mt-0.5">
+                                      <User className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs text-muted-foreground mb-1">Mieter</p>
+                                      <p className="text-sm font-medium">
+                                        {ablesung.Mieter?.name || (
+                                          <span className="text-muted-foreground italic">Nicht zugeordnet</span>
+                                        )}
+                                      </p>
+                                    </div>
+                                  </motion.div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleClose}>
+              Schließen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ablesung löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie diese Ablesung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSaving}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAblesung}
+              disabled={isSaving}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isSaving ? "Löschen..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
