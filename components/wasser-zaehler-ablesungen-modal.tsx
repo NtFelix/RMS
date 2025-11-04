@@ -265,15 +265,15 @@ export function WasserZaehlerAblesenModal({
               groupedEntries.map(([wohnungName, entries]) => (
                 <Card 
                   key={wohnungName} 
-                  className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden"
+                  className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem] overflow-hidden"
                 >
                   <CardContent className="p-0">
                     {/* Apartment Group Header */}
                     <div className="p-5 border-b border-gray-200 dark:border-[#3C4251] bg-gradient-to-r from-gray-50 to-transparent dark:from-zinc-800/50 dark:to-transparent">
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          <div className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                            <Building2 className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <div>
                             <h3 className="font-semibold text-base">{wohnungName}</h3>
@@ -293,7 +293,7 @@ export function WasserZaehlerAblesenModal({
                     </div>
 
                     {/* Water meters in this apartment */}
-                    <div className="p-4 space-y-3">
+                    <div className="p-5 space-y-3">
                       {entries.map((entry, index) => {
                         const consumptionChange = entry.latest_reading && entry.previous_reading
                           ? ((entry.latest_reading.verbrauch - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch) * 100
@@ -302,7 +302,7 @@ export function WasserZaehlerAblesenModal({
                         return (
                           <Card 
                             key={entry.zaehler_id} 
-                            className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-zinc-800/50 dark:to-zinc-900/50 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-2xl overflow-hidden hover:shadow-md hover:border-primary/50 transition-all duration-300"
+                            className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-zinc-800/50 dark:to-zinc-900/50 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[1.5rem] overflow-hidden hover:shadow-md hover:border-primary/50 transition-all duration-300"
                           >
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between gap-4">
