@@ -386,7 +386,7 @@ export function WasserAblesenModal() {
     return ((current.verbrauch - previous.verbrauch) / previous.verbrauch) * 100
   }
 
-  // Render warning alert (button-sized)
+  // Render warning alert (button-sized pill with animation)
   const renderWarningAlert = (warning: string) => {
     if (!warning) return null
     
@@ -395,11 +395,11 @@ export function WasserAblesenModal() {
     const getIcon = () => {
       switch (type) {
         case "error":
-          return <X className="h-4 w-4" />
+          return <X className="h-4 w-4 flex-shrink-0" />
         case "warning":
-          return <AlertTriangle className="h-4 w-4" />
+          return <AlertTriangle className="h-4 w-4 flex-shrink-0" />
         case "info":
-          return <TrendingDown className="h-4 w-4" />
+          return <TrendingDown className="h-4 w-4 flex-shrink-0" />
         default:
           return null
       }
@@ -419,10 +419,16 @@ export function WasserAblesenModal() {
     }
     
     return (
-      <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border ${getStyles()}`}>
+      <motion.div
+        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className={`flex items-center gap-2 px-4 py-3 rounded-full border ${getStyles()}`}
+      >
         {getIcon()}
         <span className="text-sm font-medium">{message}</span>
-      </div>
+      </motion.div>
     )
   }
 
@@ -516,7 +522,9 @@ export function WasserAblesenModal() {
                   />
                 </div>
               </div>
-              {newVerbrauchWarning && renderWarningAlert(newVerbrauchWarning)}
+              <AnimatePresence mode="wait">
+                {newVerbrauchWarning && renderWarningAlert(newVerbrauchWarning)}
+              </AnimatePresence>
               <Button
                 onClick={handleAddAblesung}
                 disabled={!newZaehlerstand.trim() || isSaving}
@@ -686,11 +694,13 @@ export function WasserAblesenModal() {
                                     />
                                   </div>
                                 </div>
-                                {editVerbrauchWarning && (
-                                  <div className="mt-3">
-                                    {renderWarningAlert(editVerbrauchWarning)}
-                                  </div>
-                                )}
+                                <AnimatePresence mode="wait">
+                                  {editVerbrauchWarning && (
+                                    <div className="mt-3">
+                                      {renderWarningAlert(editVerbrauchWarning)}
+                                    </div>
+                                  )}
+                                </AnimatePresence>
                               </motion.div>
                             ) : (
                               // View Mode
