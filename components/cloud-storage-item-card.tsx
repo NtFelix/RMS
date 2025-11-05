@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { createClient } from "@/utils/supabase/client"
 import { 
   File, 
   FileText, 
@@ -14,7 +15,8 @@ import {
   MoreHorizontal,
   Share2,
   Edit3,
-  Move
+  Move,
+  Loader2
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -98,8 +100,10 @@ export function CloudStorageItemCard({
   const [isHovered, setIsHovered] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const { openFilePreviewModal, openFileRenameModal, openMarkdownEditorModal } = useModalStore()
+  const [isLoading, setIsLoading] = useState(false)
+  const { openMarkdownEditorModal, openFileRenameModal } = useModalStore()
   const { currentPath, renameFile } = useSimpleCloudStorageStore()
+  const supabase = createClient()
 
   // Create a unique close callback for this dropdown
   const closeThisDropdown = useCallback(() => setIsDropdownOpen(false), [])
@@ -127,29 +131,41 @@ export function CloudStorageItemCard({
     return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'md'].includes(extension || '')
   }
 
-  // Handle preview action
-  const handlePreview = () => {
-    if (type === 'file' && canPreview()) {
-      const file = item as StorageObject
-      // Construct the file path from current path and file name
-      const filePath = `${currentPath}/${file.name}`
-      const fileExtension = file.name.split('.').pop()?.toLowerCase()
+  // Handle preview action - opens file in new tab
+  const handlePreview = async () => {
+    if (type !== 'file') return
+    
+    const file = item as StorageObject
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
+    
+    // Open markdown editor directly for .md files
+    if (fileExtension === 'md') {
+      openMarkdownEditorModal({
+        filePath: currentPath,
+        fileName: file.name,
+        isNewFile: false
+      })
+      return
+    }
+    
+    // For other file types, get a signed URL and open in new tab
+    try {
+      setIsLoading(true)
       
-      // Open markdown editor directly for .md files
-      if (fileExtension === 'md') {
-        openMarkdownEditorModal({
-          filePath: currentPath,
-          fileName: file.name,
-          isNewFile: false
-        })
-      } else {
-        openFilePreviewModal({
-          name: file.name,
-          path: filePath,
-          size: file.size,
-          type: fileExtension
-        })
-      }
+      // Get signed URL for the file
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(`${currentPath}/${file.name}`, 3600) // 1 hour expiry
+      
+      if (error) throw error
+      
+      // Open the file in a new tab
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      console.error('Error opening file:', error)
+      // You might want to show a toast notification here
+    } finally {
+      setIsLoading(false)
     }
   }
 
