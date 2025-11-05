@@ -108,6 +108,37 @@ export type RechnungSql = {
   // Add other fields from your Rechnungen table schema if needed
 };
 
+// Water meter types for new calculation logic
+export type WasserZaehler = {
+  id: string;
+  custom_id: string | null;
+  wohnung_id: string | null;
+  erstellungsdatum: string; // ISO date string
+  eichungsdatum: string | null; // ISO date string
+  user_id: string;
+};
+
+export type WasserAblesung = {
+  id: string;
+  ablese_datum: string; // ISO date string
+  zaehlerstand: number | null;
+  verbrauch: number;
+  user_id: string | null;
+  wasser_zaehler_id: string | null;
+};
+
+// Legacy type for backward compatibility with old Wasserzaehler table
+// This table structure is being phased out in favor of Wasser_Zaehler + Wasser_Ablesungen
+export type Wasserzaehler = {
+  id: string;
+  nebenkosten_id: string;
+  mieter_id: string;
+  ablese_datum: string;
+  zaehlerstand: number;
+  verbrauch: number;
+  user_id: string;
+};
+
 export type Finanzen = {
   id: string;
   wohnung_id: string | null;
@@ -455,15 +486,8 @@ export async function fetchUserProfile(): Promise<Profile | null> {
 
   return finalProfile;
 }
-export type Wasserzaehler = {
-  id: string; // uuid
-  user_id: string; // uuid, default auth.uid()
-  mieter_id: string; // uuid
-  ablese_datum: string | null; // date
-  zaehlerstand: number; // numeric
-  verbrauch: number; // numeric
-  nebenkosten_id: string; // uuid // Corrected property name to match DB
-};
+
+// Wasserzaehler type is defined earlier in the file (line ~132)
 
 export type WasserzaehlerFormEntry = {
   mieter_id: string;

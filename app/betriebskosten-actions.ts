@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
+import { Nebenkosten, WasserzaehlerFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
 import { roundToNearest5 } from "@/lib/utils";
 
 // Import optimized types from centralized location
@@ -27,16 +27,16 @@ import {
 import { logger } from '@/utils/logger';
 
 /**
- * Gets the most recent Wasserzaehler record for each mieter from a list of records
- * @param records Array of Wasserzaehler records, expected to be sorted by ablese_datum descending
- * @returns Object mapping mieter_id to their most recent Wasserzaehler record
+ * Gets the most recent water reading for each apartment from a list of readings
+ * @param readings Array of WasserAblesung records, expected to be sorted by ablese_datum descending
+ * @returns Object mapping wohnung_id to their most recent reading
  */
-function getMostRecentByMieter(records: Wasserzaehler[]): Record<string, Wasserzaehler> {
-  const mostRecent: Record<string, Wasserzaehler> = {};
-  for (const record of records) {
-    // Since records are sorted descending, the first one for a mieter is the most recent
-    if (!mostRecent[record.mieter_id]) {
-      mostRecent[record.mieter_id] = record;
+function getMostRecentReadingByApartment(readings: WasserAblesung[]): Record<string, WasserAblesung> {
+  const mostRecent: Record<string, WasserAblesung> = {};
+  for (const reading of readings) {
+    const meterId = reading.wasser_zaehler_id;
+    if (meterId && !mostRecent[meterId]) {
+      mostRecent[meterId] = reading;
     }
   }
   return mostRecent;
@@ -62,12 +62,10 @@ export interface RechnungData {
 }
 
 // Implement createNebenkosten function
+// Note: wasserverbrauch is automatically calculated by database trigger
 export async function createNebenkosten(formData: NebenkostenFormData) {
   const supabase = await createClient();
 
-  // Ensure array fields are correctly formatted if Supabase expects them as such
-  // Supabase client typically handles JS arrays correctly for postgres array types (text[], numeric[])
-  // user_id will now be fetched from the session within this server action
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     console.error("User not authenticated for createNebenkosten");
@@ -83,7 +81,7 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
     .from("Nebenkosten")
     .insert([preparedData])
     .select()
-    .single(); // Assuming we want the single created record back
+    .single();
 
   if (error) {
     console.error("Error creating Nebenkosten:", error);
@@ -95,25 +93,16 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
 }
 
 // Implement updateNebenkosten function
+// Note: wasserverbrauch is automatically recalculated by database trigger when dates change
 export async function updateNebenkosten(id: string, formData: Partial<NebenkostenFormData>) {
   const supabase = await createClient();
 
-  // For updates, we might not change user_id, but if we were to allow it or set it based on who's updating:
-  // const { data: { user } } = await supabase.auth.getUser();
-  // if (!user) {
-  //   console.error("User not authenticated for updateNebenkosten");
-  //   return { success: false, message: "User not authenticated", data: null };
-  // }
-  // // Add user_id to formData if it's part of the update logic, e.g., formData.user_id = user.id;
-  // // However, typically, one wouldn't change the user_id of an existing record.
-  // // The provided formData will not have user_id, so this is more of a note.
-
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .update(formData) // formData here is Partial<NebenkostenFormData>, so no user_id from client
+    .update(formData)
     .eq("id", id)
     .select()
-    .single(); // Assuming we want the single updated record back
+    .single();
 
   if (error) {
     console.error("Error updating Nebenkosten:", error);
@@ -316,7 +305,7 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
 export async function getPreviousWasserzaehlerRecordAction(
   mieterId: string,
   currentYear?: string
-): Promise<{ success: boolean; data?: Wasserzaehler | null; message?: string }> {
+): Promise<{ success: boolean; data?: WasserAblesung | null; message?: string }> {
   "use server";
 
   if (!mieterId) {
@@ -390,7 +379,7 @@ export async function getPreviousWasserzaehlerRecordAction(
 export async function getBatchPreviousWasserzaehlerRecordsAction(
   mieterIds: string[],
   currentYear?: string
-): Promise<{ success: boolean; data?: Record<string, Wasserzaehler | null>; message?: string }> {
+): Promise<{ success: boolean; data?: Record<string, WasserAblesung | null>; message?: string }> {
   "use server";
 
   if (!mieterIds || mieterIds.length === 0) {
@@ -405,7 +394,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
   }
 
   try {
-    const result: Record<string, Wasserzaehler | null> = {};
+    const result: Record<string, WasserAblesung | null> = {};
 
     // First, try to get readings from the previous year if currentYear is provided
     if (currentYear) {
@@ -429,7 +418,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
           console.error(`Error fetching previous year's Wasserzaehler records:`, previousYearError);
         } else if (previousYearData) {
           // Get the most recent record for each mieter and add to result
-          const groupedByMieter = getMostRecentByMieter(previousYearData);
+          const groupedByMieter = getMostRecentReadingByApartment(previousYearData);
           Object.assign(result, groupedByMieter);
         }
       }
@@ -453,7 +442,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
         console.error('Error finding fallback Wasserzaehler records:', fallbackError);
       } else if (fallbackData && fallbackData.length > 0) {
         // Get the most recent record for each mieter and add to result
-        const groupedByMieter = getMostRecentByMieter(fallbackData);
+        const groupedByMieter = getMostRecentReadingByApartment(fallbackData);
         Object.assign(result, groupedByMieter);
       }
     }
@@ -1300,7 +1289,8 @@ export async function getAbrechnungModalDataAction(
         nebenkosten_data: dbResult.nebenkosten_data as Nebenkosten,
         tenants: dbResult.tenants as Mieter[],
         rechnungen: dbResult.rechnungen as Rechnung[],
-        wasserzaehler_readings: dbResult.wasserzaehler_readings as Wasserzaehler[]
+        water_meters: dbResult.water_meters as WasserZaehler[] || [],
+        water_readings: dbResult.water_readings as WasserAblesung[] || []
       };
 
       logger.info('Successfully fetched Abrechnung modal data (optimized)', {
@@ -1308,7 +1298,8 @@ export async function getAbrechnungModalDataAction(
         nebenkostenId,
         tenantCount: modalData.tenants.length,
         rechnungenCount: modalData.rechnungen.length,
-        wasserzaehlerCount: modalData.wasserzaehler_readings.length
+        waterMetersCount: modalData.water_meters.length,
+        waterReadingsCount: modalData.water_readings.length
       });
 
       return { success: true, data: modalData };
@@ -1420,7 +1411,7 @@ async function getAbrechnungModalDataFallback(
     });
   }
 
-  // Fetch wasserzaehler readings
+  // Fetch wasserzaehler readings (legacy table - for backward compatibility)
   const { data: wasserzaehlerReadings, error: wasserzaehlerError } = await supabase
     .from("Wasserzaehler")
     .select("*")
@@ -1432,6 +1423,54 @@ async function getAbrechnungModalDataFallback(
       userId,
       nebenkostenId
     });
+  }
+
+  // Fetch water meters for apartments in this house
+  const apartmentIds = (tenants || []).map((t: any) => t.wohnung_id).filter(Boolean);
+  let waterMeters: WasserZaehler[] = [];
+  let waterReadings: WasserAblesung[] = [];
+
+  if (apartmentIds.length > 0) {
+    // Fetch water meters for these apartments
+    const { data: metersData, error: metersError } = await supabase
+      .from("Wasser_Zaehler")
+      .select("*")
+      .in("wohnung_id", apartmentIds)
+      .eq("user_id", userId);
+
+    if (metersError) {
+      logger.error('Failed to fetch water meters in fallback', metersError || undefined, {
+        userId,
+        nebenkostenId,
+        apartmentIds
+      });
+    } else if (metersData) {
+      waterMeters = metersData as WasserZaehler[];
+
+      // Fetch water readings for these meters within the billing period
+      const meterIds = waterMeters.map(m => m.id);
+      if (meterIds.length > 0) {
+        const { data: readingsData, error: readingsError } = await supabase
+          .from("Wasser_Ablesungen")
+          .select("*")
+          .in("wasser_zaehler_id", meterIds)
+          .gte("ablese_datum", nebenkostenData.startdatum)
+          .lte("ablese_datum", nebenkostenData.enddatum)
+          .eq("user_id", userId);
+
+        if (readingsError) {
+          logger.error('Failed to fetch water readings in fallback', readingsError || undefined, {
+            userId,
+            nebenkostenId,
+            meterIds,
+            periodStart: nebenkostenData.startdatum,
+            periodEnd: nebenkostenData.enddatum
+          });
+        } else if (readingsData) {
+          waterReadings = readingsData as WasserAblesung[];
+        }
+      }
+    }
   }
 
   // Aggregate basic metrics for the modal (compatible with component expectations)
@@ -1448,14 +1487,19 @@ async function getAbrechnungModalDataFallback(
     } as Nebenkosten,
     tenants: tenants || [],
     rechnungen: rechnungen || [],
-    wasserzaehler_readings: wasserzaehlerReadings || []
+    water_meters: waterMeters,
+    water_readings: waterReadings
   };
 
   logger.info('Successfully fetched Abrechnung modal data (fallback)', {
     userId,
     nebenkostenId,
     tenantCount: modalData.tenants.length,
-    rechnungenCount: modalData.rechnungen.length
+    rechnungenCount: modalData.rechnungen.length,
+    waterMetersCount: modalData.water_meters.length,
+    waterReadingsCount: modalData.water_readings.length,
+    periodStart: nebenkostenData.startdatum,
+    periodEnd: nebenkostenData.enddatum
   });
 
   return { success: true, data: modalData };
@@ -1562,7 +1606,7 @@ export async function createAbrechnungCalculationAction(
       };
     }
 
-    const { nebenkosten_data, tenants, rechnungen, wasserzaehler_readings } = modalDataResult.data;
+    const { nebenkosten_data, tenants, rechnungen, water_meters, water_readings } = modalDataResult.data;
 
     // Validate that we have the necessary data
     if (!tenants || tenants.length === 0) {
@@ -1583,7 +1627,7 @@ export async function createAbrechnungCalculationAction(
     } = await import('@/utils/abrechnung-calculations');
 
     // Validate input data
-    const validationResult = validateCalculationData(nebenkosten_data, tenants, wasserzaehler_readings);
+    const validationResult = validateCalculationData(nebenkosten_data, tenants, water_meters, water_readings);
     if (!validationResult.isValid) {
       logger.error('Validation failed for Abrechnung calculation', undefined, {
         userId: user.id,
@@ -1619,7 +1663,9 @@ export async function createAbrechnungCalculationAction(
         const waterCosts = calculateWaterCostDistribution(
           tenant,
           nebenkosten_data,
-          wasserzaehler_readings
+          tenants,
+          water_meters,
+          water_readings
         );
 
         // Calculate prepayments
@@ -1887,10 +1933,27 @@ export async function createAbrechnungCalculationOptimizedAction(
         );
 
         // Calculate water costs using pre-calculated price per cubic meter
+        // Extract plain tenant objects from tenants_with_occupancy
+        const plainTenants = tenants_with_occupancy.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          wohnung_id: t.wohnung_id,
+          einzug: t.einzug,
+          auszug: t.auszug,
+          email: t.email,
+          telefonnummer: t.telefonnummer,
+          notiz: t.notiz,
+          nebenkosten: t.nebenkosten,
+          user_id: t.user_id,
+          Wohnungen: t.Wohnungen
+        }));
+        
         const waterCosts = calculateWaterCostDistribution(
           tenant,
           nebenkosten_data,
-          wasserzaehler_readings
+          plainTenants,
+          [], // TODO: Add water_meters to optimized database function
+          [] // TODO: Add water_readings to optimized database function
         );
 
         // Calculate prepayments
