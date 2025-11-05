@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 import { 
   File, 
   FileText, 
@@ -14,7 +16,8 @@ import {
   MoreHorizontal,
   Share2,
   Edit3,
-  Move
+  Move,
+  Loader2
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -98,8 +101,23 @@ export function CloudStorageItemCard({
   const [isHovered, setIsHovered] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const { openFilePreviewModal, openFileRenameModal, openMarkdownEditorModal } = useModalStore()
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+  const { openMarkdownEditorModal, openFileRenameModal } = useModalStore()
   const { currentPath, renameFile } = useSimpleCloudStorageStore()
+  const supabase = createClient()
+
+  // Constants for configuration
+  const STORAGE_BUCKET = 'documents'
+  const URL_EXPIRY_SECONDS = 3600 // 1 hour
+  
+  // Helper function to join path segments and normalize the result
+  const getFullPath = (path: string, name: string): string => {
+    // Remove any leading/trailing slashes and join with a single slash
+    return [path.replace(/^\/+|\/+$/g, ''), name.replace(/^\/+|\/+$/g, '')]
+      .filter(Boolean)
+      .join('/')
+  }
 
   // Create a unique close callback for this dropdown
   const closeThisDropdown = useCallback(() => setIsDropdownOpen(false), [])
@@ -127,29 +145,45 @@ export function CloudStorageItemCard({
     return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'md'].includes(extension || '')
   }
 
-  // Handle preview action
-  const handlePreview = () => {
-    if (type === 'file' && canPreview()) {
-      const file = item as StorageObject
-      // Construct the file path from current path and file name
-      const filePath = `${currentPath}/${file.name}`
-      const fileExtension = file.name.split('.').pop()?.toLowerCase()
+  // Handle preview action - opens file in new tab
+  const handlePreview = async () => {
+    if (type !== 'file' || isLoading) return
+    
+    const file = item as StorageObject
+    
+    // Handle markdown files with the markdown editor
+    if (file.name.endsWith('.md')) {
+      openMarkdownEditorModal({
+        filePath: getFullPath(currentPath, ''), // Just the directory path
+        fileName: file.name,
+        isNewFile: false
+      })
+      return
+    }
+    
+    // For other file types, get a signed URL and open in new tab
+    try {
+      setIsLoading(true)
       
-      // Open markdown editor directly for .md files
-      if (fileExtension === 'md') {
-        openMarkdownEditorModal({
-          filePath: currentPath,
-          fileName: file.name,
-          isNewFile: false
-        })
-      } else {
-        openFilePreviewModal({
-          name: file.name,
-          path: filePath,
-          size: file.size,
-          type: fileExtension
-        })
-      }
+      // Get signed URL for the file
+      const filePath = getFullPath(currentPath, file.name)
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(filePath, URL_EXPIRY_SECONDS)
+      
+      if (error) throw error
+      
+      // Open the file in a new tab
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      console.error('Error opening file:', error)
+      toast({
+        title: "Fehler beim Öffnen der Datei",
+        description: "Die Datei konnte nicht geöffnet werden. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -159,7 +193,7 @@ export function CloudStorageItemCard({
       const file = item as StorageObject
       openFileRenameModal({
         fileName: file.name,
-        filePath: `${currentPath}/${file.name}`,
+        filePath: getFullPath(currentPath, file.name),
         onRename: async (newName: string) => {
           await renameFile(file, newName)
         }
@@ -330,7 +364,7 @@ export function CloudStorageItemCard({
               const file = item as StorageObject
               openShareDocumentModal({
                 fileName: file.name,
-                filePath: `${currentPath}/${file.name}`
+                filePath: getFullPath(currentPath, file.name)
               })
             }
           }}>
@@ -450,17 +484,26 @@ export function CloudStorageItemCard({
                     ) : (
                       <>
                         {canPreview() ? (
-                          <DropdownMenuItem onSelect={(e) => {
-                            e.preventDefault()
-                            setIsDropdownOpen(false)
-                            if (onPreview) {
-                              onPreview()
-                            } else {
-                              handlePreview()
-                            }
-                          }}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Vorschau
+                          <DropdownMenuItem 
+                            onSelect={(e) => {
+                              e.preventDefault()
+                              if (isLoading) return
+                              setIsDropdownOpen(false)
+                              if (onPreview) {
+                                onPreview()
+                              } else {
+                                handlePreview()
+                              }
+                            }}
+                            className="flex items-center"
+                            disabled={isLoading}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Eye className="h-4 w-4 mr-2" />
+                            )}
+                            {isLoading ? 'Wird geladen...' : 'Vorschau'}
                           </DropdownMenuItem>
                         ) : (
                           <DropdownMenuItem onSelect={(e) => {
@@ -563,7 +606,11 @@ export function CloudStorageItemCard({
                   bgColor,
                   "group-hover:scale-105 transition-transform"
                 )}>
-                  <Icon className={cn("h-8 w-8", color)} />
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Icon className={cn("h-8 w-8", color)} />
+                  )}
                 </div>
 
                 {/* Content */}
