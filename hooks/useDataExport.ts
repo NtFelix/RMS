@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { toast } from 'sonner'; // Assuming sonner is used for toasts
+import { toast } from '@/hooks/use-toast';
 
 export const useDataExport = () => {
   const [isExporting, setIsExporting] = useState(false);
 
   const handleDataExport = async () => {
     setIsExporting(true);
-    toast.info("Datenexport wird vorbereitet...");
+    toast({
+      title: "Export gestartet",
+      description: "Datenexport wird vorbereitet...",
+      variant: "default"
+    });
     try {
       const response = await fetch('/api/export', {
         method: 'GET',
@@ -26,11 +30,19 @@ export const useDataExport = () => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      toast.success("Daten erfolgreich exportiert und heruntergeladen.");
+      toast({
+        title: "Erfolg",
+        description: "Daten erfolgreich exportiert und heruntergeladen.",
+        variant: "success"
+      });
 
     } catch (error) {
       console.error("Data export error:", error);
-      toast.error((error as Error).message || "Datenexport fehlgeschlagen.");
+      toast({
+        title: "Fehler",
+        description: (error as Error).message || "Datenexport fehlgeschlagen.",
+        variant: "destructive"
+      });
     } finally {
       setIsExporting(false);
     }
