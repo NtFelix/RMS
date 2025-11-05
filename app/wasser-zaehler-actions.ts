@@ -467,10 +467,33 @@ export async function deleteWasserAblesung(id: string) {
   const supabase = await createClient();
   
   try {
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, message: "Benutzer nicht authentifiziert." };
+    }
+
+    // First verify the water reading exists and belongs to the user
+    const { data: existingReading, error: fetchError } = await supabase
+      .from("Wasser_Ablesungen")
+      .select('id, user_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingReading) {
+      return { success: false, message: "Wasserablesung nicht gefunden." };
+    }
+
+    if (existingReading.user_id !== user.id) {
+      return { success: false, message: "Keine Berechtigung zum Löschen dieser Wasserablesung." };
+    }
+
+    // Delete the water reading with user_id check
     const { error } = await supabase
       .from("Wasser_Ablesungen")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id); // Ensure the reading belongs to the user
 
     if (error) {
       console.error("Error deleting water reading:", error);
