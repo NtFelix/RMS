@@ -27,23 +27,36 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
 
     if (error) {
       // Check if error is due to function not existing
-      const errorMessage = error.message || '';
-      if (errorMessage.includes('does not exist') || 
-          errorMessage.includes('function') || 
-          errorMessage.includes('not found')) {
-        
+      // Using error code for PostgreSQL function not found (42883) or PostgREST not found (PGRST116)
+      const isFunctionNotFound = error.code === '42883' || // PostgreSQL function does not exist
+                               error.code === 'PGRST116' || // PostgREST resource not found
+                               error.code === '42P01' || // PostgreSQL undefined_table
+                               (error.message && (
+                                 error.message.includes('does not exist') || 
+                                 error.message.includes('function') || 
+                                 error.message.includes('not found')
+                               ));
+      
+      if (isFunctionNotFound) {
         console.log(`[${new Date().toISOString()}] [WARN] Database function not available, using fallback queries\nContext: ${JSON.stringify({
           functionName: 'get_wasser_zaehler_for_haus',
           hausId,
           userId: user.id,
-          fallbackReason: 'Function does not exist'
+          errorCode: error.code,
+          errorMessage: error.message,
+          fallbackReason: 'Function not found or not accessible'
         }, null, 2)}`);
 
         // Fallback to individual queries
         return await getWasserZaehlerForHausFallback(supabase, hausId, user.id, startTime);
       }
 
-      console.error("Error fetching water meter data for house:", error);
+      console.error("Error fetching water meter data for house:", {
+        errorCode: error.code,
+        errorMessage: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       return { success: false, message: error.message };
     }
 
