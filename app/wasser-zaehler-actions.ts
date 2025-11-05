@@ -288,10 +288,33 @@ export async function updateWasserZaehler(id: string, data: Partial<Omit<WasserZ
   const supabase = await createClient();
   
   try {
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, message: "Benutzer nicht authentifiziert." };
+    }
+
+    // First verify the water meter exists and belongs to the user
+    const { data: existingMeter, error: fetchError } = await supabase
+      .from("Wasser_Zaehler")
+      .select('id, user_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingMeter) {
+      return { success: false, message: "Wasserzähler nicht gefunden." };
+    }
+
+    if (existingMeter.user_id !== user.id) {
+      return { success: false, message: "Keine Berechtigung zum Aktualisieren dieses Wasserzählers." };
+    }
+
+    // Update the water meter with user_id check
     const { data: result, error } = await supabase
       .from("Wasser_Zaehler")
       .update(data)
       .eq("id", id)
+      .eq("user_id", user.id) // Ensure the meter belongs to the user
       .select()
       .single();
 
