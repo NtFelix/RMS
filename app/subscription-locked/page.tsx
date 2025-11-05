@@ -3,7 +3,7 @@ import React from 'react'; // Removed useState
 import { useRouter } from 'next/navigation';
 import { Lock, Download, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from "sonner"; // Imported toast
+import { toast } from "@/hooks/use-toast"; // Using custom toast implementation
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 
 const SubscriptionLockedPage = () => {
