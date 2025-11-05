@@ -33,7 +33,7 @@ export const useDataExport = () => {
       toast({
         title: "Erfolg",
         description: "Daten erfolgreich exportiert und heruntergeladen.",
-        variant: "default"
+        variant: "success"
       });
 
     } catch (error) {
