@@ -109,7 +109,7 @@ export function WasserZaehlerAblesenModal({
       const { getWasserZaehlerForHausAction } = await import('@/app/wasser-zaehler-actions');
       const result = await getWasserZaehlerForHausAction(hausId);
 
-      if (!result.success || !result.data) {
+      if (!result.success || !('data' in result) || !result.data) {
         throw new Error(result.message || "Failed to fetch data");
       }
 
@@ -129,7 +129,7 @@ export function WasserZaehlerAblesenModal({
       // Build zaehler info list
       const zaehlerInfoList: WasserZaehlerInfo[] = allZaehler.map((zaehler, index) => {
         const readings = readingsResults[index] || [];
-        const mieter = allMieter.find(m => m.wohnung_id === zaehler.wohnung_id);
+        const mieter = allMieter.find((m: any) => m.wohnung_id === zaehler.wohnung_id);
         
         // Sort readings by date descending
         const sortedReadings = readings.sort((a: any, b: any) => 
