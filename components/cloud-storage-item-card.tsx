@@ -139,13 +139,12 @@ export function CloudStorageItemCard({
 
   // Handle preview action - opens file in new tab
   const handlePreview = async () => {
-    if (type !== 'file') return
+    if (type !== 'file' || isLoading) return
     
     const file = item as StorageObject
-    const fileExtension = file.name.split('.').pop()?.toLowerCase()
     
-    // Open markdown editor directly for .md files
-    if (fileExtension === 'md') {
+    // Handle markdown files with the markdown editor
+    if (file.name.endsWith('.md')) {
       openMarkdownEditorModal({
         filePath: currentPath,
         fileName: file.name,
@@ -476,17 +475,26 @@ export function CloudStorageItemCard({
                     ) : (
                       <>
                         {canPreview() ? (
-                          <DropdownMenuItem onSelect={(e) => {
-                            e.preventDefault()
-                            setIsDropdownOpen(false)
-                            if (onPreview) {
-                              onPreview()
-                            } else {
-                              handlePreview()
-                            }
-                          }}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Vorschau
+                          <DropdownMenuItem 
+                            onSelect={(e) => {
+                              e.preventDefault()
+                              if (isLoading) return
+                              setIsDropdownOpen(false)
+                              if (onPreview) {
+                                onPreview()
+                              } else {
+                                handlePreview()
+                              }
+                            }}
+                            className="flex items-center"
+                            disabled={isLoading}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Eye className="h-4 w-4 mr-2" />
+                            )}
+                            {isLoading ? 'Wird geladen...' : 'Vorschau'}
                           </DropdownMenuItem>
                         ) : (
                           <DropdownMenuItem onSelect={(e) => {
@@ -589,7 +597,11 @@ export function CloudStorageItemCard({
                   bgColor,
                   "group-hover:scale-105 transition-transform"
                 )}>
-                  <Icon className={cn("h-8 w-8", color)} />
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Icon className={cn("h-8 w-8", color)} />
+                  )}
                 </div>
 
                 {/* Content */}
