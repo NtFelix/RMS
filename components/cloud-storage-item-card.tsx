@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 import { 
   File, 
   FileText, 
@@ -101,9 +102,14 @@ export function CloudStorageItemCard({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
   const { openMarkdownEditorModal, openFileRenameModal } = useModalStore()
   const { currentPath, renameFile } = useSimpleCloudStorageStore()
   const supabase = createClient()
+
+  // Constants for configuration
+  const STORAGE_BUCKET = 'documents'
+  const URL_EXPIRY_SECONDS = 3600 // 1 hour
 
   // Create a unique close callback for this dropdown
   const closeThisDropdown = useCallback(() => setIsDropdownOpen(false), [])
@@ -154,8 +160,8 @@ export function CloudStorageItemCard({
       
       // Get signed URL for the file
       const { data, error } = await supabase.storage
-        .from('documents')
-        .createSignedUrl(`${currentPath}/${file.name}`, 3600) // 1 hour expiry
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(`${currentPath}/${file.name}`, URL_EXPIRY_SECONDS)
       
       if (error) throw error
       
@@ -163,7 +169,11 @@ export function CloudStorageItemCard({
       window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
     } catch (error) {
       console.error('Error opening file:', error)
-      // You might want to show a toast notification here
+      toast({
+        title: "Fehler beim Öffnen der Datei",
+        description: "Die Datei konnte nicht geöffnet werden. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
