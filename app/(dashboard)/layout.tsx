@@ -27,8 +27,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Add
 import { HausOverviewModal } from "@/components/haus-overview-modal"; // Added
 import { WohnungOverviewModal } from "@/components/wohnung-overview-modal"; // Added
 import { ApartmentTenantDetailsModal } from "@/components/apartment-tenant-details-modal"; // Added
-import { FileUploadModal } from "@/components/file-upload-modal"; // Added
-import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
+import { FileUploadModal } from "@/components/file-upload-modal" // Removed FilePreviewModal import
 import { FileRenameModal } from "@/components/file-rename-modal"; // Added
 import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
 import { CreateFileModal } from "@/components/create-file-modal"; // Added
@@ -166,8 +165,6 @@ export default function DashboardRootLayout({
       <ApartmentTenantDetailsModal />
       {/* FileUploadModal - Global file upload modal */}
       <FileUploadModal />
-      {/* FilePreviewModal - Global file preview modal */}
-      <FilePreviewModal />
       {/* FileRenameModal - Global file rename modal */}
       {isFileRenameModalOpen && fileRenameData && (
         <FileRenameModal

@@ -116,12 +116,6 @@ interface CreateFileModalData {
   onFileCreated: (fileName: string) => void;
 }
 
-interface FilePreviewData {
-  name: string;
-  path: string;
-  size?: number;
-  type?: string;
-}
 
 interface FileRenameData {
   fileName: string;
@@ -310,12 +304,6 @@ export interface ModalState {
   openUploadModal: (targetPath: string, onComplete?: () => void, files?: File[]) => void;
   closeUploadModal: () => void;
 
-  // File Preview Modal State
-  isFilePreviewModalOpen: boolean;
-  filePreviewData?: FilePreviewData;
-  openFilePreviewModal: (fileData: FilePreviewData) => void;
-  closeFilePreviewModal: () => void;
-
   // File Rename Modal State
   isFileRenameModalOpen: boolean;
   fileRenameData?: FileRenameData;
@@ -496,11 +484,6 @@ const initialUploadModalState = {
   uploadModalFiles: undefined,
 };
 
-const initialFilePreviewModalState = {
-  isFilePreviewModalOpen: false,
-  filePreviewData: undefined,
-};
-
 const initialFileRenameModalState = {
   isFileRenameModalOpen: false,
   fileRenameData: undefined,
@@ -568,7 +551,6 @@ const createInitialModalState = () => ({
   ...initialWohnungOverviewModalState,
   ...initialApartmentTenantDetailsModalState,
   ...initialUploadModalState,
-  ...initialFilePreviewModalState,
   ...initialFileRenameModalState,
   ...initialAIAssistantModalState,
   ...initialCreateFolderModalState,
@@ -937,13 +919,6 @@ export const useModalStore = create<ModalState>((set, get) => {
       uploadModalFiles: files,
     }),
     closeUploadModal: () => set(initialUploadModalState),
-
-    // File Preview Modal
-    openFilePreviewModal: (fileData: FilePreviewData) => set({
-      isFilePreviewModalOpen: true,
-      filePreviewData: fileData,
-    }),
-    closeFilePreviewModal: () => set(initialFilePreviewModalState),
 
     // File Rename Modal
     openFileRenameModal: (fileData: FileRenameData) => set({

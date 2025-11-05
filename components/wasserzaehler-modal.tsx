@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { isoToGermanDate } from "@/utils/date-calculations";
 import {
   Dialog,
@@ -19,6 +19,49 @@ import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Was
 import { WasserzaehlerModalData } from "@/types/optimized-betriebskosten";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
+import { 
+  Droplet, 
+  Building2, 
+  Calendar as CalendarIcon, 
+  TrendingUp, 
+  TrendingDown, 
+  AlertTriangle,
+  User,
+  Gauge,
+  Activity,
+  Search,
+  X,
+  ArrowRightLeft,
+  ArrowDownUp,
+  ArrowDownUp as SplitIcon
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+
+// Filter options for the water meter modal
+const filterOptions = [
+  { value: 'all', label: 'Alle anzeigen' },
+  { value: 'high-increase', label: 'Hoher Anstieg (>20%)' },
+  { value: 'decrease', label: 'Rückgang (>10%)' },
+  { value: 'warnings', label: 'Mit Warnungen' },
+  { value: 'incomplete', label: 'Unvollständig' },
+  { value: 'no-data', label: 'Keine Vorjahresdaten' },
+] as const;
+
+// Map filter tags to their display labels
+const filterTagLabels: Record<string, string> = {
+  'high-increase': 'Hoher Anstieg',
+  'decrease': 'Rückgang',
+  'warnings': 'Mit Warnungen',
+  'incomplete': 'Unvollständig',
+  'no-data': 'Keine Vorjahresdaten',
+};
 
 // Local interface to handle additional client-side properties
 interface ModalWasserzaehlerEntry extends Omit<WasserzaehlerFormEntry, 'ablese_datum' | 'zaehlerstand' | 'verbrauch'> {
@@ -55,10 +98,47 @@ export function WasserzaehlerModal() {
   const [initialFormData, setInitialFormData] = useState<ModalWasserzaehlerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [generalDate, setGeneralDate] = useState<Date | undefined>(new Date());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterTag, setFilterTag] = useState<string>("all");
+  const [apartmentUsage, setApartmentUsage] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
 
   // Threshold for high consumption warning (50% more than previous year)
   const HIGH_CONSUMPTION_INCREASE_THRESHOLD = 1.5; // 50% increase
+
+  // Handle apartment-level water usage change
+  const handleApartmentUsageChange = (wohnungName: string, value: string) => {
+    // If the value is empty, don't update individual usages
+    if (!value || isNaN(parseFloat(value))) return;
+
+    const totalUsage = parseFloat(value);
+    const apartmentEntries = formData.filter(entry => entry.wohnung_name === wohnungName);
+    const tenantCount = apartmentEntries.length;
+    
+    if (tenantCount === 0) return;
+
+    // Calculate share for each tenant, ensuring the total sums up correctly
+    const baseShare = totalUsage / tenantCount;
+    const roundedShare = Math.floor(baseShare * 100) / 100; // Round down to 2 decimal places
+    const remainder = Math.round((totalUsage - (roundedShare * (tenantCount - 1))) * 100) / 100;
+
+    // Update form data with new usages
+    setFormData(prev => {
+      let remainingTenants = tenantCount;
+      return prev.map(entry => {
+        if (entry.wohnung_name === wohnungName) {
+          const share = remainingTenants === 1 ? remainder : roundedShare;
+          remainingTenants--;
+          return {
+            ...entry,
+            verbrauch: share.toFixed(2),
+            warning: '' // Clear any previous warnings
+          };
+        }
+        return entry;
+      });
+    });
+  };
 
   useEffect(() => {
     if (isWasserzaehlerModalOpen && wasserzaehlerNebenkosten) {
@@ -291,6 +371,53 @@ export function WasserzaehlerModal() {
     closeWasserzaehlerModal();
   };
 
+  // Filter and group entries by apartment
+  const groupedEntries = useMemo(() => {
+    // Augment data with consumptionChange and original index
+    const augmentedData = formData.map((entry, index) => {
+      const consumptionChange = entry.previous_reading?.verbrauch 
+        ? ((parseFloat(entry.verbrauch) || 0) - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch * 100
+        : null;
+      return { 
+        ...entry, 
+        originalIndex: index, 
+        consumptionChange 
+      };
+    });
+
+    // Filter the augmented data based on search and filter tag
+    let filteredData = augmentedData.filter(entry => {
+      // Search filter
+      const matchesSearch = searchQuery === "" || 
+        entry.mieter_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.wohnung_name.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      // Tag filter
+      if (filterTag === "all") return true;
+      if (filterTag === "high-increase" && entry.consumptionChange !== null && entry.consumptionChange > 20) return true;
+      if (filterTag === "decrease" && entry.consumptionChange !== null && entry.consumptionChange < -10) return true;
+      if (filterTag === "no-data" && !entry.previous_reading) return true;
+      if (filterTag === "warnings" && entry.warning) return true;
+      if (filterTag === "incomplete" && (!entry.zaehlerstand || !entry.ablese_datum)) return true;
+      
+      return false;
+    });
+
+    // Group by apartment
+    const groups: { [key: string]: typeof filteredData } = {};
+    filteredData.forEach(entry => {
+      const key = entry.wohnung_name;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(entry);
+    });
+
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [formData, searchQuery, filterTag]);
+
   if (!wasserzaehlerNebenkosten) {
     return null;
   }
@@ -298,7 +425,7 @@ export function WasserzaehlerModal() {
   return (
     <Dialog open={isWasserzaehlerModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent 
-        className="sm:max-w-[600px] md:max-w-[800px]"
+        className="sm:max-w-[650px] md:max-w-[750px]"
         isDirty={isWasserzaehlerModalDirty}
         onAttemptClose={attemptClose}
       >
@@ -311,101 +438,301 @@ export function WasserzaehlerModal() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 py-4">
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 py-4">
           {/* General Date Picker */}
           {formData.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 mb-6 p-6 bg-muted/50 border rounded-xl">
-              <div className="w-full">
-                <Label htmlFor="general-date-picker" className="block mb-1">
-                  Gemeinsames Ablesedatum für alle Mieter:
+            <div className="p-4 border rounded-3xl space-y-3 bg-white dark:bg-zinc-900 shadow-sm">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="general-date-picker" className="text-sm font-medium">
+                  Gemeinsames Ablesedatum für alle Mieter
                 </Label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="flex-1">
-                    <DatePicker
-                      id="general-date-picker"
-                      value={generalDate}
-                      onChange={(date) => setGeneralDate(date || new Date())}
-                      placeholder="Datum für alle Mieter auswählen"
-                    />
-                  </div>
-                  <Button 
-                    type="button" 
-                    onClick={applyGeneralDateToAll} 
-                    variant="outline" 
-                    className="whitespace-nowrap"
-                  >
-                    Auf alle Mieter anwenden
-                  </Button>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1">
+                  <DatePicker
+                    id="general-date-picker"
+                    value={generalDate}
+                    onChange={(date) => setGeneralDate(date || new Date())}
+                    placeholder="Datum für alle Mieter auswählen"
+                  />
                 </div>
+                <Button 
+                  type="button" 
+                  onClick={applyGeneralDateToAll} 
+                  variant="outline" 
+                  className="whitespace-nowrap"
+                >
+                  Auf alle Mieter anwenden
+                </Button>
               </div>
             </div>
           )}
 
+          {/* Search and Filter */}
+          {formData.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Mieter oder Wohnung suchen..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <Select value={filterTag} onValueChange={setFilterTag}>
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filterOptions.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Active filters display */}
+              {(searchQuery || filterTag !== "all") && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Aktive Filter:</span>
+                  {searchQuery && (
+                    <Badge variant="secondary" className="gap-1">
+                      Suche: {searchQuery}
+                      <button onClick={() => setSearchQuery("")} className="ml-1 hover:text-foreground">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  {filterTag !== "all" && (
+                    <Badge variant="secondary" className="gap-1">
+                      {filterTagLabels[filterTag]}
+                      <button onClick={() => setFilterTag("all")} className="ml-1 hover:text-foreground">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setFilterTag("all");
+                    }}
+                    className="h-6 text-xs"
+                  >
+                    Alle Filter zurücksetzen
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {isLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <p>Lade Daten...</p>
+            <div className="flex flex-col justify-center items-center h-40 gap-3">
+              <Droplet className="h-8 w-8 text-muted-foreground animate-pulse" />
+              <p className="text-muted-foreground">Lade Wasserzählerdaten...</p>
             </div>
           ) : formData.length > 0 ? (
-            formData.map((entry, index) => (
-              <div key={entry.mieter_id} className="p-6 bg-muted/50 border rounded-xl space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-lg">{entry.mieter_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {entry.wohnung_name} • {entry.wohnung_groesse} m²
-                    </p>
-                  </div>
+            groupedEntries.length === 0 ? (
+              <div className="flex flex-col justify-center items-center h-40 gap-3">
+                <Search className="h-12 w-12 text-muted-foreground/50" />
+                <div className="text-center">
+                  <p className="text-muted-foreground font-medium">Keine Ergebnisse gefunden</p>
+                  <p className="text-sm text-muted-foreground">Versuchen Sie, Ihre Suchkriterien anzupassen</p>
                 </div>
-
-                {entry.previous_reading ? (
-                  <p className="text-sm text-muted-foreground">
-                    Vorjahres-Abrechnung: {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'} - Stand: {entry.previous_reading.zaehlerstand} m³
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Keine Vorjahres-Abrechnung vorhanden.</p>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                  <div className="space-y-1">
-                    <Label htmlFor={`ablesedatum-${entry.mieter_id}`}>Ablesedatum</Label>
-                    <DatePicker
-                      id={`ablesedatum-${entry.mieter_id}`}
-                      value={entry.ablese_datum}
-                      onChange={(date) => handleDateChangeRow(index, date)}
-                      placeholder="Datum auswählen (optional)"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor={`zaehlerstand-${entry.mieter_id}`}>Neuer Zählerstand</Label>
-                    <Input
-                      id={`zaehlerstand-${entry.mieter_id}`}
-                      type="number"
-                      value={entry.zaehlerstand}
-                      onChange={(e) => handleInputChange(index, 'zaehlerstand', e.target.value)}
-                      placeholder="z.B. 123.45"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor={`verbrauch-${entry.mieter_id}`}>Verbrauch</Label>
-                    <Input
-                      id={`verbrauch-${entry.mieter_id}`}
-                      type="number"
-                      value={entry.verbrauch}
-                      onChange={(e) => handleInputChange(index, 'verbrauch', e.target.value)}
-                      placeholder="wird berechnet"
-                      disabled={isLoading}
-                      className={entry.warning ? "border-red-500 focus-visible:ring-red-500" : ""}
-                    />
-                  </div>
-                </div>
-                {entry.warning && <p className="text-sm text-red-500 mt-1">{entry.warning}</p>}
               </div>
-            ))
+            ) : (
+              groupedEntries.map(([wohnungName, entries]) => (
+              <div key={wohnungName} className="space-y-3">
+                {/* Apartment Group Header */}
+                <div className="p-4 border rounded-3xl mb-4 bg-white dark:bg-zinc-900 shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-start gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground mt-1" />
+                      <div>
+                        <h3 className="font-semibold">{wohnungName}</h3>
+                      </div>
+                    </div>
+                    <Badge 
+                      variant="secondary" 
+                      className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium"
+                    >
+                      <User className="h-3 w-3" />
+                      <span>{entries.length} {entries.length === 1 ? 'Mieter' : 'Mieter'}</span>
+                    </Badge>
+                  </div>
+                  
+                  {/* Apartment Water Usage Input */}
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Droplet className="h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor={`apartment-usage-${wohnungName}`} className="text-sm font-medium">
+                        Gesamtverbrauch aufteilen (m³)
+                      </Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          id={`apartment-usage-${wohnungName}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={apartmentUsage[wohnungName] || ''}
+                          onChange={(e) => setApartmentUsage(prev => ({
+                            ...prev,
+                            [wohnungName]: e.target.value
+                          }))}
+                          placeholder="Gesamtverbrauch"
+                          className="pl-8 transition-all duration-200 focus:pl-10"
+                        />
+                        <Droplet className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-all duration-200 [input:focus~&]:h-5 [input:focus~&]:w-5" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          m³
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleApartmentUsageChange(wohnungName, apartmentUsage[wohnungName])}
+                        disabled={!apartmentUsage[wohnungName] || isNaN(parseFloat(apartmentUsage[wohnungName]))}
+                        className="shrink-0 gap-2"
+                      >
+                        <SplitIcon className="h-4 w-4" />
+                        <span>Verbrauch aufteilen</span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tenants in this apartment */}
+                {entries.map((entry) => {
+                  const index = entry.originalIndex;
+                  const consumptionChange = entry.consumptionChange;
+                  
+                  return (
+                    <div key={entry.mieter_id} className="ml-4 p-4 border rounded-3xl space-y-3 bg-gray-50 dark:bg-zinc-900/50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-start gap-2">
+                          <User className="h-4 w-4 text-muted-foreground mt-1" />
+                          <div>
+                            <p className="font-semibold">{entry.mieter_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {entry.wohnung_groesse} m²
+                            </p>
+                          </div>
+                        </div>
+                        {consumptionChange !== null && !isNaN(consumptionChange) && (
+                          <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
+                            consumptionChange > 20 
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                              : consumptionChange < -10
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                              : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {consumptionChange > 0 ? (
+                              <TrendingUp className="h-3 w-3" />
+                            ) : (
+                              <TrendingDown className="h-3 w-3" />
+                            )}
+                            {consumptionChange > 0 ? '+' : ''}{consumptionChange.toFixed(1)}%
+                          </div>
+                        )}
+                      </div>
+
+                      {entry.previous_reading ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="secondary" className="gap-1.5">
+                            <Activity className="h-3 w-3" />
+                            <span>Vorjahr: {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'}</span>
+                          </Badge>
+                          <Badge variant="outline" className="gap-1.5">
+                            <Gauge className="h-3 w-3" />
+                            <span>Stand: {entry.previous_reading.zaehlerstand} m³</span>
+                          </Badge>
+                          <Badge variant="outline" className="gap-1.5">
+                            <Droplet className="h-3 w-3" />
+                            <span>Verbrauch: {entry.previous_reading.verbrauch} m³</span>
+                          </Badge>
+                        </div>
+                      ) : (
+                        <Badge variant="secondary" className="gap-1.5 w-fit">
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>Keine Vorjahres-Abrechnung vorhanden</span>
+                        </Badge>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`ablesedatum-${entry.mieter_id}`}>
+                            Ablesedatum
+                          </Label>
+                          <DatePicker
+                            id={`ablesedatum-${entry.mieter_id}`}
+                            value={entry.ablese_datum}
+                            onChange={(date) => handleDateChangeRow(index, date)}
+                            placeholder="Datum auswählen"
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`zaehlerstand-${entry.mieter_id}`}>
+                            Neuer Zählerstand (m³)
+                          </Label>
+                          <Input
+                            id={`zaehlerstand-${entry.mieter_id}`}
+                            type="number"
+                            step="0.01"
+                            value={entry.zaehlerstand}
+                            onChange={(e) => handleInputChange(index, 'zaehlerstand', e.target.value)}
+                            placeholder="z.B. 123.45"
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`verbrauch-${entry.mieter_id}`}>
+                            Verbrauch (m³)
+                          </Label>
+                          <Input
+                            id={`verbrauch-${entry.mieter_id}`}
+                            type="number"
+                            step="0.01"
+                            value={entry.verbrauch}
+                            onChange={(e) => handleInputChange(index, 'verbrauch', e.target.value)}
+                            placeholder="wird berechnet"
+                            disabled={isLoading}
+                            className={entry.warning ? "border-red-500 focus-visible:ring-red-500" : ""}
+                          />
+                        </div>
+                      </div>
+                      
+                      {entry.warning && (
+                        <Badge variant="destructive" className="gap-1.5 w-fit">
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>{entry.warning}</span>
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )))
           ) : (
-            <div className="flex justify-center items-center h-40">
-              <p>Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
+            <div className="flex flex-col justify-center items-center h-40 gap-3">
+              <Building2 className="h-12 w-12 text-muted-foreground/50" />
+              <p className="text-muted-foreground">Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
             </div>
           )}
         </div>

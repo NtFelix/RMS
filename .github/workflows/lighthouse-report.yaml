@@ -152,32 +152,16 @@ jobs:
             build-
           fail-on-cache-miss: true
 
-      - name: Cache Lighthouse CI tools
-        id: cache-lighthouse-tools
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-            node_modules/@lhci
-            node_modules/wait-on
-            node_modules/which-module
-            node_modules/.bin/lhci
-            node_modules/.bin/wait-on
-          key: ${{ runner.os }}-lighthouse-tools-${{ hashFiles('**/package-lock.json') }}-v2
-          restore-keys: |
-            ${{ runner.os }}-lighthouse-tools-v2-
+      - name: Install dependencies (if not cached)
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
 
       - name: Install Lighthouse CI tools
-        if: steps.cache-lighthouse-tools.outputs.cache-hit != 'true'
-        run: npm install --no-save @lhci/cli wait-on which-module
+        run: npm install --no-save @lhci/cli@0.12.x wait-on
 
       - name: Verify Lighthouse CI tools
         run: |
-          if [ "${{ steps.cache-lighthouse-tools.outputs.cache-hit }}" == "true" ]; then
-            echo "✓ Lighthouse CI tools restored from cache"
-          else
-            echo "✓ Lighthouse CI tools installed"
-          fi
+          echo "✓ Lighthouse CI tools installed"
           npx lhci --version
           npx wait-on --version
 

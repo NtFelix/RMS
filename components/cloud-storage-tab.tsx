@@ -20,7 +20,6 @@ import { FileTreeView } from "@/components/file-tree-view"
 import { FileBreadcrumbNavigation } from "@/components/file-breadcrumb-navigation"
 import { FileUploadZone } from "@/components/file-upload-zone"
 import { FileContextMenu } from "@/components/file-context-menu"
-import { FilePreviewModal } from "@/components/file-preview-modal"
 import { ArchiveBrowserModal } from "@/components/archive-browser-modal"
 import { useCloudStorageStore, useCloudStorageOperations, useCloudStorageArchive, useCloudStorageUpload, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { useModalStore } from "@/hooks/use-modal-store"
@@ -687,9 +686,6 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
           />
         )}
 
-        {/* File Preview Modal */}
-        <FilePreviewModal />
-        
         {/* Archive Browser Modal */}
         <ArchiveBrowserModal 
           isOpen={isArchiveViewOpen}
