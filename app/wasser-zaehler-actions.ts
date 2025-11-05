@@ -2,7 +2,10 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
+import { WasserZaehler, WasserAblesung, Wohnung, Mieter } from "@/lib/data-fetching";
+
+// Type for the Supabase client from our createClient utility
+type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * Fetch all water meter data for a house
@@ -99,81 +102,178 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
  * Fallback function using individual queries
  * Used when database function is not available
  */
+
+// Define a basic Wohnung interface that matches our database query
+interface WohnungBasic {
+  id: string;
+  name: string;
+  groesse: number;
+  miete: number;
+  haus_id: string | null;
+}
+
+// Reuse existing types from data-fetching with proper type safety
+interface MieterBasic extends Pick<Mieter, 'id' | 'name' | 'wohnung_id' | 'einzug' | 'auszug'> {}
+
+interface FallbackResult {
+  success: boolean;
+  data: {
+    wohnungen: WohnungBasic[];
+    waterMeters: WasserZaehler[];
+    waterReadings: WasserAblesung[];
+    mieter: MieterBasic[];
+  };
+  message?: string;
+}
+
+/**
+ * Fallback function that executes individual queries when the database function is not available
+ * This is a performance fallback and should only be used when the optimized function is not available
+ */
 async function getWasserZaehlerForHausFallback(
-  supabase: any,
+  supabase: SupabaseClientType,
   hausId: string,
   userId: string,
   startTime: number
-) {
+): Promise<FallbackResult> {
   try {
-    // Fetch apartments
+    // Fetch apartments for the house with proper type casting
     const { data: wohnungen, error: wohnungenError } = await supabase
       .from("Wohnungen")
       .select("id, name, groesse, miete, haus_id")
       .eq("haus_id", hausId)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .order('name', { ascending: true });
 
-    if (wohnungenError) throw wohnungenError;
+    if (wohnungenError) {
+      console.error("Error fetching apartments:", wohnungenError);
+      throw wohnungenError;
+    }
 
-    const wohnungIds = wohnungen?.map((w: any) => w.id) || [];
+    const wohnungIds = wohnungen?.map((w: WohnungBasic) => w.id) || [];
+    if (wohnungIds.length === 0) {
+      // No apartments found for this house
+      return {
+        success: true,
+        data: {
+          wohnungen: [],
+          waterMeters: [],
+          waterReadings: [],
+          mieter: []
+        }
+      };
+    }
 
-    // Fetch water meters
+    // Fetch water meters for the apartments with proper type casting
     const { data: waterMeters, error: metersError } = await supabase
       .from("Wasser_Zaehler")
       .select("*")
       .in("wohnung_id", wohnungIds)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .order('custom_id', { ascending: true });
 
-    if (metersError) throw metersError;
+    if (metersError) {
+      console.error("Error fetching water meters:", metersError);
+      throw metersError;
+    }
 
-    const meterIds = waterMeters?.map((m: any) => m.id) || [];
+    const meterIds = waterMeters?.map((m: WasserZaehler) => m.id) || [];
+    
+    // Execute water readings and tenants queries in parallel
+    // Execute parallel queries with proper type casting
+    const [
+      { data: waterReadings, error: readingsError },
+      { data: mieter, error: mieterError }
+    ] = await Promise.all([
+      // Fetch water readings for the meters
+      meterIds.length > 0 
+        ? supabase
+            .from("Wasser_Ablesungen")
+            .select("*")
+            .in("wasser_zaehler_id", meterIds)
+            .eq("user_id", userId)
+            .order('ablese_datum', { ascending: false })
+        : { data: null, error: null },
+      
+      // Fetch tenants for the apartments
+      supabase
+        .from("Mieter")
+        .select("id, name, wohnung_id, einzug, auszug")
+        .in("wohnung_id", wohnungIds)
+        .eq("user_id", userId)
+        .order('name', { ascending: true })
+    ]);
 
-    // Fetch water readings
-    const { data: waterReadings, error: readingsError } = await supabase
-      .from("Wasser_Ablesungen")
-      .select("*")
-      .in("wasser_zaehler_id", meterIds)
-      .eq("user_id", userId);
-
-    if (readingsError) throw readingsError;
-
-    // Fetch tenants
-    const { data: mieter, error: mieterError } = await supabase
-      .from("Mieter")
-      .select("id, name, wohnung_id, einzug, auszug")
-      .in("wohnung_id", wohnungIds)
-      .eq("user_id", userId);
-
-    if (mieterError) throw mieterError;
+    // Handle potential errors from parallel queries
+    if (readingsError) {
+      console.error("Error fetching water readings:", readingsError);
+      throw readingsError;
+    }
+    
+    if (mieterError) {
+      console.error("Error fetching tenants:", mieterError);
+      throw mieterError;
+    }
+    
+    // Type assertions for the query results
+    const typedWaterReadings = (waterReadings || []) as unknown as WasserAblesung[];
+    const typedMieter = (mieter || []) as unknown as MieterBasic[];
 
     const executionTime = Date.now() - startTime;
+    const performanceLevel = executionTime < 200 ? 'fast' : executionTime < 500 ? 'medium' : 'slow';
 
-    // Log fallback execution
-    console.log(`[${new Date().toISOString()}] [INFO] Fallback queries completed\nContext: ${JSON.stringify({
-      method: 'fallback',
-      executionTime,
-      performanceLevel: executionTime < 200 ? 'fast' : executionTime < 500 ? 'medium' : 'slow',
-      success: true,
-      hausId,
-      userId,
-      wohnungenCount: wohnungen?.length || 0,
-      metersCount: waterMeters?.length || 0,
-      readingsCount: waterReadings?.length || 0,
-      queriesExecuted: 4
-    }, null, 2)}`);
+    // Log fallback execution with performance metrics
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'INFO',
+      message: 'Fallback queries completed',
+      method: 'getWasserZaehlerForHausFallback',
+      context: {
+        performance: {
+          executionTime,
+          performanceLevel,
+          queriesExecuted: 4
+        },
+        data: {
+          hausId,
+          userId,
+          wohnungenCount: wohnungen?.length || 0,
+          metersCount: waterMeters?.length || 0,
+          readingsCount: waterReadings?.length || 0,
+          mieterCount: mieter?.length || 0
+        }
+      }
+    }, null, 2));
 
     return {
       success: true,
       data: {
-        wohnungen: wohnungen || [],
-        waterMeters: waterMeters || [],
-        waterReadings: waterReadings || [],
-        mieter: mieter || []
+        wohnungen: (wohnungen || []) as unknown as WohnungBasic[],
+        waterMeters: (waterMeters || []) as unknown as WasserZaehler[],
+        waterReadings: typedWaterReadings,
+        mieter: typedMieter
       }
     };
   } catch (error: any) {
-    console.error("Error in fallback queries:", error);
-    return { success: false, message: `Fallback-Fehler: ${error.message}` };
+    const errorMessage = error?.message || 'Unknown error in fallback queries';
+    console.error("Error in fallback queries:", {
+      error: errorMessage,
+      stack: error?.stack,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint
+    });
+    
+    return { 
+      success: false, 
+      message: `Fallback-Fehler: ${errorMessage}`,
+      data: {
+        wohnungen: [],
+        waterMeters: [],
+        waterReadings: [],
+        mieter: []
+      }
+    };
   }
 }
 
