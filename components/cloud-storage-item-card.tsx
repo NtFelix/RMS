@@ -110,6 +110,14 @@ export function CloudStorageItemCard({
   // Constants for configuration
   const STORAGE_BUCKET = 'documents'
   const URL_EXPIRY_SECONDS = 3600 // 1 hour
+  
+  // Helper function to join path segments and normalize the result
+  const getFullPath = (path: string, name: string): string => {
+    // Remove any leading/trailing slashes and join with a single slash
+    return [path.replace(/^\/+|\/+$/g, ''), name.replace(/^\/+|\/+$/g, '')]
+      .filter(Boolean)
+      .join('/')
+  }
 
   // Create a unique close callback for this dropdown
   const closeThisDropdown = useCallback(() => setIsDropdownOpen(false), [])
@@ -146,7 +154,7 @@ export function CloudStorageItemCard({
     // Handle markdown files with the markdown editor
     if (file.name.endsWith('.md')) {
       openMarkdownEditorModal({
-        filePath: currentPath,
+        filePath: getFullPath(currentPath, ''), // Just the directory path
         fileName: file.name,
         isNewFile: false
       })
@@ -158,9 +166,10 @@ export function CloudStorageItemCard({
       setIsLoading(true)
       
       // Get signed URL for the file
+      const filePath = getFullPath(currentPath, file.name)
       const { data, error } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .createSignedUrl(`${currentPath}/${file.name}`, URL_EXPIRY_SECONDS)
+        .createSignedUrl(filePath, URL_EXPIRY_SECONDS)
       
       if (error) throw error
       
@@ -184,7 +193,7 @@ export function CloudStorageItemCard({
       const file = item as StorageObject
       openFileRenameModal({
         fileName: file.name,
-        filePath: `${currentPath}/${file.name}`,
+        filePath: getFullPath(currentPath, file.name),
         onRename: async (newName: string) => {
           await renameFile(file, newName)
         }
@@ -355,7 +364,7 @@ export function CloudStorageItemCard({
               const file = item as StorageObject
               openShareDocumentModal({
                 fileName: file.name,
-                filePath: `${currentPath}/${file.name}`
+                filePath: getFullPath(currentPath, file.name)
               })
             }
           }}>
