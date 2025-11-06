@@ -146,9 +146,9 @@ export default function Navigation({ onLogin }: NavigationProps) {
         </div>
 
         {/* Desktop Navigation - One Big Pill */}
-        <div className="hidden md:block">
-          <PillContainer>
-            <div className="flex items-center justify-between w-full gap-2">
+        <div className="hidden md:flex md:justify-center">
+          <PillContainer className="inline-flex w-auto">
+            <div className="flex items-center gap-2">
               {/* Logo Section */}
               <Link href="/" className="flex items-center space-x-2 group px-2">
                 <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
@@ -160,10 +160,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     sizes="32px"
                   />
                 </div>
-                <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+                <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">
                   <span className="text-primary">Miet</span>fluss
                 </span>
               </Link>
+
+              {/* Divider */}
+              <div className="h-8 w-px bg-border/50 mx-2" />
 
               {/* Navigation Items Section */}
               <div className="flex items-center gap-1">
@@ -174,7 +177,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <button
                         key={item.name}
                         onClick={() => handleNavClick(item.href)}
-                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
+                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
                       >
                         {item.icon && <item.icon className="w-4 h-4" />}
                         <span>{item.name}</span>
@@ -185,7 +188,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <Link
                         key={item.name}
                         href={item.href}
-                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
+                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
                       >
                         {item.icon && <item.icon className="w-4 h-4" />}
                         <span>{item.name}</span>
@@ -195,7 +198,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 ) : (
                   // Other pages navigation
                   <>
-                    <Button asChild variant="ghost" className="rounded-full text-foreground">
+                    <Button asChild variant="ghost" className="rounded-full text-foreground whitespace-nowrap">
                       <Link href="/">
                         Startseite
                       </Link>
@@ -204,7 +207,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <Link
                         key={item.name}
                         href={item.href}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 ${
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 whitespace-nowrap ${
                           pathname === item.href 
                             ? 'bg-primary text-primary-foreground' 
                             : 'text-foreground hover:bg-gray-200'
@@ -217,6 +220,9 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   </>
                 )}
               </div>
+
+              {/* Divider */}
+              <div className="h-8 w-px bg-border/50 mx-2" />
 
               {/* Auth Section */}
               <div className="flex items-center px-2">
@@ -248,7 +254,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="rounded-full"
+                    className="rounded-full whitespace-nowrap"
                     onClick={handleOpenLoginModal}
                   >
                     <LogIn className="w-4 h-4 mr-2" />
