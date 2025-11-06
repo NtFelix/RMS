@@ -305,7 +305,7 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
 export async function getPreviousWasserzaehlerRecordAction(
   mieterId: string,
   currentYear?: string
-): Promise<{ success: boolean; data?: WasserAblesung | null; message?: string }> {
+): Promise<{ success: boolean; data?: Wasserzaehler | null; message?: string }> {
   "use server";
 
   if (!mieterId) {
@@ -375,13 +375,6 @@ export async function getPreviousWasserzaehlerRecordAction(
               return { success: true, data: legacyFormat };
             }
           }
-        }
-
-        if (previousYearError && previousYearError.code !== 'PGRST116') {
-          console.error(`Error fetching previous year's Wasserzaehler record for mieter_id ${mieterId}:`, previousYearError);
-        } else if (previousYearData) {
-          // If we found a reading from the previous year, return it
-          return { success: true, data: previousYearData };
         }
       }
     }
@@ -458,7 +451,7 @@ export async function getPreviousWasserzaehlerRecordAction(
 export async function getBatchPreviousWasserzaehlerRecordsAction(
   mieterIds: string[],
   currentYear?: string
-): Promise<{ success: boolean; data?: Record<string, WasserAblesung | null>; message?: string }> {
+): Promise<{ success: boolean; data?: Record<string, Wasserzaehler | null>; message?: string }> {
   "use server";
 
   if (!mieterIds || mieterIds.length === 0) {
@@ -473,7 +466,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
   }
 
   try {
-    const result: Record<string, WasserAblesung | null> = {};
+    const result: Record<string, Wasserzaehler | null> = {};
 
     // First, try to get readings from the previous year if currentYear is provided
     if (currentYear) {
@@ -515,12 +508,20 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
               .order("ablese_datum", { ascending: false });
 
             if (!previousYearError && previousYearData) {
-              // Map readings back to mieter IDs
+              // Map readings back to mieter IDs and transform to legacy format
               previousYearData.forEach(reading => {
                 const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
                 const mieter = mieterApartments.find(m => m.wohnung_id === meter?.wohnung_id);
                 if (mieter && !result[mieter.id]) {
-                  result[mieter.id] = reading;
+                  result[mieter.id] = {
+                    id: reading.id,
+                    nebenkosten_id: '',
+                    mieter_id: mieter.id,
+                    ablese_datum: reading.ablese_datum,
+                    zaehlerstand: reading.zaehlerstand || 0,
+                    verbrauch: reading.verbrauch || 0,
+                    user_id: reading.user_id || user.id
+                  };
                 }
               });
             }
@@ -565,12 +566,20 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
             .order('ablese_datum', { ascending: false });
 
           if (!fallbackError && fallbackData) {
-            // Map readings back to mieter IDs
+            // Map readings back to mieter IDs and transform to legacy format
             fallbackData.forEach(reading => {
               const meter = remainingWaterMeters.find(m => m.id === reading.wasser_zaehler_id);
               const mieter = remainingMieterApartments.find(m => m.wohnung_id === meter?.wohnung_id);
               if (mieter && !result[mieter.id]) {
-                result[mieter.id] = reading;
+                result[mieter.id] = {
+                  id: reading.id,
+                  nebenkosten_id: '',
+                  mieter_id: mieter.id,
+                  ablese_datum: reading.ablese_datum,
+                  zaehlerstand: reading.zaehlerstand || 0,
+                  verbrauch: reading.verbrauch || 0,
+                  user_id: reading.user_id || user.id
+                };
               }
             });
           }
@@ -1174,7 +1183,9 @@ export async function getWasserzaehlerModalDataAction(
             name,
             einzug,
             auszug,
+            wohnung_id,
             Wohnungen!inner (
+              id,
               name,
               groesse,
               haus_id
@@ -1195,10 +1206,7 @@ export async function getWasserzaehlerModalDataAction(
 
         // Get current readings from new table structure
         // First get water meters for apartments in this house
-        const apartmentIds = tenants?.map(t => {
-          const wohnung = Array.isArray(t.Wohnungen) ? t.Wohnungen[0] : t.Wohnungen;
-          return wohnung?.id;
-        }).filter(Boolean) || [];
+        const apartmentIds = tenants?.map(t => t.wohnung_id).filter(Boolean) || [];
 
         let currentReadings: any[] = [];
         if (apartmentIds.length > 0) {
@@ -1222,10 +1230,7 @@ export async function getWasserzaehlerModalDataAction(
               // Transform to include mieter_id for compatibility
               currentReadings = readings.map(reading => {
                 const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
-                const tenant = tenants?.find(t => {
-                  const wohnung = Array.isArray(t.Wohnungen) ? t.Wohnungen[0] : t.Wohnungen;
-                  return wohnung?.id === meter?.wohnung_id;
-                });
+                const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
                 return {
                   ...reading,
                   mieter_id: tenant?.id || ''
@@ -1233,13 +1238,6 @@ export async function getWasserzaehlerModalDataAction(
               });
             }
           }
-        }
-
-        if (currentError) {
-          logger.error('Failed to fetch current readings', currentError || undefined, {
-            userId: user.id,
-            nebenkostenId
-          });
         }
 
         // Get previous readings for each tenant from new table structure
@@ -1265,10 +1263,7 @@ export async function getWasserzaehlerModalDataAction(
               // Transform to include mieter_id for compatibility
               previousReadings = readings.map(reading => {
                 const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
-                const tenant = tenants?.find(t => {
-                  const wohnung = Array.isArray(t.Wohnungen) ? t.Wohnungen[0] : t.Wohnungen;
-                  return wohnung?.id === meter?.wohnung_id;
-                });
+                const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
                 return {
                   ...reading,
                   mieter_id: tenant?.id || ''
@@ -1276,13 +1271,6 @@ export async function getWasserzaehlerModalDataAction(
               });
             }
           }
-        }
-
-        if (previousError) {
-          logger.error('Failed to fetch previous readings', previousError || undefined, {
-            userId: user.id,
-            nebenkostenId
-          });
         }
 
         // Build the response data
