@@ -127,8 +127,8 @@ export type WasserAblesung = {
   wasser_zaehler_id: string | null;
 };
 
-// Legacy type for backward compatibility with old Wasserzaehler table
-// This table structure is being phased out in favor of Wasser_Zaehler + Wasser_Ablesungen
+// Legacy type removed - now using Wasser_Zaehler + Wasser_Ablesungen tables
+// This type is kept for backward compatibility in form data structures only
 export type Wasserzaehler = {
   id: string;
   nebenkosten_id: string;
@@ -568,24 +568,47 @@ export async function fetchWasserzaehlerByHausAndDateRange(
       return { mieterList: [], existingReadings: [] };
     }
 
-    // 3. Fetch Wasserzaehler readings for these mieters in the specified date range
+    // 3. Fetch water meter readings from new Wasser_Zaehler + Wasser_Ablesungen tables
     let existingReadings: Wasserzaehler[] = [];
     if (relevantMieter.length > 0) {
-      const mieterIds = relevantMieter.map(m => m.id);
-      const startDate = new Date(startdatum);
-      const endDate = new Date(enddatum);
+      // Get water meters for these apartments
+      const { data: waterMeters, error: metersError } = await supabase
+        .from('Wasser_Zaehler')
+        .select('id, wohnung_id')
+        .in('wohnung_id', wohnungIds);
 
-      const { data: readings, error: readingsError } = await supabase
-        .from('Wasserzaehler')
-        .select('*')
-        .in('mieter_id', mieterIds)
-        .gte('ablese_datum', startDate.toISOString())
-        .lte('ablese_datum', endDate.toISOString());
+      if (metersError) {
+        console.error(`Error fetching Wasser_Zaehler for Haus ${hausId}:`, metersError);
+      } else if (waterMeters && waterMeters.length > 0) {
+        const meterIds = waterMeters.map(m => m.id);
+        
+        // Get readings for these meters in the date range
+        const { data: readings, error: readingsError } = await supabase
+          .from('Wasser_Ablesungen')
+          .select('*, wasser_zaehler_id')
+          .in('wasser_zaehler_id', meterIds)
+          .gte('ablese_datum', startdatum)
+          .lte('ablese_datum', enddatum);
 
-      if (readingsError) {
-        console.error(`Error fetching Wasserzaehler readings for Haus ${hausId} in date range ${startdatum} to ${enddatum}:`, readingsError);
-      } else if (readings) {
-        existingReadings = readings;
+        if (readingsError) {
+          console.error(`Error fetching Wasser_Ablesungen for Haus ${hausId} in date range ${startdatum} to ${enddatum}:`, readingsError);
+        } else if (readings) {
+          // Transform new structure to legacy format for compatibility
+          existingReadings = readings.map(reading => {
+            const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
+            const mieter = relevantMieter.find(m => m.wohnung_id === meter?.wohnung_id);
+            
+            return {
+              id: reading.id,
+              nebenkosten_id: '', // Not applicable in new structure
+              mieter_id: mieter?.id || '',
+              ablese_datum: reading.ablese_datum,
+              zaehlerstand: reading.zaehlerstand || 0,
+              verbrauch: reading.verbrauch || 0,
+              user_id: reading.user_id
+            };
+          });
+        }
       }
     }
 

@@ -29,7 +29,7 @@ import { OptimizedNebenkosten, WasserzaehlerModalData, AbrechnungModalData } fro
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
-import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
+// Old WasserzaehlerModal removed - now using optimized modal store approach
 import { WasserZaehlerVerwaltungModal } from "./wasser-zaehler-verwaltung-modal" // Added
 import { WasserZaehlerAblesenModal } from "./wasser-zaehler-ablesungen-modal" // Added
 import { 
