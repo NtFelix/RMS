@@ -117,9 +117,9 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
   return (
     <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4">
-      <div className="max-w-7xl mx-auto flex items-center justify-between relative">
+      <div className="max-w-7xl mx-auto">
         {/* Mobile Header with Menu Button and Logo */}
-        <div className="flex-shrink-0 z-10 md:hidden flex items-center space-x-2">
+        <div className="flex md:hidden items-center space-x-2">
           <PillContainer>
             <button
               onClick={() => setIsOpen(!isOpen)}
@@ -144,118 +144,119 @@ export default function Navigation({ onLogin }: NavigationProps) {
             </span>
           </Link>
         </div>
-        <div className="hidden md:flex flex-shrink-0 z-10">
+
+        {/* Desktop Navigation - One Big Pill */}
+        <div className="hidden md:block">
           <PillContainer>
-            <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
-              <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
-                <Image
-                  src={LOGO_URL}
-                  alt="IV Logo"
-                  fill
-                  className="object-cover"
-                  sizes="32px"
-                />
+            <div className="flex items-center justify-between w-full gap-2">
+              {/* Logo Section */}
+              <Link href="/" className="flex items-center space-x-2 group px-2">
+                <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+                  <Image
+                    src={LOGO_URL}
+                    alt="IV Logo"
+                    fill
+                    className="object-cover"
+                    sizes="32px"
+                  />
+                </div>
+                <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+                  <span className="text-primary">Miet</span>fluss
+                </span>
+              </Link>
+
+              {/* Navigation Items Section */}
+              <div className="flex items-center gap-1">
+                {pathname === "/" ? (
+                  // Home page navigation with smooth scroll
+                  <>
+                    {navItems.map((item) => (
+                      <button
+                        key={item.name}
+                        onClick={() => handleNavClick(item.href)}
+                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        {item.icon && <item.icon className="w-4 h-4" />}
+                        <span>{item.name}</span>
+                      </button>
+                    ))}
+                    {/* Static navigation items */}
+                    {staticNavItems.map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        {item.icon && <item.icon className="w-4 h-4" />}
+                        <span>{item.name}</span>
+                      </Link>
+                    ))}
+                  </>
+                ) : (
+                  // Other pages navigation
+                  <>
+                    <Button asChild variant="ghost" className="rounded-full text-foreground">
+                      <Link href="/">
+                        Startseite
+                      </Link>
+                    </Button>
+                    {staticNavItems.map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 ${
+                          pathname === item.href 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'text-foreground hover:bg-gray-200'
+                        }`}
+                      >
+                        {item.icon && <item.icon className="w-4 h-4" />}
+                        <span>{item.name}</span>
+                      </Link>
+                    ))}
+                  </>
+                )}
               </div>
-              <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-                <span className="text-primary">Miet</span>fluss
-              </span>
-            </Link>
-          </PillContainer>
-        </div>
 
-        {/* Desktop Navigation Pill */}
-        <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <PillContainer>
-            {pathname === "/" ? (
-              // Home page navigation with smooth scroll
-              <>
-                {navItems.map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={() => handleNavClick(item.href)}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
+              {/* Auth Section */}
+              <div className="flex items-center px-2">
+                {currentUser ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
+                          <AvatarFallback className="bg-muted">
+                            <UserIcon className="w-4 h-4 text-muted-foreground" />
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
+                      <DashboardMenuItem />
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={handleLogout}
+                        className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Abmelden
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={handleOpenLoginModal}
                   >
-                    {item.icon && <item.icon className="w-4 h-4" />}
-                    <span>{item.name}</span>
-                  </button>
-                ))}
-                {/* Static navigation items */}
-                {staticNavItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
-                  >
-                    {item.icon && <item.icon className="w-4 h-4" />}
-                    <span>{item.name}</span>
-                  </Link>
-                ))}
-              </>
-            ) : (
-              // Other pages navigation
-              <>
-                <Button asChild variant="ghost" className="rounded-full text-foreground">
-                  <Link href="/">
-                    Startseite
-                  </Link>
-                </Button>
-                {staticNavItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 ${
-                      pathname === item.href 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'text-foreground hover:bg-gray-200'
-                    }`}
-                  >
-                    {item.icon && <item.icon className="w-4 h-4" />}
-                    <span>{item.name}</span>
-                  </Link>
-                ))}
-              </>
-            )}
-          </PillContainer>
-        </div>
-
-        {/* Auth Pill */}
-        <div className="hidden md:flex flex-shrink-0 z-10">
-          <PillContainer>
-            {currentUser ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
-                      <AvatarFallback className="bg-muted">
-                        <UserIcon className="w-4 h-4 text-muted-foreground" />
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
-                  <DashboardMenuItem />
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={handleLogout}
-                    className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Abmelden
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-full"
-                onClick={handleOpenLoginModal}
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                Anmelden
-              </Button>
-            )}
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Anmelden
+                  </Button>
+                )}
+              </div>
+            </div>
           </PillContainer>
         </div>
       </div>
