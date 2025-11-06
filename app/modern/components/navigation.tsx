@@ -53,6 +53,30 @@ interface NavigationProps {
   onLogin?: () => void;
 }
 
+// Custom hook for debounced window resize events
+function useDebouncedResize(callback: () => void, delay = 100) {
+  useEffect(() => {
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(callback, delay);
+    };
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Initial call
+    handleResize();
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
+  }, [callback, delay]);
+}
+
 // Custom hook to check if container is overflowing
 function useIsOverflowing() {
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -64,39 +88,30 @@ function useIsOverflowing() {
     }
   }, []);
 
+  const checkOverflow = useCallback(() => {
+    if (container) {
+      const { scrollWidth, clientWidth } = container;
+      setIsOverflowing(scrollWidth > clientWidth);
+    }
+  }, [container]);
+
+  // Use the debounced resize hook
+  useDebouncedResize(checkOverflow);
+  
+  // Check for mutations (like when content changes)
   useEffect(() => {
     if (!container) return;
     
-    const checkOverflow = () => {
-      if (container) {
-        const { scrollWidth, clientWidth } = container;
-        setIsOverflowing(scrollWidth > clientWidth);
-      }
-    };
-
     // Initial check
     checkOverflow();
     
-    // Add event listener for window resize with debounce
-    let resizeTimer: ReturnType<typeof setTimeout>;
-    const handleResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(checkOverflow, 100);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    
-    // Check for mutations (like when content changes)
     const observer = new MutationObserver(checkOverflow);
     observer.observe(container, { childList: true, subtree: true });
     
-    // Clean up
     return () => {
-      window.removeEventListener('resize', handleResize);
       observer.disconnect();
-      clearTimeout(resizeTimer);
     };
-  }, [container]);
+  }, [container, checkOverflow]);
 
   return { ref, isOverflowing };
 }
@@ -112,29 +127,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
   
   // Update mobile state based on viewport width and overflow
   useEffect(() => {
-    const checkIfMobile = () => {
+    const checkIfMobile = useCallback(() => {
       const isSmallScreen = window.innerWidth < 768;
       const shouldUseMobile = isSmallScreen || isOverflowing;
       setIsMobile(shouldUseMobile);
-    };
+    }, [isOverflowing]);
     
     // Initial check
     checkIfMobile();
     
-    // Add event listener for window resize with debounce
-    let resizeTimer: ReturnType<typeof setTimeout>;
-    const handleResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(checkIfMobile, 100);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(resizeTimer);
-    };
+    // Use the debounced resize hook
+    useDebouncedResize(checkIfMobile);
   }, [isOverflowing]);
 
   useEffect(() => {
