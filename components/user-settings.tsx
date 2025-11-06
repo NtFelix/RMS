@@ -10,80 +10,136 @@ import {
   CustomDropdownLabel,
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
-import { Button } from "@/components/ui/button"; // Keep this if other buttons are styled with it, or remove if not.
-import { LogOut, Settings, FileText } from "lucide-react"; // Removed User icon as it's not used.
-import { SettingsModal } from "@/components/settings-modal";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useModalStore } from "@/hooks/use-modal-store";
-import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from "@/lib/accessibility-constants";
-import { useFeatureFlagEnabled } from "posthog-js/react";
+import { Button } from "@/components/ui/button"
+import { LogOut, Settings, FileText } from "lucide-react"
+import { SettingsModal } from "@/components/settings-modal"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Progress } from "@/components/ui/progress"
+import { useModalStore } from "@/hooks/use-modal-store"
+import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from "@/lib/accessibility-constants"
+import { useFeatureFlagEnabled } from "posthog-js/react"
 
 export function UserSettings() {
-  const router = useRouter();
-  const [isLoadingLogout, setIsLoadingLogout] = useState(false);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [openModal, setOpenModal] = useState(false);
-  const [userName, setUserName] = useState("Lade...");
-  const [userEmail, setUserEmail] = useState("");
-  const [userInitials, setUserInitials] = useState("");
-  const supabase = createClient();
-  const { openTemplatesModal } = useModalStore();
-  // Use PostHog feature flag properly at the top level
+  const router = useRouter()
+  const [isLoadingLogout, setIsLoadingLogout] = useState(false)
+  const [isLoadingUser, setIsLoadingUser] = useState(true)
+  const [openModal, setOpenModal] = useState(false)
+  const [userName, setUserName] = useState("Lade...")
+  const [userEmail, setUserEmail] = useState("")
+  const [userInitials, setUserInitials] = useState("")
+  const [apartmentCount, setApartmentCount] = useState(0)
+  const [apartmentLimit, setApartmentLimit] = useState<number | null>(null)
+  const supabase = createClient()
+  const { openTemplatesModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoadingUser(true);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const fetchUserData = async () => {
+      setIsLoadingUser(true)
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
 
       if (authError || !user) {
-        console.error("Error fetching user:", authError?.message);
-        setUserName("Nutzer");
-        setUserEmail("Nicht angemeldet");
-        setUserInitials("N");
-        setIsLoadingUser(false);
-        return;
+        console.error("Error fetching user:", authError?.message)
+        setUserName("Nutzer")
+        setUserEmail("Nicht angemeldet")
+        setUserInitials("N")
+        setIsLoadingUser(false)
+        return
       }
 
-      setUserEmail(user.email || "Keine E-Mail");
+      setUserEmail(user.email || "Keine E-Mail")
 
-      const { first_name: rawFirstName, last_name: rawLastName } = user.user_metadata || {};
+      const { first_name: rawFirstName, last_name: rawLastName } = user.user_metadata || {}
 
-      const firstName = (typeof rawFirstName === 'string' ? rawFirstName.trim() : '');
-      const lastName = (typeof rawLastName === 'string' ? rawLastName.trim() : '');
+      const firstName = (typeof rawFirstName === 'string' ? rawFirstName.trim() : '')
+      const lastName = (typeof rawLastName === 'string' ? rawLastName.trim() : '')
 
       if (firstName && lastName) {
-        const fullName = `${firstName} ${lastName}`;
-        setUserName(fullName);
-        const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-        setUserInitials(initials);
+        const fullName = `${firstName} ${lastName}`
+        setUserName(fullName)
+        const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+        setUserInitials(initials)
       } else if (firstName) {
-        setUserName(firstName);
-        setUserInitials(firstName.charAt(0).toUpperCase());
+        setUserName(firstName)
+        setUserInitials(firstName.charAt(0).toUpperCase())
       } else {
-        setUserName("Namen in Einstellungen festlegen");
-        setUserInitials("?");
+        setUserName("Namen in Einstellungen festlegen")
+        setUserInitials("?")
       }
-      setIsLoadingUser(false);
-    };
 
-    fetchUser();
-  }, []); // Remove supabase from dependency array to prevent infinite re-renders
+      // Fetch apartment count directly from Supabase
+      try {
+        const { count, error: countError } = await supabase
+          .from('Wohnungen')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
 
+        if (!countError && count !== null) {
+          setApartmentCount(count)
+        }
+      } catch (error) {
+        console.error("Error fetching apartment count:", error)
+      }
+
+      // Fetch apartment limit from profile and plan details
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('stripe_subscription_status, stripe_price_id')
+          .eq('id', user.id)
+          .single()
+
+        if (profile) {
+          const isTrialActive = profile.stripe_subscription_status === 'trialing'
+          
+          if (isTrialActive) {
+            setApartmentLimit(5)
+          } else if (profile.stripe_subscription_status === 'active' && profile.stripe_price_id) {
+            try {
+              // Fetch plan details from API route
+              const response = await fetch('/api/stripe/plans')
+              if (response.ok) {
+                const plans = await response.json()
+                const currentPlan = plans.find((plan: any) => plan.priceId === profile.stripe_price_id)
+                
+                if (currentPlan) {
+                  if (currentPlan.limit_wohnungen === undefined || currentPlan.limit_wohnungen === null || currentPlan.limit_wohnungen <= 0) {
+                    setApartmentLimit(null) // Unlimited
+                  } else {
+                    setApartmentLimit(currentPlan.limit_wohnungen)
+                  }
+                }
+              }
+            } catch (error) {
+              console.error("Error fetching plan details:", error)
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error)
+      }
+
+      setIsLoadingUser(false)
+    }
+
+    fetchUserData()
+  }, [])
 
   const handleLogout = async () => {
-    setIsLoadingLogout(true);
+    setIsLoadingLogout(true)
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut()
       if (error) {
-        throw error;
+        throw error
       }
-      router.push("/auth/login");
+      router.push("/auth/login")
     } catch (error) {
-      console.error("Error signing out:", error);
-      setIsLoadingLogout(false); // Reset loading state on error
+      console.error("Error signing out:", error)
+      setIsLoadingLogout(false)
     }
-  };
+  }
+
+  const progressPercentage = apartmentLimit ? Math.min((apartmentCount / apartmentLimit) * 100, 100) : 0
 
   return (
     <>
@@ -99,13 +155,23 @@ export function UserSettings() {
               <AvatarImage src={"/placeholder-user.jpg"} alt={userName} />
               <AvatarFallback className="bg-accent text-accent-foreground">{isLoadingUser ? "" : userInitials}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col text-left">
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <div className="flex flex-col flex-1 text-left min-w-0">
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                 {isLoadingUser ? "Lade..." : userName}
               </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {isLoadingUser ? "" : userEmail}
-              </span>
+              {!isLoadingUser && apartmentLimit !== null && (
+                <div className="flex flex-col gap-1 mt-1">
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>{apartmentCount} / {apartmentLimit} Wohnungen</span>
+                  </div>
+                  <Progress value={progressPercentage} className="h-1.5" />
+                </div>
+              )}
+              {!isLoadingUser && apartmentLimit === null && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Unbegrenzte Wohnungen
+                </span>
+              )}
             </div>
           </div>
         }
