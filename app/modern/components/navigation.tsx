@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LOGO_URL } from "@/lib/constants"
-import { Button } from '@/components/ui/button' // Corrected import path
+import { Button } from '@/components/ui/button'
 
 interface DashboardMenuItemProps {
   onClick?: () => void;
@@ -53,11 +53,133 @@ interface NavigationProps {
   onLogin?: () => void;
 }
 
-export default function Navigation({ onLogin }: NavigationProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const pathname = usePathname()
+// Custom hook for debounced window resize events
+function useDebouncedResize(callback: () => void, delay = 100) {
+  // Store the callback in a ref to avoid re-subscribing on every render
+  const savedCallback = useRef(callback);
+  
+  // Update the saved callback if it changes
+  useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
+  
+  useEffect(() => {
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => savedCallback.current(), delay);
+    };
+    
+    // Add event listener
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      
+      // Initial call
+      handleResize();
+    }
+    
+    // Clean up
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize);
+      }
+      clearTimeout(resizeTimer);
+    };
+  }, [delay]);
+}
 
+// Custom hook to check if container is overflowing
+function useIsOverflowing() {
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+
+  const ref = useCallback((node: HTMLElement | null) => {
+    if (node !== null) {
+      setContainer(node);
+    }
+  }, []);
+
+  const checkOverflow = useCallback(() => {
+    if (container) {
+      const { scrollWidth, clientWidth } = container;
+      setIsOverflowing(scrollWidth > clientWidth);
+    }
+  }, [container]);
+
+  // Use the debounced resize hook
+  useDebouncedResize(checkOverflow);
+  
+  // Check for mutations (like when content changes)
+  useEffect(() => {
+    if (!container) return;
+    
+    // Initial check
+    checkOverflow();
+    
+    const observer = new MutationObserver(checkOverflow);
+    observer.observe(container, { childList: true, subtree: true });
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, [container, checkOverflow]);
+
+  return { ref, isOverflowing };
+}
+
+export default function Navigation({ onLogin }: NavigationProps) {
+  const [hasMounted, setHasMounted] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // Check if the navigation is overflowing
+  const { ref: navRef, isOverflowing } = useIsOverflowing();
+  
+  // Set hasMounted to true after component mounts on client side
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  
+  // Use a ref to store the resize handler
+  const resizeHandler = useRef<(() => void) | null>(null);
+
+  // Define the checkIfMobile function
+  const checkIfMobile = useCallback(() => {
+    if (typeof window === 'undefined' || !hasMounted) return;
+    const isSmallScreen = window.innerWidth < 768;
+    const shouldUseMobile = isSmallScreen || isOverflowing;
+    setIsMobile(shouldUseMobile);
+  }, [isOverflowing, hasMounted]);
+
+  // Update mobile state based on viewport width and overflow
+  useEffect(() => {
+    if (!hasMounted) return;
+    
+    // Initial check
+    checkIfMobile();
+    
+    // Set up debounced resize handler
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(checkIfMobile, 100);
+    };
+    
+    // Store the handler in the ref
+    resizeHandler.current = handleResize;
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
+  }, [checkIfMobile, hasMounted]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -115,149 +237,166 @@ export default function Navigation({ onLogin }: NavigationProps) {
     }
   };
 
+  // Don't render the navigation until we're on the client side to prevent hydration issues
+  if (!hasMounted) {
+    // Render a placeholder with the same dimensions to prevent layout shift
+    return <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4 h-16"></nav>;
+  }
+
   return (
     <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4">
-      <div className="max-w-7xl mx-auto flex items-center justify-between relative">
-        {/* Mobile Header with Menu Button and Logo */}
-        <div className="flex-shrink-0 z-10 md:hidden flex items-center space-x-2">
-          <PillContainer>
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
-            >
-              <Menu className="w-5 h-5" />
-              <span className="text-sm font-medium">Menü</span>
-            </button>
-          </PillContainer>
-          <Link href="/" className="flex items-center space-x-1 group">
-            <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
-              <Image
-                src={LOGO_URL}
-                alt="IV Logo"
-                fill
-                className="object-cover"
-                sizes="24px"
-              />
-            </div>
-            <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-              <span className="text-primary">Miet</span>fluss
-            </span>
-          </Link>
-        </div>
-        <div className="hidden md:flex flex-shrink-0 z-10">
-          <PillContainer>
-            <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
-              <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+      <div className="max-w-7xl mx-auto">
+        {/* Mobile Header with Menu Button and Logo - shown on mobile or when content overflows */}
+        {(isMobile || isOverflowing) && (
+          <div className="flex items-center space-x-2">
+            <PillContainer>
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
+              >
+                <Menu className="w-5 h-5" />
+                <span className="text-sm font-medium">Menü</span>
+              </button>
+            </PillContainer>
+            <Link href="/" className="flex items-center space-x-1 group">
+              <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
                 <Image
                   src={LOGO_URL}
                   alt="IV Logo"
                   fill
                   className="object-cover"
-                  sizes="32px"
+                  sizes="24px"
                 />
               </div>
-              <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+              <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
                 <span className="text-primary">Miet</span>fluss
               </span>
             </Link>
-          </PillContainer>
-        </div>
+          </div>
+        )}
 
-        {/* Desktop Navigation Pill */}
-        <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <PillContainer>
-            {pathname === "/" ? (
-              // Home page navigation with smooth scroll
-              <>
-                {navItems.map((item) => (
-                  <button
-                    key={item.name}
-                    onClick={() => handleNavClick(item.href)}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
-                  >
-                    {item.icon && <item.icon className="w-4 h-4" />}
-                    <span>{item.name}</span>
-                  </button>
-                ))}
-                {/* Static navigation items */}
-                {staticNavItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
-                  >
-                    {item.icon && <item.icon className="w-4 h-4" />}
-                    <span>{item.name}</span>
-                  </Link>
-                ))}
-              </>
-            ) : (
-              // Other pages navigation
-              <>
-                <Button asChild variant="ghost" className="rounded-full text-foreground">
-                  <Link href="/">
-                    Startseite
-                  </Link>
-                </Button>
-                {staticNavItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 ${
-                      pathname === item.href 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'text-foreground hover:bg-gray-200'
-                    }`}
-                  >
-                    {item.icon && <item.icon className="w-4 h-4" />}
-                    <span>{item.name}</span>
-                  </Link>
-                ))}
-              </>
-            )}
-          </PillContainer>
-        </div>
+        {/* Desktop Navigation - One Big Pill - hidden on mobile or when content overflows */}
+        {!isMobile && !isOverflowing && (
+          <div className="flex justify-center">
+            <div className="inline-flex w-auto max-w-full" ref={navRef}>
+              <PillContainer className="flex items-center gap-2 w-full">
+              {/* Logo Section */}
+              <Link href="/" className="flex items-center space-x-2 group px-2">
+                <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+                  <Image
+                    src={LOGO_URL}
+                    alt="IV Logo"
+                    fill
+                    className="object-cover"
+                    sizes="32px"
+                  />
+                </div>
+                <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">
+                  <span className="text-primary">Miet</span>fluss
+                </span>
+              </Link>
 
-        {/* Auth Pill */}
-        <div className="hidden md:flex flex-shrink-0 z-10">
-          <PillContainer>
-            {currentUser ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
-                      <AvatarFallback className="bg-muted">
-                        <UserIcon className="w-4 h-4 text-muted-foreground" />
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
-                  <DashboardMenuItem />
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={handleLogout}
-                    className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
+              {/* Divider */}
+              <div className="h-8 w-px bg-border/50 mx-2" />
+
+              {/* Navigation Items Section */}
+              <div className="flex items-center gap-1">
+                {pathname === "/" ? (
+                  // Home page navigation with smooth scroll
+                  <>
+                    {navItems.map((item) => (
+                      <button
+                        key={item.name}
+                        onClick={() => handleNavClick(item.href)}
+                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
+                      >
+                        {item.icon && <item.icon className="w-4 h-4" />}
+                        <span>{item.name}</span>
+                      </button>
+                    ))}
+                    {/* Static navigation items */}
+                    {staticNavItems.map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
+                      >
+                        {item.icon && <item.icon className="w-4 h-4" />}
+                        <span>{item.name}</span>
+                      </Link>
+                    ))}
+                  </>
+                ) : (
+                  // Other pages navigation
+                  <>
+                    <Button asChild variant="ghost" className="rounded-full text-foreground whitespace-nowrap">
+                      <Link href="/">
+                        Startseite
+                      </Link>
+                    </Button>
+                    {staticNavItems.map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 whitespace-nowrap ${
+                          pathname === item.href 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'text-foreground hover:bg-gray-200'
+                        }`}
+                      >
+                        {item.icon && <item.icon className="w-4 h-4" />}
+                        <span>{item.name}</span>
+                      </Link>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="h-8 w-px bg-border/50 mx-2" />
+
+              {/* Auth Section */}
+              <div className="flex items-center pr-0">
+                {currentUser ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
+                          <AvatarFallback className="bg-muted">
+                            <UserIcon className="w-4 h-4 text-muted-foreground" />
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
+                      <DashboardMenuItem />
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={handleLogout}
+                        className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Abmelden
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="rounded-full whitespace-nowrap shadow-sm hover:shadow-md transition-shadow"
+                    onClick={handleOpenLoginModal}
                   >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Abmelden
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-full"
-                onClick={handleOpenLoginModal}
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                Anmelden
-              </Button>
-            )}
-          </PillContainer>
-        </div>
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Anmelden
+                  </Button>
+                )}
+              </div>
+              </PillContainer>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Navigation */}
