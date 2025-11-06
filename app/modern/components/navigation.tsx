@@ -78,7 +78,7 @@ function useIsOverflowing() {
     checkOverflow();
     
     // Add event listener for window resize with debounce
-    let resizeTimer: NodeJS.Timeout;
+    let resizeTimer: ReturnType<typeof setTimeout>;
     const handleResize = () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(checkOverflow, 100);
@@ -122,7 +122,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
     checkIfMobile();
     
     // Add event listener for window resize with debounce
-    let resizeTimer: NodeJS.Timeout;
+    let resizeTimer: ReturnType<typeof setTimeout>;
     const handleResize = () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(checkIfMobile, 100);
