@@ -55,26 +55,38 @@ interface NavigationProps {
 
 // Custom hook for debounced window resize events
 function useDebouncedResize(callback: () => void, delay = 100) {
+  // Store the callback in a ref to avoid re-subscribing on every render
+  const savedCallback = useRef(callback);
+  
+  // Update the saved callback if it changes
+  useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
+  
   useEffect(() => {
     let resizeTimer: ReturnType<typeof setTimeout>;
     
     const handleResize = () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(callback, delay);
+      resizeTimer = setTimeout(() => savedCallback.current(), delay);
     };
     
     // Add event listener
-    window.addEventListener('resize', handleResize);
-    
-    // Initial call
-    handleResize();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      
+      // Initial call
+      handleResize();
+    }
     
     // Clean up
     return () => {
-      window.removeEventListener('resize', handleResize);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize);
+      }
       clearTimeout(resizeTimer);
     };
-  }, [callback, delay]);
+  }, [delay]);
 }
 
 // Custom hook to check if container is overflowing
@@ -131,22 +143,43 @@ export default function Navigation({ onLogin }: NavigationProps) {
     setHasMounted(true);
   }, []);
   
+  // Use a ref to store the resize handler
+  const resizeHandler = useRef<(() => void) | null>(null);
+
+  // Define the checkIfMobile function
+  const checkIfMobile = useCallback(() => {
+    if (typeof window === 'undefined' || !hasMounted) return;
+    const isSmallScreen = window.innerWidth < 768;
+    const shouldUseMobile = isSmallScreen || isOverflowing;
+    setIsMobile(shouldUseMobile);
+  }, [isOverflowing, hasMounted]);
+
   // Update mobile state based on viewport width and overflow
   useEffect(() => {
     if (!hasMounted) return;
     
-    const checkIfMobile = useCallback(() => {
-      const isSmallScreen = window.innerWidth < 768;
-      const shouldUseMobile = isSmallScreen || isOverflowing;
-      setIsMobile(shouldUseMobile);
-    }, [isOverflowing]);
-    
     // Initial check
     checkIfMobile();
     
-    // Use the debounced resize hook
-    useDebouncedResize(checkIfMobile);
-  }, [isOverflowing, hasMounted]);
+    // Set up debounced resize handler
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(checkIfMobile, 100);
+    };
+    
+    // Store the handler in the ref
+    resizeHandler.current = handleResize;
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
+  }, [checkIfMobile, hasMounted]);
 
   useEffect(() => {
     const supabase = createClient();
