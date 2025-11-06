@@ -117,6 +117,7 @@ function useIsOverflowing() {
 }
 
 export default function Navigation({ onLogin }: NavigationProps) {
+  const [hasMounted, setHasMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
@@ -125,8 +126,15 @@ export default function Navigation({ onLogin }: NavigationProps) {
   // Check if the navigation is overflowing
   const { ref: navRef, isOverflowing } = useIsOverflowing();
   
+  // Set hasMounted to true after component mounts on client side
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  
   // Update mobile state based on viewport width and overflow
   useEffect(() => {
+    if (!hasMounted) return;
+    
     const checkIfMobile = useCallback(() => {
       const isSmallScreen = window.innerWidth < 768;
       const shouldUseMobile = isSmallScreen || isOverflowing;
@@ -138,7 +146,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
     
     // Use the debounced resize hook
     useDebouncedResize(checkIfMobile);
-  }, [isOverflowing]);
+  }, [isOverflowing, hasMounted]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -195,6 +203,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
       // Optionally: toast({ title: "Logout Failed", description: "An unexpected error occurred.", variant: "destructive" });
     }
   };
+
+  // Don't render the navigation until we're on the client side to prevent hydration issues
+  if (!hasMounted) {
+    // Render a placeholder with the same dimensions to prevent layout shift
+    return <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4 h-16"></nav>;
+  }
 
   return (
     <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4">
