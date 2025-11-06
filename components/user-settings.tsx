@@ -164,7 +164,10 @@ export function UserSettings() {
                   <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                     <span>{apartmentCount} / {apartmentLimit} Wohnungen</span>
                   </div>
-                  <Progress value={progressPercentage} className="h-1.5" />
+                  <Progress 
+                    value={progressPercentage} 
+                    className="h-1.5 bg-gray-200 dark:bg-gray-700 [&>div]:bg-accent" 
+                  />
                 </div>
               )}
               {!isLoadingUser && apartmentLimit === null && (
