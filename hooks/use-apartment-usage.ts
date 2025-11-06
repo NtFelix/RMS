@@ -54,12 +54,7 @@ export function useApartmentUsage(user: User | null) {
 
         let apartmentLimit: number | null = null;
 
-        if (profile) {
-          const isTrialActive = profile.stripe_subscription_status === 'trialing';
-
-          if (isTrialActive) {
-            apartmentLimit = 5;
-          } else if (profile.stripe_subscription_status === 'active' && profile.stripe_price_id) {
+        if (profile && profile.stripe_subscription_status === 'active' && profile.stripe_price_id) {
             try {
               const response = await fetch('/api/stripe/plans');
               if (response.ok) {
@@ -78,7 +73,6 @@ export function useApartmentUsage(user: User | null) {
               // Don't throw here, just use the default unlimited state
             }
           }
-        }
 
         setState({
           count: count || 0,
