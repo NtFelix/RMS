@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LOGO_URL } from "@/lib/constants"
-import { Button } from '@/components/ui/button' // Corrected import path
+import { Button } from '@/components/ui/button'
 
 interface DashboardMenuItemProps {
   onClick?: () => void;
@@ -53,11 +53,89 @@ interface NavigationProps {
   onLogin?: () => void;
 }
 
-export default function Navigation({ onLogin }: NavigationProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const pathname = usePathname()
+// Custom hook to check if container is overflowing
+function useIsOverflowing() {
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
 
+  const ref = useCallback((node: HTMLElement | null) => {
+    if (node !== null) {
+      setContainer(node);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!container) return;
+    
+    const checkOverflow = () => {
+      if (container) {
+        const { scrollWidth, clientWidth } = container;
+        setIsOverflowing(scrollWidth > clientWidth);
+      }
+    };
+
+    // Initial check
+    checkOverflow();
+    
+    // Add event listener for window resize with debounce
+    let resizeTimer: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(checkOverflow, 100);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Check for mutations (like when content changes)
+    const observer = new MutationObserver(checkOverflow);
+    observer.observe(container, { childList: true, subtree: true });
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      observer.disconnect();
+      clearTimeout(resizeTimer);
+    };
+  }, [container]);
+
+  return { ref, isOverflowing };
+}
+
+export default function Navigation({ onLogin }: NavigationProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // Check if the navigation is overflowing
+  const { ref: navRef, isOverflowing } = useIsOverflowing();
+  
+  // Update mobile state based on viewport width and overflow
+  useEffect(() => {
+    const checkIfMobile = () => {
+      const isSmallScreen = window.innerWidth < 768;
+      const shouldUseMobile = isSmallScreen || isOverflowing;
+      setIsMobile(shouldUseMobile);
+    };
+    
+    // Initial check
+    checkIfMobile();
+    
+    // Add event listener for window resize with debounce
+    let resizeTimer: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(checkIfMobile, 100);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
+  }, [isOverflowing]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -118,37 +196,40 @@ export default function Navigation({ onLogin }: NavigationProps) {
   return (
     <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4">
       <div className="max-w-7xl mx-auto">
-        {/* Mobile Header with Menu Button and Logo */}
-        <div className="flex md:hidden items-center space-x-2">
-          <PillContainer>
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
-            >
-              <Menu className="w-5 h-5" />
-              <span className="text-sm font-medium">Menü</span>
-            </button>
-          </PillContainer>
-          <Link href="/" className="flex items-center space-x-1 group">
-            <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
-              <Image
-                src={LOGO_URL}
-                alt="IV Logo"
-                fill
-                className="object-cover"
-                sizes="24px"
-              />
-            </div>
-            <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-              <span className="text-primary">Miet</span>fluss
-            </span>
-          </Link>
-        </div>
+        {/* Mobile Header with Menu Button and Logo - shown on mobile or when content overflows */}
+        {(isMobile || isOverflowing) && (
+          <div className="flex items-center space-x-2">
+            <PillContainer>
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
+              >
+                <Menu className="w-5 h-5" />
+                <span className="text-sm font-medium">Menü</span>
+              </button>
+            </PillContainer>
+            <Link href="/" className="flex items-center space-x-1 group">
+              <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+                <Image
+                  src={LOGO_URL}
+                  alt="IV Logo"
+                  fill
+                  className="object-cover"
+                  sizes="24px"
+                />
+              </div>
+              <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+                <span className="text-primary">Miet</span>fluss
+              </span>
+            </Link>
+          </div>
+        )}
 
-        {/* Desktop Navigation - One Big Pill */}
-        <div className="hidden md:flex md:justify-center">
-          <PillContainer className="inline-flex w-auto">
-            <div className="flex items-center gap-2">
+        {/* Desktop Navigation - One Big Pill - hidden on mobile or when content overflows */}
+        {!isMobile && !isOverflowing && (
+          <div className="flex justify-center">
+            <div className="inline-flex w-auto max-w-full" ref={navRef}>
+              <PillContainer className="flex items-center gap-2 w-full">
               {/* Logo Section */}
               <Link href="/" className="flex items-center space-x-2 group px-2">
                 <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
@@ -262,9 +343,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   </Button>
                 )}
               </div>
+              </PillContainer>
             </div>
-          </PillContainer>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Navigation */}
