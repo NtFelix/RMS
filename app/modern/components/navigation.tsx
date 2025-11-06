@@ -225,7 +225,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
               <div className="h-8 w-px bg-border/50 mx-2" />
 
               {/* Auth Section */}
-              <div className="flex items-center px-2">
+              <div className="flex items-center pr-0">
                 {currentUser ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -252,9 +252,9 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   </DropdownMenu>
                 ) : (
                   <Button
-                    variant="ghost"
+                    variant="default"
                     size="sm"
-                    className="rounded-full whitespace-nowrap"
+                    className="rounded-full whitespace-nowrap shadow-sm hover:shadow-md transition-shadow"
                     onClick={handleOpenLoginModal}
                   >
                     <LogIn className="w-4 h-4 mr-2" />
