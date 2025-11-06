@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
+import { StripePlan } from '@/types/stripe';
 
 export interface ApartmentUsage {
   count: number;
@@ -58,8 +59,8 @@ export function useApartmentUsage(user: User | null) {
             try {
               const response = await fetch('/api/stripe/plans');
               if (response.ok) {
-                const plans = await response.json();
-                const currentPlan = plans.find((plan: any) => plan.priceId === profile.stripe_price_id);
+                const plans = await response.json() as StripePlan[];
+                const currentPlan = plans.find(plan => plan.priceId === profile.stripe_price_id);
                 
                 if (currentPlan && 
                     currentPlan.limit_wohnungen !== undefined && 
