@@ -349,7 +349,7 @@ async function getPreviousWasserzaehlerRecordAction(
       return { success: true, data: null };
     }
 
-    const meterIds = waterMeters.map(m => m.id);
+    const meterIds = waterMeters.map((m: { id: string }) => m.id);
     
     // First, try to find a reading from the previous year if currentYear is provided
     if (currentYear) {
@@ -431,6 +431,91 @@ async function getPreviousWasserzaehlerRecordAction(
 }
 
 /**
+ * Fetches water meter readings for a list of mieter IDs within a date range
+ */
+async function fetchWaterReadingsForMieters(
+  supabase: any,
+  userId: string,
+  mieterIds: string[],
+  startDate?: string,
+  endDate?: string
+): Promise<{ [key: string]: Wasserzaehler | null }> {
+  const result: { [key: string]: Wasserzaehler | null } = {};
+  
+  // Get apartments for all mieter IDs
+  const { data: mieterApartments, error: mieterError } = await supabase
+    .from("Mieter")
+    .select("id, wohnung_id")
+    .in("id", mieterIds)
+    .eq("user_id", userId);
+
+  if (mieterError || !mieterApartments?.length) {
+    console.error('Error fetching mieter apartments:', mieterError);
+    return result;
+  }
+
+  const wohnungIds = mieterApartments.map((m: { wohnung_id: string }) => m.wohnung_id).filter(Boolean);
+  if (wohnungIds.length === 0) return result;
+
+  // Get water meters for these apartments
+  const { data: waterMeters, error: metersError } = await supabase
+    .from("Wasser_Zaehler")
+    .select("id, wohnung_id")
+    .in("wohnung_id", wohnungIds)
+    .eq("user_id", userId);
+
+  if (metersError || !waterMeters?.length) {
+    console.error('Error fetching water meters:', metersError);
+    return result;
+  }
+
+  const meterIds = waterMeters.map((m: { id: string }) => m.id);
+  
+  // Build the query
+  let query = supabase
+    .from("Wasser_Ablesungen")
+    .select("*")
+    .in("wasser_zaehler_id", meterIds)
+    .eq("user_id", userId);
+
+  // Add date range if provided
+  if (startDate) query = query.gte("ablese_datum", startDate);
+  if (endDate) query = query.lte("ablese_datum", endDate);
+
+  // Execute the query
+  const { data: readings, error: readingsError } = await query
+    .order("ablese_datum", { ascending: false });
+
+  if (readingsError) {
+    console.error('Error fetching water readings:', readingsError);
+    return result;
+  }
+
+  if (!readings?.length) return result;
+
+  // Map readings back to mieter IDs
+  readings.forEach((reading: WasserAblesung) => {
+    const meter = waterMeters.find((m: { id: string }) => m.id === reading.wasser_zaehler_id);
+    if (!meter) return;
+
+    const mieter = mieterApartments.find((m: { wohnung_id: string }) => m.wohnung_id === meter.wohnung_id);
+    if (!mieter || result[mieter.id]) return;
+
+    result[mieter.id] = {
+      id: reading.id,
+      nebenkosten_id: '',
+      mieter_id: mieter.id,
+      ablese_datum: reading.ablese_datum,
+      zaehlerstand: reading.zaehlerstand || 0,
+      verbrauch: reading.verbrauch || 0,
+      user_id: reading.user_id || userId
+    };
+  });
+
+  return result;
+}
+
+/**
  * Batch fetch previous Wasserzaehler records for multiple tenants
  * This is much more efficient than individual calls and prevents Cloudflare Worker timeouts
  */
@@ -440,13 +525,13 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
 ): Promise<{ success: boolean; data?: Record<string, Wasserzaehler | null>; message?: string }> {
   "use server";
 
-  if (!mieterIds || mieterIds.length === 0) {
+  if (!mieterIds?.length) {
     return { success: false, message: "Keine Mieter-IDs angegeben." };
   }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
+  
   if (!user) {
     return { success: false, message: "Benutzer nicht authentifiziert." };
   }
@@ -460,61 +545,17 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
       if (!isNaN(currentYearNum)) {
         const previousYear = (currentYearNum - 1).toString();
         
-        // Get apartments for all mieter IDs
-        const { data: mieterApartments, error: mieterError } = await supabase
-          .from("Mieter")
-          .select("id, wohnung_id")
-          .in("id", mieterIds)
-          .eq("user_id", user.id);
-
-        if (mieterError || !mieterApartments) {
-          console.error(`Error fetching mieter apartments:`, mieterError);
-        } else {
-          const wohnungIds = mieterApartments.map(m => m.wohnung_id);
-          
-          // Get water meters for these apartments
-          const { data: waterMeters, error: metersError } = await supabase
-            .from("Wasser_Zaehler")
-            .select("id, wohnung_id")
-            .in("wohnung_id", wohnungIds)
-            .eq("user_id", user.id);
-
-          if (!metersError && waterMeters && waterMeters.length > 0) {
-            const meterIds = waterMeters.map(m => m.id);
-            const previousYearStart = `${previousYear}-01-01`;
-            const previousYearEnd = `${previousYear}-12-31`;
-            
-            const { data: previousYearData, error: previousYearError } = await supabase
-              .from("Wasser_Ablesungen")
-              .select("*")
-              .in("wasser_zaehler_id", meterIds)
-              .eq("user_id", user.id)
-              .gte("ablese_datum", previousYearStart)
-              .lte("ablese_datum", previousYearEnd)
-              .order("ablese_datum", { ascending: false });
-
-            if (!previousYearError && previousYearData) {
-              // Map readings back to mieter IDs and transform to legacy format
-              previousYearData.forEach(reading => {
-                const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
-                const mieter = mieterApartments.find(m => m.wohnung_id === meter?.wohnung_id);
-                if (mieter && !result[mieter.id]) {
-                  result[mieter.id] = {
-                    id: reading.id,
-                    nebenkosten_id: '',
-                    mieter_id: mieter.id,
-                    ablese_datum: reading.ablese_datum,
-                    zaehlerstand: reading.zaehlerstand || 0,
-                    verbrauch: reading.verbrauch || 0,
-                    user_id: reading.user_id || user.id
-                  };
-                }
-              });
-            }
-          }
-        }
-
-
+        // Get readings from previous year
+        const previousYearReadings = await fetchWaterReadingsForMieters(
+          supabase,
+          user.id,
+          mieterIds,
+          `${previousYear}-01-01`,
+          `${previousYear}-12-31`
+        );
+        
+        // Add to results
+        Object.assign(result, previousYearReadings);
       }
     }
 
@@ -522,63 +563,25 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
     const mieterIdsWithoutPreviousYear = mieterIds.filter(id => !result[id]);
     
     if (mieterIdsWithoutPreviousYear.length > 0) {
-      // Get apartments for remaining mieter IDs
-      const { data: remainingMieterApartments, error: remainingMieterError } = await supabase
-        .from("Mieter")
-        .select("id, wohnung_id")
-        .in("id", mieterIdsWithoutPreviousYear)
-        .eq("user_id", user.id);
-
-      if (!remainingMieterError && remainingMieterApartments) {
-        const remainingWohnungIds = remainingMieterApartments.map(m => m.wohnung_id);
-        
-        // Get water meters for these apartments
-        const { data: remainingWaterMeters, error: remainingMetersError } = await supabase
-          .from("Wasser_Zaehler")
-          .select("id, wohnung_id")
-          .in("wohnung_id", remainingWohnungIds)
-          .eq("user_id", user.id);
-
-        if (!remainingMetersError && remainingWaterMeters && remainingWaterMeters.length > 0) {
-          const remainingMeterIds = remainingWaterMeters.map(m => m.id);
-          const currentYearStart = currentYear ? `${currentYear}-01-01` : new Date().toISOString().split('T')[0];
-          
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('Wasser_Ablesungen')
-            .select('*')
-            .in('wasser_zaehler_id', remainingMeterIds)
-            .eq('user_id', user.id)
-            .lt('ablese_datum', currentYearStart) // Only get readings before the current year
-            .order('ablese_datum', { ascending: false });
-
-          if (!fallbackError && fallbackData) {
-            // Map readings back to mieter IDs and transform to legacy format
-            fallbackData.forEach(reading => {
-              const meter = remainingWaterMeters.find(m => m.id === reading.wasser_zaehler_id);
-              const mieter = remainingMieterApartments.find(m => m.wohnung_id === meter?.wohnung_id);
-              if (mieter && !result[mieter.id]) {
-                result[mieter.id] = {
-                  id: reading.id,
-                  nebenkosten_id: '',
-                  mieter_id: mieter.id,
-                  ablese_datum: reading.ablese_datum,
-                  zaehlerstand: reading.zaehlerstand || 0,
-                  verbrauch: reading.verbrauch || 0,
-                  user_id: reading.user_id || user.id
-                };
-              }
-            });
-          }
-        }
-      }
-
-
+      const currentYearStart = currentYear ? `${currentYear}-01-01` : new Date().toISOString().split('T')[0];
+      
+      // Get all readings before current year for remaining mieters
+      const fallbackReadings = await fetchWaterReadingsForMieters(
+        supabase,
+        user.id,
+        mieterIdsWithoutPreviousYear,
+        undefined, // No start date
+        currentYearStart // Only get readings before current year
+      );
+      
+      // Add to results
+      Object.assign(result, fallbackReadings);
     }
 
-    // Ensure all mieter_ids are represented in the result (with null if no data found)
-    mieterIds.forEach(mieterId => {
-      if (!(mieterId in result)) {
-        result[mieterId] = null;
+    // Ensure all requested mieter IDs are in the result, even if null
+    mieterIds.forEach(id => {
+      if (result[id] === undefined) {
+        result[id] = null;
       }
     });
 
@@ -1022,7 +1025,7 @@ export async function getWasserzaehlerModalDataAction(
             .eq("user_id", user.id);
 
           if (!metersError && waterMeters && waterMeters.length > 0) {
-            const meterIds = waterMeters.map(m => m.id);
+            const meterIds = waterMeters.map((m: { id: string }) => m.id);
             const { data: readings, error: currentError } = await supabase
               .from("Wasser_Ablesungen")
               .select("*")
@@ -1034,7 +1037,7 @@ export async function getWasserzaehlerModalDataAction(
             if (!currentError && readings) {
               // Transform to include mieter_id for compatibility
               currentReadings = readings.map(reading => {
-                const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
+                const meter = waterMeters.find((m: { id: string }) => m.id === reading.wasser_zaehler_id);
                 const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
                 return {
                   ...reading,
@@ -1055,7 +1058,7 @@ export async function getWasserzaehlerModalDataAction(
             .eq("user_id", user.id);
 
           if (!metersError && waterMeters && waterMeters.length > 0) {
-            const meterIds = waterMeters.map(m => m.id);
+            const meterIds = waterMeters.map((m: { id: string }) => m.id);
             const { data: readings, error: previousError } = await supabase
               .from("Wasser_Ablesungen")
               .select("*")
@@ -1067,7 +1070,7 @@ export async function getWasserzaehlerModalDataAction(
             if (!previousError && readings) {
               // Transform to include mieter_id for compatibility
               previousReadings = readings.map(reading => {
-                const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
+                const meter = waterMeters.find((m: { id: string }) => m.id === reading.wasser_zaehler_id);
                 const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
                 return {
                   ...reading,
@@ -1423,7 +1426,7 @@ async function getAbrechnungModalDataFallback(
       waterMeters = metersData as WasserZaehler[];
 
       // Fetch water readings for these meters within the billing period
-      const meterIds = waterMeters.map(m => m.id);
+      const meterIds = waterMeters.map((m: { id: string }) => m.id);
       if (meterIds.length > 0) {
         const { data: readingsData, error: readingsError } = await supabase
           .from("Wasser_Ablesungen")
