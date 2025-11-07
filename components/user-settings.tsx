@@ -1,89 +1,105 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { LogOut, Settings, FileText } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
-import type { User } from "@supabase/supabase-js"
+import { useFeatureFlagEnabled } from "posthog-js/react"
+
+import { useUserProfile } from "@/hooks/use-user-profile"
+import { useApartmentUsage } from "@/hooks/use-apartment-usage"
+import { useModalStore } from "@/hooks/use-modal-store"
+import { ARIA_LABELS } from "@/lib/accessibility-constants"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Progress } from "@/components/ui/progress"
+import { SettingsModal } from "@/components/settings-modal"
 import {
   CustomDropdown,
   CustomDropdownItem,
   CustomDropdownLabel,
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
-import { Button } from "@/components/ui/button"; // Keep this if other buttons are styled with it, or remove if not.
-import { LogOut, Settings, FileText } from "lucide-react"; // Removed User icon as it's not used.
-import { SettingsModal } from "@/components/settings-modal";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useModalStore } from "@/hooks/use-modal-store";
-import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from "@/lib/accessibility-constants";
-import { useFeatureFlagEnabled } from "posthog-js/react";
 
 export function UserSettings() {
-  const router = useRouter();
-  const [isLoadingLogout, setIsLoadingLogout] = useState(false);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [openModal, setOpenModal] = useState(false);
-  const [userName, setUserName] = useState("Lade...");
-  const [userEmail, setUserEmail] = useState("");
-  const [userInitials, setUserInitials] = useState("");
-  const supabase = createClient();
-  const { openTemplatesModal } = useModalStore();
-  // Use PostHog feature flag properly at the top level
+  const router = useRouter()
+  const [isLoadingLogout, setIsLoadingLogout] = useState(false)
+  const supabase = createClient()
+  const [openModal, setOpenModal] = useState(false)
+  const { openTemplatesModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoadingUser(true);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        console.error("Error fetching user:", authError?.message);
-        setUserName("Nutzer");
-        setUserEmail("Nicht angemeldet");
-        setUserInitials("N");
-        setIsLoadingUser(false);
-        return;
-      }
-
-      setUserEmail(user.email || "Keine E-Mail");
-
-      const { first_name: rawFirstName, last_name: rawLastName } = user.user_metadata || {};
-
-      const firstName = (typeof rawFirstName === 'string' ? rawFirstName.trim() : '');
-      const lastName = (typeof rawLastName === 'string' ? rawLastName.trim() : '');
-
-      if (firstName && lastName) {
-        const fullName = `${firstName} ${lastName}`;
-        setUserName(fullName);
-        const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-        setUserInitials(initials);
-      } else if (firstName) {
-        setUserName(firstName);
-        setUserInitials(firstName.charAt(0).toUpperCase());
-      } else {
-        setUserName("Namen in Einstellungen festlegen");
-        setUserInitials("?");
-      }
-      setIsLoadingUser(false);
-    };
-
-    fetchUser();
-  }, []); // Remove supabase from dependency array to prevent infinite re-renders
-
+  
+  // Use custom hooks for data fetching
+  const { 
+    user, 
+    userName, 
+    userEmail, 
+    userInitials, 
+    isLoading: isLoadingUser 
+  } = useUserProfile()
+  
+  const { 
+    count: apartmentCount, 
+    limit: apartmentLimit, 
+    progressPercentage,
+    isLoading: isLoadingApartmentData 
+  } = useApartmentUsage(user)
 
   const handleLogout = async () => {
-    setIsLoadingLogout(true);
+    setIsLoadingLogout(true)
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw error;
+      // First sign out from Supabase
+      const { error: signOutError } = await supabase.auth.signOut()
+      
+      // We'll continue with the logout flow even if there's a sign out error
+      if (signOutError) {
+        console.warn("Supabase sign out warning:", signOutError)
       }
-      router.push("/auth/login");
+
+      // Create an array to hold all cleanup promises
+      const cleanupPromises = [];
+      
+      // Add logout API call to promises
+      cleanupPromises.push(
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'same-origin'
+        }).catch(error => {
+          if (error.name !== 'AbortError') {
+            console.warn("Logout API error:", error);
+          }
+        })
+      );
+      
+      // Add clear cookie call to promises
+      cleanupPromises.push(
+        fetch('/api/auth/clear-auth-cookie', { 
+          method: 'POST',
+          credentials: 'same-origin'
+        }).catch(error => {
+          if (error.name !== 'AbortError') {
+            console.warn("Clear cookie error:", error);
+          }
+        })
+      );
+      
+      // Wait for all cleanup operations to complete or timeout
+      await Promise.race([
+        Promise.all(cleanupPromises),
+        new Promise(resolve => setTimeout(resolve, 2000)) // 2 second timeout
+      ]);
+      
     } catch (error) {
-      console.error("Error signing out:", error);
-      setIsLoadingLogout(false); // Reset loading state on error
+      console.error("Error during logout:", error);
+    } finally {
+      // Reset loading state first
+      setIsLoadingLogout(false);
+      
+      // Force a hard redirect to ensure we leave the current page
+      // This is more reliable than router.push for logout scenarios
+      window.location.href = '/';
     }
-  };
+  }
 
   return (
     <>
@@ -97,15 +113,35 @@ export function UserSettings() {
           >
             <Avatar className="h-10 w-10">
               <AvatarImage src={"/placeholder-user.jpg"} alt={userName} />
-              <AvatarFallback className="bg-accent text-accent-foreground">{isLoadingUser ? "" : userInitials}</AvatarFallback>
+              <AvatarFallback className="bg-accent text-accent-foreground">
+                {isLoadingUser ? "" : userInitials}
+              </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col text-left">
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <div className="flex flex-col flex-1 text-left min-w-0">
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                 {isLoadingUser ? "Lade..." : userName}
               </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {isLoadingUser ? "" : userEmail}
-              </span>
+              {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && (
+                <div className="flex flex-col gap-1 mt-1">
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>{apartmentCount} / {apartmentLimit} Wohnungen</span>
+                  </div>
+                  <Progress 
+                    value={progressPercentage} 
+                    className="h-1.5 bg-gray-200 dark:bg-gray-700 [&>div]:bg-accent" 
+                  />
+                </div>
+              )}
+              {!isLoadingUser && !isLoadingApartmentData && apartmentLimit === null && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Unbegrenzte Wohnungen
+                </span>
+              )}
+              {(isLoadingUser || isLoadingApartmentData) && (
+                <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1.5 w-full">
+                  <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
+                </div>
+              )}
             </div>
           </div>
         }
