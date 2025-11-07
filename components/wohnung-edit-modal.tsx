@@ -259,7 +259,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
     } catch (error) {
-      setWohnungModalDirty(true); // Re-set dirty on error
+      // Don't re-set dirty on error - form still has unsaved changes
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.",

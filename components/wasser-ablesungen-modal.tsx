@@ -229,7 +229,13 @@ export function WasserAblesenModal() {
       setNewAbleseDatum(undefined)
       setNewZaehlerstand("")
       setNewVerbrauch("")
-      setWasserAblesenModalDirty(true)
+      setNewVerbrauchWarning("")
+      
+      // Explicitly clear dirty state after successful save
+      // Use setTimeout to ensure state updates have propagated
+      setTimeout(() => {
+        setWasserAblesenModalDirty(false)
+      }, 0)
       
       toast({
         title: "Erfolg",
@@ -276,7 +282,13 @@ export function WasserAblesenModal() {
       setEditAbleseDatum(undefined)
       setEditZaehlerstand("")
       setEditVerbrauch("")
-      setWasserAblesenModalDirty(true)
+      setEditVerbrauchWarning("")
+      
+      // Explicitly clear dirty state after successful save
+      // Use setTimeout to ensure state updates have propagated
+      setTimeout(() => {
+        setWasserAblesenModalDirty(false)
+      }, 0)
       
       toast({
         title: "Erfolg",
@@ -345,6 +357,7 @@ export function WasserAblesenModal() {
     setEditZaehlerstand("")
     setEditVerbrauch("")
     setEditVerbrauchWarning("")
+    setWasserAblesenModalDirty(false)
   }
 
   const handleClose = () => {
@@ -357,8 +370,35 @@ export function WasserAblesenModal() {
     setEditZaehlerstand("")
     setEditVerbrauch("")
     setEditVerbrauchWarning("")
+    setWasserAblesenModalDirty(false)
     closeWasserAblesenModal()
   }
+
+  // Check if there are unsaved changes in edit mode or new reading form
+  const hasUnsavedChanges = React.useMemo(() => {
+    // Check if there's unsaved data in the new reading form
+    if (newAbleseDatum || newZaehlerstand.trim() || newVerbrauch.trim()) {
+      return true
+    }
+
+    // Check if there are unsaved changes in edit mode
+    if (editingId) {
+      const originalAblesung = ablesenList.find(a => a.id === editingId)
+      if (originalAblesung) {
+        const dateChanged = editAbleseDatum?.toISOString().split('T')[0] !== originalAblesung.ablese_datum
+        const zaehlerstandChanged = editZaehlerstand !== (originalAblesung.zaehlerstand?.toString() || "")
+        const verbrauchChanged = editVerbrauch !== originalAblesung.verbrauch.toString()
+        return dateChanged || zaehlerstandChanged || verbrauchChanged
+      }
+    }
+
+    return false
+  }, [newAbleseDatum, newZaehlerstand, newVerbrauch, editingId, editAbleseDatum, editZaehlerstand, editVerbrauch, ablesenList])
+
+  // Update modal dirty state when unsaved changes are detected
+  React.useEffect(() => {
+    setWasserAblesenModalDirty(hasUnsavedChanges)
+  }, [hasUnsavedChanges, setWasserAblesenModalDirty])
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-"
@@ -427,8 +467,12 @@ export function WasserAblesenModal() {
 
   return (
     <>
-      <Dialog open={isWasserAblesenModalOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[700px] max-h-[85vh] flex flex-col">
+      <Dialog open={isWasserAblesenModalOpen} onOpenChange={(open) => !open && handleClose()}>
+        <DialogContent 
+          className="sm:max-w-[700px] max-h-[85vh] flex flex-col"
+          isDirty={hasUnsavedChanges}
+          onAttemptClose={handleClose}
+        >
           <DialogHeader>
             <DialogTitle>Wasserzähler-Ablesungen verwalten</DialogTitle>
             <DialogDescription>

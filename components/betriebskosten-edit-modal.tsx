@@ -534,6 +534,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         description: "Betriebskosten erfolgreich gespeichert",
         variant: "success" 
       });
+      setBetriebskostenModalDirty(false); // Clear dirty state before closing
       if (betriebskostenModalOnSuccess) betriebskostenModalOnSuccess();
       closeBetriebskostenModal();
     } else {
