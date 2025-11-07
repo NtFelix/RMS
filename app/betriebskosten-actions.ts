@@ -1012,21 +1012,25 @@ export async function getWasserzaehlerModalDataAction(
           return { success: false, message: "Fehler beim Laden der Mieterdaten." };
         }
 
-        // Get current readings from new table structure
-        // First get water meters for apartments in this house
+        // Get current and previous readings from new table structure
         const apartmentIds = tenants?.map(t => t.wohnung_id).filter(Boolean) || [];
 
         let currentReadings: any[] = [];
+        let previousReadings: any[] = [];
+
         if (apartmentIds.length > 0) {
+          // Fetch water meters once for both current and previous readings
           const { data: waterMeters, error: metersError } = await supabase
             .from("Wasser_Zaehler")
             .select("id, wohnung_id")
             .in("wohnung_id", apartmentIds)
             .eq("user_id", user.id);
 
-          if (!metersError && waterMeters && waterMeters.length > 0) {
-            const meterIds = waterMeters.map((m: { id: string }) => m.id);
-            const { data: readings, error: currentError } = await supabase
+          if (!metersError && waterMeters?.length > 0) {
+            const meterIds = waterMeters.map(m => m.id);
+
+            // Fetch current period readings
+            const currentPromise = supabase
               .from("Wasser_Ablesungen")
               .select("*")
               .in("wasser_zaehler_id", meterIds)
@@ -1034,10 +1038,37 @@ export async function getWasserzaehlerModalDataAction(
               .gte("ablese_datum", nebenkostenData.startdatum)
               .lte("ablese_datum", nebenkostenData.enddatum);
 
-            if (!currentError && readings) {
-              // Transform to include mieter_id for compatibility
-              currentReadings = readings.map(reading => {
-                const meter = waterMeters.find((m: { id: string }) => m.id === reading.wasser_zaehler_id);
+            // Fetch previous period readings
+            const previousPromise = supabase
+              .from("Wasser_Ablesungen")
+              .select("*")
+              .in("wasser_zaehler_id", meterIds)
+              .eq("user_id", user.id)
+              .lt("ablese_datum", nebenkostenData.startdatum)
+              .order("ablese_datum", { ascending: false });
+
+            // Execute both queries in parallel
+            const [
+              { data: currentData, error: currentError },
+              { data: previousData, error: previousError }
+            ] = await Promise.all([currentPromise, previousPromise]);
+
+            // Process current readings
+            if (!currentError && currentData) {
+              currentReadings = currentData.map(reading => {
+                const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
+                const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
+                return {
+                  ...reading,
+                  mieter_id: tenant?.id || ''
+                };
+              });
+            }
+
+            // Process previous readings
+            if (!previousError && previousData) {
+              previousReadings = previousData.map(reading => {
+                const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
                 const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
                 return {
                   ...reading,
@@ -1048,36 +1079,26 @@ export async function getWasserzaehlerModalDataAction(
           }
         }
 
-        // Get previous readings for each tenant from new table structure
-        let previousReadings: any[] = [];
-        if (apartmentIds.length > 0) {
-          const { data: waterMeters, error: metersError } = await supabase
-            .from("Wasser_Zaehler")
-            .select("id, wohnung_id")
-            .in("wohnung_id", apartmentIds)
-            .eq("user_id", user.id);
+        // Get tenant IDs for legacy query
+        const tenantIds = tenants?.map(t => t.id) || [];
+        
+        // If no previous readings found in new structure, try legacy table as fallback
+        if (previousReadings.length === 0 && tenantIds.length > 0) {
+          const { data: legacyReadings, error: legacyError } = await supabase
+            .from("Wasserzaehler")
+            .select("*")
+            .in("mieter_id", tenantIds)
+            .eq("user_id", user.id)
+            .lt("ablese_datum", nebenkostenData.startdatum)
+            .order("ablese_datum", { ascending: false });
 
-          if (!metersError && waterMeters && waterMeters.length > 0) {
-            const meterIds = waterMeters.map((m: { id: string }) => m.id);
-            const { data: readings, error: previousError } = await supabase
-              .from("Wasser_Ablesungen")
-              .select("*")
-              .in("wasser_zaehler_id", meterIds)
-              .eq("user_id", user.id)
-              .lt("ablese_datum", nebenkostenData.startdatum)
-              .order("ablese_datum", { ascending: false });
-
-            if (!previousError && readings) {
-              // Transform to include mieter_id for compatibility
-              previousReadings = readings.map(reading => {
-                const meter = waterMeters.find((m: { id: string }) => m.id === reading.wasser_zaehler_id);
-                const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
-                return {
-                  ...reading,
-                  mieter_id: tenant?.id || ''
-                };
-              });
-            }
+          if (legacyError) {
+            logger.error('Failed to fetch previous readings from legacy table', legacyError, {
+              userId: user.id,
+              nebenkostenId
+            });
+          } else if (legacyReadings) {
+            previousReadings = legacyReadings;
           }
         }
 
