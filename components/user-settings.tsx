@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { LogOut, Settings, FileText } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 
 import { useUserProfile } from "@/hooks/use-user-profile"
@@ -23,6 +24,7 @@ import {
 export function UserSettings() {
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
+  const supabase = createClient()
   const [openModal, setOpenModal] = useState(false)
   const { openTemplatesModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
@@ -46,33 +48,56 @@ export function UserSettings() {
   const handleLogout = async () => {
     setIsLoadingLogout(true)
     try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      })
+      // First sign out from Supabase
+      const { error: signOutError } = await supabase.auth.signOut()
       
-      if (!response.ok) {
-        throw new Error(`Logout failed with status: ${response.status}`)
+      // We'll continue with the logout flow even if there's a sign out error
+      if (signOutError) {
+        console.warn("Supabase sign out warning:", signOutError)
       }
+
+      // Create an array to hold all cleanup promises
+      const cleanupPromises = [];
       
-      // Clear any client-side auth state
-      const clearResponse = await fetch('/api/auth/clear-auth-cookie', { 
-        method: 'POST' 
-      })
+      // Add logout API call to promises
+      cleanupPromises.push(
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'same-origin'
+        }).catch(error => {
+          if (error.name !== 'AbortError') {
+            console.warn("Logout API error:", error);
+          }
+        })
+      );
       
-      if (!clearResponse.ok) {
-        console.warn("Failed to clear auth cookie:", await clearResponse.text())
-      }
+      // Add clear cookie call to promises
+      cleanupPromises.push(
+        fetch('/api/auth/clear-auth-cookie', { 
+          method: 'POST',
+          credentials: 'same-origin'
+        }).catch(error => {
+          if (error.name !== 'AbortError') {
+            console.warn("Clear cookie error:", error);
+          }
+        })
+      );
       
-      // Redirect to login page
-      router.push("/auth/login")
-      router.refresh() // Ensure the page updates with the new auth state
+      // Wait for all cleanup operations to complete or timeout
+      await Promise.race([
+        Promise.all(cleanupPromises),
+        new Promise(resolve => setTimeout(resolve, 2000)) // 2 second timeout
+      ]);
+      
     } catch (error) {
-      console.error("Error signing out:", error)
-      // Don't prevent logout even if there's an error
-      router.push("/auth/login")
-      router.refresh()
+      console.error("Error during logout:", error);
     } finally {
-      setIsLoadingLogout(false)
+      // Reset loading state first
+      setIsLoadingLogout(false);
+      
+      // Force a hard redirect to ensure we leave the current page
+      // This is more reliable than router.push for logout scenarios
+      window.location.href = '/';
     }
   }
 
