@@ -62,10 +62,7 @@ export function useApartmentUsage(user: User | null) {
                 const plans = await response.json() as StripePlan[];
                 const currentPlan = plans.find(plan => plan.priceId === profile.stripe_price_id);
                 
-                if (currentPlan && 
-                    currentPlan.limit_wohnungen !== undefined && 
-                    currentPlan.limit_wohnungen !== null && 
-                    currentPlan.limit_wohnungen > 0) {
+                if (currentPlan && typeof currentPlan.limit_wohnungen === 'number' && currentPlan.limit_wohnungen > 0) {
                   apartmentLimit = currentPlan.limit_wohnungen;
                 }
               }

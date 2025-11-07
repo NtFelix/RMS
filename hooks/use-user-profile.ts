@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 
@@ -28,7 +28,7 @@ export function useUserProfile() {
     error: null,
   });
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const fetchUserData = async () => {
