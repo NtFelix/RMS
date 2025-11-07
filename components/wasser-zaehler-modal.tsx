@@ -75,6 +75,7 @@ export function WasserZaehlerModal() {
   const [editEichungsdatum, setEditEichungsdatum] = React.useState<Date | undefined>(undefined)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [zaehlerToDelete, setZaehlerToDelete] = React.useState<string | null>(null)
+  const [showExpiredMeters, setShowExpiredMeters] = React.useState(false)
 
   // Load existing Wasserzähler when modal opens
   React.useEffect(() => {
@@ -262,6 +263,21 @@ export function WasserZaehlerModal() {
     })
   }
 
+  // Check if a water meter's calibration date has expired (is before today)
+  const isExpired = (eichungsdatum: string | null) => {
+    if (!eichungsdatum) return false
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const calibrationDate = new Date(eichungsdatum)
+    calibrationDate.setHours(0, 0, 0, 0)
+    return calibrationDate < today
+  }
+
+  // Separate active and expired meters
+  const activeMeters = zaehlerList.filter(z => !isExpired(z.eichungsdatum))
+  const expiredMeters = zaehlerList.filter(z => isExpired(z.eichungsdatum))
+  const metersToDisplay = showExpiredMeters ? zaehlerList : activeMeters
+
   return (
     <>
       <Dialog open={isWasserZaehlerModalOpen} onOpenChange={handleClose}>
@@ -374,8 +390,9 @@ export function WasserZaehlerModal() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid gap-3">
-                  {zaehlerList.map((zaehler) => (
+                <div className="space-y-3">
+                  <div className="grid gap-3">
+                  {metersToDisplay.map((zaehler) => (
                     <Card key={zaehler.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
                       <CardContent className="p-0">
                         <AnimatePresence mode="wait">
@@ -517,9 +534,16 @@ export function WasserZaehlerModal() {
                                     <CircleGauge className="h-5 w-5 text-primary" />
                                   </div>
                                   <div>
-                                    <h4 className="font-semibold text-base">
-                                      {zaehler.custom_id || "Unbenannt"}
-                                    </h4>
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-semibold text-base">
+                                        {zaehler.custom_id || "Unbenannt"}
+                                      </h4>
+                                      {isExpired(zaehler.eichungsdatum) && (
+                                        <Badge variant="destructive" className="text-xs">
+                                          Abgelaufen
+                                        </Badge>
+                                      )}
+                                    </div>
                                     <p className="text-xs text-muted-foreground">Wasserzähler</p>
                                   </div>
                                 </div>
@@ -633,6 +657,29 @@ export function WasserZaehlerModal() {
                       </CardContent>
                     </Card>
                   ))}
+                  </div>
+                  
+                  {/* Show expired meters button */}
+                  {expiredMeters.length > 0 && !showExpiredMeters && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowExpiredMeters(true)}
+                      className="w-full"
+                    >
+                      Alte Wasserzähler anzeigen ({expiredMeters.length})
+                    </Button>
+                  )}
+                  
+                  {/* Hide expired meters button */}
+                  {showExpiredMeters && expiredMeters.length > 0 && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowExpiredMeters(false)}
+                      className="w-full"
+                    >
+                      Alte Wasserzähler ausblenden ({expiredMeters.length})
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
