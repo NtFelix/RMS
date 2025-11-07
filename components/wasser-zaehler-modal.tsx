@@ -243,6 +243,7 @@ export function WasserZaehlerModal() {
     setEditingId(null)
     setEditCustomId("")
     setEditEichungsdatum(undefined)
+    setWasserZaehlerModalDirty(false)
   }
 
   const handleClose = () => {
@@ -251,8 +252,34 @@ export function WasserZaehlerModal() {
     setEditingId(null)
     setEditCustomId("")
     setEditEichungsdatum(undefined)
+    setWasserZaehlerModalDirty(false)
     closeWasserZaehlerModal()
   }
+
+  // Check if there are unsaved changes in edit mode or new meter form
+  const hasUnsavedChanges = React.useMemo(() => {
+    // Check if there's unsaved data in the new meter form
+    if (newCustomId.trim() || newEichungsdatum) {
+      return true
+    }
+
+    // Check if there are unsaved changes in edit mode
+    if (editingId) {
+      const originalZaehler = zaehlerList.find(z => z.id === editingId)
+      if (originalZaehler) {
+        const customIdChanged = editCustomId !== (originalZaehler.custom_id || "")
+        const dateChanged = editEichungsdatum?.toISOString().split('T')[0] !== originalZaehler.eichungsdatum
+        return customIdChanged || dateChanged
+      }
+    }
+
+    return false
+  }, [newCustomId, newEichungsdatum, editingId, editCustomId, editEichungsdatum, zaehlerList])
+
+  // Update modal dirty state when unsaved changes are detected
+  React.useEffect(() => {
+    setWasserZaehlerModalDirty(hasUnsavedChanges)
+  }, [hasUnsavedChanges, setWasserZaehlerModalDirty])
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-"
@@ -281,8 +308,12 @@ export function WasserZaehlerModal() {
 
   return (
     <>
-      <Dialog open={isWasserZaehlerModalOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[700px] max-h-[85vh] flex flex-col">
+      <Dialog open={isWasserZaehlerModalOpen} onOpenChange={(open) => !open && handleClose()}>
+        <DialogContent 
+          className="sm:max-w-[700px] max-h-[85vh] flex flex-col"
+          isDirty={hasUnsavedChanges}
+          onAttemptClose={handleClose}
+        >
           <DialogHeader>
             <DialogTitle>Wasserzähler verwalten</DialogTitle>
             <DialogDescription>
