@@ -302,7 +302,12 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
  * @param currentYear - Optional. The current year as a string (e.g., '2024'). If provided, the function will first look for a reading from the previous year.
  * @returns An object containing the success status, the previous Wasserzaehler record (if found), and an optional message
  */
-export async function getPreviousWasserzaehlerRecordAction(
+/**
+ * Gets the previous Wasserzaehler record for a specific mieter.
+ * If currentYear is provided, it will first try to find a reading from the previous year.
+ * If no previous year reading is found, it falls back to the most recent reading regardless of year.
+ */
+async function getPreviousWasserzaehlerRecordAction(
   mieterId: string,
   currentYear?: string
 ): Promise<{ success: boolean; data?: Wasserzaehler | null; message?: string }> {
@@ -320,67 +325,7 @@ export async function getPreviousWasserzaehlerRecordAction(
   }
 
   try {
-    // First, try to get the reading from the previous year if currentYear is provided
-    if (currentYear) {
-      const currentYearNum = parseInt(currentYear, 10);
-      if (!isNaN(currentYearNum)) {
-        const previousYear = (currentYearNum - 1).toString();
-        
-        // Query for the last reading from the previous year using new table structure
-        // Get mieter's apartment first
-        const { data: mieterData, error: mieterError } = await supabase
-          .from("Mieter")
-          .select("wohnung_id")
-          .eq("id", mieterId)
-          .eq("user_id", user.id)
-          .single();
-
-        if (mieterError || !mieterData) {
-          console.error(`Error fetching mieter data for ${mieterId}:`, mieterError);
-        } else {
-          // Get water meters for this apartment
-          const { data: waterMeters, error: metersError } = await supabase
-            .from("Wasser_Zaehler")
-            .select("id")
-            .eq("wohnung_id", mieterData.wohnung_id)
-            .eq("user_id", user.id);
-
-          if (!metersError && waterMeters && waterMeters.length > 0) {
-            const meterIds = waterMeters.map(m => m.id);
-            const previousYearStart = `${previousYear}-01-01`;
-            const previousYearEnd = `${previousYear}-12-31`;
-
-            const { data: previousYearData, error: previousYearError } = await supabase
-              .from("Wasser_Ablesungen")
-              .select("*")
-              .in("wasser_zaehler_id", meterIds)
-              .eq("user_id", user.id)
-              .gte("ablese_datum", previousYearStart)
-              .lte("ablese_datum", previousYearEnd)
-              .order("ablese_datum", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            if (!previousYearError && previousYearData) {
-              // Transform to legacy format for compatibility
-              const legacyFormat = {
-                id: previousYearData.id,
-                nebenkosten_id: '',
-                mieter_id: mieterId,
-                ablese_datum: previousYearData.ablese_datum,
-                zaehlerstand: previousYearData.zaehlerstand || 0,
-                verbrauch: previousYearData.verbrauch || 0,
-                user_id: previousYearData.user_id
-              };
-              return { success: true, data: legacyFormat };
-            }
-          }
-        }
-      }
-    }
-
-    // If no previous year reading found, fall back to the most recent reading regardless of year
-    // Get mieter's apartment first
+    // Get tenant data
     const { data: mieterData, error: mieterError } = await supabase
       .from("Mieter")
       .select("wohnung_id")
@@ -400,11 +345,51 @@ export async function getPreviousWasserzaehlerRecordAction(
       .eq("wohnung_id", mieterData.wohnung_id)
       .eq("user_id", user.id);
 
-    if (metersError || !waterMeters || waterMeters.length === 0) {
+    if (metersError || !waterMeters?.length) {
       return { success: true, data: null };
     }
 
     const meterIds = waterMeters.map(m => m.id);
+    
+    // First, try to find a reading from the previous year if currentYear is provided
+    if (currentYear) {
+      const currentYearNum = parseInt(currentYear, 10);
+      if (!isNaN(currentYearNum)) {
+        const previousYear = (currentYearNum - 1).toString();
+        const previousYearStart = `${previousYear}-01-01`;
+        const previousYearEnd = `${previousYear}-12-31`;
+
+        const { data: previousYearData, error: previousYearError } = await supabase
+          .from("Wasser_Ablesungen")
+          .select("*")
+          .in("wasser_zaehler_id", meterIds)
+          .eq("user_id", user.id)
+          .gte("ablese_datum", previousYearStart)
+          .lte("ablese_datum", previousYearEnd)
+          .order("ablese_datum", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (previousYearError && previousYearError.code !== 'PGRST116') {
+          console.error(`Error fetching previous year's Wasserzaehler record for mieter_id ${mieterId}:`, previousYearError);
+        } else if (previousYearData) {
+          return { 
+            success: true, 
+            data: {
+              id: previousYearData.id,
+              nebenkosten_id: '',
+              mieter_id: mieterId,
+              ablese_datum: previousYearData.ablese_datum,
+              zaehlerstand: previousYearData.zaehlerstand || 0,
+              verbrauch: previousYearData.verbrauch || 0,
+              user_id: previousYearData.user_id
+            }
+          };
+        }
+      }
+    }
+
+    // If no previous year reading found, get the most recent reading regardless of year
     const { data, error } = await supabase
       .from("Wasser_Ablesungen")
       .select("*")
@@ -415,25 +400,26 @@ export async function getPreviousWasserzaehlerRecordAction(
       .maybeSingle();
 
     if (error) {
-      if (error.code === 'PGRST116') { // PostgREST error code for "Not a single row was found"
-        return { success: true, data: null }; // No previous record is not an error
+      if (error.code === 'PGRST116') {
+        return { success: true, data: null }; // No records found
       }
       console.error(`Error fetching previous water reading for mieter_id ${mieterId}:`, error);
       return { success: false, message: `Fehler beim Abrufen des vorherigen Zählerstands: ${error.message}` };
     }
 
     if (data) {
-      // Transform to legacy format for compatibility
-      const legacyFormat = {
-        id: data.id,
-        nebenkosten_id: '',
-        mieter_id: mieterId,
-        ablese_datum: data.ablese_datum,
-        zaehlerstand: data.zaehlerstand || 0,
-        verbrauch: data.verbrauch || 0,
-        user_id: data.user_id
+      return {
+        success: true,
+        data: {
+          id: data.id,
+          nebenkosten_id: '',
+          mieter_id: mieterId,
+          ablese_datum: data.ablese_datum,
+          zaehlerstand: data.zaehlerstand || 0,
+          verbrauch: data.verbrauch || 0,
+          user_id: data.user_id
+        }
       };
-      return { success: true, data: legacyFormat };
     }
 
     return { success: true, data: null };
