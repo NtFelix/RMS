@@ -55,6 +55,11 @@ interface WasserZaehler {
   wohnung_id: string
   erstellungsdatum: string
   eichungsdatum: string | null
+  latest_reading?: {
+    ablese_datum: string
+    zaehlerstand: number
+    verbrauch: number
+  } | null
 }
 
 export function WasserZaehlerModal() {
@@ -632,9 +637,15 @@ export function WasserZaehlerModal() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
-                                  <p className="text-sm font-medium text-muted-foreground italic">
-                                    Noch nicht erfasst
-                                  </p>
+                                  {zaehler.latest_reading ? (
+                                    <p className="text-sm font-medium">
+                                      {zaehler.latest_reading.zaehlerstand} m³
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm font-medium text-muted-foreground italic">
+                                      Noch nicht erfasst
+                                    </p>
+                                  )}
                                 </div>
                               </motion.div>
 
@@ -658,7 +669,7 @@ export function WasserZaehlerModal() {
                                 </div>
                               </motion.div>
 
-                              {/* Letzte Ablesung (Placeholder) */}
+                              {/* Letzte Ablesung */}
                               <motion.div
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -670,9 +681,15 @@ export function WasserZaehlerModal() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs text-muted-foreground mb-1">Letzte Ablesung</p>
-                                  <p className="text-sm font-medium text-muted-foreground italic">
-                                    Noch keine Ablesung
-                                  </p>
+                                  {zaehler.latest_reading ? (
+                                    <p className="text-sm font-medium">
+                                      {formatDate(zaehler.latest_reading.ablese_datum)}
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm font-medium text-muted-foreground italic">
+                                      Noch keine Ablesung
+                                    </p>
+                                  )}
                                 </div>
                               </motion.div>
                             </div>
@@ -905,7 +922,7 @@ export function WasserZaehlerModal() {
 
                                 {/* Information Grid */}
                                 <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                  {/* Zählerstand (Placeholder) */}
+                                  {/* Zählerstand */}
                                   <motion.div
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
@@ -917,9 +934,15 @@ export function WasserZaehlerModal() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
-                                      <p className="text-sm font-medium text-muted-foreground italic">
-                                        Noch nicht erfasst
-                                      </p>
+                                      {zaehler.latest_reading ? (
+                                        <p className="text-sm font-medium">
+                                          {zaehler.latest_reading.zaehlerstand} m³
+                                        </p>
+                                      ) : (
+                                        <p className="text-sm font-medium text-muted-foreground italic">
+                                          Noch nicht erfasst
+                                        </p>
+                                      )}
                                     </div>
                                   </motion.div>
 
@@ -943,7 +966,7 @@ export function WasserZaehlerModal() {
                                     </div>
                                   </motion.div>
 
-                                  {/* Letzte Ablesung (Placeholder) */}
+                                  {/* Letzte Ablesung */}
                                   <motion.div
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
@@ -955,9 +978,15 @@ export function WasserZaehlerModal() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Letzte Ablesung</p>
-                                      <p className="text-sm font-medium text-muted-foreground italic">
-                                        Noch keine Ablesung
-                                      </p>
+                                      {zaehler.latest_reading ? (
+                                        <p className="text-sm font-medium">
+                                          {formatDate(zaehler.latest_reading.ablese_datum)}
+                                        </p>
+                                      ) : (
+                                        <p className="text-sm font-medium text-muted-foreground italic">
+                                          Noch keine Ablesung
+                                        </p>
+                                      )}
                                     </div>
                                   </motion.div>
                                 </div>
