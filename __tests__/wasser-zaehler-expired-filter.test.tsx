@@ -81,7 +81,7 @@ describe('WasserZaehlerModal - Expired Meters Filter', () => {
     expect(screen.queryByText('Expired-002')).not.toBeInTheDocument()
   })
 
-  it('should show button to display expired meters with count', async () => {
+  it('should show button with archive icon to display expired meters with count', async () => {
     render(<WasserZaehlerModal />)
 
     await waitFor(() => {
@@ -91,9 +91,13 @@ describe('WasserZaehlerModal - Expired Meters Filter', () => {
     // Button should show count of expired meters
     const showButton = screen.getByText(/Alte Wasserzähler anzeigen \(2\)/)
     expect(showButton).toBeInTheDocument()
+    
+    // Button should have archive icon (check for Archive component in button)
+    const buttonElement = showButton.closest('button')
+    expect(buttonElement).toBeInTheDocument()
   })
 
-  it('should display expired meters when button is clicked', async () => {
+  it('should display expired meters below the button when clicked', async () => {
     render(<WasserZaehlerModal />)
 
     await waitFor(() => {
@@ -104,18 +108,18 @@ describe('WasserZaehlerModal - Expired Meters Filter', () => {
     const showButton = screen.getByText(/Alte Wasserzähler anzeigen/)
     fireEvent.click(showButton)
 
-    // Now expired meters should be visible
+    // Now expired meters should be visible below the button
     await waitFor(() => {
       expect(screen.getByText('Expired-001')).toBeInTheDocument()
       expect(screen.getByText('Expired-002')).toBeInTheDocument()
     })
 
-    // Active meters should still be visible
+    // Active meters should still be visible above
     expect(screen.getByText('Active-001')).toBeInTheDocument()
     expect(screen.getByText('Active-002')).toBeInTheDocument()
   })
 
-  it('should show hide button when expired meters are displayed', async () => {
+  it('should toggle button text when expired meters are displayed', async () => {
     render(<WasserZaehlerModal />)
 
     await waitFor(() => {
@@ -126,7 +130,7 @@ describe('WasserZaehlerModal - Expired Meters Filter', () => {
     const showButton = screen.getByText(/Alte Wasserzähler anzeigen/)
     fireEvent.click(showButton)
 
-    // Hide button should now be visible
+    // Button text should change to hide
     await waitFor(() => {
       const hideButton = screen.getByText(/Alte Wasserzähler ausblenden \(2\)/)
       expect(hideButton).toBeInTheDocument()
