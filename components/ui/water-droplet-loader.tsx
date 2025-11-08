@@ -35,68 +35,62 @@ export function WaterDropletLoader({ className, size = "md" }: WaterDropletLoade
         className="drop-shadow-lg"
       >
         <defs>
-          {/* Animated gradient that moves from bottom to top */}
-          <linearGradient id="moving-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#3B82F6" stopOpacity="0" />
-            <stop offset="50%" stopColor="#3B82F6" stopOpacity="1" />
-            <stop offset="100%" stopColor="#60A5FA" stopOpacity="1" />
-            <animate
-              attributeName="y1"
-              values="100%;0%;100%"
-              dur="2s"
-              repeatCount="indefinite"
-            />
-            <animate
-              attributeName="y2"
-              values="200%;100%;200%"
-              dur="2s"
-              repeatCount="indefinite"
-            />
+          {/* Water gradient */}
+          <linearGradient id="water-fill-gradient" x1="50" y1="0" x2="50" y2="120">
+            <stop offset="0%" stopColor="#60A5FA" />
+            <stop offset="100%" stopColor="#3B82F6" />
           </linearGradient>
+
+          {/* Clip path for the droplet shape */}
+          <clipPath id="droplet-clip">
+            <path d="M50 5 C50 5, 20 35, 20 60 C20 77.67, 33.43 92, 50 92 C66.57 92 80 77.67 80 60 C80 35, 50 5, 50 5 Z" />
+          </clipPath>
         </defs>
 
         {/* Droplet outline */}
         <path
           d="M50 5 C50 5, 20 35, 20 60 C20 77.67, 33.43 92, 50 92 C66.57 92 80 77.67 80 60 C80 35, 50 5, 50 5 Z"
           fill="none"
-          stroke="#E5E7EB"
+          stroke="#3B82F6"
           strokeWidth="2.5"
-          className="dark:stroke-gray-700"
+          opacity="0.3"
+          className="dark:opacity-40"
         />
 
-        {/* Animated border moving from bottom to top */}
-        <motion.path
-          d="M50 5 C50 5, 20 35, 20 60 C20 77.67, 33.43 92, 50 92 C66.57 92 80 77.67 80 60 C80 35, 50 5, 50 5 Z"
-          fill="none"
-          stroke="url(#moving-gradient)"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray="200"
-          animate={{
-            strokeDashoffset: [200, 0],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-        />
+        {/* Water fill animation - rises from bottom to top */}
+        <g clipPath="url(#droplet-clip)">
+          <motion.rect
+            x="0"
+            y="0"
+            width="100"
+            height="120"
+            fill="url(#water-fill-gradient)"
+            initial={{ y: 120 }}
+            animate={{
+              y: [120, 5, 120],
+            }}
+            transition={{
+              duration: 3.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
 
-        {/* Inner fill with subtle animation */}
-        <motion.path
-          d="M50 5 C50 5, 20 35, 20 60 C20 77.67, 33.43 92, 50 92 C66.57 92 80 77.67 80 60 C80 35, 50 5, 50 5 Z"
-          fill="#3B82F6"
-          opacity="0.1"
-          animate={{
-            opacity: [0.1, 0.2, 0.1],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
+          {/* Wave effect on top of water */}
+          <motion.path
+            d="M 0,0 Q 25,-3 50,0 T 100,0 L 100,10 L 0,10 Z"
+            fill="rgba(255, 255, 255, 0.2)"
+            initial={{ y: 120 }}
+            animate={{
+              y: [120, 5, 120],
+            }}
+            transition={{
+              duration: 3.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        </g>
 
         {/* Light reflection */}
         <ellipse
@@ -105,7 +99,19 @@ export function WaterDropletLoader({ className, size = "md" }: WaterDropletLoade
           rx="6"
           ry="10"
           fill="white"
-          opacity="0.4"
+          opacity="0.5"
+          clipPath="url(#droplet-clip)"
+        />
+        
+        {/* Smaller reflection */}
+        <ellipse
+          cx="42"
+          cy="50"
+          rx="3"
+          ry="5"
+          fill="white"
+          opacity="0.3"
+          clipPath="url(#droplet-clip)"
         />
       </svg>
     </div>
