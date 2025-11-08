@@ -41,21 +41,21 @@ import {
 
 // Navigation dropdown items
 const produkteItems = [
-  { name: "Web-Anwendung", href: "#hero", icon: LayoutDashboard, description: "Die Web-Anwendung" },
-  { name: "Browser-Erweiterung", href: "#hero", icon: Package, description: "Demnächst verfügbar" },
-  { name: "Mobile App", href: "#hero", icon: Phone, description: "Demnächst verfügbar" },
+  { name: "Web-Anwendung", href: "/home", icon: LayoutDashboard, description: "Die Web-Anwendung" },
+  { name: "Browser-Erweiterung", href: "/warteliste/browser-erweiterung", icon: Package, description: "Demnächst verfügbar" },
+  { name: "Mobile App", href: "/warteliste/mobile-app", icon: Phone, description: "Demnächst verfügbar" },
 ]
 
 const funktionenItems = [
-  { name: "Wohnungsverwaltung", href: "#features", icon: Building2, description: "Verwalten Sie Ihre Wohnungen zentral" },
-  { name: "Finanzverwaltung", href: "#finance-showcase", icon: TrendingUp, description: "Behalten Sie Ihre Finanzen im Blick" },
-  { name: "Betriebskosten", href: "#nebenkosten", icon: Calculator, description: "Automatische Nebenkostenabrechnung" },
+  { name: "Wohnungsverwaltung", href: "/funktionen/wohnungsverwaltung", icon: Building2, description: "Verwalten Sie Ihre Wohnungen zentral" },
+  { name: "Finanzverwaltung", href: "/funktionen/finanzverwaltung", icon: TrendingUp, description: "Behalten Sie Ihre Finanzen im Blick" },
+  { name: "Betriebskosten", href: "/funktionen/betriebskosten", icon: Calculator, description: "Automatische Nebenkostenabrechnung" },
 ]
 
 const loesungenItems = [
-  { name: "Für Vermieter", href: "#hero", icon: Home, description: "Perfekt für private Vermieter" },
-  { name: "Für Hausverwaltungen", href: "#hero", icon: Building2, description: "Professionelle Verwaltungslösung" },
-  { name: "Für Investoren", href: "#hero", icon: TrendingUp, description: "Portfolio-Management leicht gemacht" },
+  { name: "Für Privatvermieter", href: "/loesungen/privatvermieter", icon: Home, description: "Perfekt für private Vermieter" },
+  { name: "Für kleine bis mittlere Hausverwaltungen", href: "/loesungen/kleine-mittlere-hausverwaltungen", icon: Building2, description: "Professionelle Verwaltungslösung" },
+  { name: "Für große Hausverwaltungen", href: "/loesungen/grosse-hausverwaltungen", icon: TrendingUp, description: "Enterprise-Lösungen für große Portfolios" },
 ]
 
 const hilfeItems = [
@@ -229,8 +229,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
       if (element) {
         element.scrollIntoView({ behavior: "smooth" })
       }
+      setIsOpen(false)
+    } else if (href.startsWith("#")) {
+      // If on a different page, navigate to landing first
+      window.location.href = `/landing${href}`
+    } else {
+      // For regular links, use router navigation
+      window.location.href = href
     }
-    setIsOpen(false)
   }
 
   const handleOpenLoginModal = () => {
@@ -340,16 +346,28 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {produkteItems.map((item) => (
-                          <DropdownMenuItem 
-                            key={item.name}
-                            onClick={() => handleNavClick(item.href)}
-                          >
-                            <item.icon className="w-4 h-4 shrink-0" />
-                            <div className="flex flex-col items-start gap-0.5">
-                              <span className="font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </DropdownMenuItem>
+                          item.href.startsWith('#') ? (
+                            <DropdownMenuItem 
+                              key={item.name}
+                              onClick={() => handleNavClick(item.href)}
+                            >
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem key={item.name} asChild>
+                              <Link href={item.href}>
+                                <item.icon className="w-4 h-4 shrink-0" />
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
+                          )
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -365,16 +383,28 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {funktionenItems.map((item) => (
-                          <DropdownMenuItem 
-                            key={item.name}
-                            onClick={() => handleNavClick(item.href)}
-                          >
-                            <item.icon className="w-4 h-4 shrink-0" />
-                            <div className="flex flex-col items-start gap-0.5">
-                              <span className="font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </DropdownMenuItem>
+                          item.href.startsWith('#') ? (
+                            <DropdownMenuItem 
+                              key={item.name}
+                              onClick={() => handleNavClick(item.href)}
+                            >
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem key={item.name} asChild>
+                              <Link href={item.href}>
+                                <item.icon className="w-4 h-4 shrink-0" />
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
+                          )
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -390,16 +420,28 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {loesungenItems.map((item) => (
-                          <DropdownMenuItem 
-                            key={item.name}
-                            onClick={() => handleNavClick(item.href)}
-                          >
-                            <item.icon className="w-4 h-4 shrink-0" />
-                            <div className="flex flex-col items-start gap-0.5">
-                              <span className="font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </DropdownMenuItem>
+                          item.href.startsWith('#') ? (
+                            <DropdownMenuItem 
+                              key={item.name}
+                              onClick={() => handleNavClick(item.href)}
+                            >
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem key={item.name} asChild>
+                              <Link href={item.href}>
+                                <item.icon className="w-4 h-4 shrink-0" />
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
+                          )
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -567,17 +609,32 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           Produkte
                         </div>
                         {produkteItems.map((item) => (
-                          <button
-                            key={item.name}
-                            onClick={() => handleNavClick(item.href)}
-                            className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
-                          >
-                            <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
-                            <div className="flex flex-col">
-                              <span className="text-base font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </button>
+                          item.href.startsWith('#') ? (
+                            <button
+                              key={item.name}
+                              onClick={() => handleNavClick(item.href)}
+                              className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                            >
+                              <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-base font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <Link
+                              key={item.name}
+                              href={item.href}
+                              onClick={() => setIsOpen(false)}
+                              className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                            >
+                              <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-base font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </Link>
+                          )
                         ))}
                       </div>
 
@@ -587,17 +644,32 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           Funktionen
                         </div>
                         {funktionenItems.map((item) => (
-                          <button
-                            key={item.name}
-                            onClick={() => handleNavClick(item.href)}
-                            className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
-                          >
-                            <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
-                            <div className="flex flex-col">
-                              <span className="text-base font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </button>
+                          item.href.startsWith('#') ? (
+                            <button
+                              key={item.name}
+                              onClick={() => handleNavClick(item.href)}
+                              className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                            >
+                              <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-base font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <Link
+                              key={item.name}
+                              href={item.href}
+                              onClick={() => setIsOpen(false)}
+                              className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                            >
+                              <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-base font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </Link>
+                          )
                         ))}
                       </div>
 
@@ -607,17 +679,32 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           Lösungen
                         </div>
                         {loesungenItems.map((item) => (
-                          <button
-                            key={item.name}
-                            onClick={() => handleNavClick(item.href)}
-                            className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
-                          >
-                            <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
-                            <div className="flex flex-col">
-                              <span className="text-base font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </button>
+                          item.href.startsWith('#') ? (
+                            <button
+                              key={item.name}
+                              onClick={() => handleNavClick(item.href)}
+                              className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                            >
+                              <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-base font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <Link
+                              key={item.name}
+                              href={item.href}
+                              onClick={() => setIsOpen(false)}
+                              className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                            >
+                              <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-base font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </Link>
+                          )
                         ))}
                       </div>
 
