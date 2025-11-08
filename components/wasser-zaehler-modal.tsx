@@ -29,6 +29,7 @@ import {
   Droplet,
   Archive
 } from "lucide-react"
+import { WaterDropletLoader } from "@/components/ui/water-droplet-loader"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
@@ -421,8 +422,11 @@ export function WasserZaehlerModal() {
             {/* List of existing Wasserzähler */}
             <div className="space-y-3">
               {isLoading ? (
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="flex flex-col items-center justify-center p-12 space-y-4">
+                  <WaterDropletLoader size="md" />
+                  <p className="text-sm text-muted-foreground animate-pulse">
+                    Lade Wasserzähler...
+                  </p>
                 </div>
               ) : zaehlerList.length === 0 ? (
                 <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
