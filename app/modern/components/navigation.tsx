@@ -41,16 +41,15 @@ import {
 
 // Navigation dropdown items
 const produkteItems = [
-  { name: "Mietverwaltung", href: "#features", icon: Building2, description: "Verwalten Sie Ihre Immobilien zentral" },
-  { name: "Finanzen", href: "#finance-showcase", icon: TrendingUp, description: "Behalten Sie Ihre Finanzen im Blick" },
-  { name: "Betriebskosten", href: "#nebenkosten", icon: Calculator, description: "Automatische Nebenkostenabrechnung" },
+  { name: "Web-Anwendung", href: "#hero", icon: LayoutDashboard, description: "Die Web-Anwendung" },
+  { name: "Browser-Erweiterung", href: "#hero", icon: Package, description: "Demnächst verfügbar" },
+  { name: "Mobile App", href: "#hero", icon: Phone, description: "Demnächst verfügbar" },
 ]
 
 const funktionenItems = [
-  { name: "Mieterverwaltung", href: "#features", icon: Users, description: "Alle Mieterinformationen an einem Ort" },
-  { name: "Dokumentenverwaltung", href: "#more-features", icon: FileText, description: "Digitale Dokumentenablage" },
-  { name: "Reporting", href: "#finance-showcase", icon: BarChart3, description: "Detaillierte Finanzberichte" },
-  { name: "Automatisierung", href: "#more-features", icon: Zap, description: "Automatische Prozesse und Erinnerungen" },
+  { name: "Wohnungsverwaltung", href: "#features", icon: Building2, description: "Verwalten Sie Ihre Wohnungen zentral" },
+  { name: "Finanzverwaltung", href: "#finance-showcase", icon: TrendingUp, description: "Behalten Sie Ihre Finanzen im Blick" },
+  { name: "Betriebskosten", href: "#nebenkosten", icon: Calculator, description: "Automatische Nebenkostenabrechnung" },
 ]
 
 const loesungenItems = [
@@ -341,17 +340,15 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {produkteItems.map((item) => (
-                          <DropdownMenuItem key={item.name} asChild>
-                            <button
-                              onClick={() => handleNavClick(item.href)}
-                              className="w-full cursor-pointer"
-                            >
-                              <item.icon className="w-4 h-4 shrink-0" />
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="font-medium">{item.name}</span>
-                                <span className="text-xs text-muted-foreground">{item.description}</span>
-                              </div>
-                            </button>
+                          <DropdownMenuItem 
+                            key={item.name}
+                            onClick={() => handleNavClick(item.href)}
+                          >
+                            <item.icon className="w-4 h-4 shrink-0" />
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="font-medium">{item.name}</span>
+                              <span className="text-xs text-muted-foreground">{item.description}</span>
+                            </div>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -368,17 +365,15 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {funktionenItems.map((item) => (
-                          <DropdownMenuItem key={item.name} asChild>
-                            <button
-                              onClick={() => handleNavClick(item.href)}
-                              className="w-full cursor-pointer"
-                            >
-                              <item.icon className="w-4 h-4 shrink-0" />
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="font-medium">{item.name}</span>
-                                <span className="text-xs text-muted-foreground">{item.description}</span>
-                              </div>
-                            </button>
+                          <DropdownMenuItem 
+                            key={item.name}
+                            onClick={() => handleNavClick(item.href)}
+                          >
+                            <item.icon className="w-4 h-4 shrink-0" />
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="font-medium">{item.name}</span>
+                              <span className="text-xs text-muted-foreground">{item.description}</span>
+                            </div>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -395,17 +390,15 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {loesungenItems.map((item) => (
-                          <DropdownMenuItem key={item.name} asChild>
-                            <button
-                              onClick={() => handleNavClick(item.href)}
-                              className="w-full cursor-pointer"
-                            >
-                              <item.icon className="w-4 h-4 shrink-0" />
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="font-medium">{item.name}</span>
-                                <span className="text-xs text-muted-foreground">{item.description}</span>
-                              </div>
-                            </button>
+                          <DropdownMenuItem 
+                            key={item.name}
+                            onClick={() => handleNavClick(item.href)}
+                          >
+                            <item.icon className="w-4 h-4 shrink-0" />
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="font-medium">{item.name}</span>
+                              <span className="text-xs text-muted-foreground">{item.description}</span>
+                            </div>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -431,28 +424,28 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {hilfeItems.map((item) => (
-                          <DropdownMenuItem key={item.name} asChild>
-                            {item.href.startsWith('#') ? (
-                              <button
-                                onClick={() => handleNavClick(item.href)}
-                                className="w-full cursor-pointer"
-                              >
-                                <item.icon className="w-4 h-4 shrink-0" />
-                                <div className="flex flex-col items-start gap-0.5">
-                                  <span className="font-medium">{item.name}</span>
-                                  <span className="text-xs text-muted-foreground">{item.description}</span>
-                                </div>
-                              </button>
-                            ) : (
-                              <Link href={item.href} className="w-full cursor-pointer">
+                          item.href.startsWith('#') ? (
+                            <DropdownMenuItem 
+                              key={item.name}
+                              onClick={() => handleNavClick(item.href)}
+                            >
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem key={item.name} asChild>
+                              <Link href={item.href}>
                                 <item.icon className="w-4 h-4 shrink-0" />
                                 <div className="flex flex-col items-start gap-0.5">
                                   <span className="font-medium">{item.name}</span>
                                   <span className="text-xs text-muted-foreground">{item.description}</span>
                                 </div>
                               </Link>
-                            )}
-                          </DropdownMenuItem>
+                            </DropdownMenuItem>
+                          )
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
