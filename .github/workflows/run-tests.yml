@@ -210,20 +210,6 @@ jobs:
           # Exit with the test status code
           exit $TEST_EXIT_CODE
 
-      # Upload test coverage to Codecov (only from first group and main/develop branches)
-      - name: Upload coverage to Codecov
-        if: always() && matrix.is-first-group && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-        run: |
-          if [ -f "coverage/lcov.info" ]; then
-            echo "Uploading lcov.info to Codecov..."
-            npx codecov --file=coverage/lcov.info --token=${{ secrets.CODECOV_TOKEN }}
-          elif [ -f "coverage/coverage-final.json" ]; then
-            echo "Uploading coverage-final.json to Codecov..."
-            npx codecov --file=coverage/coverage-final.json --token=${{ secrets.CODECOV_TOKEN }}
-          else
-            echo "No coverage files found. Skipping Codecov upload."
-          fi
-
       # Upload test results as artifacts (only from first group)
       - name: Upload test results
         if: always() && matrix.is-first-group
