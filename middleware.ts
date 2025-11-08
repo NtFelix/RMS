@@ -21,7 +21,6 @@ export async function middleware(request: NextRequest) {
   // Public routes that don't require authentication
   const publicRoutes = [
     '/',
-    '/landing',
     '/dokumentation',
     '/dokumentation/.*', // Allow all sub-routes under dokumentation
     '/auth/.*', // Allow all auth routes
@@ -106,7 +105,7 @@ export async function middleware(request: NextRequest) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Failed to fetch user profile for subscription status.', details: profileError.message }, { status: 500 });
       } else {
-        const url = new URL('/landing', request.url); // Or a generic error page
+        const url = new URL('/', request.url); // Or a generic error page
         url.searchParams.set('error', 'profile_fetch_failed');
         return NextResponse.redirect(url);
       }

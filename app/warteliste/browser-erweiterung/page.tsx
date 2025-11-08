@@ -54,7 +54,7 @@ export default function BrowserExtensionWaitlistPage() {
             Wir werden Sie per E-Mail benachrichtigen, sobald das Produkt verfügbar ist.
           </p>
           <Button asChild className="w-full">
-            <Link href="/landing">
+            <Link href="/">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Zurück zur Startseite
             </Link>
@@ -69,7 +69,7 @@ export default function BrowserExtensionWaitlistPage() {
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
           <Link 
-            href="/landing" 
+            href="/" 
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />

@@ -52,7 +52,7 @@ export default function SmallMediumPropertyManagementPage() {
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-6xl mx-auto">
           <Link 
-            href="/landing" 
+            href="/" 
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -110,7 +110,7 @@ export default function SmallMediumPropertyManagementPage() {
               auf größere Pakete mit mehr Funktionen und Support.
             </p>
             <Button asChild variant="outline">
-              <Link href="/landing#pricing">
+              <Link href="/#pricing">
                 Preise ansehen
               </Link>
             </Button>
@@ -124,12 +124,12 @@ export default function SmallMediumPropertyManagementPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg">
-                <Link href="/landing?getStarted=true">
+                <Link href="/?getStarted=true">
                   Jetzt kostenlos testen
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link href="/landing#cta">
+                <Link href="/#cta">
                   Kontakt aufnehmen
                 </Link>
               </Button>

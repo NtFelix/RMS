@@ -231,8 +231,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
       }
       setIsOpen(false)
     } else if (href.startsWith("#")) {
-      // If on a different page, navigate to landing first
-      window.location.href = `/landing${href}`
+      // If on a different page, navigate to homepage first
+      window.location.href = `/${href}`
     } else {
       // For regular links, use router navigation
       window.location.href = href
