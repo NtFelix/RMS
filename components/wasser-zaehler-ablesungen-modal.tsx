@@ -26,7 +26,8 @@ import {
   Search,
   X,
   Loader2,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Home
 } from "lucide-react";
 import { WaterDropletLoader } from "@/components/ui/water-droplet-loader";
 import { Badge } from "@/components/ui/badge";
@@ -248,7 +249,7 @@ export function WasserZaehlerAblesenModal({
             Geben Sie die Zählerstände für jeden Wasserzähler ein. Der Verbrauch wird automatisch berechnet.
             {filteredOutCount > 0 && (
               <span className="block mt-2 text-amber-600 dark:text-amber-500 font-medium">
-                ⚠️ {filteredOutCount} Wasserzähler {filteredOutCount === 1 ? 'wurde' : 'wurden'} ausgeblendet, da {filteredOutCount === 1 ? 'das' : 'die'} Eichungsdatum vor dem Abrechnungszeitraum liegt.
+                ⚠️ {filteredOutCount} Wasserzähler {filteredOutCount === 1 ? 'wurde' : 'wurden'} ausgeblendet, da das Eichungsdatum vor dem Abrechnungszeitraum liegt.
               </span>
             )}
           </DialogDescription>
@@ -302,7 +303,7 @@ export function WasserZaehlerAblesenModal({
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                            <Home className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <div>
                             <h3 className="font-semibold text-base">{wohnungName}</h3>
@@ -425,7 +426,7 @@ export function WasserZaehlerAblesenModal({
             )
           ) : (
             <div className="flex flex-col justify-center items-center h-40 gap-3">
-              <Building2 className="h-12 w-12 text-muted-foreground/50" />
+              <Home className="h-12 w-12 text-muted-foreground/50" />
               <p className="text-muted-foreground">Keine Wasserzähler für dieses Haus gefunden.</p>
             </div>
           )}
