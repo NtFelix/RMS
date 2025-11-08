@@ -1,4 +1,9 @@
+'use client';
+
+
 import { Building2, Users, BarChart3, Zap, Shield, HeadphonesIcon, CheckCircle2, ArrowLeft } from 'lucide-react';
+import Navigation from '@/app/modern/components/navigation';
+import Footer from '@/app/modern/components/footer';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -49,7 +54,7 @@ export default function SmallMediumPropertyManagementPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 py-16 mt-20">
         <div className="max-w-6xl mx-auto">
           <Link 
             href="/" 
@@ -137,6 +142,7 @@ export default function SmallMediumPropertyManagementPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
