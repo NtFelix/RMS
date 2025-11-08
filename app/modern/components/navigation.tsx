@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -39,8 +39,34 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
+// Navigation dropdown items
+const produkteItems = [
+  { name: "Mietverwaltung", href: "#features", icon: Building2, description: "Verwalten Sie Ihre Immobilien zentral" },
+  { name: "Finanzen", href: "#finance-showcase", icon: TrendingUp, description: "Behalten Sie Ihre Finanzen im Blick" },
+  { name: "Betriebskosten", href: "#nebenkosten", icon: Calculator, description: "Automatische Nebenkostenabrechnung" },
+]
+
+const funktionenItems = [
+  { name: "Mieterverwaltung", href: "#features", icon: Users, description: "Alle Mieterinformationen an einem Ort" },
+  { name: "Dokumentenverwaltung", href: "#more-features", icon: FileText, description: "Digitale Dokumentenablage" },
+  { name: "Reporting", href: "#finance-showcase", icon: BarChart3, description: "Detaillierte Finanzberichte" },
+  { name: "Automatisierung", href: "#more-features", icon: Zap, description: "Automatische Prozesse und Erinnerungen" },
+]
+
+const loesungenItems = [
+  { name: "Für Vermieter", href: "#hero", icon: Home, description: "Perfekt für private Vermieter" },
+  { name: "Für Hausverwaltungen", href: "#hero", icon: Building2, description: "Professionelle Verwaltungslösung" },
+  { name: "Für Investoren", href: "#hero", icon: TrendingUp, description: "Portfolio-Management leicht gemacht" },
+]
+
+const hilfeItems = [
+  { name: "Dokumentation", href: "/dokumentation", icon: BookOpen, description: "Ausführliche Anleitungen" },
+  { name: "FAQ", href: "#cta", icon: HelpCircle, description: "Häufig gestellte Fragen" },
+  { name: "Support", href: "#cta", icon: MessageSquare, description: "Kontaktieren Sie unser Team" },
+  { name: "Kontakt", href: "#cta", icon: Mail, description: "Schreiben Sie uns" },
+]
+
 const navItems = [
-  { name: "Startseite", href: "#hero", icon: Home },
   { name: "Funktionen", href: "#features", icon: Check },
   { name: "Preise", href: "#pricing", icon: DollarSign },
 ]
@@ -304,34 +330,139 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 {pathname === "/" ? (
                   // Home page navigation with smooth scroll
                   <>
-                    {navItems.map((item) => (
-                      <button
-                        key={item.name}
-                        onClick={() => handleNavClick(item.href)}
-                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
-                      >
-                        {item.icon && <item.icon className="w-4 h-4" />}
-                        <span>{item.name}</span>
-                      </button>
-                    ))}
-                    {/* Static navigation items */}
-                    {staticNavItems.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
-                      >
-                        {item.icon && <item.icon className="w-4 h-4" />}
-                        <span>{item.name}</span>
-                      </Link>
-                    ))}
+                    {/* Produkte Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                          <Package className="w-4 h-4" />
+                          <span>Produkte</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-72">
+                        {produkteItems.map((item) => (
+                          <DropdownMenuItem key={item.name} asChild>
+                            <button
+                              onClick={() => handleNavClick(item.href)}
+                              className="w-full cursor-pointer"
+                            >
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </button>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Funktionen Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                          <Wrench className="w-4 h-4" />
+                          <span>Funktionen</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-72">
+                        {funktionenItems.map((item) => (
+                          <DropdownMenuItem key={item.name} asChild>
+                            <button
+                              onClick={() => handleNavClick(item.href)}
+                              className="w-full cursor-pointer"
+                            >
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </button>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Lösungen Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                          <Lightbulb className="w-4 h-4" />
+                          <span>Lösungen</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-72">
+                        {loesungenItems.map((item) => (
+                          <DropdownMenuItem key={item.name} asChild>
+                            <button
+                              onClick={() => handleNavClick(item.href)}
+                              className="w-full cursor-pointer"
+                            >
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </button>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Preise (no dropdown) */}
+                    <button
+                      onClick={() => handleNavClick("#pricing")}
+                      className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      <span>Preise</span>
+                    </button>
+
+                    {/* Hilfe Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                          <HelpCircle className="w-4 h-4" />
+                          <span>Hilfe</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-72">
+                        {hilfeItems.map((item) => (
+                          <DropdownMenuItem key={item.name} asChild>
+                            {item.href.startsWith('#') ? (
+                              <button
+                                onClick={() => handleNavClick(item.href)}
+                                className="w-full cursor-pointer"
+                              >
+                                <item.icon className="w-4 h-4 shrink-0" />
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                                </div>
+                              </button>
+                            ) : (
+                              <Link href={item.href} className="w-full cursor-pointer">
+                                <item.icon className="w-4 h-4 shrink-0" />
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                                </div>
+                              </Link>
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </>
                 ) : (
-                  // Other pages navigation
+                  // Other pages navigation - show simplified menu
                   <>
                     <Button asChild variant="ghost" className="rounded-full text-foreground whitespace-nowrap">
                       <Link href="/">
-                        Startseite
+                        Zur Startseite
                       </Link>
                     </Button>
                     {staticNavItems.map((item) => (
@@ -437,28 +568,109 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 <div className="flex-1 overflow-y-auto p-4 space-y-1">
                   {pathname === "/" ? (
                     <>
-                      {navItems.map((item) => (
-                        <button
-                          key={item.name}
-                          onClick={() => handleNavClick(item.href)}
-                          className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
-                        >
-                          {item.icon && <item.icon className="w-5 h-5 mr-3 text-muted-foreground" />}
-                          <span className="text-base">{item.name}</span>
-                        </button>
-                      ))}
-                      {/* Static navigation items */}
-                      {staticNavItems.map((item) => (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          onClick={() => setIsOpen(false)}
-                          className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
-                        >
-                          {item.icon && <item.icon className="w-5 h-5 mr-3 text-muted-foreground" />}
-                          <span className="text-base">{item.name}</span>
-                        </Link>
-                      ))}
+                      {/* Produkte Section */}
+                      <div className="mb-4">
+                        <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Produkte
+                        </div>
+                        {produkteItems.map((item) => (
+                          <button
+                            key={item.name}
+                            onClick={() => handleNavClick(item.href)}
+                            className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                          >
+                            <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                            <div className="flex flex-col">
+                              <span className="text-base font-medium">{item.name}</span>
+                              <span className="text-xs text-muted-foreground">{item.description}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Funktionen Section */}
+                      <div className="mb-4">
+                        <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Funktionen
+                        </div>
+                        {funktionenItems.map((item) => (
+                          <button
+                            key={item.name}
+                            onClick={() => handleNavClick(item.href)}
+                            className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                          >
+                            <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                            <div className="flex flex-col">
+                              <span className="text-base font-medium">{item.name}</span>
+                              <span className="text-xs text-muted-foreground">{item.description}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Lösungen Section */}
+                      <div className="mb-4">
+                        <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Lösungen
+                        </div>
+                        {loesungenItems.map((item) => (
+                          <button
+                            key={item.name}
+                            onClick={() => handleNavClick(item.href)}
+                            className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                          >
+                            <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                            <div className="flex flex-col">
+                              <span className="text-base font-medium">{item.name}</span>
+                              <span className="text-xs text-muted-foreground">{item.description}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Preise */}
+                      <button
+                        onClick={() => handleNavClick("#pricing")}
+                        className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                      >
+                        <DollarSign className="w-5 h-5 mr-3 text-muted-foreground" />
+                        <span className="text-base font-medium">Preise</span>
+                      </button>
+
+                      {/* Hilfe Section */}
+                      <div className="mb-4 mt-4">
+                        <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Hilfe
+                        </div>
+                        {hilfeItems.map((item) => (
+                          item.href.startsWith('#') ? (
+                            <button
+                              key={item.name}
+                              onClick={() => handleNavClick(item.href)}
+                              className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                            >
+                              <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-base font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <Link
+                              key={item.name}
+                              href={item.href}
+                              onClick={() => setIsOpen(false)}
+                              className="flex items-start w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                            >
+                              <item.icon className="w-5 h-5 mr-3 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="text-base font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </Link>
+                          )
+                        ))}
+                      </div>
                     </>
                   ) : (
                     <>
@@ -468,7 +680,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
                       >
                         <Home className="w-5 h-5 mr-3 text-muted-foreground" />
-                        <span className="text-base">Startseite</span>
+                        <span className="text-base">Zur Startseite</span>
                       </Link>
                       {staticNavItems.map((item) => (
                         <Link
