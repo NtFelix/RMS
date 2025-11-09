@@ -2,15 +2,15 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Hero from './modern/components/hero';
-import FeatureSections from './modern/components/feature-sections';
-import FinanceShowcase from './modern/components/finance-showcase';
-import MoreFeatures from './modern/components/more-features';
-import CTA from './modern/components/cta';
-import Footer from './modern/components/footer';
-import Navigation from './modern/components/navigation';
-import Pricing from './modern/components/pricing';
-import NebenkostenSection from './modern/components/nebenkosten-section';
+import Hero from '@/app/modern/components/hero';
+import FeatureSections from '@/app/modern/components/feature-sections';
+import FinanceShowcase from '@/app/modern/components/finance-showcase';
+import MoreFeatures from '@/app/modern/components/more-features';
+import CTA from '@/app/modern/components/cta';
+import Footer from '@/app/modern/components/footer';
+import Navigation from '@/app/modern/components/navigation';
+import Pricing from '@/app/modern/components/pricing';
+import NebenkostenSection from '@/app/modern/components/nebenkosten-section';
 import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
