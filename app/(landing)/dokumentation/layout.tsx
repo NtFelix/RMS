@@ -1,7 +1,4 @@
 import { Metadata } from 'next';
-import Navigation from '@/app/modern/components/navigation';
-import Footer from '@/app/modern/components/footer';
-import AuthModalProvider from '@/components/auth-modal-provider';
 import { AIAssistantModal } from '@/components/ai-assistant-modal';
 
 export const metadata: Metadata = {
@@ -35,22 +32,14 @@ interface DocumentationLayoutProps {
 
 export default function DocumentationLayout({ children }: DocumentationLayoutProps) {
   return (
-    <AuthModalProvider>
-      <div className="min-h-screen flex flex-col bg-background">
-        {/* Public Navigation */}
-        <Navigation />
-        
-        {/* Main Content */}
-        <main className="flex-1 pt-20 sm:pt-24">
-          {children}
-        </main>
-        
-        {/* Footer */}
-        <Footer />
-        
-        {/* AI Assistant Modal */}
-        <AIAssistantModal />
-      </div>
-    </AuthModalProvider>
+    <>
+      {/* Main Content */}
+      <main className="flex-1 pt-20 sm:pt-24 bg-background">
+        {children}
+      </main>
+      
+      {/* AI Assistant Modal */}
+      <AIAssistantModal />
+    </>
   );
 }
