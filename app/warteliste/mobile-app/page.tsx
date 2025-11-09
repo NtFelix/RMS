@@ -69,13 +69,6 @@ export default function MobileAppWaitlistPage() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
-          <Link 
-            href="/" 
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück zur Startseite
-          </Link>
 
           <div className="grid md:grid-cols-2 gap-12 items-start">
             {/* Left Column - Product Info */}
