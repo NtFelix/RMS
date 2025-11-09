@@ -967,6 +967,45 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
  * @see {@link docs/database-functions.md#get_wasserzaehler_modal_data} Database function documentation
  * @see {@link components/wasserzaehler-modal.tsx} Modal component that consumes this data
  */
+/**
+ * Fetches the most recent Betriebskosten entry for a specific house
+ * @param hausId The ID of the house to get the latest Betriebskosten for
+ * @returns The latest Betriebskosten entry or null if none exists
+ */
+export async function getLatestBetriebskostenByHausId(hausId: string) {
+  "use server";
+  
+  const supabase = await createClient();
+  
+  try {
+    const { data, error } = await supabase
+      .from("Nebenkosten")
+      .select('*')
+      .eq('haeuser_id', hausId)
+      .order('enddatum', { ascending: false })
+      .limit(1)
+      .single();
+      
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error("Error fetching latest Betriebskosten:", error);
+      return { success: false, message: error.message, data: null };
+    }
+    
+    return { 
+      success: true, 
+      data: data || null,
+      message: data ? "Latest Betriebskosten found" : "No Betriebskosten found for this house"
+    };
+  } catch (error) {
+    console.error("Unexpected error in getLatestBetriebskostenByHausId:", error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "An unexpected error occurred",
+      data: null 
+    };
+  }
+}
+
 export async function getWasserzaehlerModalDataAction(
   nebenkostenId: string
 ): Promise<OptimizedActionResponse<WasserzaehlerModalData[]>> {

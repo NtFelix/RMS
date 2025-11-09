@@ -38,13 +38,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Skeleton } from "./ui/skeleton";
 import { Mieter, Nebenkosten } from "../lib/data-fetching";
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "../lib/constants";
-import { 
+import {
   getNebenkostenDetailsAction,
   createNebenkosten, 
   updateNebenkosten, 
   createRechnungenBatch, 
   RechnungData,
   deleteRechnungenByNebenkostenId,
+  getLatestBetriebskostenByHausId,
 } from "../app/betriebskosten-actions";
 import { getMieterByHausIdAction } from "../app/mieter-actions"; 
 import { useToast } from "../hooks/use-toast";
@@ -232,6 +233,71 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     closeBetriebskostenModal({ force: true });
   };
 
+  // Fetch latest Betriebskosten for a house and update the form
+  const fetchAndApplyLatestBetriebskosten = async (hausId: string) => {
+    if (!hausId || betriebskostenInitialData?.id) return; // Skip if editing existing
+    
+    try {
+      const response = await getLatestBetriebskostenByHausId(hausId);
+      if (response.success && response.data) {
+        const latest = response.data;
+        
+        // Set the cost items from the latest entry
+        if (latest.nebenkostenart?.length) {
+          const items = latest.nebenkostenart.map((art: string, idx: number) => ({
+            id: generateId(),
+            art,
+            betrag: latest.berechnungsart?.[idx] === 'nach Rechnung' ? '' : (latest.betrag?.[idx]?.toString() || ''),
+            berechnungsart: normalizeBerechnungsart(latest.berechnungsart?.[idx] || '')
+          }));
+          setCostItems(items);
+          
+          // If there are any 'nach Rechnung' items, set up their rechnungen
+          latest.berechnungsart?.forEach((berechnungsart: string, idx: number) => {
+            if (berechnungsart === 'nach Rechnung' && latest.rechnungen) {
+              const costItemId = items[idx]?.id;
+              if (costItemId) {
+                const itemRechnungen = latest.rechnungen
+                  .filter((r: any) => r.nebenkostenart_index === idx)
+                  .map((r: any) => ({
+                    mieterId: r.mieter_id,
+                    betrag: r.betrag?.toString() || ''
+                  }));
+                if (itemRechnungen.length > 0) {
+                  setRechnungen(prev => ({
+                    ...prev,
+                    [costItemId]: itemRechnungen
+                  }));
+                }
+              }
+            }
+          });
+        }
+        
+        // Set wasserkosten if available
+        if (latest.wasserkosten) {
+          setWasserkosten(latest.wasserkosten.toString());
+        }
+        
+        toast({
+          title: "Letzte Nebenkosten übernommen",
+          description: "Die Nebenkostenarten der letzten Abrechnung wurden übernommen. Bitte überprüfen Sie die Werte.",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching latest Betriebskosten:", error);
+    }
+  };
+
+  // Handle house selection change
+  const handleHausIdChange = (newHausId: string) => {
+    setHausId(newHausId);
+    if (newHausId && !betriebskostenInitialData?.id) {
+      fetchAndApplyLatestBetriebskosten(newHausId);
+    }
+  };
+
   useEffect(() => {
     const resetAllStates = (forNewEntry: boolean = true) => {
       if (forNewEntry) {
@@ -243,7 +309,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         setEnddatum("");
       }
       setWasserkosten("");
-      setHausId(forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
+      const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
+      setHausId(initialHausId);
       setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
       setSelectedHausMieter([]);
       setRechnungen({});
@@ -252,6 +319,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       setModalNebenkostenData(null);
       currentlyLoadedNebenkostenId.current = null;
       if (isBetriebskostenModalOpen) setBetriebskostenModalDirty(false);
+      
+      // If this is a new entry and we have a default house, fetch its latest data
+      if (forNewEntry && initialHausId) {
+        fetchAndApplyLatestBetriebskosten(initialHausId);
+      }
     };
 
     if (isBetriebskostenModalOpen) {

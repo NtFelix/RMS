@@ -4,7 +4,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Droplets, FileText, X } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PlusCircle, Droplets, FileText, X, ChevronDown } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
 
@@ -78,16 +84,20 @@ export default function BetriebskostenClientView({
     setFilteredNebenkosten(result);
   }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
 
-  const handleOpenCreateModal = useCallback(() => {
+  const handleOpenCreateModal = useCallback((useTemplate: boolean = false) => {
     // Pass initialHaeuser and a success callback (e.g., to refresh data)
-    openBetriebskostenModal(null, initialHaeuser, () => {
-      // This callback is called on successful save from the modal
-      // Trigger data refresh here, e.g., by re-fetching or using router.refresh()
-      // For now, let's assume the modal itself or a global mechanism handles refresh.
-      // If not, this is where you'd add `router.refresh()` or similar.
-      router.refresh(); // Example refresh
-    });
+    openBetriebskostenModal(
+      useTemplate ? { useTemplate: true } : null, 
+      initialHaeuser, 
+      () => {
+        // This callback is called on successful save from the modal
+        router.refresh();
+      }
+    );
   }, [openBetriebskostenModal, initialHaeuser, router]);
+  
+  const handleOpenBlankModal = useCallback(() => handleOpenCreateModal(false), [handleOpenCreateModal]);
+  const handleOpenTemplateModal = useCallback(() => handleOpenCreateModal(true), [handleOpenCreateModal]);
 
   const handleOpenEditModal = useCallback((item: OptimizedNebenkosten) => {
     // Convert OptimizedNebenkosten to Nebenkosten format for the modal
@@ -245,13 +255,27 @@ export default function BetriebskostenClientView({
               ))}
             </div>
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
-              <ButtonWithTooltip 
-                onClick={handleOpenCreateModal} 
-                className="flex-1"
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Neue Abrechnung erstellen
-              </ButtonWithTooltip>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <ButtonWithTooltip 
+                    className="flex-1"
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Neue Abrechnung erstellen
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                  </ButtonWithTooltip>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[200px]">
+                  <DropdownMenuItem onClick={handleOpenBlankModal}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    <span>Leere Abrechnung</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenTemplateModal}>
+                    <Droplets className="mr-2 h-4 w-4" />
+                    <span>Aus Vorlage erstellen</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button 
                 variant="outline" 
                 onClick={scrollToTable}
@@ -273,10 +297,25 @@ export default function BetriebskostenClientView({
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Betriebskostenabrechnungen</p>
             </div>
             <div className="mt-1">
-              <ButtonWithTooltip onClick={handleOpenCreateModal} className="sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Betriebskostenabrechnung erstellen
-              </ButtonWithTooltip>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <ButtonWithTooltip className="sm:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Betriebskostenabrechnung erstellen
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                  </ButtonWithTooltip>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[200px]">
+                  <DropdownMenuItem onClick={handleOpenBlankModal}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    <span>Leere Abrechnung</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenTemplateModal}>
+                    <Droplets className="mr-2 h-4 w-4" />
+                    <span>Aus Vorlage erstellen</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
