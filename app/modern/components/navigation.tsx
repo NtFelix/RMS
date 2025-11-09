@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -101,6 +101,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { userName } = useUserProfile();
   const { ref: navRef, isOverflowing } = useIsOverflowing();
   
@@ -397,11 +398,19 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             <span>Dashboard</span>
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild className="px-3 py-2 rounded-xl group">
-                          <Link href="/einstellungen" className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
-                            <UserIcon className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
-                            <span>Einstellungen</span>
-                          </Link>
+                        <DropdownMenuItem 
+                          className="px-3 py-2 rounded-xl group hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90 cursor-pointer"
+                          onClick={() => {
+                            // Navigate to dashboard first
+                            window.location.href = '/home';
+                            // Then open settings after a small delay to ensure navigation completes
+                            setTimeout(() => {
+                              setIsSettingsOpen(true);
+                            }, 100);
+                          }}
+                        >
+                          <Settings className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
+                          <span>Einstellungen</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator className="my-2" />
                         <DropdownMenuItem 
