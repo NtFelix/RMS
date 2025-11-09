@@ -41,7 +41,7 @@ const loesungenItems = [
 ]
 
 const hilfeItems = [
-  { name: "Dokumentation", href: "/dokumentation", icon: BookOpen, description: "Ausführliche Anleitungen" },
+  { name: "Dokumentation", href: "/hilfe/dokumentation", icon: BookOpen, description: "Ausführliche Anleitungen" },
   { name: "FAQ", href: "#cta", icon: HelpCircle, description: "Häufig gestellte Fragen" },
   { name: "Support", href: "#cta", icon: MessageSquare, description: "Kontaktieren Sie unser Team" },
   { name: "Kontakt", href: "#cta", icon: Mail, description: "Schreiben Sie uns" },

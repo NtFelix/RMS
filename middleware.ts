@@ -21,14 +21,15 @@ export async function middleware(request: NextRequest) {
   // Public routes that don't require authentication
   const publicRoutes = [
     '/', // Homepage
-    '/dokumentation(.*)?', // All dokumentation routes
+    '/hilfe/dokumentation(.*)?', // All documentation routes under help
+    '/dokumentation(.*)?', // Keep old path for backward compatibility
     '/auth(.*)?', // All auth routes
     '/_next(.*)?', // Next.js internal routes
     '/favicon.ico', // Favicon
     '/subscription-locked', // Subscription locked page
     '/api/stripe/plans', // Public API route for fetching plans
     '/api/posthog-config', // Public API route for PostHog
-    '/api/dokumentation(.*)?', // All dokumentation API routes
+    '/api/dokumentation(.*)?', // Documentation API routes
     '/api/ai-assistant', // AI assistant API route
     '/datenschutz', // Datenschutz page
     '/agb', // AGB page

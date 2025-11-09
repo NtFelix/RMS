@@ -34,20 +34,20 @@ export function DocumentationMetaTags({
   // Generate dynamic meta content based on context
   let title = 'Dokumentation | Mietfluss';
   let description = 'Umfassende Dokumentation und Hilfe für die Mietfluss Plattform';
-  let canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/dokumentation`;
+  let canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/hilfe/dokumentation`;
 
   if (article) {
     title = `${article.titel} | Mietfluss Dokumentation`;
     description = getPreviewText(article.seiteninhalt) || `Erfahren Sie mehr über ${article.titel} in der Mietfluss Dokumentation.`;
-    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/dokumentation/${article.id}`;
+    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/hilfe/dokumentation/${article.id}`;
   } else if (searchQuery) {
     title = `Suchergebnisse für "${searchQuery}" | Mietfluss Dokumentation`;
     description = `Finden Sie Antworten zu "${searchQuery}" in der Mietfluss Dokumentation.`;
-    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/dokumentation?search=${encodeURIComponent(searchQuery)}`;
+    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/hilfe/dokumentation?search=${encodeURIComponent(searchQuery)}`;
   } else if (category) {
     title = `${category} | Mietfluss Dokumentation`;
     description = `Alle Artikel in der Kategorie "${category}" der Mietfluss Dokumentation.`;
-    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/dokumentation?category=${encodeURIComponent(category)}`;
+    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/hilfe/dokumentation?category=${encodeURIComponent(category)}`;
   }
 
   return (
