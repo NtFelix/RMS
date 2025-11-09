@@ -233,9 +233,90 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     closeBetriebskostenModal({ force: true });
   };
 
+  // Set up default cost items for a new Betriebskostenabrechnung
+  const setupDefaultCostItems = () => {
+    const defaultItems: CostItem[] = [
+      {
+        id: generateId(),
+        art: 'Grundsteuer',
+        betrag: '',
+        berechnungsart: 'pro Flaeche'
+      },
+      {
+        id: generateId(),
+        art: 'Wasserkosten',
+        betrag: '',
+        berechnungsart: 'pro Flaeche'
+      },
+      {
+        id: generateId(),
+        art: 'Heizkosten',
+        betrag: '',
+        berechnungsart: 'pro Flaeche'
+      },
+      {
+        id: generateId(),
+        art: 'Warmwasser',
+        betrag: '',
+        berechnungsart: 'pro Flaeche'
+      },
+      {
+        id: generateId(),
+        art: 'Müllabfuhr',
+        betrag: '',
+        berechnungsart: 'pro Wohnung'
+      },
+      {
+        id: generateId(),
+        art: 'Gebäudereinigung',
+        betrag: '',
+        berechnungsart: 'pro Wohnung'
+      },
+      {
+        id: generateId(),
+        art: 'Gartenpflege',
+        betrag: '',
+        berechnungsart: 'pro Flaeche'
+      },
+      {
+        id: generateId(),
+        art: 'Hausversicherung',
+        betrag: '',
+        berechnungsart: 'pro Flaeche'
+      },
+      {
+        id: generateId(),
+        art: 'Aufzugskosten',
+        betrag: '',
+        berechnungsart: 'pro Wohnung'
+      },
+      {
+        id: generateId(),
+        art: 'Sonstige Betriebskosten',
+        betrag: '',
+        berechnungsart: 'pro Flaeche'
+      }
+    ];
+
+    setCostItems(defaultItems);
+    setWasserkosten('');
+    
+    toast({
+      title: "Standard-Vorlage geladen",
+      description: "Die Standard-Betriebskostenarten wurden geladen. Bitte tragen Sie die entsprechenden Beträge ein.",
+      variant: "default",
+    });
+  };
+
   // Fetch latest Betriebskosten for a house and update the form
   const fetchAndApplyLatestBetriebskosten = async (hausId: string) => {
     if (!hausId || betriebskostenInitialData?.id) return; // Skip if editing existing
+    
+    // Check if we should use default template
+    if (betriebskostenInitialData?.useTemplate === 'default') {
+      setupDefaultCostItems();
+      return;
+    }
     
     try {
       const response = await getLatestBetriebskostenByHausId(hausId);

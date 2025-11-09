@@ -84,10 +84,10 @@ export default function BetriebskostenClientView({
     setFilteredNebenkosten(result);
   }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
 
-  const handleOpenCreateModal = useCallback((useTemplate: boolean = false) => {
+  const handleOpenCreateModal = useCallback((templateType: 'blank' | 'previous' | 'default' = 'blank') => {
     // Pass initialHaeuser and a success callback (e.g., to refresh data)
     openBetriebskostenModal(
-      useTemplate ? { useTemplate: true } : null, 
+      templateType !== 'blank' ? { useTemplate: templateType } : null, 
       initialHaeuser, 
       () => {
         // This callback is called on successful save from the modal
@@ -96,8 +96,9 @@ export default function BetriebskostenClientView({
     );
   }, [openBetriebskostenModal, initialHaeuser, router]);
   
-  const handleOpenBlankModal = useCallback(() => handleOpenCreateModal(false), [handleOpenCreateModal]);
-  const handleOpenTemplateModal = useCallback(() => handleOpenCreateModal(true), [handleOpenCreateModal]);
+  const handleOpenBlankModal = useCallback(() => handleOpenCreateModal('blank'), [handleOpenCreateModal]);
+  const handleOpenPreviousTemplateModal = useCallback(() => handleOpenCreateModal('previous'), [handleOpenCreateModal]);
+  const handleOpenDefaultTemplateModal = useCallback(() => handleOpenCreateModal('default'), [handleOpenCreateModal]);
 
   const handleOpenEditModal = useCallback((item: OptimizedNebenkosten) => {
     // Convert OptimizedNebenkosten to Nebenkosten format for the modal
@@ -265,14 +266,27 @@ export default function BetriebskostenClientView({
                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                   </ButtonWithTooltip>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[200px]">
-                  <DropdownMenuItem onClick={handleOpenBlankModal}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    <span>Leere Abrechnung</span>
+                <DropdownMenuContent align="end" className="w-[280px]">
+                  <DropdownMenuItem onClick={handleOpenBlankModal} className="flex items-start py-3">
+                    <FileText className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium">Leere Abrechnung</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Mit leeren Feldern beginnen</div>
+                    </div>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenTemplateModal}>
-                    <Droplets className="mr-2 h-4 w-4" />
-                    <span>Aus Vorlage erstellen</span>
+                  <DropdownMenuItem onClick={handleOpenPreviousTemplateModal} className="flex items-start py-3">
+                    <Droplets className="mr-3 h-5 w-5 mt-0.5 text-blue-500" />
+                    <div className="flex-1">
+                      <div className="font-medium">Aus letzter Abrechnung</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Kopiert Daten der letzten Abrechnung</div>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenDefaultTemplateModal} className="flex items-start py-3">
+                    <FileText className="mr-3 h-5 w-5 mt-0.5 text-amber-500" />
+                    <div className="flex-1">
+                      <div className="font-medium">Standard-Vorlage</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Vordefinierte Standardwerte verwenden</div>
+                    </div>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -305,14 +319,27 @@ export default function BetriebskostenClientView({
                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                   </ButtonWithTooltip>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[200px]">
-                  <DropdownMenuItem onClick={handleOpenBlankModal}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    <span>Leere Abrechnung</span>
+                <DropdownMenuContent align="end" className="w-[280px]">
+                  <DropdownMenuItem onClick={handleOpenBlankModal} className="flex items-start py-3">
+                    <FileText className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium">Leere Abrechnung</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Mit leeren Feldern beginnen</div>
+                    </div>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenTemplateModal}>
-                    <Droplets className="mr-2 h-4 w-4" />
-                    <span>Aus Vorlage erstellen</span>
+                  <DropdownMenuItem onClick={handleOpenPreviousTemplateModal} className="flex items-start py-3">
+                    <Droplets className="mr-3 h-5 w-5 mt-0.5 text-blue-500" />
+                    <div className="flex-1">
+                      <div className="font-medium">Aus letzter Abrechnung</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Kopiert Daten der letzten Abrechnung</div>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenDefaultTemplateModal} className="flex items-start py-3">
+                    <FileText className="mr-3 h-5 w-5 mt-0.5 text-amber-500" />
+                    <div className="flex-1">
+                      <div className="font-medium">Standard-Vorlage</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Vordefinierte Standardwerte verwenden</div>
+                    </div>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
