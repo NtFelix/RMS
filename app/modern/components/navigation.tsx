@@ -360,38 +360,50 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {currentUser ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="flex items-center space-x-2 px-3 py-1.5 rounded-full hover:bg-muted/50 transition-colors">
-                          <Avatar className="h-8 w-8">
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2">
+                          <Avatar className="h-6 w-6">
                             <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
-                            <AvatarFallback>
+                            <AvatarFallback className="text-xs">
                               {currentUser.email?.charAt(0).toUpperCase() || 'U'}
                             </AvatarFallback>
                           </Avatar>
-                          <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                          <span className="whitespace-nowrap">Mein Konto</span>
+                          <ChevronDown className="w-3 h-3" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <div className="px-2 py-1.5">
-                          <p className="text-sm font-medium">{currentUser.email}</p>
-                          <p className="text-xs text-muted-foreground">Konto verwalten</p>
+                      <DropdownMenuContent align="end" className="w-60 p-2">
+                        <div className="flex items-center space-x-3 px-2 py-2">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
+                            <AvatarFallback className="text-sm">
+                              {currentUser.email?.charAt(0).toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium line-clamp-1">{currentUser.email}</p>
+                            <p className="text-xs text-muted-foreground">Konto verwalten</p>
+                          </div>
                         </div>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                          <Link href="/home" className="w-full cursor-pointer">
-                            <LayoutDashboard className="w-4 h-4 mr-2" />
-                            Dashboard
+                        <DropdownMenuSeparator className="my-2" />
+                        <DropdownMenuItem asChild className="px-3 py-2 rounded-xl group">
+                          <Link href="/home" className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
+                            <LayoutDashboard className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
+                            <span>Dashboard</span>
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href="/einstellungen" className="w-full cursor-pointer">
-                            <UserIcon className="w-4 h-4 mr-2" />
-                            Einstellungen
+                        <DropdownMenuItem asChild className="px-3 py-2 rounded-xl group">
+                          <Link href="/einstellungen" className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
+                            <UserIcon className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
+                            <span>Einstellungen</span>
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                          <LogOut className="w-4 h-4 mr-2" />
-                          Abmelden
+                        <DropdownMenuSeparator className="my-2" />
+                        <DropdownMenuItem 
+                          onClick={handleLogout} 
+                          className="px-3 py-2 rounded-xl group hover:bg-red-600 hover:text-white dark:hover:bg-red-600/90 cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4 mr-3 group-hover:text-white" />
+                          <span className="group-hover:text-white">Abmelden</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
