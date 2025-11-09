@@ -12,6 +12,7 @@ import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { PillContainer } from "@/components/ui/pill-container";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -100,6 +101,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { userName } = useUserProfile();
   const { ref: navRef, isOverflowing } = useIsOverflowing();
   
   useEffect(() => {
@@ -380,8 +382,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-sm font-medium line-clamp-1">{currentUser.email}</p>
-                            <p className="text-xs text-muted-foreground">Konto verwalten</p>
+                            <p className="text-sm font-medium line-clamp-1">
+                              {userName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {currentUser.email || 'Konto verwalten'}
+                            </p>
                           </div>
                         </div>
                         <DropdownMenuSeparator className="my-2" />
