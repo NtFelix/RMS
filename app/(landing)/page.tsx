@@ -7,8 +7,6 @@ import FeatureSections from '@/app/modern/components/feature-sections';
 import FinanceShowcase from '@/app/modern/components/finance-showcase';
 import MoreFeatures from '@/app/modern/components/more-features';
 import CTA from '@/app/modern/components/cta';
-import Footer from '@/app/modern/components/footer';
-import Navigation from '@/app/modern/components/navigation';
 import Pricing from '@/app/modern/components/pricing';
 import NebenkostenSection from '@/app/modern/components/nebenkosten-section';
 import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
@@ -300,8 +298,7 @@ function LandingPageContent() {
       <Suspense fallback={null}>
         <URLParamHandler />
       </Suspense>
-      <Navigation onLogin={() => openAuthModal('login')} />
-      <main className="min-h-screen overflow-x-hidden">
+      <div className="min-h-screen overflow-x-hidden">
         <div id="hero">
           <Hero onGetStarted={handleGetStarted} />
         </div>
@@ -324,12 +321,10 @@ function LandingPageContent() {
             isLoading={isProcessingCheckout}
           />
         </div>
-        
         <div id="cta">
           <CTA onGetStarted={handleGetStarted} />
         </div>
-        <Footer />
-      </main>
+      </div>
     </>
   );
 }
