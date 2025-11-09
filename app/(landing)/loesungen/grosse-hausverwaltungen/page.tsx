@@ -2,8 +2,6 @@
 
 
 import { TrendingUp, Database, Lock, Workflow, Globe, HeadphonesIcon, CheckCircle2, ArrowLeft } from 'lucide-react';
-import Navigation from '@/app/modern/components/navigation';
-import Footer from '@/app/modern/components/footer';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -146,7 +144,6 @@ export default function LargePropertyManagementPage() {
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   );
 }

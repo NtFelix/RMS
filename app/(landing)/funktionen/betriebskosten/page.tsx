@@ -2,8 +2,6 @@
 
 
 import { Calculator, Droplets, Zap, Flame, FileText, Users, CheckCircle2, ArrowLeft } from 'lucide-react';
-import Navigation from '@/app/modern/components/navigation';
-import Footer from '@/app/modern/components/footer';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -118,7 +116,6 @@ export default function UtilityCostPage() {
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   );
 }
