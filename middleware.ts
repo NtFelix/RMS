@@ -20,20 +20,22 @@ export async function middleware(request: NextRequest) {
 
   // Public routes that don't require authentication
   const publicRoutes = [
-    '/',
-    '/dokumentation',
-    '/dokumentation/.*', // Allow all sub-routes under dokumentation
-    '/auth/.*', // Allow all auth routes
-    '/_next/.*', // Allow Next.js internal routes
-    '/favicon.ico', // Allow favicon
-    '/subscription-locked', // Allow subscription locked page
+    '/', // Homepage
+    '/dokumentation(.*)?', // All dokumentation routes
+    '/auth(.*)?', // All auth routes
+    '/_next(.*)?', // Next.js internal routes
+    '/favicon.ico', // Favicon
+    '/subscription-locked', // Subscription locked page
     '/api/stripe/plans', // Public API route for fetching plans
-    '/api/posthog-config', // Public API route for PostHog configuration
-    '/api/dokumentation', // Allow dokumentation API route
-    '/api/dokumentation/.*', // Allow all dokumentation API routes
-    '/api/ai-assistant', // Allow AI assistant API route
-    '/datenschutz', // Allow access to datenschutz page
-    '/agb', // Allow access to AGB page
+    '/api/posthog-config', // Public API route for PostHog
+    '/api/dokumentation(.*)?', // All dokumentation API routes
+    '/api/ai-assistant', // AI assistant API route
+    '/datenschutz', // Datenschutz page
+    '/agb', // AGB page
+    '/(landing)(/.*)?', // All routes under (landing)
+    '/loesungen(/.*)?', // All routes under loesungen
+    '/funktionen(/.*)?', // All routes under funktionen
+    '/warteliste(/.*)?' // All routes under warteliste
   ]
 
   // If we're already on the login page, don't redirect
