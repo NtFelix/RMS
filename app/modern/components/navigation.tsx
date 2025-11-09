@@ -160,6 +160,16 @@ export default function Navigation({ onLogin }: NavigationProps) {
     }
   };
 
+  const scrollToPricing = () => {
+    const pricingSection = document.getElementById('pricing');
+    if (pricingSection) {
+      pricingSection.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      // If we're not on a page with the pricing section, redirect to home with hash
+      window.location.href = '/#pricing';
+    }
+  };
+
   const handleOpenLoginModal = () => {
     try {
       sessionStorage.removeItem('authIntent');
@@ -432,7 +442,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         Anmelden
                       </Button>
                       <Button
-                        onClick={handleOpenLoginModal}
+                        onClick={scrollToPricing}
                         className="ml-2 px-4 py-2 h-9 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         Kostenlos testen
@@ -548,7 +558,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <Button onClick={handleOpenLoginModal} className="w-full">
                         Anmelden
                       </Button>
-                      <Button variant="outline" onClick={handleOpenLoginModal} className="w-full">
+                      <Button variant="outline" onClick={scrollToPricing} className="w-full">
                         Kostenlos testen
                       </Button>
                     </div>
