@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PlusCircle, Droplets, FileText, X, ChevronDown } from "lucide-react";
+import { PlusCircle, Droplets, ChevronDown, FileText, FileInput, BookDashed, X } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
 
@@ -275,14 +275,14 @@ export default function BetriebskostenClientView({
                     </div>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleOpenPreviousTemplateModal} className="flex items-start py-3">
-                    <Droplets className="mr-3 h-5 w-5 mt-0.5 text-blue-500" />
+                    <FileInput className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
                     <div className="flex-1">
                       <div className="font-medium">Aus letzter Abrechnung</div>
                       <div className="text-xs text-muted-foreground mt-0.5">Kopiert Daten der letzten Abrechnung</div>
                     </div>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleOpenDefaultTemplateModal} className="flex items-start py-3">
-                    <FileText className="mr-3 h-5 w-5 mt-0.5 text-amber-500" />
+                    <BookDashed className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
                     <div className="flex-1">
                       <div className="font-medium">Standard-Vorlage</div>
                       <div className="text-xs text-muted-foreground mt-0.5">Vordefinierte Standardwerte verwenden</div>
@@ -328,14 +328,14 @@ export default function BetriebskostenClientView({
                     </div>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleOpenPreviousTemplateModal} className="flex items-start py-3">
-                    <Droplets className="mr-3 h-5 w-5 mt-0.5 text-blue-500" />
+                    <FileInput className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
                     <div className="flex-1">
                       <div className="font-medium">Aus letzter Abrechnung</div>
                       <div className="text-xs text-muted-foreground mt-0.5">Kopiert Daten der letzten Abrechnung</div>
                     </div>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleOpenDefaultTemplateModal} className="flex items-start py-3">
-                    <FileText className="mr-3 h-5 w-5 mt-0.5 text-amber-500" />
+                    <BookDashed className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
                     <div className="flex-1">
                       <div className="font-medium">Standard-Vorlage</div>
                       <div className="text-xs text-muted-foreground mt-0.5">Vordefinierte Standardwerte verwenden</div>
