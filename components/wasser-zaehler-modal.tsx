@@ -284,7 +284,7 @@ export function WasserZaehlerModal() {
       const originalZaehler = zaehlerList.find(z => z.id === editingId)
       if (originalZaehler) {
         const customIdChanged = editCustomId !== (originalZaehler.custom_id || "")
-        const dateChanged = editEichungsdatum?.toISOString().split('T')[0] !== originalZaehler.eichungsdatum
+        const dateChanged = (editEichungsdatum ? format(editEichungsdatum, 'yyyy-MM-dd') : null) !== originalZaehler.eichungsdatum
         return customIdChanged || dateChanged
       }
     }
