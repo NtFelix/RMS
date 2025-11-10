@@ -427,7 +427,19 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       setWasserkosten("");
       const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
       setHausId(initialHausId);
-      setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+      
+      // Always start with a single empty cost item for new entries
+      if (forNewEntry) {
+        setCostItems([{ 
+          id: generateId(), 
+          art: '', 
+          betrag: '', 
+          berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || 'pro Flaeche' 
+        }]);
+      } else {
+        setCostItems([]);
+      }
+      
       setSelectedHausMieter([]);
       setRechnungen({});
       setIsSaving(false);
@@ -436,8 +448,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       currentlyLoadedNebenkostenId.current = null;
       if (isBetriebskostenModalOpen) setBetriebskostenModalDirty(false);
       
-      // If this is a new entry and we have a default house, fetch its latest data
-      if (forNewEntry && initialHausId) {
+      // Only fetch latest data if this is a new entry with a default house and using a template
+      if (forNewEntry && initialHausId && betriebskostenInitialData?.useTemplate) {
         fetchAndApplyLatestBetriebskosten(initialHausId);
       }
     };
