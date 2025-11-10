@@ -83,6 +83,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const [rechnungen, setRechnungen] = useState<Record<string, RechnungEinzel[]>>({});
   const [isFetchingTenants, setIsFetchingTenants] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [modalNebenkostenData, setModalNebenkostenData] = useState<Nebenkosten | null>(null);
   const currentlyLoadedNebenkostenId = React.useRef<string | null | undefined>(null);
 
@@ -101,6 +102,18 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const hoveredItemElRef = useRef<HTMLElement | null>(null);
   const selectContentRef = useRef<HTMLDivElement | null>(null);
   const [selectContentRect, setSelectContentRect] = useState<DOMRect | null>(null);
+  const templateLoadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isFormLoading = isLoadingDetails || isLoadingTemplate;
+
+  useEffect(() => {
+    return () => {
+      if (templateLoadingTimeoutRef.current) {
+        clearTimeout(templateLoadingTimeoutRef.current);
+        templateLoadingTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const handleItemHover = (e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>, value: BerechnungsartValue) => {
     setHoveredBerechnungsart(value);
@@ -298,27 +311,44 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       }
     ];
 
+    setIsLoadingTemplate(true);
+
+    if (templateLoadingTimeoutRef.current) {
+      clearTimeout(templateLoadingTimeoutRef.current);
+      templateLoadingTimeoutRef.current = null;
+    }
+
     setCostItems(defaultItems);
     setWasserkosten('');
-    
+
     toast({
       title: "Standard-Vorlage geladen",
       description: "Die Standard-Betriebskostenarten wurden geladen. Bitte tragen Sie die entsprechenden Beträge ein.",
       variant: "default",
     });
+
+    templateLoadingTimeoutRef.current = setTimeout(() => {
+      setIsLoadingTemplate(false);
+      templateLoadingTimeoutRef.current = null;
+    }, 300);
   };
 
   // Fetch latest Betriebskosten for a house and update the form
   const fetchAndApplyLatestBetriebskosten = async (hausId: string) => {
     if (!hausId || betriebskostenInitialData?.id) return; // Skip if editing existing
-    
+
     // Check if we should use default template
     if (betriebskostenInitialData?.useTemplate === 'default') {
       setupDefaultCostItems();
       return;
     }
-    
+
     try {
+      setIsLoadingTemplate(true);
+      if (templateLoadingTimeoutRef.current) {
+        clearTimeout(templateLoadingTimeoutRef.current);
+        templateLoadingTimeoutRef.current = null;
+      }
       const response = await getLatestBetriebskostenByHausId(hausId);
       if (response.success && response.data) {
         const latest = response.data;
@@ -368,6 +398,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       }
     } catch (error) {
       console.error("Error fetching latest Betriebskosten:", error);
+    } finally {
+      templateLoadingTimeoutRef.current = setTimeout(() => {
+        setIsLoadingTemplate(false);
+        templateLoadingTimeoutRef.current = null;
+      }, 300);
     }
   };
 
@@ -526,10 +561,10 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   };
 
   useEffect(() => {
-    if (isBetriebskostenModalOpen && !isLoadingDetails) {
+    if (isBetriebskostenModalOpen && !isFormLoading) {
       syncRechnungenState(selectedHausMieter, costItems);
     }
-  }, [selectedHausMieter, costItems, modalNebenkostenData, isBetriebskostenModalOpen, isLoadingDetails]);
+  }, [selectedHausMieter, costItems, modalNebenkostenData, isBetriebskostenModalOpen, isFormLoading]);
 
   const handleSubmit = async () => {
     setIsSaving(true);
@@ -756,7 +791,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
               {betriebskostenInitialData?.id ? "Betriebskosten bearbeiten" : "Neue Betriebskostenabrechnung"}
             </DialogTitle>
             <DialogDescription>
-              {isLoadingDetails ? "Lade Details..." : "Füllen Sie die Details für die Betriebskostenabrechnung aus."}
+              {isFormLoading ? "Daten werden vorbereitet..." : "Füllen Sie die Details für die Betriebskostenabrechnung aus."}
             </DialogDescription>
           </DialogHeader>
           
@@ -768,14 +803,14 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                 <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
                   Haus *
                 </LabelWithTooltip>
-                {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                  <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving} />
+                {isFormLoading ? <Skeleton className="h-10 w-full" /> : (
+                  <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving || isFormLoading} />
                 )}
               </div>
 
               {/* Date Range Selection */}
               <div className="space-y-3">
-                {isLoadingDetails ? (
+                {isFormLoading ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
@@ -787,7 +822,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       endDate={enddatum}
                       onStartDateChange={handleStartdatumChange}
                       onEndDateChange={handleEnddatumChange}
-                      disabled={isSaving}
+                      disabled={isSaving || isFormLoading}
                       showPeriodInfo={false}
                     />
                     
@@ -806,7 +841,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                           setEnddatum(`31.12.${newYear}`);
                           setBetriebskostenModalDirty(true);
                         }}
-                        disabled={isSaving}
+                        disabled={isSaving || isFormLoading}
                         title="Ein Jahr zurück"
                       >
                         <CalendarMinus className="w-4 h-4 mr-2" />
@@ -825,7 +860,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                           setEnddatum(`31.12.${newYear}`);
                           setBetriebskostenModalDirty(true);
                         }}
-                        disabled={isSaving}
+                        disabled={isSaving || isFormLoading}
                         title="Ein Jahr vor"
                       >
                         <CalendarPlus className="w-4 h-4 mr-2" />
@@ -861,8 +896,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                 <LabelWithTooltip htmlFor="formWasserkosten" infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Abrechnungszeitraum.">
                   Wasserkosten (€)
                 </LabelWithTooltip>
-                {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                  <Input id="formWasserkosten" type="number" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving} />
+                {isFormLoading ? <Skeleton className="h-10 w-full" /> : (
+                  <Input id="formWasserkosten" type="number" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving || isFormLoading} />
                 )}
               </div>
             </div>
@@ -870,7 +905,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             <div className="space-y-2">
               <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
               <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 p-3 space-y-3">
-                {isLoadingDetails ? (
+                {isFormLoading ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <div key={`skel-cost-${idx}`} className="flex flex-col gap-2 py-2 border-b last:border-b-0">
                       <div className="flex flex-col sm:flex-row items-start gap-2">
@@ -902,7 +937,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                           selectedHausMieter={selectedHausMieter}
                           rechnungen={rechnungen}
                           isSaving={isSaving}
-                          isLoadingDetails={isLoadingDetails}
+                          isLoadingDetails={isFormLoading}
                           isFetchingTenants={isFetchingTenants}
                           hausId={hausId}
                           onCostItemChange={handleCostItemChange}
@@ -920,7 +955,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                     </SortableContext>
                   </DndContext>
                 )}
-                <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isLoadingDetails || isSaving}>
+                <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isFormLoading || isSaving}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Kostenposition hinzufügen
                 </Button>
@@ -929,11 +964,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
           </div>
 
           <DialogFooter className="px-4">
-            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isLoadingDetails}>
+            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isFormLoading}>
               Abbrechen
             </Button>
-            <Button type="submit" disabled={isSaving || isFetchingTenants}>
-              {isSaving ? "Speichern..." : (isLoadingDetails || isFetchingTenants ? "Laden..." : "Speichern")}
+            <Button type="submit" disabled={isSaving || isFetchingTenants || isFormLoading}>
+              {isSaving ? "Speichern..." : (isFormLoading || isFetchingTenants ? "Laden..." : "Speichern")}
             </Button>
           </DialogFooter>
         </form>
