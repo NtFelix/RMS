@@ -232,11 +232,8 @@ export function WasserAblesenModal() {
       setNewVerbrauch("")
       setNewVerbrauchWarning("")
       
-      // Explicitly clear dirty state after successful save
-      // Use setTimeout to ensure state updates have propagated
-      setTimeout(() => {
-        setWasserAblesenModalDirty(false)
-      }, 0)
+      // The useEffect with hasUnsavedChanges will automatically update the dirty state
+      // when the form state is cleared below
       
       toast({
         title: "Erfolg",
@@ -285,11 +282,8 @@ export function WasserAblesenModal() {
       setEditVerbrauch("")
       setEditVerbrauchWarning("")
       
-      // Explicitly clear dirty state after successful save
-      // Use setTimeout to ensure state updates have propagated
-      setTimeout(() => {
-        setWasserAblesenModalDirty(false)
-      }, 0)
+      // The useEffect with hasUnsavedChanges will automatically update the dirty state
+      // when the form state is cleared below
       
       toast({
         title: "Erfolg",
