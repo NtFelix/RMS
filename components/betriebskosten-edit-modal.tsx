@@ -512,7 +512,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                   
                   // If we have an existing value, use it, otherwise use the value from API or empty string
                   const existingValue = existing ? existing.betrag : 
-                    (itemRechnungen.find(r => r.mieterId === mieter.id)?.betrag || '');
+                    (itemRechnungen.find((r: { mieterId: string }) => r.mieterId === mieter.id)?.betrag || '');
                   
                   return {
                     mieterId: mieter.id,
