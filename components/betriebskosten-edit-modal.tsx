@@ -257,6 +257,40 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     closeBetriebskostenModal({ force: true });
   };
 
+  // Handle body overflow and modal cleanup
+  useEffect(() => {
+    if (!isBetriebskostenModalOpen) {
+      // Cleanup when modal is closed
+      const cleanup = () => {
+        // Remove any modal backdrops
+        const backdrops = document.querySelectorAll('[data-radix-dialog-overlay]');
+        backdrops.forEach(backdrop => {
+          if (backdrop.parentNode) {
+            backdrop.parentNode.removeChild(backdrop);
+          }
+        });
+        
+        // Reset body styles
+        document.body.style.overflow = '';
+        document.body.style.pointerEvents = '';
+      };
+      
+      // Run cleanup after a small delay to allow animations to complete
+      const timer = setTimeout(cleanup, 100);
+      return () => clearTimeout(timer);
+    } else {
+      // Modal is opening
+      document.body.style.overflow = 'hidden';
+      document.body.style.pointerEvents = 'auto';
+    }
+    
+    return () => {
+      // Cleanup function
+      document.body.style.overflow = '';
+      document.body.style.pointerEvents = '';
+    };
+  }, [isBetriebskostenModalOpen]);
+
   // Set up default cost items for a new Betriebskostenabrechnung
   const setupDefaultCostItems = () => {
     const defaultItems: CostItem[] = [
@@ -955,8 +989,18 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     return null;
   }
 
+  // Handle dialog state changes
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      attemptClose();
+    }
+  };
+
   return (
-    <Dialog open={isBetriebskostenModalOpen} onOpenChange={(open) => !open && attemptClose()}>
+    <Dialog 
+      open={isBetriebskostenModalOpen} 
+      onOpenChange={handleOpenChange}
+    >
       <DialogContent
         className="max-w-4xl"
         isDirty={isBetriebskostenModalDirty}
