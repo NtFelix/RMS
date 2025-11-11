@@ -361,12 +361,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       const tenantsResponse = await getMieterByHausIdAction(hausId);
       const currentTenants = tenantsResponse.success ? tenantsResponse.data || [] : [];
       
-      // Update selectedHausMieter state and wait for it to complete
-      await new Promise<void>((resolve) => {
-        setSelectedHausMieter(currentTenants);
-        // Small delay to ensure state is updated
-        setTimeout(resolve, 50);
-      });
+      // Update selectedHausMieter state
+      setSelectedHausMieter(currentTenants);
       
       // Save current rechnungen to preserve values when switching between periods
       const currentRechnungen = { ...rechnungen };
@@ -388,11 +384,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             berechnungsart: normalizeBerechnungsart(latest.berechnungsart?.[idx] || '')
           }));
           
-          // Set the cost items first and wait for state to update
-          await new Promise<void>((resolve) => {
-            setCostItems(items);
-            setTimeout(resolve, 50);
-          });
+          // Set the cost items first
+          setCostItems(items);
           
           // Then set up the rechnungen for 'nach Rechnung' items
           const newRechnungen: Record<string, RechnungEinzel[]> = {};
