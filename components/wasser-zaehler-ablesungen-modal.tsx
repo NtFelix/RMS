@@ -26,8 +26,10 @@ import {
   Search,
   X,
   Loader2,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Home
 } from "lucide-react";
+import { WaterDropletLoader } from "@/components/ui/water-droplet-loader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -37,6 +39,28 @@ interface WasserZaehler {
   wohnung_id: string;
   erstellungsdatum: string;
   eichungsdatum: string | null;
+}
+
+/**
+ * Check if a water meter's calibration date is valid for the given Abrechnung period
+ * A meter is valid if its Eichungsdatum is AFTER the end date of the Abrechnung
+ * (i.e., the calibration is still valid during the entire Abrechnung period)
+ */
+function isCalibrationValid(eichungsdatum: string | null, abrechnungEnddatum: string): boolean {
+  // If no calibration date is set, consider it valid (no expiration)
+  if (!eichungsdatum) return true;
+  
+  // Parse dates
+  const calibrationDate = new Date(eichungsdatum);
+  const abrechnungEnd = new Date(abrechnungEnddatum);
+  
+  // Reset time to compare only dates
+  calibrationDate.setHours(0, 0, 0, 0);
+  abrechnungEnd.setHours(0, 0, 0, 0);
+  
+  // Meter is valid if calibration date is AFTER the Abrechnung end date
+  // This means the meter was still calibrated during the entire Abrechnung period
+  return calibrationDate > abrechnungEnd;
 }
 
 interface Wohnung {
@@ -93,6 +117,7 @@ export function WasserZaehlerAblesenModal({
   const [zaehlerList, setZaehlerList] = useState<WasserZaehlerInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filteredOutCount, setFilteredOutCount] = useState(0);
   const { toast } = useToast();
   const { openWasserAblesenModal } = useModalStore();
 
@@ -115,11 +140,20 @@ export function WasserZaehlerAblesenModal({
 
       const { wohnungen, waterMeters, waterReadings, mieter: allMieter } = result.data;
 
-      // Map meters with their apartment info
-      const allZaehler: (WasserZaehler & { wohnung: Wohnung })[] = waterMeters.map((z: WasserZaehler) => ({
-        ...z,
-        wohnung: wohnungen.find((w: any) => w.id === z.wohnung_id)!
-      }));
+      // Count total meters before filtering
+      const totalMetersCount = waterMeters.length;
+      
+      // Map meters with their apartment info and filter by calibration date
+      const allZaehler: (WasserZaehler & { wohnung: Wohnung })[] = waterMeters
+        .filter((z: WasserZaehler) => isCalibrationValid(z.eichungsdatum, enddatum))
+        .map((z: WasserZaehler) => ({
+          ...z,
+          wohnung: wohnungen.find((w: any) => w.id === z.wohnung_id)!
+        }));
+      
+      // Track how many meters were filtered out
+      const filteredCount = totalMetersCount - allZaehler.length;
+      setFilteredOutCount(filteredCount);
 
       // Group readings by meter
       const readingsResults = allZaehler.map(zaehler => 
@@ -213,6 +247,11 @@ export function WasserZaehlerAblesenModal({
           </DialogTitle>
           <DialogDescription>
             Geben Sie die Zählerstände für jeden Wasserzähler ein. Der Verbrauch wird automatisch berechnet.
+            {filteredOutCount > 0 && (
+              <span className="block mt-2 text-amber-600 dark:text-amber-500 font-medium">
+                ⚠️ {filteredOutCount} Wasserzähler {filteredOutCount === 1 ? 'wurde' : 'wurden'} ausgeblendet, da das Eichungsdatum vor dem Abrechnungszeitraum liegt.
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -239,9 +278,9 @@ export function WasserZaehlerAblesenModal({
           )}
 
           {isLoading ? (
-            <div className="flex flex-col justify-center items-center h-40 gap-3">
-              <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
-              <p className="text-muted-foreground">Lade Wasserzählerdaten...</p>
+            <div className="flex flex-col justify-center items-center h-40 gap-4">
+              <WaterDropletLoader size="md" />
+              <p className="text-sm text-muted-foreground animate-pulse">Lade Wasserzählerdaten...</p>
             </div>
           ) : zaehlerList.length > 0 ? (
             groupedEntries.length === 0 ? (
@@ -264,7 +303,7 @@ export function WasserZaehlerAblesenModal({
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                            <Home className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <div>
                             <h3 className="font-semibold text-base">{wohnungName}</h3>
@@ -387,7 +426,7 @@ export function WasserZaehlerAblesenModal({
             )
           ) : (
             <div className="flex flex-col justify-center items-center h-40 gap-3">
-              <Building2 className="h-12 w-12 text-muted-foreground/50" />
+              <Home className="h-12 w-12 text-muted-foreground/50" />
               <p className="text-muted-foreground">Keine Wasserzähler für dieses Haus gefunden.</p>
             </div>
           )}

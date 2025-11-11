@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Wohnung not found or access denied' }, { status: 404 })
     }
 
-    // Fetch Wasserzähler
-    const { data, error } = await supabase
+    // Fetch Wasserzähler with latest reading
+    const { data: zaehlerData, error } = await supabase
       .from('Wasser_Zaehler')
       .select('*')
       .eq('wohnung_id', wohnungId)
@@ -45,7 +45,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch Wasserzähler' }, { status: 500 })
     }
 
-    return NextResponse.json(data)
+    // Fetch latest reading for each Wasserzähler
+    const zaehlerWithReadings = await Promise.all(
+      zaehlerData.map(async (zaehler) => {
+        const { data: latestReading } = await supabase
+          .from('Wasser_Ablesungen')
+          .select('ablese_datum, zaehlerstand, verbrauch')
+          .eq('wasser_zaehler_id', zaehler.id)
+          .eq('user_id', user.id)
+          .order('ablese_datum', { ascending: false })
+          .limit(1)
+          .single()
+
+        return {
+          ...zaehler,
+          latest_reading: latestReading || null,
+        }
+      })
+    )
+
+    return NextResponse.json(zaehlerWithReadings)
   } catch (error) {
     console.error('Unexpected error in GET /api/wasser-zaehler:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
