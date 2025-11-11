@@ -104,18 +104,9 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const hoveredItemElRef = useRef<HTMLElement | null>(null);
   const selectContentRef = useRef<HTMLDivElement | null>(null);
   const [selectContentRect, setSelectContentRect] = useState<DOMRect | null>(null);
-  const templateLoadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isFormLoading = isLoadingDetails || isLoadingTemplate;
 
-  useEffect(() => {
-    return () => {
-      if (templateLoadingTimeoutRef.current) {
-        clearTimeout(templateLoadingTimeoutRef.current);
-        templateLoadingTimeoutRef.current = null;
-      }
-    };
-  }, []);
 
   const handleItemHover = (e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>, value: BerechnungsartValue) => {
     setHoveredBerechnungsart(value);
@@ -310,17 +301,13 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     }
     
     setRechnungen(initialRechnungen);
+    setIsLoadingTemplate(false);
 
     toast({
       title: "Standard-Vorlage geladen",
       description: "Die Standard-Betriebskostenarten wurden geladen. Bitte tragen Sie die entsprechenden Beträge ein.",
       variant: "default",
     });
-
-    templateLoadingTimeoutRef.current = setTimeout(() => {
-      setIsLoadingTemplate(false);
-      templateLoadingTimeoutRef.current = null;
-    }, 300);
   };
 
   // Helper function to merge rechnungen while preserving existing values
@@ -366,10 +353,6 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
     try {
       setIsLoadingTemplate(true);
-      if (templateLoadingTimeoutRef.current) {
-        clearTimeout(templateLoadingTimeoutRef.current);
-        templateLoadingTimeoutRef.current = null;
-      }
       
       // First, ensure we have the latest tenant data
       const tenantsResponse = await getMieterByHausIdAction(hausId);
@@ -528,10 +511,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         variant: "destructive",
       });
     } finally {
-      templateLoadingTimeoutRef.current = setTimeout(() => {
-        setIsLoadingTemplate(false);
-        templateLoadingTimeoutRef.current = null;
-      }, 300);
+      setIsLoadingTemplate(false);
     }
   };
 
