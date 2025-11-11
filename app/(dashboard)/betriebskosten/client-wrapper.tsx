@@ -2,15 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { PlusCircle, Droplets, ChevronDown, FileText, FileInput, BookDashed, X } from "lucide-react";
+import { Droplets, X } from "lucide-react";
+import { CreateAbrechnungDropdown } from "@/components/abrechnung/create-abrechnung-dropdown";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
 
@@ -256,40 +250,13 @@ export default function BetriebskostenClientView({
               ))}
             </div>
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <ButtonWithTooltip 
-                    className="flex-1"
-                  >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Neue Abrechnung erstellen
-                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                  </ButtonWithTooltip>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[280px]">
-                  <DropdownMenuItem onClick={handleOpenBlankModal} className="flex items-start py-3">
-                    <FileText className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium">Leere Abrechnung</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Mit leeren Feldern beginnen</div>
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenPreviousTemplateModal} className="flex items-start py-3">
-                    <FileInput className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium">Aus letzter Abrechnung</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Kopiert Daten der letzten Abrechnung</div>
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenDefaultTemplateModal} className="flex items-start py-3">
-                    <BookDashed className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium">Standard-Vorlage</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Vordefinierte Standardwerte verwenden</div>
-                    </div>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <CreateAbrechnungDropdown
+                onBlankClick={handleOpenBlankModal}
+                onPreviousClick={handleOpenPreviousTemplateModal}
+                onTemplateClick={handleOpenDefaultTemplateModal}
+                className="flex-1"
+                buttonText="Neue Abrechnung erstellen"
+              />
               <Button 
                 variant="outline" 
                 onClick={scrollToTable}
@@ -311,38 +278,13 @@ export default function BetriebskostenClientView({
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Betriebskostenabrechnungen</p>
             </div>
             <div className="mt-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <ButtonWithTooltip className="sm:w-auto">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Betriebskostenabrechnung erstellen
-                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                  </ButtonWithTooltip>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[280px]">
-                  <DropdownMenuItem onClick={handleOpenBlankModal} className="flex items-start py-3">
-                    <FileText className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium">Leere Abrechnung</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Mit leeren Feldern beginnen</div>
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenPreviousTemplateModal} className="flex items-start py-3">
-                    <FileInput className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium">Aus letzter Abrechnung</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Kopiert Daten der letzten Abrechnung</div>
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenDefaultTemplateModal} className="flex items-start py-3">
-                    <BookDashed className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium">Standard-Vorlage</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Vordefinierte Standardwerte verwenden</div>
-                    </div>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <CreateAbrechnungDropdown
+                onBlankClick={handleOpenBlankModal}
+                onPreviousClick={handleOpenPreviousTemplateModal}
+                onTemplateClick={handleOpenDefaultTemplateModal}
+                buttonText="Betriebskostenabrechnung erstellen"
+                className="sm:w-auto"
+              />
             </div>
           </div>
         </CardHeader>
