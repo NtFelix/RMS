@@ -38,6 +38,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Skeleton } from "./ui/skeleton";
 import { Mieter, Nebenkosten, RechnungSql } from "../lib/data-fetching";
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "../lib/constants";
+import { DEFAULT_COST_ITEMS } from "@/lib/constants/betriebskosten";
+import { generateId } from "@/lib/utils/generate-id";
 import {
   getNebenkostenDetailsAction,
   createNebenkosten, 
@@ -151,8 +153,6 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   }, [hoveredBerechnungsart]);
 
   const houseOptions: ComboboxOption[] = (betriebskostenModalHaeuser || []).map(h => ({ value: h.id, label: h.name }));
-
-  const generateId = () => Math.random().toString(36).substr(2, 9);
 
   const handleRechnungChange = (costItemId: string, mieterId: string, newBetrag: string) => {
     setRechnungen(prevRechnungen => {
@@ -293,85 +293,15 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
   // Set up default cost items for a new Betriebskostenabrechnung
   const setupDefaultCostItems = () => {
-    const defaultItems: CostItem[] = [
-      {
-        id: generateId(),
-        art: 'Grundsteuer',
-        betrag: '',
-        berechnungsart: 'pro Flaeche' as BerechnungsartValue
-      },
-      {
-        id: generateId(),
-        art: 'Gebäudeversicherung',
-        betrag: '',
-        berechnungsart: 'pro Flaeche' as BerechnungsartValue
-      },
-      {
-        id: generateId(),
-        art: 'Müllabfuhr',
-        betrag: '',
-        berechnungsart: 'pro Wohnung' as BerechnungsartValue
-      },
-      {
-        id: generateId(),
-        art: 'Strom Allgemein',
-        betrag: '',
-        berechnungsart: 'pro Flaeche' as BerechnungsartValue
-      },
-      {
-        id: generateId(),
-        art: 'Wartung Heizung',
-        betrag: '',
-        berechnungsart: 'pro Flaeche' as BerechnungsartValue
-      },
-      {
-        id: generateId(),
-        art: 'Gartenpflege',
-        betrag: '',
-        berechnungsart: 'pro Flaeche' as BerechnungsartValue
-      },
-      {
-        id: generateId(),
-        art: 'Hausreinigung',
-        betrag: '',
-        berechnungsart: 'pro Flaeche' as BerechnungsartValue
-      },
-      {
-        id: generateId(),
-        art: 'Schornsteinfeger',
-        betrag: '',
-        berechnungsart: 'pro Wohnung' as BerechnungsartValue
-      },
-      {
-        id: generateId(),
-        art: 'Wartung Aufzug',
-        betrag: '',
-        berechnungsart: 'pro Wohnung' as BerechnungsartValue
-      },
-      {
-        id: generateId(),
-        art: 'Sonstige Betriebskosten',
-        betrag: '',
-        berechnungsart: 'pro Flaeche' as BerechnungsartValue
-      }
-    ];
-
-    setIsLoadingTemplate(true);
-
-    if (templateLoadingTimeoutRef.current) {
-      clearTimeout(templateLoadingTimeoutRef.current);
-      templateLoadingTimeoutRef.current = null;
-    }
-
-    setCostItems(defaultItems);
-    setWasserkosten('');
-
+    // Create a deep copy of the default items to avoid reference issues
+    const defaultItems = JSON.parse(JSON.stringify(DEFAULT_COST_ITEMS)) as CostItem[];
+    
     // Initialize empty rechnungen entries for all items that might use 'nach Rechnung'
     const initialRechnungen: Record<string, RechnungEinzel[]> = {};
     
     // If we have selected tenants, initialize empty entries for them
     if (selectedHausMieter.length > 0) {
-      defaultItems.forEach(item => {
+      defaultItems.forEach((item: CostItem) => {
         initialRechnungen[item.id] = selectedHausMieter.map(mieter => ({
           mieterId: mieter.id,
           betrag: ''
