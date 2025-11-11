@@ -287,6 +287,9 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     // Create a deep copy of the default items to avoid reference issues
     const defaultItems = JSON.parse(JSON.stringify(DEFAULT_COST_ITEMS)) as CostItem[];
     
+    // Set the cost items first
+    setCostItems(defaultItems);
+    
     // Initialize empty rechnungen entries for all items that might use 'nach Rechnung'
     const initialRechnungen: Record<string, RechnungEinzel[]> = {};
     
