@@ -415,10 +415,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                 // Initialize with existing values or empty strings
                 const tenantRechnungen = currentTenants.map(mieter => {
                   // Try to find existing value for this tenant
-                  const existing = Object.values(currentRechnungen)
-                    .flat()
-                    .find(r => r.mieterId === mieter.id && r.betrag && r.betrag.trim() !== '');
-                  
+                  // Only look for existing values in the current cost item's rechnungen
+                  const existing = currentRechnungen[costItemId]?.find(
+                    r => r.mieterId === mieter.id && r.betrag && r.betrag.trim() !== ''
+                  );
+
                   // If we have an existing value, use it, otherwise use the value from API or empty string
                   const existingValue = existing ? existing.betrag : 
                     (itemRechnungen.find((r: { mieterId: string }) => r.mieterId === mieter.id)?.betrag || '');
