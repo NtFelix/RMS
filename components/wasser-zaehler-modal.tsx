@@ -140,11 +140,8 @@ export function WasserZaehlerModal() {
       setNewCustomId("")
       setNewEichungsdatum(undefined)
       
-      // Explicitly clear dirty state after successful save
-      // Use setTimeout to ensure state updates have propagated
-      setTimeout(() => {
-        setWasserZaehlerModalDirty(false)
-      }, 0)
+      // The useEffect with hasUnsavedChanges will automatically update the dirty state
+      // when the form state is cleared above
       
       toast({
         title: "Erfolg",
@@ -190,11 +187,8 @@ export function WasserZaehlerModal() {
       setEditCustomId("")
       setEditEichungsdatum(undefined)
       
-      // Explicitly clear dirty state after successful save
-      // Use setTimeout to ensure state updates have propagated
-      setTimeout(() => {
-        setWasserZaehlerModalDirty(false)
-      }, 0)
+      // The useEffect with hasUnsavedChanges will automatically update the dirty state
+      // when the form state is cleared above
       
       toast({
         title: "Erfolg",
@@ -228,9 +222,11 @@ export function WasserZaehlerModal() {
       }
 
       setZaehlerList((prev) => prev.filter((z) => z.id !== zaehlerToDelete))
-      setDeleteDialogOpen(false)
       setZaehlerToDelete(null)
-      // Don't set dirty state - no unsaved changes after delete
+      setDeleteDialogOpen(false)
+      
+      // The useEffect with hasUnsavedChanges will automatically update the dirty state
+      // when the list is updated
       
       toast({
         title: "Erfolg",
