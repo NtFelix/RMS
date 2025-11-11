@@ -978,17 +978,52 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
   const supabase = await createClient();
   
   try {
-    const { data, error } = await supabase
+    // First, get the latest Nebenkosten ID for the house
+    const { data: latestNebenkosten, error: nebError } = await supabase
       .from("Nebenkosten")
-      .select('*')
+      .select('id')
       .eq('haeuser_id', hausId)
       .order('enddatum', { ascending: false })
       .limit(1)
       .single();
       
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error("Error fetching latest Betriebskosten:", error);
+    if (nebError && nebError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error("Error fetching latest Nebenkosten ID:", nebError);
+      return { success: false, message: nebError.message, data: null };
+    }
+    
+    if (!latestNebenkosten) {
+      return { 
+        success: true, 
+        data: null,
+        message: "No Betriebskosten found for this house"
+      };
+    }
+    
+    // Now fetch the complete data including related Rechnungen
+    const { data, error } = await supabase
+      .from('Nebenkosten')
+      .select(`
+        *,
+        Rechnungen (
+          id,
+          nebenkosten_id,
+          mieter_id,
+          betrag,
+          name
+        )
+      `)
+      .eq('id', latestNebenkosten.id)
+      .single();
+      
+    if (error) {
+      console.error("Error fetching Nebenkosten with Rechnungen:", error);
       return { success: false, message: error.message, data: null };
+    }
+    
+    // Ensure Rechnungen is always an array, even if empty
+    if (data && !data.Rechnungen) {
+      data.Rechnungen = [];
     }
     
     return { 
@@ -998,11 +1033,7 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
     };
   } catch (error) {
     console.error("Unexpected error in getLatestBetriebskostenByHausId:", error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : "An unexpected error occurred",
-      data: null 
-    };
+    return { success: false, message: "An unexpected error occurred", data: null };
   }
 }
 

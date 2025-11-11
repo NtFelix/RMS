@@ -36,7 +36,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Skeleton } from "./ui/skeleton";
-import { Mieter, Nebenkosten } from "../lib/data-fetching";
+import { Mieter, Nebenkosten, RechnungSql } from "../lib/data-fetching";
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "../lib/constants";
 import {
   getNebenkostenDetailsAction,
@@ -194,14 +194,25 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     if (field === 'berechnungsart') {
       if (value === 'nach Rechnung') {
         newCostItems[index].betrag = '';
-        setRechnungen(prevRechnungen => ({
-          ...prevRechnungen,
-          [costItemId]: selectedHausMieter.map(m => ({
-            mieterId: m.id,
-            betrag: prevRechnungen[costItemId]?.find(r => r.mieterId === m.id)?.betrag || '',
-          })),
-        }));
+        
+        // Initialize rechnungen for this cost item with empty values for all tenants
+        setRechnungen(prevRechnungen => {
+          // If we already have rechnungen for this cost item, keep them
+          if (prevRechnungen[costItemId]) {
+            return prevRechnungen;
+          }
+          
+          // Otherwise, initialize with empty values for all selected tenants
+          return {
+            ...prevRechnungen,
+            [costItemId]: selectedHausMieter.map(mieter => ({
+              mieterId: mieter.id,
+              betrag: ''
+            }))
+          };
+        });
       } else if (oldBerechnungsart === 'nach Rechnung' && value !== 'nach Rechnung') {
+        // Only remove the rechnungen if we're changing away from 'nach Rechnung'
         setRechnungen(prevRechnungen => {
           const updatedRechnungen = { ...prevRechnungen };
           delete updatedRechnungen[costItemId];
@@ -253,61 +264,61 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         id: generateId(),
         art: 'Grundsteuer',
         betrag: '',
-        berechnungsart: 'pro Flaeche'
+        berechnungsart: 'pro Flaeche' as BerechnungsartValue
       },
       {
         id: generateId(),
-        art: 'Wasserkosten',
+        art: 'Gebäudeversicherung',
         betrag: '',
-        berechnungsart: 'pro Flaeche'
-      },
-      {
-        id: generateId(),
-        art: 'Heizkosten',
-        betrag: '',
-        berechnungsart: 'pro Flaeche'
-      },
-      {
-        id: generateId(),
-        art: 'Warmwasser',
-        betrag: '',
-        berechnungsart: 'pro Flaeche'
+        berechnungsart: 'pro Flaeche' as BerechnungsartValue
       },
       {
         id: generateId(),
         art: 'Müllabfuhr',
         betrag: '',
-        berechnungsart: 'pro Wohnung'
+        berechnungsart: 'pro Wohnung' as BerechnungsartValue
       },
       {
         id: generateId(),
-        art: 'Gebäudereinigung',
+        art: 'Strom Allgemein',
         betrag: '',
-        berechnungsart: 'pro Wohnung'
+        berechnungsart: 'pro Flaeche' as BerechnungsartValue
+      },
+      {
+        id: generateId(),
+        art: 'Wartung Heizung',
+        betrag: '',
+        berechnungsart: 'pro Flaeche' as BerechnungsartValue
       },
       {
         id: generateId(),
         art: 'Gartenpflege',
         betrag: '',
-        berechnungsart: 'pro Flaeche'
+        berechnungsart: 'pro Flaeche' as BerechnungsartValue
       },
       {
         id: generateId(),
-        art: 'Hausversicherung',
+        art: 'Hausreinigung',
         betrag: '',
-        berechnungsart: 'pro Flaeche'
+        berechnungsart: 'pro Flaeche' as BerechnungsartValue
       },
       {
         id: generateId(),
-        art: 'Aufzugskosten',
+        art: 'Schornsteinfeger',
         betrag: '',
-        berechnungsart: 'pro Wohnung'
+        berechnungsart: 'pro Wohnung' as BerechnungsartValue
+      },
+      {
+        id: generateId(),
+        art: 'Wartung Aufzug',
+        betrag: '',
+        berechnungsart: 'pro Wohnung' as BerechnungsartValue
       },
       {
         id: generateId(),
         art: 'Sonstige Betriebskosten',
         betrag: '',
-        berechnungsart: 'pro Flaeche'
+        berechnungsart: 'pro Flaeche' as BerechnungsartValue
       }
     ];
 
@@ -321,6 +332,21 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     setCostItems(defaultItems);
     setWasserkosten('');
 
+    // Initialize empty rechnungen entries for all items that might use 'nach Rechnung'
+    const initialRechnungen: Record<string, RechnungEinzel[]> = {};
+    
+    // If we have selected tenants, initialize empty entries for them
+    if (selectedHausMieter.length > 0) {
+      defaultItems.forEach(item => {
+        initialRechnungen[item.id] = selectedHausMieter.map(mieter => ({
+          mieterId: mieter.id,
+          betrag: ''
+        }));
+      });
+    }
+    
+    setRechnungen(initialRechnungen);
+
     toast({
       title: "Standard-Vorlage geladen",
       description: "Die Standard-Betriebskostenarten wurden geladen. Bitte tragen Sie die entsprechenden Beträge ein.",
@@ -331,6 +357,37 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       setIsLoadingTemplate(false);
       templateLoadingTimeoutRef.current = null;
     }, 300);
+  };
+
+  // Helper function to merge rechnungen while preserving existing values
+  const mergeRechnungen = (
+    existing: Record<string, RechnungEinzel[]>,
+    newItems: Record<string, RechnungEinzel[]>
+  ): Record<string, RechnungEinzel[]> => {
+    const merged = { ...existing };
+    
+    // For each cost item in new items
+    Object.entries(newItems).forEach(([costItemId, rechnungen]) => {
+      // If we don't have this cost item yet, just add it
+      if (!merged[costItemId]) {
+        merged[costItemId] = [...rechnungen];
+        return;
+      }
+      
+      // Otherwise, merge the rechnungen, preserving existing values when possible
+      const existingRechnungen = merged[costItemId] || [];
+      const existingByMieter = new Map(
+        existingRechnungen.map(r => [r.mieterId, r.betrag])
+      );
+      
+      // Update with new rechnungen, but keep existing values when available
+      merged[costItemId] = rechnungen.map(r => ({
+        mieterId: r.mieterId,
+        betrag: existingByMieter.has(r.mieterId) ? existingByMieter.get(r.mieterId)! : r.betrag
+      }));
+    });
+    
+    return merged;
   };
 
   // Fetch latest Betriebskosten for a house and update the form
@@ -349,45 +406,148 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         clearTimeout(templateLoadingTimeoutRef.current);
         templateLoadingTimeoutRef.current = null;
       }
+      
+      // First, ensure we have the latest tenant data
+      const tenantsResponse = await getMieterByHausIdAction(hausId);
+      const currentTenants = tenantsResponse.success ? tenantsResponse.data || [] : [];
+      
+      // Update selectedHausMieter state and wait for it to complete
+      await new Promise<void>((resolve) => {
+        setSelectedHausMieter(currentTenants);
+        // Small delay to ensure state is updated
+        setTimeout(resolve, 50);
+      });
+      
+      // Save current rechnungen to preserve values when switching between periods
+      const currentRechnungen = { ...rechnungen };
+      
+      // Then fetch the latest Betriebskosten
       const response = await getLatestBetriebskostenByHausId(hausId);
       if (response.success && response.data) {
         const latest = response.data;
         
-        // Set the cost items from the latest entry
-        if (latest.nebenkostenart?.length) {
+        // Process cost items and rechnungen together
+        const processCostItems = async () => {
+          if (!latest.nebenkostenart?.length) return;
+          
+          // First, create all the cost items
           const items = latest.nebenkostenart.map((art: string, idx: number) => ({
             id: generateId(),
             art,
             betrag: latest.berechnungsart?.[idx] === 'nach Rechnung' ? '' : (latest.betrag?.[idx]?.toString() || ''),
             berechnungsart: normalizeBerechnungsart(latest.berechnungsart?.[idx] || '')
           }));
-          setCostItems(items);
           
-          // If there are any 'nach Rechnung' items, set up their rechnungen
+          // Set the cost items first and wait for state to update
+          await new Promise<void>((resolve) => {
+            setCostItems(items);
+            setTimeout(resolve, 50);
+          });
+          
+          // Then set up the rechnungen for 'nach Rechnung' items
+          const newRechnungen: Record<string, RechnungEinzel[]> = {};
+          const rechnungenFromApi = latest.Rechnungen || [];
+          
+          // Create a map of cost item names to their new IDs for easier lookup
+          const costItemMap = new Map<string, string>();
+          items.forEach((item: CostItem) => {
+            costItemMap.set(item.art, item.id);
+          });
+          
+          // Process all 'nach Rechnung' items from the latest entry
           latest.berechnungsart?.forEach((berechnungsart: string, idx: number) => {
-            if (berechnungsart === 'nach Rechnung' && latest.rechnungen) {
-              const costItemId = items[idx]?.id;
-              if (costItemId) {
-                const itemRechnungen = latest.rechnungen
-                  .filter((r: any) => r.nebenkostenart_index === idx)
-                  .map((r: any) => ({
+            if (berechnungsart === 'nach Rechnung') {
+              const costItemArt = latest.nebenkostenart?.[idx];
+              const costItemId = costItemArt ? costItemMap.get(costItemArt) : null;
+              
+              if (costItemId && costItemArt) {
+                // Filter rechnungen for this cost item by name
+                const itemRechnungen = rechnungenFromApi
+                  .filter((r: RechnungSql) => r.name === costItemArt)
+                  .map((r: RechnungSql) => ({
                     mieterId: r.mieter_id,
-                    betrag: r.betrag?.toString() || ''
+                    betrag: r.betrag !== null ? r.betrag.toString() : ''
                   }));
-                if (itemRechnungen.length > 0) {
-                  setRechnungen(prev => ({
-                    ...prev,
-                    [costItemId]: itemRechnungen
-                  }));
-                }
+                
+                // Initialize with existing values or empty strings
+                const tenantRechnungen = currentTenants.map(mieter => {
+                  // Try to find existing value for this tenant
+                  const existing = Object.values(currentRechnungen)
+                    .flat()
+                    .find(r => r.mieterId === mieter.id && r.betrag && r.betrag.trim() !== '');
+                  
+                  // If we have an existing value, use it, otherwise use the value from API or empty string
+                  const existingValue = existing ? existing.betrag : 
+                    (itemRechnungen.find(r => r.mieterId === mieter.id)?.betrag || '');
+                  
+                  return {
+                    mieterId: mieter.id,
+                    betrag: existingValue
+                  };
+                });
+                
+                newRechnungen[costItemId] = tenantRechnungen;
               }
             }
           });
-        }
+          
+          // Ensure all 'nach Rechnung' items have entries in rechnungen
+          items.forEach((item: CostItem) => {
+            if (item.berechnungsart === 'nach Rechnung' && !newRechnungen[item.id] && currentTenants.length > 0) {
+              newRechnungen[item.id] = currentTenants.map(mieter => {
+                // Try to find existing value for this tenant in any cost item
+                const existing = Object.values(currentRechnungen)
+                  .flat()
+                  .find(r => r.mieterId === mieter.id && r.betrag && r.betrag.trim() !== '');
+                
+                return {
+                  mieterId: mieter.id,
+                  betrag: existing ? existing.betrag : ''
+                };
+              });
+            }
+          });
+          
+          // Merge with existing rechnungen to preserve values
+          const mergedRechnungen = mergeRechnungen(currentRechnungen, newRechnungen);
+          
+          // Update the rechnungen state
+          setRechnungen(mergedRechnungen);
+          
+          return items;
+        };
+        
+        // Process cost items and rechnungen
+        await processCostItems();
         
         // Set wasserkosten if available
         if (latest.wasserkosten) {
           setWasserkosten(latest.wasserkosten.toString());
+        }
+        
+        // Set the date range if available
+        if (latest.startdatum || latest.enddatum) {
+          // Format the date to DD.MM.YYYY if it's in a different format
+          const formatDate = (dateString: string | Date | null) => {
+            if (!dateString) return '';
+            
+            try {
+              const date = new Date(dateString);
+              if (isNaN(date.getTime())) return '';
+              
+              const day = String(date.getDate()).padStart(2, '0');
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const year = date.getFullYear();
+              
+              return `${day}.${month}.${year}`;
+            } catch (e) {
+              console.error('Error formatting date:', e);
+              return '';
+            }
+          };
+          
+          setStartdatum(formatDate(latest.startdatum) || '');
+          setEnddatum(formatDate(latest.enddatum) || '');
         }
         
         toast({
@@ -398,6 +558,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       }
     } catch (error) {
       console.error("Error fetching latest Betriebskosten:", error);
+      toast({
+        title: "Fehler",
+        description: "Beim Laden der letzten Nebenkosten ist ein Fehler aufgetreten.",
+        variant: "destructive",
+      });
     } finally {
       templateLoadingTimeoutRef.current = setTimeout(() => {
         setIsLoadingTemplate(false);
