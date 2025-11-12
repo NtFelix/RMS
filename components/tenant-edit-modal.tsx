@@ -17,6 +17,7 @@ import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker imp
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
+import { cn } from "@/lib/utils"; // Import cn utility
 
 interface Mieter extends Tenant {}
 
@@ -345,7 +346,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
               </div>
               <div className="bg-white dark:bg-card rounded-3xl border border-border/50 shadow-sm">
-                <div className={`flex flex-col ${nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]'}`}>
+                <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
                   <div className="p-4 space-y-4">
                     {nebenkostenEntries.length === 0 ? (
                       <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
