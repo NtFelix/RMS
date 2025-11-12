@@ -47,6 +47,9 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([]);
+  
+  // Helper function to generate unique IDs
+  const generateId = () => crypto.randomUUID();
   const [nebenkostenValidationErrors, setNebenkostenValidationErrors] = useState<Record<string, { amount?: string; date?: string }>>({});
 
   const [formData, setFormData] = useState({
@@ -87,7 +90,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       if (tenantInitialData?.nebenkosten) {
         setNebenkostenEntries(getSortedNebenkostenEntries(tenantInitialData.nebenkosten));
       } else {
-        setNebenkostenEntries([]);
+        // Add an empty utility cost entry by default for new tenants
+        setNebenkostenEntries([{ id: generateId(), amount: "", date: "" }]);
       }
       setNebenkostenValidationErrors({});
       setTenantModalDirty(false); // Reset dirty state
@@ -156,7 +160,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   };
 
   const addNebenkostenEntry = () => {
-    const newId = Math.random().toString(36).substr(2, 9);
+    const newId = generateId();
     setNebenkostenEntries(entries => getSortedNebenkostenEntries([...entries, { id: newId, amount: "", date: "" }]));
     setNebenkostenValidationErrors(prev => {
         const newErrors = {...prev}; delete newErrors[newId]; return newErrors;
@@ -174,7 +178,32 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const handleDateChange = (name: 'einzug' | 'auszug', date: Date | undefined) => {
     const formattedDate = date ? format(date, "yyyy-MM-dd") : "";
-    setFormData({ ...formData, [name]: formattedDate });
+    setFormData(prevFormData => {
+      const newFormData = { ...prevFormData, [name]: formattedDate };
+      
+      // If this is the move-in date (einzug) and it's being set (not cleared)
+      if (name === 'einzug' && formattedDate) {
+        setNebenkostenEntries(prevEntries => {
+          // If there are no entries, create one with the move-in date
+          if (prevEntries.length === 0) {
+            return [{ id: generateId(), amount: "", date: formattedDate }];
+          }
+          
+          // Update the first entry's date if it's empty or matches the previous move-in date
+          const firstEntry = prevEntries[0];
+          if (firstEntry && (!firstEntry.date || firstEntry.date === prevFormData.einzug)) {
+            return getSortedNebenkostenEntries([
+              { ...firstEntry, date: formattedDate },
+              ...prevEntries.slice(1)
+            ]);
+          }
+          
+          return prevEntries;
+        });
+      }
+      
+      return newFormData;
+    });
     setTenantModalDirty(true);
   };
 
