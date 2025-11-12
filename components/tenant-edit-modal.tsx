@@ -344,8 +344,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 </h3>
                 <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
               </div>
-              <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm">
-                <div className={`flex flex-col ${nebenkostenEntries.length > 2 ? 'max-h-64 overflow-y-auto' : 'min-h-[128px]'}`}>
+              <div className="bg-white dark:bg-card rounded-3xl border border-border/50 shadow-sm">
+                <div className={`flex flex-col ${nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]'}`}>
                   <div className="p-4 space-y-4">
                     {nebenkostenEntries.map((entry) => (
                       <div key={entry.id} className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
