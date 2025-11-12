@@ -344,36 +344,34 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 </h3>
                 <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
               </div>
-              {nebenkostenEntries.map((entry) => ( // Removed index from map as entry.id is unique
-                <div key={entry.id} className="p-4 border rounded-xl space-y-2 transition-all duration-200 hover:shadow-md hover:border-ring/50">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-grow space-y-1">
-                      <Input
-                        type="number" step="0.01" placeholder="Betrag (€)" value={entry.amount}
-                        onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
-                        className={`flex-grow ${nebenkostenValidationErrors[entry.id]?.amount ? 'border-red-500' : ''}`}
-                        disabled={isSubmitting}
-                      />
-                      {nebenkostenValidationErrors[entry.id]?.amount && (
-                        <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
-                      )}
-                    </div>
-                    <div className="flex-grow space-y-1">
-                      <DatePicker
-                        value={entry.date}
-                        onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
-                        placeholder="Datum (TT.MM.JJJJ)"
-                        className={`${nebenkostenValidationErrors[entry.id]?.date ? '!border-red-500' : ''}`}
-                        disabled={isSubmitting}
-                      />
-                      {nebenkostenValidationErrors[entry.id]?.date && (
-                        <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.date}</p>
-                      )}
-                    </div>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeNebenkostenEntry(entry.id)} disabled={isSubmitting} className="self-start">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+              {nebenkostenEntries.map((entry) => (
+                <div key={entry.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded-full transition-colors hover:bg-muted/50">
+                  <div className="flex-grow space-y-1">
+                    <Input
+                      type="number" step="0.01" placeholder="Betrag (€)" value={entry.amount}
+                      onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
+                      className={`flex-grow ${nebenkostenValidationErrors[entry.id]?.amount ? 'border-red-500' : ''}`}
+                      disabled={isSubmitting}
+                    />
+                    {nebenkostenValidationErrors[entry.id]?.amount && (
+                      <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
+                    )}
                   </div>
+                  <div className="flex-grow space-y-1">
+                    <DatePicker
+                      value={entry.date}
+                      onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
+                      placeholder="Datum (TT.MM.JJJJ)"
+                      className={`${nebenkostenValidationErrors[entry.id]?.date ? '!border-red-500' : ''}`}
+                      disabled={isSubmitting}
+                    />
+                    {nebenkostenValidationErrors[entry.id]?.date && (
+                      <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.date}</p>
+                    )}
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeNebenkostenEntry(entry.id)} disabled={isSubmitting} className="self-start">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
               <Button type="button" variant="outline" size="sm" onClick={addNebenkostenEntry} disabled={isSubmitting}>
