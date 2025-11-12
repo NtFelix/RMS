@@ -47,6 +47,9 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([]);
+  
+  // Helper function to generate unique IDs
+  const generateId = () => crypto.randomUUID();
   const [nebenkostenValidationErrors, setNebenkostenValidationErrors] = useState<Record<string, { amount?: string; date?: string }>>({});
 
   const [formData, setFormData] = useState({
@@ -88,8 +91,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         setNebenkostenEntries(getSortedNebenkostenEntries(tenantInitialData.nebenkosten));
       } else {
         // Add an empty utility cost entry by default for new tenants
-        const newId = Math.random().toString(36).substr(2, 9);
-        setNebenkostenEntries([{ id: newId, amount: "", date: "" }]);
+        setNebenkostenEntries([{ id: generateId(), amount: "", date: "" }]);
       }
       setNebenkostenValidationErrors({});
       setTenantModalDirty(false); // Reset dirty state
@@ -158,7 +160,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   };
 
   const addNebenkostenEntry = () => {
-    const newId = Math.random().toString(36).substr(2, 9);
+    const newId = generateId();
     setNebenkostenEntries(entries => getSortedNebenkostenEntries([...entries, { id: newId, amount: "", date: "" }]));
     setNebenkostenValidationErrors(prev => {
         const newErrors = {...prev}; delete newErrors[newId]; return newErrors;
@@ -184,8 +186,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         setNebenkostenEntries(prevEntries => {
           // If there are no entries, create one with the move-in date
           if (prevEntries.length === 0) {
-            const newId = Math.random().toString(36).substr(2, 9);
-            return [{ id: newId, amount: "", date: formattedDate }];
+            return [{ id: generateId(), amount: "", date: formattedDate }];
           }
           
           // Update the first entry's date if it's empty or matches the previous move-in date
