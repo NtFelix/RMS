@@ -17,6 +17,7 @@ import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker imp
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
+import { cn } from "@/lib/utils"; // Import cn utility
 
 interface Mieter extends Tenant {}
 
@@ -366,48 +367,75 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               </div>
               <Input id="notiz" name="notiz" value={formData.notiz} onChange={handleChange} disabled={isSubmitting}/>
             </div>
-            <div className="col-span-2 space-y-2">
+            <div className="col-span-2 space-y-3">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Nebenkosten Vorauszahlungen
                 </h3>
                 <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
               </div>
-              {nebenkostenEntries.map((entry) => ( // Removed index from map as entry.id is unique
-                <div key={entry.id} className="p-4 border rounded-xl space-y-2 transition-all duration-200 hover:shadow-md hover:border-ring/50">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-grow space-y-1">
-                      <Input
-                        type="number" step="0.01" placeholder="Betrag (€)" value={entry.amount}
-                        onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
-                        className={`flex-grow ${nebenkostenValidationErrors[entry.id]?.amount ? 'border-red-500' : ''}`}
-                        disabled={isSubmitting}
-                      />
-                      {nebenkostenValidationErrors[entry.id]?.amount && (
-                        <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
-                      )}
-                    </div>
-                    <div className="flex-grow space-y-1">
-                      <DatePicker
-                        value={entry.date}
-                        onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
-                        placeholder="Datum (TT.MM.JJJJ)"
-                        className={`${nebenkostenValidationErrors[entry.id]?.date ? '!border-red-500' : ''}`}
-                        disabled={isSubmitting}
-                      />
-                      {nebenkostenValidationErrors[entry.id]?.date && (
-                        <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.date}</p>
-                      )}
-                    </div>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeNebenkostenEntry(entry.id)} disabled={isSubmitting} className="self-start">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+              <div className="bg-white dark:bg-card rounded-3xl border border-border/50 shadow-sm">
+                <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
+                  <div className="p-4 space-y-4">
+                    {nebenkostenEntries.length === 0 ? (
+                      <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
+                        Keine Nebenkosten-Vorauszahlungen vorhanden
+                      </div>
+                    ) : nebenkostenEntries.map((entry) => (
+                      <div key={entry.id} className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
+                        <div className="space-y-1">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Betrag (€)"
+                            value={entry.amount}
+                            onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
+                            className={`${nebenkostenValidationErrors[entry.id]?.amount ? 'border-red-500' : ''}`}
+                            disabled={isSubmitting}
+                          />
+                          {nebenkostenValidationErrors[entry.id]?.amount && (
+                            <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <DatePicker
+                            value={entry.date}
+                            onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
+                            placeholder="Datum (TT.MM.JJJJ)"
+                            className={`${nebenkostenValidationErrors[entry.id]?.date ? '!border-red-500' : ''}`}
+                            disabled={isSubmitting}
+                          />
+                          {nebenkostenValidationErrors[entry.id]?.date && (
+                            <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.date}</p>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeNebenkostenEntry(entry.id)}
+                          disabled={isSubmitting}
+                          className="justify-self-end"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" onClick={addNebenkostenEntry} disabled={isSubmitting}>
-                Eintrag hinzufügen
-              </Button>
+                <div className="border-t border-border/40 p-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addNebenkostenEntry}
+                    disabled={isSubmitting}
+                    className="w-full mt-1"
+                  >
+                    Eintrag hinzufügen
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
