@@ -345,7 +345,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
               </div>
               <div className="bg-white dark:bg-card p-4 rounded-2xl shadow-sm border border-border/50">
-                <div className={`space-y-2 ${nebenkostenEntries.length > 2 ? 'max-h-64 overflow-y-auto pr-2' : ''}`}>
+                <div className={`space-y-2 ${nebenkostenEntries.length > 2 ? 'max-h-64 overflow-y-auto pr-2' : 'min-h-[120px]'}`}>
                   {nebenkostenEntries.map((entry) => (
                     <div key={entry.id} className="flex items-center gap-2 p-2 rounded-lg">
                       <div className="flex-grow space-y-1">
@@ -386,7 +386,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                       </Button>
                     </div>
                   ))}
-                  <div className="sticky bottom-0 bg-white dark:bg-card pt-2 -mx-2 px-2">
+                  <div className={`${nebenkostenEntries.length > 2 ? 'sticky bottom-0 bg-white dark:bg-card pt-2 -mx-2 px-2' : 'pt-2'}`}>
                     <Button 
                       type="button" 
                       variant="outline" 
