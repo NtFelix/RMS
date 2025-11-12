@@ -87,7 +87,9 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       if (tenantInitialData?.nebenkosten) {
         setNebenkostenEntries(getSortedNebenkostenEntries(tenantInitialData.nebenkosten));
       } else {
-        setNebenkostenEntries([]);
+        // Add an empty utility cost entry by default for new tenants
+        const newId = Math.random().toString(36).substr(2, 9);
+        setNebenkostenEntries([{ id: newId, amount: "", date: "" }]);
       }
       setNebenkostenValidationErrors({});
       setTenantModalDirty(false); // Reset dirty state
@@ -179,17 +181,24 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       
       // If this is the move-in date (einzug) and it's being set (not cleared)
       if (name === 'einzug' && formattedDate) {
-        // If there are no nebenkosten entries, add one with the move-in date
-        if (nebenkostenEntries.length === 0) {
-          const newId = Math.random().toString(36).substr(2, 9);
-          setNebenkostenEntries([{ id: newId, amount: "", date: formattedDate }]);
-        } 
-        // If there are entries but the first one doesn't have a date, update it
-        else if (nebenkostenEntries[0] && !nebenkostenEntries[0].date) {
-          const updatedEntries = [...nebenkostenEntries];
-          updatedEntries[0] = { ...updatedEntries[0], date: formattedDate };
-          setNebenkostenEntries(updatedEntries);
-        }
+        setNebenkostenEntries(prevEntries => {
+          // If there are no entries, create one with the move-in date
+          if (prevEntries.length === 0) {
+            const newId = Math.random().toString(36).substr(2, 9);
+            return [{ id: newId, amount: "", date: formattedDate }];
+          }
+          
+          // Update the first entry's date if it's empty or matches the previous move-in date
+          const firstEntry = prevEntries[0];
+          if (firstEntry && (!firstEntry.date || firstEntry.date === prevFormData.einzug)) {
+            return [
+              { ...firstEntry, date: formattedDate },
+              ...prevEntries.slice(1)
+            ];
+          }
+          
+          return prevEntries;
+        });
       }
       
       return newFormData;
