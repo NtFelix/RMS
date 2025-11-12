@@ -174,7 +174,26 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const handleDateChange = (name: 'einzug' | 'auszug', date: Date | undefined) => {
     const formattedDate = date ? format(date, "yyyy-MM-dd") : "";
-    setFormData({ ...formData, [name]: formattedDate });
+    setFormData(prevFormData => {
+      const newFormData = { ...prevFormData, [name]: formattedDate };
+      
+      // If this is the move-in date (einzug) and it's being set (not cleared)
+      if (name === 'einzug' && formattedDate) {
+        // If there are no nebenkosten entries, add one with the move-in date
+        if (nebenkostenEntries.length === 0) {
+          const newId = Math.random().toString(36).substr(2, 9);
+          setNebenkostenEntries([{ id: newId, amount: "", date: formattedDate }]);
+        } 
+        // If there are entries but the first one doesn't have a date, update it
+        else if (nebenkostenEntries[0] && !nebenkostenEntries[0].date) {
+          const updatedEntries = [...nebenkostenEntries];
+          updatedEntries[0] = { ...updatedEntries[0], date: formattedDate };
+          setNebenkostenEntries(updatedEntries);
+        }
+      }
+      
+      return newFormData;
+    });
     setTenantModalDirty(true);
   };
 
