@@ -513,9 +513,13 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   };
 
   // Handle house selection change
-  const handleHausIdChange = (newHausId: string) => {
+  const handleHausIdChange = (newHausId: string | null) => {
+    if (newHausId === null) {
+      setHausId('');
+      return;
+    }
     setHausId(newHausId);
-    if (newHausId && !betriebskostenInitialData?.id) {
+    if (!betriebskostenInitialData?.id) {
       fetchAndApplyLatestBetriebskosten(newHausId);
     }
   };
@@ -932,7 +936,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                   Haus *
                 </LabelWithTooltip>
                 {isFormLoading ? <Skeleton className="h-10 w-full" /> : (
-                  <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving || isFormLoading} />
+                  <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausIdChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving || isFormLoading} />
                 )}
               </div>
 
