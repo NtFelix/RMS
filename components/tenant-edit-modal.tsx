@@ -192,10 +192,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           // Update the first entry's date if it's empty or matches the previous move-in date
           const firstEntry = prevEntries[0];
           if (firstEntry && (!firstEntry.date || firstEntry.date === prevFormData.einzug)) {
-            return [
+            return getSortedNebenkostenEntries([
               { ...firstEntry, date: formattedDate },
               ...prevEntries.slice(1)
-            ];
+            ]);
           }
           
           return prevEntries;
