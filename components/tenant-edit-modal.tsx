@@ -347,7 +347,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               <div className="bg-white dark:bg-card rounded-3xl border border-border/50 shadow-sm">
                 <div className={`flex flex-col ${nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]'}`}>
                   <div className="p-4 space-y-4">
-                    {nebenkostenEntries.map((entry) => (
+                    {nebenkostenEntries.length === 0 ? (
+                      <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
+                        Keine Nebenkosten-Vorauszahlungen vorhanden
+                      </div>
+                    ) : nebenkostenEntries.map((entry) => (
                       <div key={entry.id} className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
                         <div className="space-y-1">
                           <Input
