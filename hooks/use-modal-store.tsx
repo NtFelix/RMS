@@ -231,7 +231,10 @@ export interface ModalState {
 
   // Betriebskosten Modal State
   isBetriebskostenModalOpen: boolean;
-  betriebskostenInitialData?: any; // Replace 'any' with Nebenkosten | { id: string } | null
+  betriebskostenInitialData?: {
+    id?: string;
+    useTemplate?: 'previous' | 'default';
+  } | null;
   betriebskostenModalHaeuser: any[]; // Replace 'any' with Haus[]
   betriebskostenModalOnSuccess?: () => void; // Adjust if it needs to pass data
   isBetriebskostenModalDirty: boolean;
@@ -663,7 +666,7 @@ export const useModalStore = create<ModalState>((set, get) => {
     setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
 
     // Betriebskosten Modal
-    openBetriebskostenModal: (initialData, haeuser, onSuccess) => set({
+    openBetriebskostenModal: (initialData: { id?: string; useTemplate?: 'previous' | 'default' } | null, haeuser, onSuccess) => set({
       isBetriebskostenModalOpen: true,
       betriebskostenInitialData: initialData,
       betriebskostenModalHaeuser: haeuser || [],

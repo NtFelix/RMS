@@ -967,6 +967,76 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
  * @see {@link docs/database-functions.md#get_wasserzaehler_modal_data} Database function documentation
  * @see {@link components/wasserzaehler-modal.tsx} Modal component that consumes this data
  */
+/**
+ * Fetches the most recent Betriebskosten entry for a specific house
+ * @param hausId The ID of the house to get the latest Betriebskosten for
+ * @returns The latest Betriebskosten entry or null if none exists
+ */
+export async function getLatestBetriebskostenByHausId(hausId: string) {
+  "use server";
+  
+  const supabase = await createClient();
+  
+  try {
+    // First, get the latest Nebenkosten ID for the house
+    const { data: latestNebenkosten, error: nebError } = await supabase
+      .from("Nebenkosten")
+      .select('id')
+      .eq('haeuser_id', hausId)
+      .order('enddatum', { ascending: false })
+      .limit(1)
+      .single();
+      
+    if (nebError && nebError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error("Error fetching latest Nebenkosten ID:", nebError);
+      return { success: false, message: nebError.message, data: null };
+    }
+    
+    if (!latestNebenkosten) {
+      return { 
+        success: true, 
+        data: null,
+        message: "No Betriebskosten found for this house"
+      };
+    }
+    
+    // Now fetch the complete data including related Rechnungen
+    const { data, error } = await supabase
+      .from('Nebenkosten')
+      .select(`
+        *,
+        Rechnungen (
+          id,
+          nebenkosten_id,
+          mieter_id,
+          betrag,
+          name
+        )
+      `)
+      .eq('id', latestNebenkosten.id)
+      .single();
+      
+    if (error) {
+      console.error("Error fetching Nebenkosten with Rechnungen:", error);
+      return { success: false, message: error.message, data: null };
+    }
+    
+    // Ensure Rechnungen is always an array, even if empty
+    if (data && !data.Rechnungen) {
+      data.Rechnungen = [];
+    }
+    
+    return { 
+      success: true, 
+      data: data || null,
+      message: data ? "Latest Betriebskosten found" : "No Betriebskosten found for this house"
+    };
+  } catch (error) {
+    console.error("Unexpected error in getLatestBetriebskostenByHausId:", error);
+    return { success: false, message: "An unexpected error occurred", data: null };
+  }
+}
+
 export async function getWasserzaehlerModalDataAction(
   nebenkostenId: string
 ): Promise<OptimizedActionResponse<WasserzaehlerModalData[]>> {
