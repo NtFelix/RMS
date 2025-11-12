@@ -248,37 +248,60 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     closeBetriebskostenModal({ force: true });
   };
 
-  // Handle body overflow and modal cleanup
   useEffect(() => {
-    if (!isBetriebskostenModalOpen) {
-      // Cleanup when modal is closed
-      const cleanup = () => {
-        // Remove any modal backdrops
-        const backdrops = document.querySelectorAll('[data-radix-dialog-overlay]');
-        backdrops.forEach(backdrop => {
-          if (backdrop.parentNode) {
-            backdrop.parentNode.removeChild(backdrop);
-          }
-        });
+    // Calculate scrollbar width and set it as a CSS variable
+    const calculateScrollbarWidth = () => {
+      const scrollDiv = document.createElement('div');
+      scrollDiv.style.overflow = 'scroll';
+      scrollDiv.style.visibility = 'hidden';
+      scrollDiv.style.position = 'absolute';
+      document.body.appendChild(scrollDiv);
+      const width = scrollDiv.offsetWidth - scrollDiv.clientWidth;
+      document.body.removeChild(scrollDiv);
+      return width;
+    };
+
+    // Set the scrollbar width as a CSS variable
+    const scrollbarWidth = calculateScrollbarWidth();
+    document.documentElement.style.setProperty('--scrollbar-width', `${scrollbarWidth}px`);
+
+    // Handle body class and styles
+    const handleBodyStyles = (isOpen: boolean) => {
+      if (isOpen) {
+        // Add class to body to prevent scrolling
+        document.body.classList.add('modal-open');
         
-        // Reset body styles
-        document.body.style.overflow = '';
-        document.body.style.pointerEvents = '';
-      };
-      
-      // Run cleanup after a small delay to allow animations to complete
-      const timer = setTimeout(cleanup, 100);
-      return () => clearTimeout(timer);
-    } else {
-      // Modal is opening
-      document.body.style.overflow = 'hidden';
-      document.body.style.pointerEvents = 'auto';
-    }
-    
+        // Calculate and set padding to prevent layout shift
+        const scrollY = window.scrollY;
+        document.body.style.setProperty('--scroll-y', `${scrollY}px`);
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
+      } else {
+        // Remove modal-open class and reset styles
+        document.body.classList.remove('modal-open');
+        
+        // Restore scroll position
+        const scrollY = document.body.style.getPropertyValue('--scroll-y');
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        
+        if (scrollY) {
+          window.scrollTo(0, parseInt(scrollY, 10));
+        }
+      }
+    };
+
+    // Apply initial styles
+    handleBodyStyles(isBetriebskostenModalOpen);
+
+    // Cleanup function
     return () => {
-      // Cleanup function
-      document.body.style.overflow = '';
-      document.body.style.pointerEvents = '';
+      // Ensure we clean up in case the component unmounts while modal is open
+      if (isBetriebskostenModalOpen) {
+        handleBodyStyles(false);
+      }
     };
   }, [isBetriebskostenModalOpen]);
 

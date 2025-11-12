@@ -7,6 +7,29 @@
 
 body {
   font-family: Arial, Helvetica, sans-serif;
+  transition: padding-right 0.3s ease-out;
+}
+
+/* Modal open state */
+body.modal-open {
+  overflow: hidden;
+  padding-right: var(--scrollbar-width, 0);
+}
+
+/* Ensure Radix UI dialogs are properly stacked */
+[data-radix-dialog-overlay] {
+  z-index: 50;
+}
+
+[data-radix-dialog-content] {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Smooth scrolling for the dialog content */
+[data-radix-dialog-content] {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 @layer utilities {
