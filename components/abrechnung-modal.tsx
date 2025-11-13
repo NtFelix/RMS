@@ -1191,61 +1191,22 @@ export function AbrechnungModal({
             )}
             onZipClick={async () => {
               try {
+                if (!calculateCostsForTenant) {
+                  toast({
+                    title: "Fehler",
+                    description: "Kostenberechnung konnte nicht initialisiert werden.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+
                 // Always use all tenants for ZIP export, not just the filtered/selected ones
                 const allTenants = tenants || [];
                 
-                // Map the tenant data to the expected type
-                const tenantCosts = allTenants.map(tenant => {
-                  // Get the Wohnung for this tenant
-                  const apartment = tenant.Wohnungen || { name: '', groesse: 0 };
-                  
-                  // Find the calculated data for this tenant
-                  const calculatedData = calculatedTenantData.find(t => t.tenantId === tenant.id);
-                  
-                  // Calculate occupancy
-                  const occupancy = calculateOccupancy(
-                    tenant.einzug, 
-                    tenant.auszug, 
-                    nebenkostenItem?.startdatum || '', 
-                    nebenkostenItem?.enddatum || ''
-                  );
-                  
-                  // Get the tenant's cost items from the calculated data if available
-                  const costItems = calculatedData?.costItems?.map(item => ({
-                    costName: item.costName,
-                    totalCostForItem: item.totalCostForItem,
-                    calculationType: item.calculationType,
-                    tenantShare: item.tenantShare,
-                    pricePerSqm: item.pricePerSqm,
-                    verteiler: item.verteiler
-                  })) || [];
-                  
-                  // Create the tenant cost details object
-                  const tenantCost: TenantCostDetails = {
-                    tenantId: tenant.id,
-                    tenantName: tenant.name || 'Unbekannter Mieter',
-                    apartmentId: tenant.wohnung_id || '',
-                    apartmentName: apartment?.name || 'Unbekannte Wohnung',
-                    apartmentSize: apartment?.groesse || 0,
-                    costItems: costItems,
-                    waterCost: {
-                      totalWaterCostOverall: calculatedData?.waterCost?.totalWaterCostOverall || 0,
-                      calculationType: calculatedData?.waterCost?.calculationType || 'pro Fläche',
-                      tenantShare: calculatedData?.waterCost?.tenantShare || 0,
-                      consumption: calculatedData?.waterCost?.consumption
-                    },
-                    totalTenantCost: calculatedData?.totalTenantCost || 0,
-                    vorauszahlungen: calculatedData?.vorauszahlungen || 0,
-                    monthlyVorauszahlungen: calculatedData?.monthlyVorauszahlungen || [],
-                    finalSettlement: calculatedData?.finalSettlement || 0,
-                    occupancyPercentage: occupancy.percentage,
-                    daysOccupied: occupancy.daysOccupied,
-                    daysInBillingPeriod: occupancy.daysInPeriod,
-                    recommendedPrepayment: calculatedData?.recommendedPrepayment
-                  };
-                  
-                  return tenantCost;
-                });
+                // Calculate costs for all tenants using the memoized function
+                const tenantCosts = allTenants.map(tenant => 
+                  calculateCostsForTenant(tenant, pricePerCubicMeter)
+                );
                 
                 await handleExportOperation(
                   () => generateSettlementZIP(tenantCosts, nebenkostenItem!, ownerName, ownerAddress),
