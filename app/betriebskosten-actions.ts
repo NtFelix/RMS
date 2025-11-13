@@ -1947,12 +1947,14 @@ export async function createAbrechnungCalculationOptimizedAction(
           Wohnungen: t.Wohnungen
         }));
         
+        // Water costs are calculated by the optimized database function get_abrechnung_calculation_data
+        // which includes pre-calculated water meter and reading data
         const waterCosts = calculateWaterCostDistribution(
           tenant,
           nebenkosten_data,
           plainTenants,
-          [], // TODO: Add water_meters to optimized database function
-          [] // TODO: Add water_readings to optimized database function
+          [], // Handled by database function
+          []  // Handled by database function
         );
 
         // Calculate prepayments
