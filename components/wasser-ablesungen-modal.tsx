@@ -162,6 +162,19 @@ export function WasserAblesenModal() {
     }
   }
 
+  // Find the most recent reading before the specified date
+  const findPreviousReading = (date: Date, currentId: string) => {
+    // Get all readings that are before the specified date and not the current reading
+    const readingsBeforeDate = ablesenList.filter(a => 
+      a.id !== currentId && 
+      a.ablese_datum && 
+      new Date(a.ablese_datum) < date
+    )
+    
+    // The list is already sorted descending, so the first element is the most recent one before our date
+    return readingsBeforeDate[0] || null
+  }
+
   // Smart calculation for editing
   const handleEditZaehlerstandChange = (value: string, currentAblesung: WasserAblesung) => {
     setEditZaehlerstand(value)
@@ -173,20 +186,14 @@ export function WasserAblesenModal() {
       return
     }
 
-    // Find the reading that is chronologically right before the new date
-    const newDate = editAbleseDatum ? new Date(editAbleseDatum) : (currentAblesung.ablese_datum ? new Date(currentAblesung.ablese_datum) : new Date())
+    // Use the current date in the form or the original reading's date
+    const currentDate = editAbleseDatum || 
+                       (currentAblesung.ablese_datum ? new Date(currentAblesung.ablese_datum) : new Date())
     
-    // Get all readings that are before the new date and not the current reading
-    const readingsBeforeNewDate = ablesenList.filter(a => 
-      a.id !== currentAblesung.id && 
-      a.ablese_datum && 
-      new Date(a.ablese_datum) < newDate
-    )
+    // Find the previous reading based on the current date
+    const previousReading = findPreviousReading(currentDate, currentAblesung.id)
     
-    // The list is already sorted descending, so the first element of the filtered list is the most recent one before our date
-    const previousReading = readingsBeforeNewDate[0] || null
-    
-    if (previousReading && previousReading.zaehlerstand !== null) {
+    if (previousReading?.zaehlerstand !== null && previousReading?.zaehlerstand !== undefined) {
       const consumption = currentReading - previousReading.zaehlerstand
       setEditVerbrauch(consumption.toFixed(2))
       
@@ -381,12 +388,41 @@ export function WasserAblesenModal() {
   const handleEditDateChange = (date: Date | undefined, currentAblesung: WasserAblesung) => {
     setEditAbleseDatum(date)
     
-    // Only recalculate if we have a zaehlerstand value
-    if (editZaehlerstand) {
-      // Use a small timeout to ensure state is updated before recalculating
-      setTimeout(() => {
-        handleEditZaehlerstandChange(editZaehlerstand, currentAblesung)
-      }, 0)
+    // Only recalculate if we have a zaehlerstand value and a valid date
+    if (editZaehlerstand && date) {
+      // Find the previous reading based on the new date
+      const previousReading = findPreviousReading(date, currentAblesung.id)
+      
+      // If we have a previous reading, recalculate the consumption
+      if (previousReading?.zaehlerstand !== null && previousReading?.zaehlerstand !== undefined) {
+        const currentReading = parseFloat(editZaehlerstand)
+        if (!isNaN(currentReading)) {
+          const consumption = currentReading - previousReading.zaehlerstand
+          setEditVerbrauch(consumption.toFixed(2))
+          
+          // Update warnings if needed
+          if (consumption < 0) {
+            setEditVerbrauchWarning("error|Negativer Verbrauch - Zählerstand ist niedriger als vorherige Ablesung")
+          } else if (previousReading.verbrauch > 0) {
+            const changePercent = ((consumption - previousReading.verbrauch) / previousReading.verbrauch) * 100
+            if (changePercent > 50) {
+              setEditVerbrauchWarning(`warning|Verbrauch ist ${changePercent.toFixed(0)}% höher als vorherige Ablesung (${previousReading.verbrauch} m³)`)
+            } else if (changePercent < -50) {
+              setEditVerbrauchWarning(`info|Verbrauch ist ${Math.abs(changePercent).toFixed(0)}% niedriger als vorherige Ablesung (${previousReading.verbrauch} m³)`)
+            } else {
+              setEditVerbrauchWarning("")
+            }
+          } else if (consumption > 1000) {
+            setEditVerbrauchWarning("warning|Sehr hoher Verbrauch - bitte überprüfen")
+          } else {
+            setEditVerbrauchWarning("")
+          }
+        }
+      } else {
+        // No previous reading found, clear the consumption
+        setEditVerbrauch("")
+        setEditVerbrauchWarning("")
+      }
     }
   }
 
