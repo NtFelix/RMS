@@ -79,6 +79,7 @@ export function WasserAblesenModal() {
   const [editZaehlerstand, setEditZaehlerstand] = React.useState("")
   const [editVerbrauch, setEditVerbrauch] = React.useState("")
   const [editVerbrauchWarning, setEditVerbrauchWarning] = React.useState("")
+  const [currentAblesung, setCurrentAblesung] = React.useState<WasserAblesung | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [ablesenToDelete, setAblesenToDelete] = React.useState<string | null>(null)
 
@@ -172,9 +173,18 @@ export function WasserAblesenModal() {
       return
     }
 
-    // Find the previous reading (next in the sorted list)
-    const currentIndex = ablesenList.findIndex(a => a.id === currentAblesung.id)
-    const previousReading = currentIndex < ablesenList.length - 1 ? ablesenList[currentIndex + 1] : null
+    // Find the reading that is chronologically right before the new date
+    const newDate = editAbleseDatum ? new Date(editAbleseDatum) : (currentAblesung.ablese_datum ? new Date(currentAblesung.ablese_datum) : new Date())
+    
+    // Get all readings that are before the new date and not the current reading
+    const readingsBeforeNewDate = ablesenList.filter(a => 
+      a.id !== currentAblesung.id && 
+      a.ablese_datum && 
+      new Date(a.ablese_datum) < newDate
+    )
+    
+    // The list is already sorted descending, so the first element of the filtered list is the most recent one before our date
+    const previousReading = readingsBeforeNewDate[0] || null
     
     if (previousReading && previousReading.zaehlerstand !== null) {
       const consumption = currentReading - previousReading.zaehlerstand
@@ -273,14 +283,25 @@ export function WasserAblesenModal() {
       }
 
       const updatedAblesung = await response.json()
-      setAblesenList((prev) =>
-        prev.map((a) => (a.id === id ? updatedAblesung : a))
-      )
+      
+      // Update the list with the updated reading and re-sort by date
+      setAblesenList((prev) => {
+        const updatedList = prev.map((a) => (a.id === id ? updatedAblesung : a))
+        
+        // Sort by date descending (newest first)
+        return updatedList.sort((a, b) => {
+          const dateA = a.ablese_datum ? new Date(a.ablese_datum).getTime() : 0
+          const dateB = b.ablese_datum ? new Date(b.ablese_datum).getTime() : 0
+          return dateB - dateA
+        })
+      })
+      
       setEditingId(null)
       setEditAbleseDatum(undefined)
       setEditZaehlerstand("")
       setEditVerbrauch("")
       setEditVerbrauchWarning("")
+      setCurrentAblesung(null)
       
       // The useEffect with hasUnsavedChanges will automatically update the dirty state
       // when the form state is cleared below
@@ -340,10 +361,33 @@ export function WasserAblesenModal() {
 
   const startEdit = (ablesung: WasserAblesung) => {
     setEditingId(ablesung.id)
+    setCurrentAblesung(ablesung)
     setEditAbleseDatum(ablesung.ablese_datum ? new Date(ablesung.ablese_datum) : undefined)
     setEditZaehlerstand(ablesung.zaehlerstand?.toString() || "")
     setEditVerbrauch(ablesung.verbrauch.toString())
     setEditVerbrauchWarning("")
+  }
+
+  const handleEdit = (ablesung: WasserAblesung) => {
+    setEditingId(ablesung.id)
+    setEditZaehlerstand(ablesung.zaehlerstand?.toString() || "")
+    setEditVerbrauch(ablesung.verbrauch.toString())
+    setEditVerbrauchWarning("")
+    setEditAbleseDatum(ablesung.ablese_datum ? new Date(ablesung.ablese_datum) : undefined)
+    setCurrentAblesung(ablesung)
+  }
+  
+  // Handle date change and recalculate consumption if needed
+  const handleEditDateChange = (date: Date | undefined, currentAblesung: WasserAblesung) => {
+    setEditAbleseDatum(date)
+    
+    // Only recalculate if we have a zaehlerstand value
+    if (editZaehlerstand) {
+      // Use a small timeout to ensure state is updated before recalculating
+      setTimeout(() => {
+        handleEditZaehlerstandChange(editZaehlerstand, currentAblesung)
+      }, 0)
+    }
   }
 
   const cancelEdit = () => {
@@ -352,6 +396,7 @@ export function WasserAblesenModal() {
     setEditZaehlerstand("")
     setEditVerbrauch("")
     setEditVerbrauchWarning("")
+    setCurrentAblesung(null)
     setWasserAblesenModalDirty(false)
   }
 
@@ -671,7 +716,7 @@ export function WasserAblesenModal() {
                                         <Calendar
                                           mode="single"
                                           selected={editAbleseDatum}
-                                          onSelect={setEditAbleseDatum}
+                                          onSelect={(date) => currentAblesung && handleEditDateChange(date, currentAblesung)}
                                           locale={de}
                                           captionLayout="dropdown"
                                           fromYear={1990}
