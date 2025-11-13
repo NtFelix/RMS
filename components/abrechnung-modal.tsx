@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { ExportAbrechnungDropdown } from "./abrechnung/export-abrechnung-dropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
@@ -1181,80 +1182,24 @@ export function AbrechnungModal({
             Schließen
           </Button>
           
-          {/* Export Button with Integrated Dropdown */}
-          <div className="relative">
-            <Button 
-              variant="default" 
-              onClick={() => handleExportOperation(
-                () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
-                "Fehler bei PDF-Generierung",
-                "Ein Fehler ist beim Erstellen der PDF aufgetreten."
-              )}
-              disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-              className="pr-12 h-10 transition-all duration-200"
-              onMouseEnter={(e) => {
-                applyMainButtonHoverEffect(true, true, e.currentTarget);
-                applyDropdownHoverEffect(true, false);
-              }}
-              onMouseLeave={(e) => {
-                applyMainButtonHoverEffect(false, true, e.currentTarget);
-                applyDropdownHoverEffect(false, false);
-              }}
-            >
-              <FileDown className="mr-2 h-4 w-4" />
-              {isGeneratingPDF ? "PDF wird erstellt..." : "Als PDF exportieren"}
-            </Button>
-            
-            {/* Circular Dropdown Trigger */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  ref={dropdownTriggerRef}
-                  disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 border shadow-sm bg-primary border-primary text-primary-foreground"
-                  onMouseEnter={() => {
-                    applyDropdownHoverEffect(true, true);
-                    applyMainButtonHoverEffect(true, false);
-                  }}
-                  onMouseLeave={() => {
-                    applyDropdownHoverEffect(false, true);
-                    applyMainButtonHoverEffect(false, false);
-                  }}
-                >
-                  <ChevronDown className="h-4 w-4 text-white" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => handleExportOperation(
-                    () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
-                    "Fehler bei PDF-Generierung",
-                    "Ein Fehler ist beim Erstellen der PDF aufgetreten."
-                  )}
-                  disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-                  className="hover:!bg-primary/10 hover:!text-primary focus:!bg-primary/10 focus:!text-primary"
-                >
-                  <FileDown className="mr-2 h-4 w-4" />
-                  Als PDF exportieren
-                </DropdownMenuItem>
-                
-                {calculatedTenantData.length > 1 && (
-                  <DropdownMenuItem
-                    onClick={() => handleExportOperation(
-                      () => generateSettlementZIP(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
-                      "Fehler bei ZIP-Generierung",
-                      "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten."
-                    )}
-                    disabled={isGeneratingPDF}
-                    className="hover:!bg-primary/10 hover:!text-primary focus:!bg-primary/10 focus:!text-primary"
-                  >
-                    <Archive className="mr-2 h-4 w-4" />
-                    Als ZIP exportieren (alle PDFs)
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          {/* Export Button with Dropdown - Matches Create New button style */}
+          <ExportAbrechnungDropdown
+            onPdfClick={() => handleExportOperation(
+              () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
+              "Fehler bei PDF-Generierung",
+              "Ein Fehler ist beim Erstellen der PDF aufgetreten."
+            )}
+            onZipClick={() => handleExportOperation(
+              () => generateSettlementZIP(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
+              "Fehler bei ZIP-Generierung",
+              "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten."
+            )}
+            isGeneratingPDF={isGeneratingPDF}
+            hasMultipleTenants={calculatedTenantData.length > 1}
+            disabled={calculatedTenantData.length === 0}
+            buttonText={isGeneratingPDF ? "Wird exportiert..." : "Exportieren"}
+            buttonVariant="default"
+          />
         </DialogFooter>
       </DialogContent>
     </Dialog>
