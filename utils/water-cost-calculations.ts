@@ -8,7 +8,8 @@
  * - Prorated water usage for partial periods
  */
 
-import { Mieter, WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
+import { Mieter, WasserAblesung, WasserZaehler } from "@/lib/data-fetching";
+import { calculateTenantOccupancy } from "./date-calculations";
 
 /**
  * Represents a water reading with associated tenant and period information
@@ -86,35 +87,16 @@ function isTenantActiveOnDate(
 /**
  * Calculate occupancy factor for a tenant during a specific period
  * Returns a value between 0 and 1 representing the portion of the period the tenant was present
+ * 
+ * This is a wrapper around calculateTenantOccupancy from date-calculations.ts
  */
 function calculateOccupancyFactor(
   tenant: Mieter,
   periodStart: string,
   periodEnd: string
 ): number {
-  const startDate = new Date(periodStart);
-  const endDate = new Date(periodEnd);
-  const moveInDate = tenant.einzug ? new Date(tenant.einzug) : null;
-  const moveOutDate = tenant.auszug ? new Date(tenant.auszug) : null;
-
-  // If no move-in date, tenant was not present
-  if (!moveInDate) return 0;
-
-  // If moved in after period end, not present
-  if (moveInDate > endDate) return 0;
-
-  // If moved out before period start, not present
-  if (moveOutDate && moveOutDate < startDate) return 0;
-
-  // Calculate effective period
-  const effectiveStart = moveInDate > startDate ? moveInDate : startDate;
-  const effectiveEnd = moveOutDate && moveOutDate < endDate ? moveOutDate : endDate;
-
-  // Calculate days
-  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
-  const occupiedDays = Math.ceil((effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 3600 * 24)) + 1;
-
-  return Math.max(0, Math.min(1, occupiedDays / totalDays));
+  const occupancy = calculateTenantOccupancy(tenant, periodStart, periodEnd);
+  return occupancy.occupancyRatio;
 }
 
 /**
