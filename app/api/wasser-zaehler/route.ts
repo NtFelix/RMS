@@ -45,24 +45,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch Wasserzähler' }, { status: 500 })
     }
 
-    // Fetch latest reading for each Wasserzähler
-    const zaehlerWithReadings = await Promise.all(
-      zaehlerData.map(async (zaehler) => {
-        const { data: latestReading } = await supabase
-          .from('Wasser_Ablesungen')
-          .select('ablese_datum, zaehlerstand, verbrauch')
-          .eq('wasser_zaehler_id', zaehler.id)
-          .eq('user_id', user.id)
-          .order('ablese_datum', { ascending: false })
-          .limit(1)
-          .single()
+    // Get all meter IDs to fetch their latest readings in one go
+    const meterIds = zaehlerData.map(z => z.id);
+    
+    // Fetch latest readings for all meters in a single query
+    const { data: readingsData } = await supabase
+      .from('Wasser_Ablesungen')
+      .select('id, wasser_zaehler_id, ablese_datum, zaehlerstand, verbrauch')
+      .in('wasser_zaehler_id', meterIds)
+      .eq('user_id', user.id)
+      .order('ablese_datum', { ascending: false });
 
-        return {
-          ...zaehler,
-          latest_reading: latestReading || null,
+    // Create a map of the latest reading for each meter
+    const latestReadingsMap = new Map<string, any>();
+    if (readingsData) {
+      // Use a Set to track which meters we've already processed
+      const processedMeterIds = new Set<string>();
+      
+      for (const reading of readingsData) {
+        const meterId = reading.wasser_zaehler_id;
+        // Only keep the first (latest) reading for each meter
+        if (!processedMeterIds.has(meterId)) {
+          latestReadingsMap.set(meterId, reading);
+          processedMeterIds.add(meterId);
         }
-      })
-    )
+      }
+    }
+
+    // Combine meters with their latest readings
+    const zaehlerWithReadings = zaehlerData.map(zaehler => ({
+      ...zaehler,
+      latest_reading: latestReadingsMap.get(zaehler.id) || null,
+    }));
 
     return NextResponse.json(zaehlerWithReadings)
   } catch (error) {
