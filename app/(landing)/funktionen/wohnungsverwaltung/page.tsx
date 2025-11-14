@@ -1,4 +1,6 @@
 import { Building2, Users, FileText, Calendar, MapPin, TrendingUp, CheckCircle2, ArrowLeft, Home, MoreHorizontal } from 'lucide-react';
+import { MacWindow } from '@/components/ui/mac-window';
+import { MediaContent } from '@/components/ui/media-content';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -55,23 +57,13 @@ export default function ApartmentManagementPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           {/* Image with macOS Window */}
-          <div className="bg-card border rounded-2xl overflow-hidden mb-16 shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
-            {/* macOS Window Header */}
-            <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
-              <div className="flex space-x-2">
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-              </div>
-            </div>
-            <div className="w-full">
-              <img 
-                src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/apartment-table.avif" 
-                alt="Dashboard-Ansicht mit allen Wohnungen"
-                className="w-full h-auto rounded-2xl"
-              />
-            </div>
-          </div>
+          <MacWindow className="mb-16">
+            <MediaContent
+              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/apartment-table.avif"
+              alt="Dashboard-Ansicht mit allen Wohnungen"
+              type="image"
+            />
+          </MacWindow>
 
           </div>
       </div>
