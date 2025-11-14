@@ -59,9 +59,9 @@ export default function ApartmentManagementPage() {
             {/* macOS Window Header */}
             <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
               <div className="flex space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
               </div>
             </div>
             <div className="p-6">
@@ -101,6 +101,25 @@ export default function ApartmentManagementPage() {
                   </TableBody>
                 </Table>
               </div>
+            </div>
+          </div>
+
+          {/* Image with macOS Window */}
+          <div className="bg-card border rounded-2xl overflow-hidden mb-16">
+            {/* macOS Window Header */}
+            <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+              <div className="flex space-x-2">
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+              </div>
+            </div>
+            <div className="w-full">
+              <img 
+                src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/apartment-table.avif" 
+                alt="Dashboard-Ansicht mit allen Wohnungen"
+                className="w-full h-auto rounded-2xl"
+              />
             </div>
           </div>
         </div>
