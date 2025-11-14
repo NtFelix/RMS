@@ -53,9 +53,28 @@ export default function ApartmentManagementPage() {
 
       {/* Mieterverwaltung Section */}
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Image with macOS Window */}
+          <div className="bg-card border rounded-2xl overflow-hidden mb-16 shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
+            {/* macOS Window Header */}
+            <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+              <div className="flex space-x-2">
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+              </div>
+            </div>
+            <div className="w-full">
+              <img 
+                src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/apartment-table.avif" 
+                alt="Dashboard-Ansicht mit allen Wohnungen"
+                className="w-full h-auto rounded-2xl"
+              />
+            </div>
+          </div>
+
           {/* Wohnungen Table */}
-          <div className="bg-card border rounded-2xl overflow-hidden mb-16">
+          <div className="bg-card border rounded-2xl overflow-hidden mb-16 shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
             {/* macOS Window Header */}
             <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
               <div className="flex space-x-2">
@@ -101,25 +120,6 @@ export default function ApartmentManagementPage() {
                   </TableBody>
                 </Table>
               </div>
-            </div>
-          </div>
-
-          {/* Image with macOS Window */}
-          <div className="bg-card border rounded-2xl overflow-hidden mb-16">
-            {/* macOS Window Header */}
-            <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
-              <div className="flex space-x-2">
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-              </div>
-            </div>
-            <div className="w-full">
-              <img 
-                src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/apartment-table.avif" 
-                alt="Dashboard-Ansicht mit allen Wohnungen"
-                className="w-full h-auto rounded-2xl"
-              />
             </div>
           </div>
         </div>
