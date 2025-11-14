@@ -1,4 +1,4 @@
-import { Building2, Users, FileText, Calendar, MapPin, TrendingUp, CheckCircle2, ArrowLeft, Home, Eye, Edit, Trash2 } from 'lucide-react';
+import { Building2, Users, FileText, Calendar, MapPin, TrendingUp, CheckCircle2, ArrowLeft, Home, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -58,7 +58,7 @@ export default function ApartmentManagementPage() {
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Mieterverwaltung</h2>
+            <h2 className="text-4xl font-bold mb-4">Wohnungsverwaltung</h2>
             <p className="text-muted-foreground">Eine Mockup Daten Wohnungstabelle von der Wohnungsseite</p>
           </div>
           
@@ -92,17 +92,9 @@ export default function ApartmentManagementPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
