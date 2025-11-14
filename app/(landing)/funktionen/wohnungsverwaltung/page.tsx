@@ -1,6 +1,7 @@
-import { Building2, Users, FileText, Calendar, MapPin, TrendingUp, CheckCircle2, ArrowLeft, Home, MoreHorizontal, ArrowRight } from 'lucide-react';
+import { Building2, Users, FileText, Calendar, MapPin, TrendingUp, CheckCircle2, ArrowLeft, Home, MoreHorizontal, ArrowRight, DollarSign } from 'lucide-react';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
+import { CTAButton } from '@/components/ui/cta-button';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -34,27 +35,29 @@ export default function ApartmentManagementPage() {
       {/* Hero Section */}
       <div className="container mx-auto px-4 pt-48 pb-16">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-bold mb-4">Verwalten Sie ihre Wohnungen</h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight tracking-tight">
+            <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+              Verwalten Sie ihre Wohnungen
+            </span>
+          </h1>
+          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed text-center">
             Verwalten Sie Ihre Wohnungen effizient und behalten Sie jederzeit den Überblick über Ihr Immobilienportfolio.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg" className="relative px-12 py-6 text-xl font-semibold group overflow-hidden">
-              <Link href="/?getStarted=true">
-                <span className="flex items-center">
-                  14 Tage kostenlos testen
-                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300">
-              <Link href="/#pricing">
-                <span className="flex items-center">
-                  Preise ansehen
-                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </Link>
-            </Button>
+            <CTAButton
+              variant="primary"
+              text="14 Tage kostenlos testen"
+              href="/?getStarted=true"
+              icon={ArrowRight}
+              iconPosition="right"
+            />
+            <CTAButton
+              variant="secondary"
+              text="Preise ansehen"
+              href="/#pricing"
+              icon={DollarSign}
+              iconPosition="left"
+            />
           </div>
         </div>
       </div>
