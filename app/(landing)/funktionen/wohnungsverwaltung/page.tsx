@@ -73,56 +73,7 @@ export default function ApartmentManagementPage() {
             </div>
           </div>
 
-          {/* Wohnungen Table */}
-          <div className="bg-card border rounded-2xl overflow-hidden mb-16 shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
-            {/* macOS Window Header */}
-            <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
-              <div className="flex space-x-2">
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Wohnung</TableHead>
-                      <TableHead>Größe</TableHead>
-                      <TableHead>Miete</TableHead>
-                      <TableHead>€/m²</TableHead>
-                      <TableHead>Haus</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Aktionen</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockApartments.map((apartment) => (
-                      <TableRow key={apartment.id}>
-                        <TableCell className="font-medium">{apartment.number}</TableCell>
-                        <TableCell>{apartment.size}</TableCell>
-                        <TableCell>{apartment.rent}</TableCell>
-                        <TableCell>{apartment.pricePerM2}</TableCell>
-                        <TableCell>{apartment.house}</TableCell>
-                        <TableCell>
-                          <Badge variant={apartment.status === 'vermietet' ? 'default' : 'secondary'}>
-                            {apartment.status === 'vermietet' ? 'Vermietet' : 'Frei'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
           </div>
-        </div>
       </div>
 
       {/* Funktionen zur Wohnungsverwaltung Section */}
