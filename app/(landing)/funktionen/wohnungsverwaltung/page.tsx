@@ -56,50 +56,59 @@ export default function ApartmentManagementPage() {
 
       {/* Mieterverwaltung Section */}
       <div className="container mx-auto px-4 py-16">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-4">Wohnungsverwaltung</h2>
-            <p className="text-muted-foreground">Eine Mockup Daten Wohnungstabelle von der Wohnungsseite</p>
+            <p className="text-muted-foreground">Effiziente Verwaltung aller Wohnungen mit übersichtlicher Tabelle und direkten Aktionen</p>
           </div>
           
           {/* Wohnungen Table */}
-          <div className="bg-card border rounded-2xl p-6 mb-16">
-            <h3 className="text-2xl font-semibold mb-6">Wohnungsverwaltung</h3>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Wohnung</TableHead>
-                    <TableHead>Größe</TableHead>
-                    <TableHead>Miete</TableHead>
-                    <TableHead>€/m²</TableHead>
-                    <TableHead>Haus</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Aktionen</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockApartments.map((apartment) => (
-                    <TableRow key={apartment.id}>
-                      <TableCell className="font-medium">{apartment.number}</TableCell>
-                      <TableCell>{apartment.size}</TableCell>
-                      <TableCell>{apartment.rent}</TableCell>
-                      <TableCell>{apartment.pricePerM2}</TableCell>
-                      <TableCell>{apartment.house}</TableCell>
-                      <TableCell>
-                        <Badge variant={apartment.status === 'vermietet' ? 'default' : 'secondary'}>
-                          {apartment.status === 'vermietet' ? 'Vermietet' : 'Frei'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
+          <div className="bg-card border rounded-2xl overflow-hidden mb-16">
+            {/* macOS Window Header */}
+            <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+              <div className="flex space-x-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Wohnung</TableHead>
+                      <TableHead>Größe</TableHead>
+                      <TableHead>Miete</TableHead>
+                      <TableHead>€/m²</TableHead>
+                      <TableHead>Haus</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Aktionen</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {mockApartments.map((apartment) => (
+                      <TableRow key={apartment.id}>
+                        <TableCell className="font-medium">{apartment.number}</TableCell>
+                        <TableCell>{apartment.size}</TableCell>
+                        <TableCell>{apartment.rent}</TableCell>
+                        <TableCell>{apartment.pricePerM2}</TableCell>
+                        <TableCell>{apartment.house}</TableCell>
+                        <TableCell>
+                          <Badge variant={apartment.status === 'vermietet' ? 'default' : 'secondary'}>
+                            {apartment.status === 'vermietet' ? 'Vermietet' : 'Frei'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </div>
         </div>
