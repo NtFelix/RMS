@@ -1,4 +1,4 @@
-import { Building2, Users, FileText, Calendar, MapPin, TrendingUp, CheckCircle2, ArrowLeft, Home, MoreHorizontal } from 'lucide-react';
+import { Building2, Users, FileText, Calendar, MapPin, TrendingUp, CheckCircle2, ArrowLeft, Home, MoreHorizontal, ArrowRight } from 'lucide-react';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import Link from 'next/link';
@@ -39,14 +39,20 @@ export default function ApartmentManagementPage() {
             Verwalten Sie Ihre Wohnungen effizient und behalten Sie jederzeit den Überblick über Ihr Immobilienportfolio.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg">
+            <Button asChild size="lg" className="relative px-12 py-6 text-xl font-semibold group overflow-hidden">
               <Link href="/?getStarted=true">
-                14 Tage kostenlos testen
+                <span className="flex items-center">
+                  14 Tage kostenlos testen
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </span>
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg">
+            <Button asChild variant="outline" size="lg" className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300">
               <Link href="/#pricing">
-                Preise ansehen
+                <span className="flex items-center">
+                  Preise ansehen
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </span>
               </Link>
             </Button>
           </div>
