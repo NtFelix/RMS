@@ -30,11 +30,8 @@ export default function ApartmentManagementPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 pt-48 pb-16">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-2xl mb-6">
-            <Building2 className="w-10 h-10 text-primary" />
-          </div>
           <h1 className="text-5xl font-bold mb-4">Verwalten Sie ihre Wohnungen</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
             Verwalten Sie Ihre Wohnungen effizient und behalten Sie jederzeit den Überblick über Ihr Immobilienportfolio.
@@ -55,13 +52,8 @@ export default function ApartmentManagementPage() {
       </div>
 
       {/* Mieterverwaltung Section */}
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Wohnungsverwaltung</h2>
-            <p className="text-muted-foreground">Effiziente Verwaltung aller Wohnungen mit übersichtlicher Tabelle und direkten Aktionen</p>
-          </div>
-          
           {/* Wohnungen Table */}
           <div className="bg-card border rounded-2xl overflow-hidden mb-16">
             {/* macOS Window Header */}
