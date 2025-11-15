@@ -77,26 +77,80 @@ export default function ApartmentManagementPage() {
           </div>
       </div>
 
-      {/* Funktionen zur Wohnungsverwaltung Section */}
+      {/* Datenübersichten Section */}
       <div className="container mx-auto px-4 py-16">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold">Funktionen zur Wohnungsverwaltung</h2>
+            <h2 className="text-4xl font-bold">Datenübersichten</h2>
           </div>
 
-          {/* Two Column Layout */}
-          <div className="grid md:grid-cols-2 gap-8 mb-12">
-            {/* Left Column - Mieterzuordnung */}
+          {/* Wohnungen Section - 2 Column Layout (Table Left, Text Right) */}
+          <div className="grid md:grid-cols-2 gap-8 items-start mb-16">
+            {/* Left Column - Table */}
             <div className="bg-card border rounded-2xl p-6">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nummer</TableHead>
+                      <TableHead>Größe</TableHead>
+                      <TableHead>Miete</TableHead>
+                      <TableHead>€/m²</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {mockApartments.map((apartment) => (
+                      <TableRow key={apartment.id}>
+                        <TableCell className="font-medium">{apartment.number}</TableCell>
+                        <TableCell>{apartment.size}</TableCell>
+                        <TableCell>{apartment.rent}</TableCell>
+                        <TableCell>{apartment.pricePerM2}</TableCell>
+                        <TableCell>
+                          <Badge variant={apartment.status === 'vermietet' ? 'default' : 'secondary'}>
+                            {apartment.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Right Column - Description */}
+            <div>
+              <div className="flex items-center mb-4">
+                <Building2 className="w-8 h-8 text-primary mr-3" />
+                <h3 className="text-2xl font-semibold">Wohnungen</h3>
+              </div>
+              <p className="text-muted-foreground mb-4">
+                Behalten Sie den Überblick über alle Ihre Wohnungen mit detaillierten Informationen zu Größe, Mietpreisen und Belegungsstatus.
+              </p>
+              <p className="text-muted-foreground">
+                Jede Wohnung ist eindeutig identifiziert und mit relevanten Metriken wie Quadratmeterpreis und aktueller Vermietungsstatus versehen.
+              </p>
+            </div>
+          </div>
+
+          {/* Mieter Section - 2 Column Layout */}
+          <div className="grid md:grid-cols-2 gap-8 items-start mb-16">
+            {/* Left Column - Description */}
+            <div>
               <div className="flex items-center mb-4">
                 <Users className="w-8 h-8 text-primary mr-3" />
-                <h3 className="text-2xl font-semibold">Mieterzuordnung</h3>
+                <h3 className="text-2xl font-semibold">Mieter</h3>
               </div>
-              <p className="text-muted-foreground mb-6">
-                Ordnen Sie Mieter direkt den Wohnungen zu und behalten Sie den Überblick über alle Mietverhältnisse.
+              <p className="text-muted-foreground mb-4">
+                Verwalten Sie alle Mieterinformationen zentral an einem Ort mit direkter Verknüpfung zur jeweiligen Wohnung.
               </p>
-              
-              {/* Mieter Table */}
+              <p className="text-muted-foreground">
+                Schneller Zugriff auf Kontaktdaten und Wohnungszuweisungen für eine effiziente Kommunikation und Verwaltung.
+              </p>
+            </div>
+
+            {/* Right Column - Table */}
+            <div className="bg-card border rounded-2xl p-6">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -118,18 +172,12 @@ export default function ApartmentManagementPage() {
                 </Table>
               </div>
             </div>
+          </div>
 
-            {/* Right Column - Hausverwaltung */}
+          {/* Häuser Section - 2 Column Layout (Table Left, Text Right) */}
+          <div className="grid md:grid-cols-2 gap-8 items-start">
+            {/* Left Column - Table */}
             <div className="bg-card border rounded-2xl p-6">
-              <div className="flex items-center mb-4">
-                <Home className="w-8 h-8 text-primary mr-3" />
-                <h3 className="text-2xl font-semibold">Haus Aufteilung</h3>
-              </div>
-              <p className="text-muted-foreground mb-6">
-                Verwalten Sie mehrere Häuser und organisieren Sie Ihre Immobilienportfolio für eine optimale Kostenverteilung.
-              </p>
-              
-              {/* Häuser Table */}
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -156,6 +204,20 @@ export default function ApartmentManagementPage() {
                   </TableBody>
                 </Table>
               </div>
+            </div>
+
+            {/* Right Column - Description */}
+            <div>
+              <div className="flex items-center mb-4">
+                <Home className="w-8 h-8 text-primary mr-3" />
+                <h3 className="text-2xl font-semibold">Häuser</h3>
+              </div>
+              <p className="text-muted-foreground mb-4">
+                Organisieren Sie mehrere Häuser und behalten Sie die Übersicht über Ihr komplettes Immobilienportfolio.
+              </p>
+              <p className="text-muted-foreground">
+                Detaillierte Informationen zu Standorten, Wohnungsanzahl und Auslastung für optimierte Verwaltungsentscheidungen.
+              </p>
             </div>
           </div>
         </div>
