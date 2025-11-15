@@ -62,7 +62,7 @@ export default function BottomCTA({
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/80 to-background/90" />
       </div>
 
-      <div className="max-w-4xl mx-auto text-center relative z-10">
+      <div className="max-w-6xl mx-auto text-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
