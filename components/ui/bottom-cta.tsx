@@ -47,7 +47,7 @@ export default function BottomCTA({
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat dark:hidden"
           style={{
-            backgroundImage: `url('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/bottom-cta/city-background.avif')`
+            backgroundImage: `url('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/bottom-cta/house-stars-daylight.avif')`
           }}
         />
         <div 
