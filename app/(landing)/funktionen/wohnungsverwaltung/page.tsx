@@ -79,6 +79,13 @@ export default function ApartmentManagementPage() {
               src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/apartment-table.avif"
               alt="Dashboard-Ansicht mit allen Wohnungen"
               type="image"
+              className="dark:hidden"
+            />
+            <MediaContent
+              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/apartment-table-darkmode.avif"
+              alt="Dashboard-Ansicht mit allen Wohnungen (Dark Mode)"
+              type="image"
+              className="hidden dark:block"
             />
           </MacWindow>
 
