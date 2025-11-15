@@ -85,7 +85,7 @@ export default function ApartmentManagementPage() {
           </div>
 
           {/* Wohnungen Section - 2 Column Layout (Table Left, Text Right) */}
-          <div className="grid md:grid-cols-2 gap-8 items-start mb-16">
+          <div className="grid md:grid-cols-2 gap-12 items-start mb-24">
             {/* Left Column - Table in Mac Window */}
             <div className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
               {/* macOS Window Header */}
@@ -144,7 +144,7 @@ export default function ApartmentManagementPage() {
           </div>
 
           {/* Mieter Section - 2 Column Layout */}
-          <div className="grid md:grid-cols-2 gap-8 items-start mb-16">
+          <div className="grid md:grid-cols-2 gap-12 items-start mb-24">
             {/* Left Column - Description */}
             <div>
               <div className="flex items-center mb-4">
@@ -195,7 +195,7 @@ export default function ApartmentManagementPage() {
           </div>
 
           {/* Häuser Section - 2 Column Layout (Table Left, Text Right) */}
-          <div className="grid md:grid-cols-2 gap-8 items-start">
+          <div className="grid md:grid-cols-2 gap-12 items-start mb-24">
             {/* Left Column - Table in Mac Window */}
             <div className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
               {/* macOS Window Header */}
