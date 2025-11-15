@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Sparkles } from "lucide-react"
+import { Sparkles, ArrowRight, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -136,7 +136,7 @@ export default function BottomCTA({
             >
               <span className="flex items-center">
                 {primaryButtonText}
-                <Sparkles className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
               </span>
             </Button>
 
@@ -150,7 +150,7 @@ export default function BottomCTA({
                   >
                     <span className="flex items-center">
                       {secondaryButtonText}
-                      <Sparkles className="ml-2 w-5 h-5 group-hover:scale-110 transition-transform" />
+                      <ExternalLink className="ml-2 w-5 h-5 group-hover:scale-110 transition-transform" />
                     </span>
                   </Button>
                 </AlertDialogTrigger>

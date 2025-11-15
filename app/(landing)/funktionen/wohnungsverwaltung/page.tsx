@@ -1,7 +1,10 @@
+"use client"
+
 import { Building2, Users, FileText, Calendar, MapPin, TrendingUp, CheckCircle2, ArrowLeft, Home, MoreHorizontal, ArrowRight, DollarSign } from 'lucide-react';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import { CTAButton } from '@/components/ui/cta-button';
+import BottomCTA from '@/components/ui/bottom-cta';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,9 +21,10 @@ export default function ApartmentManagementPage() {
 
   // Mock data for Mieter table
   const mockTenants = [
-    { id: 1, name: 'Max Mustermann', email: 'max.mustermann@email.de', apartment: 'A-101' },
-    { id: 2, name: 'Erika Musterfrau', email: 'erika.musterfrau@email.de', apartment: 'B-201' },
-    { id: 3, name: 'Thomas Schmidt', email: 'thomas.schmidt@email.de', apartment: 'B-202' },
+    { id: 1, name: 'Max Mustermann', email: 'max@example.com', apartment: 'A-101' },
+    { id: 2, name: 'Erika Musterfrau', email: 'erika@example.com', apartment: 'A-102' },
+    { id: 3, name: 'John Doe', email: 'john@example.com', apartment: 'B-201' },
+    { id: 4, name: 'Jane Smith', email: 'jane@example.com', apartment: 'B-202' },
   ];
 
   // Mock data for Häuser table
@@ -29,6 +33,10 @@ export default function ApartmentManagementPage() {
     { id: 2, name: 'Haus B', city: 'Berlin', size: '6 Wohnungen', occupancy: '100%' },
     { id: 3, name: 'Haus C', city: 'Hamburg', size: '8 Wohnungen', occupancy: '50%' },
   ];
+
+  const handleGetStarted = () => {
+    window.location.href = '/?getStarted=true';
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -261,6 +269,17 @@ export default function ApartmentManagementPage() {
           </div>
         </div>
       </div>
+
+      {/* Bottom CTA Section */}
+      <BottomCTA 
+        onGetStarted={handleGetStarted}
+        title="Starten Sie noch heute mit der"
+        subtitle="Wohnungsverwaltung"
+        description="Entdecken Sie, wie unsere Plattform Ihnen hilft, Ihre Wohnungen effizienter zu verwalten und Zeit zu sparen."
+        badgeText="Bereit für den Start?"
+        primaryButtonText="14 Tage kostenlos testen"
+        secondaryButtonText="Demo anfordern"
+      />
 
           </div>
   );
