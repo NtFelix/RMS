@@ -69,7 +69,7 @@ export default function BottomCTA({
         </motion.div>
 
         {/* Glassmorphism Container */}
-        <div className="bg-white/10 dark:bg-black/20 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-3xl p-12 shadow-2xl">
+        <div className="bg-white/10 dark:bg-black/20 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[3rem] p-12 shadow-2xl">
           <motion.h2
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
