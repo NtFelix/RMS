@@ -86,35 +86,45 @@ export default function ApartmentManagementPage() {
 
           {/* Wohnungen Section - 2 Column Layout (Table Left, Text Right) */}
           <div className="grid md:grid-cols-2 gap-8 items-start mb-16">
-            {/* Left Column - Table */}
-            <div className="bg-card border rounded-2xl p-6">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nummer</TableHead>
-                      <TableHead>Größe</TableHead>
-                      <TableHead>Miete</TableHead>
-                      <TableHead>€/m²</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockApartments.map((apartment) => (
-                      <TableRow key={apartment.id}>
-                        <TableCell className="font-medium">{apartment.number}</TableCell>
-                        <TableCell>{apartment.size}</TableCell>
-                        <TableCell>{apartment.rent}</TableCell>
-                        <TableCell>{apartment.pricePerM2}</TableCell>
-                        <TableCell>
-                          <Badge variant={apartment.status === 'vermietet' ? 'default' : 'secondary'}>
-                            {apartment.status}
-                          </Badge>
-                        </TableCell>
+            {/* Left Column - Table in Mac Window */}
+            <div className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
+              {/* macOS Window Header */}
+              <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                </div>
+              </div>
+              <div className="w-full p-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nummer</TableHead>
+                        <TableHead>Größe</TableHead>
+                        <TableHead>Miete</TableHead>
+                        <TableHead>€/m²</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {mockApartments.map((apartment) => (
+                        <TableRow key={apartment.id}>
+                          <TableCell className="font-medium">{apartment.number}</TableCell>
+                          <TableCell>{apartment.size}</TableCell>
+                          <TableCell>{apartment.rent}</TableCell>
+                          <TableCell>{apartment.pricePerM2}</TableCell>
+                          <TableCell>
+                            <Badge variant={apartment.status === 'vermietet' ? 'default' : 'secondary'}>
+                              {apartment.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
 
@@ -149,60 +159,80 @@ export default function ApartmentManagementPage() {
               </p>
             </div>
 
-            {/* Right Column - Table */}
-            <div className="bg-card border rounded-2xl p-6">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Wohnung</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockTenants.map((tenant) => (
-                      <TableRow key={tenant.id}>
-                        <TableCell className="font-medium">{tenant.name}</TableCell>
-                        <TableCell>{tenant.email}</TableCell>
-                        <TableCell>{tenant.apartment}</TableCell>
+            {/* Right Column - Table in Mac Window */}
+            <div className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
+              {/* macOS Window Header */}
+              <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                </div>
+              </div>
+              <div className="w-full p-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Wohnung</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {mockTenants.map((tenant) => (
+                        <TableRow key={tenant.id}>
+                          <TableCell className="font-medium">{tenant.name}</TableCell>
+                          <TableCell>{tenant.email}</TableCell>
+                          <TableCell>{tenant.apartment}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Häuser Section - 2 Column Layout (Table Left, Text Right) */}
           <div className="grid md:grid-cols-2 gap-8 items-start">
-            {/* Left Column - Table */}
-            <div className="bg-card border rounded-2xl p-6">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Haus</TableHead>
-                      <TableHead>Stadt</TableHead>
-                      <TableHead>Größe</TableHead>
-                      <TableHead>Auslastung</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockHouses.map((house) => (
-                      <TableRow key={house.id}>
-                        <TableCell className="font-medium">{house.name}</TableCell>
-                        <TableCell>{house.city}</TableCell>
-                        <TableCell>{house.size}</TableCell>
-                        <TableCell>
-                          <Badge variant={house.occupancy === '100%' ? 'default' : 'secondary'}>
-                            {house.occupancy}
-                          </Badge>
-                        </TableCell>
+            {/* Left Column - Table in Mac Window */}
+            <div className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
+              {/* macOS Window Header */}
+              <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                </div>
+              </div>
+              <div className="w-full p-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Haus</TableHead>
+                        <TableHead>Stadt</TableHead>
+                        <TableHead>Größe</TableHead>
+                        <TableHead>Auslastung</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {mockHouses.map((house) => (
+                        <TableRow key={house.id}>
+                          <TableCell className="font-medium">{house.name}</TableCell>
+                          <TableCell>{house.city}</TableCell>
+                          <TableCell>{house.size}</TableCell>
+                          <TableCell>
+                            <Badge variant={house.occupancy === '100%' ? 'default' : 'secondary'}>
+                              {house.occupancy}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
 
