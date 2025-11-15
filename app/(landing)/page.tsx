@@ -7,6 +7,7 @@ import FeatureSections from '@/app/modern/components/feature-sections';
 import FinanceShowcase from '@/app/modern/components/finance-showcase';
 import MoreFeatures from '@/app/modern/components/more-features';
 import CTA from '@/app/modern/components/cta';
+import BottomCTA from '@/components/ui/bottom-cta';
 import Pricing from '@/app/modern/components/pricing';
 import NebenkostenSection from '@/app/modern/components/nebenkosten-section';
 import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
@@ -322,7 +323,16 @@ function LandingPageContent() {
           />
         </div>
         <div id="cta">
-          <CTA onGetStarted={handleGetStarted} />
+          <BottomCTA 
+            onGetStarted={handleGetStarted}
+            theme="city"
+            title="Übernehmen Sie die Kontrolle über Ihre"
+            subtitle="Immobilien noch heute"
+            description="Beginnen Sie noch heute, Ihre Immobilien effizienter zu verwalten und profitieren Sie von einer modernen und benutzerfreundlichen Plattform."
+            badgeText="Bereit zur Vereinfachung?"
+            primaryButtonText="Jetzt loslegen"
+            secondaryButtonText="Demo anfordern"
+          />
         </div>
       </div>
     </>

@@ -26,6 +26,7 @@ interface BottomCTAProps {
   showDemoButton?: boolean;
   demoCalendarUrl?: string;
   className?: string;
+  theme?: 'city' | 'houses';
 }
 
 export default function BottomCTA({
@@ -39,6 +40,7 @@ export default function BottomCTA({
   showDemoButton = true,
   demoCalendarUrl = "https://calendar.notion.so/meet/felix-b0111/demo-anfordern",
   className = "",
+  theme = "houses",
 }: BottomCTAProps) {
   return (
     <section className={`py-32 px-4 relative overflow-hidden bg-background text-foreground ${className}`}>
@@ -47,13 +49,13 @@ export default function BottomCTA({
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat dark:hidden"
           style={{
-            backgroundImage: `url('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/bottom-cta/house-stars-daylight.avif')`
+            backgroundImage: `url('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/bottom-cta/${theme === 'city' ? 'city-background' : 'house-stars-daylight'}.avif')`
           }}
         />
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat hidden dark:block"
           style={{
-            backgroundImage: `url('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/bottom-cta/house-stars.avif')`
+            backgroundImage: `url('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/bottom-cta/${theme === 'city' ? 'city-background' : 'house-stars'}.avif')`
           }}
         />
         {/* Dark overlay for text readability */}

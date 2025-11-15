@@ -273,6 +273,7 @@ export default function ApartmentManagementPage() {
       {/* Bottom CTA Section */}
       <BottomCTA 
         onGetStarted={handleGetStarted}
+        theme="houses"
         title="Starten Sie noch heute mit der"
         subtitle="Wohnungsverwaltung"
         description="Entdecken Sie, wie unsere Plattform Ihnen hilft, Ihre Wohnungen effizienter zu verwalten und Zeit zu sparen."
