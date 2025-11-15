@@ -100,7 +100,7 @@ export default function ApartmentManagementPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
+                      <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
                         <TableHead>Nummer</TableHead>
                         <TableHead>Größe</TableHead>
                         <TableHead>Miete</TableHead>
@@ -110,7 +110,10 @@ export default function ApartmentManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {mockApartments.map((apartment) => (
-                        <TableRow key={apartment.id}>
+                        <TableRow 
+                          key={apartment.id}
+                          className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        >
                           <TableCell className="font-medium">{apartment.number}</TableCell>
                           <TableCell>{apartment.size}</TableCell>
                           <TableCell>{apartment.rent}</TableCell>
@@ -173,7 +176,7 @@ export default function ApartmentManagementPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
+                      <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Wohnung</TableHead>
@@ -181,7 +184,10 @@ export default function ApartmentManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {mockTenants.map((tenant) => (
-                        <TableRow key={tenant.id}>
+                        <TableRow 
+                          key={tenant.id}
+                          className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        >
                           <TableCell className="font-medium">{tenant.name}</TableCell>
                           <TableCell>{tenant.email}</TableCell>
                           <TableCell>{tenant.apartment}</TableCell>
@@ -210,7 +216,7 @@ export default function ApartmentManagementPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
+                      <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
                         <TableHead>Haus</TableHead>
                         <TableHead>Stadt</TableHead>
                         <TableHead>Größe</TableHead>
@@ -219,7 +225,10 @@ export default function ApartmentManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {mockHouses.map((house) => (
-                        <TableRow key={house.id}>
+                        <TableRow 
+                          key={house.id}
+                          className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        >
                           <TableCell className="font-medium">{house.name}</TableCell>
                           <TableCell>{house.city}</TableCell>
                           <TableCell>{house.size}</TableCell>
