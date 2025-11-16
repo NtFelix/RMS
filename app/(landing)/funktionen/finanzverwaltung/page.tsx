@@ -12,8 +12,38 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
 
 export default function FinanceManagementPage() {
+  // Mock data for charts
+  const incomeByApartmentData = [
+    { name: 'Wohnung A', value: 1250 },
+    { name: 'Wohnung B', value: 980 },
+    { name: 'Wohnung C', value: 1100 },
+  ];
+
+  const monthlyIncomeData = [
+    { month: 'Jan', einnahmen: 3330 },
+    { month: 'Feb', einnahmen: 3330 },
+    { month: 'Mär', einnahmen: 3580 },
+    { month: 'Apr', einnahmen: 3580 },
+    { month: 'Mai', einnahmen: 3580 },
+    { month: 'Jun', einnahmen: 3720 },
+  ];
+
+  const incomeExpenseData = [
+    { name: 'Einnahmen', value: 3580, fill: '#10b981' },
+    { name: 'Ausgaben', value: 1240, fill: '#ef4444' },
+  ];
+
+  const expenseCategoriesData = [
+    { name: 'Instandhaltung', value: 520 },
+    { name: 'Versicherungen', value: 380 },
+    { name: 'Steuern', value: 340 },
+  ];
+
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
   const features = [
     {
       icon: Receipt,
@@ -154,7 +184,7 @@ export default function FinanceManagementPage() {
             </p>
           </motion.div>
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Einnahmen nach Wohnung Chart Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -177,7 +207,39 @@ export default function FinanceManagementPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="space-y-3">
+                  {/* Real Chart for Large Screens */}
+                  <div className="hidden lg:block">
+                    <div className="h-48 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsPieChart>
+                          <Pie
+                            data={incomeByApartmentData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={30}
+                            outerRadius={70}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {incomeByApartmentData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                          />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  {/* Fallback Content for Small Screens */}
+                  <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Wohnung A</span>
                       <span className="font-medium">€1.250</span>
@@ -220,18 +282,55 @@ export default function FinanceManagementPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="space-y-3">
+                  {/* Real Chart for Large Screens */}
+                  <div className="hidden lg:block">
+                    <div className="h-48 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={monthlyIncomeData}>
+                          <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                          <XAxis 
+                            dataKey="month" 
+                            tick={{ fontSize: 12 }}
+                            stroke="hsl(var(--muted-foreground))"
+                          />
+                          <YAxis 
+                            tick={{ fontSize: 12 }}
+                            stroke="hsl(var(--muted-foreground))"
+                          />
+                          <Tooltip 
+                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="einnahmen" 
+                            stroke="#10b981" 
+                            strokeWidth={2}
+                            dot={{ fill: '#10b981', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  {/* Fallback Content for Small Screens */}
+                  <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Jan</span>
-                      <span className="font-medium">€3.330</span>
+                      <span className="font-medium text-green-600">€3.330</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Feb</span>
-                      <span className="font-medium">€3.330</span>
+                      <span className="font-medium text-green-600">€3.330</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Mär</span>
-                      <span className="font-medium">€3.580</span>
+                      <span className="font-medium text-green-600">€3.580</span>
                     </div>
                     <div className="mt-4 flex items-center gap-1">
                       <div className="h-8 w-1 bg-green-500/20 rounded"></div>
@@ -267,7 +366,40 @@ export default function FinanceManagementPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="space-y-3">
+                  {/* Real Chart for Large Screens */}
+                  <div className="hidden lg:block">
+                    <div className="h-48 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={incomeExpenseData}>
+                          <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                          <XAxis 
+                            dataKey="name" 
+                            tick={{ fontSize: 12 }}
+                            stroke="hsl(var(--muted-foreground))"
+                          />
+                          <YAxis 
+                            tick={{ fontSize: 12 }}
+                            stroke="hsl(var(--muted-foreground))"
+                          />
+                          <Tooltip 
+                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Bar 
+                            dataKey="value" 
+                            radius={[8, 8, 0, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  {/* Fallback Content for Small Screens */}
+                  <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Einnahmen</span>
                       <span className="font-medium text-green-500">€3.580</span>
@@ -311,7 +443,39 @@ export default function FinanceManagementPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="space-y-3">
+                  {/* Real Chart for Large Screens */}
+                  <div className="hidden lg:block">
+                    <div className="h-48 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsPieChart>
+                          <Pie
+                            data={expenseCategoriesData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={30}
+                            outerRadius={70}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {expenseCategoriesData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                          />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  {/* Fallback Content for Small Screens */}
+                  <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Instandhaltung</span>
                       <span className="font-medium">€520</span>
