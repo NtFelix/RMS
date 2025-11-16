@@ -12,8 +12,10 @@ type TenantBentoItem = {
   apartment: string
   apartmentId: string
   mieteRaw: number
-  nebenkostenRaw?: number // Optional Nebenkosten prepayment
+  nebenkostenRaw?: number
   paid: boolean
+  actualRent?: number
+  actualNebenkosten?: number
 }
 
 type NebenkostenEntry = {
@@ -102,18 +104,49 @@ export function TenantPaymentBento() {
   }
 
   // Format tenant data with payment status
-  const formatTenantData = (mieterData: MieterData[], paidWohnungen: Set<string>): TenantBentoItem[] => {
-    return (mieterData || [])
-      .filter(mieter => mieter.Wohnungen)
-      .map(mieter => ({
-        id: mieter.id,
-        tenant: mieter.name,
-        apartment: mieter.Wohnungen.name,
-        apartmentId: mieter.Wohnungen.id,
-        mieteRaw: Number(mieter.Wohnungen.miete) || 0,
-        nebenkostenRaw: getLatestNebenkostenAmount(mieter.nebenkosten),
-        paid: paidWohnungen.has(mieter.Wohnungen.id),
-      }))
+  const formatTenantData = (mieterData: (MieterData & { actualRent?: number; actualNebenkosten?: number })[], paidWohnungen: Set<string>): TenantBentoItem[] => {
+    return mieterData.map(mieter => ({
+      id: mieter.id,
+      tenant: mieter.name,
+      apartment: mieter.Wohnungen.name,
+      apartmentId: mieter.Wohnungen.id,
+      mieteRaw: Number(mieter.Wohnungen.miete) || 0,
+      nebenkostenRaw: getLatestNebenkostenAmount(mieter.nebenkosten),
+      paid: paidWohnungen.has(mieter.Wohnungen.id),
+      actualRent: mieter.actualRent,
+      actualNebenkosten: mieter.actualNebenkosten,
+    }))
+  }
+
+  // Get current month's finance payments for a tenant
+  const getCurrentMonthFinancePayments = async (apartmentId: string) => {
+    const supabase = createClient()
+    const { start, end } = getCurrentMonthRange()
+    
+    const { data, error } = await supabase
+      .from('Finanzen')
+      .select('name, betrag')
+      .eq('wohnung_id', apartmentId)
+      .gte('datum', start)
+      .lte('datum', end)
+      .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
+    
+    if (error) throw error
+    
+    const payments = {
+      rent: 0,
+      nebenkosten: 0
+    }
+    
+    data?.forEach(payment => {
+      if (payment.name?.includes('Mietzahlung')) {
+        payments.rent += Number(payment.betrag) || 0
+      } else if (payment.name?.includes('Nebenkosten')) {
+        payments.nebenkosten += Number(payment.betrag) || 0
+      }
+    })
+    
+    return payments
   }
 
   // Main data fetching function
@@ -142,7 +175,20 @@ export function TenantPaymentBento() {
       if (mieterError) throw mieterError
 
       const paidWohnungen = await fetchPaymentStatus()
-      const formattedData = formatTenantData(mieterData as unknown as MieterData[], paidWohnungen)
+      
+      // Fetch current month finance payments for each tenant
+      const tenantsWithPayments = await Promise.all(
+        (mieterData as unknown as MieterData[]).map(async (mieter) => {
+          const currentPayments = await getCurrentMonthFinancePayments(mieter.Wohnungen.id)
+          return {
+            ...mieter,
+            actualRent: currentPayments.rent,
+            actualNebenkosten: currentPayments.nebenkosten
+          }
+        })
+      )
+      
+      const formattedData = formatTenantData(tenantsWithPayments, paidWohnungen)
       setData(formattedData)
     } catch (error) {
       console.error("Fehler beim Laden der Mietdaten:", error)
@@ -263,7 +309,16 @@ export function TenantPaymentBento() {
                         tenant.paid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                       }`}>
                         <Tag className="h-3 w-3" />
-                        <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
+                        {tenant.actualRent && tenant.actualRent !== tenant.mieteRaw ? (
+                          <div className="flex items-center gap-1">
+                            <span className="line-through text-sm opacity-60">
+                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}
+                            </span>
+                            <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.actualRent)}</span>
+                          </div>
+                        ) : (
+                          <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
+                        )}
                       </div>
                       
                       {/* Nebenkosten prepayment - smaller */}
@@ -272,7 +327,16 @@ export function TenantPaymentBento() {
                           tenant.paid ? 'text-green-600/70 dark:text-green-400/70' : 'text-red-600/70 dark:text-red-400/70'
                         }`}>
                           <Wrench className="h-2.5 w-2.5" />
-                          <span>NK: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.nebenkostenRaw)}</span>
+                          {tenant.actualNebenkosten && tenant.actualNebenkosten !== tenant.nebenkostenRaw ? (
+                            <div className="flex items-center gap-1">
+                              <span className="line-through opacity-60">
+                                NK: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.nebenkostenRaw)}
+                              </span>
+                              <span>NK: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.actualNebenkosten)}</span>
+                            </div>
+                          ) : (
+                            <span>NK: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.nebenkostenRaw)}</span>
+                          )}
                         </div>
                       )}
                     </div>
