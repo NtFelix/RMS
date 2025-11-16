@@ -132,19 +132,7 @@ export default function FinanceManagementPage() {
     { id: 6, name: 'Instandhaltung Heizung', wohnung: 'Wohnung C', datum: '08.03.2025', betrag: -450, ist_einnahmen: false, notiz: 'Wartung und Reparatur' },
   ].sort((a, b) => new Date(b.datum.split('.').reverse().join('-')).getTime() - new Date(a.datum.split('.').reverse().join('-')).getTime());
 
-  // Mock data for Expense Categories
-  const mockExpenseCategories = [
-    { id: 1, category: 'Instandhaltung', amount: '€850', percentage: '35%', trend: 'up' },
-    { id: 2, category: 'Verwaltung', amount: '€320', percentage: '13%', trend: 'stable' },
-    { id: 3, category: 'Versicherungen', amount: '€280', percentage: '11%', trend: 'down' },
-    { id: 4, category: 'Steuern', amount: '€680', percentage: '28%', trend: 'up' },
-  ];
-
-  // Mock data for Revenue Sources
-  const mockRevenueSources = [
-    { id: 1, source: 'Haus A - Wohnungen', amount: '€2.550', percentage: '60%', status: 'stabil' },
-    { id: 2, source: 'Haus B - Wohnungen', amount: '€1.700', percentage: '40%', status: 'wachsend' },
-  ];
+  
 
   const handleGetStarted = () => {
     window.location.href = '/?getStarted=true';
@@ -906,7 +894,7 @@ export default function FinanceManagementPage() {
             </motion.div>
           </motion.div>
 
-          {/* Ausgabenkategorien Section - 2 Column Layout (Table Left, Text Right) */}
+          {/* Export Section - 2 Column Layout (Text Left, Export Options Right) */}
           <motion.div 
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -914,7 +902,43 @@ export default function FinanceManagementPage() {
             viewport={{ once: true }}
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
-            {/* Left Column - Table in Mac Window */}
+            {/* Left Column - Export Description */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 1.2 }}
+              viewport={{ once: true }}
+              className="space-y-6"
+            >
+              <div>
+                <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
+                  <Download className="w-8 h-8 text-primary" />
+                  CSV Export
+                </h3>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Exportieren Sie Ihre Finanzdaten als CSV für flexible Analysen, Berichte und externe Systeme. Behalten Sie die volle Kontrolle über Ihre Daten.
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Systemintegration</h4>
+                    <p className="text-muted-foreground">Übertragen Sie Daten an Buchhaltungssysteme oder andere Tools.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Steuererklärung</h4>
+                    <p className="text-muted-foreground">Exportieren Sie steuerrelevante Daten für Ihre jährliche Erklärung oder Steuerberater.</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Right Column - Export Options in Mac Window */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -929,183 +953,36 @@ export default function FinanceManagementPage() {
                   <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
                   <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
                 </div>
-              </div>
-              <div className="w-full p-6">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998]">
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Kategorie</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Betrag</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Anteil</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Trend</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mockExpenseCategories.map((category) => (
-                        <TableRow 
-                          key={category.id}
-                          className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                        >
-                          <TableCell className="font-medium">{category.category}</TableCell>
-                          <TableCell className="font-semibold">{category.amount}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{category.percentage}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={category.trend === 'up' ? 'destructive' : category.trend === 'down' ? 'default' : 'secondary'}>
-                              {category.trend === 'up' ? '↑' : category.trend === 'down' ? '↓' : '→'}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right Column - Description */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 1.2 }}
-              viewport={{ once: true }}
-              className="space-y-6"
-            >
-              <div>
-                <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
-                  <FileText className="w-8 h-8 text-primary" />
-                  Ausgabenkategorien
-                </h3>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Kategorisieren Sie Ihre Ausgaben automatisch und erkennen Sie sofort, wo die größten Kostenblöcke entstehen. Optimize Sie Ihre Ausgabenstruktur basierend auf detaillierten Analysen.
-                </p>
+                <div className="flex-1 text-center text-sm font-medium">Datenexport</div>
+                <div className="w-16"></div>
               </div>
               
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
-                  <div>
-                    <h4 className="font-semibold mb-1">Automatische Kategorisierung</h4>
-                    <p className="text-muted-foreground">Ausgaben werden intelligent zugeordnet und kategorisiert.</p>
+              {/* Export Options */}
+              <div className="p-6 space-y-4">
+                <div className="text-sm font-medium text-muted-foreground mb-3">CSV Datenexport</div>
+                
+                {/* CSV Export Option */}
+                <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium">CSV Export</div>
+                      <div className="text-sm text-muted-foreground">Ihre Finanzdaten im universellen Format</div>
+                    </div>
+                    <Download className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
-                  <div>
-                    <h4 className="font-semibold mb-1">Trendanalysen</h4>
-                    <p className="text-muted-foreground">Erkennen Sie Entwicklungstrends bei Ihren Ausgaben.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
-                  <div>
-                    <h4 className="font-semibold mb-1">Kostenoptimierung</h4>
-                    <p className="text-muted-foreground">Identifizieren Sie Einsparpotenziale automatisch.</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Einnahmequellen Section - 2 Column Layout (Table Left, Text Right) */}
-          <motion.div 
-            initial={{ opacity: 0, x: -50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 1.4 }}
-            viewport={{ once: true }}
-            className="grid md:grid-cols-2 gap-12 items-start mb-24"
-          >
-            {/* Left Column - Table in Mac Window */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 1.6 }}
-              viewport={{ once: true }}
-              className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]"
-            >
-              {/* macOS Window Header */}
-              <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
-                <div className="flex space-x-2">
-                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                </div>
-              </div>
-              <div className="w-full p-6">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998]">
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Quelle</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Betrag</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Anteil</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mockRevenueSources.map((source) => (
-                        <TableRow 
-                          key={source.id}
-                          className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                        >
-                          <TableCell className="font-medium">{source.source}</TableCell>
-                          <TableCell className="text-green-600 dark:text-green-400 font-semibold">{source.amount}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{source.percentage}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={source.status === 'wachsend' ? 'default' : 'secondary'}>
-                              {source.status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right Column - Description */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 1.8 }}
-              viewport={{ once: true }}
-              className="space-y-6"
-            >
-              <div>
-                <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
-                  <CreditCard className="w-8 h-8 text-primary" />
-                  Einnahmequellen
-                </h3>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Überwachen Sie alle Ihre Einnahmequellen zentral und erkennen Sie sofort, welche Objekte am profitabelsten sind. Planen Sie Ihr Wachstum basierend auf soliden Daten.
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
-                  <div>
-                    <h4 className="font-semibold mb-1">Zentrale Erfassung</h4>
-                    <p className="text-muted-foreground">Alle Einnahmen werden automatisch erfasst und zugeordnet.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
-                  <div>
-                    <h4 className="font-semibold mb-1">Rentabilitätsanalyse</h4>
-                    <p className="text-muted-foreground">Sehen Sie sofort, welche Objekte am profitabelsten sind.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
-                  <div>
-                    <h4 className="font-semibold mb-1">Wachstumsplanung</h4>
-                    <p className="text-muted-foreground">Planen Sie Ihr Portfolio-Wachstum datenbasiert.</p>
+                
+                {/* Date Range Selector */}
+                <div className="pt-4 border-t">
+                  <div className="text-sm font-medium mb-3">Zeitraum auswählen</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="px-3 py-2 text-sm border rounded-lg hover:bg-muted transition-colors">Aktuelles Jahr</button>
+                    <button className="px-3 py-2 text-sm border rounded-lg hover:bg-muted transition-colors">Letzte 12 Monate</button>
+                    <button className="px-3 py-2 text-sm border rounded-lg hover:bg-muted transition-colors">Quartal</button>
+                    <button className="px-3 py-2 text-sm border rounded-lg hover:bg-muted transition-colors">Individuell</button>
                   </div>
                 </div>
               </div>
