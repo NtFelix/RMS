@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/utils/supabase/client"
-import { Home, User, Tag, Edit, Check } from "lucide-react"
+import { Home, User, Tag, Edit, Check, Wrench } from "lucide-react"
 
 type TenantBentoItem = {
   id: string
@@ -11,6 +11,7 @@ type TenantBentoItem = {
   apartment: string
   apartmentId: string
   mieteRaw: number
+  nebenkostenRaw?: number // Optional Nebenkosten prepayment
   paid: boolean
 }
 
@@ -75,6 +76,7 @@ export function TenantPaymentBento() {
         apartment: mieter.Wohnungen.name,
         apartmentId: mieter.Wohnungen.id,
         mieteRaw: Number(mieter.Wohnungen.miete) || 0,
+        nebenkostenRaw: 150, // TODO: Replace with actual nebenkosten from database when available
         paid: paidWohnungen.has(mieter.Wohnungen.id),
       }))
   }
@@ -204,12 +206,25 @@ export function TenantPaymentBento() {
                       </div>
                     </div>
                     
-                    {/* Right side: Price - aligned with tenant name */}
-                    <div className={`flex items-center gap-1 font-medium ${
-                      tenant.paid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                    }`}>
-                      <Tag className="h-3 w-3" />
-                      <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
+                    {/* Right side: Price tags - aligned with tenant name */}
+                    <div className="flex flex-col items-end gap-1">
+                      {/* Main rent price */}
+                      <div className={`flex items-center gap-1 font-medium ${
+                        tenant.paid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        <Tag className="h-3 w-3" />
+                        <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
+                      </div>
+                      
+                      {/* Nebenkosten prepayment - smaller */}
+                      {tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0 && (
+                        <div className={`flex items-center gap-1 text-xs font-medium ${
+                          tenant.paid ? 'text-green-600/70 dark:text-green-400/70' : 'text-red-600/70 dark:text-red-400/70'
+                        }`}>
+                          <Wrench className="h-2.5 w-2.5" />
+                          <span>NK: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.nebenkostenRaw)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
