@@ -214,11 +214,11 @@ export function TenantPaymentBento() {
                   </div>
                   
                   {/* Bottom section: Action buttons */}
-                  <div className="flex gap-2 mt-auto">
+                  <div className="flex gap-2 mt-auto w-full">
                     {/* Nebenkosten button (left) */}
                     <button
                       type="button"
-                      className="px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                      className="flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                       disabled={updatingStatus === tenant.id}
                     >
                       Nebenkosten
@@ -228,7 +228,7 @@ export function TenantPaymentBento() {
                     <button
                       type="button"
                       className={
-                        `px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 ${
+                        `flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 ${
                           tenant.paid
                             ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-900/50'
                             : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/50'
