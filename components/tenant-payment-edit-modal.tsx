@@ -42,29 +42,37 @@ export default function TenantPaymentEditModal() {
     const supabase = createClient()
 
     try {
-      // Update apartment rent
+      const today = new Date().toISOString().split('T')[0]
+
+      // Create rent entry in Finanzen table
       const { error: rentError } = await supabase
-        .from("Wohnungen")
-        .update({ miete: rentValue })
-        .eq("id", tenantPaymentEditInitialData.apartmentId)
+        .from("Finanzen")
+        .insert({
+          wohnung_id: tenantPaymentEditInitialData.apartmentId,
+          name: "Mietzahlung",
+          betrag: rentValue,
+          datum: today,
+          ist_einnahmen: true,
+          kategorie: "Miete",
+          beschreibung: `Einmalige Mietzahlung für ${tenantPaymentEditInitialData.tenant} - Wohnung: ${tenantPaymentEditInitialData.apartment}`
+        })
 
       if (rentError) {
         throw rentError
       }
 
-      // Update tenant nebenkosten
+      // Create nebenkosten entry in Finanzen table
       const { error: nebenkostenError } = await supabase
-        .from("Mieter")
-        .update({
-          nebenkosten: [
-            {
-              id: Date.now().toString(),
-              amount: nebenkostenValue,
-              date: new Date().toISOString().split('T')[0]
-            }
-          ]
+        .from("Finanzen")
+        .insert({
+          wohnung_id: tenantPaymentEditInitialData.apartmentId,
+          name: "Nebenkosten",
+          betrag: nebenkostenValue,
+          datum: today,
+          ist_einnahmen: true,
+          kategorie: "Nebenkosten",
+          beschreibung: `Einmalige Nebenkosten-Zahlung für ${tenantPaymentEditInitialData.tenant} - Wohnung: ${tenantPaymentEditInitialData.apartment}`
         })
-        .eq("id", tenantPaymentEditInitialData.id)
 
       if (nebenkostenError) {
         throw nebenkostenError
@@ -75,8 +83,8 @@ export default function TenantPaymentEditModal() {
       window.location.reload() // Simple refresh for now
       
     } catch (error) {
-      console.error("Fehler beim Aktualisieren der Zahlungsinformationen:", error)
-      alert("Fehler beim Aktualisieren der Zahlungsinformationen. Bitte versuchen Sie es erneut.")
+      console.error("Fehler beim Erstellen der Zahlungseinträge:", error)
+      alert("Fehler beim Erstellen der Zahlungseinträge. Bitte versuchen Sie es erneut.")
     } finally {
       setIsSubmitting(false)
     }
