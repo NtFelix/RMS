@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/utils/supabase/client"
-import { Home, User, Tag } from "lucide-react"
+import { Home, User, Tag, Edit, Check } from "lucide-react"
 
 type TenantBentoItem = {
   id: string
@@ -215,20 +215,21 @@ export function TenantPaymentBento() {
                   
                   {/* Bottom section: Action buttons */}
                   <div className="flex gap-2 mt-auto w-full">
-                    {/* Nebenkosten button (left) */}
+                    {/* Anpassen button (left) */}
                     <button
                       type="button"
-                      className="flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                      className="flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center gap-1"
                       disabled={updatingStatus === tenant.id}
                     >
-                      Nebenkosten
+                      <Edit className="h-3 w-3" />
+                      Anpassen
                     </button>
                     
-                    {/* Rent payment button (right) */}
+                    {/* All button (right) */}
                     <button
                       type="button"
                       className={
-                        `flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 ${
+                        `flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${
                           tenant.paid
                             ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-900/50'
                             : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/50'
@@ -237,11 +238,17 @@ export function TenantPaymentBento() {
                       disabled={updatingStatus === tenant.id}
                       onClick={() => toggleRentPayment(tenant)}
                     >
-                      {updatingStatus === tenant.id
-                        ? 'Aktualisiere...'
-                        : tenant.paid
-                        ? 'Miete bezahlt'
-                        : 'Miete unbezahlt'}
+                      {updatingStatus === tenant.id ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3 w-3 border-t border-b border-current"></div>
+                          Aktualisiere...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-3 w-3" />
+                          {tenant.paid ? 'Bezahlt' : 'Unbezahlt'}
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
