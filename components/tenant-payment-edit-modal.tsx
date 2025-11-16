@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,9 +16,18 @@ export default function TenantPaymentEditModal() {
     setTenantPaymentEditModalDirty,
   } = useModalStore()
 
-  const [rent, setRent] = useState(tenantPaymentEditInitialData?.mieteRaw?.toString() || "")
-  const [nebenkosten, setNebenkosten] = useState(tenantPaymentEditInitialData?.nebenkostenRaw?.toString() || "")
+  const [rent, setRent] = useState("")
+  const [nebenkosten, setNebenkosten] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Reset form fields when modal opens with new data
+  useEffect(() => {
+    if (tenantPaymentEditInitialData) {
+      setRent(tenantPaymentEditInitialData.mieteRaw?.toString() || "")
+      setNebenkosten(tenantPaymentEditInitialData.nebenkostenRaw?.toString() || "")
+      setTenantPaymentEditModalDirty(false)
+    }
+  }, [tenantPaymentEditInitialData, setTenantPaymentEditModalDirty])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
