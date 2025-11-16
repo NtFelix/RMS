@@ -119,14 +119,14 @@ export default function FinanceManagementPage() {
           {/* Image with macOS Window */}
           <MacWindow className="mb-16">
             <MediaContent
-              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/finance-dashboard.avif"
-              alt="Dashboard-Ansicht mit Finanzübersicht"
+              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/finance-table.avif"
+              alt="Finanztabelle-Ansicht"
               type="image"
               className="dark:hidden"
             />
             <MediaContent
-              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/finance-dashboard-darkmode.avif"
-              alt="Dashboard-Ansicht mit Finanzübersicht (Dark Mode)"
+              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/finance-table-darkmode.avif"
+              alt="Finanztabelle-Ansicht (Dark Mode)"
               type="image"
               className="hidden dark:block"
             />
