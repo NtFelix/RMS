@@ -53,11 +53,11 @@ export default function TenantPaymentEditModal() {
           betrag: rentValue,
           datum: today,
           ist_einnahmen: true,
-          kategorie: "Miete",
-          beschreibung: `Einmalige Mietzahlung für ${tenantPaymentEditInitialData.tenant} - Wohnung: ${tenantPaymentEditInitialData.apartment}`
+          notiz: `Einmalige Mietzahlung für ${tenantPaymentEditInitialData.tenant} - Wohnung: ${tenantPaymentEditInitialData.apartment}`
         })
 
       if (rentError) {
+        console.error("Rent entry error:", rentError)
         throw rentError
       }
 
@@ -70,11 +70,11 @@ export default function TenantPaymentEditModal() {
           betrag: nebenkostenValue,
           datum: today,
           ist_einnahmen: true,
-          kategorie: "Nebenkosten",
-          beschreibung: `Einmalige Nebenkosten-Zahlung für ${tenantPaymentEditInitialData.tenant} - Wohnung: ${tenantPaymentEditInitialData.apartment}`
+          notiz: `Einmalige Nebenkosten-Zahlung für ${tenantPaymentEditInitialData.tenant} - Wohnung: ${tenantPaymentEditInitialData.apartment}`
         })
 
       if (nebenkostenError) {
+        console.error("Nebenkosten entry error:", nebenkostenError)
         throw nebenkostenError
       }
 
@@ -84,7 +84,7 @@ export default function TenantPaymentEditModal() {
       
     } catch (error) {
       console.error("Fehler beim Erstellen der Zahlungseinträge:", error)
-      alert("Fehler beim Erstellen der Zahlungseinträge. Bitte versuchen Sie es erneut.")
+      alert(`Fehler beim Erstellen der Zahlungseinträge: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`)
     } finally {
       setIsSubmitting(false)
     }
