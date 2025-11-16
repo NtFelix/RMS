@@ -49,11 +49,11 @@ export default function TenantPaymentEditModal() {
         .from("Finanzen")
         .insert({
           wohnung_id: tenantPaymentEditInitialData.apartmentId,
-          name: "Mietzahlung",
+          name: `Mietzahlung ${tenantPaymentEditInitialData.apartment}`,
           betrag: rentValue,
           datum: today,
           ist_einnahmen: true,
-          notiz: `Einmalige Mietzahlung für ${tenantPaymentEditInitialData.tenant} - Wohnung: ${tenantPaymentEditInitialData.apartment}`
+          notiz: `Mietzahlung von ${tenantPaymentEditInitialData.tenant}`
         })
 
       if (rentError) {
@@ -66,11 +66,11 @@ export default function TenantPaymentEditModal() {
         .from("Finanzen")
         .insert({
           wohnung_id: tenantPaymentEditInitialData.apartmentId,
-          name: "Nebenkosten",
+          name: `Nebenkosten ${tenantPaymentEditInitialData.apartment}`,
           betrag: nebenkostenValue,
           datum: today,
           ist_einnahmen: true,
-          notiz: `Einmalige Nebenkosten-Zahlung für ${tenantPaymentEditInitialData.tenant} - Wohnung: ${tenantPaymentEditInitialData.apartment}`
+          notiz: `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant}`
         })
 
       if (nebenkostenError) {
