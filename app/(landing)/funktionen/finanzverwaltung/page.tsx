@@ -1,7 +1,7 @@
 'use client';
 
 
-import { TrendingUp, PieChart, BarChart3, Receipt, Calendar, Download, CheckCircle2, ArrowLeft, ArrowRight, DollarSign, TrendingUp as TrendingUpIcon, FileText, CreditCard, PiggyBank, Home } from 'lucide-react';
+import { TrendingUp, PieChart, BarChart3, Receipt, Calendar, Download, CheckCircle2, ArrowLeft, ArrowRight, DollarSign, TrendingUp as TrendingUpIcon, FileText, CreditCard, PiggyBank, Home, Search, Filter, Zap } from 'lucide-react';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import { CTAButton } from '@/components/ui/cta-button';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
 
@@ -654,6 +655,126 @@ export default function FinanceManagementPage() {
                   <div>
                     <h4 className="font-semibold mb-1">Rentabilitäts-Übersicht</h4>
                     <p className="text-muted-foreground">Behalten Sie stets den Überblick über Ihre Rentabilität und verlieren Sie nie den Durchblick bei Einnahmen und Ausgaben.</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Search & Filter Section - 2 Column Layout (Content Left, Card Right) */}
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            viewport={{ once: true }}
+            className="grid md:grid-cols-2 gap-12 items-start mb-24"
+          >
+            {/* Left Column - Search & Filter Description */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              viewport={{ once: true }}
+              className="space-y-6"
+            >
+              <div>
+                <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
+                  <Search className="w-8 h-8 text-primary" />
+                  Intelligente Suche & Filter
+                </h3>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Finden Sie jede Transaktion im Handumdrehen. Mit leistungsstarker Suche und flexiblen Filtern können Sie Ihre Finanzdaten schnell und präzise durchsuchen.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Search className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Sofortige Suche</h4>
+                    <p className="text-muted-foreground">Geben Sie einfach einen Begriff ein und erhalten Sie sofort alle passenden Transaktionen.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Filter className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Flexible Filter</h4>
+                    <p className="text-muted-foreground">Filtern Sie nach Wohnung, Jahr oder Transaktionstyp für gezielte Einblicke.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Zap className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Vorschau-Ergebnisse</h4>
+                    <p className="text-muted-foreground">Sehen Sie sofort die wichtigsten Informationen zu jeder gefundenen Transaktion.</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Right Column - Mockup Window */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+              viewport={{ once: true }}
+              className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]"
+            >
+              {/* macOS Window Header */}
+              <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                </div>
+                <div className="flex-1 text-center text-sm font-medium">Finanzverwaltung</div>
+                <div className="w-16"></div>
+              </div>
+              
+              {/* Search & Filter Bar Mockup */}
+              <div className="p-6 space-y-4">
+                <div className="text-sm font-medium text-muted-foreground mb-3">Transaktionen suchen</div>
+                
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    type="search" 
+                    placeholder="Nebenkostenvorauszahlung..." 
+                    className="pl-10" 
+                  />
+                </div>
+                
+                {/* Results Table */}
+                <div className="mt-4">
+                  <div className="text-xs font-medium text-muted-foreground mb-2">3 Treffer gefunden</div>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-3 font-medium">Bezeichnung</th>
+                          <th className="text-left p-3 font-medium">Datum</th>
+                          <th className="text-right p-3 font-medium">Betrag</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-t hover:bg-muted/20">
+                          <td className="p-3">Nebenkostenvorauszahlung Schmidt</td>
+                          <td className="p-3 text-muted-foreground">01.03.2025</td>
+                          <td className="p-3 text-right font-medium text-green-600">+120,00 €</td>
+                        </tr>
+                        <tr className="border-t hover:bg-muted/20">
+                          <td className="p-3">Nebenkostenvorauszahlung Müller</td>
+                          <td className="p-3 text-muted-foreground">01.02.2025</td>
+                          <td className="p-3 text-right font-medium text-green-600">+80,00 €</td>
+                        </tr>
+                        <tr className="border-t hover:bg-muted/20">
+                          <td className="p-3">Nebenkostenvorauszahlung Wagner</td>
+                          <td className="p-3 text-muted-foreground">01.02.2025</td>
+                          <td className="p-3 text-right font-medium text-green-600">+150,00 €</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
