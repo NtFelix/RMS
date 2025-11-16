@@ -233,7 +233,7 @@ export function TenantPaymentBento() {
                     {/* Anpassen button (left) */}
                     <button
                       type="button"
-                      className="flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center justify-center gap-1"
+                      className="flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
                       disabled={updatingStatus === tenant.id}
                     >
                       <Edit className="h-3 w-3" />
