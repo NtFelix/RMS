@@ -191,7 +191,7 @@ export function TenantPaymentBento() {
                   }`}
                 >
                   {/* Top section: Tenant info and price */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-start justify-between mb-3">
                     {/* Left side: Tenant name and apartment */}
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1 font-semibold text-foreground">
@@ -204,7 +204,7 @@ export function TenantPaymentBento() {
                       </div>
                     </div>
                     
-                    {/* Right side: Price */}
+                    {/* Right side: Price - aligned with tenant name */}
                     <div className={`flex items-center gap-1 font-medium ${
                       tenant.paid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
