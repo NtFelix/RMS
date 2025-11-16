@@ -54,7 +54,7 @@ export function TenantPaymentBento() {
       .eq('ist_einnahmen', true)
       .gte('datum', start)
       .lte('datum', end)
-      .ilike('name', '%Mietzahlung%')
+      .in('name', ['Mietzahlung', 'Nebenkosten'])
 
     const paidWohnungen = new Set<string>()
     finanzData?.forEach(finanz => {
@@ -128,17 +128,17 @@ export function TenantPaymentBento() {
       const { start, end } = getCurrentMonthRange()
 
       if (tenant.paid) {
-        // Remove payment record
+        // Remove payment records (both rent and nebenkosten)
         await supabase
           .from('Finanzen')
           .delete()
           .eq('wohnung_id', tenant.apartmentId)
           .eq('ist_einnahmen', true)
-          .ilike('name', '%Mietzahlung%')
+          .in('name', ['Mietzahlung', 'Nebenkosten'])
           .gte('datum', start)
           .lte('datum', end)
       } else {
-        // Add payment record
+        // Add rent payment record
         await supabase
           .from('Finanzen')
           .insert({
@@ -149,6 +149,20 @@ export function TenantPaymentBento() {
             ist_einnahmen: true,
             notiz: `Mietzahlung von ${tenant.tenant}`
           })
+
+        // Add nebenkosten payment record if nebenkosten exists
+        if (tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0) {
+          await supabase
+            .from('Finanzen')
+            .insert({
+              wohnung_id: tenant.apartmentId,
+              name: `Nebenkosten ${tenant.apartment}`,
+              datum: new Date().toISOString().split('T')[0],
+              betrag: tenant.nebenkostenRaw,
+              ist_einnahmen: true,
+              notiz: `Nebenkosten-Vorauszahlung von ${tenant.tenant}`
+            })
+        }
       }
 
       // Optimistically update the UI
