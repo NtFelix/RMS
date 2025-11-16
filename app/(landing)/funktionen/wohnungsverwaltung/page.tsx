@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
 
 export default function ApartmentManagementPage() {
   // Mock data for Wohnungen table
@@ -95,14 +96,32 @@ export default function ApartmentManagementPage() {
       {/* Datenübersichten Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
             <h2 className="text-4xl font-bold">Datenübersichten</h2>
-          </div>
+          </motion.div>
 
           {/* Wohnungen Section - 2 Column Layout (Table Left, Text Right) */}
-          <div className="grid md:grid-cols-2 gap-12 items-start mb-24">
+          <motion.div 
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            viewport={{ once: true }}
+            className="grid md:grid-cols-2 gap-12 items-start mb-24"
+          >
             {/* Left Column - Table in Mac Window */}
-            <div className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              viewport={{ once: true }}
+              className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]"
+            >
               {/* macOS Window Header */}
               <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
                 <div className="flex space-x-2">
@@ -144,10 +163,15 @@ export default function ApartmentManagementPage() {
                   </Table>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Right Column - Description */}
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              viewport={{ once: true }}
+            >
               <div className="flex items-center mb-4">
                 <Building2 className="w-8 h-8 text-primary mr-3" />
                 <h3 className="text-2xl font-semibold">Wohnungen</h3>
@@ -158,13 +182,24 @@ export default function ApartmentManagementPage() {
               <p className="text-muted-foreground">
                 Jede Wohnung ist eindeutig identifiziert und mit relevanten Metriken wie Quadratmeterpreis und aktueller Vermietungsstatus versehen.
               </p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Mieter Section - 2 Column Layout */}
-          <div className="grid md:grid-cols-2 gap-12 items-start mb-24">
+          <motion.div 
+            initial={{ opacity: 0, x: 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            viewport={{ once: true }}
+            className="grid md:grid-cols-2 gap-12 items-start mb-24"
+          >
             {/* Left Column - Description */}
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 1.0 }}
+              viewport={{ once: true }}
+            >
               <div className="flex items-center mb-4">
                 <Users className="w-8 h-8 text-primary mr-3" />
                 <h3 className="text-2xl font-semibold">Mieter</h3>
@@ -175,10 +210,16 @@ export default function ApartmentManagementPage() {
               <p className="text-muted-foreground">
                 Schneller Zugriff auf Kontaktdaten und Wohnungszuweisungen für eine effiziente Kommunikation und Verwaltung.
               </p>
-            </div>
+            </motion.div>
 
             {/* Right Column - Table in Mac Window */}
-            <div className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 1.2 }}
+              viewport={{ once: true }}
+              className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]"
+            >
               {/* macOS Window Header */}
               <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
                 <div className="flex space-x-2">
@@ -212,13 +253,25 @@ export default function ApartmentManagementPage() {
                   </Table>
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Häuser Section - 2 Column Layout (Table Left, Text Right) */}
-          <div className="grid md:grid-cols-2 gap-12 items-start mb-24">
+          <motion.div 
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 1.4 }}
+            viewport={{ once: true }}
+            className="grid md:grid-cols-2 gap-12 items-start mb-24"
+          >
             {/* Left Column - Table in Mac Window */}
-            <div className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 1.6 }}
+              viewport={{ once: true }}
+              className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]"
+            >
               {/* macOS Window Header */}
               <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
                 <div className="flex space-x-2">
@@ -258,10 +311,15 @@ export default function ApartmentManagementPage() {
                   </Table>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Right Column - Description */}
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 1.8 }}
+              viewport={{ once: true }}
+            >
               <div className="flex items-center mb-4">
                 <Home className="w-8 h-8 text-primary mr-3" />
                 <h3 className="text-2xl font-semibold">Häuser</h3>
@@ -272,8 +330,8 @@ export default function ApartmentManagementPage() {
               <p className="text-muted-foreground">
                 Detaillierte Informationen zu Standorten, Wohnungsanzahl und Auslastung für optimierte Verwaltungsentscheidungen.
               </p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
 
