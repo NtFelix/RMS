@@ -634,10 +634,10 @@ export default function FinanceManagementPage() {
               <div>
                 <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
                   <TrendingUpIcon className="w-8 h-8 text-primary" />
-                  Monatliche Finanzübersicht
+                  Vollständige Finanzübersicht
                 </h3>
                 <p className="text-lg text-muted-foreground leading-relaxed">
-                  Behalten Sie den Überblick über Ihre monatlichen Einnahmen und Ausgaben. Unsere detaillierte Übersicht zeigt Ihnen genau, wo Ihr Geld fließt und wo Sie Potenziale zur Optimierung haben.
+                  Sehen Sie alle Ihre Einnahmen und Ausgaben an einem Ort. Die chronologische Übersicht zeigt jede einzelne Transaktion mit Betrag, Datum und Typ - perfekt für die tägliche Finanzkontrolle und schnelle Entscheidungen.
                 </p>
               </div>
               
@@ -645,22 +645,15 @@ export default function FinanceManagementPage() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
                   <div>
-                    <h4 className="font-semibold mb-1">Automatische Berechnung</h4>
-                    <p className="text-muted-foreground">Mieteinnahmen werden automatisch erfasst und berechnet.</p>
+                    <h4 className="font-semibold mb-1">Alle Transaktionen</h4>
+                    <p className="text-muted-foreground">Vollständige Liste aller Einnahmen (Miete, Nebenkosten) und Ausgaben (Instandhaltung, Versicherungen).</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
                   <div>
-                    <h4 className="font-semibold mb-1">Kategorisierte Ausgaben</h4>
-                    <p className="text-muted-foreground">Alle Ausgaben werden automatisch nach Kategorien sortiert.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
-                  <div>
-                    <h4 className="font-semibold mb-1">Gewinnanalyse</h4>
-                    <p className="text-muted-foreground">Sehen Sie sofort Ihre monatlichen Gewinne und Verluste.</p>
+                    <h4 className="font-semibold mb-1">Rentabilitäts-Übersicht</h4>
+                    <p className="text-muted-foreground">Behalten Sie stets den Überblick über Ihre Rentabilität und verlieren Sie nie den Durchblick bei Einnahmen und Ausgaben.</p>
                   </div>
                 </div>
               </div>
