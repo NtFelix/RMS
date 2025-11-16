@@ -15,16 +15,49 @@ type TenantBentoItem = {
   paid: boolean
 }
 
+type NebenkostenEntry = {
+  id?: string
+  amount?: string | number
+  date?: string | null
+}
+
 type MieterData = {
   id: string
   name: string
   einzug: string | null
   auszug: string | null
+  nebenkosten?: NebenkostenEntry[] | null
   Wohnungen: {
     id: string
     name: string
     miete: number
   }
+}
+
+const getLatestNebenkostenAmount = (entries?: NebenkostenEntry[] | null): number => {
+  if (!Array.isArray(entries)) return 0
+
+  const parsedEntries = entries
+    .map(entry => {
+      const amount = typeof entry.amount === 'number' ? entry.amount : Number(entry.amount)
+      const dateValue = entry.date ? new Date(entry.date) : null
+      return {
+        amount: !Number.isNaN(amount) ? amount : 0,
+        dateValue,
+      }
+    })
+    .filter(entry => entry.amount > 0)
+
+  if (!parsedEntries.length) return 0
+
+  parsedEntries.sort((a, b) => {
+    if (!a.dateValue && !b.dateValue) return 0
+    if (!a.dateValue) return 1
+    if (!b.dateValue) return -1
+    return b.dateValue.getTime() - a.dateValue.getTime()
+  })
+
+  return parsedEntries[0]?.amount ?? 0
 }
 
 export function TenantPaymentBento() {
@@ -50,11 +83,11 @@ export function TenantPaymentBento() {
 
     const { data: finanzData } = await supabase
       .from("Finanzen")
-      .select('wohnung_id')
+      .select('wohnung_id, name')
       .eq('ist_einnahmen', true)
       .gte('datum', start)
       .lte('datum', end)
-      .in('name', ['Mietzahlung', 'Nebenkosten'])
+      .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
 
     const paidWohnungen = new Set<string>()
     finanzData?.forEach(finanz => {
@@ -76,7 +109,7 @@ export function TenantPaymentBento() {
         apartment: mieter.Wohnungen.name,
         apartmentId: mieter.Wohnungen.id,
         mieteRaw: Number(mieter.Wohnungen.miete) || 0,
-        nebenkostenRaw: 150, // TODO: Replace with actual nebenkosten from database when available
+        nebenkostenRaw: getLatestNebenkostenAmount(mieter.nebenkosten),
         paid: paidWohnungen.has(mieter.Wohnungen.id),
       }))
   }
@@ -95,6 +128,7 @@ export function TenantPaymentBento() {
           name,
           einzug,
           auszug,
+          nebenkosten,
           Wohnungen:wohnung_id (
             id,
             name,
@@ -134,9 +168,9 @@ export function TenantPaymentBento() {
           .delete()
           .eq('wohnung_id', tenant.apartmentId)
           .eq('ist_einnahmen', true)
-          .in('name', ['Mietzahlung', 'Nebenkosten'])
           .gte('datum', start)
           .lte('datum', end)
+          .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
       } else {
         // Add rent payment record
         await supabase
