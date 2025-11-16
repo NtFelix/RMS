@@ -55,7 +55,7 @@ export default function BottomCTA({
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat hidden dark:block"
           style={{
-            backgroundImage: `url('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/bottom-cta/${theme === 'city' ? 'city-background' : 'house-stars'}.avif')`
+            backgroundImage: `url('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/bottom-cta/${theme === 'city' ? 'city-background-night' : 'house-stars'}.avif')`
           }}
         />
         {/* Dark overlay for text readability */}
