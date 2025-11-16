@@ -122,9 +122,9 @@ export default function TenantPaymentEditModal() {
     <Dialog open={isTenantPaymentEditModalOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Zahlungsinformationen anpassen</DialogTitle>
+          <DialogTitle>Zahlungsabweichung erfassen</DialogTitle>
           <DialogDescription>
-            Passen Sie die Miete und Nebenkosten-Vorauszahlung für diesen Mieter an.
+            Erfassen Sie abweichende Zahlungen, Mietminderungen oder ausstehende Beträge für diesen Mieter.
           </DialogDescription>
         </DialogHeader>
         
@@ -135,7 +135,7 @@ export default function TenantPaymentEditModal() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="rent">Miete (€)</Label>
+            <Label htmlFor="rent">Tatsächliche Mietzahlung (€)</Label>
             <Input
               id="rent"
               type="number"
@@ -143,14 +143,14 @@ export default function TenantPaymentEditModal() {
               min="0"
               value={rent}
               onChange={(e) => handleRentChange(e.target.value)}
-              placeholder="Mietbetrag eingeben"
+              placeholder="Tatsächlich gezahlten Mietbetrag eingeben"
               disabled={isSubmitting}
               required
             />
           </div>
 
           <div>
-            <Label htmlFor="nebenkosten">Nebenkosten-Vorauszahlung (€)</Label>
+            <Label htmlFor="nebenkosten">Tatsächliche Nebenkosten-Vorauszahlung (€)</Label>
             <Input
               id="nebenkosten"
               type="number"
@@ -158,7 +158,7 @@ export default function TenantPaymentEditModal() {
               min="0"
               value={nebenkosten}
               onChange={(e) => handleNebenkostenChange(e.target.value)}
-              placeholder="Nebenkosten-Vorauszahlung eingeben"
+              placeholder="Tatsächlich gezahlte Nebenkosten-Vorauszahlung eingeben"
               disabled={isSubmitting}
               required
             />
@@ -177,7 +177,7 @@ export default function TenantPaymentEditModal() {
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Wird gespeichert..." : "Speichern"}
+              {isSubmitting ? "Wird erfasst..." : "Abweichung erfassen"}
             </Button>
           </DialogFooter>
         </form>
