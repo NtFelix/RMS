@@ -184,7 +184,7 @@ export function TenantPaymentBento() {
               data.map((tenant) => (
                 <div
                   key={tenant.id}
-                  className={`w-full flex flex-col p-4 rounded-lg shadow-md bg-card border transition-colors duration-200 ${
+                  className={`w-full flex flex-col p-4 rounded-2xl shadow-md bg-card border transition-colors duration-200 ${
                     tenant.paid
                       ? 'border-green-200 dark:border-green-800 hover:bg-green-50/50 dark:hover:bg-green-900/20'
                       : 'border-red-200 dark:border-red-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
