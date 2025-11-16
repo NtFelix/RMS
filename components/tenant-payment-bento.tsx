@@ -184,36 +184,51 @@ export function TenantPaymentBento() {
               data.map((tenant) => (
                 <div
                   key={tenant.id}
-                  className={`w-full flex items-center justify-between p-4 rounded-lg shadow-md bg-card border transition-colors duration-200 ${
+                  className={`w-full flex flex-col p-4 rounded-lg shadow-md bg-card border transition-colors duration-200 ${
                     tenant.paid
                       ? 'border-green-200 dark:border-green-800 hover:bg-green-50/50 dark:hover:bg-green-900/20'
                       : 'border-red-200 dark:border-red-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
                   }`}
                 >
-                  {/* Left side: Tenant name and apartment */}
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1 font-semibold text-foreground">
-                      <User className="h-3.5 w-3.5" />
-                      <span>{tenant.tenant}</span>
+                  {/* Top section: Tenant info and price */}
+                  <div className="flex items-center justify-between mb-3">
+                    {/* Left side: Tenant name and apartment */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1 font-semibold text-foreground">
+                        <User className="h-3.5 w-3.5" />
+                        <span>{tenant.tenant}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Home className="h-3.5 w-3.5" />
+                        <span>{tenant.apartment}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Home className="h-3.5 w-3.5" />
-                      <span>{tenant.apartment}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Right side: Price and payment button */}
-                  <div className="flex flex-col items-end gap-2">
+                    
+                    {/* Right side: Price */}
                     <div className={`flex items-center gap-1 font-medium ${
                       tenant.paid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
                       <Tag className="h-3 w-3" />
                       <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
                     </div>
+                  </div>
+                  
+                  {/* Bottom section: Action buttons */}
+                  <div className="flex gap-2 mt-auto">
+                    {/* Nebenkosten button (left) */}
+                    <button
+                      type="button"
+                      className="px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                      disabled={updatingStatus === tenant.id}
+                    >
+                      Nebenkosten
+                    </button>
+                    
+                    {/* Rent payment button (right) */}
                     <button
                       type="button"
                       className={
-                        `px-3 py-1 rounded-full text-xs font-medium border transition-colors duration-150 ${
+                        `px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 ${
                           tenant.paid
                             ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-900/50'
                             : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/50'
