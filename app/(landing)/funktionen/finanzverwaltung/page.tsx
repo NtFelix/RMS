@@ -120,13 +120,15 @@ export default function FinanceManagementPage() {
     'Integration mit Ihrer Buchhaltungssoftware',
   ];
 
-  // Mock data for Finance table
+  // Mock data for Finance table - matching real finance table structure
   const mockFinanceData = [
-    { id: 1, month: 'Januar 2024', income: '€4.250', expenses: '€1.280', profit: '€2.970', category: 'Mieteinnahmen' },
-    { id: 2, month: 'Februar 2024', income: '€4.250', expenses: '€1.450', profit: '€2.800', category: 'Mieteinnahmen' },
-    { id: 3, month: 'März 2024', income: '€4.500', expenses: '€1.320', profit: '€3.180', category: 'Mieteinnahmen + Reparatur' },
-    { id: 4, month: 'April 2024', income: '€4.250', expenses: '€980', profit: '€3.270', category: 'Mieteinnahmen' },
-  ];
+    { id: 1, name: 'Versicherung Gebäude', wohnung: 'Alle', datum: '05.01.2025', betrag: -120, ist_einnahmen: false, notiz: 'Monatliche Versicherungsprämie' },
+    { id: 2, name: 'Mieteinnahmen Wohnung A', wohnung: 'Wohnung A', datum: '15.01.2025', betrag: 1250, ist_einnahmen: true, notiz: 'Monatliche Miete Januar' },
+    { id: 3, name: 'Mieteinnahmen Wohnung B', wohnung: 'Wohnung B', datum: '15.01.2025', betrag: 980, ist_einnahmen: true, notiz: 'Monatliche Miete Januar' },
+    { id: 4, name: 'Mieteinnahmen Wohnung C', wohnung: 'Wohnung C', datum: '15.01.2025', betrag: 1100, ist_einnahmen: true, notiz: 'Monatliche Miete Januar' },
+    { id: 5, name: 'Nebenkostenabrechnung', wohnung: 'Wohnung B', datum: '12.02.2025', betrag: 180, ist_einnahmen: true, notiz: 'Heizkostenabrechnung' },
+    { id: 6, name: 'Instandhaltung Heizung', wohnung: 'Wohnung C', datum: '08.03.2025', betrag: -450, ist_einnahmen: false, notiz: 'Wartung und Reparatur' },
+  ].sort((a, b) => new Date(b.datum.split('.').reverse().join('-')).getTime() - new Date(a.datum.split('.').reverse().join('-')).getTime());
 
   // Mock data for Expense Categories
   const mockExpenseCategories = [
@@ -597,10 +599,9 @@ export default function FinanceManagementPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998]">
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Monat</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Einnahmen</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Ausgaben</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Gewinn</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Bezeichnung</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Datum</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Betrag</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -609,10 +610,11 @@ export default function FinanceManagementPage() {
                           key={finance.id}
                           className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
                         >
-                          <TableCell className="font-medium">{finance.month}</TableCell>
-                          <TableCell className="text-green-600 dark:text-green-400 font-semibold">{finance.income}</TableCell>
-                          <TableCell className="text-red-600 dark:text-red-400">{finance.expenses}</TableCell>
-                          <TableCell className="text-blue-600 dark:text-blue-400 font-semibold">{finance.profit}</TableCell>
+                          <TableCell className="font-medium">{finance.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{finance.datum}</TableCell>
+                          <TableCell className={`font-semibold ${finance.ist_einnahmen ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {finance.ist_einnahmen ? '+' : ''}{finance.betrag.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
