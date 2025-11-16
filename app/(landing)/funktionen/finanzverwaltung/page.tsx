@@ -1,7 +1,8 @@
 'use client';
 
-
 import { TrendingUp, PieChart, BarChart3, Receipt, Calendar, Download, CheckCircle2, ArrowLeft, ArrowRight, DollarSign, TrendingUp as TrendingUpIcon, FileText, CreditCard, PiggyBank, Home, Search, Filter, Zap } from 'lucide-react';
+import { SummaryCard } from "@/components/summary-card";
+import { ArrowUpCircle, ArrowDownCircle, Wallet } from "lucide-react";
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import { CTAButton } from '@/components/ui/cta-button';
@@ -775,6 +776,130 @@ export default function FinanceManagementPage() {
                         </tr>
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Financial Summary Section - 2 Column Layout (Cards Left, Content Right) */}
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 1.0 }}
+            viewport={{ once: true }}
+            className="grid md:grid-cols-2 gap-12 items-start mb-24"
+          >
+            {/* Left Column - Summary Cards Mockup */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 1.2 }}
+              viewport={{ once: true }}
+            >
+              <MacWindow className="w-full shadow-none dark:shadow-none">
+                <div className="space-y-4 p-6">
+                  {/* Monthly Income Card */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 1.2 }}
+                    viewport={{ once: true }}
+                  >
+                    <SummaryCard
+                      title="Ø Monatliche Einnahmen"
+                      value="6.030,91 €"
+                      description="Durchschnittliche monatliche Einnahmen"
+                      icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                    />
+                  </motion.div>
+
+                  {/* Monthly Expenses Card */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 1.3 }}
+                    viewport={{ once: true }}
+                  >
+                    <SummaryCard
+                      title="Ø Monatliche Ausgaben"
+                      value="177,64 €"
+                      description="Durchschnittliche monatliche Ausgaben"
+                      icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                    />
+                  </motion.div>
+
+                  {/* Monthly Cashflow Card */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 1.4 }}
+                    viewport={{ once: true }}
+                  >
+                    <SummaryCard
+                      title="Ø Monatlicher Cashflow"
+                      value="5.853,27 €"
+                      description="Durchschnittlicher monatlicher Überschuss"
+                      icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                    />
+                  </motion.div>
+
+                  {/* Annual Projection Card */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 1.5 }}
+                    viewport={{ once: true }}
+                  >
+                    <SummaryCard
+                      title="Jahresprognose"
+                      value="70.239,27 €"
+                      description="Geschätzter Jahresgewinn"
+                      icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+                    />
+                  </motion.div>
+                </div>
+              </MacWindow>
+            </motion.div>
+
+            {/* Right Column - Financial Summary Description */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 1.0 }}
+              viewport={{ once: true }}
+              className="space-y-6"
+            >
+              <div>
+                <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
+                  <BarChart3 className="w-8 h-8 text-primary" />
+                  Finanzielle Übersicht
+                </h3>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Wichtige Kennzahlen auf einen Blick - behalten Sie Ihre finanzielle Situation immer im Blick und treffen Sie fundierte Entscheidungen für Ihre Vermögensentwicklung.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <TrendingUp className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Einnahmen-Tracking</h4>
+                    <p className="text-muted-foreground">Überwachen Sie Ihre durchschnittlichen monatlichen Einnahmen und erkennen Sie Trends.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <DollarSign className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Cashflow-Analyse</h4>
+                    <p className="text-muted-foreground">Sehen Sie sofort Ihren monatlichen Überschuss und die Rentabilität Ihrer Immobilien.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <BarChart3 className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Jahresprognose</h4>
+                    <p className="text-muted-foreground">Planen Sie voraus mit geschätzten Jahresgewinnen für strategische Entscheidungen.</p>
                   </div>
                 </div>
               </div>
