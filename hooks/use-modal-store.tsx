@@ -229,6 +229,33 @@ export interface ModalState {
   closeAufgabeModal: (options?: CloseModalOptions) => void;
   setAufgabeModalDirty: (isDirty: boolean) => void;
 
+  // Tenant Payment Edit Modal State
+  isTenantPaymentEditModalOpen: boolean;
+  tenantPaymentEditInitialData?: {
+    id: string;
+    tenant: string;
+    apartment: string;
+    apartmentId: string;
+    mieteRaw: number;
+    nebenkostenRaw?: number;
+  };
+  tenantPaymentEditOnSuccess?: (updatedData: {
+    apartmentId: string;
+    newRent: number;
+    newNebenkosten: number;
+  }) => void;
+  isTenantPaymentEditModalDirty: boolean;
+  openTenantPaymentEditModal: (initialData: {
+    id: string;
+    tenant: string;
+    apartment: string;
+    apartmentId: string;
+    mieteRaw: number;
+    nebenkostenRaw?: number;
+  }) => void;
+  closeTenantPaymentEditModal: (options?: CloseModalOptions) => void;
+  setTenantPaymentEditModalDirty: (isDirty: boolean) => void;
+
   // Betriebskosten Modal State
   isBetriebskostenModalOpen: boolean;
   betriebskostenInitialData?: {
@@ -435,6 +462,13 @@ const initialAufgabeModalState = {
   isAufgabeModalDirty: false,
 };
 
+const initialTenantPaymentEditModalState = {
+  isTenantPaymentEditModalOpen: false,
+  tenantPaymentEditInitialData: undefined,
+  tenantPaymentEditOnSuccess: undefined,
+  isTenantPaymentEditModalDirty: false,
+};
+
 const initialBetriebskostenModalState = {
   isBetriebskostenModalOpen: false,
   betriebskostenInitialData: undefined,
@@ -547,6 +581,7 @@ const createInitialModalState = () => ({
   ...initialFinanceModalState,
   ...initialWohnungModalState,
   ...initialAufgabeModalState,
+  ...initialTenantPaymentEditModalState,
   ...initialBetriebskostenModalState,
   ...initialWasserzaehlerModalState,
   ...initialKautionModalState,
@@ -664,6 +699,15 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeAufgabeModal: createCloseHandler('isAufgabeModalDirty', initialAufgabeModalState),
     setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
+
+    // Tenant Payment Edit Modal
+    openTenantPaymentEditModal: (initialData) => set({
+      isTenantPaymentEditModalOpen: true,
+      tenantPaymentEditInitialData: initialData,
+      isTenantPaymentEditModalDirty: false
+    }),
+    closeTenantPaymentEditModal: createCloseHandler('isTenantPaymentEditModalDirty', initialTenantPaymentEditModalState),
+    setTenantPaymentEditModalDirty: (isDirty) => set({ isTenantPaymentEditModalDirty: isDirty }),
 
     // Betriebskosten Modal
     openBetriebskostenModal: (initialData: { id?: string; useTemplate?: 'previous' | 'default' } | null, haeuser, onSuccess) => set({

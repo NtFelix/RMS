@@ -1,0 +1,170 @@
+"use client"
+
+import { useState } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { useModalStore } from "@/hooks/use-modal-store"
+
+export default function TenantPaymentEditModal() {
+  const {
+    isTenantPaymentEditModalOpen,
+    tenantPaymentEditInitialData,
+    closeTenantPaymentEditModal,
+    setTenantPaymentEditModalDirty,
+  } = useModalStore()
+
+  const [rent, setRent] = useState(tenantPaymentEditInitialData?.mieteRaw?.toString() || "")
+  const [nebenkosten, setNebenkosten] = useState(tenantPaymentEditInitialData?.nebenkostenRaw?.toString() || "")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!tenantPaymentEditInitialData) return
+
+    const rentValue = parseFloat(rent)
+    const nebenkostenValue = parseFloat(nebenkosten)
+
+    if (isNaN(rentValue) || rentValue < 0) {
+      alert("Bitte geben Sie einen gültigen Mietbetrag ein.")
+      return
+    }
+
+    if (isNaN(nebenkostenValue) || nebenkostenValue < 0) {
+      alert("Bitte geben Sie einen gültigen Nebenkostenbetrag ein.")
+      return
+    }
+
+    setIsSubmitting(true)
+    const supabase = createClient()
+
+    try {
+      // Update apartment rent
+      const { error: rentError } = await supabase
+        .from("Wohnungen")
+        .update({ miete: rentValue })
+        .eq("id", tenantPaymentEditInitialData.apartmentId)
+
+      if (rentError) {
+        throw rentError
+      }
+
+      // Update tenant nebenkosten
+      const { error: nebenkostenError } = await supabase
+        .from("Mieter")
+        .update({
+          nebenkosten: [
+            {
+              id: Date.now().toString(),
+              amount: nebenkostenValue,
+              date: new Date().toISOString().split('T')[0]
+            }
+          ]
+        })
+        .eq("id", tenantPaymentEditInitialData.id)
+
+      if (nebenkostenError) {
+        throw nebenkostenError
+      }
+
+      // Close modal and refresh data
+      closeTenantPaymentEditModal({ force: true })
+      window.location.reload() // Simple refresh for now
+      
+    } catch (error) {
+      console.error("Fehler beim Aktualisieren der Zahlungsinformationen:", error)
+      alert("Fehler beim Aktualisieren der Zahlungsinformationen. Bitte versuchen Sie es erneut.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleClose = () => {
+    if (isSubmitting) return
+    closeTenantPaymentEditModal()
+  }
+
+  const handleRentChange = (value: string) => {
+    setRent(value)
+    setTenantPaymentEditModalDirty(true)
+  }
+
+  const handleNebenkostenChange = (value: string) => {
+    setNebenkosten(value)
+    setTenantPaymentEditModalDirty(true)
+  }
+
+  if (!isTenantPaymentEditModalOpen || !tenantPaymentEditInitialData) {
+    return null
+  }
+
+  return (
+    <Dialog open={isTenantPaymentEditModalOpen} onOpenChange={handleClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Zahlungsinformationen anpassen</DialogTitle>
+          <DialogDescription>
+            Passen Sie die Miete und Nebenkosten-Vorauszahlung für diesen Mieter an.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          <p><strong>Mieter:</strong> {tenantPaymentEditInitialData.tenant}</p>
+          <p><strong>Wohnung:</strong> {tenantPaymentEditInitialData.apartment}</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="rent">Miete (€)</Label>
+            <Input
+              id="rent"
+              type="number"
+              step="0.01"
+              min="0"
+              value={rent}
+              onChange={(e) => handleRentChange(e.target.value)}
+              placeholder="Mietbetrag eingeben"
+              disabled={isSubmitting}
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="nebenkosten">Nebenkosten-Vorauszahlung (€)</Label>
+            <Input
+              id="nebenkosten"
+              type="number"
+              step="0.01"
+              min="0"
+              value={nebenkosten}
+              onChange={(e) => handleNebenkostenChange(e.target.value)}
+              placeholder="Nebenkosten-Vorauszahlung eingeben"
+              disabled={isSubmitting}
+              required
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={isSubmitting}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Wird gespeichert..." : "Speichern"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

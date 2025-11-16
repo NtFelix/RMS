@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/utils/supabase/client"
 import { Home, User, Tag, Edit, Check, Wrench } from "lucide-react"
+import { useModalStore } from "@/hooks/use-modal-store"
 
 type TenantBentoItem = {
   id: string
@@ -64,6 +65,7 @@ export function TenantPaymentBento() {
   const [data, setData] = useState<TenantBentoItem[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const { openTenantPaymentEditModal } = useModalStore()
 
   // Helper function to get current month date range
   const getCurrentMonthRange = () => {
@@ -283,6 +285,14 @@ export function TenantPaymentBento() {
                       type="button"
                       className="flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
                       disabled={updatingStatus === tenant.id}
+                      onClick={() => openTenantPaymentEditModal({
+                        id: tenant.id,
+                        tenant: tenant.tenant,
+                        apartment: tenant.apartment,
+                        apartmentId: tenant.apartmentId,
+                        mieteRaw: tenant.mieteRaw,
+                        nebenkostenRaw: tenant.nebenkostenRaw || 0
+                      })}
                     >
                       <Edit className="h-3 w-3" />
                       Anpassen
