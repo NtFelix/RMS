@@ -42,7 +42,41 @@ export default function FinanceManagementPage() {
     { name: 'Steuern', value: 340 },
   ];
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  // Colors matching the real finance page
+  const COLORS = ["#2c3e50", "#34495e", "#16a34a", "#ca8a04", "#dc2626", "#2563eb"];
+
+  // Custom label renderer for pie charts - positions labels outside with percentage
+  const renderCustomLabel = (props: any) => {
+    const cx = props.cx || 0;
+    const cy = props.cy || 0;
+    const midAngle = props.midAngle || 0;
+    const innerRadius = props.innerRadius || 0;
+    const outerRadius = props.outerRadius || 0;
+    const percent = props.percent || 0;
+    const name = props.name || '';
+    const index = props.index || 0;
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius + 25; // Position outside the pie
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    // Get the color for this segment
+    const segmentColor = COLORS[index % COLORS.length];
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill={segmentColor}
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        className="text-sm font-semibold"
+        style={{ fontSize: '12px' }}
+      >
+        {`${name} ${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
 
   const features = [
     {
@@ -216,10 +250,12 @@ export default function FinanceManagementPage() {
                             data={incomeByApartmentData}
                             cx="50%"
                             cy="50%"
-                            innerRadius={30}
-                            outerRadius={70}
-                            paddingAngle={5}
+                            labelLine={true}
+                            label={renderCustomLabel}
+                            outerRadius={60}
+                            fill="#8884d8"
                             dataKey="value"
+                            nameKey="name"
                           >
                             {incomeByApartmentData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -228,9 +264,17 @@ export default function FinanceManagementPage() {
                           <Tooltip 
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
                             contentStyle={{ 
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px'
+                              backgroundColor: 'white',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '0.5rem',
+                              padding: '0.5rem 1rem',
+                              fontSize: '14px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                            }}
+                            itemStyle={{
+                              color: '#1a202c',
+                              padding: '4px 0',
+                              textTransform: 'capitalize'
                             }}
                           />
                         </RechartsPieChart>
@@ -452,21 +496,31 @@ export default function FinanceManagementPage() {
                             data={expenseCategoriesData}
                             cx="50%"
                             cy="50%"
-                            innerRadius={30}
-                            outerRadius={70}
-                            paddingAngle={5}
+                            labelLine={true}
+                            label={renderCustomLabel}
+                            outerRadius={60}
+                            fill="#8884d8"
                             dataKey="value"
+                            nameKey="name"
                           >
                             {expenseCategoriesData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
                           <Tooltip 
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
                             contentStyle={{ 
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px'
+                              backgroundColor: 'white',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '0.5rem',
+                              padding: '0.5rem 1rem',
+                              fontSize: '14px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                            }}
+                            itemStyle={{
+                              color: '#1a202c',
+                              padding: '4px 0',
+                              textTransform: 'capitalize'
                             }}
                           />
                         </RechartsPieChart>
