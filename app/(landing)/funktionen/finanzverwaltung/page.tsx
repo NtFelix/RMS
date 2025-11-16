@@ -169,7 +169,7 @@ export default function FinanceManagementPage() {
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                       <Home className="w-5 h-5 text-primary" />
                     </div>
-                    <Badge variant="secondary" className="text-xs">Pie Chart</Badge>
+                    <Badge variant="secondary" className="text-xs">Kreisdiagramm</Badge>
                   </div>
                   <CardTitle className="text-lg">Einnahmen nach Wohnung</CardTitle>
                   <CardDescription className="text-sm">
@@ -212,7 +212,7 @@ export default function FinanceManagementPage() {
                     <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
                       <TrendingUp className="w-5 h-5 text-green-500" />
                     </div>
-                    <Badge variant="secondary" className="text-xs">Line Chart</Badge>
+                    <Badge variant="secondary" className="text-xs">Liniendiagramm</Badge>
                   </div>
                   <CardTitle className="text-lg">Monatliche Einnahmen</CardTitle>
                   <CardDescription className="text-sm">
@@ -259,7 +259,7 @@ export default function FinanceManagementPage() {
                     <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
                       <BarChart3 className="w-5 h-5 text-blue-500" />
                     </div>
-                    <Badge variant="secondary" className="text-xs">Bar Chart</Badge>
+                    <Badge variant="secondary" className="text-xs">Balkendiagramm</Badge>
                   </div>
                   <CardTitle className="text-lg">Einnahmen vs Ausgaben</CardTitle>
                   <CardDescription className="text-sm">
@@ -303,7 +303,7 @@ export default function FinanceManagementPage() {
                     <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
                       <PieChart className="w-5 h-5 text-orange-500" />
                     </div>
-                    <Badge variant="secondary" className="text-xs">Pie Chart</Badge>
+                    <Badge variant="secondary" className="text-xs">Kreisdiagramm</Badge>
                   </div>
                   <CardTitle className="text-lg">Ausgabenkategorien</CardTitle>
                   <CardDescription className="text-sm">
