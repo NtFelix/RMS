@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertTriangle } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 
@@ -22,15 +23,27 @@ export default function TenantPaymentEditModal() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isMarkingAllPaid, setIsMarkingAllPaid] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [paymentReason, setPaymentReason] = useState("")
+  const [customReason, setCustomReason] = useState("")
 
   // Reset form fields when modal opens with new data
   useEffect(() => {
     if (tenantPaymentEditInitialData) {
       setRent(tenantPaymentEditInitialData.mieteRaw?.toString() || "")
       setNebenkosten(tenantPaymentEditInitialData.nebenkostenRaw?.toString() || "")
+      setPaymentReason("")
+      setCustomReason("")
       setTenantPaymentEditModalDirty(false)
     }
   }, [tenantPaymentEditInitialData, setTenantPaymentEditModalDirty])
+
+  const getPaymentReasonText = () => {
+    if (paymentReason === "other") {
+      return customReason || "Sonstiges"
+    }
+    return paymentReason === "mietausfall" ? "Mietausfall" : 
+           paymentReason === "mietminderung" ? "Mietminderung" : ""
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +70,11 @@ export default function TenantPaymentEditModal() {
       const today = new Date().toISOString().split('T')[0]
 
       // Create rent entry in Finanzen table
+      const reasonText = getPaymentReasonText()
+      const rentNote = reasonText 
+        ? `Mietzahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
+        : `Mietzahlung von ${tenantPaymentEditInitialData.tenant}`
+      
       const { error: rentError } = await supabase
         .from("Finanzen")
         .insert({
@@ -65,7 +83,7 @@ export default function TenantPaymentEditModal() {
           betrag: rentValue,
           datum: today,
           ist_einnahmen: true,
-          notiz: `Mietzahlung von ${tenantPaymentEditInitialData.tenant}`
+          notiz: rentNote
         })
 
       if (rentError) {
@@ -74,6 +92,10 @@ export default function TenantPaymentEditModal() {
       }
 
       // Create nebenkosten entry in Finanzen table
+      const nebenkostenNote = reasonText 
+        ? `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
+        : `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant}`
+        
       const { error: nebenkostenError } = await supabase
         .from("Finanzen")
         .insert({
@@ -82,7 +104,7 @@ export default function TenantPaymentEditModal() {
           betrag: nebenkostenValue,
           datum: today,
           ist_einnahmen: true,
-          notiz: `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant}`
+          notiz: nebenkostenNote
         })
 
       if (nebenkostenError) {
@@ -252,6 +274,38 @@ export default function TenantPaymentEditModal() {
                 disabled={isSubmitting}
                 required
               />
+            </div>
+
+            {/* Payment Reason Selection */}
+            <div className="space-y-3">
+              <Label htmlFor="payment-reason">Grund für die Abweichung</Label>
+              <Select value={paymentReason} onValueChange={setPaymentReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Grund auswählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mietausfall">Mietausfall</SelectItem>
+                  <SelectItem value="mietminderung">Mietminderung</SelectItem>
+                  <SelectItem value="other">Sonstiges</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {paymentReason === "other" && (
+                <div>
+                  <Label htmlFor="custom-reason">Benutzerdefinierter Grund</Label>
+                  <Input
+                    id="custom-reason"
+                    type="text"
+                    value={customReason}
+                    onChange={(e) => {
+                      setCustomReason(e.target.value)
+                      setTenantPaymentEditModalDirty(true)
+                    }}
+                    placeholder="Bitte Grund eingeben..."
+                    disabled={isSubmitting}
+                  />
+                </div>
+              )}
             </div>
 
             <DialogFooter>
