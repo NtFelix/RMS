@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/utils/supabase/client"
+import { toast } from "@/hooks/use-toast"
 import { Home, User, Tag, Edit, Check, Wrench, AlertCircle } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 
@@ -435,10 +436,31 @@ export function TenantPaymentBento() {
         )
       )
 
+      // Show success toast
+      if (tenant.paid) {
+        toast({
+          title: "Zahlung entfernt",
+          description: `Mietzahlung für ${tenant.tenant} wurde entfernt.`,
+          variant: "default",
+        })
+      } else {
+        const entryCount = 1 + (tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0 ? 1 : 0)
+        toast({
+          title: "Zahlung als bezahlt markiert",
+          description: `${entryCount} Zahlungseinträge für ${tenant.tenant} wurden erstellt.`,
+          variant: "success",
+        })
+      }
+
     } catch (error) {
       console.error("Fehler beim Aktualisieren des Mietstatus:", error)
       // Revert optimistic update on error
       fetchData()
+      toast({
+        title: "Fehler beim Aktualisieren",
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: "destructive",
+      })
     } finally {
       setUpdatingStatus(null)
     }

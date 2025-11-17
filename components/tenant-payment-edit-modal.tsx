@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertTriangle } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
+import { toast } from "@/hooks/use-toast"
 
 export default function TenantPaymentEditModal() {
   const {
@@ -178,9 +179,20 @@ export default function TenantPaymentEditModal() {
       closeTenantPaymentEditModal({ force: true })
       window.location.reload() // Simple refresh for now
       
+      // Show success toast
+      toast({
+        title: "Zahlung erfolgreich erfasst",
+        description: `${entries.length > 0 ? `${entries.length} Zahlungseinträge wurden erfolgreich erstellt.` : "Keine Zahlungseinträge erstellt (Betrag war 0€)."}`,
+        variant: "success",
+      })
+      
     } catch (error) {
       console.error("Fehler beim Erstellen der Zahlungseinträge:", error)
-      alert(`Fehler beim Erstellen der Zahlungseinträge: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`)
+      toast({
+        title: "Fehler beim Erstellen der Zahlungseinträge",
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -257,9 +269,22 @@ export default function TenantPaymentEditModal() {
       closeTenantPaymentEditModal({ force: true })
       window.location.reload()
       
+      // Show success toast
+      toast({
+        title: "Alle ausstehenden Zahlungen markiert",
+        description: paymentEntries.length > 0 
+          ? `${paymentEntries.length} Zahlungseinträge wurden als bezahlt markiert.`
+          : "Keine ausstehenden Zahlungen gefunden.",
+        variant: "success",
+      })
+      
     } catch (error) {
       console.error("Fehler beim Markieren aller ausstehenden Zahlungen als bezahlt:", error)
-      alert(`Fehler: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`)
+      toast({
+        title: "Fehler beim Markieren als bezahlt",
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: "destructive",
+      })
     } finally {
       setIsMarkingAllPaid(false)
     }
