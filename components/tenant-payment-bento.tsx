@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/utils/supabase/client"
-import { Home, User, Tag, Edit, Check, Wrench } from "lucide-react"
+import { Home, User, Tag, Edit, Check, Wrench, AlertCircle } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 
 type TenantBentoItem = {
@@ -16,6 +16,11 @@ type TenantBentoItem = {
   paid: boolean
   actualRent?: number
   actualNebenkosten?: number
+  missedPayments: {
+    rentMonths: number
+    nebenkostenMonths: number
+    totalAmount: number
+  }
 }
 
 type NebenkostenEntry = {
@@ -111,7 +116,7 @@ export function TenantPaymentBento() {
   }
 
   // Format tenant data with payment status
-  const formatTenantData = (mieterData: (MieterData & { actualRent?: number; actualNebenkosten?: number })[], paidWohnungen: Set<string>): TenantBentoItem[] => {
+  const formatTenantData = (mieterData: (MieterData & { actualRent?: number; actualNebenkosten?: number; missedPayments?: { rentMonths: number; nebenkostenMonths: number; totalAmount: number } })[], paidWohnungen: Set<string>): TenantBentoItem[] => {
     return mieterData.map(mieter => ({
       id: mieter.id,
       tenant: mieter.name,
@@ -122,6 +127,7 @@ export function TenantPaymentBento() {
       paid: paidWohnungen.has(mieter.Wohnungen.id),
       actualRent: mieter.actualRent,
       actualNebenkosten: mieter.actualNebenkosten,
+      missedPayments: mieter.missedPayments || { rentMonths: 0, nebenkostenMonths: 0, totalAmount: 0 }
     }))
   }
 
@@ -156,6 +162,74 @@ export function TenantPaymentBento() {
     return payments
   }
 
+  // Get missed payments history for a tenant
+  const getMissedPaymentsHistory = async (apartmentId: string, einzug: string, mieteRaw: number, nebenkostenRaw: number = 0) => {
+    const supabase = createClient()
+    
+    // Get all months from tenant move-in date to current month
+    const moveInDate = new Date(einzug)
+    const currentDate = new Date()
+    const currentYear = currentDate.getFullYear()
+    const currentMonth = currentDate.getMonth()
+    
+    let missedRentMonths = 0
+    let missedNebenkostenMonths = 0
+    let totalMissedAmount = 0
+    
+    // Iterate through each month from move-in to current
+    for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
+      const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
+      const endMonth = (year === currentYear) ? currentMonth : 11
+      
+      for (let month = startMonth; month <= endMonth; month++) {
+        const monthStart = new Date(year, month, 1).toISOString().split('T')[0]
+        const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0]
+        
+        // Check if rent was paid for this month
+        const { data: rentPayments } = await supabase
+          .from('Finanzen')
+          .select('betrag')
+          .eq('wohnung_id', apartmentId)
+          .eq('ist_einnahmen', true)
+          .gte('datum', monthStart)
+          .lte('datum', monthEnd)
+          .ilike('name', '%Mietzahlung%')
+        
+        const rentPaid = rentPayments?.reduce((sum, payment) => sum + (payment.betrag || 0), 0) || 0
+        
+        if (rentPaid < mieteRaw) {
+          missedRentMonths++
+          totalMissedAmount += (mieteRaw - rentPaid)
+        }
+        
+        // Check if nebenkosten was paid for this month (if applicable)
+        if (nebenkostenRaw > 0) {
+          const { data: nebenkostenPayments } = await supabase
+            .from('Finanzen')
+            .select('betrag')
+            .eq('wohnung_id', apartmentId)
+            .eq('ist_einnahmen', true)
+            .gte('datum', monthStart)
+            .lte('datum', monthEnd)
+            .ilike('name', '%Nebenkosten%')
+          
+          const nebenkostenPaid = nebenkostenPayments?.reduce((sum, payment) => sum + (payment.betrag || 0), 0) || 0
+          
+          if (nebenkostenPaid < nebenkostenRaw) {
+            missedNebenkostenMonths++
+            totalMissedAmount += (nebenkostenRaw - nebenkostenPaid)
+          }
+        }
+      }
+    }
+    
+    return {
+      rentMonths: missedRentMonths,
+      nebenkostenMonths: missedNebenkostenMonths,
+      totalAmount: totalMissedAmount
+    }
+  }
+
   // Main data fetching function
   const fetchData = useCallback(async () => {
     try {
@@ -181,16 +255,27 @@ export function TenantPaymentBento() {
 
       if (mieterError) throw mieterError
 
+      // Fetch payment status for the current month
       const paidWohnungen = await fetchPaymentStatus()
       
-      // Fetch current month finance payments for each tenant
+      // Fetch current month finance payments and missed payments history for each tenant
       const tenantsWithPayments = await Promise.all(
         (mieterData as unknown as MieterData[]).map(async (mieter) => {
           const currentPayments = await getCurrentMonthFinancePayments(mieter.Wohnungen.id)
+          const mieteRaw = Number(mieter.Wohnungen.miete) || 0
+          const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
+          const missedPayments = await getMissedPaymentsHistory(
+            mieter.Wohnungen.id, 
+            mieter.einzug || new Date().toISOString(), 
+            mieteRaw, 
+            nebenkostenRaw
+          )
+          
           return {
             ...mieter,
             actualRent: currentPayments.rent,
-            actualNebenkosten: currentPayments.nebenkosten
+            actualNebenkosten: currentPayments.nebenkosten,
+            missedPayments
           }
         })
       )
@@ -309,6 +394,17 @@ export function TenantPaymentBento() {
                         <Home className="h-3.5 w-3.5" />
                         <span>{tenant.apartment}</span>
                       </div>
+                      
+                      {/* Missed payments history */}
+                      {(tenant.missedPayments.rentMonths > 0 || tenant.missedPayments.nebenkostenMonths > 0) && (
+                        <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+                          <AlertCircle className="h-3 w-3" />
+                          <span>
+                            {tenant.missedPayments.rentMonths + tenant.missedPayments.nebenkostenMonths} Monat{tenant.missedPayments.rentMonths + tenant.missedPayments.nebenkostenMonths !== 1 ? 'e' : ''} ausstehend 
+                            ({new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.missedPayments.totalAmount)})
+                          </span>
+                        </div>
+                      )}
                     </div>
                     
                     {/* Right side: Price tags - aligned with tenant name */}
