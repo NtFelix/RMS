@@ -1,16 +1,18 @@
 import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
+import { logger } from "@/utils/logger"
 
 interface FinanceEntry {
   wohnung_id: string
   name: string
   betrag: number
   datum: string
-  ist_einnahmen: boolean
+  ist_einnahmen?: boolean
   notiz?: string
 }
 
 export async function POST(request: Request) {
+  const requestStartTime = Date.now()
   try {
     const body = await request.json()
     const { entries }: { entries: FinanceEntry[] } = body
@@ -23,6 +25,19 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient()
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      logger.warn("Finance entries API: unauthorized access attempt", {
+        path: request.url,
+        error: userError?.message,
+        duration: Date.now() - requestStartTime
+      })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
     // Validate each entry
     for (const entry of entries) {
@@ -41,19 +56,88 @@ export async function POST(request: Request) {
       }
     }
 
-    // Insert all entries in a single batch
+    // Try optimized RPC first
+    const rpcStartTime = Date.now()
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "insert_finance_entries_batch",
+        { 
+          p_entries: JSON.stringify(entries),
+          p_user_id: user.id
+        }
+      )
+
+      const rpcDuration = Date.now() - rpcStartTime
+      const totalDuration = Date.now() - requestStartTime
+
+      if (!rpcError && rpcData?.success) {
+        logger.info("✅ [Finance Entries API] Used optimized RPC function", {
+          path: request.url,
+          userId: user.id,
+          rpcDuration,
+          totalDuration,
+          entriesCount: entries.length,
+          inserted: rpcData.inserted,
+          skipped: rpcData.skipped
+        })
+        return NextResponse.json({
+          success: true,
+          inserted: rpcData.inserted,
+          skipped: rpcData.skipped,
+          totalEntries: entries.length
+        })
+      }
+
+      logger.warn("⚠️ [Finance Entries API] RPC function failed, using fallback", {
+        path: request.url,
+        userId: user.id,
+        rpcDuration,
+        rpcError: rpcError?.message
+      })
+    } catch (rpcException) {
+      const rpcDuration = Date.now() - rpcStartTime
+      logger.error("❌ [Finance Entries API] RPC call threw exception", rpcException as Error, {
+        path: request.url,
+        userId: user.id,
+        rpcDuration
+      })
+    }
+
+    // Fallback to standard insert
+    logger.info("🔄 [Finance Entries API] Using fallback method", {
+      path: request.url,
+      userId: user.id
+    })
+
+    const fallbackStartTime = Date.now()
     const { data, error } = await supabase
       .from("Finanzen")
-      .insert(entries)
+      .insert(entries.map(entry => ({ ...entry, user_id: user.id })))
       .select()
 
+    const fallbackDuration = Date.now() - fallbackStartTime
+    const totalDuration = Date.now() - requestStartTime
+
     if (error) {
-      console.error("Error creating finance entries:", error)
+      logger.error("❌ [Finance Entries API] Fallback insert failed", error, {
+        path: request.url,
+        userId: user.id,
+        fallbackDuration
+      })
       return NextResponse.json(
         { error: "Failed to create finance entries", details: error.message },
         { status: 500 }
       )
     }
+
+    logger.info("✅ [Finance Entries API] Served fallback insert", {
+      path: request.url,
+      userId: user.id,
+      fallbackDuration,
+      totalDuration,
+      entriesCount: entries.length,
+      inserted: data?.length || 0
+    })
 
     return NextResponse.json({
       success: true,
@@ -61,7 +145,11 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    console.error("Error in finance-entries API:", error)
+    const totalDuration = Date.now() - requestStartTime
+    logger.error("❌ [Finance Entries API] Unexpected error", error as Error, {
+      path: request.url,
+      totalDuration
+    })
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
