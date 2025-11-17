@@ -1,4 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
+export const runtime = 'edge'
+
 import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
 
