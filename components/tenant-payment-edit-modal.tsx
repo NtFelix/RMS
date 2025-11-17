@@ -124,19 +124,21 @@ export default function TenantPaymentEditModal() {
       // Prepare entries for batch insertion
       const entries = []
 
-      // Create rent entry
-      const rentNote = reasonText 
-        ? `Mietzahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
-        : `Mietzahlung von ${tenantPaymentEditInitialData.tenant}`
-      
-      entries.push({
-        wohnung_id: tenantPaymentEditInitialData.apartmentId,
-        name: `Mietzahlung ${tenantPaymentEditInitialData.apartment}`,
-        betrag: rentValue,
-        datum: today,
-        ist_einnahmen: true,
-        notiz: rentNote
-      })
+      // Create rent entry only if amount > 0
+      if (rentValue > 0) {
+        const rentNote = reasonText 
+          ? `Mietzahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
+          : `Mietzahlung von ${tenantPaymentEditInitialData.tenant}`
+        
+        entries.push({
+          wohnung_id: tenantPaymentEditInitialData.apartmentId,
+          name: `Mietzahlung ${tenantPaymentEditInitialData.apartment}`,
+          betrag: rentValue,
+          datum: today,
+          ist_einnahmen: true,
+          notiz: rentNote
+        })
+      }
 
       // Create nebenkosten entry if applicable
       if (nebenkostenValue > 0) {
@@ -154,20 +156,22 @@ export default function TenantPaymentEditModal() {
         })
       }
 
-      // Send entries to API
-      const response = await fetch('/api/finance-entries', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ entries })
-      })
+      // Send entries to API only if there are entries to create
+      if (entries.length > 0) {
+        const response = await fetch('/api/finance-entries', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ entries })
+        })
 
-      const data = await response.json()
+        const data = await response.json()
 
-      if (!response.ok) {
-        console.error("Error creating finance entries:", data.error)
-        throw new Error(data.error || 'Failed to create entries')
+        if (!response.ok) {
+          console.error("Error creating finance entries:", data.error)
+          throw new Error(data.error || 'Failed to create entries')
+        }
       }
 
       // Close modal and refresh data
