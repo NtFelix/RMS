@@ -12,7 +12,7 @@
  * @see .kiro/specs/betriebskosten-performance-optimization/design.md
  */
 
-import { Nebenkosten, Mieter, Wasserzaehler, Rechnung } from "@/lib/data-fetching";
+import { Nebenkosten, Mieter, WasserZaehler, WasserAblesung, Rechnung } from "@/lib/data-fetching";
 
 /**
  * OptimizedNebenkosten extends the existing Nebenkosten type with calculated fields
@@ -76,7 +76,8 @@ export type AbrechnungModalData = {
   nebenkosten_data: Nebenkosten;  // From existing Nebenkosten table
   tenants: Mieter[];              // From existing Mieter table
   rechnungen: Rechnung[];         // From existing Rechnungen table
-  wasserzaehler_readings: Wasserzaehler[]; // From existing Wasserzaehler table
+  water_meters: WasserZaehler[];  // From Wasser_Zaehler table
+  water_readings: WasserAblesung[]; // From Wasser_Ablesungen table
 };
 
 /**

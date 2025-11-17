@@ -123,20 +123,33 @@ create table public."Rechnungen" (
 ) TABLESPACE pg_default;
 ```
 
-## Wasserzähler
+## Wasser_Zaehler (Water Meters)
 
 ```sql
-create table public."Wasserzaehler" (
+create table public."Wasser_Zaehler" (
   id uuid not null default gen_random_uuid (),
   user_id uuid not null default auth.uid (),
-  mieter_id uuid not null,
-  ablese_datum date null,
-  zaehlerstand numeric not null,
-  verbrauch numeric not null,
-  nebenkosten_id uuid not null,
-  constraint Wasserzaehler_pkey primary key (id),
-  constraint Wasserzaehler_mieter_id_fkey foreign key (mieter_id) references "Mieter" (id),
-  constraint Wasserzaehler_nebenkosten_id_fkey foreign key (nebenkosten_id) references "Nebenkosten" (id)
+  wohnung_id uuid not null,
+  custom_id text null,
+  erstellungsdatum timestamp with time zone not null default now(),
+  eichungsdatum date null,
+  constraint Wasser_Zaehler_pkey primary key (id),
+  constraint Wasser_Zaehler_wohnung_id_fkey foreign key (wohnung_id) references "Wohnungen" (id) on update CASCADE on delete CASCADE
+) tablespace pg_default;
+```
+
+## Wasser_Ablesungen (Water Readings)
+
+```sql
+create table public."Wasser_Ablesungen" (
+  id uuid not null default gen_random_uuid (),
+  user_id uuid not null default auth.uid (),
+  wasser_zaehler_id uuid not null,
+  ablese_datum date not null,
+  zaehlerstand numeric null,
+  verbrauch numeric null,
+  constraint Wasser_Ablesungen_pkey primary key (id),
+  constraint Wasser_Ablesungen_wasser_zaehler_id_fkey foreign key (wasser_zaehler_id) references "Wasser_Zaehler" (id) on update CASCADE on delete CASCADE
 ) tablespace pg_default;
 ```
 

@@ -35,6 +35,7 @@ import {
   ArrowDownUp,
   ArrowDownUp as SplitIcon
 } from "lucide-react";
+import { WaterDropletLoader } from "@/components/ui/water-droplet-loader";
 import {
   Select,
   SelectContent,
@@ -541,9 +542,9 @@ export function WasserzaehlerModal() {
           )}
 
           {isLoading ? (
-            <div className="flex flex-col justify-center items-center h-40 gap-3">
-              <Droplet className="h-8 w-8 text-muted-foreground animate-pulse" />
-              <p className="text-muted-foreground">Lade Wasserzählerdaten...</p>
+            <div className="flex flex-col justify-center items-center h-40 gap-4">
+              <WaterDropletLoader size="md" />
+              <p className="text-sm text-muted-foreground animate-pulse">Lade Wasserzählerdaten...</p>
             </div>
           ) : formData.length > 0 ? (
             groupedEntries.length === 0 ? (

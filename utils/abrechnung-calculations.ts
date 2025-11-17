@@ -6,7 +6,7 @@
  * and data validation.
  */
 
-import { Mieter, Nebenkosten, Wasserzaehler } from "@/lib/data-fetching";
+import { Mieter, Nebenkosten, WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import { 
@@ -24,6 +24,11 @@ import {
   TenantCalculationResult,
   CalculationValidationResult
 } from "@/types/optimized-betriebskosten";
+import { 
+  calculateTenantWaterCosts, 
+  getTenantWaterCost,
+  type TenantWaterCost 
+} from "./water-cost-calculations";
 
 /**
  * Calculate occupancy percentage for a tenant during the billing period
@@ -158,46 +163,70 @@ export function calculateTenantCosts(
 }
 
 /**
- * Calculate water costs for a tenant
+ * Calculate water costs for a tenant using the new water meter system
+ * Handles multiple meters per apartment and WG cost splitting
  */
 export function calculateWaterCostDistribution(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
-  wasserzaehlerReadings?: Wasserzaehler[]
+  allTenants: Mieter[],
+  waterMeters: WasserZaehler[],
+  waterReadings: WasserAblesung[]
 ): WaterCostBreakdown {
   const totalBuildingWaterCost = nebenkosten.wasserkosten || 0;
   const totalBuildingConsumption = nebenkosten.wasserverbrauch || 0;
   
-  // Find tenant's water consumption
-  let tenantConsumption = 0;
+  // Use the new calculation system with official building consumption
+  const tenantWaterCost = getTenantWaterCost(
+    tenant.id,
+    allTenants,
+    waterMeters,
+    waterReadings,
+    totalBuildingWaterCost,
+    totalBuildingConsumption,
+    nebenkosten.startdatum,
+    nebenkosten.enddatum
+  );
+
+  if (!tenantWaterCost) {
+    // Tenant has no water consumption
+    return {
+      totalBuildingWaterCost,
+      totalBuildingConsumption,
+      pricePerCubicMeter: 0,
+      tenantConsumption: 0,
+      totalCost: 0,
+      meterReading: undefined
+    };
+  }
+
+  // Get meter reading details if available
   let meterReading: WaterCostBreakdown['meterReading'];
-  
-  if (wasserzaehlerReadings) {
-    const tenantReading = wasserzaehlerReadings.find(w => w.mieter_id === tenant.id);
-    if (tenantReading) {
-      tenantConsumption = tenantReading.verbrauch || 0;
+  if (tenantWaterCost.consumption > 0 && waterReadings.length > 0) {
+    // Find the most recent reading for this tenant's apartment
+    const apartmentMeters = waterMeters.filter(m => m.wohnung_id === tenant.wohnung_id);
+    const apartmentMeterIds = apartmentMeters.map(m => m.id);
+    const relevantReadings = waterReadings
+      .filter(r => apartmentMeterIds.includes(r.wasser_zaehler_id || ''))
+      .filter(r => r.ablese_datum >= nebenkosten.startdatum && r.ablese_datum <= nebenkosten.enddatum)
+      .sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
+
+    if (relevantReadings.length > 0) {
+      const latestReading = relevantReadings[0];
       meterReading = {
-        previousReading: 0, // Would need previous reading data
-        currentReading: tenantReading.zaehlerstand || 0,
+        previousReading: 0, // Would need historical data
+        currentReading: latestReading.zaehlerstand || 0,
         consumptionPeriod: `${nebenkosten.startdatum} - ${nebenkosten.enddatum}`
       };
     }
   }
-  
-  // Calculate price per cubic meter
-  const pricePerCubicMeter = totalBuildingConsumption > 0 
-    ? totalBuildingWaterCost / totalBuildingConsumption 
-    : 0;
-  
-  // Calculate tenant's water cost
-  const totalCost = tenantConsumption * pricePerCubicMeter;
-  
+
   return {
     totalBuildingWaterCost,
     totalBuildingConsumption,
-    pricePerCubicMeter,
-    tenantConsumption,
-    totalCost,
+    pricePerCubicMeter: tenantWaterCost.pricePerCubicMeter,
+    tenantConsumption: tenantWaterCost.consumption,
+    totalCost: tenantWaterCost.costShare,
     meterReading
   };
 }
@@ -298,7 +327,8 @@ export function formatCurrency(amount: number): string {
 export function validateCalculationData(
   nebenkosten: Nebenkosten,
   tenants: Mieter[],
-  wasserzaehlerReadings?: Wasserzaehler[]
+  waterMeters?: WasserZaehler[],
+  waterReadings?: WasserAblesung[]
 ): CalculationValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -342,16 +372,33 @@ export function validateCalculationData(
   
   // Validate water readings if water costs are included
   if (nebenkosten.wasserkosten && nebenkosten.wasserkosten > 0) {
-    if (!wasserzaehlerReadings || wasserzaehlerReadings.length === 0) {
-      warnings.push('Wasserkosten sind angegeben, aber keine Wasserzählerstände vorhanden');
+    if (!waterMeters || waterMeters.length === 0) {
+      warnings.push('Wasserkosten sind angegeben, aber keine Wasserzähler vorhanden');
+    } else if (!waterReadings || waterReadings.length === 0) {
+      warnings.push('Wasserzähler vorhanden, aber keine Ablesungen für den Abrechnungszeitraum');
     } else {
-      const tenantsWithReadings = wasserzaehlerReadings.filter(w => 
-        tenants.some(t => t.id === w.mieter_id)
-      );
+      // Check if all apartments with tenants have water meters
+      const apartmentsWithTenants = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
+      const apartmentsWithMeters = new Set(waterMeters.map(m => m.wohnung_id).filter(Boolean));
       
-      if (tenantsWithReadings.length < tenants.length) {
-        warnings.push('Nicht für alle Mieter sind Wasserzählerstände vorhanden');
-      }
+      apartmentsWithTenants.forEach(aptId => {
+        if (!apartmentsWithMeters.has(aptId)) {
+          warnings.push(`Wohnung ${aptId}: Keine Wasserzähler vorhanden`);
+        }
+      });
+
+      // Check if all meters have readings in the period
+      waterMeters.forEach(meter => {
+        const meterReadings = waterReadings.filter(r => 
+          r.wasser_zaehler_id === meter.id &&
+          r.ablese_datum >= nebenkosten.startdatum &&
+          r.ablese_datum <= nebenkosten.enddatum
+        );
+        
+        if (meterReadings.length === 0) {
+          warnings.push(`Wasserzähler ${meter.custom_id || meter.id}: Keine Ablesungen im Abrechnungszeitraum`);
+        }
+      });
     }
   }
   
@@ -368,7 +415,9 @@ export function validateCalculationData(
 export function calculateCompleteTenantResult(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
-  wasserzaehlerReadings?: Wasserzaehler[]
+  allTenants: Mieter[],
+  waterMeters: WasserZaehler[],
+  waterReadings: WasserAblesung[]
 ): TenantCalculationResult {
   // Calculate occupancy
   const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
@@ -376,8 +425,14 @@ export function calculateCompleteTenantResult(
   // Calculate operating costs
   const operatingCosts = calculateTenantCosts(tenant, nebenkosten, occupancy);
   
-  // Calculate water costs
-  const waterCosts = calculateWaterCostDistribution(tenant, nebenkosten, wasserzaehlerReadings);
+  // Calculate water costs using new system
+  const waterCosts = calculateWaterCostDistribution(
+    tenant, 
+    nebenkosten, 
+    allTenants, 
+    waterMeters, 
+    waterReadings
+  );
   
   // Calculate prepayments
   const prepayments = calculatePrepayments(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
