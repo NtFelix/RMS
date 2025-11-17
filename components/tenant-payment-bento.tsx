@@ -371,11 +371,11 @@ export function TenantPaymentBento() {
   const toggleRentPayment = async (tenant: TenantBentoItem) => {
     try {
       setUpdatingStatus(tenant.id)
-      const supabase = createClient()
       const { start, end } = getCurrentMonthRange()
 
       if (tenant.paid) {
         // Remove payment records (both rent and nebenkosten)
+        const supabase = createClient()
         await supabase
           .from('Finanzen')
           .delete()
@@ -385,30 +385,44 @@ export function TenantPaymentBento() {
           .lte('datum', end)
           .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
       } else {
-        // Add rent payment record
-        await supabase
-          .from('Finanzen')
-          .insert({
+        // Create payment entries using the optimized API
+        const entries = [
+          {
             wohnung_id: tenant.apartmentId,
             name: `Mietzahlung ${tenant.apartment}`,
             datum: new Date().toISOString().split('T')[0],
             betrag: tenant.mieteRaw,
             ist_einnahmen: true,
             notiz: `Mietzahlung von ${tenant.tenant}`
-          })
+          }
+        ]
 
         // Add nebenkosten payment record if nebenkosten exists
         if (tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0) {
-          await supabase
-            .from('Finanzen')
-            .insert({
-              wohnung_id: tenant.apartmentId,
-              name: `Nebenkosten ${tenant.apartment}`,
-              datum: new Date().toISOString().split('T')[0],
-              betrag: tenant.nebenkostenRaw,
-              ist_einnahmen: true,
-              notiz: `Nebenkosten-Vorauszahlung von ${tenant.tenant}`
-            })
+          entries.push({
+            wohnung_id: tenant.apartmentId,
+            name: `Nebenkosten ${tenant.apartment}`,
+            datum: new Date().toISOString().split('T')[0],
+            betrag: tenant.nebenkostenRaw,
+            ist_einnahmen: true,
+            notiz: `Nebenkosten-Vorauszahlung von ${tenant.tenant}`
+          })
+        }
+
+        // Send entries to optimized API
+        const response = await fetch('/api/finance-entries', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ entries })
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          console.error("Error creating finance entries:", data.error)
+          throw new Error(data.error || 'Failed to create entries')
         }
       }
 
