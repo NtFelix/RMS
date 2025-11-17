@@ -238,6 +238,7 @@ export interface ModalState {
     apartmentId: string;
     mieteRaw: number;
     nebenkostenRaw?: number;
+    einzug?: string | null;
   };
   tenantPaymentEditOnSuccess?: (updatedData: {
     apartmentId: string;
@@ -252,6 +253,7 @@ export interface ModalState {
     apartmentId: string;
     mieteRaw: number;
     nebenkostenRaw?: number;
+    einzug?: string | null;
   }) => void;
   closeTenantPaymentEditModal: (options?: CloseModalOptions) => void;
   setTenantPaymentEditModalDirty: (isDirty: boolean) => void;

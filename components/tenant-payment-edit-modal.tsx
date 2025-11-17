@@ -19,6 +19,7 @@ export default function TenantPaymentEditModal() {
   const [rent, setRent] = useState("")
   const [nebenkosten, setNebenkosten] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isMarkingAllPaid, setIsMarkingAllPaid] = useState(false)
 
   // Reset form fields when modal opens with new data
   useEffect(() => {
@@ -99,8 +100,80 @@ export default function TenantPaymentEditModal() {
     }
   }
 
+  const handleMarkAllAsPaid = async () => {
+    if (!tenantPaymentEditInitialData) return
+
+    setIsMarkingAllPaid(true)
+    const supabase = createClient()
+
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const currentMonth = new Date().getMonth()
+      const currentYear = new Date().getFullYear()
+      
+      // Get tenant's move-in date to determine how many months to cover
+      const moveInDate = tenantPaymentEditInitialData.einzug 
+        ? new Date(tenantPaymentEditInitialData.einzug) 
+        : new Date(currentYear, currentMonth - 1, 1) // Default to last month if no move-in date
+      
+      // Create payment entries for all months from move-in to current month
+      const paymentEntries = []
+      
+      for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
+        const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
+        const endMonth = (year === currentYear) ? currentMonth : 11
+        
+        for (let month = startMonth; month <= endMonth; month++) {
+          // Create date in local timezone to avoid UTC conversion issues
+          const paymentDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
+          
+          // Add rent payment
+          paymentEntries.push({
+            wohnung_id: tenantPaymentEditInitialData.apartmentId,
+            name: `Mietzahlung ${tenantPaymentEditInitialData.apartment}`,
+            datum: paymentDate,
+            betrag: tenantPaymentEditInitialData.mieteRaw,
+            ist_einnahmen: true,
+            notiz: `Mietzahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
+          })
+
+          // Add nebenkosten payment if applicable
+          if (tenantPaymentEditInitialData.nebenkostenRaw && tenantPaymentEditInitialData.nebenkostenRaw > 0) {
+            paymentEntries.push({
+              wohnung_id: tenantPaymentEditInitialData.apartmentId,
+              name: `Nebenkosten ${tenantPaymentEditInitialData.apartment}`,
+              datum: paymentDate,
+              betrag: tenantPaymentEditInitialData.nebenkostenRaw,
+              ist_einnahmen: true,
+              notiz: `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
+            })
+          }
+        }
+      }
+
+      // Insert all payment entries
+      if (paymentEntries.length > 0) {
+        const { error } = await supabase
+          .from("Finanzen")
+          .insert(paymentEntries)
+
+        if (error) throw error
+      }
+
+      // Close modal and refresh data
+      closeTenantPaymentEditModal({ force: true })
+      window.location.reload()
+      
+    } catch (error) {
+      console.error("Fehler beim Markieren aller ausstehenden Zahlungen als bezahlt:", error)
+      alert(`Fehler: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`)
+    } finally {
+      setIsMarkingAllPaid(false)
+    }
+  }
+
   const handleClose = () => {
-    if (isSubmitting) return
+    if (isSubmitting || isMarkingAllPaid) return
     closeTenantPaymentEditModal()
   }
 
@@ -164,18 +237,31 @@ export default function TenantPaymentEditModal() {
             />
           </div>
 
+          {/* Mark all as paid button */}
+          <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleMarkAllAsPaid}
+              disabled={isSubmitting || isMarkingAllPaid}
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isMarkingAllPaid ? "Wird verarbeitet..." : "Alle ausstehenden Mieten als bezahlt markieren"}
+            </Button>
+          </div>
+
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isMarkingAllPaid}
             >
               Abbrechen
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isMarkingAllPaid}
             >
               {isSubmitting ? "Wird erfasst..." : "Abweichung erfassen"}
             </Button>

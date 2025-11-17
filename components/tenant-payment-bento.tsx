@@ -21,6 +21,7 @@ type TenantBentoItem = {
     nebenkostenMonths: number
     totalAmount: number
   }
+  einzug?: string | null
 }
 
 type NebenkostenEntry = {
@@ -127,7 +128,8 @@ export function TenantPaymentBento() {
       paid: paidWohnungen.has(mieter.Wohnungen.id),
       actualRent: mieter.actualRent,
       actualNebenkosten: mieter.actualNebenkosten,
-      missedPayments: mieter.missedPayments || { rentMonths: 0, nebenkostenMonths: 0, totalAmount: 0 }
+      missedPayments: mieter.missedPayments || { rentMonths: 0, nebenkostenMonths: 0, totalAmount: 0 },
+      einzug: mieter.einzug
     }))
   }
 
@@ -464,7 +466,8 @@ export function TenantPaymentBento() {
                         apartment: tenant.apartment,
                         apartmentId: tenant.apartmentId,
                         mieteRaw: tenant.mieteRaw,
-                        nebenkostenRaw: tenant.nebenkostenRaw || 0
+                        nebenkostenRaw: tenant.nebenkostenRaw || 0,
+                        einzug: tenant.einzug
                       })}
                     >
                       <Edit className="h-3 w-3" />
