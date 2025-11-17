@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,39 +30,51 @@ export default function TenantPaymentEditModal() {
   const checkMissingPayments = async () => {
     if (!tenantPaymentEditInitialData) return
 
-    const supabase = createClient()
-    const currentMonth = new Date().getMonth()
-    const currentYear = new Date().getFullYear()
-    
-    // Get tenant's move-in date
-    const moveInDate = tenantPaymentEditInitialData.einzug 
-      ? new Date(tenantPaymentEditInitialData.einzug) 
-      : new Date(currentYear, currentMonth - 1, 1)
-    
-    // Generate all expected payment dates
-    const expectedDates = []
-    for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
-      const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
-      const endMonth = (year === currentYear) ? currentMonth : 11
-      
-      for (let month = startMonth; month <= endMonth; month++) {
-        expectedDates.push(`${year}-${String(month + 1).padStart(2, '0')}-01`)
+    try {
+      const response = await fetch(`/api/finance-entries?wohnung_id=${tenantPaymentEditInitialData.apartmentId}&limit=1000`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        console.error("Error fetching finance entries:", data.error)
+        setHasMissingPayments(false)
+        return
       }
+
+      const currentMonth = new Date().getMonth()
+      const currentYear = new Date().getFullYear()
+      
+      // Get tenant's move-in date
+      const moveInDate = tenantPaymentEditInitialData.einzug 
+        ? new Date(tenantPaymentEditInitialData.einzug) 
+        : new Date(currentYear, currentMonth - 1, 1)
+      
+      // Generate all expected payment dates
+      const expectedDates = []
+      for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
+        const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
+        const endMonth = (year === currentYear) ? currentMonth : 11
+        
+        for (let month = startMonth; month <= endMonth; month++) {
+          expectedDates.push(`${year}-${String(month + 1).padStart(2, '0')}-01`)
+        }
+      }
+
+      // Filter for rent payments only
+      const rentPayments = data.entries?.filter((entry: any) => 
+        entry.wohnung_id === tenantPaymentEditInitialData.apartmentId &&
+        entry.ist_einnahmen === true &&
+        entry.name.includes(`Mietzahlung ${tenantPaymentEditInitialData.apartment}`)
+      ) || []
+
+      const existingDates = rentPayments.map((p: any) => p.datum)
+      const missingDates = expectedDates.filter(date => !existingDates.includes(date))
+      
+      setHasMissingPayments(missingDates.length > 0)
+
+    } catch (error) {
+      console.error("Error checking missing payments:", error)
+      setHasMissingPayments(false)
     }
-
-    // Check for existing rent payments
-    const { data: existingPayments } = await supabase
-      .from("Finanzen")
-      .select("datum")
-      .eq("wohnung_id", tenantPaymentEditInitialData.apartmentId)
-      .eq("ist_einnahmen", true)
-      .like("name", `Mietzahlung ${tenantPaymentEditInitialData.apartment}`)
-      .in("datum", expectedDates)
-
-    const existingDates = existingPayments?.map(p => p.datum) || []
-    const missingDates = expectedDates.filter(date => !existingDates.includes(date))
-    
-    setHasMissingPayments(missingDates.length > 0)
   }
 
   // Reset form fields when modal opens with new data
@@ -105,41 +116,35 @@ export default function TenantPaymentEditModal() {
     }
 
     setIsSubmitting(true)
-    const supabase = createClient()
 
     try {
       const today = new Date().toISOString().split('T')[0]
-
-      // Create rent entry in Finanzen table
       const reasonText = getPaymentReasonText()
+
+      // Prepare entries for batch insertion
+      const entries = []
+
+      // Create rent entry
       const rentNote = reasonText 
         ? `Mietzahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
         : `Mietzahlung von ${tenantPaymentEditInitialData.tenant}`
       
-      const { error: rentError } = await supabase
-        .from("Finanzen")
-        .insert({
-          wohnung_id: tenantPaymentEditInitialData.apartmentId,
-          name: `Mietzahlung ${tenantPaymentEditInitialData.apartment}`,
-          betrag: rentValue,
-          datum: today,
-          ist_einnahmen: true,
-          notiz: rentNote
-        })
+      entries.push({
+        wohnung_id: tenantPaymentEditInitialData.apartmentId,
+        name: `Mietzahlung ${tenantPaymentEditInitialData.apartment}`,
+        betrag: rentValue,
+        datum: today,
+        ist_einnahmen: true,
+        notiz: rentNote
+      })
 
-      if (rentError) {
-        console.error("Rent entry error:", rentError)
-        throw rentError
-      }
-
-      // Create nebenkosten entry in Finanzen table
-      const nebenkostenNote = reasonText 
-        ? `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
-        : `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant}`
+      // Create nebenkosten entry if applicable
+      if (nebenkostenValue > 0) {
+        const nebenkostenNote = reasonText 
+          ? `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
+          : `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant}`
         
-      const { error: nebenkostenError } = await supabase
-        .from("Finanzen")
-        .insert({
+        entries.push({
           wohnung_id: tenantPaymentEditInitialData.apartmentId,
           name: `Nebenkosten ${tenantPaymentEditInitialData.apartment}`,
           betrag: nebenkostenValue,
@@ -147,10 +152,22 @@ export default function TenantPaymentEditModal() {
           ist_einnahmen: true,
           notiz: nebenkostenNote
         })
+      }
 
-      if (nebenkostenError) {
-        console.error("Nebenkosten entry error:", nebenkostenError)
-        throw nebenkostenError
+      // Send entries to API
+      const response = await fetch('/api/finance-entries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ entries })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        console.error("Error creating finance entries:", data.error)
+        throw new Error(data.error || 'Failed to create entries')
       }
 
       // Close modal and refresh data
@@ -169,10 +186,8 @@ export default function TenantPaymentEditModal() {
     if (!tenantPaymentEditInitialData) return
 
     setIsMarkingAllPaid(true)
-    const supabase = createClient()
 
     try {
-      const today = new Date().toISOString().split('T')[0]
       const currentMonth = new Date().getMonth()
       const currentYear = new Date().getFullYear()
       
@@ -216,13 +231,22 @@ export default function TenantPaymentEditModal() {
         }
       }
 
-      // Insert all payment entries
+      // Send entries to API
       if (paymentEntries.length > 0) {
-        const { error } = await supabase
-          .from("Finanzen")
-          .insert(paymentEntries)
+        const response = await fetch('/api/finance-entries', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ entries: paymentEntries })
+        })
 
-        if (error) throw error
+        const data = await response.json()
+
+        if (!response.ok) {
+          console.error("Error creating finance entries:", data.error)
+          throw new Error(data.error || 'Failed to create entries')
+        }
       }
 
       // Close modal and refresh data
