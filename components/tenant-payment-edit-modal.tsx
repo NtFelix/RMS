@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { AlertTriangle } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 
 export default function TenantPaymentEditModal() {
@@ -20,6 +21,7 @@ export default function TenantPaymentEditModal() {
   const [nebenkosten, setNebenkosten] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isMarkingAllPaid, setIsMarkingAllPaid] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   // Reset form fields when modal opens with new data
   useEffect(() => {
@@ -192,82 +194,138 @@ export default function TenantPaymentEditModal() {
   }
 
   return (
-    <Dialog open={isTenantPaymentEditModalOpen} onOpenChange={handleClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Zahlungsabweichung erfassen</DialogTitle>
-          <DialogDescription>
-            Erfassen Sie abweichende Zahlungen, Mietminderungen oder ausstehende Beträge für diesen Mieter.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-          <p><strong>Mieter:</strong> {tenantPaymentEditInitialData.tenant}</p>
-          <p><strong>Wohnung:</strong> {tenantPaymentEditInitialData.apartment}</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="rent">Tatsächliche Mietzahlung (€)</Label>
-            <Input
-              id="rent"
-              type="number"
-              step="0.01"
-              min="0"
-              value={rent}
-              onChange={(e) => handleRentChange(e.target.value)}
-              placeholder="Tatsächlich gezahlten Mietbetrag eingeben"
-              disabled={isSubmitting}
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="nebenkosten">Tatsächliche Nebenkosten-Vorauszahlung (€)</Label>
-            <Input
-              id="nebenkosten"
-              type="number"
-              step="0.01"
-              min="0"
-              value={nebenkosten}
-              onChange={(e) => handleNebenkostenChange(e.target.value)}
-              placeholder="Tatsächlich gezahlte Nebenkosten-Vorauszahlung eingeben"
-              disabled={isSubmitting}
-              required
-            />
+    <>
+      <Dialog open={isTenantPaymentEditModalOpen} onOpenChange={handleClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Zahlungsabweichung erfassen</DialogTitle>
+            <DialogDescription>
+              Erfassen Sie abweichende Zahlungen, Mietminderungen oder ausstehende Beträge für diesen Mieter.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            <p><strong>Mieter:</strong> {tenantPaymentEditInitialData.tenant}</p>
+            <p><strong>Wohnung:</strong> {tenantPaymentEditInitialData.apartment}</p>
           </div>
 
           {/* Mark all as paid button */}
-          <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="default"
-              onClick={handleMarkAllAsPaid}
-              disabled={isSubmitting || isMarkingAllPaid}
-              className="w-full bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isMarkingAllPaid ? "Wird verarbeitet..." : "Alle ausstehenden Mieten als bezahlt markieren"}
-            </Button>
-          </div>
-
-          <DialogFooter>
+          <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
-              onClick={handleClose}
+              onClick={() => setShowConfirmModal(true)}
               disabled={isSubmitting || isMarkingAllPaid}
+              className="w-full border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-950/50 dark:hover:text-amber-300"
             >
-              Abbrechen
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Alle ausstehenden Mieten als bezahlt markieren
             </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || isMarkingAllPaid}
-            >
-              {isSubmitting ? "Wird erfasst..." : "Abweichung erfassen"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="rent">Tatsächliche Mietzahlung (€)</Label>
+              <Input
+                id="rent"
+                type="number"
+                step="0.01"
+                min="0"
+                value={rent}
+                onChange={(e) => handleRentChange(e.target.value)}
+                placeholder="Tatsächlich gezahlten Mietbetrag eingeben"
+                disabled={isSubmitting}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="nebenkosten">Tatsächliche Nebenkosten-Vorauszahlung (€)</Label>
+              <Input
+                id="nebenkosten"
+                type="number"
+                step="0.01"
+                min="0"
+                value={nebenkosten}
+                onChange={(e) => handleNebenkostenChange(e.target.value)}
+                placeholder="Tatsächlich gezahlte Nebenkosten-Vorauszahlung eingeben"
+                disabled={isSubmitting}
+                required
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={isSubmitting || isMarkingAllPaid}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || isMarkingAllPaid}
+              >
+                {isSubmitting ? "Wird erfasst..." : "Abweichung erfassen"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {showConfirmModal && (
+        <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-5 w-5" />
+                Bestätigung erforderlich
+              </DialogTitle>
+              <DialogDescription>
+                Sind Sie sicher, dass Sie alle ausstehenden Mietzahlungen für <strong>{tenantPaymentEditInitialData?.tenant}</strong> als bezahlt markieren möchten?
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-3">
+              <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  <strong>Hinweis:</strong> Diese Aktion erstellt Zahlungseinträge für alle Monate vom Einzugsdatum bis zum aktuellen Monat.
+                </p>
+              </div>
+              
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                <p>• Miete: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenantPaymentEditInitialData?.mieteRaw || 0)} pro Monat</p>
+                {tenantPaymentEditInitialData?.nebenkostenRaw && tenantPaymentEditInitialData.nebenkostenRaw > 0 && (
+                  <p>• Nebenkosten: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenantPaymentEditInitialData.nebenkostenRaw || 0)} pro Monat</p>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowConfirmModal(false)}
+                disabled={isMarkingAllPaid}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowConfirmModal(false)
+                  handleMarkAllAsPaid()
+                }}
+                disabled={isMarkingAllPaid}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {isMarkingAllPaid ? "Wird verarbeitet..." : "Ja, alle als bezahlt markieren"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   )
 }
