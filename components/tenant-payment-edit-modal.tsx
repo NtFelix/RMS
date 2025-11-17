@@ -25,6 +25,46 @@ export default function TenantPaymentEditModal() {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [paymentReason, setPaymentReason] = useState("")
   const [customReason, setCustomReason] = useState("")
+  const [hasMissingPayments, setHasMissingPayments] = useState(false)
+
+  // Check for missing payments
+  const checkMissingPayments = async () => {
+    if (!tenantPaymentEditInitialData) return
+
+    const supabase = createClient()
+    const currentMonth = new Date().getMonth()
+    const currentYear = new Date().getFullYear()
+    
+    // Get tenant's move-in date
+    const moveInDate = tenantPaymentEditInitialData.einzug 
+      ? new Date(tenantPaymentEditInitialData.einzug) 
+      : new Date(currentYear, currentMonth - 1, 1)
+    
+    // Generate all expected payment dates
+    const expectedDates = []
+    for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
+      const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
+      const endMonth = (year === currentYear) ? currentMonth : 11
+      
+      for (let month = startMonth; month <= endMonth; month++) {
+        expectedDates.push(`${year}-${String(month + 1).padStart(2, '0')}-01`)
+      }
+    }
+
+    // Check for existing rent payments
+    const { data: existingPayments } = await supabase
+      .from("Finanzen")
+      .select("datum")
+      .eq("wohnung_id", tenantPaymentEditInitialData.apartmentId)
+      .eq("ist_einnahmen", true)
+      .like("name", `Mietzahlung ${tenantPaymentEditInitialData.apartment}`)
+      .in("datum", expectedDates)
+
+    const existingDates = existingPayments?.map(p => p.datum) || []
+    const missingDates = expectedDates.filter(date => !existingDates.includes(date))
+    
+    setHasMissingPayments(missingDates.length > 0)
+  }
 
   // Reset form fields when modal opens with new data
   useEffect(() => {
@@ -34,6 +74,7 @@ export default function TenantPaymentEditModal() {
       setPaymentReason("")
       setCustomReason("")
       setTenantPaymentEditModalDirty(false)
+      checkMissingPayments()
     }
   }, [tenantPaymentEditInitialData, setTenantPaymentEditModalDirty])
 
@@ -231,19 +272,21 @@ export default function TenantPaymentEditModal() {
             <p><strong>Wohnung:</strong> {tenantPaymentEditInitialData.apartment}</p>
           </div>
 
-          {/* Mark all as paid button */}
-          <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowConfirmModal(true)}
-              disabled={isSubmitting || isMarkingAllPaid}
-              className="w-full border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-950/50 dark:hover:text-amber-300"
-            >
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Alle ausstehenden Mieten als bezahlt markieren
-            </Button>
-          </div>
+          {/* Mark all as paid button - only show if there are missing payments */}
+          {hasMissingPayments && (
+            <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowConfirmModal(true)}
+                disabled={isSubmitting || isMarkingAllPaid}
+                className="w-full border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-950/50 dark:hover:text-amber-300"
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Alle ausstehenden Mieten als bezahlt markieren
+              </Button>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
