@@ -4,6 +4,7 @@ import { WasserzaehlerModalData } from '@/types/optimized-betriebskosten';
 import { Tenant, KautionData } from '@/types/Tenant';
 import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
+import { TenantBentoItem } from '@/components/tenant-payment-bento';
 
 // Overview Modal Types
 interface HausWithWohnungen {
@@ -312,6 +313,17 @@ export interface ModalState {
   setWohnungOverviewData: (data?: WohnungWithMieter) => void;
   refreshWohnungOverviewData: () => Promise<void>;
 
+  // Tenant Payment Overview Modal State
+  isTenantPaymentOverviewModalOpen: boolean;
+  tenantPaymentOverviewData?: TenantBentoItem[];
+  tenantPaymentOverviewLoading: boolean;
+  tenantPaymentOverviewError?: string;
+  openTenantPaymentOverviewModal: () => void;
+  closeTenantPaymentOverviewModal: (options?: CloseModalOptions) => void;
+  setTenantPaymentOverviewLoading: (loading: boolean) => void;
+  setTenantPaymentOverviewError: (error?: string) => void;
+  setTenantPaymentOverviewData: (data?: TenantBentoItem[]) => void;
+
   // Apartment-Tenant Details Modal State
   isApartmentTenantDetailsModalOpen: boolean;
   apartmentTenantDetailsData?: ApartmentTenantDetailsData;
@@ -505,6 +517,13 @@ const initialWohnungOverviewModalState = {
   wohnungOverviewError: undefined,
 };
 
+const initialTenantPaymentOverviewModalState = {
+  isTenantPaymentOverviewModalOpen: false,
+  tenantPaymentOverviewData: undefined,
+  tenantPaymentOverviewLoading: false,
+  tenantPaymentOverviewError: undefined,
+};
+
 const initialApartmentTenantDetailsModalState = {
   isApartmentTenantDetailsModalOpen: false,
   apartmentTenantDetailsData: undefined,
@@ -585,6 +604,7 @@ const createInitialModalState = () => ({
   ...initialKautionModalState,
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
+  ...initialTenantPaymentOverviewModalState,
   ...initialApartmentTenantDetailsModalState,
   ...initialUploadModalState,
   ...initialFileRenameModalState,
@@ -883,6 +903,22 @@ export const useModalStore = create<ModalState>((set, get) => {
     setWohnungOverviewLoading: (loading: boolean) => set({ wohnungOverviewLoading: loading }),
     setWohnungOverviewError: (error?: string) => set({ wohnungOverviewError: error }),
     setWohnungOverviewData: (data?: WohnungWithMieter) => set({ wohnungOverviewData: data }),
+
+    // Tenant Payment Overview Modal
+    openTenantPaymentOverviewModal: () => {
+      set({ 
+        isTenantPaymentOverviewModalOpen: true,
+        tenantPaymentOverviewLoading: true,
+        tenantPaymentOverviewError: undefined,
+        tenantPaymentOverviewData: undefined
+      });
+    },
+    closeTenantPaymentOverviewModal: (options?: CloseModalOptions) => {
+      set(initialTenantPaymentOverviewModalState);
+    },
+    setTenantPaymentOverviewLoading: (loading: boolean) => set({ tenantPaymentOverviewLoading: loading }),
+    setTenantPaymentOverviewError: (error?: string) => set({ tenantPaymentOverviewError: error }),
+    setTenantPaymentOverviewData: (data?: TenantBentoItem[]) => set({ tenantPaymentOverviewData: data }),
 
     // Apartment-Tenant Details Modal
     openApartmentTenantDetailsModal: async (apartmentId: string, tenantId?: string) => {

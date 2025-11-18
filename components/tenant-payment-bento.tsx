@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "@/hooks/use-toast"
-import { Home, User, Tag, Edit, Check, Wrench, AlertCircle } from "lucide-react"
+import { Home, User, Tag, Edit, Check, Wrench, AlertCircle, Maximize2 } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 
-type TenantBentoItem = {
+export type TenantBentoItem = {
   id: string
   tenant: string
   apartment: string
@@ -74,7 +74,7 @@ export function TenantPaymentBento() {
   const [data, setData] = useState<TenantBentoItem[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
-  const { openTenantPaymentEditModal } = useModalStore()
+  const { openTenantPaymentEditModal, openTenantPaymentOverviewModal } = useModalStore()
 
   // Helper function to determine if payments differ from normal
   const hasDifferentPayments = (tenant: TenantBentoItem) => {
@@ -469,8 +469,20 @@ export function TenantPaymentBento() {
   return (
     <Card className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
       <CardHeader className="flex-shrink-0 pb-2">
-        <CardTitle className="text-lg">Mietzahlungen</CardTitle>
-        <CardDescription>Bezahlt vs. offen</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg">Mietzahlungen</CardTitle>
+            <CardDescription>Bezahlt vs. offen</CardDescription>
+          </div>
+          <button
+            type="button"
+            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
+            onClick={() => openTenantPaymentOverviewModal()}
+            title="Maximieren"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
+        </div>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto pr-2">
         {loading ? (
