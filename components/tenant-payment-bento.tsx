@@ -575,7 +575,7 @@ export function TenantPaymentBento() {
                         mieteRaw: tenant.mieteRaw,
                         nebenkostenRaw: tenant.nebenkostenRaw || 0,
                         einzug: tenant.einzug
-                      })}
+                      }, fetchData)}
                     >
                       <Edit className="h-3 w-3" />
                       Anpassen

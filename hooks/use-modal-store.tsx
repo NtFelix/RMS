@@ -240,11 +240,7 @@ export interface ModalState {
     nebenkostenRaw?: number;
     einzug?: string | null;
   };
-  tenantPaymentEditOnSuccess?: (updatedData: {
-    apartmentId: string;
-    newRent: number;
-    newNebenkosten: number;
-  }) => void;
+  tenantPaymentEditModalOnSuccess?: () => void;
   isTenantPaymentEditModalDirty: boolean;
   openTenantPaymentEditModal: (initialData: {
     id: string;
@@ -254,7 +250,7 @@ export interface ModalState {
     mieteRaw: number;
     nebenkostenRaw?: number;
     einzug?: string | null;
-  }) => void;
+  }, onSuccess?: () => void) => void;
   closeTenantPaymentEditModal: (options?: CloseModalOptions) => void;
   setTenantPaymentEditModalDirty: (isDirty: boolean) => void;
 
@@ -467,7 +463,7 @@ const initialAufgabeModalState = {
 const initialTenantPaymentEditModalState = {
   isTenantPaymentEditModalOpen: false,
   tenantPaymentEditInitialData: undefined,
-  tenantPaymentEditOnSuccess: undefined,
+  tenantPaymentEditModalOnSuccess: undefined,
   isTenantPaymentEditModalDirty: false,
 };
 
@@ -703,9 +699,10 @@ export const useModalStore = create<ModalState>((set, get) => {
     setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
 
     // Tenant Payment Edit Modal
-    openTenantPaymentEditModal: (initialData) => set({
+    openTenantPaymentEditModal: (initialData, onSuccess) => set({
       isTenantPaymentEditModalOpen: true,
       tenantPaymentEditInitialData: initialData,
+      tenantPaymentEditModalOnSuccess: onSuccess,
       isTenantPaymentEditModalDirty: false
     }),
     closeTenantPaymentEditModal: createCloseHandler('isTenantPaymentEditModalDirty', initialTenantPaymentEditModalState),

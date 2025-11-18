@@ -13,9 +13,11 @@ import { toast } from "@/hooks/use-toast"
 export default function TenantPaymentEditModal() {
   const {
     isTenantPaymentEditModalOpen,
-    tenantPaymentEditInitialData,
     closeTenantPaymentEditModal,
-    setTenantPaymentEditModalDirty,
+    tenantPaymentEditInitialData,
+    tenantPaymentEditModalOnSuccess,
+    isTenantPaymentEditModalDirty,
+    setTenantPaymentEditModalDirty
   } = useModalStore()
 
   const [rent, setRent] = useState("")
@@ -177,7 +179,11 @@ export default function TenantPaymentEditModal() {
 
       // Close modal and refresh data
       closeTenantPaymentEditModal({ force: true })
-      window.location.reload() // Simple refresh for now
+      
+      // Call onSuccess callback to refresh the container
+      if (tenantPaymentEditModalOnSuccess) {
+        tenantPaymentEditModalOnSuccess()
+      }
       
       // Show success toast
       toast({
@@ -267,7 +273,11 @@ export default function TenantPaymentEditModal() {
 
       // Close modal and refresh data
       closeTenantPaymentEditModal({ force: true })
-      window.location.reload()
+      
+      // Call onSuccess callback to refresh the container
+      if (tenantPaymentEditModalOnSuccess) {
+        tenantPaymentEditModalOnSuccess()
+      }
       
       // Show success toast
       toast({
