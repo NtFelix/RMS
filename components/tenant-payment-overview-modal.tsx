@@ -322,7 +322,7 @@ export default function TenantPaymentOverviewModal() {
 
   return (
     <Dialog open={isTenantPaymentOverviewModalOpen} onOpenChange={() => closeTenantPaymentOverviewModal()}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Maximize2 className="h-5 w-5" />
@@ -342,7 +342,7 @@ export default function TenantPaymentOverviewModal() {
               <p className="text-muted-foreground">{tenantPaymentOverviewError}</p>
             </div>
           ) : tenantPaymentOverviewData && tenantPaymentOverviewData.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {tenantPaymentOverviewData.map((tenant) => (
                 <Card
                   key={tenant.id}
@@ -354,7 +354,7 @@ export default function TenantPaymentOverviewModal() {
                         : 'border-green-200 dark:border-green-800 hover:bg-green-50/50 dark:hover:bg-green-900/20'
                   }`}
                 >
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1 font-semibold text-foreground">
@@ -375,9 +375,9 @@ export default function TenantPaymentOverviewModal() {
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-2 pt-0">
                     {/* Payment amounts */}
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Miete:</span>
                         <span className="font-medium">
@@ -394,7 +394,7 @@ export default function TenantPaymentOverviewModal() {
                         </div>
                       )}
                       
-                      <div className="flex justify-between items-center text-sm font-semibold border-t pt-2">
+                      <div className="flex justify-between items-center text-sm font-semibold border-t pt-1">
                         <span>Gesamt:</span>
                         <span>
                           €{((tenant.actualRent || tenant.mieteRaw) + (tenant.actualNebenkosten || tenant.nebenkostenRaw || 0)).toFixed(2)}
@@ -404,7 +404,7 @@ export default function TenantPaymentOverviewModal() {
 
                     {/* Missed payments warning */}
                     {tenant.missedPayments.totalAmount > 0 && (
-                      <div className="flex items-center gap-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                      <div className="flex items-center gap-2 p-1.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
                         <AlertCircle className="h-4 w-4 text-orange-500" />
                         <div className="text-xs text-orange-700 dark:text-orange-300">
                           <div className="font-medium">Verpasste Zahlungen</div>
@@ -417,10 +417,10 @@ export default function TenantPaymentOverviewModal() {
                     )}
 
                     {/* Action buttons */}
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex gap-2 pt-1">
                       <button
                         type="button"
-                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${
+                        className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${
                           tenant.paid
                             ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
                             : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30'
@@ -445,7 +445,7 @@ export default function TenantPaymentOverviewModal() {
                       
                       <button
                         type="button"
-                        className="flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
+                        className="flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
                         disabled={updatingStatus === tenant.id}
                         onClick={() => openTenantPaymentEditModal({
                           id: tenant.id,
