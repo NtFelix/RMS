@@ -382,13 +382,19 @@ export default function TenantPaymentOverviewModal() {
               <Button variant="outline" className="min-w-[150px] justify-between rounded-xl px-3">
                 <div className="flex items-center">
                   <Filter className="mr-2 h-4 w-4" />
-                  {activeFilter || "Filter"}
+                  {activeFilter || "Alle"}
                 </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56">
               <DropdownMenuLabel>Filter nach Status</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={activeFilter === null}
+                onCheckedChange={() => setActiveFilter(null)}
+              >
+                Alle
+              </DropdownMenuCheckboxItem>
               {["Bezahlt", "Offen", "Verpasste Zahlungen"].map((filter) => (
                 <DropdownMenuCheckboxItem
                   key={filter}
