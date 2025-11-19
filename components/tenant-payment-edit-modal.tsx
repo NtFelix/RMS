@@ -34,45 +34,16 @@ export default function TenantPaymentEditModal() {
     if (!tenantPaymentEditInitialData) return
 
     try {
-      const response = await fetch(`/api/finance-entries?wohnung_id=${tenantPaymentEditInitialData.apartmentId}&limit=1000`)
+      const response = await fetch(`/api/tenants/${tenantPaymentEditInitialData.id}/missed-payments`)
       const data = await response.json()
 
       if (!response.ok) {
-        console.error("Error fetching finance entries:", data.error)
+        console.error("Error fetching missed payments:", data.error)
         setHasMissingPayments(false)
         return
       }
 
-      const currentMonth = new Date().getMonth()
-      const currentYear = new Date().getFullYear()
-      
-      // Get tenant's move-in date
-      const moveInDate = tenantPaymentEditInitialData.einzug 
-        ? new Date(tenantPaymentEditInitialData.einzug) 
-        : new Date(currentYear, currentMonth - 1, 1)
-      
-      // Generate all expected payment dates
-      const expectedDates = []
-      for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
-        const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
-        const endMonth = (year === currentYear) ? currentMonth : 11
-        
-        for (let month = startMonth; month <= endMonth; month++) {
-          expectedDates.push(`${year}-${String(month + 1).padStart(2, '0')}-01`)
-        }
-      }
-
-      // Filter for rent payments only
-      const rentPayments = data.entries?.filter((entry: any) => 
-        entry.wohnung_id === tenantPaymentEditInitialData.apartmentId &&
-        entry.ist_einnahmen === true &&
-        entry.name.includes(`Mietzahlung ${tenantPaymentEditInitialData.apartment}`)
-      ) || []
-
-      const existingDates = rentPayments.map((p: any) => p.datum)
-      const missingDates = expectedDates.filter(date => !existingDates.includes(date))
-      
-      setHasMissingPayments(missingDates.length > 0)
+      setHasMissingPayments(data.hasMissingPayments)
 
     } catch (error) {
       console.error("Error checking missing payments:", error)
@@ -96,13 +67,13 @@ export default function TenantPaymentEditModal() {
     if (paymentReason === "other") {
       return customReason || "Sonstiges"
     }
-    return paymentReason === "mietausfall" ? "Mietausfall" : 
-           paymentReason === "mietminderung" ? "Mietminderung" : ""
+    return paymentReason === "mietausfall" ? "Mietausfall" :
+      paymentReason === "mietminderung" ? "Mietminderung" : ""
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!tenantPaymentEditInitialData) return
 
     const rentValue = parseFloat(rent)
@@ -129,10 +100,10 @@ export default function TenantPaymentEditModal() {
 
       // Create rent entry only if amount > 0
       if (rentValue > 0) {
-        const rentNote = reasonText 
+        const rentNote = reasonText
           ? `Mietzahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
           : `Mietzahlung von ${tenantPaymentEditInitialData.tenant}`
-        
+
         entries.push({
           wohnung_id: tenantPaymentEditInitialData.apartmentId,
           name: `Mietzahlung ${tenantPaymentEditInitialData.apartment}`,
@@ -145,10 +116,10 @@ export default function TenantPaymentEditModal() {
 
       // Create nebenkosten entry if applicable
       if (nebenkostenValue > 0) {
-        const nebenkostenNote = reasonText 
+        const nebenkostenNote = reasonText
           ? `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
           : `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant}`
-        
+
         entries.push({
           wohnung_id: tenantPaymentEditInitialData.apartmentId,
           name: `Nebenkosten ${tenantPaymentEditInitialData.apartment}`,
@@ -179,19 +150,19 @@ export default function TenantPaymentEditModal() {
 
       // Close modal and refresh data
       closeTenantPaymentEditModal({ force: true })
-      
+
       // Call onSuccess callback to refresh the container
       if (tenantPaymentEditModalOnSuccess) {
         tenantPaymentEditModalOnSuccess()
       }
-      
+
       // Show success toast
       toast({
         title: "Zahlung erfolgreich erfasst",
         description: `${entries.length > 0 ? `${entries.length} Zahlungseinträge wurden erfolgreich erstellt.` : "Keine Zahlungseinträge erstellt (Betrag war 0€)."}`,
         variant: "success",
       })
-      
+
     } catch (error) {
       console.error("Fehler beim Erstellen der Zahlungseinträge:", error)
       toast({
@@ -212,23 +183,23 @@ export default function TenantPaymentEditModal() {
     try {
       const currentMonth = new Date().getMonth()
       const currentYear = new Date().getFullYear()
-      
+
       // Get tenant's move-in date to determine how many months to cover
-      const moveInDate = tenantPaymentEditInitialData.einzug 
-        ? new Date(tenantPaymentEditInitialData.einzug) 
+      const moveInDate = tenantPaymentEditInitialData.einzug
+        ? new Date(tenantPaymentEditInitialData.einzug)
         : new Date(currentYear, currentMonth - 1, 1) // Default to last month if no move-in date
-      
+
       // Create payment entries for all months from move-in to current month
       const paymentEntries = []
-      
+
       for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
         const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
         const endMonth = (year === currentYear) ? currentMonth : 11
-        
+
         for (let month = startMonth; month <= endMonth; month++) {
           // Create date in local timezone to avoid UTC conversion issues
           const paymentDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
-          
+
           // Add rent payment
           paymentEntries.push({
             wohnung_id: tenantPaymentEditInitialData.apartmentId,
@@ -273,21 +244,21 @@ export default function TenantPaymentEditModal() {
 
       // Close modal and refresh data
       closeTenantPaymentEditModal({ force: true })
-      
+
       // Call onSuccess callback to refresh the container
       if (tenantPaymentEditModalOnSuccess) {
         tenantPaymentEditModalOnSuccess()
       }
-      
+
       // Show success toast
       toast({
         title: "Alle ausstehenden Zahlungen markiert",
-        description: paymentEntries.length > 0 
+        description: paymentEntries.length > 0
           ? `${paymentEntries.length} Zahlungseinträge wurden als bezahlt markiert.`
           : "Keine ausstehenden Zahlungen gefunden.",
         variant: "success",
       })
-      
+
     } catch (error) {
       console.error("Fehler beim Markieren aller ausstehenden Zahlungen als bezahlt:", error)
       toast({
@@ -329,7 +300,7 @@ export default function TenantPaymentEditModal() {
               Erfassen Sie abweichende Zahlungen, Mietminderungen oder ausstehende Beträge für diesen Mieter.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
             <p><strong>Mieter:</strong> {tenantPaymentEditInitialData.tenant}</p>
             <p><strong>Wohnung:</strong> {tenantPaymentEditInitialData.apartment}</p>
@@ -446,14 +417,14 @@ export default function TenantPaymentEditModal() {
                 Sind Sie sicher, dass Sie alle ausstehenden Mietzahlungen für <strong>{tenantPaymentEditInitialData?.tenant}</strong> als bezahlt markieren möchten?
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-3">
               <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                 <p className="text-sm text-amber-800 dark:text-amber-200">
                   <strong>Hinweis:</strong> Diese Aktion erstellt Zahlungseinträge für alle Monate vom Einzugsdatum bis zum aktuellen Monat.
                 </p>
               </div>
-              
+
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 <p>• Miete: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenantPaymentEditInitialData?.mieteRaw || 0)} pro Monat</p>
                 {tenantPaymentEditInitialData?.nebenkostenRaw && tenantPaymentEditInitialData.nebenkostenRaw > 0 && (
