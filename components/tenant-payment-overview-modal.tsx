@@ -103,57 +103,11 @@ export default function TenantPaymentOverviewModal() {
                 }
               })
 
-            // Calculate missed payments
-            const moveInDate = new Date(mieter.einzug)
-            let missedRentMonths = 0
-            let missedNebenkostenMonths = 0
-            let totalMissedAmount = 0
-
-            // Iterate through each month from move-in to current
-            for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
-              const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
-              const endMonth = (year === currentYear) ? currentDate.getMonth() : 11
-
-              for (let month = startMonth; month <= endMonth; month++) {
-                const monthStart = new Date(year, month, 1).toISOString().split('T')[0]
-                const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0]
-
-                // Check if rent was paid for this month
-                const rentPaid = finances.some((f: any) =>
-                  f.wohnung_id === mieter.Wohnungen.id &&
-                  f.datum >= monthStart &&
-                  f.datum <= monthEnd &&
-                  f.ist_einnahmen &&
-                  f.name?.includes('Mietzahlung')
-                )
-
-                if (!rentPaid) {
-                  missedRentMonths++
-                  totalMissedAmount += mieteRaw
-                }
-
-                // Check if nebenkosten were paid for this month (if applicable)
-                if (nebenkostenRaw > 0) {
-                  const nebenkostenPaid = finances.some((f: any) =>
-                    f.wohnung_id === mieter.Wohnungen.id &&
-                    f.datum >= monthStart &&
-                    f.datum <= monthEnd &&
-                    f.ist_einnahmen &&
-                    f.name?.includes('Nebenkosten')
-                  )
-
-                  if (!nebenkostenPaid) {
-                    missedNebenkostenMonths++
-                    totalMissedAmount += nebenkostenRaw
-                  }
-                }
-              }
-            }
-
-            const missedPayments = {
-              rentMonths: missedRentMonths,
-              nebenkostenMonths: missedNebenkostenMonths,
-              totalAmount: totalMissedAmount
+            // Missed payments are now calculated on the server
+            const missedPayments = mieter.missedPayments || {
+              rentMonths: 0,
+              nebenkostenMonths: 0,
+              totalAmount: 0
             }
 
             return {
