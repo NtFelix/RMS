@@ -35,7 +35,7 @@ export default function TenantPaymentOverviewModal() {
 
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState<string>("")
-  const [activeFilters, setActiveFilters] = useState<string[]>([])
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
   // Helper function to determine if payments differ from normal
   const hasDifferentPayments = (tenant: TenantBentoItem) => {
@@ -45,11 +45,7 @@ export default function TenantPaymentOverviewModal() {
   }
 
   const handleFilterToggle = (filter: string) => {
-    setActiveFilters((prevFilters) =>
-      prevFilters.includes(filter)
-        ? prevFilters.filter((f) => f !== filter)
-        : [...prevFilters, filter]
-    )
+    setActiveFilter((prevFilter) => (prevFilter === filter ? null : filter))
   }
 
   // Fetch data when modal opens
@@ -337,22 +333,22 @@ export default function TenantPaymentOverviewModal() {
     const matchesSearch = tenant.tenant.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tenant.apartment.toLowerCase().includes(searchTerm.toLowerCase())
 
-    if (activeFilters.length === 0) {
+    if (!activeFilter) {
       return matchesSearch
     }
 
-    const matchesFilter = activeFilters.some((filter) => {
-      if (filter === "Bezahlt") {
+    const matchesFilter = (() => {
+      if (activeFilter === "Bezahlt") {
         return tenant.paid
       }
-      if (filter === "Offen") {
+      if (activeFilter === "Offen") {
         return !tenant.paid
       }
-      if (filter === "Verpasste Zahlungen") {
+      if (activeFilter === "Verpasste Zahlungen") {
         return tenant.missedPayments.totalAmount > 0
       }
       return false
-    })
+    })()
 
     return matchesSearch && matchesFilter
   }) || []
@@ -383,9 +379,11 @@ export default function TenantPaymentOverviewModal() {
           {/* Filter Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="px-3 rounded-xl">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
+              <Button variant="outline" className="min-w-[150px] justify-between rounded-xl px-3">
+                <div className="flex items-center">
+                  <Filter className="mr-2 h-4 w-4" />
+                  {activeFilter || "Filter"}
+                </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56">
@@ -394,7 +392,7 @@ export default function TenantPaymentOverviewModal() {
               {["Bezahlt", "Offen", "Verpasste Zahlungen"].map((filter) => (
                 <DropdownMenuCheckboxItem
                   key={filter}
-                  checked={activeFilters.includes(filter)}
+                  checked={activeFilter === filter}
                   onCheckedChange={() => handleFilterToggle(filter)}
                 >
                   {filter}
