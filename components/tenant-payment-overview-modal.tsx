@@ -17,7 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
-import type { TenantBentoItem } from "./tenant-payment-bento"
+import { type TenantBentoItem, getLatestNebenkostenAmount } from "./tenant-payment-bento"
 import { Input } from "@/components/ui/input"
 
 export default function TenantPaymentOverviewModal() {
@@ -65,11 +65,11 @@ export default function TenantPaymentOverviewModal() {
           if (!response.ok) {
             throw new Error('Failed to fetch tenant data')
           }
-          
+
           const { tenants, finances } = await response.json()
 
           // Filter for active tenants only
-          const activeTenants = tenants.filter((tenant: any) => 
+          const activeTenants = tenants.filter((tenant: any) =>
             !tenant.auszug || new Date(tenant.auszug) > new Date()
           )
 
@@ -79,14 +79,11 @@ export default function TenantPaymentOverviewModal() {
           const currentYear = currentDate.getFullYear()
           const start = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
           const end = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
-          
+
           // Process payment status and missed payments using the data we already have
           const tenantsWithPayments = activeTenants.map((mieter: any) => {
             const mieteRaw = Number(mieter.Wohnungen.miete) || 0
-            const nebenkostenRaw = mieter.nebenkosten ? 
-              (Array.isArray(mieter.nebenkosten) ? 
-                mieter.nebenkosten.reduce((sum: number, n: any) => sum + (Number(n.betrag) || 0), 0) : 
-                Number(mieter.nebenkosten) || 0) : 0
+            const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
 
             // Get current month payments
             const currentPayments = {
@@ -95,10 +92,10 @@ export default function TenantPaymentOverviewModal() {
             }
 
             finances
-              .filter((f: any) => 
+              .filter((f: any) =>
                 f.wohnung_id === mieter.Wohnungen.id &&
-                f.datum >= start && 
-                f.datum <= end && 
+                f.datum >= start &&
+                f.datum <= end &&
                 f.ist_einnahmen
               )
               .forEach((f: any) => {
@@ -114,20 +111,20 @@ export default function TenantPaymentOverviewModal() {
             let missedRentMonths = 0
             let missedNebenkostenMonths = 0
             let totalMissedAmount = 0
-            
+
             // Iterate through each month from move-in to current
             for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
               const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
               const endMonth = (year === currentYear) ? currentDate.getMonth() : 11
-              
+
               for (let month = startMonth; month <= endMonth; month++) {
                 const monthStart = new Date(year, month, 1).toISOString().split('T')[0]
                 const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0]
-                
+
                 // Check if rent was paid for this month
-                const rentPaid = finances.some((f: any) => 
+                const rentPaid = finances.some((f: any) =>
                   f.wohnung_id === mieter.Wohnungen.id &&
-                  f.datum >= monthStart && 
+                  f.datum >= monthStart &&
                   f.datum <= monthEnd &&
                   f.ist_einnahmen &&
                   f.name?.includes('Mietzahlung')
@@ -140,9 +137,9 @@ export default function TenantPaymentOverviewModal() {
 
                 // Check if nebenkosten were paid for this month (if applicable)
                 if (nebenkostenRaw > 0) {
-                  const nebenkostenPaid = finances.some((f: any) => 
+                  const nebenkostenPaid = finances.some((f: any) =>
                     f.wohnung_id === mieter.Wohnungen.id &&
-                    f.datum >= monthStart && 
+                    f.datum >= monthStart &&
                     f.datum <= monthEnd &&
                     f.ist_einnahmen &&
                     f.name?.includes('Nebenkosten')
@@ -161,7 +158,7 @@ export default function TenantPaymentOverviewModal() {
               nebenkostenMonths: missedNebenkostenMonths,
               totalAmount: totalMissedAmount
             }
-            
+
             return {
               ...mieter,
               actualRent: currentPayments.rent,
@@ -169,20 +166,20 @@ export default function TenantPaymentOverviewModal() {
               missedPayments
             }
           })
-          
+
           // Get paid apartments for current month
           const paidWohnungen: Set<string> = new Set(
             finances
-              .filter((f: any) => 
-                f.datum >= start && 
-                f.datum <= end && 
+              .filter((f: any) =>
+                f.datum >= start &&
+                f.datum <= end &&
                 f.ist_einnahmen &&
                 (f.name?.includes('Mietzahlung') || f.name?.includes('Nebenkosten'))
               )
               .map((f: any) => f.wohnung_id)
               .filter((id: any): id is string => typeof id === 'string')
           )
-          
+
           // Format tenant data with payment status
           const formattedData = tenantsWithPayments.map((mieter: any) => ({
             id: mieter.id,
@@ -190,10 +187,7 @@ export default function TenantPaymentOverviewModal() {
             apartment: mieter.Wohnungen.name,
             apartmentId: mieter.Wohnungen.id,
             mieteRaw: Number(mieter.Wohnungen.miete) || 0,
-            nebenkostenRaw: mieter.nebenkosten ? 
-              (Array.isArray(mieter.nebenkosten) ? 
-                mieter.nebenkosten.reduce((sum: number, n: any) => sum + (Number(n.betrag) || 0), 0) : 
-                Number(mieter.nebenkosten) || 0) : 0,
+            nebenkostenRaw: getLatestNebenkostenAmount(mieter.nebenkosten),
             paid: paidWohnungen.has(mieter.Wohnungen.id),
             actualRent: mieter.actualRent,
             actualNebenkosten: mieter.actualNebenkosten,
@@ -227,14 +221,14 @@ export default function TenantPaymentOverviewModal() {
       // Optimistic update
       if (tenantPaymentOverviewData) {
         setTenantPaymentOverviewData(
-          tenantPaymentOverviewData.map(t => 
+          tenantPaymentOverviewData.map(t =>
             t.id === tenant.id ? { ...t, paid: !t.paid } : t
           )
         )
       }
 
       const supabase = createClient()
-      
+
       if (tenant.paid) {
         // Remove payment entries
         const currentDate = new Date()
@@ -262,7 +256,7 @@ export default function TenantPaymentOverviewModal() {
       } else {
         // Add payment entries using the optimized API endpoint
         const entries = []
-        
+
         // Add rent entry
         entries.push({
           wohnung_id: tenant.apartmentId,
@@ -426,13 +420,12 @@ export default function TenantPaymentOverviewModal() {
               {filteredTenants.map((tenant) => (
                 <Card
                   key={tenant.id}
-                  className={`transition-colors duration-200 rounded-4xl ${
-                    !tenant.paid
+                  className={`transition-colors duration-200 rounded-4xl ${!tenant.paid
                       ? 'border-red-200 dark:border-red-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
                       : hasDifferentPayments(tenant)
                         ? 'border-orange-200 dark:border-orange-800 hover:bg-orange-50/50 dark:hover:bg-orange-900/20'
                         : 'border-green-200 dark:border-green-800 hover:bg-green-50/50 dark:hover:bg-green-900/20'
-                  }`}
+                    }`}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
@@ -454,7 +447,7 @@ export default function TenantPaymentOverviewModal() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  
+
                   <CardContent className="space-y-2 pt-0">
                     {/* Payment amounts */}
                     <div className="space-y-1">
@@ -464,7 +457,7 @@ export default function TenantPaymentOverviewModal() {
                           {tenant.actualRent ? `€${tenant.actualRent.toFixed(2)}` : `€${tenant.mieteRaw.toFixed(2)}`}
                         </span>
                       </div>
-                      
+
                       {tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0 && (
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-muted-foreground">Nebenkosten:</span>
@@ -473,7 +466,7 @@ export default function TenantPaymentOverviewModal() {
                           </span>
                         </div>
                       )}
-                      
+
                       <div className="flex justify-between items-center text-sm font-semibold border-t pt-1">
                         <span>Gesamt:</span>
                         <span>
@@ -500,11 +493,10 @@ export default function TenantPaymentOverviewModal() {
                     <div className="flex gap-2 pt-1">
                       <button
                         type="button"
-                        className={`flex-1 px-2 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${
-                          tenant.paid
+                        className={`flex-1 px-2 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${tenant.paid
                             ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
                             : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30'
-                        }`}
+                          }`}
                         disabled={updatingStatus === tenant.id}
                         onClick={() => toggleRentPayment(tenant)}
                       >
@@ -522,7 +514,7 @@ export default function TenantPaymentOverviewModal() {
                           </>
                         )}
                       </button>
-                      
+
                       <button
                         type="button"
                         className="flex-1 px-2 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"

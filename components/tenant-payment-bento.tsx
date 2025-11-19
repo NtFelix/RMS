@@ -25,7 +25,7 @@ export type TenantBentoItem = {
   einzug?: string | null
 }
 
-type NebenkostenEntry = {
+export type NebenkostenEntry = {
   id?: string
   amount?: string | number
   date?: string | null
@@ -44,7 +44,7 @@ type MieterData = {
   }
 }
 
-const getLatestNebenkostenAmount = (entries?: NebenkostenEntry[] | null): number => {
+export const getLatestNebenkostenAmount = (entries?: NebenkostenEntry[] | null): number => {
   if (!Array.isArray(entries)) return 0
 
   const parsedEntries = entries
