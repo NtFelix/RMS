@@ -493,25 +493,6 @@ export default function TenantPaymentOverviewModal() {
                     <div className="flex gap-2 pt-1">
                       <button
                         type="button"
-                        className={`flex-1 px-2 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${tenant.paid
-                          ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
-                          : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30'
-                          }`}
-                        disabled={updatingStatus === tenant.id}
-                        onClick={() => toggleRentPayment(tenant)}
-                      >
-                        {updatingStatus === tenant.id ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-current" />
-                        ) : (
-                          <>
-                            <Check className="h-3 w-3" />
-                            {tenant.paid ? 'Unbezahlt' : 'Bezahlt'}
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
                         className="flex-1 px-2 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
                         disabled={updatingStatus === tenant.id}
                         onClick={() => openTenantPaymentEditModal({
@@ -529,6 +510,25 @@ export default function TenantPaymentOverviewModal() {
                       >
                         <Edit className="h-3 w-3" />
                         Anpassen
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`flex-1 px-2 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${tenant.paid
+                          ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
+                          : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30'
+                          }`}
+                        disabled={updatingStatus === tenant.id}
+                        onClick={() => toggleRentPayment(tenant)}
+                      >
+                        {updatingStatus === tenant.id ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-current" />
+                        ) : (
+                          <>
+                            <Check className="h-3 w-3" />
+                            {tenant.paid ? 'Unbezahlt' : 'Bezahlt'}
+                          </>
+                        )}
                       </button>
                     </div>
                   </CardContent>
