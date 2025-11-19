@@ -138,7 +138,7 @@ export function TenantPaymentBento() {
   const getCurrentMonthFinancePayments = async (apartmentId: string) => {
     const supabase = createClient()
     const { start, end } = getCurrentMonthRange()
-    
+
     const { data, error } = await supabase
       .from('Finanzen')
       .select('name, betrag')
@@ -146,14 +146,14 @@ export function TenantPaymentBento() {
       .gte('datum', start)
       .lte('datum', end)
       .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
-    
+
     if (error) throw error
-    
+
     const payments = {
       rent: 0,
       nebenkosten: 0
     }
-    
+
     data?.forEach(payment => {
       if (payment.name?.includes('Mietzahlung')) {
         payments.rent += Number(payment.betrag) || 0
@@ -161,33 +161,33 @@ export function TenantPaymentBento() {
         payments.nebenkosten += Number(payment.betrag) || 0
       }
     })
-    
+
     return payments
   }
 
   // Get missed payments history for a tenant
   const getMissedPaymentsHistory = async (apartmentId: string, einzug: string, mieteRaw: number, nebenkostenRaw: number = 0) => {
     const supabase = createClient()
-    
+
     // Get all months from tenant move-in date to current month
     const moveInDate = new Date(einzug)
     const currentDate = new Date()
     const currentYear = currentDate.getFullYear()
     const currentMonth = currentDate.getMonth()
-    
+
     let missedRentMonths = 0
     let missedNebenkostenMonths = 0
     let totalMissedAmount = 0
-    
+
     // Iterate through each month from move-in to current
     for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
       const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
       const endMonth = (year === currentYear) ? currentMonth : 11
-      
+
       for (let month = startMonth; month <= endMonth; month++) {
         const monthStart = new Date(year, month, 1).toISOString().split('T')[0]
         const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0]
-        
+
         // Check if rent was paid for this month
         const { data: rentPayments } = await supabase
           .from('Finanzen')
@@ -197,14 +197,14 @@ export function TenantPaymentBento() {
           .gte('datum', monthStart)
           .lte('datum', monthEnd)
           .ilike('name', '%Mietzahlung%')
-        
+
         const rentPaid = rentPayments?.reduce((sum, payment) => sum + (payment.betrag || 0), 0) || 0
-        
+
         if (rentPaid < mieteRaw) {
           missedRentMonths++
           totalMissedAmount += (mieteRaw - rentPaid)
         }
-        
+
         // Check if nebenkosten was paid for this month (if applicable)
         if (nebenkostenRaw > 0) {
           const { data: nebenkostenPayments } = await supabase
@@ -215,9 +215,9 @@ export function TenantPaymentBento() {
             .gte('datum', monthStart)
             .lte('datum', monthEnd)
             .ilike('name', '%Nebenkosten%')
-          
+
           const nebenkostenPaid = nebenkostenPayments?.reduce((sum, payment) => sum + (payment.betrag || 0), 0) || 0
-          
+
           if (nebenkostenPaid < nebenkostenRaw) {
             missedNebenkostenMonths++
             totalMissedAmount += (nebenkostenRaw - nebenkostenPaid)
@@ -225,7 +225,7 @@ export function TenantPaymentBento() {
         }
       }
     }
-    
+
     return {
       rentMonths: missedRentMonths,
       nebenkostenMonths: missedNebenkostenMonths,
@@ -243,32 +243,32 @@ export function TenantPaymentBento() {
       if (!response.ok) {
         throw new Error('Failed to fetch tenant data')
       }
-      
+
       const { tenants, finances } = await response.json()
 
       // Filter for active tenants only
-      const activeTenants = tenants.filter((tenant: any) => 
+      const activeTenants = tenants.filter((tenant: any) =>
         !tenant.auszug || new Date(tenant.auszug) > new Date()
       )
 
       // Get current month range for payment status
       const { start, end } = getCurrentMonthRange()
-      
+
       // Process payment status and missed payments using the data we already have
       const tenantsWithPayments = activeTenants.map((mieter: any) => {
         const mieteRaw = Number(mieter.Wohnungen.miete) || 0
         const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
-        
+
         // Filter finances for this tenant's apartment
-        const tenantFinances = finances.filter((finance: any) => 
+        const tenantFinances = finances.filter((finance: any) =>
           finance.wohnung_id === mieter.Wohnungen.id
         )
-        
+
         // Current month payments
-        const currentMonthPayments = tenantFinances.filter((finance: any) => 
+        const currentMonthPayments = tenantFinances.filter((finance: any) =>
           finance.datum >= start && finance.datum <= end
         )
-        
+
         const currentPayments = {
           rent: currentMonthPayments
             .filter((p: any) => p.name?.includes('Mietzahlung'))
@@ -277,62 +277,14 @@ export function TenantPaymentBento() {
             .filter((p: any) => p.name?.includes('Nebenkosten'))
             .reduce((sum: number, p: any) => sum + (p.betrag || 0), 0)
         }
-        
-        // Calculate missed payments history
-        const moveInDate = new Date(mieter.einzug || new Date().toISOString())
-        const currentDate = new Date()
-        
-        let missedRentMonths = 0
-        let missedNebenkostenMonths = 0
-        let totalMissedAmount = 0
-        
-        // Check each month from move-in to current
-        for (let year = moveInDate.getFullYear(); year <= currentDate.getFullYear(); year++) {
-          const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
-          const endMonth = (year === currentDate.getFullYear()) ? currentDate.getMonth() : 11
-          
-          for (let month = startMonth; month <= endMonth; month++) {
-            const monthStart = new Date(year, month, 1).toISOString().split('T')[0]
-            const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0]
-            
-            // Check rent payments for this month
-            const rentPaid = tenantFinances
-              .filter((f: any) => 
-                f.datum >= monthStart && 
-                f.datum <= monthEnd && 
-                f.name?.includes('Mietzahlung')
-              )
-              .reduce((sum: number, f: any) => sum + (f.betrag || 0), 0)
-            
-            if (rentPaid < mieteRaw) {
-              missedRentMonths++
-              totalMissedAmount += (mieteRaw - rentPaid)
-            }
-            
-            // Check nebenkosten payments if applicable
-            if (nebenkostenRaw > 0) {
-              const nebenkostenPaid = tenantFinances
-                .filter((f: any) => 
-                  f.datum >= monthStart && 
-                  f.datum <= monthEnd && 
-                  f.name?.includes('Nebenkosten')
-                )
-                .reduce((sum: number, f: any) => sum + (f.betrag || 0), 0)
-              
-              if (nebenkostenPaid < nebenkostenRaw) {
-                missedNebenkostenMonths++
-                totalMissedAmount += (nebenkostenRaw - nebenkostenPaid)
-              }
-            }
-          }
+
+        // Missed payments are now calculated on the server
+        const missedPayments = mieter.missedPayments || {
+          rentMonths: 0,
+          nebenkostenMonths: 0,
+          totalAmount: 0
         }
-        
-        const missedPayments = {
-          rentMonths: missedRentMonths,
-          nebenkostenMonths: missedNebenkostenMonths,
-          totalAmount: totalMissedAmount
-        }
-        
+
         return {
           ...mieter,
           actualRent: currentPayments.rent,
@@ -340,20 +292,20 @@ export function TenantPaymentBento() {
           missedPayments
         }
       })
-      
+
       // Get paid apartments for current month
       const paidWohnungen: Set<string> = new Set(
         finances
-          .filter((f: any) => 
-            f.datum >= start && 
-            f.datum <= end && 
+          .filter((f: any) =>
+            f.datum >= start &&
+            f.datum <= end &&
             f.ist_einnahmen &&
             (f.name?.includes('Mietzahlung') || f.name?.includes('Nebenkosten'))
           )
           .map((f: any) => f.wohnung_id)
           .filter((id: any): id is string => typeof id === 'string')
       )
-      
+
       const formattedData = formatTenantData(tenantsWithPayments, paidWohnungen)
       setData(formattedData)
     } catch (error) {
@@ -428,10 +380,10 @@ export function TenantPaymentBento() {
       }
 
       // Optimistically update the UI
-      setData(prevData => 
-        prevData.map(item => 
-          item.id === tenant.id 
-            ? { ...item, paid: !tenant.paid } 
+      setData(prevData =>
+        prevData.map(item =>
+          item.id === tenant.id
+            ? { ...item, paid: !tenant.paid }
             : item
         )
       )
@@ -495,13 +447,12 @@ export function TenantPaymentBento() {
               data.map((tenant) => (
                 <div
                   key={tenant.id}
-                  className={`w-full flex flex-col p-4 rounded-2xl shadow-md bg-card border transition-colors duration-200 ${
-                    !tenant.paid
+                  className={`w-full flex flex-col p-4 rounded-2xl shadow-md bg-card border transition-colors duration-200 ${!tenant.paid
                       ? 'border-red-200 dark:border-red-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
                       : hasDifferentPayments(tenant)
                         ? 'border-orange-200 dark:border-orange-800 hover:bg-orange-50/50 dark:hover:bg-orange-900/20'
                         : 'border-green-200 dark:border-green-800 hover:bg-green-50/50 dark:hover:bg-green-900/20'
-                  }`}
+                    }`}
                 >
                   {/* Top section: Tenant info and price */}
                   <div className="flex items-start justify-between mb-3">
@@ -515,27 +466,26 @@ export function TenantPaymentBento() {
                         <Home className="h-3.5 w-3.5" />
                         <span>{tenant.apartment}</span>
                       </div>
-                      
+
                       {/* Missed payments history */}
                       {(tenant.missedPayments.rentMonths > 0 || tenant.missedPayments.nebenkostenMonths > 0) && (
                         <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
                           <AlertCircle className="h-3 w-3" />
                           <span>
-                            {tenant.missedPayments.rentMonths + tenant.missedPayments.nebenkostenMonths} Monat{tenant.missedPayments.rentMonths + tenant.missedPayments.nebenkostenMonths !== 1 ? 'e' : ''} ausstehend 
+                            {tenant.missedPayments.rentMonths + tenant.missedPayments.nebenkostenMonths} Monat{tenant.missedPayments.rentMonths + tenant.missedPayments.nebenkostenMonths !== 1 ? 'e' : ''} ausstehend
                             ({new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.missedPayments.totalAmount)})
                           </span>
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Right side: Price tags - aligned with tenant name */}
                     <div className="flex flex-col items-end gap-1">
                       {/* Main rent price */}
-                      <div className={`flex items-center gap-1 font-medium ${
-                        !tenant.paid ? 'text-red-600 dark:text-red-400' : 
-                          hasDifferentPayments(tenant) ? 'text-orange-600 dark:text-orange-400' : 
-                          'text-green-600 dark:text-green-400'
-                      }`}>
+                      <div className={`flex items-center gap-1 font-medium ${!tenant.paid ? 'text-red-600 dark:text-red-400' :
+                          hasDifferentPayments(tenant) ? 'text-orange-600 dark:text-orange-400' :
+                            'text-green-600 dark:text-green-400'
+                        }`}>
                         <Tag className="h-3 w-3" />
                         {tenant.actualRent && tenant.actualRent !== tenant.mieteRaw ? (
                           <div className="flex items-center gap-1">
@@ -548,14 +498,13 @@ export function TenantPaymentBento() {
                           <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
                         )}
                       </div>
-                      
+
                       {/* Nebenkosten prepayment - smaller */}
                       {tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0 && (
-                        <div className={`flex items-center gap-1 text-xs font-medium ${
-                          !tenant.paid ? 'text-red-600/70 dark:text-red-400/70' : 
-                            hasDifferentPayments(tenant) ? 'text-orange-600/70 dark:text-orange-400/70' : 
-                            'text-green-600/70 dark:text-green-400/70'
-                        }`}>
+                        <div className={`flex items-center gap-1 text-xs font-medium ${!tenant.paid ? 'text-red-600/70 dark:text-red-400/70' :
+                            hasDifferentPayments(tenant) ? 'text-orange-600/70 dark:text-orange-400/70' :
+                              'text-green-600/70 dark:text-green-400/70'
+                          }`}>
                           <Wrench className="h-2.5 w-2.5" />
                           {tenant.actualNebenkosten && tenant.actualNebenkosten !== tenant.nebenkostenRaw ? (
                             <div className="flex items-center gap-1">
@@ -571,7 +520,7 @@ export function TenantPaymentBento() {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Bottom section: Action buttons */}
                   <div className="flex gap-2 mt-auto w-full">
                     {/* Anpassen button (left) */}
@@ -592,17 +541,16 @@ export function TenantPaymentBento() {
                       <Edit className="h-3 w-3" />
                       Anpassen
                     </button>
-                    
+
                     {/* All button (right) */}
                     <button
                       type="button"
                       className={
-                        `flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${
-                          !tenant.paid
-                            ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/50'
-                            : hasDifferentPayments(tenant)
-                              ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/50'
-                              : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-900/50'
+                        `flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${!tenant.paid
+                          ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/50'
+                          : hasDifferentPayments(tenant)
+                            ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/50'
+                            : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-900/50'
                         }`
                       }
                       disabled={updatingStatus === tenant.id}
