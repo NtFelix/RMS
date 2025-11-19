@@ -161,17 +161,32 @@ export async function POST(request: Request) {
 
 // GET endpoint to retrieve finance entries (optional, for testing)
 export async function GET(request: Request) {
+  const requestStartTime = Date.now()
   try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      logger.warn("Finance entries GET API: unauthorized access attempt", {
+        path: request.url,
+        error: userError?.message,
+        duration: Date.now() - requestStartTime
+      })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const wohnung_id = searchParams.get('wohnung_id')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    const supabase = await createClient()
-
     let query = supabase
       .from("Finanzen")
       .select("*")
+      .eq("user_id", user.id)
       .order("datum", { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -182,7 +197,7 @@ export async function GET(request: Request) {
     const { data, error } = await query
 
     if (error) {
-      console.error("Error fetching finance entries:", error)
+      logger.error("Error fetching finance entries", error, { path: request.url, userId: user.id })
       return NextResponse.json(
         { error: "Failed to fetch finance entries" },
         { status: 500 }
@@ -194,7 +209,11 @@ export async function GET(request: Request) {
     })
 
   } catch (error) {
-    console.error("Error in finance-entries GET API:", error)
+    const totalDuration = Date.now() - requestStartTime
+    logger.error("Error in finance-entries GET API", error as Error, {
+      path: request.url,
+      totalDuration
+    })
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
