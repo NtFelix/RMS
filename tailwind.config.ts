@@ -87,6 +87,7 @@ foreground: "hsl(var(--destructive-foreground))",
         xl: "calc(var(--radius) + 0.25rem)",
         "2xl": "calc(var(--radius) + 0.5rem)",
         "3xl": "calc(var(--radius) + 0.75rem)",
+        "4xl": "calc(var(--radius) + 1.0rem)",
         // Pill shapes for interactive elements
         pill: "9999px",
         // Nested element radius following the formula: Outer radius = Inner radius + Padding

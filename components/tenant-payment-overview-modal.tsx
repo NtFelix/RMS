@@ -346,7 +346,7 @@ export default function TenantPaymentOverviewModal() {
               {tenantPaymentOverviewData.map((tenant) => (
                 <Card
                   key={tenant.id}
-                  className={`transition-colors duration-200 ${
+                  className={`transition-colors duration-200 rounded-4xl ${
                     !tenant.paid
                       ? 'border-red-200 dark:border-red-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
                       : hasDifferentPayments(tenant)
@@ -404,7 +404,7 @@ export default function TenantPaymentOverviewModal() {
 
                     {/* Missed payments warning */}
                     {tenant.missedPayments.totalAmount > 0 && (
-                      <div className="flex items-center gap-2 p-1.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                      <div className="flex items-center gap-2 p-1.5 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
                         <AlertCircle className="h-4 w-4 text-orange-500" />
                         <div className="text-xs text-orange-700 dark:text-orange-300">
                           <div className="font-medium">Verpasste Zahlungen</div>
@@ -420,7 +420,7 @@ export default function TenantPaymentOverviewModal() {
                     <div className="flex gap-2 pt-1">
                       <button
                         type="button"
-                        className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${
+                        className={`flex-1 px-2 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-150 flex items-center justify-center gap-1 ${
                           tenant.paid
                             ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
                             : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30'
@@ -445,7 +445,7 @@ export default function TenantPaymentOverviewModal() {
                       
                       <button
                         type="button"
-                        className="flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
+                        className="flex-1 px-2 py-1.5 rounded-xl text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
                         disabled={updatingStatus === tenant.id}
                         onClick={() => openTenantPaymentEditModal({
                           id: tenant.id,
