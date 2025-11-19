@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { type TenantBentoItem, getLatestNebenkostenAmount } from "./tenant-payment-bento"
 import { Input } from "@/components/ui/input"
+import { AnimatePresence, motion } from "framer-motion"
 
 export default function TenantPaymentOverviewModal() {
   const {
@@ -366,7 +367,7 @@ export default function TenantPaymentOverviewModal() {
         {/* Search and Filter Row */}
         <div className="flex gap-2 mb-4">
           {/* Search Bar */}
-          <div className="relative flex-1">
+          <motion.div layout className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Mieter oder Wohnung suchen..."
@@ -374,17 +375,17 @@ export default function TenantPaymentOverviewModal() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-          </div>
+          </motion.div>
 
           {/* Filter Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="min-w-[150px] justify-between rounded-xl px-3">
-                <div className="flex items-center">
+              <motion.div layout>
+                <Button variant="outline" className="rounded-xl px-3">
                   <Filter className="mr-2 h-4 w-4" />
-                  {activeFilter || "Alle"}
-                </div>
-              </Button>
+                  Filter
+                </Button>
+              </motion.div>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56">
               <DropdownMenuLabel>Filter nach Status</DropdownMenuLabel>
@@ -406,6 +407,26 @@ export default function TenantPaymentOverviewModal() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Active Filter Pill */}
+          <AnimatePresence>
+            {activeFilter && (
+              <motion.button
+                layout
+                initial={{ opacity: 0, scale: 0.95, width: 0 }}
+                animate={{ opacity: 1, scale: 1, width: "auto" }}
+                exit={{ opacity: 0, scale: 0.95, width: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setActiveFilter(null)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 overflow-hidden whitespace-nowrap"
+              >
+                <motion.span layout="position">{activeFilter}</motion.span>
+                <motion.div layout="position">
+                  <X className="h-3.5 w-3.5" />
+                </motion.div>
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="flex-1 overflow-y-auto">
