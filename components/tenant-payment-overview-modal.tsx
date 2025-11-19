@@ -8,8 +8,17 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { createClient } from "@/utils/supabase/client"
-import { Home, User, Tag, Edit, Check, Wrench, AlertCircle, X, Maximize2 } from "lucide-react"
+import { Home, User, Tag, Edit, Check, Wrench, AlertCircle, X, Maximize2, Search, Filter } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu"
 import type { TenantBentoItem } from "./tenant-payment-bento"
+import { Input } from "@/components/ui/input"
 
 export default function TenantPaymentOverviewModal() {
   const {
@@ -25,12 +34,22 @@ export default function TenantPaymentOverviewModal() {
   } = useModalStore()
 
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState<string>("")
+  const [activeFilters, setActiveFilters] = useState<string[]>([])
 
   // Helper function to determine if payments differ from normal
   const hasDifferentPayments = (tenant: TenantBentoItem) => {
     const rentDiffers = tenant.actualRent && tenant.actualRent !== tenant.mieteRaw
     const nebenkostenDiffers = tenant.actualNebenkosten && tenant.actualNebenkosten !== (tenant.nebenkostenRaw || 0)
     return rentDiffers || nebenkostenDiffers
+  }
+
+  const handleFilterToggle = (filter: string) => {
+    setActiveFilters((prevFilters) =>
+      prevFilters.includes(filter)
+        ? prevFilters.filter((f) => f !== filter)
+        : [...prevFilters, filter]
+    )
   }
 
   // Fetch data when modal opens
@@ -320,6 +339,30 @@ export default function TenantPaymentOverviewModal() {
     }
   }
 
+  const filteredTenants = tenantPaymentOverviewData?.filter((tenant) => {
+    const matchesSearch = tenant.tenant.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tenant.apartment.toLowerCase().includes(searchTerm.toLowerCase())
+
+    if (activeFilters.length === 0) {
+      return matchesSearch
+    }
+
+    const matchesFilter = activeFilters.some((filter) => {
+      if (filter === "Bezahlt") {
+        return tenant.paid
+      }
+      if (filter === "Offen") {
+        return !tenant.paid
+      }
+      if (filter === "Verpasste Zahlungen") {
+        return tenant.missedPayments.totalAmount > 0
+      }
+      return false
+    })
+
+    return matchesSearch && matchesFilter
+  }) || []
+
   return (
     <Dialog open={isTenantPaymentOverviewModalOpen} onOpenChange={() => closeTenantPaymentOverviewModal()}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -329,7 +372,44 @@ export default function TenantPaymentOverviewModal() {
             Mietzahlungen Übersicht
           </DialogTitle>
         </DialogHeader>
-        
+
+        {/* Search and Filter Row */}
+        <div className="flex gap-2 mb-4">
+          {/* Search Bar */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Mieter oder Wohnung suchen..."
+              className="pl-9 pr-3 py-2 rounded-xl"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Filter Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="px-3 rounded-xl">
+                <Filter className="h-4 w-4 mr-2" />
+                Filter
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              <DropdownMenuLabel>Filter nach Status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {["Bezahlt", "Offen", "Verpasste Zahlungen"].map((filter) => (
+                <DropdownMenuCheckboxItem
+                  key={filter}
+                  checked={activeFilters.includes(filter)}
+                  onCheckedChange={() => handleFilterToggle(filter)}
+                >
+                  {filter}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         <div className="flex-1 overflow-y-auto">
           {tenantPaymentOverviewLoading ? (
             <div className="flex justify-center items-center py-20">
@@ -343,7 +423,7 @@ export default function TenantPaymentOverviewModal() {
             </div>
           ) : tenantPaymentOverviewData && tenantPaymentOverviewData.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {tenantPaymentOverviewData.map((tenant) => (
+              {filteredTenants.map((tenant) => (
                 <Card
                   key={tenant.id}
                   className={`transition-colors duration-200 rounded-4xl ${
