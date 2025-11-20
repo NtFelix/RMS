@@ -84,8 +84,11 @@ export function TenantPaymentBento() {
                         <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
                           <AlertCircle className="h-3 w-3" />
                           <span>
-                            {tenant.missedPayments.rentMonths + tenant.missedPayments.nebenkostenMonths} Monat{tenant.missedPayments.rentMonths + tenant.missedPayments.nebenkostenMonths !== 1 ? 'e' : ''} ausstehend
-                            ({new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.missedPayments.totalAmount)})
+                            {[
+                              tenant.missedPayments.rentMonths > 0 ? `${tenant.missedPayments.rentMonths} Miete` : null,
+                              tenant.missedPayments.nebenkostenMonths > 0 ? `${tenant.missedPayments.nebenkostenMonths} NK` : null
+                            ].filter(Boolean).join(', ')} ausstehend
+                            {' '}({new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.missedPayments.totalAmount)})
                           </span>
                         </div>
                       )}
