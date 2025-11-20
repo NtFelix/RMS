@@ -17,24 +17,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
-import { type TenantBentoItem, getLatestNebenkostenAmount } from "./tenant-payment-bento"
 import { Input } from "@/components/ui/input"
 import { AnimatePresence, motion } from "framer-motion"
+import { useTenantPayments } from "@/hooks/use-tenant-payments"
+import { TenantBentoItem } from "@/types/tenant-payment"
 
 export default function TenantPaymentOverviewModal() {
   const {
     isTenantPaymentOverviewModalOpen,
     closeTenantPaymentOverviewModal,
-    tenantPaymentOverviewData,
-    tenantPaymentOverviewLoading,
-    tenantPaymentOverviewError,
-    setTenantPaymentOverviewData,
-    setTenantPaymentOverviewLoading,
-    setTenantPaymentOverviewError,
     openTenantPaymentEditModal
   } = useModalStore()
 
-  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const {
+    data,
+    loading,
+    error,
+    updatingStatus,
+    fetchData,
+    toggleRentPayment
+  } = useTenantPayments()
+
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
@@ -52,239 +55,11 @@ export default function TenantPaymentOverviewModal() {
   // Fetch data when modal opens
   useEffect(() => {
     if (isTenantPaymentOverviewModalOpen) {
-      const fetchData = async () => {
-        try {
-          setTenantPaymentOverviewLoading(true)
-          setTenantPaymentOverviewError(undefined)
-
-          // Use the optimized API endpoint
-          const response = await fetch('/api/tenants-data')
-          if (!response.ok) {
-            throw new Error('Failed to fetch tenant data')
-          }
-
-          const { tenants, finances } = await response.json()
-
-          // Filter for active tenants only
-          const activeTenants = tenants.filter((tenant: any) =>
-            !tenant.auszug || new Date(tenant.auszug) > new Date()
-          )
-
-          // Get current month range for payment status
-          const currentDate = new Date()
-          const currentMonth = currentDate.getMonth() + 1
-          const currentYear = currentDate.getFullYear()
-          const start = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-          const end = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
-
-          // Process payment status and missed payments using the data we already have
-          const tenantsWithPayments = activeTenants.map((mieter: any) => {
-            const mieteRaw = Number(mieter.Wohnungen.miete) || 0
-            const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
-
-            // Get current month payments
-            const currentPayments = {
-              rent: 0,
-              nebenkosten: 0
-            }
-
-            finances
-              .filter((f: any) =>
-                f.wohnung_id === mieter.Wohnungen.id &&
-                f.datum >= start &&
-                f.datum <= end &&
-                f.ist_einnahmen
-              )
-              .forEach((f: any) => {
-                if (f.name?.includes('Mietzahlung')) {
-                  currentPayments.rent = Number(f.betrag) || 0
-                } else if (f.name?.includes('Nebenkosten')) {
-                  currentPayments.nebenkosten = Number(f.betrag) || 0
-                }
-              })
-
-            // Missed payments are now calculated on the server
-            const missedPayments = mieter.missedPayments || {
-              rentMonths: 0,
-              nebenkostenMonths: 0,
-              totalAmount: 0
-            }
-
-            return {
-              ...mieter,
-              actualRent: currentPayments.rent,
-              actualNebenkosten: currentPayments.nebenkosten,
-              missedPayments
-            }
-          })
-
-          // Get paid apartments for current month
-          const paidWohnungen: Set<string> = new Set(
-            finances
-              .filter((f: any) =>
-                f.datum >= start &&
-                f.datum <= end &&
-                f.ist_einnahmen &&
-                (f.name?.includes('Mietzahlung') || f.name?.includes('Nebenkosten'))
-              )
-              .map((f: any) => f.wohnung_id)
-              .filter((id: any): id is string => typeof id === 'string')
-          )
-
-          // Format tenant data with payment status
-          const formattedData = tenantsWithPayments.map((mieter: any) => ({
-            id: mieter.id,
-            tenant: mieter.name,
-            apartment: mieter.Wohnungen.name,
-            apartmentId: mieter.Wohnungen.id,
-            mieteRaw: Number(mieter.Wohnungen.miete) || 0,
-            nebenkostenRaw: getLatestNebenkostenAmount(mieter.nebenkosten),
-            paid: paidWohnungen.has(mieter.Wohnungen.id),
-            actualRent: mieter.actualRent,
-            actualNebenkosten: mieter.actualNebenkosten,
-            missedPayments: mieter.missedPayments || { rentMonths: 0, nebenkostenMonths: 0, totalAmount: 0 },
-            einzug: mieter.einzug
-          }))
-
-          setTenantPaymentOverviewData(formattedData)
-        } catch (error) {
-          console.error("Fehler beim Laden der Mietdaten:", error)
-          setTenantPaymentOverviewError(error instanceof Error ? error.message : 'Unbekannter Fehler')
-        } finally {
-          setTenantPaymentOverviewLoading(false)
-        }
-      }
-
       fetchData()
     }
-  }, [isTenantPaymentOverviewModalOpen, setTenantPaymentOverviewData, setTenantPaymentOverviewLoading, setTenantPaymentOverviewError])
+  }, [isTenantPaymentOverviewModalOpen, fetchData])
 
-  // Handle toggle payment status
-  const toggleRentPayment = async (tenant: TenantBentoItem) => {
-    if (updatingStatus === tenant.id) return
-
-    // Store original data for potential revert
-    const originalData = tenantPaymentOverviewData
-
-    try {
-      setUpdatingStatus(tenant.id)
-
-      // Optimistic update
-      if (tenantPaymentOverviewData) {
-        setTenantPaymentOverviewData(
-          tenantPaymentOverviewData.map(t =>
-            t.id === tenant.id ? { ...t, paid: !t.paid } : t
-          )
-        )
-      }
-
-      const supabase = createClient()
-
-      if (tenant.paid) {
-        // Remove payment entries
-        const currentDate = new Date()
-        const currentMonth = currentDate.getMonth() + 1
-        const currentYear = currentDate.getFullYear()
-        const monthStart = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-        const monthEnd = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
-
-        const { error: deleteError } = await supabase
-          .from('Finanzen')
-          .delete()
-          .eq('wohnung_id', tenant.apartmentId)
-          .gte('datum', monthStart)
-          .lte('datum', monthEnd)
-          .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
-
-        if (deleteError) throw deleteError
-
-        // Show success toast
-        toast({
-          title: "Zahlung entfernt",
-          description: `Mietzahlung für ${tenant.tenant} wurde entfernt.`,
-          variant: "default",
-        })
-      } else {
-        // Add payment entries using the optimized API endpoint
-        const entries = []
-
-        // Add rent entry
-        entries.push({
-          wohnung_id: tenant.apartmentId,
-          name: `Mietzahlung ${tenant.apartment}`,
-          datum: new Date().toISOString().split('T')[0],
-          betrag: tenant.mieteRaw,
-          ist_einnahmen: true,
-          notiz: `Mietzahlung von ${tenant.tenant}`
-        })
-
-        // Add nebenkosten entry if applicable
-        if (tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0) {
-          entries.push({
-            wohnung_id: tenant.apartmentId,
-            name: `Nebenkosten ${tenant.apartment}`,
-            datum: new Date().toISOString().split('T')[0],
-            betrag: tenant.nebenkostenRaw,
-            ist_einnahmen: true,
-            notiz: `Nebenkosten von ${tenant.tenant}`
-          })
-        }
-
-        if (entries.length > 0) {
-          const response = await fetch('/api/finance-entries', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ entries }),
-          })
-
-          if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to create entries')
-          }
-
-          // Show success toast
-          const entryCount = 1 + (tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0 ? 1 : 0)
-          toast({
-            title: "Zahlung als bezahlt markiert",
-            description: `${entryCount} Zahlungseinträge für ${tenant.tenant} wurden erstellt.`,
-            variant: "success",
-          })
-        }
-      }
-
-      // Refresh data
-      const { data: refreshedData } = await supabase
-        .from('Finanzen')
-        .select('*')
-        .eq('ist_einnahmen', true)
-
-      // Re-fetch the data to get updated state
-      const response = await fetch('/api/tenants-data')
-      if (response.ok) {
-        const { tenants, finances } = await response.json()
-        // Process and update data similar to initial fetch
-        // ... (this would be the same logic as in the initial fetch)
-      }
-
-    } catch (error) {
-      console.error("Fehler beim Aktualisieren des Mietstatus:", error)
-      // Revert optimistic update on error
-      if (originalData) {
-        setTenantPaymentOverviewData(originalData)
-      }
-      toast({
-        title: "Fehler beim Aktualisieren",
-        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
-        variant: "destructive",
-      })
-    } finally {
-      setUpdatingStatus(null)
-    }
-  }
-
-  const filteredTenants = tenantPaymentOverviewData?.filter((tenant) => {
+  const filteredTenants = data?.filter((tenant) => {
     const matchesSearch = tenant.tenant.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tenant.apartment.toLowerCase().includes(searchTerm.toLowerCase())
 
@@ -384,17 +159,17 @@ export default function TenantPaymentOverviewModal() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {tenantPaymentOverviewLoading ? (
+          {loading ? (
             <div className="flex justify-center items-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
             </div>
-          ) : tenantPaymentOverviewError ? (
+          ) : error ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
               <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
-              <p className="text-muted-foreground">{tenantPaymentOverviewError}</p>
+              <p className="text-muted-foreground">{error}</p>
             </div>
-          ) : tenantPaymentOverviewData && tenantPaymentOverviewData.length > 0 ? (
+          ) : data && data.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredTenants.map((tenant) => (
                 <Card

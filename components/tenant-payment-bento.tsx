@@ -1,79 +1,21 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { createClient } from "@/utils/supabase/client"
-import { toast } from "@/hooks/use-toast"
-import { Home, User, Tag, Edit, Check, Wrench, AlertCircle, Maximize2 } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
-
-export type TenantBentoItem = {
-  id: string
-  tenant: string
-  apartment: string
-  apartmentId: string
-  mieteRaw: number
-  nebenkostenRaw?: number
-  paid: boolean
-  actualRent?: number
-  actualNebenkosten?: number
-  missedPayments: {
-    rentMonths: number
-    nebenkostenMonths: number
-    totalAmount: number
-  }
-  einzug?: string | null
-}
-
-export type NebenkostenEntry = {
-  id?: string
-  amount?: string | number
-  date?: string | null
-}
-
-type MieterData = {
-  id: string
-  name: string
-  einzug: string | null
-  auszug: string | null
-  nebenkosten?: NebenkostenEntry[] | null
-  Wohnungen: {
-    id: string
-    name: string
-    miete: number
-  }
-}
-
-export const getLatestNebenkostenAmount = (entries?: NebenkostenEntry[] | null): number => {
-  if (!Array.isArray(entries)) return 0
-
-  const parsedEntries = entries
-    .map(entry => {
-      const amount = typeof entry.amount === 'number' ? entry.amount : Number(entry.amount)
-      const dateValue = entry.date ? new Date(entry.date) : null
-      return {
-        amount: !Number.isNaN(amount) ? amount : 0,
-        dateValue,
-      }
-    })
-    .filter(entry => entry.amount > 0)
-
-  if (!parsedEntries.length) return 0
-
-  parsedEntries.sort((a, b) => {
-    if (!a.dateValue && !b.dateValue) return 0
-    if (!a.dateValue) return 1
-    if (!b.dateValue) return -1
-    return b.dateValue.getTime() - a.dateValue.getTime()
-  })
-
-  return parsedEntries[0]?.amount ?? 0
-}
+import { Home, User, Tag, Edit, Check, Wrench, AlertCircle, Maximize2 } from "lucide-react"
+import { useTenantPayments } from "@/hooks/use-tenant-payments"
+import { TenantBentoItem } from "@/types/tenant-payment"
 
 export function TenantPaymentBento() {
-  const [data, setData] = useState<TenantBentoItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const {
+    data,
+    loading,
+    updatingStatus,
+    fetchData,
+    toggleRentPayment
+  } = useTenantPayments()
+
   const { openTenantPaymentEditModal, openTenantPaymentOverviewModal } = useModalStore()
 
   // Helper function to determine if payments differ from normal
@@ -83,340 +25,10 @@ export function TenantPaymentBento() {
     return rentDiffers || nebenkostenDiffers
   }
 
-  // Helper function to get current month date range
-  const getCurrentMonthRange = () => {
-    const currentDate = new Date()
-    const currentMonth = currentDate.getMonth() + 1
-    const currentYear = currentDate.getFullYear()
-    return {
-      start: new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0],
-      end: new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
-    }
-  }
-
-  // Fetch payment status for the current month
-  const fetchPaymentStatus = async (): Promise<Set<string>> => {
-    const { start, end } = getCurrentMonthRange()
-    const supabase = createClient()
-
-    const { data: finanzData } = await supabase
-      .from("Finanzen")
-      .select('wohnung_id, name')
-      .eq('ist_einnahmen', true)
-      .gte('datum', start)
-      .lte('datum', end)
-      .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
-
-    const paidWohnungen = new Set<string>()
-    finanzData?.forEach(finanz => {
-      if (finanz.wohnung_id) {
-        paidWohnungen.add(finanz.wohnung_id)
-      }
-    })
-
-    return paidWohnungen
-  }
-
-  // Format tenant data with payment status
-  const formatTenantData = (mieterData: (MieterData & { actualRent?: number; actualNebenkosten?: number; missedPayments?: { rentMonths: number; nebenkostenMonths: number; totalAmount: number } })[], paidWohnungen: Set<string>): TenantBentoItem[] => {
-    return mieterData.map(mieter => ({
-      id: mieter.id,
-      tenant: mieter.name,
-      apartment: mieter.Wohnungen.name,
-      apartmentId: mieter.Wohnungen.id,
-      mieteRaw: Number(mieter.Wohnungen.miete) || 0,
-      nebenkostenRaw: getLatestNebenkostenAmount(mieter.nebenkosten),
-      paid: paidWohnungen.has(mieter.Wohnungen.id),
-      actualRent: mieter.actualRent,
-      actualNebenkosten: mieter.actualNebenkosten,
-      missedPayments: mieter.missedPayments || { rentMonths: 0, nebenkostenMonths: 0, totalAmount: 0 },
-      einzug: mieter.einzug
-    }))
-  }
-
-  // Get current month's finance payments for a tenant
-  const getCurrentMonthFinancePayments = async (apartmentId: string) => {
-    const supabase = createClient()
-    const { start, end } = getCurrentMonthRange()
-
-    const { data, error } = await supabase
-      .from('Finanzen')
-      .select('name, betrag')
-      .eq('wohnung_id', apartmentId)
-      .gte('datum', start)
-      .lte('datum', end)
-      .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
-
-    if (error) throw error
-
-    const payments = {
-      rent: 0,
-      nebenkosten: 0
-    }
-
-    data?.forEach(payment => {
-      if (payment.name?.includes('Mietzahlung')) {
-        payments.rent += Number(payment.betrag) || 0
-      } else if (payment.name?.includes('Nebenkosten')) {
-        payments.nebenkosten += Number(payment.betrag) || 0
-      }
-    })
-
-    return payments
-  }
-
-  // Get missed payments history for a tenant
-  const getMissedPaymentsHistory = async (apartmentId: string, einzug: string, mieteRaw: number, nebenkostenRaw: number = 0) => {
-    const supabase = createClient()
-
-    // Get all months from tenant move-in date to current month
-    const moveInDate = new Date(einzug)
-    const currentDate = new Date()
-    const currentYear = currentDate.getFullYear()
-    const currentMonth = currentDate.getMonth()
-
-    let missedRentMonths = 0
-    let missedNebenkostenMonths = 0
-    let totalMissedAmount = 0
-
-    // Iterate through each month from move-in to current
-    for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
-      const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
-      const endMonth = (year === currentYear) ? currentMonth : 11
-
-      for (let month = startMonth; month <= endMonth; month++) {
-        const monthStart = new Date(year, month, 1).toISOString().split('T')[0]
-        const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0]
-
-        // Check if rent was paid for this month
-        const { data: rentPayments } = await supabase
-          .from('Finanzen')
-          .select('betrag')
-          .eq('wohnung_id', apartmentId)
-          .eq('ist_einnahmen', true)
-          .gte('datum', monthStart)
-          .lte('datum', monthEnd)
-          .ilike('name', '%Mietzahlung%')
-
-        const rentPaid = rentPayments?.reduce((sum, payment) => sum + (payment.betrag || 0), 0) || 0
-
-        if (rentPaid < mieteRaw) {
-          missedRentMonths++
-          totalMissedAmount += (mieteRaw - rentPaid)
-        }
-
-        // Check if nebenkosten was paid for this month (if applicable)
-        if (nebenkostenRaw > 0) {
-          const { data: nebenkostenPayments } = await supabase
-            .from('Finanzen')
-            .select('betrag')
-            .eq('wohnung_id', apartmentId)
-            .eq('ist_einnahmen', true)
-            .gte('datum', monthStart)
-            .lte('datum', monthEnd)
-            .ilike('name', '%Nebenkosten%')
-
-          const nebenkostenPaid = nebenkostenPayments?.reduce((sum, payment) => sum + (payment.betrag || 0), 0) || 0
-
-          if (nebenkostenPaid < nebenkostenRaw) {
-            missedNebenkostenMonths++
-            totalMissedAmount += (nebenkostenRaw - nebenkostenPaid)
-          }
-        }
-      }
-    }
-
-    return {
-      rentMonths: missedRentMonths,
-      nebenkostenMonths: missedNebenkostenMonths,
-      totalAmount: totalMissedAmount
-    }
-  }
-
-  // Main data fetching function
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true)
-
-      // Use the optimized API endpoint
-      const response = await fetch('/api/tenants-data')
-      if (!response.ok) {
-        throw new Error('Failed to fetch tenant data')
-      }
-
-      const { tenants, finances } = await response.json()
-
-      // Filter for active tenants only
-      const activeTenants = tenants.filter((tenant: any) =>
-        !tenant.auszug || new Date(tenant.auszug) > new Date()
-      )
-
-      // Get current month range for payment status
-      const { start, end } = getCurrentMonthRange()
-
-      // Process payment status and missed payments using the data we already have
-      const tenantsWithPayments = activeTenants.map((mieter: any) => {
-        const mieteRaw = Number(mieter.Wohnungen.miete) || 0
-        const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
-
-        // Filter finances for this tenant's apartment
-        const tenantFinances = finances.filter((finance: any) =>
-          finance.wohnung_id === mieter.Wohnungen.id
-        )
-
-        // Current month payments
-        const currentMonthPayments = tenantFinances.filter((finance: any) =>
-          finance.datum >= start && finance.datum <= end
-        )
-
-        const currentPayments = {
-          rent: currentMonthPayments
-            .filter((p: any) => p.name?.includes('Mietzahlung'))
-            .reduce((sum: number, p: any) => sum + (p.betrag || 0), 0),
-          nebenkosten: currentMonthPayments
-            .filter((p: any) => p.name?.includes('Nebenkosten'))
-            .reduce((sum: number, p: any) => sum + (p.betrag || 0), 0)
-        }
-
-        // Missed payments are now calculated on the server
-        const missedPayments = mieter.missedPayments || {
-          rentMonths: 0,
-          nebenkostenMonths: 0,
-          totalAmount: 0
-        }
-
-        return {
-          ...mieter,
-          actualRent: currentPayments.rent,
-          actualNebenkosten: currentPayments.nebenkosten,
-          missedPayments
-        }
-      })
-
-      // Get paid apartments for current month
-      const paidWohnungen: Set<string> = new Set(
-        finances
-          .filter((f: any) =>
-            f.datum >= start &&
-            f.datum <= end &&
-            f.ist_einnahmen &&
-            (f.name?.includes('Mietzahlung') || f.name?.includes('Nebenkosten'))
-          )
-          .map((f: any) => f.wohnung_id)
-          .filter((id: any): id is string => typeof id === 'string')
-      )
-
-      const formattedData = formatTenantData(tenantsWithPayments, paidWohnungen)
-      setData(formattedData)
-    } catch (error) {
-      console.error("Fehler beim Laden der Mietdaten:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
   // Initial data load
   useEffect(() => {
     fetchData()
   }, [fetchData])
-
-  // Toggle payment status for a tenant
-  const toggleRentPayment = async (tenant: TenantBentoItem) => {
-    try {
-      setUpdatingStatus(tenant.id)
-      const { start, end } = getCurrentMonthRange()
-
-      if (tenant.paid) {
-        // Remove payment records (both rent and nebenkosten)
-        const supabase = createClient()
-        await supabase
-          .from('Finanzen')
-          .delete()
-          .eq('wohnung_id', tenant.apartmentId)
-          .eq('ist_einnahmen', true)
-          .gte('datum', start)
-          .lte('datum', end)
-          .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
-      } else {
-        // Create payment entries using the optimized API
-        const entries = [
-          {
-            wohnung_id: tenant.apartmentId,
-            name: `Mietzahlung ${tenant.apartment}`,
-            datum: new Date().toISOString().split('T')[0],
-            betrag: tenant.mieteRaw,
-            ist_einnahmen: true,
-            notiz: `Mietzahlung von ${tenant.tenant}`
-          }
-        ]
-
-        // Add nebenkosten payment record if nebenkosten exists
-        if (tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0) {
-          entries.push({
-            wohnung_id: tenant.apartmentId,
-            name: `Nebenkosten ${tenant.apartment}`,
-            datum: new Date().toISOString().split('T')[0],
-            betrag: tenant.nebenkostenRaw,
-            ist_einnahmen: true,
-            notiz: `Nebenkosten-Vorauszahlung von ${tenant.tenant}`
-          })
-        }
-
-        // Send entries to optimized API
-        const response = await fetch('/api/finance-entries', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ entries })
-        })
-
-        const data = await response.json()
-
-        if (!response.ok) {
-          console.error("Error creating finance entries:", data.error)
-          throw new Error(data.error || 'Failed to create entries')
-        }
-      }
-
-      // Optimistically update the UI
-      setData(prevData =>
-        prevData.map(item =>
-          item.id === tenant.id
-            ? { ...item, paid: !tenant.paid }
-            : item
-        )
-      )
-
-      // Show success toast
-      if (tenant.paid) {
-        toast({
-          title: "Zahlung entfernt",
-          description: `Mietzahlung für ${tenant.tenant} wurde entfernt.`,
-          variant: "default",
-        })
-      } else {
-        const entryCount = 1 + (tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0 ? 1 : 0)
-        toast({
-          title: "Zahlung als bezahlt markiert",
-          description: `${entryCount} Zahlungseinträge für ${tenant.tenant} wurden erstellt.`,
-          variant: "success",
-        })
-      }
-
-    } catch (error) {
-      console.error("Fehler beim Aktualisieren des Mietstatus:", error)
-      // Revert optimistic update on error
-      fetchData()
-      toast({
-        title: "Fehler beim Aktualisieren",
-        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
-        variant: "destructive",
-      })
-    } finally {
-      setUpdatingStatus(null)
-    }
-  }
 
   return (
     <Card className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
@@ -448,10 +60,10 @@ export function TenantPaymentBento() {
                 <div
                   key={tenant.id}
                   className={`w-full flex flex-col p-4 rounded-2xl shadow-md bg-card border transition-colors duration-200 ${!tenant.paid
-                      ? 'border-red-200 dark:border-red-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
-                      : hasDifferentPayments(tenant)
-                        ? 'border-orange-200 dark:border-orange-800 hover:bg-orange-50/50 dark:hover:bg-orange-900/20'
-                        : 'border-green-200 dark:border-green-800 hover:bg-green-50/50 dark:hover:bg-green-900/20'
+                    ? 'border-red-200 dark:border-red-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
+                    : hasDifferentPayments(tenant)
+                      ? 'border-orange-200 dark:border-orange-800 hover:bg-orange-50/50 dark:hover:bg-orange-900/20'
+                      : 'border-green-200 dark:border-green-800 hover:bg-green-50/50 dark:hover:bg-green-900/20'
                     }`}
                 >
                   {/* Top section: Tenant info and price */}
@@ -483,8 +95,8 @@ export function TenantPaymentBento() {
                     <div className="flex flex-col items-end gap-1">
                       {/* Main rent price */}
                       <div className={`flex items-center gap-1 font-medium ${!tenant.paid ? 'text-red-600 dark:text-red-400' :
-                          hasDifferentPayments(tenant) ? 'text-orange-600 dark:text-orange-400' :
-                            'text-green-600 dark:text-green-400'
+                        hasDifferentPayments(tenant) ? 'text-orange-600 dark:text-orange-400' :
+                          'text-green-600 dark:text-green-400'
                         }`}>
                         <Tag className="h-3 w-3" />
                         {tenant.actualRent && tenant.actualRent !== tenant.mieteRaw ? (
@@ -502,8 +114,8 @@ export function TenantPaymentBento() {
                       {/* Nebenkosten prepayment - smaller */}
                       {tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0 && (
                         <div className={`flex items-center gap-1 text-xs font-medium ${!tenant.paid ? 'text-red-600/70 dark:text-red-400/70' :
-                            hasDifferentPayments(tenant) ? 'text-orange-600/70 dark:text-orange-400/70' :
-                              'text-green-600/70 dark:text-green-400/70'
+                          hasDifferentPayments(tenant) ? 'text-orange-600/70 dark:text-orange-400/70' :
+                            'text-green-600/70 dark:text-green-400/70'
                           }`}>
                           <Wrench className="h-2.5 w-2.5" />
                           {tenant.actualNebenkosten && tenant.actualNebenkosten !== tenant.nebenkostenRaw ? (
