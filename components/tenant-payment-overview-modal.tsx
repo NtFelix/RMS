@@ -259,7 +259,7 @@ export default function TenantPaymentOverviewModal() {
                           einzug: tenant.einzug
                         }, () => {
                           // Refresh data when modal closes
-                          window.location.reload()
+                          fetchData()
                         })}
                       >
                         <Edit className="h-3 w-3" />
