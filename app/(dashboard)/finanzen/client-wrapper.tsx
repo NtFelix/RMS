@@ -11,7 +11,7 @@ import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { SummaryCard } from "@/components/summary-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/stat-card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { CustomCombobox } from "@/components/ui/custom-combobox";
@@ -632,16 +632,13 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
                   emptyText="Kein Typ gefunden"
                   width="w-full"
                 />
-                <div className="relative col-span-1 sm:col-span-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    type="search" 
-                    placeholder="Transaktion suchen..." 
-                    className="pl-10" 
-                    value={filters.searchQuery} 
-                    onChange={(e) => handleFilterChange('searchQuery', e.target.value)} 
-                  />
-                </div>
+                <SearchInput
+                  placeholder="Transaktion suchen..."
+                  wrapperClassName="col-span-1 sm:col-span-2"
+                  value={filters.searchQuery}
+                  onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+                  onClear={() => handleFilterChange('searchQuery', '')}
+                />
               </div>
               <div className="flex items-center gap-2 mt-4 md:mt-0">
                 <ButtonWithTooltip variant="outline" onClick={handleExportCsv}>
