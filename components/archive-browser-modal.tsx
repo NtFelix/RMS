@@ -216,13 +216,13 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
         <div className="space-y-4">
           {/* Search and Controls */}
           <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="relative flex-1 group">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 transition-all duration-200 group-focus-within:scale-[1.01] group-focus-within:text-primary" />
               <Input
                 placeholder="Dateien durchsuchen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 peer"
               />
             </div>
             

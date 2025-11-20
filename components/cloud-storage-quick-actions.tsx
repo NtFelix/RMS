@@ -79,13 +79,13 @@ export function CloudStorageQuickActions({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Search input and sort button on the left */}
         <div className="flex flex-wrap gap-2">
-          <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative w-full sm:w-auto sm:min-w-[300px] group">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 transition-all duration-200 group-focus-within:scale-[1.01] group-focus-within:text-primary" />
             <Input
               placeholder="Dateien und Ordner durchsuchen..."
               value={searchQuery}
               onChange={(e) => onSearch(e.target.value)}
-              className="pl-10 rounded-full"
+              className="pl-10 rounded-full peer"
             />
           </div>
           

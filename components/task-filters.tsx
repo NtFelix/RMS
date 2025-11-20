@@ -12,12 +12,12 @@ interface TaskFiltersProps {
 export function TaskFilters({ onSearchChange }: TaskFiltersProps) {
   return (
     <div className="flex justify-center">
-      <div className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="relative w-full max-w-md group">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 transition-all duration-200 group-focus-within:scale-[1.01] group-focus-within:text-primary" />
         <Input
           type="search"
           placeholder="Aufgabe suchen..."
-          className="pl-10"
+          className="pl-10 peer"
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>

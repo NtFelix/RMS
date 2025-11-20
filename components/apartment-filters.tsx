@@ -44,12 +44,12 @@ export function ApartmentFilters({ onFilterChange, onSearchChange }: ApartmentFi
             Frei
           </Button>
         </div>
-        <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="relative w-full sm:w-auto sm:min-w-[300px] group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 transition-all duration-200 group-focus-within:scale-[1.01] group-focus-within:text-primary" />
           <Input
             type="search"
             placeholder="Wohnung suchen..."
-            className="pl-10"
+            className="pl-10 peer"
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>

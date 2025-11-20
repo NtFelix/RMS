@@ -76,12 +76,12 @@ export function OperatingCostsFilters({
             width="w-full"
           />
         </div>
-        <div className="relative w-full sm:w-[300px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="relative w-full sm:w-[300px] group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 transition-all duration-200 group-focus-within:scale-[1.01] group-focus-within:text-primary" />
           <Input
             type="search"
             placeholder="Abrechnungen suchen..."
-            className="pl-10 rounded-full"
+            className="pl-10 rounded-full peer"
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>

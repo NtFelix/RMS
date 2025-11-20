@@ -485,14 +485,14 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
               {/* Single Row: Search, Filter, and Create Button */}
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* Search Bar - Takes most space */}
-                <div className="relative flex-1 min-w-0">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" aria-hidden="true" />
+                <div className="relative flex-1 min-w-0 group">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10 transition-all duration-200 group-focus-within:scale-[1.01] group-focus-within:text-primary" aria-hidden="true" />
                   <Input
                     data-search-input
                     placeholder="Vorlagen durchsuchen..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-full focus-visible:scale-100 focus:ring-2 focus:ring-offset-1 focus:ring-offset-background"
+                    className="pl-10 w-full peer focus:ring-2 focus:ring-offset-1 focus:ring-offset-background"
                     aria-label={ARIA_LABELS.templatesSearch}
                     aria-describedby={`${modalId}-search-help`}
                   />

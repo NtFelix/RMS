@@ -258,13 +258,13 @@ export function WasserZaehlerAblesenModal({
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 py-4">
           {/* Search */}
           {zaehlerList.length > 0 && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 transition-all duration-200 group-focus-within:scale-[1.01] group-focus-within:text-primary" />
               <Input
                 placeholder="Wohnung, Mieter oder Zähler-ID suchen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-9"
+                className="pl-9 pr-9 peer"
               />
               {searchQuery && (
                 <button
