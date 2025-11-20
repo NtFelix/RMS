@@ -171,14 +171,24 @@ export async function GET(request: Request) {
     // This logic is moved from the client to server to improve performance
     const processingStartTime = Date.now()
 
-    const processedTenants = tenantsData.map(tenant => {
-      const missedPayments = calculateMissedPayments(tenant, financesData)
+    // Group finances by wohnung_id for O(1) lookup
+    const financesByWohnungId = new Map<string, Finance[]>();
+    for (const finance of financesData) {
+      if (finance.wohnung_id) {
+        const group = financesByWohnungId.get(finance.wohnung_id) || [];
+        group.push(finance);
+        financesByWohnungId.set(finance.wohnung_id, group);
+      }
+    }
 
-      // Also attach payments for this tenant as the client might expect it or it's useful
-      // The original fallback logic did this, so we preserve it
-      const tenantFinances = financesData.filter((finance: Finance) =>
-        finance.wohnung_id === (tenant.wohnung_id || tenant.Wohnungen?.id)
-      )
+    const processedTenants = tenantsData.map(tenant => {
+      const tenantId = tenant.wohnung_id || tenant.Wohnungen?.id;
+      const tenantFinances = tenantId ? (financesByWohnungId.get(tenantId) || []) : [];
+
+      // Pass the specific tenant finances to the calculation function
+      // Note: calculateMissedPayments filters by wohnung_id again internally, 
+      // but passing the smaller array is still much faster.
+      const missedPayments = calculateMissedPayments(tenant, tenantFinances)
 
       return {
         ...tenant,
