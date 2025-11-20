@@ -80,12 +80,20 @@ export default function TenantPaymentEditModal() {
     const nebenkostenValue = parseFloat(nebenkosten)
 
     if (isNaN(rentValue) || rentValue < 0) {
-      alert("Bitte geben Sie einen gültigen Mietbetrag ein.")
+      toast({
+        title: "Ungültiger Mietbetrag",
+        description: "Bitte geben Sie einen gültigen Mietbetrag ein.",
+        variant: "destructive",
+      })
       return
     }
 
     if (isNaN(nebenkostenValue) || nebenkostenValue < 0) {
-      alert("Bitte geben Sie einen gültigen Nebenkostenbetrag ein.")
+      toast({
+        title: "Ungültiger Nebenkostenbetrag",
+        description: "Bitte geben Sie einen gültigen Nebenkostenbetrag ein.",
+        variant: "destructive",
+      })
       return
     }
 
