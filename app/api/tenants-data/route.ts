@@ -181,19 +181,43 @@ export async function GET(request: Request) {
       }
     }
 
+    // Calculate current month range for payment status
+    const currentDate = new Date()
+    const currentMonth = currentDate.getMonth() + 1
+    const currentYear = currentDate.getFullYear()
+    const currentMonthStart = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
+    const currentMonthEnd = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+
     const processedTenants = tenantsData.map(tenant => {
       const tenantId = tenant.wohnung_id || tenant.Wohnungen?.id;
       const tenantFinances = tenantId ? (financesByWohnungId.get(tenantId) || []) : [];
 
       // Pass the specific tenant finances to the calculation function
-      // Note: calculateMissedPayments filters by wohnung_id again internally, 
-      // but passing the smaller array is still much faster.
       const missedPayments = calculateMissedPayments(tenant, tenantFinances)
+
+      // Calculate current month payments
+      const currentMonthFinances = tenantFinances.filter((f: Finance) =>
+        f.datum && f.datum >= currentMonthStart && f.datum <= currentMonthEnd
+      )
+
+      const actualRent = currentMonthFinances
+        .filter((f: Finance) => f.name?.toLowerCase().includes('mietzahlung'))
+        .reduce((sum: number, f: Finance) => sum + (Number(f.betrag) || 0), 0)
+
+      const actualNebenkosten = currentMonthFinances
+        .filter((f: Finance) => f.name?.toLowerCase().includes('nebenkosten'))
+        .reduce((sum: number, f: Finance) => sum + (Number(f.betrag) || 0), 0)
+
+      // Determine paid status (if any rent or nebenkosten paid this month)
+      const paid = actualRent > 0 || actualNebenkosten > 0
 
       return {
         ...tenant,
-        payments: tenantFinances,
-        missedPayments
+        // We don't send the full payments history to client anymore to save bandwidth
+        missedPayments,
+        actualRent,
+        actualNebenkosten,
+        paid
       }
     })
 
@@ -206,12 +230,12 @@ export async function GET(request: Request) {
       processingDuration,
       totalDuration,
       tenantCount: processedTenants.length,
-      financeCount: financesData.length
+      // financeCount: financesData.length // financeData is not sent anymore
     })
 
     return NextResponse.json({
       tenants: processedTenants,
-      finances: financesData
+      // finances: financesData // Removed to reduce payload size
     })
   } catch (error) {
     const totalDuration = Date.now() - requestStartTime

@@ -30,45 +30,16 @@ export function useTenantPayments() {
                 throw new Error('Failed to fetch tenant data')
             }
 
-            const { tenants, finances } = await response.json()
+            const { tenants } = await response.json()
 
             // Filter for active tenants only
             const activeTenants = tenants.filter((tenant: any) =>
                 !tenant.auszug || new Date(tenant.auszug) > new Date()
             )
 
-            const { start, end } = getCurrentMonthRange()
-
-            // Process payment status and missed payments
-            const tenantsWithPayments = activeTenants.map((mieter: any) => {
+            const formattedData: TenantBentoItem[] = activeTenants.map((mieter: any) => {
                 const mieteRaw = Number(mieter.Wohnungen.miete) || 0
                 const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
-
-                // Filter finances for this tenant's apartment
-                const tenantFinances = finances.filter((finance: any) =>
-                    finance.wohnung_id === mieter.Wohnungen.id
-                )
-
-                // Current month payments
-                const currentMonthPayments = tenantFinances.filter((finance: any) =>
-                    finance.datum >= start && finance.datum <= end
-                )
-
-                const currentPayments = {
-                    rent: currentMonthPayments
-                        .filter((p: any) => p.name?.includes('Mietzahlung'))
-                        .reduce((sum: number, p: any) => sum + (p.betrag || 0), 0),
-                    nebenkosten: currentMonthPayments
-                        .filter((p: any) => p.name?.includes('Nebenkosten'))
-                        .reduce((sum: number, p: any) => sum + (p.betrag || 0), 0)
-                }
-
-                // Missed payments are calculated on the server
-                const missedPayments = mieter.missedPayments || {
-                    rentMonths: 0,
-                    nebenkostenMonths: 0,
-                    totalAmount: 0
-                }
 
                 return {
                     id: mieter.id,
@@ -77,32 +48,17 @@ export function useTenantPayments() {
                     apartmentId: mieter.Wohnungen.id,
                     mieteRaw,
                     nebenkostenRaw,
-                    actualRent: currentPayments.rent,
-                    actualNebenkosten: currentPayments.nebenkosten,
-                    missedPayments,
+                    actualRent: mieter.actualRent || 0,
+                    actualNebenkosten: mieter.actualNebenkosten || 0,
+                    missedPayments: mieter.missedPayments || {
+                        rentMonths: 0,
+                        nebenkostenMonths: 0,
+                        totalAmount: 0
+                    },
                     einzug: mieter.einzug,
-                    // We'll set 'paid' later
-                    paid: false
+                    paid: mieter.paid || false
                 }
             })
-
-            // Get paid apartments for current month
-            const paidWohnungen: Set<string> = new Set(
-                finances
-                    .filter((f: any) =>
-                        f.datum >= start &&
-                        f.datum <= end &&
-                        f.ist_einnahmen &&
-                        (f.name?.includes('Mietzahlung') || f.name?.includes('Nebenkosten'))
-                    )
-                    .map((f: any) => f.wohnung_id)
-                    .filter((id: any): id is string => typeof id === 'string')
-            )
-
-            const formattedData: TenantBentoItem[] = tenantsWithPayments.map((item: any) => ({
-                ...item,
-                paid: paidWohnungen.has(item.apartmentId)
-            }))
 
             setData(formattedData)
         } catch (error) {
