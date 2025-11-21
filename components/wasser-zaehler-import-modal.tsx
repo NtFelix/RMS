@@ -120,7 +120,7 @@ export function WasserZaehlerImportModal({
     setMapping((prev) => ({ ...prev, [field]: column }));
   };
 
-  const formatDate = (value: string | number | Date): string | null => {
+  const parseDateString = (value: string | number | Date): string | null => {
      if (!value) return null;
 
      // Handle Excel serial dates
@@ -130,9 +130,46 @@ export function WasserZaehlerImportModal({
         return date.toISOString().split('T')[0];
      }
 
-     const date = new Date(value);
-     if (isNaN(date.getTime())) return null;
-     return date.toISOString().split('T')[0];
+     if (value instanceof Date) {
+         return value.toISOString().split('T')[0];
+     }
+
+     const strVal = String(value).trim();
+
+     // German format: DD.MM.YYYY
+     const germanMatch = strVal.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+     if (germanMatch) {
+         const day = germanMatch[1].padStart(2, '0');
+         const month = germanMatch[2].padStart(2, '0');
+         const year = germanMatch[3];
+         return `${year}-${month}-${day}`;
+     }
+
+     // Try standard parsing (handles ISO YYYY-MM-DD)
+     const date = new Date(strVal);
+     if (!isNaN(date.getTime())) {
+         return date.toISOString().split('T')[0];
+     }
+
+     return null;
+  };
+
+  const parseGermanNumber = (value: string | number): number => {
+      if (typeof value === 'number') return value;
+      if (!value) return 0;
+
+      let strVal = String(value).trim();
+
+      // If it has a comma, assume it is the decimal separator (German)
+      if (strVal.includes(',')) {
+          // Remove dots (thousands separators)
+          strVal = strVal.replace(/\./g, '');
+          // Replace comma with dot
+          strVal = strVal.replace(',', '.');
+      }
+
+      const parsed = parseFloat(strVal);
+      return isNaN(parsed) ? 0 : parsed;
   };
 
   const validateAndProcessData = () => {
@@ -147,8 +184,8 @@ export function WasserZaehlerImportModal({
       const dateRaw = row[mapping.ablese_datum];
       const valueRaw = row[mapping.zaehlerstand];
 
-      const ableseDatum = formatDate(dateRaw as string | number | Date);
-      const zaehlerstand = typeof valueRaw === 'number' ? valueRaw : parseFloat(String(valueRaw).replace(',', '.'));
+      const ableseDatum = parseDateString(dateRaw as string | number | Date);
+      const zaehlerstand = parseGermanNumber(valueRaw as string | number);
 
       // Basic Validation
       if (!customId) {
@@ -156,7 +193,7 @@ export function WasserZaehlerImportModal({
           wasser_zaehler_id: "",
           custom_id: "",
           ablese_datum: ableseDatum || "",
-          zaehlerstand: isNaN(zaehlerstand) ? 0 : zaehlerstand,
+          zaehlerstand: zaehlerstand,
           verbrauch: 0,
           original_row: row,
           status: "missing_meter",
@@ -165,7 +202,6 @@ export function WasserZaehlerImportModal({
       }
 
       // Find Meter
-      // Case insensitive comparison for custom_id
       const meter = waterMeters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
 
       if (!meter) {
@@ -173,7 +209,7 @@ export function WasserZaehlerImportModal({
             wasser_zaehler_id: "",
             custom_id: customId,
             ablese_datum: ableseDatum || "",
-            zaehlerstand: isNaN(zaehlerstand) ? 0 : zaehlerstand,
+            zaehlerstand: zaehlerstand,
             verbrauch: 0,
             original_row: row,
             status: "missing_meter",
@@ -186,7 +222,7 @@ export function WasserZaehlerImportModal({
               wasser_zaehler_id: meter.id,
               custom_id: customId,
               ablese_datum: "",
-              zaehlerstand: isNaN(zaehlerstand) ? 0 : zaehlerstand,
+              zaehlerstand: zaehlerstand,
               verbrauch: 0,
               original_row: row,
               status: "invalid_date",
@@ -226,12 +262,8 @@ export function WasserZaehlerImportModal({
       }
 
       // Calculate Consumption
-      // Find previous reading
-      // Readings for this meter
       const meterReadings = waterReadings.filter(r => r.wasser_zaehler_id === meter.id);
-      // Readings strictly before this date
       const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
-      // Sort descending
       previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
 
       const previousReading = previousReadings[0];
