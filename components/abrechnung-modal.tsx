@@ -29,6 +29,21 @@ import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Ar
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+
+// Function to fetch customer billing address
+const fetchCustomerBillingAddress = async () => {
+  try {
+    const response = await fetch('/api/stripe/customer');
+    if (!response.ok) {
+      throw new Error('Failed to fetch customer data');
+    }
+    const data = await response.json();
+    return data.customer?.address || null;
+  } catch (error) {
+    console.error('Error fetching billing address:', error);
+    return null;
+  }
+};
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 import type { jsPDF } from 'jspdf'; // Type import for better type safety
 import type { CellHookData } from 'jspdf-autotable'; // Type import for autoTable hook data
@@ -617,6 +632,9 @@ export function AbrechnungModal({
     const pageHeight = doc.internal.pageSize.height;
     let startY = 20; // Initial Y position for content
 
+    // Fetch billing address for the PDF
+    const billingAddress = await fetchCustomerBillingAddress();
+
     const processTenant = (singleTenantData: TenantCostDetails) => {
       // Check if new page is needed for multiple tenants
       if (startY > pageHeight - 50) {
@@ -625,7 +643,7 @@ export function AbrechnungModal({
       }
       
       // Use the reusable PDF generation function and update startY with the returned position
-      startY = generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress, startY);
+      startY = generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress, startY, billingAddress);
     };
 
     // Ensure dataForProcessing is definitely an array.
@@ -668,7 +686,8 @@ export function AbrechnungModal({
     nebenkostenItem: Nebenkosten,
     ownerName: string,
     ownerAddress: string,
-    initialStartY: number = 20
+    initialStartY: number = 20,
+    billingAddress?: any // Optional billing address from Stripe
   ): number => {
     let startY = initialStartY;
 
@@ -693,10 +712,15 @@ export function AbrechnungModal({
     // Property Details
     const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
     doc.text(propertyDetails, 20, startY);
+    startY += 6;
+
+    // Tenant Details
+    const tenantDetails = `Mieter: ${tenantData.tenantName}`;
+    doc.text(tenantDetails, 20, startY);
     startY += 10;
 
     // Costs Table
-    const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
+    const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
     const tableRows: any[][] = [];
 
     tenantData.costItems.forEach(item => {
@@ -755,73 +779,127 @@ export function AbrechnungModal({
       startY += 10;
     }
 
-    // Draw "Betriebskosten gesamt" sums
+    // Draw "Betriebskosten gesamt" summary text aligned with table columns
     const sumOfTotalCostForItem = tenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
     const sumOfTenantSharesFromCostItems = tenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
 
-    const lastTable = (doc as any).lastAutoTable;
-    if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
-      const col0 = lastTable.columns[0];
-      const col4 = lastTable.columns[4];
-
-      if (col0 && typeof col0.x === 'number' && col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-
-        const labelText = "Betriebskosten gesamt: ";
-        const sum1Text = formatCurrency(sumOfTotalCostForItem);
-        doc.text(labelText + sum1Text, col0.x, startY, { align: 'left' });
-        doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col4.x + col4.width, startY, { align: 'right' });
-
-        startY += 8;
-        doc.setFont("helvetica", "normal");
-      }
-    }
-
-    // Water consumption section
-    startY += 5;
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Wasserverbrauch", 20, startY);
-    startY += 7;
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-
-    const totalBuildingConsumption = nebenkostenItem.wasserverbrauch || 0;
-    const totalWaterCost = nebenkostenItem.wasserkosten || 0;
-    const pricePerCubicMeter = totalBuildingConsumption > 0 ? totalWaterCost / totalBuildingConsumption : 0;
-
-    doc.text(`Gesamtverbrauch Gebäude: ${totalBuildingConsumption} m³`, 20, startY);
-    startY += 5;
-    doc.text(`Gesamtkosten Wasser: ${formatCurrency(totalWaterCost)}`, 20, startY);
-    startY += 5;
-    doc.text(`Preis pro m³: ${formatCurrency(pricePerCubicMeter)}`, 20, startY);
+    // Add spacing before summary text
     startY += 8;
 
-    doc.text(`Verbrauch ${tenantData.tenantName}: ${tenantData.waterCost.consumption || 0} m³`, 20, startY);
-    startY += 5;
-    doc.text(`Wasserkosten ${tenantData.tenantName}: ${formatCurrency(tenantData.waterCost.tenantShare)}`, 20, startY);
+    // Draw "Betriebskosten gesamt" summary - simplified approach
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    
+    // Use fixed positions based on table width and margins to ensure alignment
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const tableWidth = pageWidth - 40; // Same as table margin
+    const leftMargin = 20;
+    
+    // Calculate column positions based on typical table layout
+    const col1Start = leftMargin; // Leistungsart
+    const col2Start = leftMargin + (tableWidth * 0.25); // Gesamtkosten (25% of table width)
+    const col3Start = leftMargin + (tableWidth * 0.45); // Verteiler (45% of table width)  
+    const col4Start = leftMargin + (tableWidth * 0.65); // Kosten Pro qm (65% of table width)
+    const col5Start = leftMargin + (tableWidth * 0.85); // Kostenanteil (85% of table width)
+    const col5End = leftMargin + tableWidth; // Right edge of Kostenanteil column
+    
+    // No background or borders - just plain text with proper alignment
+    
+    // Add the text with proper alignment
+    doc.setTextColor(0, 0, 0);
+    
+    // Label in first column
+    doc.text("Betriebskosten gesamt:", col1Start, startY, { align: 'left' });
+    
+    // Total cost in Gesamtkosten column (right-aligned within column)
+    doc.text(formatCurrency(sumOfTotalCostForItem), col3Start + 15.65, startY, { align: 'right' });
+    
+    // Tenant share in Kostenanteil column (right-aligned within column)
+    doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col5End, startY, { align: 'right' });
+    
+    doc.setFont("helvetica", "normal");
+    
+    startY += 12;
+
+    // Add water cost summary paragraph
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    
+    // Get water cost data for this tenant
+    const tenantWaterShare = tenantData.waterCost.tenantShare;
+    const tenantWaterConsumption = tenantData.waterCost.consumption || 0;
+    const buildingWaterCost = nebenkostenItem.wasserkosten || 0;
+    const buildingWaterConsumption = nebenkostenItem.wasserverbrauch || 0;
+    const pricePerCubicMeterCalc = buildingWaterConsumption > 0 ? buildingWaterCost / buildingWaterConsumption : 0;
+    
+    // Water cost summary with aligned columns
+    doc.text("Wasserkosten:", col1Start, startY, { align: 'left' });
+    doc.text(`${tenantWaterConsumption} m³`, col3Start + 15.65, startY, { align: 'right' });
+    doc.text(`${formatCurrency(pricePerCubicMeterCalc)} / m3`, col4Start + 15, startY, { align: 'right' });
+    doc.text(formatCurrency(tenantWaterShare), col5End, startY, { align: 'right' });
+    
+    startY += 16;
+    
+    // Total line - sum of operating costs and water costs
+    const totalTenantCosts = sumOfTenantSharesFromCostItems + tenantWaterShare;
+    doc.text("Gesamt:", col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(totalTenantCosts), col5End, startY, { align: 'right' });
+    
+    startY += 8;
+    
+    // Advance payments line
+    doc.text("Vorauszahlungen:", col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(tenantData.vorauszahlungen), col5End, startY, { align: 'right' });
+    
+    startY += 8;
+    
+    // Final settlement line (Nachzahlung or Guthaben)
+    const isPositiveSettlement = tenantData.finalSettlement >= 0;
+    const settlementLabel = isPositiveSettlement ? "Nachzahlung:" : "Guthaben:";
+    const settlementAmount = Math.abs(tenantData.finalSettlement);
+    doc.text(settlementLabel, col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(settlementAmount), col5End, startY, { align: 'right' });
+    
+    startY += 8;
+    
+    // Suggested monthly Vorauszahlung line (rounded to nearest 5)
+    const suggestedVorauszahlung = tenantData.recommendedPrepayment ? roundToNearest5(tenantData.recommendedPrepayment) : 0;
+    const monthlyVorauszahlung = suggestedVorauszahlung / 12; // Convert annual to monthly
+    
+    // Calculate next month start date (at least 14 days from now)
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const formattedDate = format(nextMonth, 'dd.MM.yy');
+    
+    doc.setFont("helvetica", "bold");
+    const label = `Vorauszahlung ab ${formattedDate}`;
+    doc.text(label, col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(monthlyVorauszahlung), col5End, startY, { align: 'right' });
+    
+    doc.setFont("helvetica", "normal");
+    
     startY += 10;
 
-    // Settlement summary
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Abrechnung", 20, startY);
-    startY += 8;
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Gesamtkosten: ${formatCurrency(tenantData.totalTenantCost)}`, 20, startY);
-    startY += 5;
-    doc.text(`Vorauszahlungen: ${formatCurrency(tenantData.vorauszahlungen)}`, 20, startY);
-    startY += 8;
-
-    doc.setFont("helvetica", "bold");
-    const isNachzahlung = tenantData.finalSettlement >= 0;
-    const settlementText = isNachzahlung ? "Nachzahlung" : "Guthaben";
-    doc.text(`${settlementText}: ${formatCurrency(tenantData.finalSettlement)}`, 20, startY);
-    startY += 10; // Add some space after the final settlement
+    // Add date and location row at the end
+    startY += 15; // Add some space before the final row
+    const currentDate = new Date();
+    const formattedToday = format(currentDate, 'dd.MM.yyyy');
+    
+    // Format location from billing address
+    let location = '';
+    if (billingAddress) {
+      const parts = [];
+      if (billingAddress.city) parts.push(billingAddress.city);
+      location = parts.join(' ');
+    }
+    
+    if (location) {
+      doc.setFont("helvetica", "normal");
+      doc.text(`${location}, den ${formattedToday}`, col1Start, startY, { align: 'left' });
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.text(`den ${formattedToday}`, col1Start, startY, { align: 'left' });
+    }
     
     return startY; // Return the final Y position
   };
@@ -847,11 +925,13 @@ export function AbrechnungModal({
     const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`;
 
     // Generate individual PDFs for each tenant
+    const billingAddress = await fetchCustomerBillingAddress();
+    
     for (const tenantData of tenantDataArray) {
       const doc = new jsPDF();
       
       // Use the reusable PDF generation function
-      generateSingleTenantPDF(doc, tenantData, nebenkostenItem, ownerName, ownerAddress);
+      generateSingleTenantPDF(doc, tenantData, nebenkostenItem, ownerName, ownerAddress, 20, billingAddress);
       
       const pdfBlob = doc.output('blob');
       const filename = `Abrechnung_${currentPeriod}_${tenantData.tenantName.replace(/\s+/g, '_')}.pdf`;
