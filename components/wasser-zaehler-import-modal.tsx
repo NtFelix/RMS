@@ -235,7 +235,9 @@ export function WasserZaehlerImportModal({
       previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
 
       const previousReading = previousReadings[0];
-      const verbrauch = previousReading ? Math.max(0, zaehlerstand - previousReading.zaehlerstand) : 0;
+      const verbrauch = previousReading && previousReading.zaehlerstand !== null
+        ? Math.max(0, zaehlerstand - previousReading.zaehlerstand)
+        : 0;
 
       return {
         wasser_zaehler_id: meter.id,
