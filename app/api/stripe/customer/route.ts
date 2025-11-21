@@ -3,14 +3,14 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/utils/supabase/server';
 
+import { STRIPE_CONFIG } from '@/lib/constants/stripe';
+
 export async function GET() {
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-06-30.basil',
-  });
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
 
   try {
     const supabase = await createClient();
@@ -83,10 +83,10 @@ export async function GET() {
 
   } catch (error) {
     console.error('Error fetching customer data:', error);
-    const errorMessage = error instanceof Stripe.errors.StripeError 
-      ? error.message 
+    const errorMessage = error instanceof Stripe.errors.StripeError
+      ? error.message
       : 'Failed to fetch customer data';
-    
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
