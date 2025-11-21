@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations";
+import { logger } from "@/utils/logger";
 
 export async function GET(
     request: Request,
@@ -63,7 +64,7 @@ export async function GET(
         });
 
     } catch (error) {
-        console.error("Error in missed payments API:", error);
+        logger.error("Error in missed payments API:", error as Error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
