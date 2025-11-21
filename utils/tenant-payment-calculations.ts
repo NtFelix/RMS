@@ -24,7 +24,7 @@ export const getLatestNebenkostenAmount = (entries?: any[] | null): number => {
     return parsedEntries[0]?.amount ?? 0
 }
 
-export const calculateMissedPayments = (tenant: any, finances: any[]) => {
+export const calculateMissedPayments = (tenant: any, finances: any[], includeDetails: boolean = false) => {
     const mieteRaw = Number(tenant.Wohnungen?.miete) || 0
     const nebenkostenRaw = getLatestNebenkostenAmount(tenant.nebenkosten)
 
@@ -40,6 +40,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[]) => {
     let missedRentMonths = 0
     let missedNebenkostenMonths = 0
     let totalMissedAmount = 0
+    const details: { date: string, type: 'rent' | 'nebenkosten', amount: number }[] = []
 
     // Check each month from move-in to current
     for (let year = moveInDate.getFullYear(); year <= currentDate.getFullYear(); year++) {
@@ -47,8 +48,10 @@ export const calculateMissedPayments = (tenant: any, finances: any[]) => {
         const endMonth = (year === currentDate.getFullYear()) ? currentDate.getMonth() : 11
 
         for (let month = startMonth; month <= endMonth; month++) {
-            const monthStart = new Date(year, month, 1).toISOString().split('T')[0]
-            const monthEnd = new Date(year, month + 1, 0).toISOString().split('T')[0]
+            // Construct dates manually to avoid timezone issues with toISOString()
+            const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`
+            const lastDayOfMonth = new Date(year, month + 1, 0).getDate()
+            const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${lastDayOfMonth}`
 
             // Check rent payments for this month
             const rentPaid = tenantFinances
@@ -61,7 +64,15 @@ export const calculateMissedPayments = (tenant: any, finances: any[]) => {
 
             if (rentPaid < mieteRaw) {
                 missedRentMonths++
-                totalMissedAmount += (mieteRaw - rentPaid)
+                const missingAmount = mieteRaw - rentPaid
+                totalMissedAmount += missingAmount
+                if (includeDetails) {
+                    details.push({
+                        date: monthStart,
+                        type: 'rent',
+                        amount: missingAmount
+                    })
+                }
             }
 
             // Check nebenkosten payments if applicable
@@ -76,7 +87,15 @@ export const calculateMissedPayments = (tenant: any, finances: any[]) => {
 
                 if (nebenkostenPaid < nebenkostenRaw) {
                     missedNebenkostenMonths++
-                    totalMissedAmount += (nebenkostenRaw - nebenkostenPaid)
+                    const missingAmount = nebenkostenRaw - nebenkostenPaid
+                    totalMissedAmount += missingAmount
+                    if (includeDetails) {
+                        details.push({
+                            date: monthStart,
+                            type: 'nebenkosten',
+                            amount: missingAmount
+                        })
+                    }
                 }
             }
         }
@@ -85,6 +104,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[]) => {
     return {
         rentMonths: missedRentMonths,
         nebenkostenMonths: missedNebenkostenMonths,
-        totalAmount: totalMissedAmount
+        totalAmount: totalMissedAmount,
+        details: includeDetails ? details : undefined
     }
 }
