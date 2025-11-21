@@ -29,6 +29,8 @@ export default function TenantPaymentEditModal() {
   const [customReason, setCustomReason] = useState("")
   const [hasMissingPayments, setHasMissingPayments] = useState(false)
 
+  const [missingPaymentDetails, setMissingPaymentDetails] = useState<any[]>([])
+
   // Check for missing payments
   const checkMissingPayments = async () => {
     if (!tenantPaymentEditInitialData) return
@@ -40,14 +42,17 @@ export default function TenantPaymentEditModal() {
       if (!response.ok) {
         console.error("Error fetching missed payments:", data.error)
         setHasMissingPayments(false)
+        setMissingPaymentDetails([])
         return
       }
 
       setHasMissingPayments(data.hasMissingPayments)
+      setMissingPaymentDetails(data.missedPayments.details || [])
 
     } catch (error) {
       console.error("Error checking missing payments:", error)
       setHasMissingPayments(false)
+      setMissingPaymentDetails([])
     }
   }
 
@@ -189,48 +194,24 @@ export default function TenantPaymentEditModal() {
     setIsMarkingAllPaid(true)
 
     try {
-      const currentMonth = new Date().getMonth()
-      const currentYear = new Date().getFullYear()
+      // Use the fetched missing payment details to create entries
+      // This avoids creating duplicates for months that are already paid
+      const paymentEntries = missingPaymentDetails.map(detail => {
+        const isRent = detail.type === 'rent'
 
-      // Get tenant's move-in date to determine how many months to cover
-      const moveInDate = tenantPaymentEditInitialData.einzug
-        ? new Date(tenantPaymentEditInitialData.einzug)
-        : new Date(currentYear, currentMonth - 1, 1) // Default to last month if no move-in date
-
-      // Create payment entries for all months from move-in to current month
-      const paymentEntries = []
-
-      for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
-        const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
-        const endMonth = (year === currentYear) ? currentMonth : 11
-
-        for (let month = startMonth; month <= endMonth; month++) {
-          // Create date in local timezone to avoid UTC conversion issues
-          const paymentDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
-
-          // Add rent payment
-          paymentEntries.push({
-            wohnung_id: tenantPaymentEditInitialData.apartmentId,
-            name: `Mietzahlung ${tenantPaymentEditInitialData.apartment}`,
-            datum: paymentDate,
-            betrag: tenantPaymentEditInitialData.mieteRaw,
-            ist_einnahmen: true,
-            notiz: `Mietzahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
-          })
-
-          // Add nebenkosten payment if applicable
-          if (tenantPaymentEditInitialData.nebenkostenRaw && tenantPaymentEditInitialData.nebenkostenRaw > 0) {
-            paymentEntries.push({
-              wohnung_id: tenantPaymentEditInitialData.apartmentId,
-              name: `Nebenkosten ${tenantPaymentEditInitialData.apartment}`,
-              datum: paymentDate,
-              betrag: tenantPaymentEditInitialData.nebenkostenRaw,
-              ist_einnahmen: true,
-              notiz: `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
-            })
-          }
+        return {
+          wohnung_id: tenantPaymentEditInitialData.apartmentId,
+          name: isRent
+            ? `Mietzahlung ${tenantPaymentEditInitialData.apartment}`
+            : `Nebenkosten ${tenantPaymentEditInitialData.apartment}`,
+          datum: detail.date,
+          betrag: detail.amount,
+          ist_einnahmen: true,
+          notiz: isRent
+            ? `Mietzahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
+            : `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
         }
-      }
+      })
 
       // Send entries to API
       if (paymentEntries.length > 0) {
