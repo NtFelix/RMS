@@ -13,21 +13,23 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
-import { 
-  Loader2, 
-  Plus, 
-  Trash2, 
-  Edit2, 
-  X, 
-  Check, 
-  Droplet, 
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Edit2,
+  X,
+  Check,
+  Droplet,
   Calendar as CalendarIcon,
   Gauge,
   Clock,
   TrendingUp,
   TrendingDown,
-  AlertTriangle
+  AlertTriangle,
+  MessageSquare
 } from "lucide-react"
 import { WaterDropletLoader } from "@/components/ui/water-droplet-loader"
 import { Card, CardContent } from "@/components/ui/card"
@@ -57,6 +59,7 @@ interface WasserAblesung {
   verbrauch: number
   wasser_zaehler_id: string
   user_id: string
+  kommentar?: string | null
 }
 
 export function WasserAblesenModal() {
@@ -74,11 +77,13 @@ export function WasserAblesenModal() {
   const [newZaehlerstand, setNewZaehlerstand] = React.useState("")
   const [newVerbrauch, setNewVerbrauch] = React.useState("")
   const [newVerbrauchWarning, setNewVerbrauchWarning] = React.useState("")
+  const [newKommentar, setNewKommentar] = React.useState("")
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [editAbleseDatum, setEditAbleseDatum] = React.useState<Date | undefined>(undefined)
   const [editZaehlerstand, setEditZaehlerstand] = React.useState("")
   const [editVerbrauch, setEditVerbrauch] = React.useState("")
   const [editVerbrauchWarning, setEditVerbrauchWarning] = React.useState("")
+  const [editKommentar, setEditKommentar] = React.useState("")
   const [currentAblesung, setCurrentAblesung] = React.useState<WasserAblesung | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [ablesenToDelete, setAblesenToDelete] = React.useState<string | null>(null)
@@ -123,7 +128,7 @@ export function WasserAblesenModal() {
   // Smart calculation for new reading
   const handleNewZaehlerstandChange = (value: string) => {
     setNewZaehlerstand(value)
-    
+
     const currentReading = parseFloat(value)
     if (isNaN(currentReading) || !value.trim()) {
       setNewVerbrauch("")
@@ -133,11 +138,11 @@ export function WasserAblesenModal() {
 
     // Get the most recent reading (first in sorted list)
     const previousReading = ablesenList[0]
-    
+
     if (previousReading && previousReading.zaehlerstand !== null) {
       const consumption = currentReading - previousReading.zaehlerstand
       setNewVerbrauch(consumption.toFixed(2))
-      
+
       // Only show warnings for significant differences
       if (consumption < 0) {
         setNewVerbrauchWarning("error|Negativer Verbrauch - Zählerstand ist niedriger als vorherige Ablesung")
@@ -165,12 +170,12 @@ export function WasserAblesenModal() {
   // Find the most recent reading before the specified date
   const findPreviousReading = (date: Date, currentId: string) => {
     // Get all readings that are before the specified date and not the current reading
-    const readingsBeforeDate = ablesenList.filter(a => 
-      a.id !== currentId && 
-      a.ablese_datum && 
+    const readingsBeforeDate = ablesenList.filter(a =>
+      a.id !== currentId &&
+      a.ablese_datum &&
       new Date(a.ablese_datum) < date
     )
-    
+
     // The list is already sorted descending, so the first element is the most recent one before our date
     return readingsBeforeDate[0] || null
   }
@@ -178,7 +183,7 @@ export function WasserAblesenModal() {
   // Smart calculation for editing
   const handleEditZaehlerstandChange = (value: string, currentAblesung: WasserAblesung) => {
     setEditZaehlerstand(value)
-    
+
     const currentReading = parseFloat(value)
     if (isNaN(currentReading) || !value.trim()) {
       setEditVerbrauch("")
@@ -187,16 +192,16 @@ export function WasserAblesenModal() {
     }
 
     // Use the current date in the form or the original reading's date
-    const currentDate = editAbleseDatum || 
-                       (currentAblesung.ablese_datum ? new Date(currentAblesung.ablese_datum) : new Date())
-    
+    const currentDate = editAbleseDatum ||
+      (currentAblesung.ablese_datum ? new Date(currentAblesung.ablese_datum) : new Date())
+
     // Find the previous reading based on the current date
     const previousReading = findPreviousReading(currentDate, currentAblesung.id)
-    
+
     if (previousReading?.zaehlerstand !== null && previousReading?.zaehlerstand !== undefined) {
       const consumption = currentReading - previousReading.zaehlerstand
       setEditVerbrauch(consumption.toFixed(2))
-      
+
       // Only show warnings for significant differences
       if (consumption < 0) {
         setEditVerbrauchWarning("error|Negativer Verbrauch - Zählerstand ist niedriger als vorherige Ablesung")
@@ -234,6 +239,7 @@ export function WasserAblesenModal() {
           zaehlerstand: parseFloat(newZaehlerstand),
           verbrauch: parseFloat(newVerbrauch) || 0,
           wasser_zaehler_id: wasserAblesenModalData.wasserZaehlerId,
+          kommentar: newKommentar.trim() || null,
         }),
       })
 
@@ -248,10 +254,11 @@ export function WasserAblesenModal() {
       setNewZaehlerstand("")
       setNewVerbrauch("")
       setNewVerbrauchWarning("")
-      
+      setNewKommentar("")
+
       // The useEffect with hasUnsavedChanges will automatically update the dirty state
       // when the form state is cleared below
-      
+
       toast({
         title: "Erfolg",
         description: "Ablesung erfolgreich hinzugefügt.",
@@ -277,10 +284,11 @@ export function WasserAblesenModal() {
       const response = await fetch(`/api/wasser-ablesungen/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           ablese_datum: editAbleseDatum ? format(editAbleseDatum, "yyyy-MM-dd") : null,
           zaehlerstand: parseFloat(editZaehlerstand),
           verbrauch: parseFloat(editVerbrauch) || 0,
+          kommentar: editKommentar.trim() || null,
         }),
       })
 
@@ -290,11 +298,11 @@ export function WasserAblesenModal() {
       }
 
       const updatedAblesung = await response.json()
-      
+
       // Update the list with the updated reading and re-sort by date
       setAblesenList((prev) => {
         const updatedList = prev.map((a) => (a.id === id ? updatedAblesung : a))
-        
+
         // Sort by date descending (newest first)
         return updatedList.sort((a, b) => {
           const dateA = a.ablese_datum ? new Date(a.ablese_datum).getTime() : 0
@@ -302,17 +310,18 @@ export function WasserAblesenModal() {
           return dateB - dateA
         })
       })
-      
+
       setEditingId(null)
       setEditAbleseDatum(undefined)
       setEditZaehlerstand("")
       setEditVerbrauch("")
       setEditVerbrauchWarning("")
+      setEditKommentar("")
       setCurrentAblesung(null)
-      
+
       // The useEffect with hasUnsavedChanges will automatically update the dirty state
       // when the form state is cleared below
-      
+
       toast({
         title: "Erfolg",
         description: "Ablesung erfolgreich aktualisiert.",
@@ -348,7 +357,7 @@ export function WasserAblesenModal() {
       setDeleteDialogOpen(false)
       setAblesenToDelete(null)
       setWasserAblesenModalDirty(true)
-      
+
       toast({
         title: "Erfolg",
         description: "Ablesung erfolgreich gelöscht.",
@@ -373,6 +382,7 @@ export function WasserAblesenModal() {
     setEditZaehlerstand(ablesung.zaehlerstand?.toString() || "")
     setEditVerbrauch(ablesung.verbrauch.toString())
     setEditVerbrauchWarning("")
+    setEditKommentar(ablesung.kommentar || "")
   }
 
   const handleEdit = (ablesung: WasserAblesung) => {
@@ -380,26 +390,27 @@ export function WasserAblesenModal() {
     setEditZaehlerstand(ablesung.zaehlerstand?.toString() || "")
     setEditVerbrauch(ablesung.verbrauch.toString())
     setEditVerbrauchWarning("")
+    setEditKommentar(ablesung.kommentar || "")
     setEditAbleseDatum(ablesung.ablese_datum ? new Date(ablesung.ablese_datum) : undefined)
     setCurrentAblesung(ablesung)
   }
-  
+
   // Handle date change and recalculate consumption if needed
   const handleEditDateChange = (date: Date | undefined, currentAblesung: WasserAblesung) => {
     setEditAbleseDatum(date)
-    
+
     // Only recalculate if we have a zaehlerstand value and a valid date
     if (editZaehlerstand && date) {
       // Find the previous reading based on the new date
       const previousReading = findPreviousReading(date, currentAblesung.id)
-      
+
       // If we have a previous reading, recalculate the consumption
       if (previousReading?.zaehlerstand !== null && previousReading?.zaehlerstand !== undefined) {
         const currentReading = parseFloat(editZaehlerstand)
         if (!isNaN(currentReading)) {
           const consumption = currentReading - previousReading.zaehlerstand
           setEditVerbrauch(consumption.toFixed(2))
-          
+
           // Update warnings if needed
           if (consumption < 0) {
             setEditVerbrauchWarning("error|Negativer Verbrauch - Zählerstand ist niedriger als vorherige Ablesung")
@@ -432,6 +443,7 @@ export function WasserAblesenModal() {
     setEditZaehlerstand("")
     setEditVerbrauch("")
     setEditVerbrauchWarning("")
+    setEditKommentar("")
     setCurrentAblesung(null)
     setWasserAblesenModalDirty(false)
   }
@@ -441,11 +453,13 @@ export function WasserAblesenModal() {
     setNewZaehlerstand("")
     setNewVerbrauch("")
     setNewVerbrauchWarning("")
+    setNewKommentar("")
     setEditingId(null)
     setEditAbleseDatum(undefined)
     setEditZaehlerstand("")
     setEditVerbrauch("")
     setEditVerbrauchWarning("")
+    setEditKommentar("")
     setWasserAblesenModalDirty(false)
     closeWasserAblesenModal()
   }
@@ -453,7 +467,7 @@ export function WasserAblesenModal() {
   // Check if there are unsaved changes in edit mode or new reading form
   const hasUnsavedChanges = React.useMemo(() => {
     // Check if there's unsaved data in the new reading form
-    if (newAbleseDatum || newZaehlerstand.trim() || newVerbrauch.trim()) {
+    if (newAbleseDatum || newZaehlerstand.trim() || newVerbrauch.trim() || newKommentar.trim()) {
       return true
     }
 
@@ -464,7 +478,8 @@ export function WasserAblesenModal() {
         const dateChanged = editAbleseDatum?.toISOString().split('T')[0] !== originalAblesung.ablese_datum
         const zaehlerstandChanged = editZaehlerstand !== (originalAblesung.zaehlerstand?.toString() || "")
         const verbrauchChanged = editVerbrauch !== originalAblesung.verbrauch.toString()
-        return dateChanged || zaehlerstandChanged || verbrauchChanged
+        const kommentarChanged = editKommentar !== (originalAblesung.kommentar || "")
+        return dateChanged || zaehlerstandChanged || verbrauchChanged || kommentarChanged
       }
     }
 
@@ -498,9 +513,9 @@ export function WasserAblesenModal() {
   // Render warning alert (button-sized pill with animation)
   const renderWarningAlert = (warning: string) => {
     if (!warning) return null
-    
+
     const [type, message] = warning.split("|")
-    
+
     const getIcon = () => {
       switch (type) {
         case "error":
@@ -513,7 +528,7 @@ export function WasserAblesenModal() {
           return null
       }
     }
-    
+
     const getStyles = () => {
       switch (type) {
         case "error":
@@ -526,7 +541,7 @@ export function WasserAblesenModal() {
           return ""
       }
     }
-    
+
     return (
       <motion.div
         initial={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -544,7 +559,7 @@ export function WasserAblesenModal() {
   return (
     <>
       <Dialog open={isWasserAblesenModalOpen} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent 
+        <DialogContent
           className="sm:max-w-[700px] max-h-[85vh] flex flex-col"
           isDirty={hasUnsavedChanges}
           onAttemptClose={handleClose}
@@ -635,6 +650,15 @@ export function WasserAblesenModal() {
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Textarea
+                  placeholder="Kommentar (optional)"
+                  value={newKommentar}
+                  onChange={(e) => setNewKommentar(e.target.value)}
+                  disabled={isSaving}
+                  className="min-h-[60px] resize-none"
+                />
+              </div>
               <AnimatePresence mode="wait">
                 {newVerbrauchWarning && renderWarningAlert(newVerbrauchWarning)}
               </AnimatePresence>
@@ -680,7 +704,7 @@ export function WasserAblesenModal() {
                 <div className="grid gap-3">
                   {ablesenList.map((ablesung, index) => {
                     const consumptionChange = getConsumptionChange(index)
-                    
+
                     return (
                       <Card key={ablesung.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
                         <CardContent className="p-0">
@@ -721,9 +745,9 @@ export function WasserAblesenModal() {
                                     </Button>
                                   </div>
                                 </div>
-                                
+
                                 <Separator />
-                                
+
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                   <div>
                                     <Label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -809,6 +833,19 @@ export function WasserAblesenModal() {
                                       className="mt-1.5"
                                     />
                                   </div>
+                                </div>
+                                <div className="mt-3">
+                                  <Label className="text-xs text-muted-foreground flex items-center gap-1 mb-1.5">
+                                    <MessageSquare className="h-3 w-3" />
+                                    Kommentar
+                                  </Label>
+                                  <Textarea
+                                    placeholder="Kommentar (optional)"
+                                    value={editKommentar}
+                                    onChange={(e) => setEditKommentar(e.target.value)}
+                                    disabled={isSaving}
+                                    className="min-h-[60px] resize-none"
+                                  />
                                 </div>
                                 <AnimatePresence mode="wait">
                                   {editVerbrauchWarning && (
@@ -928,11 +965,11 @@ export function WasserAblesenModal() {
                                           if (change === null) {
                                             return <span className="text-muted-foreground italic">Keine Vergleichsdaten</span>
                                           }
-                                          const changeClass = change > 20 
-                                            ? "text-red-600 dark:text-red-400" 
-                                            : change < -10 
-                                            ? "text-green-600 dark:text-green-400" 
-                                            : ""
+                                          const changeClass = change > 20
+                                            ? "text-red-600 dark:text-red-400"
+                                            : change < -10
+                                              ? "text-green-600 dark:text-green-400"
+                                              : ""
                                           return (
                                             <span className={changeClass}>
                                               {change > 0 ? '+' : ''}{change.toFixed(1)}%
@@ -942,6 +979,27 @@ export function WasserAblesenModal() {
                                       </p>
                                     </div>
                                   </motion.div>
+
+                                  {ablesung.kommentar && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 5 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      transition={{ duration: 0.3, delay: 0.4 }}
+                                      className="col-span-1 sm:col-span-3 mt-1 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700"
+                                    >
+                                      <div className="flex items-start gap-2">
+                                        <div className="flex-shrink-0 mt-0.5">
+                                          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs text-muted-foreground mb-1">Kommentar</p>
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 italic">
+                                            "{ablesung.kommentar}"
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </motion.div>
+                                  )}
                                 </div>
                               </motion.div>
                             )}

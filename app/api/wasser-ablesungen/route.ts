@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
         verbrauch: verbrauch || 0,
         wasser_zaehler_id,
         user_id: user.id,
+        kommentar: body.kommentar || null,
       })
       .select('*')
       .single()
