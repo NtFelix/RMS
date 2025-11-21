@@ -37,7 +37,10 @@ export async function GET(
 
         // Fetch finances for this tenant's apartment
         // We fetch all finances since move-in to be safe
+        // We fetch all finances since the start of the move-in month to be safe
         const moveInDate = tenant.einzug ? new Date(tenant.einzug) : new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
+        // Reset to the first day of the month to ensure we catch payments made on the 1st
+        moveInDate.setDate(1);
         const moveInDateStr = moveInDate.toISOString().split('T')[0];
 
         const { data: finances, error: financesError } = await supabase
@@ -52,7 +55,7 @@ export async function GET(
             return NextResponse.json({ error: "Failed to fetch finances." }, { status: 500 });
         }
 
-        const missedPayments = calculateMissedPayments(tenant, finances || []);
+        const missedPayments = calculateMissedPayments(tenant, finances || [], true);
 
         return NextResponse.json({
             missedPayments,
