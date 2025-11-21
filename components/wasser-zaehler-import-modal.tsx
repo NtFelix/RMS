@@ -1,0 +1,471 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2 } from "lucide-react";
+import * as XLSX from "xlsx";
+import Papa from "papaparse";
+import { WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
+import { bulkCreateWasserAblesungen } from "@/app/wasser-zaehler-actions";
+import { isoToGermanDate } from "@/utils/date-calculations";
+import { StatCard } from "@/components/stat-card";
+
+interface WasserZaehlerImportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  waterMeters: WasserZaehler[];
+  waterReadings: WasserAblesung[];
+}
+
+type ImportStep = "upload" | "mapping" | "preview";
+
+interface ParsedRow {
+  [key: string]: string | number | null;
+}
+
+interface ColumnMapping {
+  custom_id: string;
+  ablese_datum: string;
+  zaehlerstand: string;
+}
+
+interface ProcessedReading {
+  wasser_zaehler_id: string;
+  custom_id: string;
+  ablese_datum: string;
+  zaehlerstand: number;
+  verbrauch: number;
+  original_row: ParsedRow;
+  status: "valid" | "duplicate" | "missing_meter" | "invalid_date" | "invalid_value";
+  message?: string;
+}
+
+export function WasserZaehlerImportModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  waterMeters,
+  waterReadings,
+}: WasserZaehlerImportModalProps) {
+  const [step, setStep] = useState<ImportStep>("upload");
+  const [file, setFile] = useState<File | null>(null);
+  const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
+  const [columns, setColumns] = useState<string[]>([]);
+  const [mapping, setMapping] = useState<ColumnMapping>({ custom_id: "", ablese_datum: "", zaehlerstand: "" });
+  const [processedData, setProcessedData] = useState<ProcessedReading[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    setFile(selectedFile);
+    await parseFile(selectedFile);
+  };
+
+  const parseFile = async (file: File) => {
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+
+    if (fileExtension === "csv") {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.data && results.data.length > 0) {
+            setParsedData(results.data as ParsedRow[]);
+            setColumns(Object.keys(results.data[0] as object));
+            setStep("mapping");
+          } else {
+            toast({ title: "Fehler", description: "Die CSV-Datei ist leer oder ungültig.", variant: "destructive" });
+          }
+        },
+        error: (error) => {
+          toast({ title: "Fehler", description: `Fehler beim Parsen der CSV: ${error.message}`, variant: "destructive" });
+        },
+      });
+    } else if (fileExtension === "xlsx" || fileExtension === "xls") {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: "binary" });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(sheet);
+          if (jsonData && jsonData.length > 0) {
+            setParsedData(jsonData as ParsedRow[]);
+            setColumns(Object.keys(jsonData[0] as object));
+            setStep("mapping");
+          } else {
+            toast({ title: "Fehler", description: "Die Excel-Datei ist leer.", variant: "destructive" });
+          }
+        } catch (error) {
+          toast({ title: "Fehler", description: "Fehler beim Parsen der Excel-Datei.", variant: "destructive" });
+        }
+      };
+      reader.readAsBinaryString(file);
+    } else {
+      toast({ title: "Fehler", description: "Nicht unterstütztes Dateiformat.", variant: "destructive" });
+    }
+  };
+
+  const handleMappingChange = (field: keyof ColumnMapping, column: string) => {
+    setMapping((prev) => ({ ...prev, [field]: column }));
+  };
+
+  const formatDate = (value: string | number | Date): string | null => {
+     if (!value) return null;
+
+     // Handle Excel serial dates
+     if (typeof value === 'number') {
+        // Excel base date is usually Dec 30 1899
+        const date = new Date((value - (25567 + 2)) * 86400 * 1000);
+        return date.toISOString().split('T')[0];
+     }
+
+     const date = new Date(value);
+     if (isNaN(date.getTime())) return null;
+     return date.toISOString().split('T')[0];
+  };
+
+  const validateAndProcessData = () => {
+    if (!mapping.custom_id || !mapping.ablese_datum || !mapping.zaehlerstand) {
+      toast({ title: "Fehler", description: "Bitte ordnen Sie alle Felder zu.", variant: "destructive" });
+      return;
+    }
+
+    const processed: ProcessedReading[] = parsedData.map((row) => {
+      const customIdRaw = row[mapping.custom_id];
+      const customId = customIdRaw ? String(customIdRaw).trim() : "";
+      const dateRaw = row[mapping.ablese_datum];
+      const valueRaw = row[mapping.zaehlerstand];
+
+      const ableseDatum = formatDate(dateRaw as string | number | Date);
+      const zaehlerstand = typeof valueRaw === 'number' ? valueRaw : parseFloat(String(valueRaw).replace(',', '.'));
+
+      // Basic Validation
+      if (!customId) {
+        return {
+          wasser_zaehler_id: "",
+          custom_id: "",
+          ablese_datum: ableseDatum || "",
+          zaehlerstand: isNaN(zaehlerstand) ? 0 : zaehlerstand,
+          verbrauch: 0,
+          original_row: row,
+          status: "missing_meter",
+          message: "Keine Zähler-ID",
+        };
+      }
+
+      // Find Meter
+      // Case insensitive comparison for custom_id
+      const meter = waterMeters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
+
+      if (!meter) {
+         return {
+            wasser_zaehler_id: "",
+            custom_id: customId,
+            ablese_datum: ableseDatum || "",
+            zaehlerstand: isNaN(zaehlerstand) ? 0 : zaehlerstand,
+            verbrauch: 0,
+            original_row: row,
+            status: "missing_meter",
+            message: `Zähler '${customId}' nicht gefunden`
+         };
+      }
+
+      if (!ableseDatum) {
+          return {
+              wasser_zaehler_id: meter.id,
+              custom_id: customId,
+              ablese_datum: "",
+              zaehlerstand: isNaN(zaehlerstand) ? 0 : zaehlerstand,
+              verbrauch: 0,
+              original_row: row,
+              status: "invalid_date",
+              message: "Ungültiges Datum"
+          };
+      }
+
+      if (isNaN(zaehlerstand)) {
+          return {
+              wasser_zaehler_id: meter.id,
+              custom_id: customId,
+              ablese_datum: ableseDatum,
+              zaehlerstand: 0,
+              verbrauch: 0,
+              original_row: row,
+              status: "invalid_value",
+              message: "Ungültiger Zählerstand"
+          };
+      }
+
+      // Check Duplicate
+      const isDuplicate = waterReadings.some(
+        (r) => r.wasser_zaehler_id === meter.id && r.ablese_datum === ableseDatum
+      );
+
+      if (isDuplicate) {
+         return {
+             wasser_zaehler_id: meter.id,
+             custom_id: customId,
+             ablese_datum: ableseDatum,
+             zaehlerstand,
+             verbrauch: 0,
+             original_row: row,
+             status: "duplicate",
+             message: "Ablesung existiert bereits"
+         };
+      }
+
+      // Calculate Consumption
+      // Find previous reading
+      // Readings for this meter
+      const meterReadings = waterReadings.filter(r => r.wasser_zaehler_id === meter.id);
+      // Readings strictly before this date
+      const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
+      // Sort descending
+      previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
+
+      const previousReading = previousReadings[0];
+      const verbrauch = previousReading ? Math.max(0, zaehlerstand - previousReading.zaehlerstand) : 0;
+
+      return {
+        wasser_zaehler_id: meter.id,
+        custom_id: customId,
+        ablese_datum: ableseDatum,
+        zaehlerstand,
+        verbrauch,
+        original_row: row,
+        status: "valid",
+      };
+    });
+
+    setProcessedData(processed);
+    setStep("preview");
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+
+    // Filter valid rows
+    const rowsToImport = processedData.filter(row => row.status === "valid");
+
+    if (rowsToImport.length === 0) {
+        toast({ title: "Info", description: "Keine gültigen Datensätze zum Importieren.", variant: "default" });
+        setIsSubmitting(false);
+        return;
+    }
+
+    const payload = rowsToImport.map(row => ({
+        wasser_zaehler_id: row.wasser_zaehler_id,
+        ablese_datum: row.ablese_datum,
+        zaehlerstand: row.zaehlerstand,
+        verbrauch: row.verbrauch,
+        kommentar: "Importiert"
+    }));
+
+    const result = await bulkCreateWasserAblesungen(payload);
+
+    if (result.success) {
+        toast({
+            title: "Import erfolgreich",
+            description: `${payload.length} Ablesungen wurden importiert.`,
+            variant: "success"
+        });
+        onSuccess();
+        onClose();
+    } else {
+        toast({
+            title: "Fehler beim Import",
+            description: result.message || "Unbekannter Fehler",
+            variant: "destructive"
+        });
+    }
+    setIsSubmitting(false);
+  };
+
+  const validCount = processedData.filter(d => d.status === "valid").length;
+  const duplicateCount = processedData.filter(d => d.status === "duplicate").length;
+  const missingCount = processedData.filter(d => d.status === "missing_meter").length;
+  const errorCount = processedData.filter(d => d.status === "invalid_date" || d.status === "invalid_value").length;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[800px] max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Wasserzähler-Ablesungen importieren</DialogTitle>
+          <DialogDescription>
+            {step === "upload" && "Laden Sie eine CSV oder Excel Datei hoch."}
+            {step === "mapping" && "Ordnen Sie die Spalten aus Ihrer Datei den Feldern zu."}
+            {step === "preview" && "Überprüfen Sie die Daten vor dem Import."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto py-4">
+          {step === "upload" && (
+            <div
+              className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileChange}
+              />
+              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <Upload className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Datei hierhin ziehen oder klicken</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                Unterstützte Formate: .csv, .xlsx, .xls.
+                Die Datei sollte Spalten für Zähler-ID, Datum und Zählerstand enthalten.
+              </p>
+            </div>
+          )}
+
+          {step === "mapping" && (
+            <div className="space-y-6">
+               <div className="grid gap-4 py-4">
+                 <div className="grid grid-cols-2 gap-4 items-center">
+                    <label className="text-sm font-medium">Zähler Custom ID Spalte:</label>
+                    <Select value={mapping.custom_id} onValueChange={(v) => handleMappingChange('custom_id', v)}>
+                        <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
+                        <SelectContent>
+                            {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="grid grid-cols-2 gap-4 items-center">
+                    <label className="text-sm font-medium">Ablesedatum Spalte:</label>
+                    <Select value={mapping.ablese_datum} onValueChange={(v) => handleMappingChange('ablese_datum', v)}>
+                        <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
+                        <SelectContent>
+                            {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                 </div>
+                 <div className="grid grid-cols-2 gap-4 items-center">
+                    <label className="text-sm font-medium">Zählerstand Spalte:</label>
+                    <Select value={mapping.zaehlerstand} onValueChange={(v) => handleMappingChange('zaehlerstand', v)}>
+                        <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
+                        <SelectContent>
+                            {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                 </div>
+               </div>
+            </div>
+          )}
+
+          {step === "preview" && (
+            <div className="space-y-6">
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <StatCard
+                    title="Bereit"
+                    value={validCount}
+                    icon={<Check className="h-4 w-4 text-green-500" />}
+                  />
+                  <StatCard
+                    title="Duplikate"
+                    value={duplicateCount}
+                    icon={<FileSpreadsheet className="h-4 w-4 text-yellow-500" />}
+                    description="Ignoriert"
+                  />
+                  <StatCard
+                    title="Fehlende Zähler"
+                    value={missingCount}
+                    icon={<X className="h-4 w-4 text-red-500" />}
+                  />
+                  <StatCard
+                    title="Ungültig"
+                    value={errorCount}
+                    icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}
+                  />
+               </div>
+
+               {missingCount > 0 && (
+                   <Alert variant="destructive">
+                       <AlertTriangle className="h-4 w-4" />
+                       <AlertTitle>Achtung</AlertTitle>
+                       <AlertDescription>
+                           {missingCount} Datensätze enthalten Zähler-IDs, die im System nicht gefunden wurden. Diese werden beim Import übersprungen.
+                       </AlertDescription>
+                   </Alert>
+               )}
+
+               <div className="border rounded-2xl overflow-hidden">
+                   <Table>
+                       <TableHeader>
+                           <TableRow>
+                               <TableHead>Status</TableHead>
+                               <TableHead>Zähler ID</TableHead>
+                               <TableHead>Datum</TableHead>
+                               <TableHead>Stand</TableHead>
+                               <TableHead>Verbrauch (ber.)</TableHead>
+                               <TableHead>Info</TableHead>
+                           </TableRow>
+                       </TableHeader>
+                       <TableBody>
+                           {processedData.slice(0, 100).map((row, i) => (
+                               <TableRow key={i} className={row.status !== "valid" ? "opacity-70 bg-gray-50 dark:bg-gray-900" : ""}>
+                                   <TableCell>
+                                       {row.status === "valid" && <Check className="h-4 w-4 text-green-500" />}
+                                       {row.status === "duplicate" && <FileSpreadsheet className="h-4 w-4 text-yellow-500" />}
+                                       {row.status === "missing_meter" && <X className="h-4 w-4 text-red-500" />}
+                                       {(row.status === "invalid_date" || row.status === "invalid_value") && <AlertTriangle className="h-4 w-4 text-orange-500" />}
+                                   </TableCell>
+                                   <TableCell>{row.custom_id}</TableCell>
+                                   <TableCell>{row.ablese_datum ? isoToGermanDate(row.ablese_datum) : "-"}</TableCell>
+                                   <TableCell>{row.zaehlerstand}</TableCell>
+                                   <TableCell>{row.verbrauch}</TableCell>
+                                   <TableCell className="text-xs text-muted-foreground">{row.message}</TableCell>
+                               </TableRow>
+                           ))}
+                           {processedData.length > 100 && (
+                               <TableRow>
+                                   <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                       ... {processedData.length - 100} weitere Zeilen
+                                   </TableCell>
+                               </TableRow>
+                           )}
+                       </TableBody>
+                   </Table>
+               </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+            {step === "upload" && (
+                <Button variant="outline" onClick={onClose}>Abbrechen</Button>
+            )}
+            {step === "mapping" && (
+                <>
+                    <Button variant="outline" onClick={() => setStep("upload")}>Zurück</Button>
+                    <Button onClick={validateAndProcessData}>Vorschau anzeigen</Button>
+                </>
+            )}
+            {step === "preview" && (
+                <>
+                    <Button variant="outline" onClick={() => setStep("mapping")}>Zurück</Button>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || validCount === 0}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {validCount} Datensätze importieren
+                    </Button>
+                </>
+            )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
