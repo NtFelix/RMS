@@ -48,7 +48,15 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
     })
 
     // Calculate missed payments history
-    const moveInDate = new Date(tenant.einzug || new Date().toISOString())
+    if (!tenant.einzug) {
+        return {
+            rentMonths: 0,
+            nebenkostenMonths: 0,
+            totalAmount: 0,
+            details: includeDetails ? [] : undefined,
+        }
+    }
+    const moveInDate = new Date(tenant.einzug)
     const currentDate = new Date()
 
     let missedRentMonths = 0
