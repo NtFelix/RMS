@@ -482,7 +482,7 @@ export function WasserZaehlerImportModal({
               <div className="border rounded-2xl overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
                       <TableHead>Status</TableHead>
                       <TableHead>Zähler ID</TableHead>
                       <TableHead>Datum</TableHead>
@@ -493,7 +493,11 @@ export function WasserZaehlerImportModal({
                   </TableHeader>
                   <TableBody>
                     {processedData.slice(0, 100).map((row, i) => (
-                      <TableRow key={i} className={row.status !== "valid" ? "opacity-70 bg-gray-50 dark:bg-gray-900" : ""}>
+                      <TableRow
+                        key={i}
+                        className={`transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50 ${row.status !== "valid" ? "opacity-70 bg-gray-50 dark:bg-gray-900" : ""
+                          }`}
+                      >
                         <TableCell>
                           {row.status === "valid" && <Check className="h-4 w-4 text-green-500" />}
                           {row.status === "duplicate" && <FileSpreadsheet className="h-4 w-4 text-yellow-500" />}
