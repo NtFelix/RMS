@@ -113,7 +113,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
                 .reduce((sum: number, f: any) => sum + (Number(f.betrag) || 0), 0)
 
             // Allow for small floating point differences (e.g. 0.01)
-            if (rentPaid < expectedRent - 0.1) {
+            if (rentPaid < expectedRent - 0.01) {
                 missedRentMonths++
                 const missingAmount = expectedRent - rentPaid
                 totalMissedAmount += missingAmount
@@ -137,7 +137,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
                     .reduce((sum: number, f: any) => sum + (Number(f.betrag) || 0), 0)
 
                 // Allow for small floating point differences
-                if (nebenkostenPaid < expectedNebenkosten - 0.1) {
+                if (nebenkostenPaid < expectedNebenkosten - 0.01) {
                     missedNebenkostenMonths++
                     const missingAmount = expectedNebenkosten - nebenkostenPaid
                     totalMissedAmount += missingAmount
