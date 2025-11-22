@@ -521,7 +521,7 @@ export function WasserZaehlerImportModal({
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter>
           {step === "upload" && (
             <Button variant="outline" onClick={onClose}>Abbrechen</Button>
           )}
