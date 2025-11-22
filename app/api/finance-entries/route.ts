@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     // Validate each entry
     for (const entry of entries) {
-      if (!entry.wohnung_id || !entry.name || !entry.betrag || !entry.datum) {
+      if (!entry.wohnung_id || !entry.name || entry.betrag == null || !entry.datum) {
         return NextResponse.json(
           { error: "Missing required fields in entry" },
           { status: 400 }
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     try {
       const { data: rpcData, error: rpcError } = await supabase.rpc(
         "insert_finance_entries_batch",
-        { 
+        {
           p_entries: entries,
           p_user_id: user.id
         }
