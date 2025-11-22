@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calendar, Gauge } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
@@ -121,55 +121,55 @@ export function WasserZaehlerImportModal({
   };
 
   const parseDateString = (value: string | number | Date): string | null => {
-     if (!value) return null;
+    if (!value) return null;
 
-     // Handle Excel serial dates
-     if (typeof value === 'number') {
-        // Excel base date is usually Dec 30 1899
-        const date = new Date((value - (25567 + 2)) * 86400 * 1000);
-        return date.toISOString().split('T')[0];
-     }
+    // Handle Excel serial dates
+    if (typeof value === 'number') {
+      // Excel base date is usually Dec 30 1899
+      const date = new Date((value - (25567 + 2)) * 86400 * 1000);
+      return date.toISOString().split('T')[0];
+    }
 
-     if (value instanceof Date) {
-         return value.toISOString().split('T')[0];
-     }
+    if (value instanceof Date) {
+      return value.toISOString().split('T')[0];
+    }
 
-     const strVal = String(value).trim();
+    const strVal = String(value).trim();
 
-     // German format: DD.MM.YYYY
-     const germanMatch = strVal.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-     if (germanMatch) {
-         const day = germanMatch[1].padStart(2, '0');
-         const month = germanMatch[2].padStart(2, '0');
-         const year = germanMatch[3];
-         return `${year}-${month}-${day}`;
-     }
+    // German format: DD.MM.YYYY
+    const germanMatch = strVal.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (germanMatch) {
+      const day = germanMatch[1].padStart(2, '0');
+      const month = germanMatch[2].padStart(2, '0');
+      const year = germanMatch[3];
+      return `${year}-${month}-${day}`;
+    }
 
-     // Try standard parsing (handles ISO YYYY-MM-DD)
-     const date = new Date(strVal);
-     if (!isNaN(date.getTime())) {
-         return date.toISOString().split('T')[0];
-     }
+    // Try standard parsing (handles ISO YYYY-MM-DD)
+    const date = new Date(strVal);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
 
-     return null;
+    return null;
   };
 
   const parseGermanNumber = (value: string | number): number => {
-      if (typeof value === 'number') return value;
-      if (!value) return 0;
+    if (typeof value === 'number') return value;
+    if (!value) return 0;
 
-      let strVal = String(value).trim();
+    let strVal = String(value).trim();
 
-      // If it has a comma, assume it is the decimal separator (German)
-      if (strVal.includes(',')) {
-          // Remove dots (thousands separators)
-          strVal = strVal.replace(/\./g, '');
-          // Replace comma with dot
-          strVal = strVal.replace(',', '.');
-      }
+    // If it has a comma, assume it is the decimal separator (German)
+    if (strVal.includes(',')) {
+      // Remove dots (thousands separators)
+      strVal = strVal.replace(/\./g, '');
+      // Replace comma with dot
+      strVal = strVal.replace(',', '.');
+    }
 
-      const parsed = parseFloat(strVal);
-      return isNaN(parsed) ? 0 : parsed;
+    const parsed = parseFloat(strVal);
+    return isNaN(parsed) ? 0 : parsed;
   };
 
   const validateAndProcessData = () => {
@@ -205,42 +205,42 @@ export function WasserZaehlerImportModal({
       const meter = waterMeters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
 
       if (!meter) {
-         return {
-            wasser_zaehler_id: "",
-            custom_id: customId,
-            ablese_datum: ableseDatum || "",
-            zaehlerstand: zaehlerstand,
-            verbrauch: 0,
-            original_row: row,
-            status: "missing_meter",
-            message: `Zähler '${customId}' nicht gefunden`
-         };
+        return {
+          wasser_zaehler_id: "",
+          custom_id: customId,
+          ablese_datum: ableseDatum || "",
+          zaehlerstand: zaehlerstand,
+          verbrauch: 0,
+          original_row: row,
+          status: "missing_meter",
+          message: `Zähler '${customId}' nicht gefunden`
+        };
       }
 
       if (!ableseDatum) {
-          return {
-              wasser_zaehler_id: meter.id,
-              custom_id: customId,
-              ablese_datum: "",
-              zaehlerstand: zaehlerstand,
-              verbrauch: 0,
-              original_row: row,
-              status: "invalid_date",
-              message: "Ungültiges Datum"
-          };
+        return {
+          wasser_zaehler_id: meter.id,
+          custom_id: customId,
+          ablese_datum: "",
+          zaehlerstand: zaehlerstand,
+          verbrauch: 0,
+          original_row: row,
+          status: "invalid_date",
+          message: "Ungültiges Datum"
+        };
       }
 
       if (isNaN(zaehlerstand)) {
-          return {
-              wasser_zaehler_id: meter.id,
-              custom_id: customId,
-              ablese_datum: ableseDatum,
-              zaehlerstand: 0,
-              verbrauch: 0,
-              original_row: row,
-              status: "invalid_value",
-              message: "Ungültiger Zählerstand"
-          };
+        return {
+          wasser_zaehler_id: meter.id,
+          custom_id: customId,
+          ablese_datum: ableseDatum,
+          zaehlerstand: 0,
+          verbrauch: 0,
+          original_row: row,
+          status: "invalid_value",
+          message: "Ungültiger Zählerstand"
+        };
       }
 
       // Check Duplicate
@@ -249,16 +249,16 @@ export function WasserZaehlerImportModal({
       );
 
       if (isDuplicate) {
-         return {
-             wasser_zaehler_id: meter.id,
-             custom_id: customId,
-             ablese_datum: ableseDatum,
-             zaehlerstand,
-             verbrauch: 0,
-             original_row: row,
-             status: "duplicate",
-             message: "Ablesung existiert bereits"
-         };
+        return {
+          wasser_zaehler_id: meter.id,
+          custom_id: customId,
+          ablese_datum: ableseDatum,
+          zaehlerstand,
+          verbrauch: 0,
+          original_row: row,
+          status: "duplicate",
+          message: "Ablesung existiert bereits"
+        };
       }
 
       // Calculate Consumption
@@ -293,35 +293,35 @@ export function WasserZaehlerImportModal({
     const rowsToImport = processedData.filter(row => row.status === "valid");
 
     if (rowsToImport.length === 0) {
-        toast({ title: "Info", description: "Keine gültigen Datensätze zum Importieren.", variant: "default" });
-        setIsSubmitting(false);
-        return;
+      toast({ title: "Info", description: "Keine gültigen Datensätze zum Importieren.", variant: "default" });
+      setIsSubmitting(false);
+      return;
     }
 
     const payload = rowsToImport.map(row => ({
-        wasser_zaehler_id: row.wasser_zaehler_id,
-        ablese_datum: row.ablese_datum,
-        zaehlerstand: row.zaehlerstand,
-        verbrauch: row.verbrauch,
-        kommentar: "Importiert"
+      wasser_zaehler_id: row.wasser_zaehler_id,
+      ablese_datum: row.ablese_datum,
+      zaehlerstand: row.zaehlerstand,
+      verbrauch: row.verbrauch,
+      kommentar: "Importiert"
     }));
 
     const result = await bulkCreateWasserAblesungen(payload);
 
     if (result.success) {
-        toast({
-            title: "Import erfolgreich",
-            description: `${payload.length} Ablesungen wurden importiert.`,
-            variant: "success"
-        });
-        onSuccess();
-        onClose();
+      toast({
+        title: "Import erfolgreich",
+        description: `${payload.length} Ablesungen wurden importiert.`,
+        variant: "success"
+      });
+      onSuccess();
+      onClose();
     } else {
-        toast({
-            title: "Fehler beim Import",
-            description: result.message || "Unbekannter Fehler",
-            variant: "destructive"
-        });
+      toast({
+        title: "Fehler beim Import",
+        description: result.message || "Unbekannter Fehler",
+        variant: "destructive"
+      });
     }
     setIsSubmitting(false);
   };
@@ -369,135 +369,144 @@ export function WasserZaehlerImportModal({
 
           {step === "mapping" && (
             <div className="space-y-6">
-               <div className="grid gap-4 py-4">
-                 <div className="grid grid-cols-2 gap-4 items-center">
-                    <label className="text-sm font-medium">Zähler Custom ID Spalte:</label>
-                    <Select value={mapping.custom_id} onValueChange={(v) => handleMappingChange('custom_id', v)}>
-                        <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
-                        <SelectContent>
-                            {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4 items-center">
-                    <label className="text-sm font-medium">Ablesedatum Spalte:</label>
-                    <Select value={mapping.ablese_datum} onValueChange={(v) => handleMappingChange('ablese_datum', v)}>
-                        <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
-                        <SelectContent>
-                            {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4 items-center">
-                    <label className="text-sm font-medium">Zählerstand Spalte:</label>
-                    <Select value={mapping.zaehlerstand} onValueChange={(v) => handleMappingChange('zaehlerstand', v)}>
-                        <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
-                        <SelectContent>
-                            {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                 </div>
-               </div>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-muted-foreground" />
+                    Zähler Custom ID Spalte:
+                  </label>
+                  <Select value={mapping.custom_id} onValueChange={(v) => handleMappingChange('custom_id', v)}>
+                    <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
+                    <SelectContent>
+                      {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    Ablesedatum Spalte:
+                  </label>
+                  <Select value={mapping.ablese_datum} onValueChange={(v) => handleMappingChange('ablese_datum', v)}>
+                    <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
+                    <SelectContent>
+                      {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Gauge className="h-4 w-4 text-muted-foreground" />
+                    Zählerstand Spalte:
+                  </label>
+                  <Select value={mapping.zaehlerstand} onValueChange={(v) => handleMappingChange('zaehlerstand', v)}>
+                    <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
+                    <SelectContent>
+                      {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           )}
 
           {step === "preview" && (
             <div className="space-y-6">
-               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <StatCard
-                    title="Bereit"
-                    value={validCount}
-                    icon={<Check className="h-4 w-4 text-green-500" />}
-                  />
-                  <StatCard
-                    title="Duplikate"
-                    value={duplicateCount}
-                    icon={<FileSpreadsheet className="h-4 w-4 text-yellow-500" />}
-                    description="Ignoriert"
-                  />
-                  <StatCard
-                    title="Fehlende Zähler"
-                    value={missingCount}
-                    icon={<X className="h-4 w-4 text-red-500" />}
-                  />
-                  <StatCard
-                    title="Ungültig"
-                    value={errorCount}
-                    icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}
-                  />
-               </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <StatCard
+                  title="Bereit"
+                  value={validCount}
+                  icon={<Check className="h-4 w-4 text-green-500" />}
+                />
+                <StatCard
+                  title="Duplikate"
+                  value={duplicateCount}
+                  icon={<FileSpreadsheet className="h-4 w-4 text-yellow-500" />}
+                  description="Ignoriert"
+                />
+                <StatCard
+                  title="Fehlende Zähler"
+                  value={missingCount}
+                  icon={<X className="h-4 w-4 text-red-500" />}
+                />
+                <StatCard
+                  title="Ungültig"
+                  value={errorCount}
+                  icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}
+                />
+              </div>
 
-               {missingCount > 0 && (
-                   <Alert variant="destructive">
-                       <AlertTriangle className="h-4 w-4" />
-                       <AlertTitle>Achtung</AlertTitle>
-                       <AlertDescription>
-                           {missingCount} Datensätze enthalten Zähler-IDs, die im System nicht gefunden wurden. Diese werden beim Import übersprungen.
-                       </AlertDescription>
-                   </Alert>
-               )}
+              {missingCount > 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Achtung</AlertTitle>
+                  <AlertDescription>
+                    {missingCount} Datensätze enthalten Zähler-IDs, die im System nicht gefunden wurden. Diese werden beim Import übersprungen.
+                  </AlertDescription>
+                </Alert>
+              )}
 
-               <div className="border rounded-2xl overflow-hidden">
-                   <Table>
-                       <TableHeader>
-                           <TableRow>
-                               <TableHead>Status</TableHead>
-                               <TableHead>Zähler ID</TableHead>
-                               <TableHead>Datum</TableHead>
-                               <TableHead>Stand</TableHead>
-                               <TableHead>Verbrauch (ber.)</TableHead>
-                               <TableHead>Info</TableHead>
-                           </TableRow>
-                       </TableHeader>
-                       <TableBody>
-                           {processedData.slice(0, 100).map((row, i) => (
-                               <TableRow key={i} className={row.status !== "valid" ? "opacity-70 bg-gray-50 dark:bg-gray-900" : ""}>
-                                   <TableCell>
-                                       {row.status === "valid" && <Check className="h-4 w-4 text-green-500" />}
-                                       {row.status === "duplicate" && <FileSpreadsheet className="h-4 w-4 text-yellow-500" />}
-                                       {row.status === "missing_meter" && <X className="h-4 w-4 text-red-500" />}
-                                       {(row.status === "invalid_date" || row.status === "invalid_value") && <AlertTriangle className="h-4 w-4 text-orange-500" />}
-                                   </TableCell>
-                                   <TableCell>{row.custom_id}</TableCell>
-                                   <TableCell>{row.ablese_datum ? isoToGermanDate(row.ablese_datum) : "-"}</TableCell>
-                                   <TableCell>{row.zaehlerstand}</TableCell>
-                                   <TableCell>{row.verbrauch}</TableCell>
-                                   <TableCell className="text-xs text-muted-foreground">{row.message}</TableCell>
-                               </TableRow>
-                           ))}
-                           {processedData.length > 100 && (
-                               <TableRow>
-                                   <TableCell colSpan={6} className="text-center text-muted-foreground">
-                                       ... {processedData.length - 100} weitere Zeilen
-                                   </TableCell>
-                               </TableRow>
-                           )}
-                       </TableBody>
-                   </Table>
-               </div>
+              <div className="border rounded-2xl overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Zähler ID</TableHead>
+                      <TableHead>Datum</TableHead>
+                      <TableHead>Stand</TableHead>
+                      <TableHead>Verbrauch (ber.)</TableHead>
+                      <TableHead>Info</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {processedData.slice(0, 100).map((row, i) => (
+                      <TableRow key={i} className={row.status !== "valid" ? "opacity-70 bg-gray-50 dark:bg-gray-900" : ""}>
+                        <TableCell>
+                          {row.status === "valid" && <Check className="h-4 w-4 text-green-500" />}
+                          {row.status === "duplicate" && <FileSpreadsheet className="h-4 w-4 text-yellow-500" />}
+                          {row.status === "missing_meter" && <X className="h-4 w-4 text-red-500" />}
+                          {(row.status === "invalid_date" || row.status === "invalid_value") && <AlertTriangle className="h-4 w-4 text-orange-500" />}
+                        </TableCell>
+                        <TableCell>{row.custom_id}</TableCell>
+                        <TableCell>{row.ablese_datum ? isoToGermanDate(row.ablese_datum) : "-"}</TableCell>
+                        <TableCell>{row.zaehlerstand}</TableCell>
+                        <TableCell>{row.verbrauch}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{row.message}</TableCell>
+                      </TableRow>
+                    ))}
+                    {processedData.length > 100 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          ... {processedData.length - 100} weitere Zeilen
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-            {step === "upload" && (
-                <Button variant="outline" onClick={onClose}>Abbrechen</Button>
-            )}
-            {step === "mapping" && (
-                <>
-                    <Button variant="outline" onClick={() => setStep("upload")}>Zurück</Button>
-                    <Button onClick={validateAndProcessData}>Vorschau anzeigen</Button>
-                </>
-            )}
-            {step === "preview" && (
-                <>
-                    <Button variant="outline" onClick={() => setStep("mapping")}>Zurück</Button>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || validCount === 0}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {validCount} Datensätze importieren
-                    </Button>
-                </>
-            )}
+          {step === "upload" && (
+            <Button variant="outline" onClick={onClose}>Abbrechen</Button>
+          )}
+          {step === "mapping" && (
+            <>
+              <Button variant="outline" onClick={() => setStep("upload")}>Zurück</Button>
+              <Button onClick={validateAndProcessData}>Vorschau anzeigen</Button>
+            </>
+          )}
+          {step === "preview" && (
+            <>
+              <Button variant="outline" onClick={() => setStep("mapping")}>Zurück</Button>
+              <Button onClick={handleSubmit} disabled={isSubmitting || validCount === 0}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {validCount} Datensätze importieren
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
