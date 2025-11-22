@@ -1,12 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { 
-  Upload, 
-  FolderPlus, 
-  Search, 
-  Star, 
-  Clock, 
+import {
+  Upload,
+  FolderPlus,
+  Star,
+  Clock,
   Archive,
   Trash2,
   Download,
@@ -21,8 +20,8 @@ import {
 } from "lucide-react"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { 
+import { SearchInput } from "@/components/ui/search-input"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -79,16 +78,16 @@ export function CloudStorageQuickActions({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Search input and sort button on the left */}
         <div className="flex flex-wrap gap-2">
-          <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Dateien und Ordner durchsuchen..."
-              value={searchQuery}
-              onChange={(e) => onSearch(e.target.value)}
-              className="pl-10 rounded-full"
-            />
-          </div>
-          
+          <SearchInput
+            placeholder="Dateien und Ordner durchsuchen..."
+            value={searchQuery}
+            onChange={(e) => onSearch(e.target.value)}
+            onClear={() => onSearch('')}
+            className="rounded-full"
+            wrapperClassName="w-full sm:w-auto sm:min-w-[300px]"
+            mode="table"
+          />
+
           {/* Sort dropdown next to search */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -219,7 +218,7 @@ export function CloudStorageQuickActions({
               {selectedCount} ausgewählt
             </Badge>
           </div>
-          
+
           <div className="flex items-center gap-2">
             {onBulkDownload && (
               <Button variant="outline" size="sm" onClick={onBulkDownload} className="h-8 gap-2">
@@ -227,20 +226,20 @@ export function CloudStorageQuickActions({
                 Herunterladen
               </Button>
             )}
-            
+
             {onBulkArchive && (
               <Button variant="outline" size="sm" onClick={onBulkArchive} className="h-8 gap-2">
                 <Archive className="h-4 w-4" />
                 Archivieren
               </Button>
             )}
-            
+
             {onBulkDelete && (
               <>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setIsDeleteDialogOpen(true)} 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsDeleteDialogOpen(true)}
                   className="h-8 gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
