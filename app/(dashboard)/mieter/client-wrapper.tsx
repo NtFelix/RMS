@@ -9,7 +9,7 @@ import { StatCard } from "@/components/stat-card";
 import { TenantTable } from "@/components/tenant-table";
 import { TenantBulkActionBar } from "@/components/tenant-bulk-action-bar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { deleteTenantAction } from "@/app/mieter-actions";
 import { toast } from "@/hooks/use-toast";
@@ -277,15 +277,14 @@ export default function MieterClientView({
                   </Button>
                 ))}
               </div>
-              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Mieter suchen..."
-                  className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              <SearchInput
+                placeholder="Mieter suchen..."
+                className="rounded-full"
+                mode="table"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
+              />
             </div>
             <TenantBulkActionBar
               selectedTenants={selectedTenants}

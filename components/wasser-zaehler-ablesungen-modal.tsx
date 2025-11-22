@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { 
@@ -24,7 +24,6 @@ import {
   Gauge,
   Activity,
   Search,
-  X,
   Loader2,
   Calendar as CalendarIcon,
   Home,
@@ -276,24 +275,16 @@ export function WasserZaehlerAblesenModal({
 
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 py-4">
             {/* Search and Import */}
-            <div className="flex gap-2 items-center">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Wohnung, Mieter oder Zähler-ID suchen..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-9"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+            {zaehlerList.length > 0 && (
+              <div className="flex gap-2 items-center">
+                <SearchInput
+                  placeholder="Wohnung, Mieter oder Zähler-ID suchen..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onClear={() => setSearchQuery("")}
+                  mode="modal"
+                  className="flex-1"
+                />
                 <Button
                   variant="outline"
                   className="gap-2 flex-shrink-0"
@@ -302,7 +293,8 @@ export function WasserZaehlerAblesenModal({
                   <Upload className="h-4 w-4" />
                   Importieren
                 </Button>
-            </div>
+              </div>
+            )}
 
             {isLoading ? (
               <div className="flex flex-col justify-center items-center h-40 gap-4">

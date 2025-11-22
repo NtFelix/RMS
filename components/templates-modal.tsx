@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
+import { SearchInput } from '@/components/ui/search-input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,7 +31,6 @@ import { Template, TemplatePayload } from '@/types/template';
 import { 
   FileText, 
   Plus, 
-  Search, 
   Filter,
   AlertCircle,
   Loader2
@@ -485,14 +484,14 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
               {/* Single Row: Search, Filter, and Create Button */}
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* Search Bar - Takes most space */}
-                <div className="relative flex-1 min-w-0">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" aria-hidden="true" />
-                  <Input
+                <div className="flex-1 min-w-0">
+                  <SearchInput
                     data-search-input
                     placeholder="Vorlagen durchsuchen..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-full focus-visible:scale-100 focus:ring-2 focus:ring-offset-1 focus:ring-offset-background"
+                    onClear={() => setSearchQuery("")}
+                    mode="modal"
                     aria-label={ARIA_LABELS.templatesSearch}
                     aria-describedby={`${modalId}-search-help`}
                   />

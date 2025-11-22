@@ -2,8 +2,8 @@
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { Input } from "@/components/ui/input";
-import { PlusCircle, Search } from "lucide-react";
+import { SearchInput } from "@/components/ui/search-input";
+import { PlusCircle } from "lucide-react";
 import { TaskBoard } from "@/components/task-board";
 import { TaskBoardTask } from "@/types/Task";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -72,15 +72,14 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
         <CardContent className="flex flex-col gap-6">
           <div className="flex flex-col gap-6 mt-6">
             <div className="flex justify-center">
-              <div className="relative w-full max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Aufgabe suchen..."
-                  className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              <SearchInput
+                placeholder="Aufgabe suchen..."
+                className="rounded-full"
+                wrapperClassName="w-full max-w-md"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
+              />
             </div>
             <TaskBoard 
               searchQuery={searchQuery} 
