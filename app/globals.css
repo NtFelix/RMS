@@ -626,4 +626,9 @@
     border-color: hsl(220, 25%, 20%);
     box-shadow: 0 1px 2px hsl(220, 30%, 15%, 0.5);
   }
+
+  /* Table row hover effect - matches TenantTable */
+  .hover-desktop {
+    @apply transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998];
+  }
 }
