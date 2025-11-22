@@ -479,7 +479,7 @@ export function WasserZaehlerImportModal({
                 </Alert>
               )}
 
-              <div className="border rounded-2xl overflow-hidden">
+              <div className="border border-gray-200 dark:border-[#3C4251] rounded-2xl overflow-hidden bg-white dark:bg-[#22272e] shadow-sm">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
@@ -495,7 +495,7 @@ export function WasserZaehlerImportModal({
                     {processedData.slice(0, 100).map((row, i) => (
                       <TableRow
                         key={i}
-                        className={`transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50 ${row.status !== "valid" ? "opacity-70 bg-gray-50 dark:bg-gray-900" : ""
+                        className={`transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50 ${row.status !== "valid" ? "opacity-70 bg-gray-50 dark:bg-[#1c2128]" : ""
                           }`}
                       >
                         <TableCell>
