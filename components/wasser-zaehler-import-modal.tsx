@@ -130,8 +130,8 @@ export function WasserZaehlerImportModal({
 
     // Handle Excel serial dates
     if (typeof value === 'number') {
-      // Excel base date is usually Dec 30 1899
-      const date = new Date((value - (25567 + 2)) * 86400 * 1000);
+      // Excel's epoch starts on 1899-12-30. 25569 is the serial for 1970-01-01, accounting for the 1900 leap year bug.
+      const date = new Date((value - 25569) * 86400 * 1000);
       return date.toISOString().split('T')[0];
     }
 
