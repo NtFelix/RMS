@@ -3,7 +3,9 @@
 import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CustomCombobox } from "@/components/ui/custom-combobox";
+
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
@@ -119,6 +121,8 @@ export function WasserZaehlerImportModal({
   const handleMappingChange = (field: keyof ColumnMapping, column: string) => {
     setMapping((prev) => ({ ...prev, [field]: column }));
   };
+
+  const columnOptions = columns.map(col => ({ value: col, label: col }));
 
   const parseDateString = (value: string | number | Date): string | null => {
     if (!value) return null;
@@ -375,36 +379,42 @@ export function WasserZaehlerImportModal({
                     <Hash className="h-4 w-4 text-muted-foreground" />
                     Zähler Custom ID Spalte:
                   </label>
-                  <Select value={mapping.custom_id} onValueChange={(v) => handleMappingChange('custom_id', v)}>
-                    <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
-                    <SelectContent>
-                      {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <CustomCombobox
+                    options={columnOptions}
+                    value={mapping.custom_id}
+                    onChange={(v) => handleMappingChange('custom_id', v || "")}
+                    placeholder="Spalte wählen"
+                    searchPlaceholder="Spalte suchen..."
+                    width="w-full"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4 items-center">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     Ablesedatum Spalte:
                   </label>
-                  <Select value={mapping.ablese_datum} onValueChange={(v) => handleMappingChange('ablese_datum', v)}>
-                    <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
-                    <SelectContent>
-                      {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <CustomCombobox
+                    options={columnOptions}
+                    value={mapping.ablese_datum}
+                    onChange={(v) => handleMappingChange('ablese_datum', v || "")}
+                    placeholder="Spalte wählen"
+                    searchPlaceholder="Spalte suchen..."
+                    width="w-full"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4 items-center">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <Gauge className="h-4 w-4 text-muted-foreground" />
                     Zählerstand Spalte:
                   </label>
-                  <Select value={mapping.zaehlerstand} onValueChange={(v) => handleMappingChange('zaehlerstand', v)}>
-                    <SelectTrigger><SelectValue placeholder="Spalte wählen" /></SelectTrigger>
-                    <SelectContent>
-                      {columns.map(col => <SelectItem key={col} value={col}>{col}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <CustomCombobox
+                    options={columnOptions}
+                    value={mapping.zaehlerstand}
+                    onChange={(v) => handleMappingChange('zaehlerstand', v || "")}
+                    placeholder="Spalte wählen"
+                    searchPlaceholder="Spalte suchen..."
+                    width="w-full"
+                  />
                 </div>
               </div>
             </div>
