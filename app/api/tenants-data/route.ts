@@ -4,6 +4,7 @@ export const runtime = 'edge'
 import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
+import { PAYMENT_KEYWORDS } from "@/utils/constants"
 
 interface Tenant {
   id: string
@@ -201,11 +202,11 @@ export async function GET(request: Request) {
       )
 
       const actualRent = currentMonthFinances
-        .filter((f: Finance) => f.name?.toLowerCase().includes('mietzahlung'))
+        .filter((f: Finance) => f.name?.toLowerCase().includes(PAYMENT_KEYWORDS.RENT))
         .reduce((sum: number, f: Finance) => sum + (f.betrag || 0), 0)
 
       const actualNebenkosten = currentMonthFinances
-        .filter((f: Finance) => f.name?.toLowerCase().includes('nebenkosten'))
+        .filter((f: Finance) => f.name?.toLowerCase().includes(PAYMENT_KEYWORDS.NEBENKOSTEN))
         .reduce((sum: number, f: Finance) => sum + (f.betrag || 0), 0)
 
       // Determine paid status (if any rent or nebenkosten paid this month)

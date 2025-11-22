@@ -1,3 +1,5 @@
+import { PAYMENT_KEYWORDS } from "@/utils/constants"
+
 export const getLatestNebenkostenAmount = (entries?: any[] | null): number => {
     if (!Array.isArray(entries)) return 0
 
@@ -40,7 +42,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
         const nameLower = tenant.name.toLowerCase()
 
         // If it follows the system pattern, strictly check the name
-        if (noteLower.includes('mietzahlung von') || noteLower.includes('nebenkosten-vorauszahlung von')) {
+        if (noteLower.includes(`${PAYMENT_KEYWORDS.RENT} von`) || noteLower.includes(`${PAYMENT_KEYWORDS.NEBENKOSTEN}-vorauszahlung von`)) {
             return noteLower.includes(nameLower)
         }
 
@@ -106,7 +108,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
                 .filter((f: any) =>
                     f.datum >= monthStart &&
                     f.datum <= monthEnd &&
-                    f.name?.toLowerCase().includes('mietzahlung')
+                    f.name?.toLowerCase().includes(PAYMENT_KEYWORDS.RENT)
                 )
                 .reduce((sum: number, f: any) => sum + (Number(f.betrag) || 0), 0)
 
@@ -130,7 +132,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
                     .filter((f: any) =>
                         f.datum >= monthStart &&
                         f.datum <= monthEnd &&
-                        f.name?.toLowerCase().includes('nebenkosten')
+                        f.name?.toLowerCase().includes(PAYMENT_KEYWORDS.NEBENKOSTEN)
                     )
                     .reduce((sum: number, f: any) => sum + (Number(f.betrag) || 0), 0)
 

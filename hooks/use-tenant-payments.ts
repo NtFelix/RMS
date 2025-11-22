@@ -3,6 +3,9 @@ import { createClient } from '@/utils/supabase/client'
 import { toast } from '@/hooks/use-toast'
 import { TenantBentoItem } from '@/types/tenant-payment'
 import { getLatestNebenkostenAmount } from '@/utils/tenant-payment-calculations'
+import { PAYMENT_KEYWORDS } from '@/utils/constants'
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export function useTenantPayments() {
     const [data, setData] = useState<TenantBentoItem[]>([])
@@ -97,7 +100,7 @@ export function useTenantPayments() {
                     .eq('ist_einnahmen', true)
                     .gte('datum', start)
                     .lte('datum', end)
-                    .or('name.ilike.Mietzahlung%,name.ilike.Nebenkosten%')
+                    .or(`name.ilike.${PAYMENT_KEYWORDS.RENT}%,name.ilike.${PAYMENT_KEYWORDS.NEBENKOSTEN}%`)
 
                 if (error) throw error
 
@@ -111,22 +114,22 @@ export function useTenantPayments() {
                 const entries = [
                     {
                         wohnung_id: tenant.apartmentId,
-                        name: `Mietzahlung ${tenant.apartment}`,
+                        name: `${capitalize(PAYMENT_KEYWORDS.RENT)} ${tenant.apartment}`,
                         datum: new Date().toISOString().split('T')[0],
                         betrag: tenant.mieteRaw,
                         ist_einnahmen: true,
-                        notiz: `Mietzahlung von ${tenant.tenant}`
+                        notiz: `${capitalize(PAYMENT_KEYWORDS.RENT)} von ${tenant.tenant}`
                     }
                 ]
 
                 if (tenant.nebenkostenRaw && tenant.nebenkostenRaw > 0) {
                     entries.push({
                         wohnung_id: tenant.apartmentId,
-                        name: `Nebenkosten ${tenant.apartment}`,
+                        name: `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)} ${tenant.apartment}`,
                         datum: new Date().toISOString().split('T')[0],
                         betrag: tenant.nebenkostenRaw,
                         ist_einnahmen: true,
-                        notiz: `Nebenkosten-Vorauszahlung von ${tenant.tenant}`
+                        notiz: `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)}-Vorauszahlung von ${tenant.tenant}`
                     })
                 }
 

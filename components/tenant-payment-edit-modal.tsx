@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertTriangle } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { toast } from "@/hooks/use-toast"
+import { PAYMENT_KEYWORDS } from "@/utils/constants"
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export default function TenantPaymentEditModal() {
   const {
@@ -114,12 +117,12 @@ export default function TenantPaymentEditModal() {
       // Create rent entry only if amount > 0
       if (rentValue > 0) {
         const rentNote = reasonText
-          ? `Mietzahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
-          : `Mietzahlung von ${tenantPaymentEditInitialData.tenant}`
+          ? `${capitalize(PAYMENT_KEYWORDS.RENT)} von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
+          : `${capitalize(PAYMENT_KEYWORDS.RENT)} von ${tenantPaymentEditInitialData.tenant}`
 
         entries.push({
           wohnung_id: tenantPaymentEditInitialData.apartmentId,
-          name: `Mietzahlung ${tenantPaymentEditInitialData.apartment}`,
+          name: `${capitalize(PAYMENT_KEYWORDS.RENT)} ${tenantPaymentEditInitialData.apartment}`,
           betrag: rentValue,
           datum: today,
           ist_einnahmen: true,
@@ -130,12 +133,12 @@ export default function TenantPaymentEditModal() {
       // Create nebenkosten entry if applicable
       if (nebenkostenValue > 0) {
         const nebenkostenNote = reasonText
-          ? `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
-          : `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant}`
+          ? `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)}-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} (${reasonText})`
+          : `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)}-Vorauszahlung von ${tenantPaymentEditInitialData.tenant}`
 
         entries.push({
           wohnung_id: tenantPaymentEditInitialData.apartmentId,
-          name: `Nebenkosten ${tenantPaymentEditInitialData.apartment}`,
+          name: `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)} ${tenantPaymentEditInitialData.apartment}`,
           betrag: nebenkostenValue,
           datum: today,
           ist_einnahmen: true,
@@ -202,14 +205,14 @@ export default function TenantPaymentEditModal() {
         return {
           wohnung_id: tenantPaymentEditInitialData.apartmentId,
           name: isRent
-            ? `Mietzahlung ${tenantPaymentEditInitialData.apartment}`
-            : `Nebenkosten ${tenantPaymentEditInitialData.apartment}`,
+            ? `${capitalize(PAYMENT_KEYWORDS.RENT)} ${tenantPaymentEditInitialData.apartment}`
+            : `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)} ${tenantPaymentEditInitialData.apartment}`,
           datum: detail.date,
           betrag: detail.amount,
           ist_einnahmen: true,
           notiz: isRent
-            ? `Mietzahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
-            : `Nebenkosten-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
+            ? `${capitalize(PAYMENT_KEYWORDS.RENT)} von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
+            : `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)}-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
         }
       })
 
