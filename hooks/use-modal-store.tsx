@@ -4,6 +4,7 @@ import { WasserzaehlerModalData } from '@/types/optimized-betriebskosten';
 import { Tenant, KautionData } from '@/types/Tenant';
 import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
+import { TenantBentoItem } from '@/types/tenant-payment';
 
 // Overview Modal Types
 interface HausWithWohnungen {
@@ -243,6 +244,31 @@ export interface ModalState {
   closeAufgabeModal: (options?: CloseModalOptions) => void;
   setAufgabeModalDirty: (isDirty: boolean) => void;
 
+  // Tenant Payment Edit Modal State
+  isTenantPaymentEditModalOpen: boolean;
+  tenantPaymentEditInitialData?: {
+    id: string;
+    tenant: string;
+    apartment: string;
+    apartmentId: string;
+    mieteRaw: number;
+    nebenkostenRaw?: number;
+    einzug?: string | null;
+  };
+  tenantPaymentEditModalOnSuccess?: () => void;
+  isTenantPaymentEditModalDirty: boolean;
+  openTenantPaymentEditModal: (initialData: {
+    id: string;
+    tenant: string;
+    apartment: string;
+    apartmentId: string;
+    mieteRaw: number;
+    nebenkostenRaw?: number;
+    einzug?: string | null;
+  }, onSuccess?: () => void) => void;
+  closeTenantPaymentEditModal: (options?: CloseModalOptions) => void;
+  setTenantPaymentEditModalDirty: (isDirty: boolean) => void;
+
   // Betriebskosten Modal State
   isBetriebskostenModalOpen: boolean;
   betriebskostenInitialData?: {
@@ -300,6 +326,17 @@ export interface ModalState {
   setWohnungOverviewError: (error?: string) => void;
   setWohnungOverviewData: (data?: WohnungWithMieter) => void;
   refreshWohnungOverviewData: () => Promise<void>;
+
+  // Tenant Payment Overview Modal State
+  isTenantPaymentOverviewModalOpen: boolean;
+  tenantPaymentOverviewData?: TenantBentoItem[];
+  tenantPaymentOverviewLoading: boolean;
+  tenantPaymentOverviewError?: string;
+  openTenantPaymentOverviewModal: () => void;
+  closeTenantPaymentOverviewModal: (options?: CloseModalOptions) => void;
+  setTenantPaymentOverviewLoading: (loading: boolean) => void;
+  setTenantPaymentOverviewError: (error?: string) => void;
+  setTenantPaymentOverviewData: (data?: TenantBentoItem[]) => void;
 
   // Apartment-Tenant Details Modal State
   isApartmentTenantDetailsModalOpen: boolean;
@@ -469,6 +506,13 @@ const initialAufgabeModalState = {
   isAufgabeModalDirty: false,
 };
 
+const initialTenantPaymentEditModalState = {
+  isTenantPaymentEditModalOpen: false,
+  tenantPaymentEditInitialData: undefined,
+  tenantPaymentEditModalOnSuccess: undefined,
+  isTenantPaymentEditModalDirty: false,
+};
+
 const initialBetriebskostenModalState = {
   isBetriebskostenModalOpen: false,
   betriebskostenInitialData: undefined,
@@ -505,6 +549,13 @@ const initialWohnungOverviewModalState = {
   wohnungOverviewData: undefined,
   wohnungOverviewLoading: false,
   wohnungOverviewError: undefined,
+};
+
+const initialTenantPaymentOverviewModalState = {
+  isTenantPaymentOverviewModalOpen: false,
+  tenantPaymentOverviewData: undefined,
+  tenantPaymentOverviewLoading: false,
+  tenantPaymentOverviewError: undefined,
 };
 
 const initialApartmentTenantDetailsModalState = {
@@ -593,11 +644,13 @@ const createInitialModalState = () => ({
   ...initialFinanceModalState,
   ...initialWohnungModalState,
   ...initialAufgabeModalState,
+  ...initialTenantPaymentEditModalState,
   ...initialBetriebskostenModalState,
   ...initialWasserzaehlerModalState,
   ...initialKautionModalState,
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
+  ...initialTenantPaymentOverviewModalState,
   ...initialApartmentTenantDetailsModalState,
   ...initialUploadModalState,
   ...initialFileRenameModalState,
@@ -625,7 +678,7 @@ const MODAL_ANIMATION_DURATION = 300; // ms
 export const useModalStore = create<ModalState>((set, get) => {
   let confirmationModalTimeoutId: NodeJS.Timeout | null = null;
 
-  
+
 
   const createCloseHandler = (
     isDirtyFlag: DirtyFlagKey,
@@ -652,9 +705,9 @@ export const useModalStore = create<ModalState>((set, get) => {
 
   return {
     ...createInitialModalState(),
-    openTenantModal: (initialData, wohnungen) => set({ 
-      isTenantModalOpen: true, 
-      tenantInitialData: initialData, 
+    openTenantModal: (initialData, wohnungen) => set({
+      isTenantModalOpen: true,
+      tenantInitialData: initialData,
       tenantModalWohnungen: wohnungen || [],
       isTenantModalDirty: false, // Reset dirty state on open
     }),
@@ -713,6 +766,16 @@ export const useModalStore = create<ModalState>((set, get) => {
     closeAufgabeModal: createCloseHandler('isAufgabeModalDirty', initialAufgabeModalState),
     setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
 
+    // Tenant Payment Edit Modal
+    openTenantPaymentEditModal: (initialData, onSuccess) => set({
+      isTenantPaymentEditModalOpen: true,
+      tenantPaymentEditInitialData: initialData,
+      tenantPaymentEditModalOnSuccess: onSuccess,
+      isTenantPaymentEditModalDirty: false
+    }),
+    closeTenantPaymentEditModal: createCloseHandler('isTenantPaymentEditModalDirty', initialTenantPaymentEditModalState),
+    setTenantPaymentEditModalDirty: (isDirty) => set({ isTenantPaymentEditModalDirty: isDirty }),
+
     // Betriebskosten Modal
     openBetriebskostenModal: (initialData: { id?: string; useTemplate?: 'previous' | 'default' } | null, haeuser, onSuccess) => set({
       isBetriebskostenModalOpen: true,
@@ -761,7 +824,7 @@ export const useModalStore = create<ModalState>((set, get) => {
 
     // Haus Overview Modal
     openHausOverviewModal: async (hausId: string) => {
-      set({ 
+      set({
         isHausOverviewModalOpen: true,
         hausOverviewLoading: true,
         hausOverviewError: undefined,
@@ -785,24 +848,24 @@ export const useModalStore = create<ModalState>((set, get) => {
 
         // Race between fetch and timeout
         const data = await Promise.race([fetchPromise, timeoutPromise]);
-        
-        set({ 
+
+        set({
           hausOverviewData: data,
-          hausOverviewLoading: false 
+          hausOverviewLoading: false
         });
       } catch (error) {
-        set({ 
+        set({
           hausOverviewError: error instanceof Error ? error.message : 'An error occurred',
-          hausOverviewLoading: false 
+          hausOverviewLoading: false
         });
       }
     },
     refreshHausOverviewData: async () => {
       const state = get();
       if (!state.hausOverviewData?.id) return;
-      
+
       set({ hausOverviewLoading: true, hausOverviewError: undefined });
-      
+
       try {
         const response = await fetch(`/api/haeuser/${state.hausOverviewData.id}/overview`);
         if (!response.ok) {
@@ -811,9 +874,9 @@ export const useModalStore = create<ModalState>((set, get) => {
         const data = await response.json();
         set({ hausOverviewData: data, hausOverviewLoading: false });
       } catch (error) {
-        set({ 
+        set({
           hausOverviewError: error instanceof Error ? error.message : 'An error occurred',
-          hausOverviewLoading: false 
+          hausOverviewLoading: false
         });
       }
     },
@@ -826,7 +889,7 @@ export const useModalStore = create<ModalState>((set, get) => {
 
     // Wohnung Overview Modal
     openWohnungOverviewModal: async (wohnungId: string) => {
-      set({ 
+      set({
         isWohnungOverviewModalOpen: true,
         wohnungOverviewLoading: true,
         wohnungOverviewError: undefined,
@@ -850,24 +913,24 @@ export const useModalStore = create<ModalState>((set, get) => {
 
         // Race between fetch and timeout
         const data = await Promise.race([fetchPromise, timeoutPromise]);
-        
-        set({ 
+
+        set({
           wohnungOverviewData: data,
-          wohnungOverviewLoading: false 
+          wohnungOverviewLoading: false
         });
       } catch (error) {
-        set({ 
+        set({
           wohnungOverviewError: error instanceof Error ? error.message : 'An error occurred',
-          wohnungOverviewLoading: false 
+          wohnungOverviewLoading: false
         });
       }
     },
     refreshWohnungOverviewData: async () => {
       const state = get();
       if (!state.wohnungOverviewData?.id) return;
-      
+
       set({ wohnungOverviewLoading: true, wohnungOverviewError: undefined });
-      
+
       try {
         const response = await fetch(`/api/wohnungen/${state.wohnungOverviewData.id}/overview`);
         if (!response.ok) {
@@ -876,9 +939,9 @@ export const useModalStore = create<ModalState>((set, get) => {
         const data = await response.json();
         set({ wohnungOverviewData: data, wohnungOverviewLoading: false });
       } catch (error) {
-        set({ 
+        set({
           wohnungOverviewError: error instanceof Error ? error.message : 'An error occurred',
-          wohnungOverviewLoading: false 
+          wohnungOverviewLoading: false
         });
       }
     },
@@ -889,9 +952,25 @@ export const useModalStore = create<ModalState>((set, get) => {
     setWohnungOverviewError: (error?: string) => set({ wohnungOverviewError: error }),
     setWohnungOverviewData: (data?: WohnungWithMieter) => set({ wohnungOverviewData: data }),
 
+    // Tenant Payment Overview Modal
+    openTenantPaymentOverviewModal: () => {
+      set({
+        isTenantPaymentOverviewModalOpen: true,
+        tenantPaymentOverviewLoading: true,
+        tenantPaymentOverviewError: undefined,
+        tenantPaymentOverviewData: undefined
+      });
+    },
+    closeTenantPaymentOverviewModal: (options?: CloseModalOptions) => {
+      set(initialTenantPaymentOverviewModalState);
+    },
+    setTenantPaymentOverviewLoading: (loading: boolean) => set({ tenantPaymentOverviewLoading: loading }),
+    setTenantPaymentOverviewError: (error?: string) => set({ tenantPaymentOverviewError: error }),
+    setTenantPaymentOverviewData: (data?: TenantBentoItem[]) => set({ tenantPaymentOverviewData: data }),
+
     // Apartment-Tenant Details Modal
     openApartmentTenantDetailsModal: async (apartmentId: string, tenantId?: string) => {
-      set({ 
+      set({
         isApartmentTenantDetailsModalOpen: true,
         apartmentTenantDetailsLoading: true,
         apartmentTenantDetailsError: undefined,
@@ -906,10 +985,10 @@ export const useModalStore = create<ModalState>((set, get) => {
       });
 
       try {
-        const url = tenantId 
+        const url = tenantId
           ? `/api/apartments/${apartmentId}/tenant/${tenantId}/details`
           : `/api/apartments/${apartmentId}/details`;
-        
+
         const fetchPromise = fetch(url).then(async (response) => {
           if (!response.ok) {
             throw new Error('Failed to fetch apartment-tenant details');
@@ -919,29 +998,29 @@ export const useModalStore = create<ModalState>((set, get) => {
 
         // Race between fetch and timeout
         const data = await Promise.race([fetchPromise, timeoutPromise]);
-        
-        set({ 
+
+        set({
           apartmentTenantDetailsData: data,
-          apartmentTenantDetailsLoading: false 
+          apartmentTenantDetailsLoading: false
         });
       } catch (error) {
-        set({ 
+        set({
           apartmentTenantDetailsError: error instanceof Error ? error.message : 'An error occurred',
-          apartmentTenantDetailsLoading: false 
+          apartmentTenantDetailsLoading: false
         });
       }
     },
     refreshApartmentTenantDetailsData: async () => {
       const state = get();
       if (!state.apartmentTenantDetailsData?.apartment?.id) return;
-      
+
       set({ apartmentTenantDetailsLoading: true, apartmentTenantDetailsError: undefined });
-      
+
       try {
         const url = state.apartmentTenantDetailsData.tenant
           ? `/api/apartments/${state.apartmentTenantDetailsData.apartment.id}/tenant/${state.apartmentTenantDetailsData.tenant.id}/details`
           : `/api/apartments/${state.apartmentTenantDetailsData.apartment.id}/details`;
-        
+
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error('Failed to refresh apartment-tenant details');
@@ -949,9 +1028,9 @@ export const useModalStore = create<ModalState>((set, get) => {
         const data = await response.json();
         set({ apartmentTenantDetailsData: data, apartmentTenantDetailsLoading: false });
       } catch (error) {
-        set({ 
+        set({
           apartmentTenantDetailsError: error instanceof Error ? error.message : 'An error occurred',
-          apartmentTenantDetailsLoading: false 
+          apartmentTenantDetailsLoading: false
         });
       }
     },
@@ -1024,7 +1103,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       confirmationModalTimeoutId = setTimeout(() => {
         set({ confirmationModalConfig: null });
         confirmationModalTimeoutId = null;
-      }, MODAL_ANIMATION_DURATION); 
+      }, MODAL_ANIMATION_DURATION);
     },
 
     // Folder Delete Confirmation Modal
@@ -1069,7 +1148,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       isTemplateEditorModalOpen: true,
       templateEditorData: {
         template,
-        onSave: onSave || (() => {}),
+        onSave: onSave || (() => { }),
       },
       isTemplateEditorModalDirty: false,
     }),

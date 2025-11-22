@@ -42,6 +42,8 @@ import { TenantMailTemplatesModal } from "@/components/tenant-mail-templates-mod
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
 import { AIAssistantModal } from "@/components/ai-assistant-modal"; // Added
+import TenantPaymentEditModal from "@/components/tenant-payment-edit-modal"; // Added
+import TenantPaymentOverviewModal from "@/components/tenant-payment-overview-modal"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -256,6 +258,10 @@ export default function DashboardRootLayout({
       />
       {/* AI Assistant Modal - Global AI assistant modal */}
       <AIAssistantModal />
+      {/* Tenant Payment Edit Modal */}
+      <TenantPaymentEditModal />
+      {/* Tenant Payment Overview Modal */}
+      <TenantPaymentOverviewModal />
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
         <ConfirmationDialog
