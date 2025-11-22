@@ -495,7 +495,7 @@ export function WasserZaehlerImportModal({
                     {processedData.slice(0, 100).map((row, i) => (
                       <TableRow
                         key={i}
-                        className={`transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50 ${row.status !== "valid" ? "opacity-70 bg-gray-50 dark:bg-[#1c2128]" : ""
+                        className={`hover-desktop hover:bg-gray-50 dark:hover:bg-gray-800/50 ${row.status !== "valid" ? "opacity-70 bg-gray-50 dark:bg-[#1c2128]" : ""
                           }`}
                       >
                         <TableCell>
