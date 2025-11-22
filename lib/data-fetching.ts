@@ -89,7 +89,7 @@ export type NebenkostenChartDatum = {
 
 // Added as per subtask
 export interface Rechnung {
-  id:string;
+  id: string;
   user_id: string;
   nebenkosten_id: string | null;
   mieter_id: string | null;
@@ -124,7 +124,8 @@ export type WasserAblesung = {
   zaehlerstand: number | null;
   verbrauch: number;
   user_id: string | null;
-  wasser_zaehler_id: string | null;
+  wasser_zaehler_id: string; // Required - matches database NOT NULL constraint
+  kommentar?: string | null;
 };
 
 // Legacy type removed - now using Wasser_Zaehler + Wasser_Ablesungen tables
@@ -155,12 +156,12 @@ export async function fetchHaeuser() {
   const { data, error } = await supabase
     .from("Haeuser")
     .select('*, groesse');
-    
+
   if (error) {
     console.error("Error fetching Haeuser:", error);
     return [];
   }
-  
+
   return data as Haus[];
 }
 
@@ -169,12 +170,12 @@ export async function fetchWohnungen() {
   const { data, error } = await supabase
     .from("Wohnungen")
     .select('*');
-    
+
   if (error) {
     console.error("Error fetching Wohnungen:", error);
     return [];
   }
-  
+
   return data as Wohnung[];
 }
 
@@ -183,12 +184,12 @@ export async function fetchMieter() {
   const { data, error } = await supabase
     .from("Mieter")
     .select('*, Wohnungen(name, groesse, miete)');
-    
+
   if (error) {
     console.error("Error fetching Mieter:", error);
     return [];
   }
-  
+
   return data as Mieter[];
 }
 
@@ -198,12 +199,12 @@ export async function fetchAufgaben() {
     .from("Aufgaben")
     .select('*')
     .eq('ist_erledigt', false);
-    
+
   if (error) {
     console.error("Error fetching Aufgaben:", error);
     return [];
   }
-  
+
   return data as Aufgabe[];
 }
 
@@ -212,19 +213,19 @@ export async function fetchFinanzen() {
   const { data, error } = await supabase
     .from("Finanzen")
     .select('*');
-    
+
   if (error) {
     console.error("Error fetching Finanzen:", error);
     return [];
   }
-  
+
   return data as Finanzen[];
 }
 
 export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   const supabase = createSupabaseServerClient();
   let query = supabase.from("Nebenkosten").select('*');
-  
+
   // If year is provided, filter by date range that overlaps with that year
   if (year) {
     const yearStart = `${year}-01-01`;
@@ -324,19 +325,19 @@ export async function fetchFinanzenByMonth() {
     .from("Finanzen")
     .select('*')
     .order('datum', { ascending: true });
-    
+
   if (error) {
     console.error("Error fetching Finanzen by month:", error);
     return [];
   }
-  
+
   // Group by month
   const monthlyData = (data as Finanzen[]).reduce((acc, item) => {
     if (!item.datum) return acc;
-    
+
     const date = new Date(item.datum);
     const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
-    
+
     if (!acc[monthYear]) {
       acc[monthYear] = {
         month: new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(date),
@@ -344,16 +345,16 @@ export async function fetchFinanzenByMonth() {
         ausgaben: 0
       };
     }
-    
+
     if (item.ist_einnahmen) {
       acc[monthYear].einnahmen += Number(item.betrag);
     } else {
       acc[monthYear].ausgaben += Number(item.betrag);
     }
-    
+
     return acc;
   }, {} as Record<string, { month: string; einnahmen: number; ausgaben: number }>);
-  
+
   // Convert to array and sort by month
   return Object.values(monthlyData).slice(-12);
 }
@@ -361,30 +362,30 @@ export async function fetchFinanzenByMonth() {
 export async function getMietstatistik() {
   const wohnungen = await fetchWohnungen();
   const mieter = await fetchMieter();
-  
+
   // Calculate occupancy data by month (last 12 months)
   const now = new Date();
   const monthsData = [];
-  
+
   for (let i = 11; i >= 0; i--) {
     const date = new Date(now);
     date.setMonth(date.getMonth() - i);
-    
+
     const month = new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(date);
     const vermietet = mieter.filter(m => {
       const einzug = m.einzug ? new Date(m.einzug) : null;
       const auszug = m.auszug ? new Date(m.auszug) : null;
-      
+
       return einzug && einzug <= date && (!auszug || auszug >= date);
     }).length;
-    
+
     monthsData.push({
       month,
       vermietet,
       frei: wohnungen.length - vermietet
     });
   }
-  
+
   return monthsData;
 }
 
@@ -393,10 +394,10 @@ export async function getDashboardSummary() {
   const wohnungen = await fetchWohnungen();
   const mieter = await fetchMieter();
   const aufgaben = await fetchAufgaben();
-  
+
   // Calculate monthly income
   const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
-  
+
   // Calculate yearly expenses from Nebenkosten - fetch only last year's data
   const currentYear = new Date().getFullYear();
   const lastYear = (currentYear - 1).toString();
@@ -467,9 +468,9 @@ export async function fetchUserProfile(): Promise<Profile | null> {
     // If profile row doesn't exist (PGRST116) or other error, return base user info with null Stripe fields
     // This ensures the function always returns a consistently shaped object or null.
     if (profileError.code === 'PGRST116') {
-        // Profile not found in 'profiles' table - this is expected for new users
+      // Profile not found in 'profiles' table - this is expected for new users
     } else {
-        console.error(`Unhandled error fetching profile data for user ${user.id}:`, profileError);
+      console.error(`Unhandled error fetching profile data for user ${user.id}:`, profileError);
     }
     return baseUserProfile;
   }
@@ -581,7 +582,7 @@ export async function fetchWasserzaehlerByHausAndDateRange(
         console.error(`Error fetching Wasser_Zaehler for Haus ${hausId}:`, metersError);
       } else if (waterMeters && waterMeters.length > 0) {
         const meterIds = waterMeters.map(m => m.id);
-        
+
         // Get readings for these meters in the date range
         const { data: readings, error: readingsError } = await supabase
           .from('Wasser_Ablesungen')
@@ -597,7 +598,7 @@ export async function fetchWasserzaehlerByHausAndDateRange(
           existingReadings = readings.map(reading => {
             const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
             const mieter = relevantMieter.find(m => m.wohnung_id === meter?.wohnung_id);
-            
+
             return {
               id: reading.id,
               nebenkosten_id: '', // Not applicable in new structure
@@ -612,9 +613,9 @@ export async function fetchWasserzaehlerByHausAndDateRange(
       }
     }
 
-    return { 
+    return {
       mieterList: relevantMieter,
-      existingReadings 
+      existingReadings
     };
 
   } catch (error) {
@@ -658,9 +659,9 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     //    This maintains backward compatibility with the existing code
     const filteredReadings = existingReadings.filter(reading => reading.nebenkosten_id === nebenkostenId);
 
-    return { 
-      mieterList, 
-      existingReadings: filteredReadings 
+    return {
+      mieterList,
+      existingReadings: filteredReadings
     };
 
   } catch (error) {

@@ -1,11 +1,12 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 
 // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!); // Moved inside POST
 
 export async function POST(req: Request) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
   try {
     const { sessionId } = await req.json();
 

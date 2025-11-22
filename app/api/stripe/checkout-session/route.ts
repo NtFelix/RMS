@@ -2,11 +2,12 @@ export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server'; // Import Supabase client
+import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 
 // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!); // Moved inside POST
 
 export async function POST(req: Request) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
   try {
     const supabase = createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -46,8 +47,8 @@ export async function POST(req: Request) {
 
     // Check for active subscription to the *same* plan
     if (profile && profile.stripe_subscription_id &&
-        (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing') &&
-        profile.stripe_price_id === requestedPriceId) {
+      (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing') &&
+      profile.stripe_price_id === requestedPriceId) {
       console.log(`User is already subscribed to the requested plan: ${requestedPriceId}.`);
       let formattedDate = 'N/A';
       if (profile.stripe_current_period_end) {
@@ -94,10 +95,10 @@ export async function POST(req: Request) {
     };
 
     if (isEligibleForTrial()) {
-        console.log("Applying 14-day trial for a new user.");
-        sessionParams.subscription_data = { trial_period_days: 14 };
+      console.log("Applying 14-day trial for a new user.");
+      sessionParams.subscription_data = { trial_period_days: 14 };
     } else {
-        console.log("Not applying a trial period. User has a subscription history.");
+      console.log("Not applying a trial period. User has a subscription history.");
     }
 
     if (profile && profile.stripe_customer_id) {
@@ -115,8 +116,8 @@ export async function POST(req: Request) {
     console.error('Error creating Stripe checkout session:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
     return new NextResponse(JSON.stringify({ error: errorMessage }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }

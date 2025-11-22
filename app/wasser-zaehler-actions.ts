@@ -15,7 +15,7 @@ type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
 export async function getWasserZaehlerForHausAction(hausId: string) {
   const supabase = await createClient();
   const startTime = Date.now();
-  
+
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -32,14 +32,14 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
       // Check if error is due to function not existing
       // Using error code for PostgreSQL function not found (42883) or PostgREST not found (PGRST116)
       const isFunctionNotFound = error.code === '42883' || // PostgreSQL function does not exist
-                               error.code === 'PGRST116' || // PostgREST resource not found
-                               error.code === '42P01' || // PostgreSQL undefined_table
-                               (error.message && (
-                                 error.message.includes('does not exist') || 
-                                 error.message.includes('function') || 
-                                 error.message.includes('not found')
-                               ));
-      
+        error.code === 'PGRST116' || // PostgREST resource not found
+        error.code === '42P01' || // PostgreSQL undefined_table
+        (error.message && (
+          error.message.includes('does not exist') ||
+          error.message.includes('function') ||
+          error.message.includes('not found')
+        ));
+
       if (isFunctionNotFound) {
         console.log(`[${new Date().toISOString()}] [WARN] Database function not available, using fallback queries\nContext: ${JSON.stringify({
           functionName: 'get_wasser_zaehler_for_haus',
@@ -69,7 +69,7 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
 
     const executionTime = Date.now() - startTime;
     const result = data[0];
-    
+
     // Log successful RPC call
     console.log(`[${new Date().toISOString()}] [INFO] RPC call completed: get_wasser_zaehler_for_haus\nContext: ${JSON.stringify({
       functionName: 'get_wasser_zaehler_for_haus',
@@ -82,7 +82,7 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
       metersCount: result.water_meters?.length || 0,
       readingsCount: result.water_readings?.length || 0
     }, null, 2)}`);
-    
+
     return {
       success: true,
       data: {
@@ -113,7 +113,7 @@ interface WohnungBasic {
 }
 
 // Reuse existing types from data-fetching with proper type safety
-interface MieterBasic extends Pick<Mieter, 'id' | 'name' | 'wohnung_id' | 'einzug' | 'auszug'> {}
+interface MieterBasic extends Pick<Mieter, 'id' | 'name' | 'wohnung_id' | 'einzug' | 'auszug'> { }
 
 interface FallbackResult {
   success: boolean;
@@ -178,7 +178,7 @@ async function getWasserZaehlerForHausFallback(
     }
 
     const meterIds = waterMeters?.map((m: WasserZaehler) => m.id) || [];
-    
+
     // Execute water readings and tenants queries in parallel
     // Execute parallel queries with proper type casting
     const [
@@ -186,15 +186,15 @@ async function getWasserZaehlerForHausFallback(
       { data: mieter, error: mieterError }
     ] = await Promise.all([
       // Fetch water readings for the meters
-      meterIds.length > 0 
+      meterIds.length > 0
         ? supabase
-            .from("Wasser_Ablesungen")
-            .select("*")
-            .in("wasser_zaehler_id", meterIds)
-            .eq("user_id", userId)
-            .order('ablese_datum', { ascending: false })
+          .from("Wasser_Ablesungen")
+          .select("*")
+          .in("wasser_zaehler_id", meterIds)
+          .eq("user_id", userId)
+          .order('ablese_datum', { ascending: false })
         : { data: null, error: null },
-      
+
       // Fetch tenants for the apartments
       supabase
         .from("Mieter")
@@ -209,12 +209,12 @@ async function getWasserZaehlerForHausFallback(
       console.error("Error fetching water readings:", readingsError);
       throw readingsError;
     }
-    
+
     if (mieterError) {
       console.error("Error fetching tenants:", mieterError);
       throw mieterError;
     }
-    
+
     // Type assertions for the query results
     const typedWaterReadings = (waterReadings || []) as unknown as WasserAblesung[];
     const typedMieter = (mieter || []) as unknown as MieterBasic[];
@@ -263,9 +263,9 @@ async function getWasserZaehlerForHausFallback(
       details: error?.details,
       hint: error?.hint
     });
-    
-    return { 
-      success: false, 
+
+    return {
+      success: false,
       message: `Fallback-Fehler: ${errorMessage}`,
       data: {
         wohnungen: [],
@@ -283,7 +283,7 @@ async function getWasserZaehlerForHausFallback(
  */
 export async function getWasserZaehlerDataAction(wohnungId: string) {
   const supabase = await createClient();
-  
+
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -306,7 +306,7 @@ export async function getWasserZaehlerDataAction(wohnungId: string) {
     }
 
     const result = data[0];
-    
+
     return {
       success: true,
       data: {
@@ -327,7 +327,7 @@ export async function getWasserZaehlerDataAction(wohnungId: string) {
  */
 export async function getWasserAblesenDataAction(meterId: string) {
   const supabase = await createClient();
-  
+
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -349,7 +349,7 @@ export async function getWasserAblesenDataAction(meterId: string) {
     }
 
     const result = data[0];
-    
+
     return {
       success: true,
       data: {
@@ -368,7 +368,7 @@ export async function getWasserAblesenDataAction(meterId: string) {
  */
 export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user_id'>) {
   const supabase = await createClient();
-  
+
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -399,7 +399,7 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
  */
 export async function updateWasserZaehler(id: string, data: Partial<Omit<WasserZaehler, 'id' | 'user_id'>>) {
   const supabase = await createClient();
-  
+
   try {
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -449,7 +449,7 @@ export async function updateWasserZaehler(id: string, data: Partial<Omit<WasserZ
  */
 export async function deleteWasserZaehler(id: string) {
   const supabase = await createClient();
-  
+
   try {
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -497,7 +497,7 @@ export async function deleteWasserZaehler(id: string) {
  */
 export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'user_id'>) {
   const supabase = await createClient();
-  
+
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -528,7 +528,7 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
  */
 export async function updateWasserAblesung(id: string, data: Partial<Omit<WasserAblesung, 'id' | 'user_id'>>) {
   const supabase = await createClient();
-  
+
   try {
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -578,7 +578,7 @@ export async function updateWasserAblesung(id: string, data: Partial<Omit<Wasser
  */
 export async function deleteWasserAblesung(id: string) {
   const supabase = await createClient();
-  
+
   try {
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -617,6 +617,69 @@ export async function deleteWasserAblesung(id: string) {
     return { success: true };
   } catch (error: any) {
     console.error("Unexpected error in deleteWasserAblesung:", error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  }
+}
+
+/**
+ * Bulk create water readings
+ */
+export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 'id' | 'user_id'>[]) {
+  const supabase = await createClient();
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, message: "Benutzer nicht authentifiziert." };
+    }
+
+    if (readings.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    // Extract unique meter IDs from the readings, filtering out any null values
+    const meterIds = [...new Set(readings.map(r => r.wasser_zaehler_id).filter((id): id is string => !!id))];
+
+    // Verify ownership of all meters
+    const { data: meters, error: metersError } = await supabase
+      .from("Wasser_Zaehler")
+      .select('id')
+      .in('id', meterIds)
+      .eq('user_id', user.id);
+
+    if (metersError) {
+      console.error("Error verifying meter ownership:", metersError);
+      return { success: false, message: "Fehler bei der Überprüfung der Zähler." };
+    }
+
+    const ownedMeterIds = new Set(meters?.map(m => m.id) || []);
+
+    // Filter readings for owned meters
+    const validReadings = readings.filter(r => ownedMeterIds.has(r.wasser_zaehler_id))
+      .map(r => ({ ...r, user_id: user.id }));
+
+    if (validReadings.length === 0) {
+      return { success: false, message: "Keine gültigen Zähler gefunden, für die Sie berechtigt sind." };
+    }
+
+    if (validReadings.length !== readings.length) {
+      console.warn("Some readings were skipped due to permission issues.");
+    }
+
+    const { data: result, error } = await supabase
+      .from("Wasser_Ablesungen")
+      .insert(validReadings)
+      .select();
+
+    if (error) {
+      console.error("Error bulk creating water readings:", error);
+      return { success: false, message: error.message };
+    }
+
+    revalidatePath("/betriebskosten");
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error("Unexpected error in bulkCreateWasserAblesungen:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
