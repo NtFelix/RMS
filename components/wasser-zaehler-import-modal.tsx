@@ -9,7 +9,7 @@ import { CustomCombobox } from "@/components/ui/custom-combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calendar, Gauge } from "lucide-react";
+import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calendar, Gauge, Droplets } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
@@ -35,6 +35,7 @@ interface ColumnMapping {
   custom_id: string;
   ablese_datum: string;
   zaehlerstand: string;
+  verbrauch?: string;
 }
 
 interface ProcessedReading {
@@ -59,7 +60,7 @@ export function WasserZaehlerImportModal({
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
-  const [mapping, setMapping] = useState<ColumnMapping>({ custom_id: "", ablese_datum: "", zaehlerstand: "" });
+  const [mapping, setMapping] = useState<ColumnMapping>({ custom_id: "", ablese_datum: "", zaehlerstand: "", verbrauch: "" });
   const [processedData, setProcessedData] = useState<ProcessedReading[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -266,14 +267,22 @@ export function WasserZaehlerImportModal({
       }
 
       // Calculate Consumption
-      const meterReadings = waterReadings.filter(r => r.wasser_zaehler_id === meter.id);
-      const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
-      previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
+      let verbrauch = 0;
 
-      const previousReading = previousReadings[0];
-      const verbrauch = previousReading && previousReading.zaehlerstand !== null
-        ? Math.max(0, zaehlerstand - previousReading.zaehlerstand)
-        : 0;
+      // If verbrauch column is mapped and has value, use it
+      if (mapping.verbrauch && row[mapping.verbrauch]) {
+        verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
+      } else {
+        // Otherwise calculate it
+        const meterReadings = waterReadings.filter(r => r.wasser_zaehler_id === meter.id);
+        const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
+        previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
+
+        const previousReading = previousReadings[0];
+        verbrauch = previousReading && previousReading.zaehlerstand !== null
+          ? Math.max(0, zaehlerstand - previousReading.zaehlerstand)
+          : 0;
+      }
 
       return {
         wasser_zaehler_id: meter.id,
@@ -412,6 +421,20 @@ export function WasserZaehlerImportModal({
                     value={mapping.zaehlerstand}
                     onChange={(v) => handleMappingChange('zaehlerstand', v || "")}
                     placeholder="Spalte wählen"
+                    searchPlaceholder="Spalte suchen..."
+                    width="w-full"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Droplets className="h-4 w-4 text-muted-foreground" />
+                    Verbrauch Spalte (optional):
+                  </label>
+                  <CustomCombobox
+                    options={columnOptions}
+                    value={mapping.verbrauch || null}
+                    onChange={(v) => handleMappingChange('verbrauch', v || "")}
+                    placeholder="Berechnen (Standard)"
                     searchPlaceholder="Spalte suchen..."
                     width="w-full"
                   />
