@@ -56,7 +56,10 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
             details: includeDetails ? [] : undefined,
         }
     }
-    const moveInDate = new Date(tenant.einzug)
+    // Parse date string manually to prevent timezone issues shifting the date
+    const einzugStr = String(tenant.einzug).split('T')[0]
+    const [y, m, d] = einzugStr.split('-').map(Number)
+    const moveInDate = new Date(y, m - 1, d)
     const currentDate = new Date()
 
     let missedRentMonths = 0
