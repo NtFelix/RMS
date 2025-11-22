@@ -32,13 +32,13 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
       // Check if error is due to function not existing
       // Using error code for PostgreSQL function not found (42883) or PostgREST not found (PGRST116)
       const isFunctionNotFound = error.code === '42883' || // PostgreSQL function does not exist
-                               error.code === 'PGRST116' || // PostgREST resource not found
-                               error.code === '42P01' || // PostgreSQL undefined_table
-                               (error.message && (
-                                 error.message.includes('does not exist') ||
-                                 error.message.includes('function') ||
-                                 error.message.includes('not found')
-                               ));
+        error.code === 'PGRST116' || // PostgREST resource not found
+        error.code === '42P01' || // PostgreSQL undefined_table
+        (error.message && (
+          error.message.includes('does not exist') ||
+          error.message.includes('function') ||
+          error.message.includes('not found')
+        ));
 
       if (isFunctionNotFound) {
         console.log(`[${new Date().toISOString()}] [WARN] Database function not available, using fallback queries\nContext: ${JSON.stringify({
@@ -113,7 +113,7 @@ interface WohnungBasic {
 }
 
 // Reuse existing types from data-fetching with proper type safety
-interface MieterBasic extends Pick<Mieter, 'id' | 'name' | 'wohnung_id' | 'einzug' | 'auszug'> {}
+interface MieterBasic extends Pick<Mieter, 'id' | 'name' | 'wohnung_id' | 'einzug' | 'auszug'> { }
 
 interface FallbackResult {
   success: boolean;
@@ -188,11 +188,11 @@ async function getWasserZaehlerForHausFallback(
       // Fetch water readings for the meters
       meterIds.length > 0
         ? supabase
-            .from("Wasser_Ablesungen")
-            .select("*")
-            .in("wasser_zaehler_id", meterIds)
-            .eq("user_id", userId)
-            .order('ablese_datum', { ascending: false })
+          .from("Wasser_Ablesungen")
+          .select("*")
+          .in("wasser_zaehler_id", meterIds)
+          .eq("user_id", userId)
+          .order('ablese_datum', { ascending: false })
         : { data: null, error: null },
 
       // Fetch tenants for the apartments
@@ -634,11 +634,11 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
     }
 
     if (readings.length === 0) {
-       return { success: true, data: [] };
+      return { success: true, data: [] };
     }
 
-    // Extract unique meter IDs from the readings
-    const meterIds = [...new Set(readings.map(r => r.wasser_zaehler_id))];
+    // Extract unique meter IDs from the readings, filtering out any null values
+    const meterIds = [...new Set(readings.map(r => r.wasser_zaehler_id).filter((id): id is string => !!id))];
 
     // Verify ownership of all meters
     const { data: meters, error: metersError } = await supabase
@@ -648,22 +648,22 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
       .eq('user_id', user.id);
 
     if (metersError) {
-       console.error("Error verifying meter ownership:", metersError);
-       return { success: false, message: "Fehler bei der Überprüfung der Zähler." };
+      console.error("Error verifying meter ownership:", metersError);
+      return { success: false, message: "Fehler bei der Überprüfung der Zähler." };
     }
 
     const ownedMeterIds = new Set(meters?.map(m => m.id) || []);
 
     // Filter readings for owned meters
     const validReadings = readings.filter(r => ownedMeterIds.has(r.wasser_zaehler_id))
-                                  .map(r => ({ ...r, user_id: user.id }));
+      .map(r => ({ ...r, user_id: user.id }));
 
     if (validReadings.length === 0) {
-        return { success: false, message: "Keine gültigen Zähler gefunden, für die Sie berechtigt sind." };
+      return { success: false, message: "Keine gültigen Zähler gefunden, für die Sie berechtigt sind." };
     }
 
     if (validReadings.length !== readings.length) {
-       console.warn("Some readings were skipped due to permission issues.");
+      console.warn("Some readings were skipped due to permission issues.");
     }
 
     const { data: result, error } = await supabase

@@ -124,7 +124,7 @@ export type WasserAblesung = {
   zaehlerstand: number | null;
   verbrauch: number;
   user_id: string | null;
-  wasser_zaehler_id: string | null;
+  wasser_zaehler_id: string; // Required - matches database NOT NULL constraint
   kommentar?: string | null;
 };
 
