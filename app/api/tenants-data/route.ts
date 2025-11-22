@@ -202,11 +202,11 @@ export async function GET(request: Request) {
 
       const actualRent = currentMonthFinances
         .filter((f: Finance) => f.name?.toLowerCase().includes('mietzahlung'))
-        .reduce((sum: number, f: Finance) => sum + (Number(f.betrag) || 0), 0)
+        .reduce((sum: number, f: Finance) => sum + (f.betrag || 0), 0)
 
       const actualNebenkosten = currentMonthFinances
         .filter((f: Finance) => f.name?.toLowerCase().includes('nebenkosten'))
-        .reduce((sum: number, f: Finance) => sum + (Number(f.betrag) || 0), 0)
+        .reduce((sum: number, f: Finance) => sum + (f.betrag || 0), 0)
 
       // Determine paid status (if any rent or nebenkosten paid this month)
       const paid = actualRent > 0 || actualNebenkosten > 0
