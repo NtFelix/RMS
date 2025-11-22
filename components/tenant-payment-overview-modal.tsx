@@ -208,7 +208,7 @@ export default function TenantPaymentOverviewModal() {
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Miete:</span>
                         <span className="font-medium">
-                          {tenant.actualRent ? `€${tenant.actualRent.toFixed(2)}` : `€${tenant.mieteRaw.toFixed(2)}`}
+                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.actualRent || tenant.mieteRaw)}
                         </span>
                       </div>
 
@@ -216,7 +216,7 @@ export default function TenantPaymentOverviewModal() {
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-muted-foreground">Nebenkosten:</span>
                           <span className="font-medium">
-                            {tenant.actualNebenkosten ? `€${tenant.actualNebenkosten.toFixed(2)}` : `€${tenant.nebenkostenRaw.toFixed(2)}`}
+                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.actualNebenkosten || tenant.nebenkostenRaw)}
                           </span>
                         </div>
                       )}
@@ -224,7 +224,7 @@ export default function TenantPaymentOverviewModal() {
                       <div className="flex justify-between items-center text-sm font-semibold border-t pt-1">
                         <span>Gesamt:</span>
                         <span>
-                          €{((tenant.actualRent || tenant.mieteRaw) + (tenant.actualNebenkosten || tenant.nebenkostenRaw || 0)).toFixed(2)}
+                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format((tenant.actualRent || tenant.mieteRaw) + (tenant.actualNebenkosten || tenant.nebenkostenRaw || 0))}
                         </span>
                       </div>
                     </div>
