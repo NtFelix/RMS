@@ -39,7 +39,11 @@ export async function GET(
         // Fetch finances for this tenant's apartment
         // We fetch all finances since move-in to be safe
         // We fetch all finances since the start of the move-in month to be safe
-        const moveInDate = tenant.einzug ? new Date(tenant.einzug) : new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
+        if (!tenant.einzug) {
+            logger.error("Cannot calculate missed payments for tenant without move-in date.", undefined, { tenantId });
+            return NextResponse.json({ error: "Tenant move-in date is missing." }, { status: 400 });
+        }
+        const moveInDate = new Date(tenant.einzug);
         // Reset to the first day of the month to ensure we catch payments made on the 1st
         moveInDate.setDate(1);
         const moveInDateStr = moveInDate.toISOString().split('T')[0];
