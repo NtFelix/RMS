@@ -44,6 +44,8 @@ import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
 import { AIAssistantModal } from "@/components/ai-assistant-modal"; // Added
 import TenantPaymentEditModal from "@/components/tenant-payment-edit-modal"; // Added
 import TenantPaymentOverviewModal from "@/components/tenant-payment-overview-modal"; // Added
+import { OnboardingInitializer } from "@/components/onboarding/onboarding-initializer";
+import { TourOverlay } from "@/components/onboarding/tour-overlay";
 
 export default function DashboardRootLayout({
   children,
@@ -138,6 +140,11 @@ export default function DashboardRootLayout({
         {/* <GlobalDragDropProvider> */}
           <CommandMenu />
           <DashboardLayout>{children}</DashboardLayout>
+
+      {/* Onboarding Components */}
+      <OnboardingInitializer />
+      <TourOverlay />
+
       {/* Render modals: They control their own open/close state via the store */}
       {/* TenantEditModal needs serverAction. Other props are from store. */}
       <TenantEditModal serverAction={tenantServerAction} />

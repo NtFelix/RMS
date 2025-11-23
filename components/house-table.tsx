@@ -433,6 +433,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                       onRefresh={fetchHouses}
                     >
                       <TableRow 
+                        id={`house-card-${index}`}
                         ref={(el) => {
                           if (el) {
                             contextMenuRefs.current.set(house.id, el)

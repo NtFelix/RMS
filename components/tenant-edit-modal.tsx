@@ -17,6 +17,7 @@ import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker imp
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
+import { useOnboardingStore } from "@/components/onboarding/store";
 import { cn } from "@/lib/utils"; // Import cn utility
 
 interface Mieter extends Tenant {}
@@ -45,6 +46,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     openConfirmationModal,
   } = useModalStore();
 
+  const { nextStep, isOpen: isTourOpen, currentStepIndex } = useOnboardingStore();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([]);
@@ -281,6 +283,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               // No explicit onSuccess in store for tenant, rely on router.refresh and close.
               closeTenantModal();
               router.refresh(); // Refresh data on page
+
+              // Onboarding logic: If step is "tenant-modal-save" (index 11), advance
+              if (isTourOpen && currentStepIndex === 11) {
+                nextStep();
+              }
             } else {
               toast({ title: "Fehler", description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.", variant: "destructive" });
               // Don't reset dirty flag, error occurred
@@ -444,6 +451,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
             </Button>
             <Button
               type="submit"
+              id="tenant-modal-save-btn"
               disabled={isSubmitting || isLoadingWohnungen || Object.values(nebenkostenValidationErrors).some(err => err.amount || err.date)}
             >
               {isSubmitting ? "Wird gespeichert..." : (tenantInitialData?.id ? "Aktualisieren" : "Speichern")}

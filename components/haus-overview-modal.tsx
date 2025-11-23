@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
-import { AlertCircle, Home, RefreshCw, Building, Users, Euro, SquareIcon, Clock } from "lucide-react"
+import { AlertCircle, Home, RefreshCw, Building, Users, Euro, SquareIcon, Clock, PlusCircle } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { SummaryCard } from "@/components/summary-card"
 import { ApartmentTenantRow } from "@/components/apartment-tenant-row"
@@ -28,6 +28,7 @@ export function HausOverviewModal() {
     openTenantModal,
     openApartmentTenantDetailsModal,
     openWohnungOverviewModal,
+    openWasserZaehlerModal,
     setHausOverviewLoading,
     setHausOverviewData,
     refreshHausOverviewData,
@@ -285,7 +286,12 @@ export function HausOverviewModal() {
               <div className="w-2/3">
                 {/* Wohnungen Table with scrollable container */}
                 <div className="space-y-3 h-[calc(100vh-300px)] overflow-y-auto pr-2" data-apartment-list>
-                <h4 className="font-medium">Wohnungen</h4>
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium">Wohnungen</h4>
+                  <Button size="sm" onClick={() => openWohnungModal(undefined, [{ id: hausOverviewData.id, name: hausOverviewData.name }], refreshHausOverviewData)} id="add-apartment-btn" variant="outline" className="h-8">
+                    <PlusCircle className="h-4 w-4 mr-1" /> Hinzufügen
+                  </Button>
+                </div>
                 {hausOverviewData.wohnungen.length > 0 ? (
                   <div className="space-y-2">
                     {hausOverviewData.wohnungen.map((apartment) => (
@@ -314,6 +320,7 @@ export function HausOverviewModal() {
                           onEditApartment={() => handleEditApartment(apartment.id)}
                           onEditTenant={() => apartment.currentTenant && handleEditTenant(apartment.currentTenant.id)}
                           onViewDetails={() => handleViewDetails(apartment.id, apartment.currentTenant?.id)}
+                          onOpenMeters={() => openWasserZaehlerModal(apartment.id, apartment.name)}
                         />
                       </ApartmentTenantRowContextMenu>
                     ))}
