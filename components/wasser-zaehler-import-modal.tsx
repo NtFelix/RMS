@@ -10,8 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calendar, Gauge, Droplets } from "lucide-react";
-import * as XLSX from "xlsx";
-import Papa from "papaparse";
 import { WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
 import { bulkCreateWasserAblesungen } from "@/app/wasser-zaehler-actions";
 import { isoToGermanDate } from "@/utils/date-calculations";
@@ -77,6 +75,7 @@ export function WasserZaehlerImportModal({
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
 
     if (fileExtension === "csv") {
+      const Papa = (await import("papaparse")).default;
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -89,11 +88,12 @@ export function WasserZaehlerImportModal({
             toast({ title: "Fehler", description: "Die CSV-Datei ist leer oder ungültig.", variant: "destructive" });
           }
         },
-        error: (error) => {
+        error: (error: any) => {
           toast({ title: "Fehler", description: `Fehler beim Parsen der CSV: ${error.message}`, variant: "destructive" });
         },
       });
     } else if (fileExtension === "xlsx" || fileExtension === "xls") {
+      const XLSX = await import("xlsx");
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
