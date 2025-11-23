@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
+import dynamic from 'next/dynamic'
 import { CheckedState } from "@radix-ui/react-checkbox"
-import { AbrechnungModal } from "./abrechnung-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
@@ -28,10 +28,13 @@ import { Nebenkosten, Mieter, Wasserzaehler, Rechnung, Haus } from "../lib/data-
 import { OptimizedNebenkosten, AbrechnungModalData } from "@/types/optimized-betriebskosten"; // Removed WasserzaehlerModalData
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
-import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
-// Old WasserzaehlerModal removed - now using optimized modal store approach
-import { WasserZaehlerVerwaltungModal } from "./wasser-zaehler-verwaltung-modal" // Added
-import { WasserZaehlerAblesenModal } from "./wasser-zaehler-ablesungen-modal" // Added
+
+// Lazy load modals to reduce bundle size
+const AbrechnungModal = dynamic(() => import('./abrechnung-modal').then(mod => mod.AbrechnungModal), { ssr: false })
+const OperatingCostsOverviewModal = dynamic(() => import('./operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
+const WasserZaehlerVerwaltungModal = dynamic(() => import('./wasser-zaehler-verwaltung-modal').then(mod => mod.WasserZaehlerVerwaltungModal), { ssr: false })
+const WasserZaehlerAblesenModal = dynamic(() => import('./wasser-zaehler-ablesungen-modal').then(mod => mod.WasserZaehlerAblesenModal), { ssr: false })
+
 import { 
   getAbrechnungModalDataAction, 
   deleteNebenkosten as deleteNebenkostenServerAction,
