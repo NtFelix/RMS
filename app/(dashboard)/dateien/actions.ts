@@ -1213,3 +1213,29 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
   }
 }
 
+export async function getTotalStorageUsage(userId: string): Promise<number> {
+  try {
+    const supabase = await createClient()
+
+    // Verify user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user || user.id !== userId) {
+      return 0
+    }
+
+    const { data, error } = await supabase
+      .rpc('calculate_storage_usage', { target_user_id: userId })
+
+    if (error) {
+      console.error('Error calculating storage usage:', error)
+      return 0
+    }
+
+    return Number(data) || 0
+  } catch (error) {
+    console.error('Unexpected error calculating storage usage:', error)
+    return 0
+  }
+}
+
