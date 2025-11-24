@@ -645,118 +645,51 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
 
   const supabase = createClient();
 
-  // First, let's try to get the file directly to see if it exists
-  console.log('🔍 Attempting direct file access...');
-  try {
-    const { data: fileData, error: directAccessError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .download(cleanOldPath);
-
-    if (directAccessError) {
-      console.error('❌ Direct file access failed:', directAccessError);
-    } else {
-      console.log('✅ Direct file access successful, file size:', fileData?.size);
-    }
-  } catch (directError) {
-    console.error('❌ Exception during direct file access:', directError);
-  }
-
-  // Check if source file exists by listing the directory
+  // Check if source file exists in DB
   const oldPathSegments = cleanOldPath.split('/');
   const sourceDirectory = oldPathSegments.slice(0, -1).join('/');
   let fileName = oldPathSegments[oldPathSegments.length - 1];
+  const userId = await getCurrentUserId();
 
-  console.log('🔍 Checking source file existence:', {
+  console.log('🔍 Checking source file existence in DB:', {
     sourceDirectory,
     fileName,
-    fullOldPath: cleanOldPath,
-    pathSegments: oldPathSegments
+    fullOldPath: cleanOldPath
   });
 
-  // Debug: List directory contents with detailed information
-  await debugListDirectory(sourceDirectory || '');
+  const { data: sourceFile, error: sourceFileError } = await supabase
+    .from('Dokumente_Metadaten')
+    .select('*')
+    .eq('dateipfad', sourceDirectory)
+    .eq('dateiname', fileName)
+    .eq('user_id', userId)
+    .single();
 
-  // List files in source directory to verify file exists
-  const { data: sourceFiles, error: listError } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .list(sourceDirectory || '', {
-      limit: 1000
-    });
+  if (sourceFileError || !sourceFile) {
+    // Try case-insensitive search if exact match fails
+    const { data: similarFiles } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('*')
+      .eq('dateipfad', sourceDirectory)
+      .eq('user_id', userId)
+      .ilike('dateiname', fileName); // Case insensitive match
 
-  if (listError) {
-    console.error('❌ Error listing source directory:', listError);
-    throw new Error(`Failed to check source directory: ${listError.message}`);
-  }
-
-  console.log('📁 Source directory contents:', {
-    directory: sourceDirectory || 'root',
-    fileCount: sourceFiles?.length || 0,
-    files: sourceFiles?.map(f => ({
-      name: f.name,
-      size: f.metadata?.size,
-      type: f.metadata ? 'file' : 'folder',
-      nameLength: f.name.length,
-      nameBytes: new TextEncoder().encode(f.name).length
-    })) || []
-  });
-
-  // Try multiple ways to find the file
-  let fileExists = false;
-  let matchedFile = null;
-
-  // Exact match
-  matchedFile = sourceFiles?.find(file => file.name === fileName);
-  if (matchedFile) {
-    fileExists = true;
-    console.log('✅ Found file with exact match');
-  }
-
-  // Case-insensitive match
-  if (!fileExists) {
-    matchedFile = sourceFiles?.find(file => file.name.toLowerCase() === fileName.toLowerCase());
-    if (matchedFile) {
-      fileExists = true;
-      console.log('✅ Found file with case-insensitive match:', {
-        searched: fileName,
-        found: matchedFile.name
+    if (similarFiles && similarFiles.length > 0) {
+      const matchedFile = similarFiles[0];
+      fileName = matchedFile.dateiname;
+      console.log('✅ Found file with case-insensitive match in DB:', fileName);
+    } else {
+      console.error('❌ Source file not found in DB:', {
+        searchedFor: fileName,
+        inDirectory: sourceDirectory
       });
-      // Update fileName to use the actual name from storage
-      fileName = matchedFile.name;
+      // Fallback to storage check if not in DB (migration scenario)
+      // But for now, we assume DB is source of truth
+      throw new Error(`Source file not found: ${fileName} in ${sourceDirectory}`);
     }
+  } else {
+    console.log('✅ Source file found in DB');
   }
-
-  // Partial match (in case of encoding issues)
-  if (!fileExists) {
-    matchedFile = sourceFiles?.find(file =>
-      file.name.includes(fileName) || fileName.includes(file.name)
-    );
-    if (matchedFile) {
-      fileExists = true;
-      console.log('✅ Found file with partial match:', {
-        searched: fileName,
-        found: matchedFile.name
-      });
-      // Update fileName to use the actual name from storage
-      fileName = matchedFile.name;
-    }
-  }
-
-  if (!fileExists) {
-    console.error('❌ Source file not found after all attempts:', {
-      searchedFor: fileName,
-      searchedForLength: fileName.length,
-      searchedForBytes: new TextEncoder().encode(fileName).length,
-      inDirectory: sourceDirectory || 'root',
-      availableFiles: sourceFiles?.map(f => ({
-        name: f.name,
-        length: f.name.length,
-        bytes: new TextEncoder().encode(f.name).length
-      })) || []
-    });
-    throw new Error(`Source file not found: ${fileName} in ${sourceDirectory || 'root'}`);
-  }
-
-  console.log('✅ Source file found in directory listing');
 
   // Update paths if fileName was corrected
   cleanOldPath = `${sourceDirectory}/${fileName}`;
@@ -780,48 +713,16 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     pathSegments: newPathSegments
   });
 
-  // Try to list target directory to ensure it exists
-  const { data: targetDirContents, error: targetListError } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .list(targetDirectory || '', {
-      limit: 1
-    });
+  // Check if target file already exists in DB
+  const { data: targetFile } = await supabase
+    .from('Dokumente_Metadaten')
+    .select('id')
+    .eq('dateipfad', targetDirectory)
+    .eq('dateiname', targetFileName)
+    .eq('user_id', userId)
+    .single();
 
-  if (targetListError) {
-    console.error('❌ Error accessing target directory:', targetListError);
-
-    // If target directory doesn't exist, try to create it with a .keep file
-    console.log('🔧 Attempting to create target directory...');
-    try {
-      const keepFilePath = `${targetDirectory}/.keep`;
-      const keepFileContent = new Blob([''], { type: 'text/plain' });
-
-      const { error: createError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(keepFilePath, keepFileContent, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (createError) {
-        console.error('❌ Failed to create target directory:', createError);
-        throw new Error(`Target directory not accessible and cannot be created: ${targetListError.message}`);
-      }
-
-      console.log('✅ Target directory created successfully');
-    } catch (createDirError) {
-      console.error('❌ Exception creating target directory:', createDirError);
-      throw new Error(`Target directory not accessible: ${targetListError.message}`);
-    }
-  } else {
-    console.log('✅ Target directory accessible:', {
-      directory: targetDirectory || 'root',
-      itemCount: targetDirContents?.length || 0
-    });
-  }
-
-  // Check if target file already exists
-  const targetFileExists = targetDirContents?.some(file => file.name === targetFileName);
+  const targetFileExists = !!targetFile;
   if (targetFileExists) {
     console.warn('⚠️ Target file already exists, move will overwrite it');
   }
@@ -1330,61 +1231,38 @@ export async function moveFolder(oldFolderPath: string, newFolderPath: string): 
 /**
  * Recursively gets all files in a folder
  */
+/**
+ * Recursively gets all files in a folder using database query
+ */
 async function getAllFilesInFolder(folderPath: string): Promise<Array<{ name: string, path: string }>> {
   const supabase = createClient();
-  const allFiles: Array<{ name: string, path: string }> = [];
+  const userId = await getCurrentUserId();
 
-  async function scanFolder(currentPath: string): Promise<void> {
-    try {
-      const { data: contents, error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .list(currentPath, { limit: 1000 });
+  try {
+    // Query database for all files starting with the folder path
+    // We use the 'like' operator to match the folder path and any subfolders
+    const { data: files, error } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('dateipfad, dateiname')
+      .like('dateipfad', `${folderPath}%`)
+      .eq('user_id', userId);
 
-      if (error) {
-        console.warn(`Could not scan folder ${currentPath}:`, error);
-        return;
-      }
-
-      if (!contents) return;
-
-      for (const item of contents) {
-        if (item.name === '.keep') continue;
-
-        const itemPath = `${currentPath}/${item.name}`;
-
-        if (item.metadata?.size) {
-          // It's a file
-          allFiles.push({
-            name: item.name,
-            path: itemPath
-          });
-        } else if (!item.name.includes('.')) {
-          // It's a folder, scan recursively
-          await scanFolder(itemPath);
-        }
-      }
-
-      // Also check for nested files indicated by paths with slashes
-      for (const item of contents) {
-        if (item.name && item.name.includes('/')) {
-          const parts = item.name.split('/');
-          if (parts.length > 1) {
-            // This indicates a nested file
-            allFiles.push({
-              name: parts[parts.length - 1],
-              path: `${currentPath}/${item.name}`
-            });
-          }
-        }
-      }
-
-    } catch (error) {
-      console.warn(`Exception scanning folder ${currentPath}:`, error);
+    if (error) {
+      console.warn(`Could not scan folder ${folderPath} from DB:`, error);
+      return [];
     }
-  }
 
-  await scanFolder(folderPath);
-  return allFiles;
+    if (!files) return [];
+
+    return files.map(file => ({
+      name: file.dateiname,
+      path: `${file.dateipfad}/${file.dateiname}`
+    }));
+
+  } catch (error) {
+    console.warn(`Exception scanning folder ${folderPath}:`, error);
+    return [];
+  }
 }
 
 /**
@@ -1394,23 +1272,31 @@ async function cleanupEmptyFolders(folderPath: string): Promise<void> {
   const supabase = createClient();
 
   try {
-    // Remove any remaining .keep files
-    const { data: contents } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .list(folderPath, { limit: 1000 });
+    // Remove any remaining .keep files using DB
+    const userId = await getCurrentUserId();
+    const { data: keepFilesData } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('dateiname')
+      .eq('dateipfad', folderPath)
+      .eq('dateiname', '.keep')
+      .eq('user_id', userId);
 
-    if (contents) {
-      const keepFiles = contents
-        .filter(item => item.name === '.keep')
-        .map(item => `${folderPath}/${item.name}`);
+    if (keepFilesData && keepFilesData.length > 0) {
+      const keepFiles = [`${folderPath}/.keep`];
 
-      if (keepFiles.length > 0) {
-        await supabase.storage
-          .from(STORAGE_BUCKET)
-          .remove(keepFiles);
+      await supabase.storage
+        .from(STORAGE_BUCKET)
+        .remove(keepFiles);
 
-        console.log(`🧹 Cleaned up ${keepFiles.length} .keep files`);
-      }
+      // Also remove from DB
+      await supabase
+        .from('Dokumente_Metadaten')
+        .delete()
+        .eq('dateipfad', folderPath)
+        .eq('dateiname', '.keep')
+        .eq('user_id', userId);
+
+      console.log(`🧹 Cleaned up .keep file in ${folderPath}`);
     }
 
   } catch (error) {

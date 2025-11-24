@@ -65,67 +65,44 @@ export async function POST(request: NextRequest) {
       userId: user.id
     })
 
-    // First, try to find the actual file by searching the directory
-    console.log('Searching for file in directory:', directory)
+    // First, try to find the actual file by querying the database
+    console.log('Searching for file in DB:', directory)
 
-    const { data: directoryContents, error: listError } = await supabase.storage
-      .from('documents')
-      .list(directory, { limit: 1000 })
+    const { data: dbFile, error: dbError } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('dateiname')
+      .eq('dateipfad', directory)
+      .eq('dateiname', currentFileName)
+      .eq('user_id', user.id)
+      .single()
 
-    if (listError) {
-      console.error('Error listing directory:', listError)
-      return NextResponse.json(
-        { error: `Verzeichnis kann nicht gelesen werden: ${listError.message}` },
-        { status: 500 }
-      )
-    }
-
-    console.log('Directory contents:', {
-      directory,
-      fileCount: directoryContents?.length || 0,
-      files: directoryContents?.map(f => ({
-        name: f.name,
-        size: f.metadata?.size,
-        hasMetadata: !!f.metadata
-      })) || []
-    })
-
-    // Find the file in the directory listing
     let actualFileName = currentFileName
     let fileFound = false
 
-    // Try exact match first
-    const exactMatch = directoryContents?.find(f => f.name === currentFileName && f.metadata?.size)
-    if (exactMatch) {
+    if (dbFile) {
+      actualFileName = dbFile.dateiname
       fileFound = true
-      console.log('Found file with exact match')
+      console.log('Found file with exact match in DB')
     } else {
       // Try case-insensitive match
-      const caseInsensitiveMatch = directoryContents?.find(f =>
-        f.name.toLowerCase() === currentFileName.toLowerCase() && f.metadata?.size
-      )
-      if (caseInsensitiveMatch) {
-        actualFileName = caseInsensitiveMatch.name
+      const { data: similarFiles } = await supabase
+        .from('Dokumente_Metadaten')
+        .select('dateiname')
+        .eq('dateipfad', directory)
+        .eq('user_id', user.id)
+        .ilike('dateiname', currentFileName)
+
+      if (similarFiles && similarFiles.length > 0) {
+        actualFileName = similarFiles[0].dateiname
         fileFound = true
-        console.log('Found file with case-insensitive match:', { searched: currentFileName, found: actualFileName })
-      } else {
-        // Try partial match
-        const partialMatch = directoryContents?.find(f =>
-          (f.name.includes(currentFileName) || currentFileName.includes(f.name)) && f.metadata?.size
-        )
-        if (partialMatch) {
-          actualFileName = partialMatch.name
-          fileFound = true
-          console.log('Found file with partial match:', { searched: currentFileName, found: actualFileName })
-        }
+        console.log('Found file with case-insensitive match in DB:', { searched: currentFileName, found: actualFileName })
       }
     }
 
     if (!fileFound) {
-      console.error('File not found in directory listing:', {
+      console.error('File not found in DB:', {
         searchedFor: currentFileName,
-        directory,
-        availableFiles: directoryContents?.filter(f => f.metadata?.size).map(f => f.name) || []
+        directory
       })
       return NextResponse.json(
         { error: `Datei "${currentFileName}" nicht im Verzeichnis "${directory}" gefunden` },
@@ -142,21 +119,9 @@ export async function POST(request: NextRequest) {
       to: actualNewPath
     })
 
-    // First, try to verify the file exists by downloading it
-    console.log('Verifying file exists by attempting download...')
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from('documents')
-      .download(actualFilePath)
-
-    if (downloadError) {
-      console.error('File verification failed - cannot download:', downloadError)
-      return NextResponse.json(
-        { error: `Datei kann nicht gelesen werden: ${downloadError.message}` },
-        { status: 404 }
-      )
-    }
-
-    console.log('File verification successful, file size:', fileData?.size)
+    // Skip download verification for performance as we trust the DB
+    // If the file is in DB but not in storage, the move operation will fail anyway
+    console.log('Skipping download verification, proceeding to move...')
 
     // Try Supabase's move operation first
     console.log('Attempting move operation...')
@@ -170,6 +135,15 @@ export async function POST(request: NextRequest) {
       // Fallback: Use copy + delete approach
       try {
         // Upload the file with the new name
+        // We need to download the file content first for the copy
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('documents')
+          .download(actualFilePath)
+
+        if (downloadError) {
+          throw new Error(`Originaldatei kann nicht gelesen werden: ${downloadError.message}`)
+        }
+
         const { error: uploadError } = await supabase.storage
           .from('documents')
           .upload(actualNewPath, fileData, {
