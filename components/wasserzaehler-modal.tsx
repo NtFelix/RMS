@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { formatNumber } from "@/utils/format";
 
 // Filter options for the water meter modal
 const filterOptions = [
@@ -648,7 +649,7 @@ export function WasserzaehlerModal() {
                             ) : (
                               <TrendingDown className="h-3 w-3" />
                             )}
-                            {consumptionChange > 0 ? '+' : ''}{consumptionChange.toFixed(1)}%
+                            {consumptionChange > 0 ? '+' : ''}{formatNumber(consumptionChange, 1)}%
                           </div>
                         )}
                       </div>
@@ -661,11 +662,11 @@ export function WasserzaehlerModal() {
                           </Badge>
                           <Badge variant="outline" className="gap-1.5">
                             <Gauge className="h-3 w-3" />
-                            <span>Stand: {entry.previous_reading.zaehlerstand} m³</span>
+                            <span>Stand: {formatNumber(entry.previous_reading.zaehlerstand)} m³</span>
                           </Badge>
                           <Badge variant="outline" className="gap-1.5">
                             <Droplet className="h-3 w-3" />
-                            <span>Verbrauch: {entry.previous_reading.verbrauch} m³</span>
+                            <span>Verbrauch: {formatNumber(entry.previous_reading.verbrauch)} m³</span>
                           </Badge>
                         </div>
                       ) : (

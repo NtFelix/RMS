@@ -86,7 +86,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
     render(<WasserAblesenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123.45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
     })
 
     // Click edit button
@@ -100,12 +100,12 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       fireEvent.click(editButton)
 
       await waitFor(() => {
-        const editInput = screen.getByDisplayValue('123.45')
+        const editInput = screen.getByDisplayValue('123,45')
         expect(editInput).toBeInTheDocument()
       })
 
       // Change the value
-      const editInput = screen.getByDisplayValue('123.45')
+      const editInput = screen.getByDisplayValue('123,45')
       fireEvent.change(editInput, { target: { value: '125.00' } })
 
       // Should set dirty state to true
@@ -119,7 +119,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
     render(<WasserAblesenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123.45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
     })
 
     // Click edit button
@@ -133,12 +133,12 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       fireEvent.click(editButton)
 
       await waitFor(() => {
-        const editInput = screen.getByDisplayValue('123.45')
+        const editInput = screen.getByDisplayValue('123,45')
         expect(editInput).toBeInTheDocument()
       })
 
       // Change the value
-      const editInput = screen.getByDisplayValue('123.45')
+      const editInput = screen.getByDisplayValue('123,45')
       fireEvent.change(editInput, { target: { value: '125.00' } })
 
       // Find and click cancel button (X button)
@@ -188,7 +188,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
     render(<WasserAblesenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123.45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
     })
 
     // Initially should not be dirty (or set to false)
@@ -203,7 +203,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
     render(<WasserAblesenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123.45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
     })
 
     // Click edit button
@@ -217,7 +217,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       fireEvent.click(editButton)
 
       await waitFor(() => {
-        const editInput = screen.getByDisplayValue('123.45')
+        const editInput = screen.getByDisplayValue('123,45')
         expect(editInput).toBeInTheDocument()
       })
 
@@ -240,7 +240,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
     render(<WasserAblesenModal />)
 
     await waitFor(() => {
-      expect(screen.getByText('123.45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,45 m³')).toBeInTheDocument()
     })
 
     // Click edit button
@@ -254,12 +254,12 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       fireEvent.click(editButton)
 
       await waitFor(() => {
-        const editInput = screen.getByDisplayValue('15.5')
+        const editInput = screen.getByDisplayValue('15,5')
         expect(editInput).toBeInTheDocument()
       })
 
       // Change the verbrauch value
-      const verbrauchInput = screen.getByDisplayValue('15.5')
+      const verbrauchInput = screen.getByDisplayValue('15,5')
       fireEvent.change(verbrauchInput, { target: { value: '20.0' } })
 
       // Should set dirty state to true

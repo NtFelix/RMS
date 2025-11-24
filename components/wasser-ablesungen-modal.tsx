@@ -41,6 +41,7 @@ import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { formatNumber } from "@/utils/format"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   AlertDialog,
@@ -917,7 +918,7 @@ export function WasserAblesenModal() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
                                       <p className="text-sm font-medium">
-                                        {ablesung.zaehlerstand !== null ? `${ablesung.zaehlerstand} m³` : (
+                                        {ablesung.zaehlerstand !== null ? `${formatNumber(ablesung.zaehlerstand)} m³` : (
                                           <span className="text-muted-foreground italic">Nicht gesetzt</span>
                                         )}
                                       </p>
@@ -936,7 +937,7 @@ export function WasserAblesenModal() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Verbrauch</p>
                                       <p className="text-sm font-medium">
-                                        {ablesung.verbrauch} m³
+                                        {formatNumber(ablesung.verbrauch)} m³
                                       </p>
                                     </div>
                                   </motion.div>
@@ -969,7 +970,7 @@ export function WasserAblesenModal() {
                                               : ""
                                           return (
                                             <span className={changeClass}>
-                                              {change > 0 ? '+' : ''}{change.toFixed(1)}%
+                                              {change > 0 ? '+' : ''}{formatNumber(change, 1)}%
                                             </span>
                                           )
                                         })()}

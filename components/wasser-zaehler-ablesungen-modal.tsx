@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { WasserZaehlerImportModal } from "./wasser-zaehler-import-modal";
 import { WasserZaehler as SharedWasserZaehler, WasserAblesung } from "@/lib/data-fetching";
+import { formatNumber } from "@/utils/format";
 
 // Local interface for UI presentation, compatible with SharedWasserZaehler
 interface WasserZaehler {
@@ -397,11 +398,11 @@ export function WasserZaehlerAblesenModal({
                                           </Badge>
                                           <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
                                             <Gauge className="h-3 w-3" />
-                                            {entry.latest_reading.zaehlerstand} m³
+                                            {formatNumber(entry.latest_reading.zaehlerstand)} m³
                                           </Badge>
                                           <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
                                             <Droplet className="h-3 w-3" />
-                                            {entry.latest_reading.verbrauch} m³
+                                            {formatNumber(entry.latest_reading.verbrauch)} m³
                                           </Badge>
                                           {consumptionChange !== null && !isNaN(consumptionChange) && (
                                             <Badge
@@ -413,7 +414,7 @@ export function WasserZaehlerAblesenModal({
                                               ) : (
                                                 <TrendingDown className="h-3 w-3" />
                                               )}
-                                              {consumptionChange > 0 ? '+' : ''}{consumptionChange.toFixed(1)}%
+                                              {consumptionChange > 0 ? '+' : ''}{formatNumber(consumptionChange, 1)}%
                                             </Badge>
                                           )}
                                         </div>
