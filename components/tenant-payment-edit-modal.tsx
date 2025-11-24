@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NumberInput } from "@/components/ui/number-input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -317,9 +318,8 @@ export default function TenantPaymentEditModal() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="rent">Tatsächliche Mietzahlung (€)</Label>
-              <Input
+              <NumberInput
                 id="rent"
-                type="number"
                 step="0.01"
                 min="0"
                 value={rent}
@@ -332,9 +332,8 @@ export default function TenantPaymentEditModal() {
 
             <div>
               <Label htmlFor="nebenkosten">Tatsächliche Nebenkosten-Vorauszahlung (€)</Label>
-              <Input
+              <NumberInput
                 id="nebenkosten"
-                type="number"
                 step="0.01"
                 min="0"
                 value={nebenkosten}

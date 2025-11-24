@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NumberInput } from "@/components/ui/number-input"
 import { Label } from "@/components/ui/label"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
@@ -384,8 +385,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                     ) : nebenkostenEntries.map((entry) => (
                       <div key={entry.id} className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
                         <div className="space-y-1">
-                          <Input
-                            type="number"
+                          <NumberInput
                             step="0.01"
                             placeholder="Betrag (€)"
                             value={entry.amount}

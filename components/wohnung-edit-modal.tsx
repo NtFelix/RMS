@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import {
@@ -302,10 +303,9 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             <LabelWithTooltip htmlFor="groesse" infoText="Wohnfläche in Quadratmetern (z.B. 65.5 für 65,5 m²)">
               Größe (m²)
             </LabelWithTooltip>
-            <Input
+            <NumberInput
               id="groesse"
               name="groesse"
-              type="number"
               value={formData.groesse}
               onChange={handleChange}
               placeholder="z.B. 65"
@@ -319,10 +319,9 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             <LabelWithTooltip htmlFor="miete" infoText="Monatliche Miete in Euro (z.B. 650.50 für 650,50 €)">
               Miete (€)
             </LabelWithTooltip>
-            <Input
+            <NumberInput
               id="miete"
               name="miete"
-              type="number"
               value={formData.miete}
               onChange={handleChange}
               placeholder="z.B. 650.50"

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
@@ -586,9 +587,8 @@ export function WasserzaehlerModal() {
                     </div>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <Input
+                        <NumberInput
                           id={`apartment-usage-${wohnungName}`}
-                          type="number"
                           step="0.01"
                           min="0"
                           value={apartmentUsage[wohnungName] || ''}
@@ -692,9 +692,8 @@ export function WasserzaehlerModal() {
                           <Label htmlFor={`zaehlerstand-${entry.mieter_id}`}>
                             Neuer Zählerstand (m³)
                           </Label>
-                          <Input
+                          <NumberInput
                             id={`zaehlerstand-${entry.mieter_id}`}
-                            type="number"
                             step="0.01"
                             value={entry.zaehlerstand}
                             onChange={(e) => handleInputChange(index, 'zaehlerstand', e.target.value)}
@@ -706,9 +705,8 @@ export function WasserzaehlerModal() {
                           <Label htmlFor={`verbrauch-${entry.mieter_id}`}>
                             Verbrauch (m³)
                           </Label>
-                          <Input
+                          <NumberInput
                             id={`verbrauch-${entry.mieter_id}`}
-                            type="number"
                             step="0.01"
                             value={entry.verbrauch}
                             onChange={(e) => handleInputChange(index, 'verbrauch', e.target.value)}

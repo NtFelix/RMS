@@ -7,6 +7,7 @@ import { toast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NumberInput } from "@/components/ui/number-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -301,9 +302,8 @@ export function KautionModal({ serverAction }: KautionModalProps) {
                   </span>
                 )}
               </Label>
-              <Input
+              <NumberInput
                 id="amount"
-                type="number"
                 step="0.01"
                 min="0"
                 placeholder="0,00"

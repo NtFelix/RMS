@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NumberInput } from "@/components/ui/number-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
@@ -625,8 +626,7 @@ export function WasserAblesenModal() {
                   </Popover>
                 </div>
                 <div className="space-y-2">
-                  <Input
-                    type="number"
+                  <NumberInput
                     step="0.01"
                     placeholder="Zählerstand (m³)"
                     value={newZaehlerstand}
@@ -640,8 +640,7 @@ export function WasserAblesenModal() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Input
-                    type="number"
+                  <NumberInput
                     step="0.01"
                     placeholder="Verbrauch (m³)"
                     value={newVerbrauch}
@@ -803,8 +802,7 @@ export function WasserAblesenModal() {
                                       <Gauge className="h-3 w-3" />
                                       Zählerstand
                                     </Label>
-                                    <Input
-                                      type="number"
+                                    <NumberInput
                                       step="0.01"
                                       value={editZaehlerstand}
                                       onChange={(e) => {
@@ -823,8 +821,7 @@ export function WasserAblesenModal() {
                                       <Droplet className="h-3 w-3" />
                                       Verbrauch
                                     </Label>
-                                    <Input
-                                      type="number"
+                                    <NumberInput
                                       step="0.01"
                                       value={editVerbrauch}
                                       onChange={(e) => setEditVerbrauch(e.target.value)}
