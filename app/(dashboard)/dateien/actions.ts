@@ -199,65 +199,61 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
       displayName: 'Sonstiges'
     })
 
-    // Check for any files directly in the root
-    const { data: rootFiles } = await supabase.storage
-      .from('documents')
-      .list(targetPath, { limit: 100 })
+    // Check for any files directly in the root from DB
+    const { data: dbRootFiles } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('*')
+      .eq('dateipfad', targetPath)
+      .eq('user_id', userId)
+      .order('dateiname', { ascending: true })
 
     const files: StorageFile[] = []
-    if (rootFiles) {
-      rootFiles.forEach((item: any) => {
-        if (item.name !== '.keep' && item.metadata?.size) {
+    if (dbRootFiles) {
+      dbRootFiles.forEach((item: any) => {
+        if (item.dateiname !== '.keep') {
           files.push({
-            name: item.name,
-            id: item.id || item.name,
-            updated_at: item.updated_at || new Date().toISOString(),
-            created_at: item.created_at || new Date().toISOString(),
-            last_accessed_at: item.last_accessed_at || new Date().toISOString(),
-            metadata: item.metadata || {},
-            size: item.metadata?.size || 0,
+            name: item.dateiname,
+            id: item.id,
+            updated_at: item.aktualisierungsdatum || new Date().toISOString(),
+            created_at: item.erstellungsdatum || new Date().toISOString(),
+            last_accessed_at: item.letzter_zugriff || new Date().toISOString(),
+            metadata: {
+              mimetype: item.mime_type,
+              size: item.dateigroesse
+            },
+            size: Number(item.dateigroesse) || 0,
           })
         }
       })
     }
 
-    // Try to discover custom folders by listing all files under the user directory
+    // Try to discover custom folders by querying the database
     try {
-      // Get all files under the user directory (recursive)
-      const { data: userFiles, error: userFilesError } = await supabase.storage
-        .from('documents')
-        .list(targetPath, {
-          limit: 10000 // High limit to get all files
-        })
+      // Get all distinct paths that start with targetPath/
+      const { data: subfolderPaths } = await supabase
+        .from('Dokumente_Metadaten')
+        .select('dateipfad')
+        .like('dateipfad', `${targetPath}/%`)
+        .eq('user_id', userId)
 
-      if (!userFilesError && userFiles) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Debug - Discovered custom folders:', {
-            totalFiles: userFiles.length,
-            targetPath
-          })
-        }
-
+      if (subfolderPaths) {
         const discoveredFolders = new Set<string>()
 
-        // Look through all files to find directory indicators
-        for (const file of userFiles) {
-          if (file.name && file.name.includes('/')) {
-            // This file is in a subdirectory
-            const folderName = file.name.split('/')[0]
-            discoveredFolders.add(folderName)
+        // Look through all paths to find direct subdirectories
+        for (const item of subfolderPaths) {
+          const fullPath = item.dateipfad
+          // relative path from targetPath
+          const relativePath = fullPath.substring(targetPath.length + 1)
+          const firstSegment = relativePath.split('/')[0]
 
-
-          } else if (file.name && !file.metadata && !file.name.includes('.')) {
-            // This might be a directory itself
-            discoveredFolders.add(file.name)
-
-
+          if (firstSegment) {
+            discoveredFolders.add(firstSegment)
           }
         }
 
         // Add discovered folders to the list
         for (const folderName of discoveredFolders) {
+          // Skip if already added (e.g. houses or Miscellaneous)
           const exists = folders.some(f => f.name === folderName)
           if (!exists) {
             const folderPath = `${targetPath}/${folderName}`
@@ -276,10 +272,8 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
                 fileCount: fileCount,
                 displayName: folderName
               })
-
-
             } catch (error) {
-              // If we can't list the folder contents, still add it
+              // If we can't count files, still add it
               folders.push({
                 name: folderName,
                 path: folderPath,
