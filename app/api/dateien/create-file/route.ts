@@ -23,10 +23,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    
+
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Not authenticated' },
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Create the full path for the new file
     const newFilePath = `${filePath}/${fileName}`
-    
+
     // Check if file already exists using efficient list method
     const { data: existingFiles } = await supabase.storage
       .from('documents')
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         limit: 1,
         search: fileName,
       })
-    
+
     if (existingFiles && existingFiles.length > 0) {
       return NextResponse.json(
         { error: 'File already exists' },
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     // Create the file with the provided content
     const fileContent = new Blob([content], { type: 'text/markdown' })
-    
+
     const { error: uploadError } = await supabase.storage
       .from('documents')
       .upload(newFilePath, fileContent, {
@@ -76,6 +76,21 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create file' },
         { status: 500 }
       )
+    }
+
+    // Insert into Dokumente_Metadaten
+    try {
+      await supabase
+        .from('Dokumente_Metadaten')
+        .insert({
+          dateipfad: filePath,
+          dateiname: fileName,
+          dateigroesse: new Blob([content]).size,
+          mime_type: 'text/markdown',
+          user_id: user.id
+        })
+    } catch (dbError) {
+      console.error('Failed to insert into Dokumente_Metadaten:', dbError)
     }
 
     return NextResponse.json({

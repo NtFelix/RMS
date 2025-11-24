@@ -23,10 +23,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    
+
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Not authenticated' },
@@ -44,12 +44,12 @@ export async function POST(request: NextRequest) {
 
     // Create the full path for the new folder
     const newFolderPath = `${folderPath}/${folderName}`
-    
+
     // Check if folder already exists by trying to list it
     const { data: existingFolder } = await supabase.storage
       .from('documents')
       .list(newFolderPath, { limit: 1 })
-    
+
     if (existingFolder && existingFolder.length > 0) {
       return NextResponse.json(
         { error: 'Folder already exists' },
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Create an invisible .keep file to ensure the folder exists
     const keepFilePath = `${newFolderPath}/.keep`
     const keepFileContent = new Blob([''], { type: 'text/plain' })
-    
+
     const { error: uploadError } = await supabase.storage
       .from('documents')
       .upload(keepFilePath, keepFileContent, {
@@ -74,6 +74,21 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create folder' },
         { status: 500 }
       )
+    }
+
+    // Insert .keep file into Dokumente_Metadaten to make folder visible
+    try {
+      await supabase
+        .from('Dokumente_Metadaten')
+        .insert({
+          dateipfad: newFolderPath,
+          dateiname: '.keep',
+          dateigroesse: 0,
+          mime_type: 'text/plain',
+          user_id: user.id
+        })
+    } catch (dbError) {
+      console.error('Failed to insert .keep into Dokumente_Metadaten:', dbError)
     }
 
     return NextResponse.json({
