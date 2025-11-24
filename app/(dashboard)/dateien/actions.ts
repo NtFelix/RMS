@@ -138,28 +138,17 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
   error?: string
 }> {
   try {
-    // Get houses from database with timeout
-    const housesPromise = supabase
-      .from('Haeuser')
-      .select('id, name')
-      .eq('user_id', userId)
-
-    // Add timeout to prevent hanging requests
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database query timeout')), 10000)
-    })
-
-    const { data: houses, error: housesError } = await Promise.race([
-      housesPromise,
-      timeoutPromise
-    ]) as any
+    // Get houses and their file counts from RPC
+    const { data: houses, error: housesError } = await supabase
+      .rpc('get_virtual_folders', {
+        p_user_id: userId,
+        p_current_path: targetPath
+      })
 
     if (housesError) {
-      // Log error only in development
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Could not load houses:', housesError)
+        console.warn('Could not load houses via RPC:', housesError)
       }
-      // Continue with empty houses array instead of failing completely
     }
 
     const folders: VirtualFolder[] = []
@@ -167,22 +156,32 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
     // Add house folders
     if (houses && houses.length > 0) {
       for (const house of houses) {
-        // Check if house folder has any files (direct files only)
-        const housePath = `${targetPath}/${house.id}`
-        const fileCount = await countDirectFiles(supabase, housePath)
-        const hasFiles = fileCount > 0
-
         folders.push({
           name: house.id,
-          path: housePath,
+          path: house.path,
           type: 'house',
-          isEmpty: !hasFiles,
+          isEmpty: house.file_count === 0,
           children: [],
-          fileCount: fileCount,
+          fileCount: Number(house.file_count),
           displayName: house.name
         })
       }
     }
+
+    // Add house documents folder
+    const houseDocsPath = `${targetPath}/house_documents`
+    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath)
+    const houseDocsHasFiles = houseDocsFileCount > 0
+
+    folders.push({
+      name: 'house_documents',
+      path: houseDocsPath,
+      type: 'category',
+      isEmpty: !houseDocsHasFiles,
+      children: [],
+      fileCount: houseDocsFileCount,
+      displayName: 'Hausdokumente'
+    })
 
     // Add miscellaneous folder
     const miscPath = `${targetPath}/Miscellaneous`
@@ -442,39 +441,17 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
   error?: string
 }> {
   try {
-    // Get apartments for this house from database with timeout
-    const apartmentsPromise = supabase
-      .from('Wohnungen')
-      .select('id, name')
-      .eq('haus_id', houseId)
-      .eq('user_id', userId)
-
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database query timeout')), 8000)
-    })
-
-    const { data: apartments, error: apartmentsError } = await Promise.race([
-      apartmentsPromise,
-      timeoutPromise
-    ]) as any
+    // Get apartments and their file counts from RPC
+    const { data: apartments, error: apartmentsError } = await supabase
+      .rpc('get_virtual_folders', {
+        p_user_id: userId,
+        p_current_path: targetPath
+      })
 
     if (apartmentsError) {
-      // Log error only in development
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Could not load apartments for house:', houseId, apartmentsError)
+        console.warn('Could not load apartments via RPC:', apartmentsError)
       }
-      // Continue with empty apartments array
-    }
-
-    // Debug logging in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Debug - House apartment loading:', {
-        houseId,
-        userId,
-        apartmentsFound: apartments?.length || 0,
-        apartments: apartments?.map((a: any) => ({ id: a.id, name: a.name })) || [],
-        error: apartmentsError
-      })
     }
 
     const folders: VirtualFolder[] = []
@@ -497,17 +474,13 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
     // Add apartment folders
     if (apartments && apartments.length > 0) {
       for (const apartment of apartments) {
-        // Count direct files in apartment folder
-        const apartmentPath = `${targetPath}/${apartment.id}`
-        const fileCount = await countDirectFiles(supabase, apartmentPath)
-
         folders.push({
           name: apartment.id,
-          path: apartmentPath,
+          path: apartment.path,
           type: 'apartment',
-          isEmpty: fileCount === 0,
+          isEmpty: apartment.file_count === 0,
           children: [],
-          fileCount: fileCount,
+          fileCount: Number(apartment.file_count),
           displayName: apartment.name
         })
       }
@@ -613,44 +586,16 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
   error?: string
 }> {
   try {
-    // Get tenants for this apartment from database - simplified approach
-    let tenants = []
-    let tenantsError = null
+    // Get tenants and their file counts from RPC
+    const { data: tenants, error: tenantsError } = await supabase
+      .rpc('get_virtual_folders', {
+        p_user_id: userId,
+        p_current_path: targetPath
+      })
 
-    try {
-      const { data: tenantsData, error } = await supabase
-        .from('Mieter')
-        .select('id, name, wohnung_id, user_id')
-        .eq('wohnung_id', apartmentId)
-        .eq('user_id', userId)
-
-      tenants = tenantsData || []
-      tenantsError = error
-
-      // Debug logging in development
+    if (tenantsError) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('Debug - Apartment tenant loading:', {
-          apartmentId,
-          houseId,
-          userId,
-          query: `wohnung_id=${apartmentId}, user_id=${userId}`,
-          tenantsFound: tenants.length,
-          tenants: tenants.map((t: any) => ({
-            id: t.id,
-            name: t.name,
-            wohnung_id: t.wohnung_id,
-            user_id: t.user_id
-          })),
-          error: tenantsError
-        })
-      }
-
-    } catch (error) {
-      tenantsError = error
-      tenants = []
-
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Could not load tenants for apartment:', apartmentId, error)
+        console.warn('Could not load tenants via RPC:', tenantsError)
       }
     }
 
@@ -673,61 +618,16 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
 
     // Add tenant folders
     if (tenants && tenants.length > 0) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Debug - Processing tenants for folders:', tenants.length)
-      }
-
       for (const tenant of tenants) {
-        try {
-          // Count files recursively in tenant folder
-          const tenantPath = `${targetPath}/${tenant.id}`
-          let fileCount = 0
-
-          try {
-            fileCount = await countDirectFiles(supabase, tenantPath)
-          } catch (countError) {
-            // If file counting fails, still create the folder
-            if (process.env.NODE_ENV === 'development') {
-              console.warn(`Could not count files for tenant ${tenant.id}:`, countError)
-            }
-            fileCount = 0
-          }
-
-          // Create display name from name field
-          const displayName = tenant.name || tenant.id
-
-          const tenantFolder = {
-            name: tenant.id,
-            path: tenantPath,
-            type: 'tenant' as const,
-            isEmpty: fileCount === 0,
-            children: [],
-            fileCount: fileCount,
-            displayName: displayName
-          }
-
-          folders.push(tenantFolder)
-
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Debug - Added tenant folder:', {
-              tenantId: tenant.id,
-              displayName,
-              path: tenantPath,
-              fileCount,
-              isEmpty: fileCount === 0
-            })
-          }
-
-        } catch (error) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error(`Error processing tenant ${tenant.id}:`, error)
-          }
-          // Continue with other tenants
-        }
-      }
-    } else {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Debug - No tenants found for apartment:', apartmentId)
+        folders.push({
+          name: tenant.id,
+          path: tenant.path,
+          type: 'tenant',
+          isEmpty: tenant.file_count === 0,
+          children: [],
+          fileCount: Number(tenant.file_count),
+          displayName: tenant.name || tenant.id
+        })
       }
     }
 
