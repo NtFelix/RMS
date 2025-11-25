@@ -556,23 +556,8 @@ export async function deleteFile(path: string): Promise<void> {
       throw error;
     }
 
-    // Delete from Dokumente_Metadaten
-    try {
-      const pathSegments = cleanPath.split('/');
-      const fileName = pathSegments.pop();
-      const directoryPath = pathSegments.join('/');
-      const userId = await getCurrentUserId();
-
-      await supabase
-        .from('Dokumente_Metadaten')
-        .delete()
-        .eq('dateipfad', directoryPath)
-        .eq('dateiname', fileName)
-        .eq('user_id', userId);
-
-    } catch (dbError) {
-      console.error('Failed to delete from Dokumente_Metadaten:', dbError);
-    }
+    // Delete from Dokumente_Metadaten is now handled by a database trigger
+    // on the storage.objects table (see migration 20251124000003)
 
     console.log('Successfully deleted file:', cleanPath);
   } catch (error) {

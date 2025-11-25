@@ -1080,6 +1080,9 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
     }
 
     // 3. Delete from DB
+    // This is now handled by the database trigger on storage.objects
+    // We keep the code comment to indicate this change
+    /*
     const { error: dbDeleteError } = await supabase
       .from('Dokumente_Metadaten')
       .delete()
@@ -1088,8 +1091,8 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
 
     if (dbDeleteError) {
       console.error('Failed to delete files from Dokumente_Metadaten:', dbDeleteError)
-      // We continue as storage delete was successful
     }
+    */
 
     // Also remove the .keep file if it exists (not in DB)
     const { error: keepError } = await supabase.storage
