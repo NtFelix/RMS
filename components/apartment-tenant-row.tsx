@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { ChevronDown, ChevronRight, User, Home, Euro } from "lucide-react"
+import { ChevronDown, ChevronRight, User, Home, Euro, Droplets } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +26,7 @@ interface ApartmentTenantRowProps extends React.HTMLAttributes<HTMLDivElement> {
   onEditApartment: () => void;
   onEditTenant: () => void;
   onViewDetails: () => void;
+  onOpenMeters?: () => void;
   expandable?: boolean;
   expandedContent?: React.ReactNode;
   className?: string;
@@ -40,6 +42,7 @@ export const ApartmentTenantRow = React.forwardRef<
     onEditApartment,
     onEditTenant,
     onViewDetails,
+    onOpenMeters,
     expandable = false,
     expandedContent,
     className,
@@ -121,6 +124,11 @@ export const ApartmentTenantRow = React.forwardRef<
 
       {/* Right side - Rent info */}
       <div className="flex items-center gap-4">
+        {onOpenMeters && (
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onOpenMeters(); }} id="open-meters-btn">
+                <Droplets className="h-4 w-4" />
+            </Button>
+        )}
         <div className="flex items-center gap-2">
           <Euro className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
           <div className="text-right">

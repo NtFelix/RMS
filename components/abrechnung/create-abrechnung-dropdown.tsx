@@ -34,6 +34,7 @@ export function CreateAbrechnungDropdown({
         <ButtonWithTooltip 
           className={className}
           variant={buttonVariant}
+          id="create-abrechnung-dropdown"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           {buttonText}
@@ -55,7 +56,7 @@ export function CreateAbrechnungDropdown({
             <div className="text-xs text-muted-foreground mt-0.5">Kopiert Daten der letzten Abrechnung</div>
           </div>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onTemplateClick} className="flex items-start py-3">
+        <DropdownMenuItem onClick={onTemplateClick} className="flex items-start py-3" id="template-default-btn">
           <BookDashed className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
           <div className="flex-1">
             <div className="font-medium">Standard-Vorlage</div>

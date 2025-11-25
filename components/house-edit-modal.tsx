@@ -17,6 +17,7 @@ import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
+import { useOnboardingStore } from "@/components/onboarding/store";
 
 // Basic House interface - replace with actual type if available elsewhere
 interface House {
@@ -70,6 +71,8 @@ export function HouseEditModal(props: HouseEditModalProps) {
     openConfirmationModal,
     confirmationModalConfig // Added to avoid direct call to CONFIRMATION_MODAL_DEFAULTS from component
   } = useModalStore();
+
+  const { nextStep, isOpen: isTourOpen, currentStepIndex } = useOnboardingStore();
 
   const [formData, setFormData] = useState({
     name: houseInitialData?.name || "",
@@ -165,6 +168,11 @@ export function HouseEditModal(props: HouseEditModalProps) {
         
         setHouseModalDirty(false); // Reset dirty state on successful save
         closeHouseModal(); // This will now close directly as dirty is false
+
+        // Onboarding logic: If step is "house-modal-save" (index 2), advance
+        if (isTourOpen && currentStepIndex === 2) {
+          nextStep();
+        }
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -276,7 +284,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
               Abbrechen
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} id="house-modal-save-btn">
               {isSubmitting ? "Wird gespeichert..." : (houseInitialData ? "Aktualisieren" : "Speichern")}
             </Button>
           </DialogFooter>

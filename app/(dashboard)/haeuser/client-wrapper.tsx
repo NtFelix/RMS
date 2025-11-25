@@ -194,7 +194,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Häuser</p>
             </div>
             <div className="mt-1">
-              <ButtonWithTooltip onClick={handleAdd} className="sm:w-auto">
+              <ButtonWithTooltip onClick={handleAdd} className="sm:w-auto" id="add-house-btn">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Haus hinzufügen
               </ButtonWithTooltip>

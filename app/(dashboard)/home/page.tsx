@@ -28,7 +28,7 @@ export default async function Dashboard() {
       </div>
       <div className="grid gap-4 grid-cols-1 auto-rows-auto md:grid-cols-6 md:auto-rows-[140px]">
         {/* Row 1: Three wider summary cards (2/3 width - 4 columns total) + Tenant Payment List (1/3 width - 2 columns) */}
-        <Link href="/haeuser" className="col-span-1 row-span-1 md:col-span-1 md:row-span-1">
+        <Link href="/haeuser" className="col-span-1 row-span-1 md:col-span-1 md:row-span-1" id="dashboard-houses-card">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Häuser</CardTitle>

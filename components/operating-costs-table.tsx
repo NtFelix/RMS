@@ -522,6 +522,7 @@ export function OperatingCostsTable({
                             <Button
                               variant="ghost"
                               size="icon"
+                              id={`nebenkosten-row-${index}-actions`}
                               className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -548,6 +549,7 @@ export function OperatingCostsTable({
                         <ContextMenuItem 
                           onClick={(e) => { e.stopPropagation(); handleOpenOverview(item); }}
                           className="flex items-center gap-2 cursor-pointer"
+                          id="action-overview"
                         >
                           <FileText className="h-4 w-4" />
                           <span>Übersicht</span>
@@ -578,6 +580,7 @@ export function OperatingCostsTable({
                           }}
                           className="flex items-center gap-2 cursor-pointer"
                           disabled={isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id}
+                          id="create-final-abrechnung-btn"
                         >
                           <FileText className="h-4 w-4" />
                           <span>{isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id ? "Lade Daten..." : "Abrechnung erstellen"}</span>

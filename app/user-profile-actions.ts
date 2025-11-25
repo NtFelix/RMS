@@ -171,6 +171,58 @@ export async function getBillingAddress(stripeCustomerId: string): Promise<Billi
   }
 }
 
+export async function completeOnboarding(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ onboarding_completed: true })
+      .eq('id', user.id);
+
+    if (updateError) {
+      console.error('Error updating onboarding status:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error completing onboarding:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function resetOnboarding(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ onboarding_completed: false })
+      .eq('id', user.id);
+
+    if (updateError) {
+      console.error('Error resetting onboarding status:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error resetting onboarding:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 interface UpdateBillingAddressParams {
   name: string;
   address: {

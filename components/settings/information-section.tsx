@@ -1,15 +1,31 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Info } from "lucide-react";
+import { Info, Play } from "lucide-react";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import { Button } from "@/components/ui/button";
+import { useOnboardingStore } from "@/components/onboarding/store";
+import { resetOnboarding } from "@/app/user-profile-actions";
+import { toast } from "@/hooks/use-toast";
 
 const InformationSection = () => {
   const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0");
+  const { startTour, setHasCompletedOnboarding } = useOnboardingStore();
 
   useEffect(() => {
     setPackageJsonVersion("v2.0.0");
   }, []);
+
+  const handleRestartTutorial = async () => {
+    const result = await resetOnboarding();
+    if (result.success) {
+        setHasCompletedOnboarding(false);
+        startTour();
+        toast({ title: "Tutorial gestartet", description: "Das Tutorial wurde zurückgesetzt und gestartet." });
+    } else {
+        toast({ title: "Fehler", description: "Konnte Tutorial nicht zurücksetzen.", variant: "destructive" });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -37,6 +53,23 @@ const InformationSection = () => {
               </p>
             </div>
           </div>
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Tutorial"
+        description="Starten Sie die Einführung erneut."
+      >
+        <SettingsCard>
+            <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                    Hier können Sie die interaktive Einführung erneut starten.
+                </p>
+                <Button onClick={handleRestartTutorial} variant="outline" size="sm">
+                    <Play className="h-4 w-4 mr-2" />
+                    Tutorial neu starten
+                </Button>
+            </div>
         </SettingsCard>
       </SettingsSection>
     </div>

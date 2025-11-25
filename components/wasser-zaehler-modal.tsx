@@ -335,7 +335,7 @@ export function WasserZaehlerModal() {
 
           <div className="space-y-4 py-4 overflow-y-auto flex-1">
             {/* Add new Wasserzähler */}
-            <div className="space-y-2">
+            <div className="space-y-2" id="water-meter-input-group">
               <Label className="text-sm font-medium">Neuen Wasserzähler hinzufügen</Label>
               <div className="flex gap-2">
                 <div className="flex-1 space-y-2">
@@ -1022,7 +1022,7 @@ export function WasserZaehlerModal() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} id="close-meters-btn">
               Schließen
             </Button>
           </DialogFooter>

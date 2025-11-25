@@ -25,6 +25,7 @@ import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox"
 import { toast } from "@/hooks/use-toast"; // Changed import
 import { createClient } from "@/utils/supabase/client";
 import { useModalStore } from "@/hooks/use-modal-store"; // Added import
+import { useOnboardingStore } from "@/components/onboarding/store";
 
 // Define interfaces based on expected data structure
 interface Wohnung {
@@ -87,6 +88,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     setWohnungModalDirty,
   } = useModalStore(); // Assuming you will import useModalStore
 
+  const { nextStep, isOpen: isTourOpen, currentStepIndex } = useOnboardingStore();
   const router = useRouter();
   const [formData, setFormData] = useState({
     name: wohnungInitialData?.name || "",
@@ -255,6 +257,10 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
           wohnungModalOnSuccess(successData);
         }
         closeWohnungModal();
+        // Onboarding logic: If step is "apartment-modal-save" (index 5), advance
+        if (isTourOpen && currentStepIndex === 5) {
+            nextStep();
+        }
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -356,6 +362,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             </Button>
             <Button
               type="submit"
+              id="apartment-modal-save-btn"
               disabled={isSubmitting || isLoadingHaeuser || isLoadingContext || isSaveDisabledByLimitsOrSubscriptionState}
             >
               {isSubmitting ? (wohnungInitialData?.id ? "Wird aktualisiert..." : "Wird erstellt...") : (wohnungInitialData?.id ? "Änderungen speichern" : "Wohnung erstellen")}

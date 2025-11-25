@@ -419,17 +419,7 @@ export async function getDashboardSummary() {
   };
 }
 
-// Make sure Profile type is defined if you use it, or adjust return types
-// For example:
-type Profile = {
-  id: string;
-  email?: string; // Email will come from auth.user primarily
-  stripe_customer_id?: string | null;
-  stripe_subscription_id?: string | null;
-  stripe_subscription_status?: string | null;
-  stripe_price_id?: string | null;
-  stripe_current_period_end?: string | null; // Consider Date type if you parse it
-};
+import { Profile } from "../types/supabase";
 
 export async function fetchUserProfile(): Promise<Profile | null> {
   const supabase = createSupabaseServerClient();
@@ -448,7 +438,8 @@ export async function fetchUserProfile(): Promise<Profile | null> {
       stripe_subscription_id,
       stripe_subscription_status,
       stripe_price_id,
-      stripe_current_period_end
+      stripe_current_period_end,
+      onboarding_completed
     `)
     .eq('id', user.id)
     .single();
@@ -461,6 +452,7 @@ export async function fetchUserProfile(): Promise<Profile | null> {
     stripe_subscription_status: null,
     stripe_price_id: null,
     stripe_current_period_end: null,
+    onboarding_completed: false,
   };
 
   if (profileError) {

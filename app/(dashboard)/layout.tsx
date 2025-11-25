@@ -45,6 +45,8 @@ const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenant-pay
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
+import { OnboardingInitializer } from "@/components/onboarding/onboarding-initializer";
+import { TourOverlay } from "@/components/onboarding/tour-overlay";
 
 export default function DashboardRootLayout({
   children,
@@ -139,6 +141,11 @@ export default function DashboardRootLayout({
         {/* <GlobalDragDropProvider> */}
           <CommandMenu />
           <DashboardLayout>{children}</DashboardLayout>
+
+      {/* Onboarding Components */}
+      <OnboardingInitializer />
+      <TourOverlay />
+
       {/* Render modals: They control their own open/close state via the store */}
       {/* TenantEditModal needs serverAction. Other props are from store. */}
       <TenantEditModal serverAction={tenantServerAction} />
