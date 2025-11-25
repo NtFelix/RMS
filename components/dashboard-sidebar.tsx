@@ -138,7 +138,7 @@ export function DashboardSidebar() {
 
           {/* Navigation section - takes remaining space */}
           <div className="pt-4 pb-4 overflow-y-auto min-h-0">
-            <nav className="grid gap-1 px-2 pr-4">
+            <nav className={cn("grid gap-1 px-2", !isCollapsed && "pr-4")}>
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
