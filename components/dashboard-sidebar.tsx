@@ -108,7 +108,7 @@ export function DashboardSidebar() {
       >
         <div className="h-full w-full bg-background border-r border-border dark:sidebar-container grid grid-rows-[auto_1fr_auto]">
           {/* Header section */}
-          <div className={cn("border-b flex items-center py-4 dark:sidebar-header", isCollapsed ? "justify-center px-2" : "justify-between px-6")}>
+          <div className={cn("border-b flex items-center pt-6 pb-4 dark:sidebar-header", isCollapsed ? "justify-center px-2" : "justify-between px-6")}>
             {!isCollapsed && (
               <Link href="/" className="flex items-center gap-2 font-semibold">
                 <div className="relative w-8 h-8 rounded-full overflow-hidden">
@@ -137,7 +137,7 @@ export function DashboardSidebar() {
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-8 w-8 hidden md:flex", isCollapsed ? "mt-4 absolute -right-4 top-8 bg-background border shadow-sm rounded-full z-50" : "")}
+              className={cn("h-8 w-8 hidden md:flex", isCollapsed ? "absolute -right-4 top-6 bg-background border shadow-sm rounded-full z-50" : "")}
               onClick={() => setIsCollapsed(!isCollapsed)}
             >
               {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
