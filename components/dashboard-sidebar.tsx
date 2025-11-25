@@ -138,7 +138,7 @@ export function DashboardSidebar() {
 
           {/* Navigation section - takes remaining space */}
           <div className="flex-1 overflow-y-auto min-h-0 py-2">
-            <nav className={cn("grid gap-1 px-2", !isCollapsed && "pr-4")}>
+            <nav className={cn("grid gap-1 px-3", !isCollapsed && "pr-4")}>
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -203,7 +203,7 @@ export function DashboardSidebar() {
           </div>
 
           {/* Profile section - fixed at bottom */}
-          <div className="p-2 pb-4 dark:sidebar-footer flex flex-col gap-2">
+          <div className="px-3 pt-2 pb-4 dark:sidebar-footer flex flex-col gap-2">
             <Button
               variant="ghost"
               className={cn(
