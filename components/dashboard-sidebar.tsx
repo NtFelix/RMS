@@ -106,9 +106,9 @@ export function DashboardSidebar() {
           isCollapsed ? "w-20" : "w-72"
         )}
       >
-        <div className="h-full w-full bg-background border-r border-border dark:sidebar-container grid grid-rows-[auto_1fr_auto] relative">
+        <div className="h-full w-full bg-background border-r border-border dark:sidebar-container flex flex-col relative">
           {/* Header section */}
-          <div className={cn("border-b flex items-center pt-6 pb-4 dark:sidebar-header", isCollapsed ? "justify-center px-2" : "justify-between px-6")}>
+          <div className={cn("flex items-center pt-6 pb-2 dark:sidebar-header", isCollapsed ? "justify-center px-2" : "justify-between px-6")}>
             {!isCollapsed && (
               <Link href="/" className="flex items-center gap-2 font-semibold">
                 <div className="relative w-8 h-8 rounded-full overflow-hidden">
@@ -137,7 +137,7 @@ export function DashboardSidebar() {
           </div>
 
           {/* Navigation section - takes remaining space */}
-          <div className="pt-4 pb-4 overflow-y-auto min-h-0">
+          <div className="flex-1 overflow-y-auto min-h-0 py-2">
             <nav className={cn("grid gap-1 px-2", !isCollapsed && "pr-4")}>
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
@@ -203,7 +203,7 @@ export function DashboardSidebar() {
           </div>
 
           {/* Profile section - fixed at bottom */}
-          <div className="border-t p-2 pb-4 dark:sidebar-footer flex flex-col gap-2">
+          <div className="p-2 pb-4 dark:sidebar-footer flex flex-col gap-2">
             <Button
               variant="ghost"
               className={cn(
