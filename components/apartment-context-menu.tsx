@@ -85,7 +85,8 @@ export function ApartmentContextMenu({
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem 
+          <ContextMenuItem
+            id="add-water-meter-btn"
             onClick={() => openWasserZaehlerModal(apartment.id, apartment.name)}
             className="flex items-center gap-2 cursor-pointer"
           >

@@ -45,12 +45,24 @@ const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenant-pay
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
+import Guide from "@/components/guide/guide"
+import { checkOnboardingStatus } from "@/app/onboarding-actions"
+import { useState, useEffect } from "react"
 
 export default function DashboardRootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const [startTour, setStartTour] = useState(false)
+
+  useEffect(() => {
+    const getOnboardingStatus = async () => {
+      const { completed } = await checkOnboardingStatus()
+      setStartTour(!completed)
+    }
+    getOnboardingStatus()
+  }, [])
   const {
     // Tenant modal state and actions
     isTenantModalOpen,
@@ -135,6 +147,7 @@ export default function DashboardRootLayout({
   
   return (
     <AuthProvider>
+      <Guide startTour={startTour} />
       <NestedDialogProvider>
         {/* <GlobalDragDropProvider> */}
           <CommandMenu />

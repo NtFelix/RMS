@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { Info } from "lucide-react";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import { Button } from "@/components/ui/button";
+import { completeOnboarding } from "@/app/onboarding-actions";
 
 const InformationSection = () => {
   const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0");
@@ -10,6 +12,11 @@ const InformationSection = () => {
   useEffect(() => {
     setPackageJsonVersion("v2.0.0");
   }, []);
+
+  const handleRestartTour = async () => {
+    await completeOnboarding(false);
+    window.location.reload();
+  };
 
   return (
     <div className="space-y-6">
@@ -35,6 +42,9 @@ const InformationSection = () => {
               <p className="text-sm text-muted-foreground">
                 Dies ist Ihre Hausverwaltungssoftware. Bei Fragen oder Problemen wenden Sie sich bitte an den Support.
               </p>
+            </div>
+            <div className="pt-4 border-t">
+              <Button onClick={handleRestartTour}>Anleitung neustarten</Button>
             </div>
           </div>
         </SettingsCard>

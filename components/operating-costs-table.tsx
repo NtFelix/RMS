@@ -545,7 +545,8 @@ export function OperatingCostsTable({
                         </TableRow>
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-56">
-                        <ContextMenuItem 
+                        <ContextMenuItem
+                          id="overview-btn"
                           onClick={(e) => { e.stopPropagation(); handleOpenOverview(item); }}
                           className="flex items-center gap-2 cursor-pointer"
                         >

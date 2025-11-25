@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface CreateAbrechnungDropdownProps {
+  id?: string;
   onBlankClick: () => void;
   onPreviousClick: () => void;
   onTemplateClick: () => void;
@@ -20,6 +21,7 @@ interface CreateAbrechnungDropdownProps {
 }
 
 export function CreateAbrechnungDropdown({
+  id,
   onBlankClick,
   onPreviousClick,
   onTemplateClick,
@@ -31,7 +33,8 @@ export function CreateAbrechnungDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <ButtonWithTooltip 
+        <ButtonWithTooltip
+          id={id}
           className={className}
           variant={buttonVariant}
         >

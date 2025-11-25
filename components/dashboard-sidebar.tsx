@@ -128,6 +128,7 @@ export function DashboardSidebar() {
                   
                   return (
                     <Link
+                      id={`nav-link-${item.title.toLowerCase()}`}
                       key={item.href}
                       href={item.href}
                       onClick={() => setIsOpen(false)}

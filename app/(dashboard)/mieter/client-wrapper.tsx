@@ -29,7 +29,7 @@ interface MieterClientViewProps {
 // Internal AddTenantButton (could be kept from previous step if preferred)
 function AddTenantButton({ onAdd }: { onAdd: () => void }) {
   return (
-    <ButtonWithTooltip onClick={onAdd} className="sm:w-auto">
+    <ButtonWithTooltip id="add-tenant-btn" onClick={onAdd} className="sm:w-auto">
       <PlusCircle className="mr-2 h-4 w-4" />
       Mieter hinzufügen
     </ButtonWithTooltip>
