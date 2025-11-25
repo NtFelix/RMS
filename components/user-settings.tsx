@@ -105,7 +105,7 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
   return (
     <>
       <CustomDropdown
-        align="end"
+        align={collapsed ? "start" : "end"}
         className="w-56"
         trigger={
           <div
