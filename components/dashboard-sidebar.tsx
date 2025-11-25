@@ -108,7 +108,7 @@ export function DashboardSidebar() {
       >
         <div className="h-full w-full bg-background border-r border-border dark:sidebar-container flex flex-col relative">
           {/* Header section */}
-          <div className={cn("flex items-center pt-6 pb-2 dark:sidebar-header", isCollapsed ? "justify-center px-2" : "justify-between px-6")}>
+          <div className={cn("flex items-center pt-6 pb-2 dark:sidebar-header", isCollapsed ? "justify-center px-2" : "justify-between pl-8 pr-6")}>
             {!isCollapsed && (
               <Link href="/" className="flex items-center gap-2 font-semibold">
                 <div className="relative w-8 h-8 rounded-full overflow-hidden">
@@ -138,7 +138,7 @@ export function DashboardSidebar() {
 
           {/* Navigation section - takes remaining space */}
           <div className="flex-1 overflow-y-auto min-h-0 py-2">
-            <nav className={cn("grid gap-1 px-3", !isCollapsed && "pr-4")}>
+            <nav className={cn("grid gap-1", isCollapsed ? "px-2" : "px-6")}>
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -146,7 +146,6 @@ export function DashboardSidebar() {
                       onClick={() => setOpen(true)}
                       className={cn(
                         "group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:shadow-lg hover:shadow-accent/20",
-                        !isCollapsed && "mr-2",
                         isCollapsed && "justify-center h-10 w-10 p-0 mx-auto"
                       )}
                     >
@@ -180,7 +179,6 @@ export function DashboardSidebar() {
                             className={cn(
                               "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:shadow-lg hover:shadow-accent/20",
                               getActiveStateClasses(item.href),
-                              !isCollapsed && "mr-2",
                               isCollapsed && "justify-center h-10 w-10 p-0 mx-auto"
                             )}
                             data-active={isActive}
@@ -203,7 +201,7 @@ export function DashboardSidebar() {
           </div>
 
           {/* Profile section - fixed at bottom */}
-          <div className="px-3 pt-2 pb-4 dark:sidebar-footer flex flex-col gap-2">
+          <div className={cn("pt-2 pb-4 dark:sidebar-footer flex flex-col gap-2", isCollapsed ? "px-2" : "px-6")}>
             <Button
               variant="ghost"
               className={cn(
