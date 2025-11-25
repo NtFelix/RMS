@@ -30,11 +30,13 @@ const sidebarNavItems = [
     title: "Wohnungen",
     href: "/wohnungen",
     icon: Home,
+    id: "nav-link-wohnungen",
   },
   {
     title: "Mieter",
     href: "/mieter",
     icon: Users,
+    id: "nav-link-mieter",
   },
   {
     title: "Finanzen",
@@ -45,6 +47,7 @@ const sidebarNavItems = [
     title: "Betriebskosten",
     href: "/betriebskosten",
     icon: FileSpreadsheet,
+    id: "nav-link-betriebskosten",
   },
   {
     title: "Aufgaben",
@@ -129,6 +132,7 @@ export function DashboardSidebar() {
                   return (
                     <Link
                       key={item.href}
+                      id={item.id}
                       href={item.href}
                       onClick={() => setIsOpen(false)}
                       className={cn(

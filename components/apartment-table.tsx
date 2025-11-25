@@ -348,13 +348,14 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                 <TableHeaderCell sortKey="pricePerSqm" className="w-[130px] dark:text-[#f3f4f6]" icon={Euro}>€/m²</TableHeaderCell>
                 <TableHeaderCell sortKey="haus" className="dark:text-[#f3f4f6]" icon={Building2}>Haus</TableHeaderCell>
                 <TableHeaderCell sortKey="status" className="w-[110px] dark:text-[#f3f4f6]" icon={CheckCircle2}>Status</TableHeaderCell>
+                <TableHead className="w-[120px] dark:text-[#f3f4f6]">Wasserzähler</TableHead>
                 <TableHeaderCell sortKey="name" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedAndFilteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
+                  <TableCell colSpan={9} className="h-24 text-center">
                     Keine Wohnungen gefunden.
                   </TableCell>
                 </TableRow>
@@ -415,8 +416,22 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell 
-                          className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
+                        <TableCell className="py-4">
+                          <Button
+                            id={index === 0 ? "add-water-meter-btn" : undefined}
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const { openWasserZaehlerModal } = useModalStore.getState()
+                              openWasserZaehlerModal(apt.id, apt.name)
+                            }}
+                          >
+                            Zähler
+                          </Button>
+                        </TableCell>
+                        <TableCell
+                          className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? "rounded-br-lg" : ""}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <Button
@@ -427,13 +442,16 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                               e.stopPropagation()
                               const rowElement = contextMenuRefs.current.get(apt.id)
                               if (rowElement) {
-                                const contextMenuEvent = new MouseEvent('contextmenu', {
-                                  bubbles: true,
-                                  cancelable: true,
-                                  view: window,
-                                  clientX: e.clientX,
-                                  clientY: e.clientY,
-                                })
+                                const contextMenuEvent = new MouseEvent(
+                                  "contextmenu",
+                                  {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    view: window,
+                                    clientX: e.clientX,
+                                    clientY: e.clientY,
+                                  },
+                                )
                                 rowElement.dispatchEvent(contextMenuEvent)
                               }
                             }}

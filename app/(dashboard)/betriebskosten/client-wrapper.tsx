@@ -279,6 +279,7 @@ export default function BetriebskostenClientView({
             </div>
             <div className="mt-1">
               <CreateAbrechnungDropdown
+                id="add-betriebskosten-btn"
                 onBlankClick={handleOpenBlankModal}
                 onPreviousClick={handleOpenPreviousTemplateModal}
                 onTemplateClick={handleOpenDefaultTemplateModal}

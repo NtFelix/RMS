@@ -365,9 +365,10 @@ export default function WohnungenClientView({
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Wohnungen</p>
             </div>
             <div className="mt-1">
-              <ButtonWithHoverCard 
-                onClick={handleAddWohnung} 
-                className="sm:w-auto" 
+              <ButtonWithHoverCard
+                id="add-apartment-btn"
+                onClick={handleAddWohnung}
+                className="sm:w-auto"
                 disabled={isAddButtonDisabled}
                 tooltip={buttonTooltipMessage}
                 showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}

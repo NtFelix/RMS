@@ -437,12 +437,13 @@ export function OperatingCostsTable({
                 <TableHeaderCell sortKey="" className="w-[160px] dark:text-[#f3f4f6]" icon={Calculator} sortable={false}>Berechnungsarten</TableHeaderCell>
                 <TableHeaderCell sortKey="wasserkosten" className="w-[130px] dark:text-[#f3f4f6]" icon={Droplets}>Wasserkosten</TableHeaderCell>
                 <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
+                <TableHead className="w-[200px] dark:text-[#f3f4f6]">Abrechnung</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
+                  <TableCell colSpan={9} className="h-24 text-center">
                     Keine Betriebskostenabrechnungen gefunden.
                   </TableCell>
                 </TableRow>
@@ -450,11 +451,11 @@ export function OperatingCostsTable({
                 sortedData.map((item, index) => {
                   const isLastRow = index === sortedData.length - 1
                   const isSelected = selectedItems.has(item.id)
-                  
+
                   return (
                     <ContextMenu key={item.id}>
                       <ContextMenuTrigger asChild>
-                        <TableRow 
+                        <TableRow
                           ref={(el) => {
                             if (el) {
                               contextMenuRefs.current.set(item.id, el)
@@ -463,14 +464,14 @@ export function OperatingCostsTable({
                             }
                           }}
                           className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
-                            isSelected 
-                              ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                            isSelected
+                              ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? "rounded-b-lg" : ""}`
+                              : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
                           }`}
                           onClick={() => onEdit?.(item)}
                         >
-                          <TableCell 
-                            className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`} 
+                          <TableCell
+                            className={`py-4 ${isSelected && isLastRow ? "rounded-bl-lg" : ""}`}
                             onClick={(event) => event.stopPropagation()}
                           >
                             <Checkbox
@@ -480,43 +481,61 @@ export function OperatingCostsTable({
                             />
                           </TableCell>
                           <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>
-                            {item.startdatum && item.enddatum 
-                              ? `${isoToGermanDate(item.startdatum)} bis ${isoToGermanDate(item.enddatum)}` 
-                              : '-'
-                            }
+                            {item.startdatum && item.enddatum
+                              ? `${isoToGermanDate(item.startdatum)} bis ${isoToGermanDate(item.enddatum)}`
+                              : "-"}
                           </TableCell>
-                          <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{item.haus_name || 'N/A'}</TableCell>
+                          <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{item.haus_name || "N/A"}</TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
                             {item.nebenkostenart && item.nebenkostenart.length > 0 ? (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400">
-                                {item.nebenkostenart.length} {item.nebenkostenart.length === 1 ? 'Kostenart' : 'Kostenarten'}
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-50 text-blue-700 hover:bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400"
+                              >
+                                {item.nebenkostenart.length}{" "}
+                                {item.nebenkostenart.length === 1 ? "Kostenart" : "Kostenarten"}
                               </Badge>
-                            ) : '-'}
+                            ) : (
+                              "-"
+                            )}
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
                             {item.betrag && item.betrag.length > 0 ? (
                               <div className="flex flex-col gap-0.5">
                                 <span className="font-medium">
                                   {formatCurrency(
-                                    item.betrag.reduce((sum, b) => sum + (typeof b === 'number' ? b : 0), 0)
+                                    item.betrag.reduce(
+                                      (sum, b) => sum + (typeof b === "number" ? b : 0),
+                                      0,
+                                    ),
                                   )}
                                 </span>
                                 {item.betrag.length > 1 && (
-                                  <span className="text-xs text-muted-foreground">{item.betrag.length} Positionen</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.betrag.length} Positionen
+                                  </span>
                                 )}
                               </div>
-                            ) : '-'}
+                            ) : (
+                              "-"
+                            )}
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
                             {item.berechnungsart && item.berechnungsart.length > 0 ? (
-                              <Badge variant="outline" className="bg-gray-100 text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300">
-                                {item.berechnungsart.length} {item.berechnungsart.length === 1 ? 'Berechnungsart' : 'Berechnungsarten'}
+                              <Badge
+                                variant="outline"
+                                className="bg-gray-100 text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300"
+                              >
+                                {item.berechnungsart.length}{" "}
+                                {item.berechnungsart.length === 1 ? "Berechnungsart" : "Berechnungsarten"}
                               </Badge>
-                            ) : '-'}
+                            ) : (
+                              "-"
+                            )}
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(item.wasserkosten)}</TableCell>
-                          <TableCell 
-                            className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
+                          <TableCell
+                            className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? "rounded-br-lg" : ""}`}
                             onClick={(event) => event.stopPropagation()}
                           >
                             <Button
@@ -542,18 +561,56 @@ export function OperatingCostsTable({
                               <MoreVertical className="h-3.5 w-3.5" />
                             </Button>
                           </TableCell>
+                          <TableCell className="py-2 pr-2 text-right">
+                            <Button
+                              id={index === 0 ? "overview-btn" : undefined}
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenOverview(item)
+                            }}
+                          >
+                            Übersicht
+                          </Button>
+                          <Button
+                            id={index === 0 ? "create-abrechnung-btn" : undefined}
+                            variant="outline"
+                            size="sm"
+                            className="ml-2"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenAbrechnungModal(item)
+                            }}
+                            disabled={
+                              isLoadingAbrechnungData &&
+                              selectedNebenkostenForAbrechnung?.id === item.id
+                            }
+                          >
+                            {isLoadingAbrechnungData &&
+                            selectedNebenkostenForAbrechnung?.id === item.id
+                              ? "Lade..."
+                              : "Abrechnung"}
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-56">
-                        <ContextMenuItem 
-                          onClick={(e) => { e.stopPropagation(); handleOpenOverview(item); }}
+                      <ContextMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenOverview(item)
+                        }}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <FileText className="h-4 w-4" />
                           <span>Übersicht</span>
                         </ContextMenuItem>
-                        <ContextMenuItem 
-                          onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
+                      <ContextMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onEdit?.(item)
+                        }}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <Edit className="h-4 w-4" />
@@ -562,9 +619,9 @@ export function OperatingCostsTable({
                         {/* Old Wasserzähler modal button removed - now using new WasserZaehlerAblesenModal */}
                         <ContextMenuItem
                           onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedNebenkostenForAblesen(item);
-                            setIsWasserZaehlerAblesenOpen(true);
+                          e.stopPropagation()
+                          setSelectedNebenkostenForAblesen(item)
+                          setIsWasserZaehlerAblesenOpen(true)
                           }}
                           className="flex items-center gap-2 cursor-pointer"
                         >
@@ -573,18 +630,29 @@ export function OperatingCostsTable({
                         </ContextMenuItem>
                         <ContextMenuItem
                           onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenAbrechnungModal(item);
+                          e.stopPropagation()
+                          handleOpenAbrechnungModal(item)
                           }}
                           className="flex items-center gap-2 cursor-pointer"
-                          disabled={isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id}
+                        disabled={
+                          isLoadingAbrechnungData &&
+                          selectedNebenkostenForAbrechnung?.id === item.id
+                        }
                         >
                           <FileText className="h-4 w-4" />
-                          <span>{isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id ? "Lade Daten..." : "Abrechnung erstellen"}</span>
+                        <span>
+                          {isLoadingAbrechnungData &&
+                          selectedNebenkostenForAbrechnung?.id === item.id
+                            ? "Lade Daten..."
+                            : "Abrechnung erstellen"}
+                        </span>
                         </ContextMenuItem>
                         <ContextMenuSeparator />
-                        <ContextMenuItem 
-                          onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
+                      <ContextMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDeleteItem(item.id)
+                        }}
                           className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-500 dark:focus:text-red-500 dark:focus:bg-red-900/50"
                         >
                           <Trash2 className="h-4 w-4" />
