@@ -123,6 +123,36 @@ export async function POST(request: NextRequest) {
     // If the file is in DB but not in storage, the move operation will fail anyway
     console.log('Skipping download verification, proceeding to move...')
 
+    // Update Dokumente_Metadaten BEFORE storage move
+    // This prevents the delete trigger from deleting the metadata if the move is implemented as copy+delete
+    try {
+      console.log('Updating DB metadata before storage move...')
+      const { error: dbUpdateError } = await supabase
+        .from('Dokumente_Metadaten')
+        .update({
+          dateipfad: directory,
+          dateiname: newName,
+          aktualisierungsdatum: new Date().toISOString()
+        })
+        .eq('dateipfad', directory)
+        .eq('dateiname', actualFileName)
+        .eq('user_id', user.id)
+
+      if (dbUpdateError) {
+        console.error('Failed to update DB metadata:', dbUpdateError)
+        return NextResponse.json(
+          { error: `Fehler beim Aktualisieren der Metadaten: ${dbUpdateError.message}` },
+          { status: 500 }
+        )
+      }
+    } catch (dbError) {
+      console.error('Failed to update Dokumente_Metadaten:', dbError)
+      return NextResponse.json(
+        { error: 'Fehler beim Aktualisieren der Metadaten' },
+        { status: 500 }
+      )
+    }
+
     // Try Supabase's move operation first
     console.log('Attempting move operation...')
     const { error: moveError } = await supabase.storage
@@ -187,21 +217,8 @@ export async function POST(request: NextRequest) {
       console.log('Move operation completed successfully!')
     }
 
-    // Update Dokumente_Metadaten
-    try {
-      await supabase
-        .from('Dokumente_Metadaten')
-        .update({
-          dateipfad: directory,
-          dateiname: newName,
-          aktualisierungsdatum: new Date().toISOString()
-        })
-        .eq('dateipfad', directory)
-        .eq('dateiname', actualFileName)
-        .eq('user_id', user.id)
-    } catch (dbError) {
-      console.error('Failed to update Dokumente_Metadaten:', dbError)
-    }
+    // DB update is now done before storage move
+    console.log('✅ DB update completed successfully')
 
     return NextResponse.json({
       success: true,

@@ -719,6 +719,40 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     willOverwrite: targetFileExists
   });
 
+  // Update Dokumente_Metadaten BEFORE storage move
+  // This prevents the delete trigger from deleting the metadata if the move is implemented as copy+delete
+  try {
+    const oldPathSegments = cleanOldPath.split('/');
+    const oldFileName = oldPathSegments.pop();
+    const oldDirectoryPath = oldPathSegments.join('/');
+
+    const newPathSegments = cleanNewPath.split('/');
+    const newFileName = newPathSegments.pop();
+    const newDirectoryPath = newPathSegments.join('/');
+
+    const userId = await getCurrentUserId();
+
+    console.log('📝 Updating DB metadata before storage move...');
+    const { error: dbUpdateError } = await supabase
+      .from('Dokumente_Metadaten')
+      .update({
+        dateipfad: newDirectoryPath,
+        dateiname: newFileName,
+        aktualisierungsdatum: new Date().toISOString()
+      })
+      .eq('dateipfad', oldDirectoryPath)
+      .eq('dateiname', oldFileName)
+      .eq('user_id', userId);
+
+    if (dbUpdateError) {
+      console.error('❌ Failed to update DB metadata:', dbUpdateError);
+      throw new Error(`Failed to update metadata: ${dbUpdateError.message}`);
+    }
+  } catch (dbError) {
+    console.error('❌ Failed to update Dokumente_Metadaten before move:', dbError);
+    throw dbError;
+  }
+
   const { error: moveError } = await supabase.storage
     .from(STORAGE_BUCKET)
     .move(cleanOldPath, cleanNewPath);
@@ -876,32 +910,8 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     cacheManager.invalidatePrefix(targetDir);
   }
 
-  // Update Dokumente_Metadaten
-  try {
-    const oldPathSegments = cleanOldPath.split('/');
-    const oldFileName = oldPathSegments.pop();
-    const oldDirectoryPath = oldPathSegments.join('/');
-
-    const newPathSegments = cleanNewPath.split('/');
-    const newFileName = newPathSegments.pop();
-    const newDirectoryPath = newPathSegments.join('/');
-
-    const userId = await getCurrentUserId();
-
-    await supabase
-      .from('Dokumente_Metadaten')
-      .update({
-        dateipfad: newDirectoryPath,
-        dateiname: newFileName,
-        aktualisierungsdatum: new Date().toISOString()
-      })
-      .eq('dateipfad', oldDirectoryPath)
-      .eq('dateiname', oldFileName)
-      .eq('user_id', userId);
-
-  } catch (dbError) {
-    console.error('Failed to update Dokumente_Metadaten after move:', dbError);
-  }
+  // DB update is now done before storage move
+  console.log('✅ DB update completed successfully');
 
   console.log('🎉 Move operation completed and verified successfully');
 }
