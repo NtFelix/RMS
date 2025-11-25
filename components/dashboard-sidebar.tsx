@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard, Folder, Mail } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard, Folder, Mail, Search } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { SimpleScrollArea } from "@/components/ui/simple-scroll-area"
 import { UserSettings } from "@/components/user-settings"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
+import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
@@ -67,10 +68,11 @@ export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
+  const { setOpen } = useCommandMenu()
   // User email handling is managed by the UserSettings component
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   const mailsEnabled = useFeatureFlagEnabled('mails-tab')
-  
+
   // Feature flags for navigation items
   const featureFlags = new Map([
     ['/dateien', documentsEnabled],
@@ -117,15 +119,29 @@ export function DashboardSidebar() {
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          
+
           {/* Navigation section - takes remaining space */}
           <div className="pt-4 pb-4 overflow-y-auto min-h-0">
             <nav className="grid gap-1 px-2 pr-4">
+              <button
+                onClick={() => setOpen(true)}
+                className={cn(
+                  "group flex w-full items-center gap-3 rounded-lg px-3 py-2 mr-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20",
+                )}
+              >
+                <Search className="h-4 w-4 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                <span className="transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
+                  Suche
+                </span>
+                <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 group-hover:text-white group-hover:border-white/20">
+                  <span className="text-xs">⌘</span>K
+                </kbd>
+              </button>
               {sidebarNavItems
                 .filter(item => !featureFlags.has(item.href) || featureFlags.get(item.href))
                 .map((item) => {
                   const isActive = isRouteActive(item.href);
-                  
+
                   return (
                     <Link
                       key={item.href}
@@ -147,7 +163,7 @@ export function DashboardSidebar() {
                 })}
             </nav>
           </div>
-          
+
           {/* Profile section - fixed at bottom */}
           <div className="border-t p-4 pb-6 dark:sidebar-footer">
             <UserSettings />
