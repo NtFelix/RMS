@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { LogOut, Settings, FileText } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
+import { cn } from "@/lib/utils"
 
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useApartmentUsage } from "@/hooks/use-apartment-usage"
@@ -21,28 +22,28 @@ import {
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
 
-export function UserSettings() {
+export function UserSettings({ collapsed }: { collapsed?: boolean }) {
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
   const [openModal, setOpenModal] = useState(false)
   const { openTemplatesModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
-  
+
   // Use custom hooks for data fetching
-  const { 
-    user, 
-    userName, 
-    userEmail, 
-    userInitials, 
-    isLoading: isLoadingUser 
+  const {
+    user,
+    userName,
+    userEmail,
+    userInitials,
+    isLoading: isLoadingUser
   } = useUserProfile()
-  
-  const { 
-    count: apartmentCount, 
-    limit: apartmentLimit, 
+
+  const {
+    count: apartmentCount,
+    limit: apartmentLimit,
     progressPercentage,
-    isLoading: isLoadingApartmentData 
+    isLoading: isLoadingApartmentData
   } = useApartmentUsage(user)
 
   const handleLogout = async () => {
@@ -50,7 +51,7 @@ export function UserSettings() {
     try {
       // First sign out from Supabase
       const { error: signOutError } = await supabase.auth.signOut()
-      
+
       // We'll continue with the logout flow even if there's a sign out error
       if (signOutError) {
         console.warn("Supabase sign out warning:", signOutError)
@@ -58,7 +59,7 @@ export function UserSettings() {
 
       // Create an array to hold all cleanup promises
       const cleanupPromises = [];
-      
+
       // Add logout API call to promises
       cleanupPromises.push(
         fetch('/api/auth/logout', {
@@ -70,10 +71,10 @@ export function UserSettings() {
           }
         })
       );
-      
+
       // Add clear cookie call to promises
       cleanupPromises.push(
-        fetch('/api/auth/clear-auth-cookie', { 
+        fetch('/api/auth/clear-auth-cookie', {
           method: 'POST',
           credentials: 'same-origin'
         }).catch(error => {
@@ -82,19 +83,19 @@ export function UserSettings() {
           }
         })
       );
-      
+
       // Wait for all cleanup operations to complete or timeout
       await Promise.race([
         Promise.all(cleanupPromises),
         new Promise(resolve => setTimeout(resolve, 2000)) // 2 second timeout
       ]);
-      
+
     } catch (error) {
       console.error("Error during logout:", error);
     } finally {
       // Reset loading state first
       setIsLoadingLogout(false);
-      
+
       // Force a hard redirect to ensure we leave the current page
       // This is more reliable than router.push for logout scenarios
       window.location.href = '/';
@@ -108,7 +109,10 @@ export function UserSettings() {
         className="w-56"
         trigger={
           <div
-            className="flex items-center space-x-3 p-2 rounded-xl hover:bg-white hover:text-gray-900 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md dark:hover:bg-gray-800 dark:hover:text-gray-100"
+            className={cn(
+              "flex items-center p-2 rounded-xl hover:bg-white hover:text-gray-900 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md dark:hover:bg-gray-800 dark:hover:text-gray-100",
+              collapsed ? "justify-center" : "space-x-3"
+            )}
             aria-label="User menu"
           >
             <Avatar className="h-10 w-10">
@@ -117,39 +121,41 @@ export function UserSettings() {
                 {isLoadingUser ? "" : userInitials}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col flex-1 text-left min-w-0">
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                {isLoadingUser ? "Lade..." : userName}
-              </span>
-              {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && (
-                <div className="flex flex-col gap-1 mt-1">
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                    <span>{apartmentCount} / {apartmentLimit} Wohnungen</span>
-                  </div>
-                  <Progress 
-                    value={progressPercentage} 
-                    className="h-1.5 bg-gray-200 dark:bg-gray-700 [&>div]:bg-accent" 
-                  />
-                </div>
-              )}
-              {!isLoadingUser && !isLoadingApartmentData && apartmentLimit === null && (
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Unbegrenzte Wohnungen
+            {!collapsed && (
+              <div className="flex flex-col flex-1 text-left min-w-0">
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  {isLoadingUser ? "Lade..." : userName}
                 </span>
-              )}
-              {(isLoadingUser || isLoadingApartmentData) && (
-                <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1.5 w-full">
-                  <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
-                </div>
-              )}
-            </div>
+                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && (
+                  <div className="flex flex-col gap-1 mt-1">
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <span>{apartmentCount} / {apartmentLimit} Wohnungen</span>
+                    </div>
+                    <Progress
+                      value={progressPercentage}
+                      className="h-1.5 bg-gray-200 dark:bg-gray-700 [&>div]:bg-accent"
+                    />
+                  </div>
+                )}
+                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit === null && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Unbegrenzte Wohnungen
+                  </span>
+                )}
+                {(isLoadingUser || isLoadingApartmentData) && (
+                  <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1.5 w-full">
+                    <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         }
       >
         <CustomDropdownLabel>Mein Konto</CustomDropdownLabel>
         <CustomDropdownSeparator />
         {templateModalEnabled && (
-          <CustomDropdownItem 
+          <CustomDropdownItem
             onClick={() => openTemplatesModal()}
             aria-label={ARIA_LABELS.templatesModal}
           >
@@ -162,8 +168,8 @@ export function UserSettings() {
           <span>Einstellungen</span>
         </CustomDropdownItem>
         <CustomDropdownSeparator />
-        <CustomDropdownItem 
-          onClick={handleLogout} 
+        <CustomDropdownItem
+          onClick={handleLogout}
           disabled={isLoadingLogout}
         >
           <LogOut className="mr-2 h-4 w-4" />
