@@ -106,7 +106,7 @@ export function DashboardSidebar() {
           isCollapsed ? "w-20" : "w-72"
         )}
       >
-        <div className="h-full w-full bg-background border-r border-border dark:sidebar-container grid grid-rows-[auto_1fr_auto]">
+        <div className="h-full w-full bg-background border-r border-border dark:sidebar-container grid grid-rows-[auto_1fr_auto] relative">
           {/* Header section */}
           <div className={cn("border-b flex items-center pt-6 pb-4 dark:sidebar-header", isCollapsed ? "justify-center px-2" : "justify-between px-6")}>
             {!isCollapsed && (
@@ -134,14 +134,6 @@ export function DashboardSidebar() {
                 />
               </div>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-8 w-8 hidden md:flex", isCollapsed ? "absolute -right-4 top-6 bg-background border shadow-sm rounded-full z-50" : "")}
-              onClick={() => setIsCollapsed(!isCollapsed)}
-            >
-              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
           </div>
 
           {/* Navigation section - takes remaining space */}
@@ -153,8 +145,9 @@ export function DashboardSidebar() {
                     <button
                       onClick={() => setOpen(true)}
                       className={cn(
-                        "group flex w-full items-center gap-3 rounded-lg px-3 py-2 mr-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20",
-                        isCollapsed && "justify-center px-2 hover:ml-0 hover:mr-0"
+                        "group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:shadow-lg hover:shadow-accent/20",
+                        !isCollapsed && "mr-2",
+                        isCollapsed && "justify-center h-10 w-10 p-0 mx-auto"
                       )}
                     >
                       <Search className="h-4 w-4 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
@@ -185,9 +178,10 @@ export function DashboardSidebar() {
                             href={item.href}
                             onClick={() => setIsOpen(false)}
                             className={cn(
-                              "group flex items-center gap-3 rounded-lg px-3 py-2 mr-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20",
+                              "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:shadow-lg hover:shadow-accent/20",
                               getActiveStateClasses(item.href),
-                              isCollapsed && "justify-center px-2 hover:ml-0 hover:mr-0"
+                              !isCollapsed && "mr-2",
+                              isCollapsed && "justify-center h-10 w-10 p-0 mx-auto"
                             )}
                             data-active={isActive}
                             aria-current={isActive ? "page" : undefined}
@@ -209,7 +203,19 @@ export function DashboardSidebar() {
           </div>
 
           {/* Profile section - fixed at bottom */}
-          <div className="border-t p-4 pb-6 dark:sidebar-footer">
+          <div className="border-t p-2 pb-4 dark:sidebar-footer flex flex-col gap-2">
+            <Button
+              variant="ghost"
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white",
+                !isCollapsed && "w-full justify-start",
+                isCollapsed && "justify-center h-10 w-10 p-0 mx-auto"
+              )}
+              onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              {!isCollapsed && <span>Einklappen</span>}
+            </Button>
             <UserSettings collapsed={isCollapsed} />
           </div>
         </div>
