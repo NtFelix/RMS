@@ -1,6 +1,5 @@
 import type React from "react"
-import { createServerClient } from "@/utils/supabase/server"
-import { cookies } from "next/headers"
+import { createClient } from "@/utils/supabase/server"
 import { DashboardClientLayout } from "./dashboard-client-layout"
 
 export default async function DashboardRootLayout({
@@ -8,8 +7,7 @@ export default async function DashboardRootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

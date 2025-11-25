@@ -10,16 +10,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface CreateAbrechnungDropdownProps {
-  onBlankClick: () => void;
-  onPreviousClick: () => void;
-  onTemplateClick: () => void;
-  className?: string;
-  buttonText?: string;
-  buttonVariant?: "default" | "outline" | "ghost" | "link";
-  align?: "center" | "start" | "end";
+  id?: string
+  onBlankClick: () => void
+  onPreviousClick: () => void
+  onTemplateClick: () => void
+  className?: string
+  buttonText?: string
+  buttonVariant?: "default" | "outline" | "ghost" | "link"
+  align?: "center" | "start" | "end"
 }
 
 export function CreateAbrechnungDropdown({
+  id,
   onBlankClick,
   onPreviousClick,
   onTemplateClick,
@@ -31,7 +33,8 @@ export function CreateAbrechnungDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <ButtonWithTooltip 
+        <ButtonWithTooltip
+          id={id}
           className={className}
           variant={buttonVariant}
         >

@@ -1,12 +1,10 @@
 "use server"
 
-import { createServerClient } from "@/utils/supabase/server"
-import { cookies } from "next/headers"
+import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 
 export async function completeOnboarding() {
-  const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -21,8 +19,7 @@ export async function completeOnboarding() {
 }
 
 export async function resetOnboarding() {
-  const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

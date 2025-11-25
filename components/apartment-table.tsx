@@ -21,6 +21,7 @@ import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { ChevronsUpDown, ArrowUp, ArrowDown, Home, Ruler, Euro, Building2, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
 import { formatNumber } from "@/utils/format"
+import { useModalStore } from "@/hooks/use-modal-store"
 
 export interface Apartment {
   id: string
