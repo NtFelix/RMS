@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
-import { Trash2 } from "lucide-react"; // Added
+import { Trash2, MoveDiagonal2 } from "lucide-react"; // Changed icon
 import { createClient } from "@/utils/supabase/client" // Added
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -47,7 +47,29 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   } = useModalStore();
 
   const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const initResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const startY = e.clientY;
+    const startHeight = textarea.offsetHeight;
+
+    const doDrag = (e: MouseEvent) => {
+      textarea.style.height = `${startHeight + e.clientY - startY}px`;
+    };
+
+    const stopDrag = () => {
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', stopDrag);
+    };
+
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+  };
   const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([]);
   
   // Helper function to generate unique IDs
@@ -366,14 +388,23 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 <Label htmlFor="notiz">Notiz</Label>
                 <InfoTooltip infoText="Hier können Sie zusätzliche Informationen oder Anmerkungen zum Mieter erfassen." />
               </div>
-              <Textarea
-                id="notiz"
-                name="notiz"
-                value={formData.notiz}
-                onChange={handleChange}
-                disabled={isSubmitting}
-                className="min-h-[80px] resize-y"
-              />
+              <div className="relative">
+                <Textarea
+                  ref={textareaRef}
+                  id="notiz"
+                  name="notiz"
+                  value={formData.notiz}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  className="min-h-[80px] resize-none pr-8"
+                />
+                <div
+                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
+                  onMouseDown={initResize}
+                >
+                  <MoveDiagonal2 className="h-4 w-4 text-foreground/70" />
+                </div>
+              </div>
             </div>
             <div className="col-span-2 space-y-3">
               <div className="flex items-center gap-2">
