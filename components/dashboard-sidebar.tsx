@@ -103,7 +103,7 @@ export function DashboardSidebar() {
         className={cn(
           "fixed inset-y-0 left-0 z-[49] flex-col transition-all duration-300 ease-in-out md:sticky md:translate-x-0 hidden md:flex h-screen",
           isOpen ? "translate-x-0 flex" : "-translate-x-full",
-          isCollapsed ? "w-20" : "w-72"
+          isCollapsed ? "w-16" : "w-72"
         )}
       >
         <div className="h-full w-full bg-background border-r border-border dark:sidebar-container flex flex-col relative">

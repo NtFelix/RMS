@@ -110,8 +110,8 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
         trigger={
           <div
             className={cn(
-              "flex items-center px-3 py-2 rounded-xl hover:bg-white hover:text-gray-900 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md dark:hover:bg-gray-800 dark:hover:text-gray-100",
-              collapsed ? "justify-center" : "space-x-3"
+              "flex items-center hover:bg-white hover:text-gray-900 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md dark:hover:bg-gray-800 dark:hover:text-gray-100",
+              collapsed ? "justify-center rounded-full p-0 h-10 w-10 mx-auto" : "space-x-3 px-3 py-2 rounded-xl"
             )}
             aria-label="User menu"
           >
