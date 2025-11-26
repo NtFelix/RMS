@@ -271,7 +271,32 @@ function SidebarContent({
                 >
                   <Search className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:scale-110" />
                   {!isMobile && textVariants && (
-                    <motion.div variants={textVariants} className="flex items-center flex-1 overflow-hidden">
+                    <motion.div
+                      variants={{
+                        expanded: {
+                          opacity: 1,
+                          x: 0,
+                          display: "flex",
+                          transition: {
+                            duration: 0.3,
+                            delay: 0.1,
+                            ease: "easeOut"
+                          }
+                        },
+                        collapsed: {
+                          opacity: 0,
+                          x: -10,
+                          transition: {
+                            duration: 0.2,
+                            ease: "easeIn"
+                          },
+                          transitionEnd: {
+                            display: "none"
+                          }
+                        }
+                      }}
+                      className="flex items-center flex-1 overflow-hidden"
+                    >
                       <span className="transition-all duration-300 ease-out group-hover:font-semibold">
                         Suche
                       </span>
