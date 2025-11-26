@@ -14,6 +14,7 @@ import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker import
+import { Textarea } from "@/components/ui/textarea" // New import
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
@@ -113,7 +114,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   //   }
   // }, [isTenantModalOpen, tenantModalWohnungen]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setTenantModalDirty(true);
   };
@@ -365,7 +366,14 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 <Label htmlFor="notiz">Notiz</Label>
                 <InfoTooltip infoText="Hier können Sie zusätzliche Informationen oder Anmerkungen zum Mieter erfassen." />
               </div>
-              <Input id="notiz" name="notiz" value={formData.notiz} onChange={handleChange} disabled={isSubmitting}/>
+              <Textarea
+                id="notiz"
+                name="notiz"
+                value={formData.notiz}
+                onChange={handleChange}
+                disabled={isSubmitting}
+                className="min-h-[80px] resize-y"
+              />
             </div>
             <div className="col-span-2 space-y-3">
               <div className="flex items-center gap-2">
