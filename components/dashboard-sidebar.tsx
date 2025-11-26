@@ -161,7 +161,7 @@ export function DashboardSidebar() {
         animate={isCollapsed ? "collapsed" : "expanded"}
         variants={sidebarVariants}
         className={cn(
-          "hidden md:flex flex-col z-30 ml-6 my-6 h-[calc(100vh-3rem)] rounded-2xl border bg-background shadow-sm sticky top-6 overflow-hidden",
+          "hidden md:flex flex-col z-30 ml-8 my-8 h-[calc(100vh-4rem)] rounded-2xl border bg-background shadow-sm sticky top-8 overflow-hidden",
         )}
         style={{ willChange: "width" }}
       >
