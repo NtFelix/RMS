@@ -77,8 +77,8 @@ export function DashboardSidebar() {
 
   // Feature flags for navigation items
   const featureFlags = new Map([
-    ['/dateien', documentsEnabled],
-    ['/mails', mailsEnabled],
+    ['/dateien', !!documentsEnabled],
+    ['/mails', !!mailsEnabled],
   ]);
 
   // Handle responsive collapse
