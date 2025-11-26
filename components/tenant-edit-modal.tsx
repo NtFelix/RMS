@@ -55,11 +55,20 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
+    const MIN_HEIGHT_PX = 80; // Corresponds to min-h-[80px]
+    const MAX_HEIGHT_PX = 150; // Define a max height in pixels (approx. 6 lines of text for ~100 characters)
+
     const startY = e.clientY;
     const startHeight = textarea.offsetHeight;
 
     const doDrag = (e: MouseEvent) => {
-      textarea.style.height = `${startHeight + e.clientY - startY}px`;
+      let newHeight = startHeight + e.clientY - startY;
+
+      // Constrain newHeight to be within MIN_HEIGHT_PX and MAX_HEIGHT_PX
+      newHeight = Math.max(MIN_HEIGHT_PX, newHeight);
+      newHeight = Math.min(MAX_HEIGHT_PX, newHeight);
+
+      textarea.style.height = `${newHeight}px`;
     };
 
     const stopDrag = () => {
