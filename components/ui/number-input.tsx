@@ -11,7 +11,7 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
     const [displayValue, setDisplayValue] = React.useState("")
 
     React.useEffect(() => {
-       if (value === undefined || value === null) {
+      if (value === undefined || value === null) {
         setDisplayValue("")
       } else {
         // Convert dot to comma for display
@@ -25,18 +25,18 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       // Update display value immediately
       setDisplayValue(inputValue)
 
-      // Replace comma with dot for the value passed to parent
-      const dotValue = inputValue.replace(/,/g, '.')
+      // Convert German format (e.g. 1.234,56) to standard format (1234.56)
+      const dotValue = inputValue.replace(/\./g, "").replace(",", ".")
 
       if (onChange) {
         // Create a proxy event that allows reading target.name and target.value
         const eventShim = {
-            ...e,
-            target: {
-                ...e.target,
-                value: dotValue,
-                name: props.name || e.target.name,
-            }
+          ...e,
+          target: {
+            ...e.target,
+            value: dotValue,
+            name: props.name || e.target.name,
+          }
         } as unknown as React.ChangeEvent<HTMLInputElement>;
 
         onChange(eventShim);
