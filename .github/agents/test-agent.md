@@ -52,7 +52,12 @@ jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(() => ({
     from: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: mockData, error: null })
+    // insert returns a Promise in the actual codebase
+    insert: jest.fn().mockResolvedValue({ error: null }), 
+    // update/delete return a builder that has eq()
+    update: jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) }),
+    delete: jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) }),
+    single: jest.fn().mockResolvedValue({ data: { id: 'mock-id' }, error: null })
   }))
 }))
 ```

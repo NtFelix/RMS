@@ -55,13 +55,13 @@ You are an expert Full-Stack Engineer for the RMS (Rent-Managing-System) project
 
 ### Server Components Pattern
 ```typescript
-import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { fetchTenants } from '@/lib/data-fetching'
+import { createClient } from '@/utils/supabase/server'
 
 export default async function TenantsPage() {
-  const supabase = createSupabaseServerClient()
-  const { data: tenants } = await fetchTenants(supabase)
-  return <TenantManagement initialTenants={tenants} />
+  const supabase = await createClient()
+  const { data: tenants } = await supabase.from('Mieter').select('*')
+  
+  return <TenantManagement initialTenants={tenants || []} />
 }
 ```
 
@@ -70,18 +70,23 @@ export default async function TenantsPage() {
 // app/[entity]-actions.ts
 'use server'
 import { revalidatePath } from 'next/cache'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { tenantSchema } from '@/lib/validations'
+import { createClient } from '@/utils/supabase/server'
 
 export async function createTenant(formData: FormData) {
-  const supabase = createSupabaseServerClient()
-  const validatedData = tenantSchema.parse({ ... })
+  const supabase = await createClient()
+  
+  const payload = {
+    name: formData.get('name'),
+    email: formData.get('email'),
+    // ... other fields
+  }
 
-  const { data, error } = await supabase.from('mieter').insert(validatedData)
+  const { error } = await supabase.from('Mieter').insert(payload)
 
-  if (error) throw new Error(error.message)
+  if (error) return { success: false, error: { message: error.message } }
+  
   revalidatePath('/mieter')
-  return { success: true, data }
+  return { success: true }
 }
 ```
 
