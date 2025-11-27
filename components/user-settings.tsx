@@ -6,6 +6,7 @@ import { LogOut, Settings, FileText } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
 
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useApartmentUsage } from "@/hooks/use-apartment-usage"
@@ -122,7 +123,13 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
-              <div className="flex flex-col flex-1 text-left min-w-0">
+              <motion.div
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col flex-1 text-left min-w-0 overflow-hidden"
+              >
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                   {isLoadingUser ? "Lade..." : userName}
                 </span>
@@ -147,7 +154,7 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
                     <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
                   </div>
                 )}
-              </div>
+              </motion.div>
             )}
           </div>
         }
