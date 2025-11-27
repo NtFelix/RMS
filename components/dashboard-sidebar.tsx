@@ -83,17 +83,24 @@ export function DashboardSidebar() {
 
   // Handle responsive collapse
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        setIsCollapsed(true)
+    const mediaQuery = window.matchMedia('(max-width: 1023px)');
+
+    const handleMediaChange = (e: MediaQueryListEvent) => {
+      // Only force collapse when the screen becomes small.
+      // This preserves the user's choice to keep it collapsed on larger screens.
+      if (e.matches) {
+        setIsCollapsed(true);
       }
-    }
+    };
 
     // Initial check
-    handleResize()
+    if (mediaQuery.matches) {
+      setIsCollapsed(true);
+    }
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    mediaQuery.addEventListener('change', handleMediaChange);
+
+    return () => mediaQuery.removeEventListener('change', handleMediaChange);
   }, [])
 
   const sidebarVariants: Variants = {
