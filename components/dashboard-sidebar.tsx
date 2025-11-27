@@ -121,15 +121,15 @@ export function DashboardSidebar() {
       transition: {
         duration: 0.3,
         delay: 0.1,
-        ease: "easeOut"
+        ease: [0.22, 1, 0.36, 1] // Custom bezier for smooth "premium" feel
       }
     },
     collapsed: {
       opacity: 0,
-      x: -10,
+      x: -20,
       transition: {
         duration: 0.2,
-        ease: "easeIn"
+        ease: [0.22, 1, 0.36, 1]
       },
       transitionEnd: {
         display: "none"
@@ -233,9 +233,9 @@ function SidebarContent({
   return (
     <div className="h-full w-full flex flex-col relative">
       {/* Header section */}
-      <div className={cn("flex items-center pt-6 pb-2", isCollapsed ? "justify-center px-2" : "justify-between pl-6 pr-6")}>
+      <div className="flex items-center pt-6 pb-2 pl-6 pr-6 justify-between">
         <Link href="/" className="flex items-center gap-3 font-semibold overflow-hidden">
-          <div className="relative w-8 h-8 min-w-[2rem] rounded-full overflow-hidden shadow-sm">
+          <div className="relative w-8 h-8 min-w-[2rem] rounded-full overflow-hidden shadow-sm flex-shrink-0">
             <Image
               src={LOGO_URL}
               alt="IV Logo"
@@ -258,18 +258,18 @@ function SidebarContent({
 
       {/* Navigation section - takes remaining space */}
       <div className="flex-1 overflow-y-auto min-h-0 py-4 custom-scrollbar">
-        <nav className={cn("grid gap-1.5", isCollapsed ? "px-2" : "px-4")}>
+        <nav className="grid gap-1.5 px-5">
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setOpen(true)}
                   className={cn(
-                    "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
-                    isCollapsed && "justify-center h-10 w-10 p-0 mx-auto"
+                    "group flex w-full items-center gap-3 rounded-xl pl-3 pr-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
+                    // Removed conditional layout classes to prevent jiggle
                   )}
                 >
-                  <Search className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:scale-110" />
+                  <Search className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-300 ease-out group-hover:scale-110" />
                   {!isMobile && textVariants && (
                     <motion.div
                       variants={{
@@ -280,15 +280,15 @@ function SidebarContent({
                           transition: {
                             duration: 0.3,
                             delay: 0.1,
-                            ease: "easeOut"
+                            ease: [0.22, 1, 0.36, 1]
                           }
                         },
                         collapsed: {
                           opacity: 0,
-                          x: -10,
+                          x: -20,
                           transition: {
                             duration: 0.2,
-                            ease: "easeIn"
+                            ease: [0.22, 1, 0.36, 1]
                           },
                           transitionEnd: {
                             display: "none"
@@ -332,14 +332,14 @@ function SidebarContent({
                         href={item.href}
                         onClick={() => setIsOpen(false)}
                         className={cn(
-                          "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
+                          "group flex items-center gap-3 rounded-xl pl-3 pr-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
                           getActiveStateClasses(item.href),
-                          isCollapsed && "justify-center h-10 w-10 p-0 mx-auto"
+                          // Removed conditional layout classes to prevent jiggle
                         )}
                         data-active={isActive}
                         aria-current={isActive ? "page" : undefined}
                       >
-                        <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:scale-110" />
+                        <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-300 ease-out group-hover:scale-110" />
                         {!isMobile && textVariants && (
                           <motion.span
                             variants={textVariants}
@@ -364,18 +364,16 @@ function SidebarContent({
       </div>
 
       {/* Profile section - fixed at bottom */}
-      <div className={cn("pt-2 pb-4 flex flex-col gap-2", isCollapsed ? "px-2" : "px-4")}>
+      <div className="pt-2 pb-4 flex flex-col gap-2 px-5">
         {!isMobile && (
           <Button
             variant="ghost"
             className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white",
-              !isCollapsed && "w-full justify-start",
-              isCollapsed && "justify-center h-10 w-10 p-0 mx-auto"
+              "flex items-center gap-3 rounded-xl pl-3 pr-3 py-2 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white w-full justify-start",
             )}
             onClick={toggleCollapse}
           >
-            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            {isCollapsed ? <ChevronRight className="h-4 w-4 flex-shrink-0" /> : <ChevronLeft className="h-4 w-4 flex-shrink-0" />}
             {!isCollapsed && textVariants && (
               <motion.span variants={textVariants}>Einklappen</motion.span>
             )}
