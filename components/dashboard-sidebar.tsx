@@ -100,14 +100,14 @@ export function DashboardSidebar() {
     expanded: {
       width: "18rem",
       transition: {
-        duration: 0.4,
+        duration: 0.5,
         ease: [0.22, 1, 0.36, 1] // Custom bezier for smooth "premium" feel
       }
     },
     collapsed: {
       width: "5rem", // Slightly wider for better visual balance
       transition: {
-        duration: 0.4,
+        duration: 0.5,
         ease: [0.22, 1, 0.36, 1]
       }
     }
@@ -119,7 +119,7 @@ export function DashboardSidebar() {
       x: 0,
       display: "block",
       transition: {
-        duration: 0.3,
+        duration: 0.4,
         delay: 0.1,
         ease: [0.22, 1, 0.36, 1] // Custom bezier for smooth "premium" feel
       }
@@ -128,7 +128,7 @@ export function DashboardSidebar() {
       opacity: 0,
       x: -20,
       transition: {
-        duration: 0.2,
+        duration: 0.3,
         ease: [0.22, 1, 0.36, 1]
       },
       transitionEnd: {
@@ -265,7 +265,7 @@ function SidebarContent({
                 <button
                   onClick={() => setOpen(true)}
                   className={cn(
-                    "group flex w-full items-center gap-3 rounded-xl pl-3 pr-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
+                    "group flex w-full items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
                     // Removed conditional layout classes to prevent jiggle
                   )}
                 >
@@ -278,7 +278,7 @@ function SidebarContent({
                           x: 0,
                           display: "flex",
                           transition: {
-                            duration: 0.3,
+                            duration: 0.4,
                             delay: 0.1,
                             ease: [0.22, 1, 0.36, 1]
                           }
@@ -287,7 +287,7 @@ function SidebarContent({
                           opacity: 0,
                           x: -20,
                           transition: {
-                            duration: 0.2,
+                            duration: 0.3,
                             ease: [0.22, 1, 0.36, 1]
                           },
                           transitionEnd: {
@@ -332,7 +332,7 @@ function SidebarContent({
                         href={item.href}
                         onClick={() => setIsOpen(false)}
                         className={cn(
-                          "group flex items-center gap-3 rounded-xl pl-3 pr-3 py-2.5 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
+                          "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
                           getActiveStateClasses(item.href),
                           // Removed conditional layout classes to prevent jiggle
                         )}
@@ -369,7 +369,7 @@ function SidebarContent({
           <Button
             variant="ghost"
             className={cn(
-              "flex items-center gap-3 rounded-xl pl-3 pr-3 py-2 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white w-full justify-start",
+              "flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white w-full justify-start",
             )}
             onClick={toggleCollapse}
           >
