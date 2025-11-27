@@ -9,6 +9,7 @@ import { PlusCircle, Trash2, GripVertical } from "lucide-react";
 import { normalizeBerechnungsart } from "../utils/betriebskosten";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { NumberInput } from "./ui/number-input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Skeleton } from "./ui/skeleton";
@@ -121,9 +122,8 @@ export function SortableCostItem({
               Beträge pro Mieter unten
             </div>
           ) : (
-            <Input
+            <NumberInput
               id={`betrag-${item.id}`}
-              type="number"
               placeholder="Betrag (€)"
               value={item.betrag}
               onChange={(e) => onCostItemChange(index, 'betrag', e.target.value)}
@@ -230,9 +230,8 @@ export function SortableCostItem({
                           {mieter.name}
                         </Label>
                         <div className="flex-shrink-0 w-32">
-                          <Input
+                          <NumberInput
                             id={`rechnung-${item.id}-${mieter.id}`}
-                            type="number"
                             step="0.01"
                             placeholder="Betrag (€)"
                             value={rechnungForMieter?.betrag || ''}

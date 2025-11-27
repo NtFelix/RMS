@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import {
   Select,
@@ -215,7 +216,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
               <LabelWithTooltip htmlFor="betrag" infoText="Betrag der Transaktion in Euro.">
                 Betrag (€)
               </LabelWithTooltip>
-              <Input id="betrag" name="betrag" type="number" step="0.01" value={formData.betrag} onChange={handleChange} required disabled={isSubmitting} />
+              <NumberInput id="betrag" name="betrag" step="0.01" value={formData.betrag} onChange={handleChange} required disabled={isSubmitting} />
             </div>
             <div className="space-y-2">
               <LabelWithTooltip htmlFor="datum" infoText="Buchungs- oder Zahlungsdatum. Wird für Monats- und Jahresauswertungen, Cashflow-Berechnungen und die korrekte Zuordnung von Transaktionen verwendet.">

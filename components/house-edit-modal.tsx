@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -262,10 +263,9 @@ export function HouseEditModal(props: HouseEditModalProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="manualGroesse">Größe in m²</Label>
-            <Input
+            <NumberInput
               id="manualGroesse"
               name="manualGroesse"
-              type="number"
               value={manualGroesse}
               onChange={handleManualGroesseChange}
               disabled={automaticSize || isSubmitting}

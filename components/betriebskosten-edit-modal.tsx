@@ -33,6 +33,7 @@ import {
 import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { NumberInput } from "./ui/number-input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Skeleton } from "./ui/skeleton";
@@ -1053,7 +1054,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                   Wasserkosten (€)
                 </LabelWithTooltip>
                 {isFormLoading ? <Skeleton className="h-10 w-full" /> : (
-                  <Input id="formWasserkosten" type="number" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving || isFormLoading} />
+                  <NumberInput id="formWasserkosten" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving || isFormLoading} />
                 )}
               </div>
             </div>
