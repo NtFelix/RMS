@@ -280,27 +280,11 @@ function SidebarContent({
                   {!isMobile && textVariants && (
                     <motion.div
                       variants={{
+                        ...textVariants,
                         expanded: {
-                          opacity: 1,
-                          x: 0,
+                          ...(textVariants.expanded as any),
                           display: "flex",
-                          transition: {
-                            duration: 0.4,
-                            delay: 0.1,
-                            ease: [0.22, 1, 0.36, 1]
-                          }
                         },
-                        collapsed: {
-                          opacity: 0,
-                          x: -20,
-                          transition: {
-                            duration: 0.3,
-                            ease: [0.22, 1, 0.36, 1]
-                          },
-                          transitionEnd: {
-                            display: "none"
-                          }
-                        }
                       }}
                       className="flex items-center flex-1 overflow-hidden"
                     >
