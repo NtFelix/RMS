@@ -265,11 +265,11 @@ function SidebarContent({
                 <button
                   onClick={() => setOpen(true)}
                   className={cn(
-                    "group flex w-full items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
+                    "group flex w-full items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2",
                     // Removed conditional layout classes to prevent jiggle
                   )}
                 >
-                  <Search className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-300 ease-out group-hover:scale-110" />
+                  <Search className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
                   {!isMobile && textVariants && (
                     <motion.div
                       variants={{
@@ -297,20 +297,20 @@ function SidebarContent({
                       }}
                       className="flex items-center flex-1 overflow-hidden"
                     >
-                      <span className="transition-all duration-300 ease-out group-hover:font-semibold">
+                      <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
                         Suche
                       </span>
-                      <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 group-hover:text-white group-hover:border-white/20">
+                      <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                         <span className="text-xs">⌘</span>K
                       </kbd>
                     </motion.div>
                   )}
                   {isMobile && (
                     <>
-                      <span className="transition-all duration-300 ease-out group-hover:font-semibold">
+                      <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
                         Suche
                       </span>
-                      <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 group-hover:text-white group-hover:border-white/20">
+                      <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                         <span className="text-xs">⌘</span>K
                       </kbd>
                     </>
@@ -332,24 +332,24 @@ function SidebarContent({
                         href={item.href}
                         onClick={() => setIsOpen(false)}
                         className={cn(
-                          "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/10",
+                          "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2",
                           getActiveStateClasses(item.href),
                           // Removed conditional layout classes to prevent jiggle
                         )}
                         data-active={isActive}
                         aria-current={isActive ? "page" : undefined}
                       >
-                        <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-300 ease-out group-hover:scale-110" />
+                        <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
                         {!isMobile && textVariants && (
                           <motion.span
                             variants={textVariants}
-                            className="whitespace-nowrap transition-all duration-300 ease-out group-hover:font-semibold"
+                            className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide"
                           >
                             {item.title}
                           </motion.span>
                         )}
                         {isMobile && (
-                          <span className="transition-all duration-300 ease-out group-hover:font-semibold">
+                          <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
                             {item.title}
                           </span>
                         )}
@@ -369,7 +369,7 @@ function SidebarContent({
           <Button
             variant="ghost"
             className={cn(
-              "flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white w-full justify-start",
+              "flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-colors duration-200 ease-in-out hover:bg-muted w-full justify-start",
             )}
             onClick={toggleCollapse}
           >
