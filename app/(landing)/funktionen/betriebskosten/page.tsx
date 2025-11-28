@@ -1,6 +1,7 @@
 'use client';
 
-import { Calculator, Droplets, Zap, Flame, FileText, Users, CheckCircle2, ArrowRight, DollarSign, Search, Filter, PieChart, BarChart3, Receipt } from 'lucide-react';
+import { Calculator, Droplets, Zap, Flame, FileText, Users, CheckCircle2, ArrowRight, DollarSign, Search, Filter, PieChart, BarChart3, Receipt, Download, FileDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import { CTAButton } from '@/components/ui/cta-button';
@@ -51,7 +52,7 @@ export default function UtilityCostPage() {
             </span>
           </h1>
           <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed text-center">
-            Erstellen Sie rechtssichere Nebenkostenabrechnungen in Minuten. Erfassen Sie Zählerstände und verteilen Sie Kosten automatisch.
+            Erstellen Sie professionelle Nebenkostenabrechnungen in Minuten. Erfassen Sie Zählerstände und verteilen Sie Kosten automatisch.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <CTAButton
@@ -362,17 +363,39 @@ export default function UtilityCostPage() {
             >
               <div className="flex items-center mb-4">
                 <FileText className="w-8 h-8 text-primary mr-3" />
-                <h3 className="text-2xl font-semibold">Rechtssichere Abrechnung</h3>
+                <h3 className="text-2xl font-semibold">Abrechnung erstellen</h3>
               </div>
               <p className="text-muted-foreground mb-4">
-                Erstellen Sie automatisch fertige Nebenkostenabrechnungen für Ihre Mieter. Alle gesetzlichen Anforderungen werden dabei berücksichtigt.
+                Erstellen Sie automatisch fertige Nebenkostenabrechnungen für Ihre Mieter.
               </p>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
-                  <div>
+                  <div className="w-full">
                     <h4 className="font-semibold mb-1">PDF-Export</h4>
-                    <p className="text-muted-foreground">Versandfertige Dokumente mit einem Klick erstellen.</p>
+                    <p className="text-muted-foreground mb-3">Versandfertige Dokumente mit einem Klick erstellen.</p>
+
+                    {/* Download Selector Mockup */}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 h-9 border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary hover:text-primary"
+                        onClick={() => window.open('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/Beispielabrechnung.pdf', '_blank')}
+                      >
+                        <FileDown className="w-4 h-4" />
+                        Beispiel als PDF
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2 h-9 text-muted-foreground cursor-not-allowed opacity-70"
+                        disabled
+                      >
+                        <Download className="w-4 h-4" />
+                        Alle als ZIP
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
