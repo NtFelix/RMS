@@ -34,7 +34,7 @@ export default function UtilityCostPage() {
   const mockSettlements = [
     { id: 1, tenant: 'Max Mustermann', unit: 'Wohnung A', period: '2024', result: 'Nachzahlung', amount: '120,50 €' },
     { id: 2, tenant: 'Erika Musterfrau', unit: 'Wohnung B', period: '2024', result: 'Guthaben', amount: '45,20 €' },
-    { id: 3, tenant: 'John Doe', unit: 'Wohnung C', period: '2024', result: 'Ausstehend', amount: '-' },
+    { id: 3, tenant: 'John Doe', unit: 'Wohnung C', period: '2024', result: 'Guthaben', amount: '85,30 €' },
   ];
 
   const handleGetStarted = () => {
