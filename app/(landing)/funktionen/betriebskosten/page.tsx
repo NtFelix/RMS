@@ -1,121 +1,408 @@
 'use client';
 
-
-import { Calculator, Droplets, Zap, Flame, FileText, Users, CheckCircle2, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { Calculator, Droplets, Zap, Flame, FileText, Users, CheckCircle2, ArrowRight, DollarSign, Search, Filter, PieChart, BarChart3, Receipt } from 'lucide-react';
+import { MacWindow } from '@/components/ui/mac-window';
+import { MediaContent } from '@/components/ui/media-content';
+import { CTAButton } from '@/components/ui/cta-button';
+import BottomCTA from '@/components/ui/bottom-cta';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
+import { Input } from '@/components/ui/input';
 
 export default function UtilityCostPage() {
-  const features = [
-    {
-      icon: Calculator,
-      title: 'Automatische Berechnung',
-      description: 'Berechnen Sie Betriebskosten automatisch nach Verbrauch oder Wohnfläche.',
-    },
-    {
-      icon: Droplets,
-      title: 'Wasserzähler-Verwaltung',
-      description: 'Erfassen Sie Wasserzählerstände und berechnen Sie Verbrauch automatisch.',
-    },
-    {
-      icon: Zap,
-      title: 'Energiekosten',
-      description: 'Verwalten Sie Strom-, Gas- und Heizkosten übersichtlich.',
-    },
-    {
-      icon: Users,
-      title: 'Mieterumlagen',
-      description: 'Verteilen Sie Kosten fair auf alle Mieter nach verschiedenen Schlüsseln.',
-    },
-    {
-      icon: FileText,
-      title: 'Nebenkostenabrechnung',
-      description: 'Erstellen Sie rechtssichere Nebenkostenabrechnungen mit wenigen Klicks.',
-    },
-    {
-      icon: Flame,
-      title: 'Heizkosten',
-      description: 'Erfassen und verteilen Sie Heizkosten nach Verbrauch oder Wohnfläche.',
-    },
+  // Mock data for Utility Costs table
+  const mockUtilityCosts = [
+    { id: 1, provider: 'Stadtwerke', type: 'Wasser', date: '12.01.2025', amount: '450,00 €', status: 'bezahlt' },
+    { id: 2, provider: 'E.ON Energie', type: 'Strom Allgemein', date: '15.01.2025', amount: '120,00 €', status: 'bezahlt' },
+    { id: 3, provider: 'Gasag', type: 'Heizung', date: '20.01.2025', amount: '1.200,00 €', status: 'offen' },
+    { id: 4, provider: 'Allianz', type: 'Versicherung', date: '01.01.2025', amount: '850,00 €', status: 'bezahlt' },
   ];
 
-  const benefits = [
-    'Zeitersparnis durch automatische Berechnungen',
-    'Fehlerfreie Abrechnungen',
-    'Verschiedene Umlageschlüssel verfügbar',
-    'Historische Daten für Vergleiche',
-    'Export als PDF für Mieter',
-    'Rechtssichere Dokumentation',
+  // Mock data for Meter Readings table
+  const mockMeterReadings = [
+    { id: 1, name: 'Wasserzähler Küche', number: 'WZ-101', reading: '345.678 m³', date: '31.12.2024', location: 'Whg A' },
+    { id: 2, name: 'Wasserzähler Bad', number: 'WZ-102', reading: '123.456 m³', date: '31.12.2024', location: 'Whg A' },
+    { id: 3, name: 'Heizungszähler', number: 'HZ-201', reading: '45.678 kWh', date: '31.12.2024', location: 'Whg B' },
+    { id: 4, name: 'Stromzähler Allg.', number: 'SZ-001', reading: '12.345 kWh', date: '31.12.2024', location: 'Keller' },
   ];
+
+  // Mock data for Settlements table
+  const mockSettlements = [
+    { id: 1, tenant: 'Max Mustermann', unit: 'Wohnung A', period: '2024', result: 'Nachzahlung', amount: '120,50 €' },
+    { id: 2, tenant: 'Erika Musterfrau', unit: 'Wohnung B', period: '2024', result: 'Guthaben', amount: '45,20 €' },
+    { id: 3, tenant: 'John Doe', unit: 'Wohnung C', period: '2024', result: 'Ausstehend', amount: '-' },
+  ];
+
+  const handleGetStarted = () => {
+    window.location.href = '/?getStarted=true';
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 py-16 mt-20">
-        <div className="max-w-6xl mx-auto">
-          {/* Hero Section */}
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-2xl mb-6">
-              <Calculator className="w-10 h-10 text-primary" />
-            </div>
-            <h1 className="text-5xl font-bold mb-4">Betriebskosten</h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Erstellen Sie automatisch rechtssichere Nebenkostenabrechnungen und sparen Sie wertvolle Zeit.
-            </p>
-          </div>
-
-          {/* Features Grid */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-center mb-12">Funktionen im Detail</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {features.map((feature, index) => {
-                const Icon = feature.icon;
-                return (
-                  <div key={index} className="bg-card border rounded-2xl p-6 hover:shadow-lg transition-shadow">
-                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
-                      <Icon className="w-6 h-6 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground">{feature.description}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Benefits Section */}
-          <div className="bg-card border rounded-2xl p-8 mb-16">
-            <h2 className="text-3xl font-bold mb-8 text-center">Ihre Vorteile</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              {benefits.map((benefit, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-                  <span className="text-muted-foreground">{benefit}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* CTA Section */}
-          <div className="text-center bg-primary/5 rounded-2xl p-12">
-            <h2 className="text-3xl font-bold mb-4">Bereit loszulegen?</h2>
-            <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Starten Sie noch heute mit der automatischen Betriebskostenabrechnung.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg">
-                <Link href="/?getStarted=true">
-                  Jetzt kostenlos testen
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg">
-                <Link href="/#pricing">
-                  Preise ansehen
-                </Link>
-              </Button>
-            </div>
+      {/* Hero Section */}
+      <div className="container mx-auto px-4 pt-48 pb-16">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight tracking-tight">
+            <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+              Betriebskosten einfach abrechnen
+            </span>
+          </h1>
+          <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed text-center">
+            Erstellen Sie rechtssichere Nebenkostenabrechnungen in Minuten. Erfassen Sie Zählerstände und verteilen Sie Kosten automatisch.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <CTAButton
+              variant="primary"
+              text="14 Tage kostenlos testen"
+              href="/?getStarted=true"
+              icon={ArrowRight}
+              iconPosition="right"
+            />
+            <CTAButton
+              variant="secondary"
+              text="Preise ansehen"
+              href="/#pricing"
+              icon={DollarSign}
+              iconPosition="left"
+            />
           </div>
         </div>
       </div>
+
+      {/* Main Visual Section */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Image with macOS Window */}
+          <MacWindow className="mb-16">
+            <MediaContent
+              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/finance-table.avif"
+              alt="Betriebskosten-Übersicht"
+              type="image"
+              className="dark:hidden"
+            />
+            <MediaContent
+              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/finance-table-darkmode.avif"
+              alt="Betriebskosten-Übersicht (Dark Mode)"
+              type="image"
+              className="hidden dark:block"
+            />
+          </MacWindow>
+        </div>
+      </div>
+
+      {/* Detailed Features Section */}
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-4xl font-bold">Funktionen im Detail</h2>
+          </motion.div>
+
+          {/* Kostenübersicht Section - 2 Column Layout (Table Left, Text Right) */}
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            viewport={{ once: true }}
+            className="grid md:grid-cols-2 gap-12 items-start mb-24"
+          >
+            {/* Left Column - Table in Mac Window */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              viewport={{ once: true }}
+              className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]"
+            >
+              {/* macOS Window Header */}
+              <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                </div>
+              </div>
+              <div className="w-full p-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998]">
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Anbieter</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Art</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Datum</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Betrag</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {mockUtilityCosts.map((cost) => (
+                        <TableRow
+                          key={cost.id}
+                          className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        >
+                          <TableCell className="font-medium">{cost.provider}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {cost.type === 'Wasser' && <Droplets className="w-4 h-4 text-blue-500" />}
+                              {cost.type === 'Heizung' && <Flame className="w-4 h-4 text-orange-500" />}
+                              {cost.type === 'Strom Allgemein' && <Zap className="w-4 h-4 text-yellow-500" />}
+                              {cost.type === 'Versicherung' && <FileText className="w-4 h-4 text-green-500" />}
+                              {cost.type}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{cost.date}</TableCell>
+                          <TableCell className="font-medium">{cost.amount}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Right Column - Description */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              viewport={{ once: true }}
+              className="space-y-6"
+            >
+              <div>
+                <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
+                  <Receipt className="w-8 h-8 text-primary" />
+                  Zentrale Kostenerfassung
+                </h3>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Erfassen Sie alle umlagefähigen Betriebskosten an einem Ort. Ordnen Sie Rechnungen direkt den entsprechenden Kostenarten und Abrechnungszeiträumen zu.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Automatische Kategorisierung</h4>
+                    <p className="text-muted-foreground">Intelligente Zuordnung von Kostenarten für eine korrekte Abrechnung.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Digitale Belegablage</h4>
+                    <p className="text-muted-foreground">Speichern Sie Rechnungen direkt digital zu jeder Buchung.</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Zählerstände Section - 2 Column Layout (Text Left, Table Right) */}
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            viewport={{ once: true }}
+            className="grid md:grid-cols-2 gap-12 items-start mb-24"
+          >
+            {/* Left Column - Description */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 1.0 }}
+              viewport={{ once: true }}
+              className="space-y-6"
+            >
+              <div>
+                <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
+                  <Calculator className="w-8 h-8 text-primary" />
+                  Zählerstände verwalten
+                </h3>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Behalten Sie den Überblick über alle Zählerstände. Erfassen Sie Verbräuche für Wasser, Heizung und Strom einfach und fehlerfrei.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Verbrauchshistorie</h4>
+                    <p className="text-muted-foreground">Verfolgen Sie die Verbrauchsentwicklung über die Jahre.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Plausibilitätsprüfung</h4>
+                    <p className="text-muted-foreground">Automatische Warnung bei ungewöhnlichen Abweichungen.</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Right Column - Table in Mac Window */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 1.2 }}
+              viewport={{ once: true }}
+              className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]"
+            >
+              {/* macOS Window Header */}
+              <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                </div>
+              </div>
+              <div className="w-full p-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998]">
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Zähler</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Nummer</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Stand</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Ort</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {mockMeterReadings.map((meter) => (
+                        <TableRow
+                          key={meter.id}
+                          className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        >
+                          <TableCell className="font-medium">{meter.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{meter.number}</TableCell>
+                          <TableCell className="font-mono">{meter.reading}</TableCell>
+                          <TableCell>{meter.location}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Abrechnung Section - 2 Column Layout (Table Left, Text Right) */}
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 1.4 }}
+            viewport={{ once: true }}
+            className="grid md:grid-cols-2 gap-12 items-start mb-24"
+          >
+            {/* Left Column - Table in Mac Window */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 1.6 }}
+              viewport={{ once: true }}
+              className="bg-card border rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.3),0_0_100px_rgba(0,0,0,0.1)]"
+            >
+              {/* macOS Window Header */}
+              <div className="bg-muted/30 border-b px-4 py-3 flex items-center">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                </div>
+              </div>
+              <div className="w-full p-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998]">
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Mieter</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Einheit</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Ergebnis</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Betrag</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {mockSettlements.map((settlement) => (
+                        <TableRow
+                          key={settlement.id}
+                          className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        >
+                          <TableCell className="font-medium">{settlement.tenant}</TableCell>
+                          <TableCell>{settlement.unit}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              settlement.result === 'Nachzahlung' ? 'destructive' :
+                                settlement.result === 'Guthaben' ? 'default' : 'secondary'
+                            }>
+                              {settlement.result}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className={
+                            settlement.result === 'Nachzahlung' ? 'text-red-500 font-medium' :
+                              settlement.result === 'Guthaben' ? 'text-green-500 font-medium' : ''
+                          }>
+                            {settlement.amount}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Right Column - Description */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 1.8 }}
+              viewport={{ once: true }}
+            >
+              <div className="flex items-center mb-4">
+                <FileText className="w-8 h-8 text-primary mr-3" />
+                <h3 className="text-2xl font-semibold">Rechtssichere Abrechnung</h3>
+              </div>
+              <p className="text-muted-foreground mb-4">
+                Erstellen Sie automatisch fertige Nebenkostenabrechnungen für Ihre Mieter. Alle gesetzlichen Anforderungen werden dabei berücksichtigt.
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">PDF-Export</h4>
+                    <p className="text-muted-foreground">Versandfertige Dokumente mit einem Klick erstellen.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Flexible Umlageschlüssel</h4>
+                    <p className="text-muted-foreground">Verteilung nach Fläche, Personen, Einheiten oder Verbrauch.</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Bottom CTA Section */}
+      <BottomCTA
+        onGetStarted={handleGetStarted}
+        theme="houses"
+        title="Starten Sie noch heute mit der"
+        subtitle="Betriebskostenabrechnung"
+        description="Sparen Sie Zeit und Nerven bei der jährlichen Abrechnung. Testen Sie jetzt kostenlos."
+        badgeText="Einfach & Schnell"
+        primaryButtonText="14 Tage kostenlos testen"
+        secondaryButtonText="Demo anfordern"
+      />
     </div>
   );
 }
