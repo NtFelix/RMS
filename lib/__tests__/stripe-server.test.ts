@@ -5,7 +5,7 @@
 // Mock Stripe before importing
 jest.mock('stripe');
 
-import { getPlanDetails } from '../stripe-server';
+import { getPlanDetails, createCustomer } from '../stripe-server';
 import { STRIPE_API_VERSION } from '../constants/stripe';
 import Stripe from 'stripe';
 
@@ -31,6 +31,44 @@ describe('lib/stripe-server', () => {
 
   afterEach(() => {
     process.env = originalEnv;
+  });
+
+  describe('createCustomer', () => {
+    it('should throw error when STRIPE_SECRET_KEY is not set', async () => {
+      process.env = { ...originalEnv, STRIPE_SECRET_KEY: undefined };
+
+      await expect(createCustomer('test@example.com')).rejects.toThrow('STRIPE_SECRET_KEY is not set');
+    });
+
+    it('should create customer successfully', async () => {
+      process.env = { ...originalEnv, STRIPE_SECRET_KEY: 'sk_test_123' };
+
+      const mockCustomer = {
+        id: 'cus_123',
+        email: 'test@example.com',
+        name: 'Test User'
+      };
+
+      const mockStripeInstance = {
+        customers: {
+          create: jest.fn().mockResolvedValue(mockCustomer)
+        }
+      };
+
+      mockStripe.mockImplementation(() => mockStripeInstance as any);
+
+      const result = await createCustomer('test@example.com', 'Test User');
+
+      expect(mockStripe).toHaveBeenCalledWith('sk_test_123', {
+        apiVersion: STRIPE_API_VERSION
+      });
+      expect(mockStripeInstance.customers.create).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        name: 'Test User'
+      });
+
+      expect(result).toEqual(mockCustomer);
+    });
   });
 
   describe('getPlanDetails', () => {

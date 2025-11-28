@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
+import { ensureStripeCustomerForUser } from "@/app/stripe-customer-actions"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -74,6 +75,16 @@ export default function RegisterPage() {
         email: data.user.email,
         provider: 'email',
       })
+
+      // Ensure Stripe customer is created
+      if (data.user.email) {
+        try {
+           await ensureStripeCustomerForUser(data.user.email, data.user.id);
+        } catch (err) {
+           console.error('Failed to create Stripe customer during signup:', err);
+           // Don't show error to user, as account is created and dashboard will self-heal
+        }
+      }
     }
 
     setMessage("Überprüfen Sie Ihre E-Mail für den Bestätigungslink.")

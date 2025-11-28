@@ -45,6 +45,7 @@ const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenant-pay
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
+import { DashboardStripeInitializer } from "@/components/dashboard-stripe-initializer"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -135,6 +136,7 @@ export default function DashboardRootLayout({
   
   return (
     <AuthProvider>
+      <DashboardStripeInitializer />
       <NestedDialogProvider>
         {/* <GlobalDragDropProvider> */}
           <CommandMenu />

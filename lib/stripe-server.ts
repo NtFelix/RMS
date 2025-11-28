@@ -1,6 +1,30 @@
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from './constants/stripe';
 
+export async function createCustomer(email: string, name?: string) {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not set');
+  }
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+
+  try {
+    const customerParams: Stripe.CustomerCreateParams = {
+      email,
+    };
+
+    if (name) {
+      customerParams.name = name;
+    }
+
+    const customer = await stripe.customers.create(customerParams);
+    return customer;
+  } catch (error) {
+    console.error('Error creating Stripe customer:', error);
+    throw error;
+  }
+}
+
 export async function getPlanDetails(priceId: string) {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY is not set');
