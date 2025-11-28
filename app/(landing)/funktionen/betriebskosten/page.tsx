@@ -11,12 +11,14 @@ import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 
 export default function UtilityCostPage() {
-  // Mock data for Utility Costs table
-  const mockUtilityCosts = [
-    { id: 1, provider: 'Stadtwerke', type: 'Wasser', date: '12.01.2025', amount: '450,00 €', status: 'bezahlt' },
-    { id: 2, provider: 'E.ON Energie', type: 'Strom Allgemein', date: '15.01.2025', amount: '120,00 €', status: 'bezahlt' },
-    { id: 3, provider: 'Gasag', type: 'Heizung', date: '20.01.2025', amount: '1.200,00 €', status: 'offen' },
-    { id: 4, provider: 'Allianz', type: 'Versicherung', date: '01.01.2025', amount: '850,00 €', status: 'bezahlt' },
+  // Mock data for Cost Items (replacing Operating Costs)
+  const mockCostItems = [
+    { id: 1, art: 'Grundsteuer', betrag: '1.250,00 €', schluessel: 'pro Fläche' },
+    { id: 2, art: 'Straßenreinigung', betrag: '450,00 €', schluessel: 'pro Fläche' },
+    { id: 3, art: 'Müllabfuhr', betrag: '890,00 €', schluessel: 'pro Mieter' },
+    { id: 4, art: 'Gebäudeversicherung', betrag: '1.450,00 €', schluessel: 'pro Fläche' },
+    { id: 5, art: 'Allgemeinstrom', betrag: '320,00 €', schluessel: 'pro Wohnung' },
+    { id: 6, art: 'Hauswart', betrag: '2.400,00 €', schluessel: 'pro Fläche' },
   ];
 
   // Mock data for Meter Readings table
@@ -133,30 +135,24 @@ export default function UtilityCostPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998]">
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Anbieter</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Art</TableHead>
-                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Datum</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Kostenart</TableHead>
                         <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Betrag</TableHead>
+                        <TableHead className="hover:bg-gray-100 dark:hover:bg-[#2d333b] transition-colors duration-200">Umlageschlüssel</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mockUtilityCosts.map((cost) => (
+                      {mockCostItems.map((item) => (
                         <TableRow
-                          key={cost.id}
+                          key={item.id}
                           className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
                         >
-                          <TableCell className="font-medium">{cost.provider}</TableCell>
+                          <TableCell className="font-medium">{item.art}</TableCell>
+                          <TableCell>{item.betrag}</TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              {cost.type === 'Wasser' && <Droplets className="w-4 h-4 text-blue-500" />}
-                              {cost.type === 'Heizung' && <Flame className="w-4 h-4 text-orange-500" />}
-                              {cost.type === 'Strom Allgemein' && <Zap className="w-4 h-4 text-yellow-500" />}
-                              {cost.type === 'Versicherung' && <FileText className="w-4 h-4 text-green-500" />}
-                              {cost.type}
-                            </div>
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400">
+                              {item.schluessel}
+                            </Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{cost.date}</TableCell>
-                          <TableCell className="font-medium">{cost.amount}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
