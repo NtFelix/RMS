@@ -54,19 +54,19 @@ interface NavigationProps {
 // Custom hook for debounced window resize events
 function useDebouncedResize(callback: () => void, delay = 100) {
   const savedCallback = useRef(callback);
-  
+
   useEffect(() => {
     savedCallback.current = callback;
   }, [callback]);
-  
+
   useEffect(() => {
     let resizeTimer: ReturnType<typeof setTimeout>;
-    
+
     const handleResize = () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => savedCallback.current(), delay);
     };
-    
+
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
@@ -87,7 +87,7 @@ function useIsOverflowing() {
   }, []);
 
   useDebouncedResize(checkOverflow);
-  
+
   useEffect(() => {
     checkOverflow();
   }, [checkOverflow]);
@@ -104,11 +104,11 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { userName } = useUserProfile();
   const { ref: navRef, isOverflowing } = useIsOverflowing();
-  
+
   useEffect(() => {
     setHasMounted(true);
   }, []);
-  
+
   const checkIfMobile = useCallback(() => {
     if (typeof window === 'undefined' || !hasMounted) return;
     const isSmallScreen = window.innerWidth < 768;
@@ -118,13 +118,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
   useEffect(() => {
     if (!hasMounted) return;
-    
+
     checkIfMobile();
-    
+
     const handleResize = () => {
       checkIfMobile();
     };
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [checkIfMobile, hasMounted]);
@@ -340,6 +340,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     </DropdownMenuContent>
                   </DropdownMenu>
 
+                  {/* Preise Link */}
+                  <Link href="/preise" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                    <DollarSign className="w-4 h-4" />
+                    <span>Preise</span>
+                  </Link>
+
                   {/* Hilfe Dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -408,7 +414,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             <span>Dashboard</span>
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="px-3 py-2 rounded-xl group hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90 cursor-pointer"
                           onClick={() => {
                             // Navigate to dashboard first
@@ -423,8 +429,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           <span>Einstellungen</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuItem 
-                          onClick={handleLogout} 
+                        <DropdownMenuItem
+                          onClick={handleLogout}
                           className="px-3 py-2 rounded-xl group hover:bg-red-600 hover:text-white dark:hover:bg-red-600/90 cursor-pointer"
                         >
                           <LogOut className="w-4 h-4 mr-3 group-hover:text-white" />
@@ -469,7 +475,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
               className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
               onClick={() => setIsOpen(false)}
             />
-            
+
             {/* Mobile Menu */}
             <motion.div
               initial={{ x: '-100%' }}
@@ -491,7 +497,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto p-4 space-y-1">
                   {/* Produkte Section */}
                   <div className="mb-4">
@@ -500,7 +506,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     </div>
                     {produkteItems.map((item, index) => renderNavItem(item, index))}
                   </div>
-                  
+
                   {/* Funktionen Section */}
                   <div className="mb-4">
                     <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -508,7 +514,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     </div>
                     {funktionenItems.map((item, index) => renderNavItem(item, index))}
                   </div>
-                  
+
                   {/* Lösungen Section */}
                   <div className="mb-4">
                     <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -516,7 +522,22 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     </div>
                     {loesungenItems.map((item, index) => renderNavItem(item, index))}
                   </div>
-                  
+
+                  {/* Preise Section */}
+                  <div className="mb-4">
+                    <Link
+                      href="/preise"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
+                    >
+                      <DollarSign className="w-5 h-5 mr-3" />
+                      <div>
+                        <div className="font-medium">Preise</div>
+                        <div className="text-sm text-muted-foreground">Unsere Tarife im Überblick</div>
+                      </div>
+                    </Link>
+                  </div>
+
                   {/* Hilfe Section */}
                   <div className="mb-4">
                     <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -525,7 +546,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     {hilfeItems.map((item, index) => renderNavItem(item, index))}
                   </div>
                 </div>
-                
+
                 {/* Auth Section */}
                 <div className="p-4 border-t border-border/50">
                   {currentUser ? (
