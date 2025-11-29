@@ -118,11 +118,29 @@ interface ComparisonTableProps {
 }
 
 function ComparisonTable({ plans }: ComparisonTableProps) {
-  // Calculate total rows for the grid-row span: 1 header row + category rows + feature rows
-  const totalRows = 1 + comparisonConfig.length + comparisonConfig.reduce((acc, cat) => acc + cat.features.length, 0);
+  // Filter configuration to only include features that have data in at least one plan
+  const filteredConfig = useMemo(() => {
+    return comparisonConfig.map(category => {
+      const activeFeatures = category.features.filter(feature => {
+        // Check if any plan has a value for this feature key
+        return plans.some(plan => {
+          const metadata = plan.monthly?.metadata || plan.annually?.metadata || {};
+          return metadata && metadata[feature.key] !== undefined;
+        });
+      });
 
-  // If no plans are available, don't render the table
-  if (plans.length === 0) return null;
+      return {
+        ...category,
+        features: activeFeatures
+      };
+    }).filter(category => category.features.length > 0); // Remove empty categories
+  }, [plans]);
+
+  // Calculate total rows for the grid-row span: 1 header row + category rows + feature rows
+  const totalRows = 1 + filteredConfig.length + filteredConfig.reduce((acc, cat) => acc + cat.features.length, 0);
+
+  // If no plans are available or no features to show, don't render the table
+  if (plans.length === 0 || filteredConfig.length === 0) return null;
 
   // Define grid columns dynamically based on number of plans
   // First column is feature name (min 200px), then 1 column per plan
@@ -153,7 +171,7 @@ function ComparisonTable({ plans }: ComparisonTableProps) {
           ))}
 
           {/* Data Rows */}
-          {comparisonConfig.map((category, catIndex) => (
+          {filteredConfig.map((category, catIndex) => (
             <Fragment key={catIndex}>
               {/* Category Header */}
               <div
