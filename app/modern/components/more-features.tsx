@@ -55,7 +55,7 @@ export default function MoreFeatures() {
               whileHover={{ y: -5 }}
               className="group"
             >
-              <Card className="bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden rounded-3xl">
+              <Card className="bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 dark:hover:bg-primary/10 transition-all duration-300 h-full relative overflow-hidden rounded-3xl">
                 <CardContent className="p-8 relative z-10">
                   <div className="mb-6">
                     <div className="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
