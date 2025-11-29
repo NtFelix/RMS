@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Hero from '@/app/modern/components/hero';
 import FeatureSections from '@/app/modern/components/feature-sections';
-import FinanceShowcase from '@/app/modern/components/finance-showcase';
+
 import MoreFeatures from '@/app/modern/components/more-features';
 import CTA from '@/app/modern/components/cta';
 import BottomCTA from '@/components/ui/bottom-cta';
@@ -311,9 +311,7 @@ function LandingPageContent() {
         <div id="nebenkosten">
           <NebenkostenSection />
         </div>
-        <div id="finance-showcase">
-          <FinanceShowcase />
-        </div>
+
         <div id="more-features">
           <MoreFeatures />
         </div>
