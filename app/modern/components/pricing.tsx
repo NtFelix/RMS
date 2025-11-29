@@ -228,8 +228,8 @@ function renderFeatureValue(value: boolean | string) {
   if (typeof value === 'boolean') {
     return value ? (
       <div className="flex justify-center">
-        <div className="rounded-full bg-primary/10 p-1">
-          <Check className="h-4 w-4 text-primary" />
+        <div className="rounded-full bg-green-500/10 p-1">
+          <Check className="h-4 w-4 text-green-500" />
         </div>
       </div>
     ) : (
