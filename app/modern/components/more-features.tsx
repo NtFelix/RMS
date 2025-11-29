@@ -7,9 +7,9 @@ import { Card, CardContent } from "@/components/ui/card"
 const moreFeatures = [
   {
     icon: ClipboardList,
-    title: "Aufgaben- & Wartungsmanagement",
+    title: "Aufgabenmanagement",
     description:
-      "Organisieren und verfolgen Sie alle anfallenden Aufgaben und Wartungsarbeiten. Weisen Sie Aufgaben zu und überwachen Sie den Fortschritt in Echtzeit.",
+      "Organisieren und verfolgen Sie alle anfallenden Aufgaben. Weisen Sie Aufgaben zu und überwachen Sie den Fortschritt in Echtzeit.",
   },
   {
     icon: TrendingUp,
