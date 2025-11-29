@@ -10,8 +10,8 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
-import { Check } from "lucide-react";
-import { useEffect, useState, useMemo } from 'react';
+import { Check, Minus, HelpCircle } from "lucide-react";
+import { useEffect, useState, useMemo, Fragment } from 'react';
 
 // Updated Plan interface to match the API response structure
 interface Plan {
@@ -58,6 +58,148 @@ interface GroupedPlan {
   annually: Plan | null;
   position?: number;
   popular?: boolean; // Added popular flag
+}
+
+// Mockup data for the comparison table
+interface ComparisonFeature {
+  name: string;
+  basic: string | boolean;
+  pro: string | boolean;
+  enterprise: string | boolean;
+  tooltip?: string;
+}
+
+interface ComparisonCategory {
+  category: string;
+  features: ComparisonFeature[];
+}
+
+const comparisonData: ComparisonCategory[] = [
+  {
+    category: "Allgemeine Funktionen",
+    features: [
+      { name: "Anzahl Einheiten", basic: "Bis zu 5", pro: "Bis zu 50", enterprise: "Unbegrenzt", tooltip: "Die maximale Anzahl an verwaltbaren Wohneinheiten." },
+      { name: "Benutzerzugänge", basic: "1", pro: "3", enterprise: "Unbegrenzt", tooltip: "Anzahl der Mitarbeiter, die Zugriff auf das System haben." },
+      { name: "Dokumentenspeicher", basic: "1 GB", pro: "10 GB", enterprise: "1 TB", tooltip: "Verfügbarer Speicherplatz für Dokumente und Belege." },
+      { name: "Mobile App", basic: true, pro: true, enterprise: true, tooltip: "Zugriff über iOS und Android App." },
+    ]
+  },
+  {
+    category: "Verwaltung & Organisation",
+    features: [
+      { name: "Digitale Mieterakte", basic: true, pro: true, enterprise: true },
+      { name: "Vertragsmanagement", basic: true, pro: true, enterprise: true },
+      { name: "Aufgabenmanagement", basic: true, pro: true, enterprise: true },
+      { name: "Wartungsplaner", basic: false, pro: true, enterprise: true },
+    ]
+  },
+  {
+    category: "Finanzen & Buchhaltung",
+    features: [
+      { name: "Mieteingangskontrolle", basic: true, pro: true, enterprise: true },
+      { name: "Nebenkostenabrechnung", basic: "Basis", pro: "Erweitert", enterprise: "Premium" },
+      { name: "Automatische Mahnungen", basic: false, pro: true, enterprise: true },
+      { name: "DATEV Export", basic: false, pro: true, enterprise: true },
+      { name: "Bankintegration", basic: false, pro: true, enterprise: true },
+    ]
+  },
+  {
+    category: "Support & Service",
+    features: [
+      { name: "Support-Level", basic: "Email", pro: "Email & Chat", enterprise: "24/7 Priority" },
+      { name: "Onboarding-Hilfe", basic: false, pro: false, enterprise: true },
+      { name: "Dedizierter Ansprechpartner", basic: false, pro: false, enterprise: true },
+    ]
+  }
+];
+
+function ComparisonTable() {
+  // Calculate total rows for the grid-row span: 1 header row + category rows + feature rows
+  const totalRows = 1 + comparisonData.length + comparisonData.reduce((acc, cat) => acc + cat.features.length, 0);
+
+  return (
+    <div className="mt-24 max-w-7xl mx-auto px-4">
+      <div className="text-center mb-16">
+        <h3 className="text-2xl font-bold mb-4">Funktionen im Vergleich</h3>
+        <p className="text-muted-foreground">Detaillierte Übersicht aller Features und Limits.</p>
+      </div>
+
+      {/* Container with padding to prevent shadow clipping */}
+      <div className="overflow-x-auto pb-12 pt-4 -mx-4 px-4">
+        {/* Grid Container */}
+        <div className="grid grid-cols-[minmax(200px,1.5fr)_repeat(3,minmax(180px,1fr))] relative min-w-[900px] isolate">
+
+          {/* Header Row */}
+          <div className="p-6 flex items-end font-bold text-xl pb-8">Vergleich</div>
+          <div className="p-6 text-center flex flex-col justify-end pb-8">
+            <span className="font-bold text-xl">Starter</span>
+            <span className="text-sm text-muted-foreground font-normal mt-1">Der Einstieg</span>
+          </div>
+          <div className="p-6 text-center flex flex-col justify-end pb-8">
+            <span className="font-bold text-xl text-primary">Professional</span>
+            <span className="text-sm text-muted-foreground font-normal mt-1">Unser Bestseller</span>
+          </div>
+          <div className="p-6 text-center flex flex-col justify-end pb-8">
+            <span className="font-bold text-xl">Enterprise</span>
+            <span className="text-sm text-muted-foreground font-normal mt-1">Für Großkunden</span>
+          </div>
+
+          {/* Data Rows */}
+          {comparisonData.map((category, catIndex) => (
+            <Fragment key={catIndex}>
+              {/* Category Header */}
+              <div className="col-span-4 p-4 pl-6 font-semibold text-sm text-muted-foreground uppercase tracking-wider mt-6 mb-2 flex items-center after:content-[''] after:flex-1 after:h-px after:bg-border after:ml-4">
+                {category.category}
+              </div>
+
+              {/* Features */}
+              {category.features.map((feature, featIndex) => (
+                <Fragment key={`${catIndex}-${featIndex}`}>
+                  <div className="p-4 pl-6 flex items-center gap-2 border-b border-border/40 min-h-[60px]">
+                    <span className="font-medium text-sm sm:text-base">{feature.name}</span>
+                    {feature.tooltip && (
+                      <div className="group relative">
+                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                        <div className="absolute left-1/2 bottom-full mb-2 -translate-x-1/2 hidden group-hover:block w-56 p-3 bg-popover text-popover-foreground text-xs rounded-lg shadow-lg z-50 border border-border">
+                          {feature.tooltip}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 flex justify-center items-center border-b border-border/40 min-h-[60px]">
+                    {renderFeatureValue(feature.basic)}
+                  </div>
+                  <div className="p-4 flex justify-center items-center border-b border-border/40 min-h-[60px]">
+                    {renderFeatureValue(feature.pro)}
+                  </div>
+                  <div className="p-4 flex justify-center items-center border-b border-border/40 min-h-[60px]">
+                    {renderFeatureValue(feature.enterprise)}
+                  </div>
+                </Fragment>
+              ))}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function renderFeatureValue(value: boolean | string) {
+  if (typeof value === 'boolean') {
+    return value ? (
+      <div className="flex justify-center">
+        <div className="rounded-full bg-primary/10 p-1">
+          <Check className="h-4 w-4 text-primary" />
+        </div>
+      </div>
+    ) : (
+      <div className="flex justify-center">
+        <Minus className="h-4 w-4 text-muted-foreground/30" />
+      </div>
+    );
+  }
+  return <span className="text-sm font-medium">{value}</span>;
 }
 
 export default function Pricing({ onSelectPlan, userProfile, isLoading: isCheckoutProcessing }: PricingProps) {
@@ -313,6 +455,8 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
             <p className="text-muted-foreground">Alle Pläne beinhalten eine 14-tägige kostenlose Testversion. Keine Kreditkarte erforderlich.</p>
           </div>
         )}
+
+        <ComparisonTable />
       </div>
     </section>
   );
