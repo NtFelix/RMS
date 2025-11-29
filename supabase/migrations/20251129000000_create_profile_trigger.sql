@@ -21,8 +21,8 @@ EXCEPTION
   WHEN OTHERS THEN
     -- Log any error that occurs during the INSERT
     RAISE LOG '[handle_new_user] Error inserting profile ID for user %: SQLSTATE: %, SQLERRM: %', NEW.id, SQLSTATE, SQLERRM;
-    -- Return NULL to indicate failure, which might help in debugging if the transaction doesn't roll back.
-    RETURN NULL;
+    -- Re-throw the exception to abort the transaction and ensure data consistency.
+    RAISE;
 END;
 $$;
 
