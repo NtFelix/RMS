@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
+import { useFeatureFlagEnabled } from "posthog-js/react"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -104,6 +105,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { userName } = useUserProfile();
   const { ref: navRef, isOverflowing } = useIsOverflowing();
+  const showProdukte = useFeatureFlagEnabled('show-produkte-dropdown');
+  const showLoesungen = useFeatureFlagEnabled('show-loesungen-dropdown');
 
   useEffect(() => {
     setHasMounted(true);
@@ -269,28 +272,30 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 {/* Navigation Items Section */}
                 <div className="flex items-center gap-1">
                   {/* Produkte Dropdown */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
-                        <Package className="w-4 h-4" />
-                        <span>Produkte</span>
-                        <ChevronDown className="w-3 h-3" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-72">
-                      {produkteItems.map((item, index) => (
-                        <DropdownMenuItem key={index} asChild>
-                          <Link href={item.href}>
-                            <item.icon className="w-4 h-4 shrink-0" />
-                            <div className="flex flex-col items-start gap-0.5">
-                              <span className="font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {showProdukte && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                          <Package className="w-4 h-4" />
+                          <span>Produkte</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-72">
+                        {produkteItems.map((item, index) => (
+                          <DropdownMenuItem key={index} asChild>
+                            <Link href={item.href}>
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
 
                   {/* Funktionen Dropdown */}
                   <DropdownMenu>
@@ -317,28 +322,30 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   </DropdownMenu>
 
                   {/* Lösungen Dropdown */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
-                        <Lightbulb className="w-4 h-4" />
-                        <span>Lösungen</span>
-                        <ChevronDown className="w-3 h-3" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-72">
-                      {loesungenItems.map((item, index) => (
-                        <DropdownMenuItem key={index} asChild>
-                          <Link href={item.href}>
-                            <item.icon className="w-4 h-4 shrink-0" />
-                            <div className="flex flex-col items-start gap-0.5">
-                              <span className="font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {showLoesungen && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                          <Lightbulb className="w-4 h-4" />
+                          <span>Lösungen</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-72">
+                        {loesungenItems.map((item, index) => (
+                          <DropdownMenuItem key={index} asChild>
+                            <Link href={item.href}>
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
 
                   {/* Preise Link */}
                   <Link href="/preise" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
@@ -500,12 +507,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-1">
                   {/* Produkte Section */}
-                  <div className="mb-4">
-                    <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Produkte
+                  {showProdukte && (
+                    <div className="mb-4">
+                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Produkte
+                      </div>
+                      {produkteItems.map((item, index) => renderNavItem(item, index))}
                     </div>
-                    {produkteItems.map((item, index) => renderNavItem(item, index))}
-                  </div>
+                  )}
 
                   {/* Funktionen Section */}
                   <div className="mb-4">
@@ -516,12 +525,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   </div>
 
                   {/* Lösungen Section */}
-                  <div className="mb-4">
-                    <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Lösungen
+                  {showLoesungen && (
+                    <div className="mb-4">
+                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Lösungen
+                      </div>
+                      {loesungenItems.map((item, index) => renderNavItem(item, index))}
                     </div>
-                    {loesungenItems.map((item, index) => renderNavItem(item, index))}
-                  </div>
+                  )}
 
                   {/* Preise Section */}
                   <div className="mb-4">
