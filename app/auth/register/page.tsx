@@ -57,8 +57,20 @@ export default function RegisterPage() {
         email,
         error: error.message,
       })
-      
-      setError(error.message)
+
+      let errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+
+      if (error.message.includes("User already registered")) {
+        errorMessage = "Diese E-Mail-Adresse ist bereits registriert. Bitte melden Sie sich an."
+      } else if (error.message.includes("Password should be at least")) {
+        errorMessage = "Das Passwort muss mindestens 6 Zeichen lang sein."
+      } else if (error.message.includes("To many requests")) {
+        errorMessage = "Zu viele Versuche. Bitte warten Sie einen Moment."
+      } else {
+        errorMessage = error.message
+      }
+
+      setError(errorMessage)
       setIsLoading(false)
       return
     }
@@ -69,7 +81,7 @@ export default function RegisterPage() {
         email: data.user.email,
         signup_date: new Date().toISOString(),
       })
-      
+
       posthog.capture('signup_success', {
         email: data.user.email,
         provider: 'email',

@@ -26,6 +26,19 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  useEffect(() => {
+    const errorParam = searchParams.get("error")
+    if (errorParam) {
+      const errorMap: Record<string, string> = {
+        invalid_code: "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an.",
+        auth_failed: "Die Authentifizierung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        unexpected_error: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        access_denied: "Zugriff verweigert.",
+      }
+      setError(errorMap[errorParam] || "Ein Fehler ist aufgetreten.")
+    }
+  }, [searchParams])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -45,8 +58,20 @@ export default function LoginPage() {
         email,
         error: error.message,
       })
-      
-      setError(error.message)
+
+      let errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+
+      if (error.message.includes("Invalid login credentials")) {
+        errorMessage = "Ungültige E-Mail-Adresse oder Passwort. Bitte überprüfen Sie Ihre Eingaben."
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "Ihre E-Mail-Adresse wurde noch nicht bestätigt. Bitte überprüfen Sie Ihren Posteingang."
+      } else if (error.message.includes("Too many requests")) {
+        errorMessage = "Zu viele Anmeldeversuche. Bitte warten Sie einen Moment, bevor Sie es erneut versuchen."
+      } else {
+        errorMessage = error.message // Fallback to original message if unknown
+      }
+
+      setError(errorMessage)
       setIsLoading(false)
       return
     }
@@ -58,7 +83,7 @@ export default function LoginPage() {
         name: data.user.user_metadata?.name || '',
         last_sign_in: data.user.last_sign_in_at,
       })
-      
+
       posthog.capture('login_success', {
         email: data.user.email,
         provider: 'email',

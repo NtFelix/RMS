@@ -31,7 +31,15 @@ export default function ResetPasswordPage() {
     })
 
     if (error) {
-      setError(error.message)
+      let errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+
+      if (error.message.includes("Too many requests")) {
+        errorMessage = "Zu viele Anfragen. Bitte warten Sie einen Moment."
+      } else {
+        errorMessage = error.message
+      }
+
+      setError(errorMessage)
       setIsLoading(false)
       return
     }

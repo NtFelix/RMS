@@ -38,7 +38,17 @@ export default function UpdatePasswordPage() {
     })
 
     if (error) {
-      setError(error.message)
+      let errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+
+      if (error.message.includes("Password should be at least")) {
+        errorMessage = "Das Passwort muss mindestens 6 Zeichen lang sein."
+      } else if (error.message.includes("New password should be different")) {
+        errorMessage = "Das neue Passwort muss sich vom alten unterscheiden."
+      } else {
+        errorMessage = error.message
+      }
+
+      setError(errorMessage)
       setIsLoading(false)
       return
     }
