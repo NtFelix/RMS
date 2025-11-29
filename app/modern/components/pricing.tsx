@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
-import { Check, Minus, HelpCircle } from "lucide-react";
+import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight } from "lucide-react";
 import { useEffect, useState, useMemo, Fragment } from 'react';
 
 // Updated Plan interface to match the API response structure
@@ -49,6 +49,8 @@ interface PricingProps {
   userProfile: Profile | null;
   isLoading?: boolean; // This is isProcessingCheckout from LandingPage
   // currentPlanId is now derived from userProfile.stripe_price_id
+  showComparison?: boolean;
+  showViewAllButton?: boolean;
 }
 
 interface GroupedPlan {
@@ -241,7 +243,13 @@ function renderFeatureValue(value: boolean | string) {
   return <span className="text-sm font-medium">{value}</span>;
 }
 
-export default function Pricing({ onSelectPlan, userProfile, isLoading: isCheckoutProcessing }: PricingProps) {
+export default function Pricing({
+  onSelectPlan,
+  userProfile,
+  isLoading: isCheckoutProcessing,
+  showComparison = true,
+  showViewAllButton = false
+}: PricingProps) {
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -495,7 +503,23 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
           </div>
         )}
 
-        <ComparisonTable plans={groupedPlans} />
+        {showComparison && <ComparisonTable plans={groupedPlans} />}
+
+        {showViewAllButton && (
+          <div className="text-center mt-16">
+            <Button
+              size="lg"
+              variant="outline"
+              className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg rounded-full"
+              onClick={() => window.location.href = '/preise'}
+            >
+              <span className="flex items-center gap-2">
+                Alle Preise und Pläne ansehen
+                <SquareArrowOutUpRight className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+              </span>
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
+import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Hero from '@/app/modern/components/hero';
 import FeatureSections from '@/app/modern/components/feature-sections';
@@ -8,6 +9,7 @@ import FinanceShowcase from '@/app/modern/components/finance-showcase';
 import MoreFeatures from '@/app/modern/components/more-features';
 import CTA from '@/app/modern/components/cta';
 import BottomCTA from '@/components/ui/bottom-cta';
+
 import Pricing from '@/app/modern/components/pricing';
 import NebenkostenSection from '@/app/modern/components/nebenkosten-section';
 import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
@@ -269,16 +271,16 @@ function LandingPageContent() {
 
   const handleGetStarted = async () => {
     if (sessionUser) {
-        router.push('/home');
+      router.push('/home');
     } else {
-        // Store intent to redirect to dashboard after login
-        try {
-          sessionStorage.setItem('authIntent', 'get-started');
-        } catch (e) {
-          // In browsers without sessionStorage, the redirect intent will be lost
-          console.warn('SessionStorage not available. The "get-started" redirect flow will not work as intended.');
-        }
-        openAuthModal('login');
+      // Store intent to redirect to dashboard after login
+      try {
+        sessionStorage.setItem('authIntent', 'get-started');
+      } catch (e) {
+        // In browsers without sessionStorage, the redirect intent will be lost
+        console.warn('SessionStorage not available. The "get-started" redirect flow will not work as intended.');
+      }
+      openAuthModal('login');
     }
   };
 
@@ -320,10 +322,12 @@ function LandingPageContent() {
             onSelectPlan={handleSelectPlan}
             userProfile={userProfile}
             isLoading={isProcessingCheckout}
+            showComparison={false}
+            showViewAllButton={true}
           />
         </div>
         <div id="cta">
-          <BottomCTA 
+          <BottomCTA
             onGetStarted={handleGetStarted}
             theme="city"
             title="Übernehmen Sie die Kontrolle über Ihre"
