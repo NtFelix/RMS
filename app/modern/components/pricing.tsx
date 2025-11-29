@@ -402,10 +402,10 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
             return (
               <Card
                 key={group.productName}
-                className={`relative flex flex-col rounded-3xl ${group.popular ? "border-primary shadow-lg scale-105" : "border-border"}`}
+                className={`relative flex flex-col rounded-[2.5rem] ${group.popular ? "border-primary shadow-lg scale-105" : "border-border"}`}
               >
                 {group.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">Most Popular</Badge>
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">Am beliebtesten</Badge>
                 )}
 
                 <CardHeader className="text-center pb-8">
