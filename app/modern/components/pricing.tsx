@@ -27,6 +27,7 @@ interface Plan {
   position?: number;
   productName: string; // A common name for the product, e.g. "Basic", "Pro"
   description?: string; // To hold description from API (Stripe Product description)
+  metadata?: Record<string, string>;
 }
 
 // Helper function to format price for display
@@ -60,62 +61,72 @@ interface GroupedPlan {
   popular?: boolean; // Added popular flag
 }
 
-// Mockup data for the comparison table
-interface ComparisonFeature {
+// Configuration for the comparison table mapping features to Stripe metadata keys
+interface FeatureConfig {
   name: string;
-  basic: string | boolean;
-  pro: string | boolean;
-  enterprise: string | boolean;
+  key: string;
+  type?: 'boolean' | 'string';
   tooltip?: string;
 }
 
-interface ComparisonCategory {
+interface CategoryConfig {
   category: string;
-  features: ComparisonFeature[];
+  features: FeatureConfig[];
 }
 
-const comparisonData: ComparisonCategory[] = [
+const comparisonConfig: CategoryConfig[] = [
   {
     category: "Allgemeine Funktionen",
     features: [
-      { name: "Anzahl Einheiten", basic: "Bis zu 5", pro: "Bis zu 50", enterprise: "Unbegrenzt", tooltip: "Die maximale Anzahl an verwaltbaren Wohneinheiten." },
-      { name: "Benutzerzugänge", basic: "1", pro: "3", enterprise: "Unbegrenzt", tooltip: "Anzahl der Mitarbeiter, die Zugriff auf das System haben." },
-      { name: "Dokumentenspeicher", basic: "1 GB", pro: "10 GB", enterprise: "1 TB", tooltip: "Verfügbarer Speicherplatz für Dokumente und Belege." },
-      { name: "Mobile App", basic: true, pro: true, enterprise: true, tooltip: "Zugriff über iOS und Android App." },
+      { name: "Anzahl Einheiten", key: "feat_units", tooltip: "Die maximale Anzahl an verwaltbaren Wohneinheiten." },
+      { name: "Benutzerzugänge", key: "feat_users", tooltip: "Anzahl der Mitarbeiter, die Zugriff auf das System haben." },
+      { name: "Dokumentenspeicher", key: "feat_storage", tooltip: "Verfügbarer Speicherplatz für Dokumente und Belege." },
+      { name: "Mobile App", key: "feat_mobile_app", type: "boolean", tooltip: "Zugriff über iOS und Android App." },
     ]
   },
   {
     category: "Verwaltung & Organisation",
     features: [
-      { name: "Digitale Mieterakte", basic: true, pro: true, enterprise: true },
-      { name: "Vertragsmanagement", basic: true, pro: true, enterprise: true },
-      { name: "Aufgabenmanagement", basic: true, pro: true, enterprise: true },
-      { name: "Wartungsplaner", basic: false, pro: true, enterprise: true },
+      { name: "Digitale Mieterakte", key: "feat_tenant_files", type: "boolean" },
+      { name: "Vertragsmanagement", key: "feat_contracts", type: "boolean" },
+      { name: "Aufgabenmanagement", key: "feat_tasks", type: "boolean" },
+      { name: "Wartungsplaner", key: "feat_maintenance", type: "boolean" },
     ]
   },
   {
     category: "Finanzen & Buchhaltung",
     features: [
-      { name: "Mieteingangskontrolle", basic: true, pro: true, enterprise: true },
-      { name: "Nebenkostenabrechnung", basic: "Basis", pro: "Erweitert", enterprise: "Premium" },
-      { name: "Automatische Mahnungen", basic: false, pro: true, enterprise: true },
-      { name: "DATEV Export", basic: false, pro: true, enterprise: true },
-      { name: "Bankintegration", basic: false, pro: true, enterprise: true },
+      { name: "Mieteingangskontrolle", key: "feat_rent_check", type: "boolean" },
+      { name: "Nebenkostenabrechnung", key: "feat_utility_costs" },
+      { name: "Automatische Mahnungen", key: "feat_dunning", type: "boolean" },
+      { name: "DATEV Export", key: "feat_datev", type: "boolean" },
+      { name: "Bankintegration", key: "feat_banking", type: "boolean" },
     ]
   },
   {
     category: "Support & Service",
     features: [
-      { name: "Support-Level", basic: "Email", pro: "Email & Chat", enterprise: "24/7 Priority" },
-      { name: "Onboarding-Hilfe", basic: false, pro: false, enterprise: true },
-      { name: "Dedizierter Ansprechpartner", basic: false, pro: false, enterprise: true },
+      { name: "Support-Level", key: "feat_support" },
+      { name: "Onboarding-Hilfe", key: "feat_onboarding", type: "boolean" },
+      { name: "Dedizierter Ansprechpartner", key: "feat_account_manager", type: "boolean" },
     ]
   }
 ];
 
-function ComparisonTable() {
+interface ComparisonTableProps {
+  plans: GroupedPlan[];
+}
+
+function ComparisonTable({ plans }: ComparisonTableProps) {
   // Calculate total rows for the grid-row span: 1 header row + category rows + feature rows
-  const totalRows = 1 + comparisonData.length + comparisonData.reduce((acc, cat) => acc + cat.features.length, 0);
+  const totalRows = 1 + comparisonConfig.length + comparisonConfig.reduce((acc, cat) => acc + cat.features.length, 0);
+
+  // If no plans are available, don't render the table
+  if (plans.length === 0) return null;
+
+  // Define grid columns dynamically based on number of plans
+  // First column is feature name (min 200px), then 1 column per plan
+  const gridTemplateColumns = `minmax(200px, 1.5fr) repeat(${plans.length}, minmax(180px, 1fr))`;
 
   return (
     <div className="mt-24 max-w-7xl mx-auto px-4">
@@ -127,28 +138,28 @@ function ComparisonTable() {
       {/* Container with padding to prevent shadow clipping */}
       <div className="overflow-x-auto pb-12 pt-4 -mx-4 px-4">
         {/* Grid Container */}
-        <div className="grid grid-cols-[minmax(200px,1.5fr)_repeat(3,minmax(180px,1fr))] relative min-w-[900px] isolate">
+        <div
+          className="grid relative min-w-[900px] isolate"
+          style={{ gridTemplateColumns }}
+        >
 
           {/* Header Row */}
           <div className="p-6 flex items-end font-bold text-xl pb-8">Vergleich</div>
-          <div className="p-6 text-center flex flex-col justify-end pb-8">
-            <span className="font-bold text-xl">Starter</span>
-            <span className="text-sm text-muted-foreground font-normal mt-1">Der Einstieg</span>
-          </div>
-          <div className="p-6 text-center flex flex-col justify-end pb-8">
-            <span className="font-bold text-xl text-primary">Professional</span>
-            <span className="text-sm text-muted-foreground font-normal mt-1">Unser Bestseller</span>
-          </div>
-          <div className="p-6 text-center flex flex-col justify-end pb-8">
-            <span className="font-bold text-xl">Enterprise</span>
-            <span className="text-sm text-muted-foreground font-normal mt-1">Für Großkunden</span>
-          </div>
+          {plans.map((plan, index) => (
+            <div key={plan.productName} className="p-6 text-center flex flex-col justify-end pb-8">
+              <span className={`font-bold text-xl ${plan.popular ? 'text-primary' : ''}`}>{plan.productName}</span>
+              <span className="text-sm text-muted-foreground font-normal mt-1">{plan.description || 'Plan'}</span>
+            </div>
+          ))}
 
           {/* Data Rows */}
-          {comparisonData.map((category, catIndex) => (
+          {comparisonConfig.map((category, catIndex) => (
             <Fragment key={catIndex}>
               {/* Category Header */}
-              <div className="col-span-4 p-4 pl-6 font-semibold text-sm text-muted-foreground uppercase tracking-wider mt-6 mb-2 flex items-center after:content-[''] after:flex-1 after:h-px after:bg-border after:ml-4">
+              <div
+                className="p-4 pl-6 font-semibold text-sm text-muted-foreground uppercase tracking-wider mt-6 mb-2 flex items-center after:content-[''] after:flex-1 after:h-px after:bg-border after:ml-4"
+                style={{ gridColumn: `1 / span ${plans.length + 1}` }}
+              >
                 {category.category}
               </div>
 
@@ -166,15 +177,26 @@ function ComparisonTable() {
                       </div>
                     )}
                   </div>
-                  <div className="p-4 flex justify-center items-center border-b border-border/40 min-h-[60px]">
-                    {renderFeatureValue(feature.basic)}
-                  </div>
-                  <div className="p-4 flex justify-center items-center border-b border-border/40 min-h-[60px]">
-                    {renderFeatureValue(feature.pro)}
-                  </div>
-                  <div className="p-4 flex justify-center items-center border-b border-border/40 min-h-[60px]">
-                    {renderFeatureValue(feature.enterprise)}
-                  </div>
+
+                  {plans.map((plan, planIndex) => {
+                    // Get metadata from either monthly or annually plan (they share the same product metadata)
+                    const metadata = plan.monthly?.metadata || plan.annually?.metadata || {};
+                    const rawValue = metadata[feature.key];
+
+                    // Determine value to render
+                    let valueToRender: string | boolean = rawValue || false;
+
+                    if (feature.type === 'boolean') {
+                      // Check for "true", "yes", "1"
+                      valueToRender = rawValue === 'true' || rawValue === 'yes' || rawValue === '1';
+                    }
+
+                    return (
+                      <div key={`${plan.productName}-${feature.key}`} className="p-4 flex justify-center items-center border-b border-border/40 min-h-[60px]">
+                        {renderFeatureValue(valueToRender)}
+                      </div>
+                    );
+                  })}
                 </Fragment>
               ))}
             </Fragment>
@@ -456,7 +478,7 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
           </div>
         )}
 
-        <ComparisonTable />
+        <ComparisonTable plans={groupedPlans} />
       </div>
     </section>
   );
