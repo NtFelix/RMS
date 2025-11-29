@@ -162,11 +162,10 @@ function ComparisonTable({ plans }: ComparisonTableProps) {
         >
 
           {/* Header Row */}
-          <div className="p-6 flex items-end font-bold text-xl pb-8">Vergleich</div>
+          <div className="p-6 flex items-end font-bold text-xl pb-4">Vergleich</div>
           {plans.map((plan, index) => (
-            <div key={plan.productName} className="p-6 text-center flex flex-col justify-end pb-8">
+            <div key={plan.productName} className="p-6 text-center flex flex-col justify-end pb-4">
               <span className={`font-bold text-xl ${plan.popular ? 'text-primary' : ''}`}>{plan.productName}</span>
-              <span className="text-sm text-muted-foreground font-normal mt-1">{plan.description || 'Plan'}</span>
             </div>
           ))}
 
@@ -175,7 +174,7 @@ function ComparisonTable({ plans }: ComparisonTableProps) {
             <Fragment key={catIndex}>
               {/* Category Header */}
               <div
-                className="p-4 pl-6 font-semibold text-sm text-muted-foreground uppercase tracking-wider mt-6 mb-2 flex items-center after:content-[''] after:flex-1 after:h-px after:bg-border after:ml-4"
+                className="p-4 pl-6 font-semibold text-sm text-muted-foreground uppercase tracking-wider mt-2 mb-2 flex items-center after:content-[''] after:flex-1 after:h-px after:bg-border after:ml-4"
                 style={{ gridColumn: `1 / span ${plans.length + 1}` }}
               >
                 {category.category}
