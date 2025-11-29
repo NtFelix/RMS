@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import BottomCTA from '@/components/ui/bottom-cta';
+
 import Pricing from '@/app/modern/components/pricing';
 import { useAuthModal } from '@/components/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
@@ -255,20 +255,7 @@ function PricingPageContent() {
         }
     };
 
-    const handleGetStarted = async () => {
-        if (sessionUser) {
-            router.push('/home');
-        } else {
-            // Store intent to redirect to dashboard after login
-            try {
-                sessionStorage.setItem('authIntent', 'get-started');
-            } catch (e) {
-                // In browsers without sessionStorage, the redirect intent will be lost
-                console.warn('SessionStorage not available. The "get-started" redirect flow will not work as intended.');
-            }
-            openAuthModal('login');
-        }
-    };
+
 
     const handleSelectPlan = async (priceId: string) => {
         if (sessionUser) {
@@ -295,18 +282,7 @@ function PricingPageContent() {
                         isLoading={isProcessingCheckout}
                     />
                 </div>
-                <div id="cta">
-                    <BottomCTA
-                        onGetStarted={handleGetStarted}
-                        theme="city"
-                        title="Übernehmen Sie die Kontrolle über Ihre"
-                        subtitle="Immobilien noch heute"
-                        description="Beginnen Sie noch heute, Ihre Immobilien effizienter zu verwalten und profitieren Sie von einer modernen und benutzerfreundlichen Plattform."
-                        badgeText="Bereit zur Vereinfachung?"
-                        primaryButtonText="Jetzt loslegen"
-                        secondaryButtonText="Demo anfordern"
-                    />
-                </div>
+
             </div>
         </>
     );
