@@ -117,9 +117,10 @@ const comparisonConfig: CategoryConfig[] = [
 
 interface ComparisonTableProps {
   plans: GroupedPlan[];
+  billingCycle: "monthly" | "yearly";
 }
 
-function ComparisonTable({ plans }: ComparisonTableProps) {
+function ComparisonTable({ plans, billingCycle }: ComparisonTableProps) {
   // Filter configuration to only include features that have data in at least one plan
   const filteredConfig = useMemo(() => {
     return comparisonConfig.map(category => {
@@ -163,13 +164,33 @@ function ComparisonTable({ plans }: ComparisonTableProps) {
           style={{ gridTemplateColumns }}
         >
 
-          {/* Header Row */}
-          <div className="p-6 flex items-end font-bold text-xl pb-4">Vergleich</div>
+          {/* Header Row - Titles */}
+          <div className="p-6 flex items-end font-bold text-xl pb-6">Vergleich</div>
           {plans.map((plan, index) => (
-            <div key={plan.productName} className="p-6 text-center flex flex-col justify-end pb-4">
-              <span className={`font-bold text-xl ${plan.popular ? 'text-primary' : ''}`}>{plan.productName}</span>
+            <div key={plan.productName} className="p-6 text-center flex flex-col justify-end pb-6">
+              <span className={`font-bold text-2xl ${plan.popular ? 'text-primary' : ''}`}>{plan.productName}</span>
             </div>
           ))}
+
+          {/* Price Row */}
+          <div className="p-4 pl-6 min-h-[60px]"></div> {/* Empty cell for left column */}
+          {plans.map((plan, index) => {
+            const planVariant = billingCycle === 'monthly' ? plan.monthly : plan.annually;
+            return (
+              <div key={`${plan.productName}-price`} className="p-4 flex justify-center items-center min-h-[60px]">
+                {planVariant ? (
+                  <span className="text-xl font-semibold text-muted-foreground">
+                    {formatDisplayPrice(planVariant.price, planVariant.currency, planVariant.interval)}
+                    <span className="text-sm font-normal ml-1">
+                      {billingCycle === "monthly" ? "/Monat" : "/Jahr"}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </div>
+            );
+          })}
 
           {/* Data Rows */}
           {filteredConfig.map((category, catIndex) => (
@@ -503,7 +524,7 @@ export default function Pricing({
           </div>
         )}
 
-        {showComparison && <ComparisonTable plans={groupedPlans} />}
+        {showComparison && <ComparisonTable plans={groupedPlans} billingCycle={billingCycle} />}
 
         {showViewAllButton && (
           <div className="text-center mt-16">
