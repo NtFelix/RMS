@@ -85,6 +85,8 @@ export default function Footer() {
                   <motion.a
                     key={index}
                     href={social.href}
+                    target={social.href.startsWith("http") ? "_blank" : undefined}
+                    rel={social.href.startsWith("http") ? "noopener noreferrer" : undefined}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                     className="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border"
