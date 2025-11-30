@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { Github, Twitter, Linkedin, Mail } from "lucide-react"
 import Link from "next/link"
+import { CONTACT_EMAIL } from "@/constants"
 
 const footerLinks = {
   Unternehmen: [
@@ -38,14 +39,14 @@ const specialLinks: Record<string, { href: string; text: string }> = {
   "AGB": { href: "/agb", text: "AGB" },
   "Funktionen": { href: "/funktionen", text: "Funktionen" },
   "Preise": { href: "/preise", text: "Preise" },
-  "Kontakt": { href: "mailto:felix.plant@web.de", text: "Kontakt" },
+  "Kontakt": { href: `mailto:${CONTACT_EMAIL}`, text: "Kontakt" },
 }
 
 const socialLinks = [
   { icon: Github, href: "#", label: "GitHub" },
   { icon: Twitter, href: "https://x.com/Mietfluss", label: "X (formerly Twitter)" },
   { icon: Linkedin, href: "#", label: "LinkedIn" },
-  { icon: Mail, href: "mailto:felix.plant@web.de", label: "Email" },
+  { icon: Mail, href: `mailto:${CONTACT_EMAIL}`, label: "Email" },
 ]
 
 export default function Footer() {
