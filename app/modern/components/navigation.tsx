@@ -306,18 +306,25 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         <ChevronDown className="w-3 h-3" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-72">
-                      {funktionenItems.map((item, index) => (
-                        <DropdownMenuItem key={index} asChild>
-                          <Link href={item.href}>
-                            <item.icon className="w-4 h-4 shrink-0" />
-                            <div className="flex flex-col items-start gap-0.5">
-                              <span className="font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
+                    <DropdownMenuContent align="start" className="w-[600px] p-0">
+                      <div className="grid grid-cols-2">
+                        <div className="p-2">
+                          {funktionenItems.map((item, index) => (
+                            <DropdownMenuItem key={index} asChild>
+                              <Link href={item.href}>
+                                <item.icon className="w-4 h-4 shrink-0" />
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                        <div className="bg-muted/30 p-4 border-l border-border/50">
+                          {/* Empty container for future content */}
+                        </div>
+                      </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
 
