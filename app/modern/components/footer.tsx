@@ -5,10 +5,30 @@ import { Github, Twitter, Linkedin, Mail } from "lucide-react"
 import Link from "next/link"
 
 const footerLinks = {
-  Unternehmen: ["Über uns", "Kontakt", "Karriere", "Blog"],
-  Plattform: ["Funktionen", "Preise", "Integrationen", "API"],
-  Ressourcen: ["Hilfezentrum", "Anleitungen", "Webinare", "Community"],
-  Rechtliches: ["Datenschutz", "AGB", "Sicherheit", "Lizenzen"],
+  Unternehmen: [
+    // "Über uns",
+    "Kontakt",
+    // "Karriere",
+    // "Blog",
+  ],
+  Plattform: [
+    "Funktionen",
+    "Preise",
+    // "Integrationen",
+    // "API",
+  ],
+  Ressourcen: [
+    "Hilfezentrum",
+    // "Anleitungen",
+    // "Webinare",
+    // "Community",
+  ],
+  Rechtliches: [
+    "Datenschutz",
+    "AGB",
+    // "Sicherheit",
+    // "Lizenzen",
+  ],
 }
 
 // Special links that require custom routing or display text
@@ -16,13 +36,16 @@ const specialLinks: Record<string, { href: string; text: string }> = {
   "Hilfezentrum": { href: "/dokumentation", text: "Dokumentation" },
   "Datenschutz": { href: "/datenschutz", text: "Datenschutz" },
   "AGB": { href: "/agb", text: "AGB" },
+  "Funktionen": { href: "/funktionen", text: "Funktionen" },
+  "Preise": { href: "/preise", text: "Preise" },
+  "Kontakt": { href: "mailto:felix.plant@web.de", text: "Kontakt" },
 }
 
 const socialLinks = [
   { icon: Github, href: "#", label: "GitHub" },
-  { icon: Twitter, href: "#", label: "Twitter" },
+  { icon: Twitter, href: "https://x.com/Mietfluss", label: "X (formerly Twitter)" },
   { icon: Linkedin, href: "#", label: "LinkedIn" },
-  { icon: Mail, href: "#", label: "Email" },
+  { icon: Mail, href: "mailto:felix.plant@web.de", label: "Email" },
 ]
 
 export default function Footer() {
@@ -74,35 +97,37 @@ export default function Footer() {
           </div>
 
           {/* Links Sections */}
-          {Object.entries(footerLinks).map(([category, links], categoryIndex) => (
-            <motion.div
-              key={category}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: categoryIndex * 0.1 }}
-              viewport={{ once: true }}
-            >
-              <h4 className="text-foreground font-semibold mb-4">{category}</h4>
-              <ul className="space-y-3">
-                {links.map((link, linkIndex) => {
-                  const specialLink = specialLinks[link];
-                  return (
-                    <li key={linkIndex}>
-                      {specialLink ? (
-                        <Link href={specialLink.href} className="text-muted-foreground hover:text-foreground transition-colors">
-                          {specialLink.text}
-                        </Link>
-                      ) : (
-                        <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                          {link}
-                        </a>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </motion.div>
-          ))}
+          {Object.entries(footerLinks)
+            .filter(([, links]) => links.length > 0)
+            .map(([category, links], categoryIndex) => (
+              <motion.div
+                key={category}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: categoryIndex * 0.1 }}
+                viewport={{ once: true }}
+              >
+                <h4 className="text-foreground font-semibold mb-4">{category}</h4>
+                <ul className="space-y-3">
+                  {links.map((link, linkIndex) => {
+                    const specialLink = specialLinks[link];
+                    return (
+                      <li key={linkIndex}>
+                        {specialLink ? (
+                          <Link href={specialLink.href} className="text-muted-foreground hover:text-foreground transition-colors">
+                            {specialLink.text}
+                          </Link>
+                        ) : (
+                          <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                            {link}
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </motion.div>
+            ))}
         </div>
 
         {/* Bottom Section */}
