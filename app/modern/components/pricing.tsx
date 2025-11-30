@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight } from "lucide-react";
 import { useEffect, useState, useMemo, Fragment } from 'react';
+import { SurveyModal } from './survey-modal';
 
 // Updated Plan interface to match the API response structure
 interface Plan {
@@ -275,6 +276,7 @@ export default function Pricing({
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -526,6 +528,16 @@ export default function Pricing({
 
         {showComparison && <ComparisonTable plans={groupedPlans} billingCycle={billingCycle} />}
 
+        <div className="text-center mt-12">
+          <Button
+            variant="outline"
+            onClick={() => setIsSurveyOpen(true)}
+            className="rounded-full px-6 py-2 text-sm text-muted-foreground hover:text-foreground"
+          >
+            Interesse? Jetzt in die Warteliste eintragen
+          </Button>
+        </div>
+
         {showViewAllButton && (
           <div className="text-center mt-16">
             <Button
@@ -541,6 +553,8 @@ export default function Pricing({
             </Button>
           </div>
         )}
+
+        <SurveyModal isOpen={isSurveyOpen} onClose={() => setIsSurveyOpen(false)} />
       </div>
     </section>
   );
