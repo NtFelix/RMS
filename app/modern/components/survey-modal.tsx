@@ -1,5 +1,7 @@
 'use client';
 
+import { usePostHog } from 'posthog-js/react';
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -110,6 +112,7 @@ export function SurveyModal({ isOpen, onClose }: SurveyModalProps) {
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const posthog = usePostHog();
 
     const handleInputChange = (questionId: string, value: any) => {
         setAnswers(prev => ({ ...prev, [questionId]: value }));
@@ -130,22 +133,25 @@ export function SurveyModal({ isOpen, onClose }: SurveyModalProps) {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        try {
+            // Send data to PostHog
+            posthog?.capture('survey_response', {
+                survey_id: SURVEY_DATA.id,
+                survey_name: SURVEY_DATA.name,
+                ...answers
+            });
 
-        console.log('Survey Answers:', answers);
-        // Here you would typically send the data to your backend or PostHog
-        // e.g. posthog.capture('survey_response', { survey_id: SURVEY_DATA.id, ...answers });
+            // Simulate a small delay for better UX
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-        setIsSubmitting(false);
-        setIsSuccess(true);
-
-        // Close after a delay or let user close
-        setTimeout(() => {
-            onClose();
-            setIsSuccess(false);
+            setIsSuccess(true);
             setAnswers({});
-        }, 2000);
+        } catch (error) {
+            console.error("Error submitting survey:", error);
+            // Optionally handle error state here
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (isSuccess) {
@@ -159,7 +165,7 @@ export function SurveyModal({ isOpen, onClose }: SurveyModalProps) {
                             </svg>
                         </div>
                         <h3 className="text-xl font-semibold mb-2">Vielen Dank!</h3>
-                        <p className="text-muted-foreground">Ihre Antworten wurden erfolgreich übermittelt.</p>
+                        <p className="text-muted-foreground">Ihre Antwort wurde gesendet.</p>
                     </div>
                 </DialogContent>
             </Dialog>
