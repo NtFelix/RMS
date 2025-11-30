@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { useFeatureFlagEnabled } from "posthog-js/react"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight, Sparkles } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -326,23 +326,32 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           ))}
                         </div>
                         <div className="p-2">
-                          <div className="h-full w-full rounded-xl bg-muted/10 border border-border/50 p-4 flex flex-col justify-between">
-                            <div className="mb-3">
-                              <div className="font-medium text-sm mb-1">Mietfluss erleben</div>
+                          <div className="h-full w-full rounded-xl bg-gradient-to-br from-primary/5 via-muted/20 to-transparent border border-border/50 p-4 flex flex-col justify-between relative overflow-hidden group/card hover:border-primary/20 transition-colors">
+                            {/* Abstract shapes/illustration */}
+                            <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl group-hover/card:bg-primary/20 transition-colors duration-500" />
+                            <div className="absolute right-2 top-2 opacity-[0.08] group-hover/card:opacity-[0.15] transition-all duration-500 transform group-hover/card:scale-110 group-hover/card:-rotate-6">
+                              <Sparkles className="w-20 h-20" />
+                            </div>
+
+                            <div className="relative z-10">
+                              <div className="font-semibold text-sm mb-1">Mietfluss erleben</div>
                               <p className="text-xs text-muted-foreground">
                                 Starten Sie jetzt und entdecken Sie alle Funktionen in der kostenlosen Testphase.
                               </p>
                             </div>
-                            <DropdownMenuItem asChild>
-                              <Button
-                                onClick={handleOpenLoginModal}
-                                size="sm"
-                                className="w-full group"
-                              >
-                                Kostenlos starten
-                                <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
-                              </Button>
-                            </DropdownMenuItem>
+
+                            <div className="relative z-10 mt-2">
+                              <DropdownMenuItem asChild>
+                                <Button
+                                  onClick={handleOpenLoginModal}
+                                  size="sm"
+                                  className="w-full group h-8 text-xs"
+                                >
+                                  Kostenlos starten
+                                  <ArrowRight className="w-3 h-3 ml-2 transition-transform group-hover:translate-x-1" />
+                                </Button>
+                              </DropdownMenuItem>
+                            </div>
                           </div>
                         </div>
                       </div>
