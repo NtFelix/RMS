@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { useFeatureFlagEnabled } from "posthog-js/react"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { useAuthModal } from "@/components/auth-modal-provider";
 
 // Navigation dropdown items
 const produkteItems = [
@@ -107,6 +108,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const { ref: navRef, isOverflowing } = useIsOverflowing();
   const showProdukte = useFeatureFlagEnabled('show-produkte-dropdown');
   const showLoesungen = useFeatureFlagEnabled('show-loesungen-dropdown');
+  const { openAuthModal } = useAuthModal();
 
   useEffect(() => {
     setHasMounted(true);
@@ -181,6 +183,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
     }
     if (onLogin) {
       onLogin();
+    } else {
+      openAuthModal('login');
     }
   };
 
@@ -321,8 +325,25 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             </DropdownMenuItem>
                           ))}
                         </div>
-                        <div className="bg-muted/30 p-4 border-l border-border/50">
-                          {/* Empty container for future content */}
+                        <div className="p-2">
+                          <div className="h-full w-full rounded-xl bg-muted/10 border border-border/50 p-4 flex flex-col justify-between">
+                            <div className="mb-3">
+                              <div className="font-medium text-sm mb-1">Mietfluss erleben</div>
+                              <p className="text-xs text-muted-foreground">
+                                Starten Sie jetzt und entdecken Sie alle Funktionen in der kostenlosen Testphase.
+                              </p>
+                            </div>
+                            <DropdownMenuItem asChild>
+                              <Button
+                                onClick={handleOpenLoginModal}
+                                size="sm"
+                                className="w-full group"
+                              >
+                                Kostenlos starten
+                                <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+                              </Button>
+                            </DropdownMenuItem>
+                          </div>
                         </div>
                       </div>
                     </DropdownMenuContent>
