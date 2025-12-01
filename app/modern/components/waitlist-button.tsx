@@ -191,11 +191,11 @@ export function WaitlistButton() {
 
     return (
         <>
-            <div className="text-center mt-12">
+            <div className="text-center">
                 <Button
                     id="waitlist-survey-button"
-                    variant="outline"
-                    className="rounded-full px-6 py-2 text-sm text-muted-foreground hover:text-foreground"
+                    variant="default"
+                    className="rounded-full px-8 py-6 text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                     onClick={handleOpen}
                 >
                     Interesse? Jetzt in die Warteliste eintragen

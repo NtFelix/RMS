@@ -12,7 +12,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
-import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight } from "lucide-react";
+import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight, Sparkles } from "lucide-react";
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import { WaitlistButton } from './waitlist-button';
 import { Profile } from '@/types/supabase';
@@ -428,15 +428,37 @@ export default function Pricing({
 
   if (showWaitlistMode) {
     return (
-      <section className="py-16 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Interesse geweckt?</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Melden Sie sich jetzt für unsere Warteliste an und sichern Sie sich exklusive Vorteile.
-            </p>
-          </div>
-          <WaitlistButton />
+      <section className="py-24 px-4 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl -z-10" />
+
+        <div className="max-w-3xl mx-auto">
+          <Card className="border-primary/20 shadow-2xl bg-card/50 backdrop-blur-sm relative overflow-hidden rounded-[2.5rem]">
+
+            <CardContent className="flex flex-col items-center text-center p-12 space-y-8">
+              <div className="rounded-full bg-primary/10 p-4 ring-1 ring-primary/20">
+                <Sparkles className="w-12 h-12 text-primary" />
+              </div>
+
+              <div className="space-y-4 max-w-xl">
+                <h2 className="text-4xl font-bold tracking-tight">
+                  Exklusiver Zugang
+                </h2>
+                <p className="text-xl text-muted-foreground leading-relaxed">
+                  Wir rollen Mietfluss schrittweise aus, um die beste Erfahrung für alle zu gewährleisten.
+                  Sichern Sie sich Ihren Platz auf der Warteliste.
+                </p>
+              </div>
+
+              <div className="w-full flex justify-center pt-4">
+                <WaitlistButton />
+              </div>
+
+              <p className="text-sm text-muted-foreground/60">
+                Limitierte Plätze verfügbar • Unverbindliche Anmeldung
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </section>
     );
