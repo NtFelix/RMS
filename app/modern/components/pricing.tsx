@@ -545,8 +545,6 @@ export default function Pricing({
 
         {showComparison && <ComparisonTable plans={groupedPlans} billingCycle={billingCycle} />}
 
-        <WaitlistButton />
-
         {showViewAllButton && (
           <div className="text-center mt-16">
             <Button
