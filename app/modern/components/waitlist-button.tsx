@@ -61,16 +61,32 @@ export function WaitlistButton() {
                 ];
 
                 // 1. Construct $survey_questions array
-                const surveyQuestions = questions.map(q => ({
-                    id: q.id,
-                    question: q.question,
-                    response: formData[q.key as keyof typeof formData] || null
-                }));
+                const surveyQuestions = questions.map(q => {
+                    let response: any = formData[q.key as keyof typeof formData] || null;
+
+                    // Special handling for "Größte Herausforderung" which is multiple_choice in PostHog
+                    // PostHog expects an array for multiple_choice questions
+                    if (q.key === 'herausforderung' && response) {
+                        response = [response];
+                    }
+
+                    return {
+                        id: q.id,
+                        question: q.question,
+                        response: response as any
+                    };
+                });
 
                 // 2. Construct dynamic properties $survey_response_{id}
                 const responseProperties: Record<string, any> = {};
                 questions.forEach(q => {
-                    const value = formData[q.key as keyof typeof formData];
+                    let value: any = formData[q.key as keyof typeof formData];
+
+                    // Same array wrapping for the property
+                    if (q.key === 'herausforderung' && value) {
+                        value = [value];
+                    }
+
                     if (value) {
                         responseProperties[`$survey_response_${q.id}`] = value;
                     }
