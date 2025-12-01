@@ -1,6 +1,6 @@
 'use client';
 
-import { usePostHog } from 'posthog-js/react';
+import { usePostHog, useFeatureFlagEnabled } from 'posthog-js/react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight } from "lucide-react";
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import { WaitlistButton } from './waitlist-button';
+import { Profile } from '@/types/supabase';
 
 // Updated Plan interface to match the API response structure
 interface Plan {
@@ -43,9 +44,6 @@ const formatDisplayPrice = (amount: number, currency: string, interval: string |
   // The interval text like "/month" or "/year" will be part of the tab/description, not the price itself
   return price;
 };
-
-
-import { Profile } from '@/types/supabase';
 
 interface PricingProps {
   onSelectPlan: (priceId: string) => void;
@@ -279,6 +277,7 @@ export default function Pricing({
   const [error, setError] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const posthog = usePostHog();
+  const showWaitlistMode = useFeatureFlagEnabled('show-waitlist-button');
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -422,6 +421,22 @@ export default function Pricing({
       <section className="py-16 px-4 text-foreground">
         <div className="max-w-6xl mx-auto text-center">
           <p>No subscription plans are currently available. Please check back later.</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (showWaitlistMode) {
+    return (
+      <section className="py-16 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Interesse geweckt?</h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Melden Sie sich jetzt für unsere Warteliste an und sichern Sie sich exklusive Vorteile.
+            </p>
+          </div>
+          <WaitlistButton />
         </div>
       </section>
     );
