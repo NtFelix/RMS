@@ -257,9 +257,9 @@ export function WaitlistButton() {
                                     <SelectValue placeholder="Bitte wählen..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="1-5">1-5</SelectItem>
-                                    <SelectItem value="6-20">6-20</SelectItem>
-                                    <SelectItem value="21-50">21-50</SelectItem>
+                                    <SelectItem value="1-5 Immobilien">1-5 Immobilien</SelectItem>
+                                    <SelectItem value="6-20 Immobilien">6-20 Immobilien</SelectItem>
+                                    <SelectItem value="21-50 Immobilien">21-50 Immobilien</SelectItem>
                                     <SelectItem value="50+">50+</SelectItem>
                                 </SelectContent>
                             </Select>
