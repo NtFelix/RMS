@@ -20,6 +20,11 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
+    turbo: {
+      resolveAlias: {
+        ws: './utils/empty-module.js',
+      },
+    },
   },
   webpack: (config, { webpack }) => {
     // Stub and ignore 'ws' module in all builds
