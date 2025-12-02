@@ -279,6 +279,11 @@ export default function Pricing({
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const posthog = usePostHog();
   const showWaitlistMode = useFeatureFlagEnabled('show-waitlist-button');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -397,7 +402,7 @@ export default function Pricing({
   };
 
 
-  if (showWaitlistMode) {
+  if (isMounted && showWaitlistMode) {
     return (
       <section className="py-24 px-4 relative overflow-hidden">
         {/* Background decoration */}
