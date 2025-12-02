@@ -12,6 +12,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight, Sparkles } from "lucide-react";
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import { WaitlistButton } from './waitlist-button';
@@ -396,36 +397,6 @@ export default function Pricing({
   };
 
 
-  if (isLoadingPlans) {
-    return (
-      <section className="py-16 px-4 text-foreground">
-        <div className="max-w-6xl mx-auto text-center">
-          <p>Loading plans...</p>
-        </div>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="py-16 px-4 text-foreground">
-        <div className="max-w-6xl mx-auto text-center text-destructive">
-          <p>Error loading plans: {error}</p>
-        </div>
-      </section>
-    );
-  }
-
-  if (groupedPlans.length === 0 && !isLoadingPlans) {
-    return (
-      <section className="py-16 px-4 text-foreground">
-        <div className="max-w-6xl mx-auto text-center">
-          <p>No subscription plans are currently available. Please check back later.</p>
-        </div>
-      </section>
-    );
-  }
-
   if (showWaitlistMode) {
     return (
       <section className="py-24 px-4 relative overflow-hidden">
@@ -463,6 +434,83 @@ export default function Pricing({
       </section>
     );
   }
+
+  if (isLoadingPlans) {
+    return (
+      <section className="py-16 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <Skeleton className="h-10 w-64 mx-auto mb-4" />
+            <Skeleton className="h-6 w-96 mx-auto" />
+          </div>
+
+          <div className="flex justify-center mb-12">
+            <Skeleton className="h-10 w-64 rounded-full" />
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[0, 1, 2].map((i) => (
+              <Card
+                key={i}
+                className={`relative flex flex-col rounded-[2.5rem] ${i === 1 ? "border-primary shadow-lg scale-105" : "border-border"
+                  }`}
+              >
+                {i === 1 && (
+                  <Skeleton className="absolute -top-3 left-1/2 transform -translate-x-1/2 h-6 w-32 rounded-full" />
+                )}
+
+                <CardHeader className="text-center pb-8">
+                  <Skeleton className="h-8 w-32 mx-auto mb-4" />
+                  <div className="mt-4 flex justify-center items-baseline gap-1">
+                    <Skeleton className="h-10 w-24" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <Skeleton className="h-4 w-48 mx-auto mt-4" />
+                </CardHeader>
+
+                <CardContent className="flex-grow">
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4].map((j) => (
+                      <div key={j} className="flex items-center gap-3">
+                        <Skeleton className="h-4 w-4 rounded-full" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+
+                <CardFooter className="mt-auto py-6">
+                  <Skeleton className="h-12 w-full rounded-xl" />
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="py-16 px-4 text-foreground">
+        <div className="max-w-6xl mx-auto text-center text-destructive">
+          <p>Error loading plans: {error}</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (groupedPlans.length === 0 && !isLoadingPlans) {
+    return (
+      <section className="py-16 px-4 text-foreground">
+        <div className="max-w-6xl mx-auto text-center">
+          <p>No subscription plans are currently available. Please check back later.</p>
+        </div>
+      </section>
+    );
+  }
+
+
 
   return (
     <section className="py-16 px-4">
