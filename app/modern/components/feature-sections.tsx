@@ -43,7 +43,8 @@ const features = [
       "Detaillierte Finanzberichte und Exporte",
       "Transparente Nachverfolgung aller Transaktionen",
     ],
-    image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/finance-page.png",
+    image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/finance-page.avif",
+    imageDark: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/finance-page-darkmode.avif",
     image_alt: "Screenshot der Finanzübersicht mit Einnahmen und Ausgaben",
   },
 ]
