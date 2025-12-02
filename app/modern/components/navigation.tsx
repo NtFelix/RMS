@@ -234,12 +234,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
             </PillContainer>
             <Link href="/" className="flex items-center space-x-1 group">
               <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
-                <Image
+                <img
                   src={LOGO_URL}
                   alt="Mietfluss Logo"
-                  fill
-                  className="object-cover"
-                  sizes="24px"
+                  className="object-cover w-full h-full"
                 />
               </div>
               <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
@@ -257,12 +255,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 {/* Logo Section */}
                 <Link href="/" className="flex items-center space-x-2 group px-2">
                   <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
-                    <Image
+                    <img
                       src={LOGO_URL}
                       alt="Mietfluss Logo"
-                      fill
-                      className="object-cover"
-                      sizes="32px"
+                      className="object-cover w-full h-full"
                     />
                   </div>
                   <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">

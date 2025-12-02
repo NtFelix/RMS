@@ -50,12 +50,10 @@ export default function NotFound() {
       <header className="border-b bg-background px-6 py-4">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <div className="relative w-8 h-8 rounded-full overflow-hidden">
-            <Image
+            <img
               src={LOGO_URL}
               alt="Mietfluss Logo"
-              fill
-              className="object-cover"
-              sizes="32px"
+              className="object-cover w-full h-full"
             />
           </div>
           <span className="text-lg">Mietfluss</span>
@@ -72,7 +70,7 @@ export default function NotFound() {
               Seite nicht gefunden
             </h2>
             <p className="text-lg text-muted-foreground max-w-md mx-auto">
-              Die angeforderte Seite konnte nicht gefunden werden. 
+              Die angeforderte Seite konnte nicht gefunden werden.
               Möglicherweise wurde sie verschoben oder existiert nicht mehr.
             </p>
           </div>
