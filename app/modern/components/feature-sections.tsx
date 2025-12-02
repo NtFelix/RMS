@@ -29,7 +29,8 @@ const features = [
       "PDF-Export für Mieter und Eigentümer",
       "Rechtssichere und transparente Darstellung",
     ],
-    image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/nebenkosten-overview.png",
+    image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/nebenkosten-overview.avif",
+    imageDark: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/nebenkosten-overview-darkmode.avif",
     image_alt: "Screenshot der Betriebskostenabrechnung und Nebenkostenübersicht",
   },
   {
