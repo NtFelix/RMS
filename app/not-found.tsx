@@ -1,5 +1,5 @@
 import Link from "next/link"
-import Image from "next/image"
+
 import { Home, Building2, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
 
