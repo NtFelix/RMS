@@ -101,7 +101,7 @@ function DocumentationContent() {
       newParams.set('search', params.search);
     }
 
-    const newURL = `/dokumentation${newParams.toString() ? `?${newParams.toString()}` : ''}`;
+    const newURL = `/hilfe/dokumentation${newParams.toString() ? `?${newParams.toString()}` : ''}`;
     router.replace(newURL, { scroll: false });
   }, [router]);
 
