@@ -2,9 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
-import { PlusCircle, Home, Key, Euro, Ruler, Search, X, Download, Trash2, Building2, Loader2 } from "lucide-react";
+import { PlusCircle, Home, Key, Euro, Ruler, X, Download, Trash2, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ApartmentTable } from "@/components/apartment-table";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
@@ -400,15 +400,14 @@ export default function WohnungenClientView({
                   </Button>
                 ))}
               </div>
-              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Wohnungen suchen..."
-                  className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              <SearchInput
+                placeholder="Wohnungen suchen..."
+                className="rounded-full"
+                mode="table"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
+              />
             </div>
             {selectedApartments.size > 0 && (
               <div className="p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">

@@ -16,12 +16,12 @@ export async function GET(request: Request) {
   try {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-    
+
     if (error) {
       console.error('Error exchanging code for session:', error.message)
       return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`)
     }
-    
+
     // Successful authentication, redirect to home with user info for client-side PostHog tracking
     const redirectUrl = new URL(origin)
     if (data?.user) {
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       redirectUrl.searchParams.set('login_success', 'true')
       redirectUrl.searchParams.set('provider', data.user.app_metadata?.provider || 'email')
     }
-    
+
     return NextResponse.redirect(redirectUrl.toString())
   } catch (error) {
     console.error('Unexpected error during authentication:', error)

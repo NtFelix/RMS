@@ -30,21 +30,25 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus } from "lucide-react";
+import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { NumberInput } from "./ui/number-input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Skeleton } from "./ui/skeleton";
-import { Mieter, Nebenkosten } from "../lib/data-fetching";
+import { Mieter, Nebenkosten, RechnungSql } from "../lib/data-fetching";
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "../lib/constants";
-import { 
+import { DEFAULT_COST_ITEMS } from "@/lib/constants/betriebskosten";
+import { generateId } from "@/lib/utils/generate-id";
+import {
   getNebenkostenDetailsAction,
   createNebenkosten, 
   updateNebenkosten, 
   createRechnungenBatch, 
   RechnungData,
   deleteRechnungenByNebenkostenId,
+  getLatestBetriebskostenByHausId,
 } from "../app/betriebskosten-actions";
 import { getMieterByHausIdAction } from "../app/mieter-actions"; 
 import { useToast } from "../hooks/use-toast";
@@ -82,6 +86,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const [rechnungen, setRechnungen] = useState<Record<string, RechnungEinzel[]>>({});
   const [isFetchingTenants, setIsFetchingTenants] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [modalNebenkostenData, setModalNebenkostenData] = useState<Nebenkosten | null>(null);
   const currentlyLoadedNebenkostenId = React.useRef<string | null | undefined>(null);
 
@@ -100,6 +105,9 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const hoveredItemElRef = useRef<HTMLElement | null>(null);
   const selectContentRef = useRef<HTMLDivElement | null>(null);
   const [selectContentRect, setSelectContentRect] = useState<DOMRect | null>(null);
+
+  const isFormLoading = isLoadingDetails || isLoadingTemplate;
+
 
   const handleItemHover = (e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>, value: BerechnungsartValue) => {
     setHoveredBerechnungsart(value);
@@ -137,8 +145,6 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   }, [hoveredBerechnungsart]);
 
   const houseOptions: ComboboxOption[] = (betriebskostenModalHaeuser || []).map(h => ({ value: h.id, label: h.name }));
-
-  const generateId = () => Math.random().toString(36).substr(2, 9);
 
   const handleRechnungChange = (costItemId: string, mieterId: string, newBetrag: string) => {
     setRechnungen(prevRechnungen => {
@@ -180,14 +186,25 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     if (field === 'berechnungsart') {
       if (value === 'nach Rechnung') {
         newCostItems[index].betrag = '';
-        setRechnungen(prevRechnungen => ({
-          ...prevRechnungen,
-          [costItemId]: selectedHausMieter.map(m => ({
-            mieterId: m.id,
-            betrag: prevRechnungen[costItemId]?.find(r => r.mieterId === m.id)?.betrag || '',
-          })),
-        }));
+        
+        // Initialize rechnungen for this cost item with empty values for all tenants
+        setRechnungen(prevRechnungen => {
+          // If we already have rechnungen for this cost item, keep them
+          if (prevRechnungen[costItemId]) {
+            return prevRechnungen;
+          }
+          
+          // Otherwise, initialize with empty values for all selected tenants
+          return {
+            ...prevRechnungen,
+            [costItemId]: selectedHausMieter.map(mieter => ({
+              mieterId: mieter.id,
+              betrag: ''
+            }))
+          };
+        });
       } else if (oldBerechnungsart === 'nach Rechnung' && value !== 'nach Rechnung') {
+        // Only remove the rechnungen if we're changing away from 'nach Rechnung'
         setRechnungen(prevRechnungen => {
           const updatedRechnungen = { ...prevRechnungen };
           delete updatedRechnungen[costItemId];
@@ -233,6 +250,305 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   };
 
   useEffect(() => {
+    // Calculate scrollbar width and set it as a CSS variable
+    const calculateScrollbarWidth = () => {
+      const scrollDiv = document.createElement('div');
+      scrollDiv.style.overflow = 'scroll';
+      scrollDiv.style.visibility = 'hidden';
+      scrollDiv.style.position = 'absolute';
+      document.body.appendChild(scrollDiv);
+      const width = scrollDiv.offsetWidth - scrollDiv.clientWidth;
+      document.body.removeChild(scrollDiv);
+      return width;
+    };
+
+    // Set the scrollbar width as a CSS variable
+    const scrollbarWidth = calculateScrollbarWidth();
+    document.documentElement.style.setProperty('--scrollbar-width', `${scrollbarWidth}px`);
+
+    // Handle body class and styles
+    const handleBodyStyles = (isOpen: boolean) => {
+      if (isOpen) {
+        // Add class to body to prevent scrolling
+        document.body.classList.add('modal-open');
+        
+        // Calculate and set padding to prevent layout shift
+        const scrollY = window.scrollY;
+        document.body.style.setProperty('--scroll-y', `${scrollY}px`);
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
+      } else {
+        // Remove modal-open class and reset styles
+        document.body.classList.remove('modal-open');
+        
+        // Restore scroll position
+        const scrollY = document.body.style.getPropertyValue('--scroll-y');
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        
+        if (scrollY) {
+          window.scrollTo(0, parseInt(scrollY, 10));
+        }
+      }
+    };
+
+    // Apply initial styles
+    handleBodyStyles(isBetriebskostenModalOpen);
+
+    // Cleanup function
+    return () => {
+      // Ensure we clean up in case the component unmounts while modal is open
+      if (isBetriebskostenModalOpen) {
+        handleBodyStyles(false);
+      }
+    };
+  }, [isBetriebskostenModalOpen]);
+
+  // Set up default cost items for a new Betriebskostenabrechnung
+  const setupDefaultCostItems = () => {
+    // Create a deep copy of the default items to avoid reference issues
+    const defaultItems = JSON.parse(JSON.stringify(DEFAULT_COST_ITEMS)) as CostItem[];
+    
+    // Set the cost items first
+    setCostItems(defaultItems);
+    
+    // Initialize empty rechnungen entries for all items that might use 'nach Rechnung'
+    const initialRechnungen: Record<string, RechnungEinzel[]> = {};
+    
+    // If we have selected tenants, initialize empty entries for them
+    if (selectedHausMieter.length > 0) {
+      defaultItems.forEach((item: CostItem) => {
+        initialRechnungen[item.id] = selectedHausMieter.map(mieter => ({
+          mieterId: mieter.id,
+          betrag: ''
+        }));
+      });
+    }
+    
+    setRechnungen(initialRechnungen);
+    setIsLoadingTemplate(false);
+
+    toast({
+      title: "Standard-Vorlage geladen",
+      description: "Die Standard-Betriebskostenarten wurden geladen. Bitte tragen Sie die entsprechenden Beträge ein.",
+      variant: "default",
+    });
+  };
+
+  // Helper function to merge rechnungen while preserving existing values
+  const mergeRechnungen = (
+    existing: Record<string, RechnungEinzel[]>,
+    newItems: Record<string, RechnungEinzel[]>
+  ): Record<string, RechnungEinzel[]> => {
+    const merged = { ...existing };
+    
+    // For each cost item in new items
+    Object.entries(newItems).forEach(([costItemId, rechnungen]) => {
+      // If we don't have this cost item yet, just add it
+      if (!merged[costItemId]) {
+        merged[costItemId] = [...rechnungen];
+        return;
+      }
+      
+      // Otherwise, merge the rechnungen, preserving existing values when possible
+      const existingRechnungen = merged[costItemId] || [];
+      const existingByMieter = new Map(
+        existingRechnungen.map(r => [r.mieterId, r.betrag])
+      );
+      
+      // Update with new rechnungen, but keep existing values when available
+      merged[costItemId] = rechnungen.map(r => ({
+        mieterId: r.mieterId,
+        betrag: existingByMieter.has(r.mieterId) ? existingByMieter.get(r.mieterId)! : r.betrag
+      }));
+    });
+    
+    return merged;
+  };
+
+  // Fetch latest Betriebskosten for a house and update the form
+  const fetchAndApplyLatestBetriebskosten = async (hausId: string) => {
+    if (!hausId || betriebskostenInitialData?.id) return; // Skip if editing existing
+
+    // Check if we should use default template
+    if (betriebskostenInitialData?.useTemplate === 'default') {
+      setupDefaultCostItems();
+      return;
+    }
+
+    try {
+      setIsLoadingTemplate(true);
+      
+      // First, ensure we have the latest tenant data
+      const tenantsResponse = await getMieterByHausIdAction(hausId);
+      const currentTenants = tenantsResponse.success ? tenantsResponse.data || [] : [];
+      
+      // Update selectedHausMieter state
+      setSelectedHausMieter(currentTenants);
+      
+      // Save current rechnungen to preserve values when switching between periods
+      const currentRechnungen = { ...rechnungen };
+      
+      // Then fetch the latest Betriebskosten
+      const response = await getLatestBetriebskostenByHausId(hausId);
+      if (response.success && response.data) {
+        const latest = response.data;
+        
+        // Process cost items and rechnungen together
+        const processCostItems = async () => {
+          if (!latest.nebenkostenart?.length) return;
+          
+          // First, create all the cost items
+          const items = latest.nebenkostenart.map((art: string, idx: number) => ({
+            id: generateId(),
+            art,
+            betrag: latest.berechnungsart?.[idx] === 'nach Rechnung' ? '' : (latest.betrag?.[idx]?.toString() || ''),
+            berechnungsart: normalizeBerechnungsart(latest.berechnungsart?.[idx] || '')
+          }));
+          
+          // Set the cost items first
+          setCostItems(items);
+          
+          // Then set up the rechnungen for 'nach Rechnung' items
+          const newRechnungen: Record<string, RechnungEinzel[]> = {};
+          const rechnungenFromApi = latest.Rechnungen || [];
+          
+          // Create a map of cost item names to their new IDs for easier lookup
+          const costItemMap = new Map<string, string>();
+          items.forEach((item: CostItem) => {
+            costItemMap.set(item.art, item.id);
+          });
+          
+          // Process all 'nach Rechnung' items from the latest entry
+          latest.berechnungsart?.forEach((berechnungsart: string, idx: number) => {
+            if (berechnungsart === 'nach Rechnung') {
+              const costItemArt = latest.nebenkostenart?.[idx];
+              const costItemId = costItemArt ? costItemMap.get(costItemArt) : null;
+              
+              if (costItemId && costItemArt) {
+                // Filter rechnungen for this cost item by name
+                const itemRechnungen = rechnungenFromApi
+                  .filter((r: RechnungSql) => r.name === costItemArt)
+                  .map((r: RechnungSql) => ({
+                    mieterId: r.mieter_id,
+                    betrag: r.betrag !== null ? r.betrag.toString() : ''
+                  }));
+                
+                // Initialize with existing values or empty strings
+                const tenantRechnungen = currentTenants.map(mieter => {
+                  // Try to find existing value for this tenant
+                  // Only look for existing values in the current cost item's rechnungen
+                  const existing = currentRechnungen[costItemId]?.find(
+                    r => r.mieterId === mieter.id && r.betrag && r.betrag.trim() !== ''
+                  );
+
+                  // If we have an existing value, use it, otherwise use the value from API or empty string
+                  const existingValue = existing ? existing.betrag : 
+                    (itemRechnungen.find((r: { mieterId: string }) => r.mieterId === mieter.id)?.betrag || '');
+                  
+                  return {
+                    mieterId: mieter.id,
+                    betrag: existingValue
+                  };
+                });
+                
+                newRechnungen[costItemId] = tenantRechnungen;
+              }
+            }
+          });
+          
+          // Ensure all 'nach Rechnung' items have entries in rechnungen
+          items.forEach((item: CostItem) => {
+            if (item.berechnungsart === 'nach Rechnung' && !newRechnungen[item.id] && currentTenants.length > 0) {
+              newRechnungen[item.id] = currentTenants.map(mieter => {
+                // Try to find existing value for this tenant in any cost item
+                const existing = Object.values(currentRechnungen)
+                  .flat()
+                  .find(r => r.mieterId === mieter.id && r.betrag && r.betrag.trim() !== '');
+                
+                return {
+                  mieterId: mieter.id,
+                  betrag: existing ? existing.betrag : ''
+                };
+              });
+            }
+          });
+          
+          // Merge with existing rechnungen to preserve values
+          const mergedRechnungen = mergeRechnungen(currentRechnungen, newRechnungen);
+          
+          // Update the rechnungen state
+          setRechnungen(mergedRechnungen);
+          
+          return items;
+        };
+        
+        // Process cost items and rechnungen
+        await processCostItems();
+        
+        // Set wasserkosten if available
+        if (latest.wasserkosten) {
+          setWasserkosten(latest.wasserkosten.toString());
+        }
+        
+        // Set the date range if available
+        if (latest.startdatum || latest.enddatum) {
+          // Format the date to DD.MM.YYYY if it's in a different format
+          const formatDate = (dateString: string | Date | null) => {
+            if (!dateString) return '';
+            
+            try {
+              const date = new Date(dateString);
+              if (isNaN(date.getTime())) return '';
+              
+              const day = String(date.getDate()).padStart(2, '0');
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const year = date.getFullYear();
+              
+              return `${day}.${month}.${year}`;
+            } catch (e) {
+              console.error('Error formatting date:', e);
+              return '';
+            }
+          };
+          
+          setStartdatum(formatDate(latest.startdatum) || '');
+          setEnddatum(formatDate(latest.enddatum) || '');
+        }
+        
+        toast({
+          title: "Letzte Nebenkosten übernommen",
+          description: "Die Nebenkostenarten der letzten Abrechnung wurden übernommen. Bitte überprüfen Sie die Werte.",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching latest Betriebskosten:", error);
+      toast({
+        title: "Fehler",
+        description: "Beim Laden der letzten Nebenkosten ist ein Fehler aufgetreten.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingTemplate(false);
+    }
+  };
+
+  // Handle house selection change
+  const handleHausIdChange = (newHausId: string | null) => {
+    if (newHausId === null) {
+      setHausId('');
+      return;
+    }
+    setHausId(newHausId);
+    if (!betriebskostenInitialData?.id) {
+      fetchAndApplyLatestBetriebskosten(newHausId);
+    }
+  };
+
+  useEffect(() => {
     const resetAllStates = (forNewEntry: boolean = true) => {
       if (forNewEntry) {
         const defaultRange = getDefaultDateRange();
@@ -243,8 +559,21 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         setEnddatum("");
       }
       setWasserkosten("");
-      setHausId(forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
-      setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+      const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
+      setHausId(initialHausId);
+      
+      // Always start with a single empty cost item for new entries
+      if (forNewEntry) {
+        setCostItems([{ 
+          id: generateId(), 
+          art: '', 
+          betrag: '', 
+          berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || 'pro Flaeche' 
+        }]);
+      } else {
+        setCostItems([]);
+      }
+      
       setSelectedHausMieter([]);
       setRechnungen({});
       setIsSaving(false);
@@ -252,6 +581,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       setModalNebenkostenData(null);
       currentlyLoadedNebenkostenId.current = null;
       if (isBetriebskostenModalOpen) setBetriebskostenModalDirty(false);
+      
+      // Only fetch latest data if this is a new entry with a default house and using a template
+      if (forNewEntry && initialHausId && betriebskostenInitialData?.useTemplate) {
+        fetchAndApplyLatestBetriebskosten(initialHausId);
+      }
     };
 
     if (isBetriebskostenModalOpen) {
@@ -373,10 +707,10 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   };
 
   useEffect(() => {
-    if (isBetriebskostenModalOpen && !isLoadingDetails) {
+    if (isBetriebskostenModalOpen && !isFormLoading) {
       syncRechnungenState(selectedHausMieter, costItems);
     }
-  }, [selectedHausMieter, costItems, modalNebenkostenData, isBetriebskostenModalOpen, isLoadingDetails]);
+  }, [selectedHausMieter, costItems, modalNebenkostenData, isBetriebskostenModalOpen, isFormLoading]);
 
   const handleSubmit = async () => {
     setIsSaving(true);
@@ -534,6 +868,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         description: "Betriebskosten erfolgreich gespeichert",
         variant: "success" 
       });
+      setBetriebskostenModalDirty(false); // Clear dirty state before closing
       if (betriebskostenModalOnSuccess) betriebskostenModalOnSuccess();
       closeBetriebskostenModal();
     } else {
@@ -590,8 +925,18 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     return null;
   }
 
+  // Handle dialog state changes
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      attemptClose();
+    }
+  };
+
   return (
-    <Dialog open={isBetriebskostenModalOpen} onOpenChange={(open) => !open && attemptClose()}>
+    <Dialog 
+      open={isBetriebskostenModalOpen} 
+      onOpenChange={handleOpenChange}
+    >
       <DialogContent
         className="max-w-4xl"
         isDirty={isBetriebskostenModalDirty}
@@ -603,7 +948,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
               {betriebskostenInitialData?.id ? "Betriebskosten bearbeiten" : "Neue Betriebskostenabrechnung"}
             </DialogTitle>
             <DialogDescription>
-              {isLoadingDetails ? "Lade Details..." : "Füllen Sie die Details für die Betriebskostenabrechnung aus."}
+              {isFormLoading ? "Daten werden vorbereitet..." : "Füllen Sie die Details für die Betriebskostenabrechnung aus."}
             </DialogDescription>
           </DialogHeader>
           
@@ -615,14 +960,14 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                 <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
                   Haus *
                 </LabelWithTooltip>
-                {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                  <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving} />
+                {isFormLoading ? <Skeleton className="h-10 w-full" /> : (
+                  <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausIdChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving || isFormLoading} />
                 )}
               </div>
 
               {/* Date Range Selection */}
               <div className="space-y-3">
-                {isLoadingDetails ? (
+                {isFormLoading ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
@@ -634,7 +979,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       endDate={enddatum}
                       onStartDateChange={handleStartdatumChange}
                       onEndDateChange={handleEnddatumChange}
-                      disabled={isSaving}
+                      disabled={isSaving || isFormLoading}
                       showPeriodInfo={false}
                     />
                     
@@ -653,7 +998,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                           setEnddatum(`31.12.${newYear}`);
                           setBetriebskostenModalDirty(true);
                         }}
-                        disabled={isSaving}
+                        disabled={isSaving || isFormLoading}
                         title="Ein Jahr zurück"
                       >
                         <CalendarMinus className="w-4 h-4 mr-2" />
@@ -672,7 +1017,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                           setEnddatum(`31.12.${newYear}`);
                           setBetriebskostenModalDirty(true);
                         }}
-                        disabled={isSaving}
+                        disabled={isSaving || isFormLoading}
                         title="Ein Jahr vor"
                       >
                         <CalendarPlus className="w-4 h-4 mr-2" />
@@ -708,8 +1053,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                 <LabelWithTooltip htmlFor="formWasserkosten" infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Abrechnungszeitraum.">
                   Wasserkosten (€)
                 </LabelWithTooltip>
-                {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                  <Input id="formWasserkosten" type="number" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving} />
+                {isFormLoading ? <Skeleton className="h-10 w-full" /> : (
+                  <NumberInput id="formWasserkosten" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving || isFormLoading} />
                 )}
               </div>
             </div>
@@ -717,7 +1062,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             <div className="space-y-2">
               <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
               <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 p-3 space-y-3">
-                {isLoadingDetails ? (
+                {isFormLoading ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <div key={`skel-cost-${idx}`} className="flex flex-col gap-2 py-2 border-b last:border-b-0">
                       <div className="flex flex-col sm:flex-row items-start gap-2">
@@ -749,7 +1094,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                           selectedHausMieter={selectedHausMieter}
                           rechnungen={rechnungen}
                           isSaving={isSaving}
-                          isLoadingDetails={isLoadingDetails}
+                          isLoadingDetails={isFormLoading}
                           isFetchingTenants={isFetchingTenants}
                           hausId={hausId}
                           onCostItemChange={handleCostItemChange}
@@ -767,7 +1112,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                     </SortableContext>
                   </DndContext>
                 )}
-                <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isLoadingDetails || isSaving}>
+                <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isFormLoading || isSaving}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Kostenposition hinzufügen
                 </Button>
@@ -776,11 +1121,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
           </div>
 
           <DialogFooter className="px-4">
-            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isLoadingDetails}>
+            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isFormLoading}>
               Abbrechen
             </Button>
-            <Button type="submit" disabled={isSaving || isFetchingTenants}>
-              {isSaving ? "Speichern..." : (isLoadingDetails || isFetchingTenants ? "Laden..." : "Speichern")}
+            <Button type="submit" disabled={isSaving || isFetchingTenants || isFormLoading}>
+              {isSaving ? "Speichern..." : (isFormLoading || isFetchingTenants ? "Laden..." : "Speichern")}
             </Button>
           </DialogFooter>
         </form>

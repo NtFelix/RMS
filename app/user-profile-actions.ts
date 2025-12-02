@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { getPlanDetails } from '@/lib/stripe-server';
+import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import type { Profile as SupabaseProfile } from '@/types/supabase';
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
 import Stripe from 'stripe';
@@ -60,7 +61,7 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
 
     let planDetails = null;
     if (profile.stripe_price_id &&
-        (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
+      (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
       try {
         planDetails = await getPlanDetails(profile.stripe_price_id);
       } catch (stripeError) {
@@ -71,8 +72,8 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
     }
 
     const hasActiveSubscription = !!planDetails &&
-                                  (profile.stripe_subscription_status === 'active' ||
-                                   profile.stripe_subscription_status === 'trialing');
+      (profile.stripe_subscription_status === 'active' ||
+        profile.stripe_subscription_status === 'trialing');
 
     // Construct the response, ensuring it matches UserProfileForSettings
     const responseData: UserProfileForSettings = {
@@ -116,8 +117,8 @@ export async function getBillingAddress(stripeCustomerId: string): Promise<Billi
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+
     // First get the customer without expanding metadata
     const customer = await stripe.customers.retrieve(stripeCustomerId);
 
@@ -163,9 +164,9 @@ export async function getBillingAddress(stripeCustomerId: string): Promise<Billi
     };
   } catch (error: any) {
     console.error('Error in getBillingAddress:', error);
-    return { 
+    return {
       error: 'Failed to fetch billing address',
-      details: error.message 
+      details: error.message
     };
   }
 }
@@ -195,8 +196,8 @@ export async function updateBillingAddress(
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+
     const updateData: Stripe.CustomerUpdateParams = {
       name: details.name,
       // Set the business_name field if companyName is provided
@@ -216,9 +217,9 @@ export async function updateBillingAddress(
     return { success: true };
   } catch (error: any) {
     console.error('Error updating billing address:', error);
-    return { 
-      success: false, 
-      error: error.message || 'Failed to update billing address' 
+    return {
+      success: false,
+      error: error.message || 'Failed to update billing address'
     };
   }
 }
@@ -232,22 +233,22 @@ export async function createSetupIntent(stripeCustomerId: string): Promise<{ cli
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
     const setupIntent = await stripe.setupIntents.create({
       customer: stripeCustomerId,
       payment_method_types: ['card'],
       usage: 'on_session' as const,
     });
-    
+
     if (!setupIntent.client_secret) {
       throw new Error('Failed to create SetupIntent: client_secret is null');
     }
-    
+
     return { clientSecret: setupIntent.client_secret };
   } catch (error: any) {
     console.error(`Error creating SetupIntent for ${stripeCustomerId}:`, error);
-    return { 
-      error: error.message || 'Failed to create SetupIntent' 
+    return {
+      error: error.message || 'Failed to create SetupIntent'
     };
   }
 }

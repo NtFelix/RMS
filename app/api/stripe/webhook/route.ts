@@ -4,13 +4,14 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
+import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 
 // Module-level constants that are safe to initialize here
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 // Note: supabaseAdmin and stripe client initializations are moved into the POST handler.
 
 export async function POST(req: Request) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -50,10 +51,10 @@ export async function POST(req: Request) {
     let event: Stripe.Event;
 
     if (!webhookSecret) {
-     console.error('STRIPE_WEBHOOK_SECRET is not set.');
-     return new NextResponse('Webhook secret is not configured', { status: 500 });
+      console.error('STRIPE_WEBHOOK_SECRET is not set.');
+      return new NextResponse('Webhook secret is not configured', { status: 500 });
     }
-     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('Supabase URL or Service Role Key is not set for Admin client.');
       return new NextResponse('Supabase admin client not configured', { status: 500 });
     }
@@ -82,14 +83,14 @@ export async function POST(req: Request) {
           break; // Acknowledge event but don't process further if critical info is missing
         }
         if (!customerId || !subscriptionId) {
-            console.error('Customer ID or Subscription ID not found in session:', session.id);
-            break;
+          console.error('Customer ID or Subscription ID not found in session:', session.id);
+          break;
         }
 
         const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
         if (!retrievedSubscription) {
-            console.error('Could not retrieve subscription details for sub ID:', subscriptionId);
-            break;
+          console.error('Could not retrieve subscription details for sub ID:', subscriptionId);
+          break;
         }
 
         const profileUpdateData: Partial<Profile> = {
@@ -110,14 +111,14 @@ export async function POST(req: Request) {
         const subscriptionId = (invoice as any).subscription as string;
 
         if (!customerId || !subscriptionId) {
-            console.error('Customer ID or Subscription ID not found in invoice:', invoice.id);
-            break;
+          console.error('Customer ID or Subscription ID not found in invoice:', invoice.id);
+          break;
         }
 
         const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
         if (!retrievedSubscription) {
-            console.error('Could not retrieve subscription details for sub ID (invoice.paid):', subscriptionId);
-            break;
+          console.error('Could not retrieve subscription details for sub ID (invoice.paid):', subscriptionId);
+          break;
         }
 
         await updateProfileByCustomerIdInSupabase(customerId, {
@@ -132,20 +133,20 @@ export async function POST(req: Request) {
         console.log('Invoice payment failed:', invoice.id);
         const customerId = invoice.customer as string;
         if (!customerId) {
-            console.error('Customer ID not found in invoice (payment_failed):', invoice.id);
-            break;
+          console.error('Customer ID not found in invoice (payment_failed):', invoice.id);
+          break;
         }
 
         const subscriptionId = (invoice as any).subscription as string; // Apply similar fix here if this was also an issue
         let status = 'past_due'; // Default status
         if (subscriptionId) {
-            try {
-                const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
-                status = retrievedSubscription.status; // e.g., 'past_due', 'unpaid', 'canceled'
-            } catch (subError) {
-                console.error(`Could not retrieve subscription ${subscriptionId} for failed invoice ${invoice.id}:`, subError);
-                // Stick with 'past_due' or decide on another default if subscription is not retrievable
-            }
+          try {
+            const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            status = retrievedSubscription.status; // e.g., 'past_due', 'unpaid', 'canceled'
+          } catch (subError) {
+            console.error(`Could not retrieve subscription ${subscriptionId} for failed invoice ${invoice.id}:`, subError);
+            // Stick with 'past_due' or decide on another default if subscription is not retrievable
+          }
         }
 
         await updateProfileByCustomerIdInSupabase(customerId, {
@@ -160,15 +161,15 @@ export async function POST(req: Request) {
         console.log('Subscription updated:', subscriptionFromEvent.id, 'Status:', subscriptionFromEvent.status);
         const customerId = subscriptionFromEvent.customer as string;
         if (!customerId) {
-            console.error('Customer ID not found in subscription (updated):', subscriptionFromEvent.id);
-            break;
+          console.error('Customer ID not found in subscription (updated):', subscriptionFromEvent.id);
+          break;
         }
 
         const profileUpdateData: Partial<Profile> = {
-            stripe_subscription_id: subscriptionFromEvent.id,
-            stripe_subscription_status: subscriptionFromEvent.status,
-            stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
-            stripe_current_period_end: new Date((subscriptionFromEvent as any).current_period_end * 1000).toISOString(),
+          stripe_subscription_id: subscriptionFromEvent.id,
+          stripe_subscription_status: subscriptionFromEvent.status,
+          stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
+          stripe_current_period_end: new Date((subscriptionFromEvent as any).current_period_end * 1000).toISOString(),
         };
 
         await updateProfileByCustomerIdInSupabase(customerId, profileUpdateData);
@@ -179,9 +180,9 @@ export async function POST(req: Request) {
         const subscriptionFromEvent = event.data.object as Stripe.Subscription;
         console.log('Subscription deleted:', subscriptionFromEvent.id, 'Status:', subscriptionFromEvent.status);
         const customerId = subscriptionFromEvent.customer as string;
-         if (!customerId) {
-            console.error('Customer ID not found in subscription (deleted):', subscriptionFromEvent.id);
-            break;
+        if (!customerId) {
+          console.error('Customer ID not found in subscription (deleted):', subscriptionFromEvent.id);
+          break;
         }
         await updateProfileByCustomerIdInSupabase(customerId, {
           stripe_subscription_status: subscriptionFromEvent.status, // Stripe sends 'canceled', or other relevant status.

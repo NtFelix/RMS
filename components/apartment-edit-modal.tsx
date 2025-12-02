@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NumberInput } from "@/components/ui/number-input"
 import { Label } from "@/components/ui/label"
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox"
 import { toast } from "@/hooks/use-toast"
@@ -160,11 +161,11 @@ export function ApartmentEditModal({
           </div>
           <div className="space-y-2">
             <Label htmlFor="groesse">Größe (m²)</Label>
-            <Input id="groesse" name="groesse" type="number" value={formData.groesse} onChange={handleChange} required disabled={loading} />
+            <NumberInput id="groesse" name="groesse" value={formData.groesse} onChange={handleChange} required disabled={loading} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="miete">Miete (€)</Label>
-            <Input id="miete" name="miete" type="number" value={formData.miete} onChange={handleChange} required disabled={loading} />
+            <NumberInput id="miete" name="miete" value={formData.miete} onChange={handleChange} required disabled={loading} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="haus_id">Haus</Label>

@@ -4,42 +4,47 @@ import { AuthProvider } from "@/components/auth-provider"
 import { CommandMenu } from "@/components/command-menu"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { useModalStore } from "@/hooks/use-modal-store" // Added
-import { TenantEditModal } from "@/components/tenant-edit-modal" // Added
+import dynamic from 'next/dynamic'
+
 // Importing server action from its new location
 import { handleSubmit as tenantServerAction } from "@/app/mieter-actions" // Adjusted import path
-import { HouseEditModal } from "@/components/house-edit-modal" // Added
 import { handleSubmit as houseServerAction } from "@/app/(dashboard)/haeuser/actions" // Added
-import { FinanceEditModal } from "@/components/finance-edit-modal" // Added
 import { financeServerAction } from "@/app/finanzen-actions" // Added - Adjusted path due to tool limitation
-import { WohnungEditModal } from "@/components/wohnung-edit-modal" // Added
 import { wohnungServerAction } from "@/app/wohnungen-actions" // Added - Adjusted path
-import { AufgabeEditModal } from "@/components/aufgabe-edit-modal" // Added
 import { aufgabeServerAction } from "@/app/todos-actions" // Added
-import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal"; // Added
-import { WasserzaehlerModal } from "@/components/wasserzaehler-modal"; // Added
-import { KautionModal } from "@/components/kaution-modal"; // Added
 import { updateKautionAction } from "@/app/mieter-actions"; // Added
-// Assuming betriebskosten-actions.ts exports server actions, adjust if needed
-// For now, let's assume no specific serverAction prop is needed for BetriebskostenEditModal
-// as it seemed to handle its actions internally or via imported functions.
-// We will check this during integration.
+
+// Lazy load modals
+const TenantEditModal = dynamic(() => import('@/components/tenant-edit-modal').then(mod => mod.TenantEditModal), { ssr: false })
+const HouseEditModal = dynamic(() => import('@/components/house-edit-modal').then(mod => mod.HouseEditModal), { ssr: false })
+const FinanceEditModal = dynamic(() => import('@/components/finance-edit-modal').then(mod => mod.FinanceEditModal), { ssr: false })
+const WohnungEditModal = dynamic(() => import('@/components/wohnung-edit-modal').then(mod => mod.WohnungEditModal), { ssr: false })
+const AufgabeEditModal = dynamic(() => import('@/components/aufgabe-edit-modal').then(mod => mod.AufgabeEditModal), { ssr: false })
+const BetriebskostenEditModal = dynamic(() => import('@/components/betriebskosten-edit-modal').then(mod => mod.BetriebskostenEditModal), { ssr: false })
+const WasserZaehlerModal = dynamic(() => import('@/components/wasser-zaehler-modal').then(mod => mod.WasserZaehlerModal), { ssr: false })
+const WasserAblesenModal = dynamic(() => import('@/components/wasser-ablesungen-modal').then(mod => mod.WasserAblesenModal), { ssr: false })
+const KautionModal = dynamic(() => import('@/components/kaution-modal').then(mod => mod.KautionModal), { ssr: false })
+const HausOverviewModal = dynamic(() => import('@/components/haus-overview-modal').then(mod => mod.HausOverviewModal), { ssr: false })
+const WohnungOverviewModal = dynamic(() => import('@/components/wohnung-overview-modal').then(mod => mod.WohnungOverviewModal), { ssr: false })
+const ApartmentTenantDetailsModal = dynamic(() => import('@/components/apartment-tenant-details-modal').then(mod => mod.ApartmentTenantDetailsModal), { ssr: false })
+const FileUploadModal = dynamic(() => import('@/components/file-upload-modal').then(mod => mod.FileUploadModal), { ssr: false })
+const FileRenameModal = dynamic(() => import('@/components/file-rename-modal').then(mod => mod.FileRenameModal), { ssr: false })
+const CreateFolderModal = dynamic(() => import('@/components/create-folder-modal').then(mod => mod.CreateFolderModal), { ssr: false })
+const CreateFileModal = dynamic(() => import('@/components/create-file-modal').then(mod => mod.CreateFileModal), { ssr: false })
+const FolderDeleteConfirmationModal = dynamic(() => import('@/components/folder-delete-confirmation-modal').then(mod => mod.FolderDeleteConfirmationModal), { ssr: false })
+const FileMoveModal = dynamic(() => import('@/components/file-move-modal').then(mod => mod.FileMoveModal), { ssr: false })
+const ShareDocumentModal = dynamic(() => import('@/components/share-document-modal').then(mod => mod.ShareDocumentModal), { ssr: false })
+const MarkdownEditorModal = dynamic(() => import('@/components/markdown-editor-modal').then(mod => mod.MarkdownEditorModal), { ssr: false })
+const TemplatesModal = dynamic(() => import('@/components/templates-modal').then(mod => mod.TemplatesModal), { ssr: false })
+const TenantMailTemplatesModal = dynamic(() => import('@/components/tenant-mail-templates-modal').then(mod => mod.TenantMailTemplatesModal), { ssr: false })
+const AIAssistantModal = dynamic(() => import('@/components/ai-assistant-modal').then(mod => mod.AIAssistantModal), { ssr: false })
+// Default exports
+const TenantPaymentEditModal = dynamic(() => import('@/components/tenant-payment-edit-modal'), { ssr: false })
+const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenant-payment-overview-modal'), { ssr: false })
+
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
-import { HausOverviewModal } from "@/components/haus-overview-modal"; // Added
-import { WohnungOverviewModal } from "@/components/wohnung-overview-modal"; // Added
-import { ApartmentTenantDetailsModal } from "@/components/apartment-tenant-details-modal"; // Added
-import { FileUploadModal } from "@/components/file-upload-modal" // Removed FilePreviewModal import
-import { FileRenameModal } from "@/components/file-rename-modal"; // Added
-import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
-import { CreateFileModal } from "@/components/create-file-modal"; // Added
-import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confirmation-modal"; // Added
-import { FileMoveModal } from "@/components/file-move-modal"; // Added
-import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
-import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
-import { TemplatesModal } from "@/components/templates-modal"; // Added
-import { TenantMailTemplatesModal } from "@/components/tenant-mail-templates-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
-import { AIAssistantModal } from "@/components/ai-assistant-modal"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -153,8 +158,11 @@ export default function DashboardRootLayout({
       <AufgabeEditModal serverAction={aufgabeServerAction} />
       {/* BetriebskostenEditModal - Assuming it handles its own server actions internally or doesn't need a generic one passed */}
       <BetriebskostenEditModal />
-      {/* WasserzaehlerModal - Handles its own state via modal store */}
-      <WasserzaehlerModal />
+      {/* Old WasserzaehlerModal removed - now using new Wasser_Zaehler structure */}
+      {/* WasserZaehlerModal - Manages Wasser_Zaehler entries for apartments */}
+      <WasserZaehlerModal />
+      {/* WasserAblesenModal - Manages Wasser_Ablesungen entries for water meters */}
+      <WasserAblesenModal />
       {/* KautionModal - Handles kaution management */}
       <KautionModal serverAction={updateKautionAction} />
       {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
@@ -251,6 +259,10 @@ export default function DashboardRootLayout({
       />
       {/* AI Assistant Modal - Global AI assistant modal */}
       <AIAssistantModal />
+      {/* Tenant Payment Edit Modal */}
+      <TenantPaymentEditModal />
+      {/* Tenant Payment Overview Modal */}
+      <TenantPaymentOverviewModal />
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
         <ConfirmationDialog

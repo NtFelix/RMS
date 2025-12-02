@@ -6,6 +6,7 @@
 jest.mock('stripe');
 
 import { getPlanDetails } from '../stripe-server';
+import { STRIPE_API_VERSION } from '../constants/stripe';
 import Stripe from 'stripe';
 
 const mockStripe = Stripe as jest.MockedClass<typeof Stripe>;
@@ -70,12 +71,12 @@ describe('lib/stripe-server', () => {
       const result = await getPlanDetails('price_123');
 
       expect(mockStripe).toHaveBeenCalledWith('sk_test_123', {
-        apiVersion: '2025-06-30.basil'
+        apiVersion: STRIPE_API_VERSION
       });
       expect(mockStripeInstance.prices.retrieve).toHaveBeenCalledWith('price_123', {
         expand: ['product']
       });
-      
+
       expect(result).toEqual({
         priceId: 'price_123',
         name: 'Premium Plan',

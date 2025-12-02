@@ -18,16 +18,32 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { ExportAbrechnungDropdown } from "./abrechnung/export-abrechnung-dropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import { Nebenkosten, Mieter, Wohnung, Rechnung, Wasserzaehler } from "@/lib/data-fetching"; // Added Rechnung to import
+import { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/data-fetching"; // Updated imports for new water system
 import { useEffect, useState, useMemo, useRef } from "react"; // Import useEffect, useState, useMemo, and useRef
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive } from 'lucide-react'; // Added FileDown and other icon imports
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+
+// Function to fetch customer billing address
+const fetchCustomerBillingAddress = async () => {
+  try {
+    const response = await fetch('/api/stripe/customer');
+    if (!response.ok) {
+      throw new Error('Failed to fetch customer data');
+    }
+    const data = await response.json();
+    return data.customer?.address || null;
+  } catch (error) {
+    console.error('Error fetching billing address:', error);
+    return null;
+  }
+};
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 import type { jsPDF } from 'jspdf'; // Type import for better type safety
 import type { CellHookData } from 'jspdf-autotable'; // Type import for autoTable hook data
@@ -156,7 +172,8 @@ interface AbrechnungModalProps {
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
   rechnungen: Rechnung[];
-  wasserzaehlerReadings?: Wasserzaehler[];
+  waterMeters?: WasserZaehler[]; // Updated to use new water meter type
+  waterReadings?: WasserAblesung[]; // Updated to use new water reading type
   ownerName: string;
   ownerAddress: string;
 }
@@ -167,7 +184,8 @@ export function AbrechnungModal({
   nebenkostenItem,
   tenants,
   rechnungen,
-  wasserzaehlerReadings,
+  waterMeters = [], // Default to empty array
+  waterReadings = [], // Default to empty array
   ownerName,
   ownerAddress,
 }: AbrechnungModalProps) {
@@ -245,9 +263,9 @@ export function AbrechnungModal({
   // Performance monitoring - log when modal opens with pre-loaded data
   useEffect(() => {
     if (isOpen && nebenkostenItem && tenants?.length > 0) {
-      console.log(`[AbrechnungModal] Opened with pre-loaded data: ${tenants?.length || 0} tenants, ${rechnungen?.length || 0} rechnungen, ${wasserzaehlerReadings?.length || 0} wasserzaehler readings`);
+      console.log(`[AbrechnungModal] Opened with pre-loaded data: ${tenants?.length || 0} tenants, ${rechnungen?.length || 0} rechnungen, ${waterMeters?.length || 0} water meters, ${waterReadings?.length || 0} water readings`);
     }
-  }, [isOpen, nebenkostenItem, tenants, rechnungen, wasserzaehlerReadings]);
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, waterMeters, waterReadings]);
 
   // Debug: Log tenants whenever they change
   useEffect(() => {
@@ -305,6 +323,9 @@ export function AbrechnungModal({
     return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
   }, [nebenkostenItem?.gesamtFlaeche, tenants]);
 
+  // Import water calculation utilities at the top level
+  const { getTenantWaterCost } = require('@/utils/water-cost-calculations');
+
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
     if (!nebenkostenItem) return null;
@@ -321,6 +342,7 @@ export function AbrechnungModal({
         betrag,
         berechnungsart,
         wasserkosten, // Total building water cost
+        wasserverbrauch, // Total building water consumption
         gesamtFlaeche,
       } = nebenkostenItem!;
 
@@ -499,16 +521,23 @@ export function AbrechnungModal({
 
       const tenantTotalForRegularItems = costItemsDetails.reduce((sum, item) => sum + item.tenantShare, 0);
 
-      const tenantReading = wasserzaehlerReadings?.find(r => r.mieter_id === tenant.id && r.nebenkosten_id === nebenkostenItemId);
-      const individualConsumption = tenantReading?.verbrauch || 0;
-      const waterShare = individualConsumption * pricePerCubicMeter;
-      const waterCalcType = "nach Verbrauch";
+      // Use the new water calculation system
+      const tenantWaterCostData = getTenantWaterCost(
+        tenant.id,
+        safeTenants,
+        waterMeters,
+        waterReadings,
+        wasserkosten || 0,
+        wasserverbrauch || 0, // Total building consumption from Nebenkosten
+        itemStartdatum || startdatum,
+        itemEnddatum || enddatum
+      );
 
       const tenantWaterCost = {
         totalWaterCostOverall: wasserkosten || 0,
-        calculationType: waterCalcType,
-        tenantShare: waterShare,
-        consumption: individualConsumption,
+        calculationType: "nach Verbrauch (Wasserzähler)",
+        tenantShare: tenantWaterCostData?.costShare || 0,
+        consumption: tenantWaterCostData?.consumption || 0,
       };
 
       const totalTenantCost = tenantTotalForRegularItems + tenantWaterCost.tenantShare;
@@ -540,7 +569,7 @@ export function AbrechnungModal({
         recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
       };
     };
-  }, [nebenkostenItem, wgFactors, rechnungen, wasserzaehlerReadings, totalHouseArea]);
+  }, [nebenkostenItem, wgFactors, rechnungen, waterMeters, waterReadings, totalHouseArea, safeTenants, getTenantWaterCost]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {
@@ -603,6 +632,9 @@ export function AbrechnungModal({
     const pageHeight = doc.internal.pageSize.height;
     let startY = 20; // Initial Y position for content
 
+    // Fetch billing address for the PDF
+    const billingAddress = await fetchCustomerBillingAddress();
+
     const processTenant = (singleTenantData: TenantCostDetails) => {
       // Check if new page is needed for multiple tenants
       if (startY > pageHeight - 50) {
@@ -611,7 +643,7 @@ export function AbrechnungModal({
       }
       
       // Use the reusable PDF generation function and update startY with the returned position
-      startY = generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress, startY);
+      startY = generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress, startY, billingAddress);
     };
 
     // Ensure dataForProcessing is definitely an array.
@@ -654,7 +686,8 @@ export function AbrechnungModal({
     nebenkostenItem: Nebenkosten,
     ownerName: string,
     ownerAddress: string,
-    initialStartY: number = 20
+    initialStartY: number = 20,
+    billingAddress?: any // Optional billing address from Stripe
   ): number => {
     let startY = initialStartY;
 
@@ -679,10 +712,15 @@ export function AbrechnungModal({
     // Property Details
     const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
     doc.text(propertyDetails, 20, startY);
+    startY += 6;
+
+    // Tenant Details
+    const tenantDetails = `Mieter: ${tenantData.tenantName}`;
+    doc.text(tenantDetails, 20, startY);
     startY += 10;
 
     // Costs Table
-    const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
+    const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
     const tableRows: any[][] = [];
 
     tenantData.costItems.forEach(item => {
@@ -741,73 +779,127 @@ export function AbrechnungModal({
       startY += 10;
     }
 
-    // Draw "Betriebskosten gesamt" sums
+    // Draw "Betriebskosten gesamt" summary text aligned with table columns
     const sumOfTotalCostForItem = tenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
     const sumOfTenantSharesFromCostItems = tenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
 
-    const lastTable = (doc as any).lastAutoTable;
-    if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
-      const col0 = lastTable.columns[0];
-      const col4 = lastTable.columns[4];
-
-      if (col0 && typeof col0.x === 'number' && col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-
-        const labelText = "Betriebskosten gesamt: ";
-        const sum1Text = formatCurrency(sumOfTotalCostForItem);
-        doc.text(labelText + sum1Text, col0.x, startY, { align: 'left' });
-        doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col4.x + col4.width, startY, { align: 'right' });
-
-        startY += 8;
-        doc.setFont("helvetica", "normal");
-      }
-    }
-
-    // Water consumption section
-    startY += 5;
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Wasserverbrauch", 20, startY);
-    startY += 7;
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-
-    const totalBuildingConsumption = nebenkostenItem.wasserverbrauch || 0;
-    const totalWaterCost = nebenkostenItem.wasserkosten || 0;
-    const pricePerCubicMeter = totalBuildingConsumption > 0 ? totalWaterCost / totalBuildingConsumption : 0;
-
-    doc.text(`Gesamtverbrauch Gebäude: ${totalBuildingConsumption} m³`, 20, startY);
-    startY += 5;
-    doc.text(`Gesamtkosten Wasser: ${formatCurrency(totalWaterCost)}`, 20, startY);
-    startY += 5;
-    doc.text(`Preis pro m³: ${formatCurrency(pricePerCubicMeter)}`, 20, startY);
+    // Add spacing before summary text
     startY += 8;
 
-    doc.text(`Verbrauch ${tenantData.tenantName}: ${tenantData.waterCost.consumption || 0} m³`, 20, startY);
-    startY += 5;
-    doc.text(`Wasserkosten ${tenantData.tenantName}: ${formatCurrency(tenantData.waterCost.tenantShare)}`, 20, startY);
+    // Draw "Betriebskosten gesamt" summary - simplified approach
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    
+    // Use fixed positions based on table width and margins to ensure alignment
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const tableWidth = pageWidth - 40; // Same as table margin
+    const leftMargin = 20;
+    
+    // Calculate column positions based on typical table layout
+    const col1Start = leftMargin; // Leistungsart
+    const col2Start = leftMargin + (tableWidth * 0.25); // Gesamtkosten (25% of table width)
+    const col3Start = leftMargin + (tableWidth * 0.45); // Verteiler (45% of table width)  
+    const col4Start = leftMargin + (tableWidth * 0.65); // Kosten Pro qm (65% of table width)
+    const col5Start = leftMargin + (tableWidth * 0.85); // Kostenanteil (85% of table width)
+    const col5End = leftMargin + tableWidth; // Right edge of Kostenanteil column
+    
+    // No background or borders - just plain text with proper alignment
+    
+    // Add the text with proper alignment
+    doc.setTextColor(0, 0, 0);
+    
+    // Label in first column
+    doc.text("Betriebskosten gesamt:", col1Start, startY, { align: 'left' });
+    
+    // Total cost in Gesamtkosten column (right-aligned within column)
+    doc.text(formatCurrency(sumOfTotalCostForItem), col3Start + 15.65, startY, { align: 'right' });
+    
+    // Tenant share in Kostenanteil column (right-aligned within column)
+    doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col5End, startY, { align: 'right' });
+    
+    doc.setFont("helvetica", "normal");
+    
+    startY += 12;
+
+    // Add water cost summary paragraph
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    
+    // Get water cost data for this tenant
+    const tenantWaterShare = tenantData.waterCost.tenantShare;
+    const tenantWaterConsumption = tenantData.waterCost.consumption || 0;
+    const buildingWaterCost = nebenkostenItem.wasserkosten || 0;
+    const buildingWaterConsumption = nebenkostenItem.wasserverbrauch || 0;
+    const pricePerCubicMeterCalc = buildingWaterConsumption > 0 ? buildingWaterCost / buildingWaterConsumption : 0;
+    
+    // Water cost summary with aligned columns
+    doc.text("Wasserkosten:", col1Start, startY, { align: 'left' });
+    doc.text(`${tenantWaterConsumption} m³`, col3Start + 15.65, startY, { align: 'right' });
+    doc.text(`${formatCurrency(pricePerCubicMeterCalc)} / m3`, col4Start + 15, startY, { align: 'right' });
+    doc.text(formatCurrency(tenantWaterShare), col5End, startY, { align: 'right' });
+    
+    startY += 16;
+    
+    // Total line - sum of operating costs and water costs
+    const totalTenantCosts = sumOfTenantSharesFromCostItems + tenantWaterShare;
+    doc.text("Gesamt:", col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(totalTenantCosts), col5End, startY, { align: 'right' });
+    
+    startY += 8;
+    
+    // Advance payments line
+    doc.text("Vorauszahlungen:", col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(tenantData.vorauszahlungen), col5End, startY, { align: 'right' });
+    
+    startY += 8;
+    
+    // Final settlement line (Nachzahlung or Guthaben)
+    const isPositiveSettlement = tenantData.finalSettlement >= 0;
+    const settlementLabel = isPositiveSettlement ? "Nachzahlung:" : "Guthaben:";
+    const settlementAmount = Math.abs(tenantData.finalSettlement);
+    doc.text(settlementLabel, col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(settlementAmount), col5End, startY, { align: 'right' });
+    
+    startY += 8;
+    
+    // Suggested monthly Vorauszahlung line (rounded to nearest 5)
+    const suggestedVorauszahlung = tenantData.recommendedPrepayment ? roundToNearest5(tenantData.recommendedPrepayment) : 0;
+    const monthlyVorauszahlung = suggestedVorauszahlung / 12; // Convert annual to monthly
+    
+    // Calculate next month start date (at least 14 days from now)
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const formattedDate = format(nextMonth, 'dd.MM.yy');
+    
+    doc.setFont("helvetica", "bold");
+    const label = `Vorauszahlung ab ${formattedDate}`;
+    doc.text(label, col1Start, startY, { align: 'left' });
+    doc.text(formatCurrency(monthlyVorauszahlung), col5End, startY, { align: 'right' });
+    
+    doc.setFont("helvetica", "normal");
+    
     startY += 10;
 
-    // Settlement summary
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Abrechnung", 20, startY);
-    startY += 8;
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Gesamtkosten: ${formatCurrency(tenantData.totalTenantCost)}`, 20, startY);
-    startY += 5;
-    doc.text(`Vorauszahlungen: ${formatCurrency(tenantData.vorauszahlungen)}`, 20, startY);
-    startY += 8;
-
-    doc.setFont("helvetica", "bold");
-    const isNachzahlung = tenantData.finalSettlement >= 0;
-    const settlementText = isNachzahlung ? "Nachzahlung" : "Guthaben";
-    doc.text(`${settlementText}: ${formatCurrency(tenantData.finalSettlement)}`, 20, startY);
-    startY += 10; // Add some space after the final settlement
+    // Add date and location row at the end
+    startY += 15; // Add some space before the final row
+    const currentDate = new Date();
+    const formattedToday = format(currentDate, 'dd.MM.yyyy');
+    
+    // Format location from billing address
+    let location = '';
+    if (billingAddress) {
+      const parts = [];
+      if (billingAddress.city) parts.push(billingAddress.city);
+      location = parts.join(' ');
+    }
+    
+    if (location) {
+      doc.setFont("helvetica", "normal");
+      doc.text(`${location}, den ${formattedToday}`, col1Start, startY, { align: 'left' });
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.text(`den ${formattedToday}`, col1Start, startY, { align: 'left' });
+    }
     
     return startY; // Return the final Y position
   };
@@ -833,11 +925,13 @@ export function AbrechnungModal({
     const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`;
 
     // Generate individual PDFs for each tenant
+    const billingAddress = await fetchCustomerBillingAddress();
+    
     for (const tenantData of tenantDataArray) {
       const doc = new jsPDF();
       
       // Use the reusable PDF generation function
-      generateSingleTenantPDF(doc, tenantData, nebenkostenItem, ownerName, ownerAddress);
+      generateSingleTenantPDF(doc, tenantData, nebenkostenItem, ownerName, ownerAddress, 20, billingAddress);
       
       const pdfBlob = doc.output('blob');
       const filename = `Abrechnung_${currentPeriod}_${tenantData.tenantName.replace(/\s+/g, '_')}.pdf`;
@@ -1181,80 +1275,52 @@ export function AbrechnungModal({
             Schließen
           </Button>
           
-          {/* Export Button with Integrated Dropdown */}
-          <div className="relative">
-            <Button 
-              variant="default" 
-              onClick={() => handleExportOperation(
-                () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
-                "Fehler bei PDF-Generierung",
-                "Ein Fehler ist beim Erstellen der PDF aufgetreten."
-              )}
-              disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-              className="pr-12 h-10 transition-all duration-200"
-              onMouseEnter={(e) => {
-                applyMainButtonHoverEffect(true, true, e.currentTarget);
-                applyDropdownHoverEffect(true, false);
-              }}
-              onMouseLeave={(e) => {
-                applyMainButtonHoverEffect(false, true, e.currentTarget);
-                applyDropdownHoverEffect(false, false);
-              }}
-            >
-              <FileDown className="mr-2 h-4 w-4" />
-              {isGeneratingPDF ? "PDF wird erstellt..." : "Als PDF exportieren"}
-            </Button>
-            
-            {/* Circular Dropdown Trigger */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  ref={dropdownTriggerRef}
-                  disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 border shadow-sm bg-primary border-primary text-primary-foreground"
-                  onMouseEnter={() => {
-                    applyDropdownHoverEffect(true, true);
-                    applyMainButtonHoverEffect(true, false);
-                  }}
-                  onMouseLeave={() => {
-                    applyDropdownHoverEffect(false, true);
-                    applyMainButtonHoverEffect(false, false);
-                  }}
-                >
-                  <ChevronDown className="h-4 w-4 text-white" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => handleExportOperation(
-                    () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
-                    "Fehler bei PDF-Generierung",
-                    "Ein Fehler ist beim Erstellen der PDF aufgetreten."
-                  )}
-                  disabled={isGeneratingPDF || calculatedTenantData.length === 0}
-                  className="hover:!bg-primary/10 hover:!text-primary focus:!bg-primary/10 focus:!text-primary"
-                >
-                  <FileDown className="mr-2 h-4 w-4" />
-                  Als PDF exportieren
-                </DropdownMenuItem>
+          {/* Export Button with Dropdown - Matches Create New button style */}
+          <ExportAbrechnungDropdown
+            onPdfClick={() => handleExportOperation(
+              () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
+              "Fehler bei PDF-Generierung",
+              "Ein Fehler ist beim Erstellen der PDF aufgetreten."
+            )}
+            onZipClick={async () => {
+              try {
+                if (!calculateCostsForTenant) {
+                  toast({
+                    title: "Fehler",
+                    description: "Kostenberechnung konnte nicht initialisiert werden.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+
+                // Always use all tenants for ZIP export, not just the filtered/selected ones
+                const allTenants = tenants || [];
                 
-                {calculatedTenantData.length > 1 && (
-                  <DropdownMenuItem
-                    onClick={() => handleExportOperation(
-                      () => generateSettlementZIP(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
-                      "Fehler bei ZIP-Generierung",
-                      "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten."
-                    )}
-                    disabled={isGeneratingPDF}
-                    className="hover:!bg-primary/10 hover:!text-primary focus:!bg-primary/10 focus:!text-primary"
-                  >
-                    <Archive className="mr-2 h-4 w-4" />
-                    Als ZIP exportieren (alle PDFs)
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                // Calculate costs for all tenants using the memoized function
+                const tenantCosts = allTenants.map(tenant => 
+                  calculateCostsForTenant(tenant, pricePerCubicMeter)
+                );
+                
+                await handleExportOperation(
+                  () => generateSettlementZIP(tenantCosts, nebenkostenItem!, ownerName, ownerAddress),
+                  "Fehler bei ZIP-Generierung",
+                  "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten."
+                );
+              } catch (error) {
+                console.error('Error during ZIP export:', error);
+                toast({
+                  title: "Fehler",
+                  description: "Bei der Vorbereitung des Exports ist ein Fehler aufgetreten.",
+                  variant: "destructive",
+                });
+              }
+            }}
+            isGeneratingPDF={isGeneratingPDF}
+            hasMultipleTenants={tenants?.length > 1}
+            disabled={!tenants?.length}
+            buttonText={isGeneratingPDF ? "Wird exportiert..." : "Exportieren"}
+            buttonVariant="default"
+          />
         </DialogFooter>
       </DialogContent>
     </Dialog>

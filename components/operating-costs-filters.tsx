@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
+import { SearchInput } from "@/components/ui/search-input"
 import { CustomCombobox } from "@/components/ui/custom-combobox"
 import { Haus } from "@/lib/data-fetching"
 
@@ -16,6 +15,7 @@ interface OperatingCostsFiltersProps {
   onHouseChange?: (houseId: string) => void
   haeuser?: Haus[]
   selectedHouseId?: string
+  searchQuery?: string
 }
 
 export function OperatingCostsFilters({ 
@@ -23,7 +23,8 @@ export function OperatingCostsFilters({
   onSearchChange, 
   onHouseChange,
   haeuser = [],
-  selectedHouseId = ALL_HOUSES_VALUE 
+  selectedHouseId = ALL_HOUSES_VALUE,
+  searchQuery = ""
 }: OperatingCostsFiltersProps) {
   const [activeFilter, setActiveFilter] = useState("all")
   
@@ -76,15 +77,15 @@ export function OperatingCostsFilters({
             width="w-full"
           />
         </div>
-        <div className="relative w-full sm:w-[300px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Abrechnungen suchen..."
-            className="pl-10 rounded-full"
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          placeholder="Abrechnungen suchen..."
+          className="rounded-full"
+          mode="table"
+          wrapperClassName="w-full sm:w-[300px]"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          onClear={() => onSearchChange("")}
+        />
       </div>
     </div>
   )

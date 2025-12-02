@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
@@ -35,6 +36,7 @@ import {
   ArrowDownUp,
   ArrowDownUp as SplitIcon
 } from "lucide-react";
+import { WaterDropletLoader } from "@/components/ui/water-droplet-loader";
 import {
   Select,
   SelectContent,
@@ -43,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { formatNumber } from "@/utils/format";
 
 // Filter options for the water meter modal
 const filterOptions = [
@@ -541,9 +544,9 @@ export function WasserzaehlerModal() {
           )}
 
           {isLoading ? (
-            <div className="flex flex-col justify-center items-center h-40 gap-3">
-              <Droplet className="h-8 w-8 text-muted-foreground animate-pulse" />
-              <p className="text-muted-foreground">Lade Wasserzählerdaten...</p>
+            <div className="flex flex-col justify-center items-center h-40 gap-4">
+              <WaterDropletLoader size="md" />
+              <p className="text-sm text-muted-foreground animate-pulse">Lade Wasserzählerdaten...</p>
             </div>
           ) : formData.length > 0 ? (
             groupedEntries.length === 0 ? (
@@ -585,9 +588,8 @@ export function WasserzaehlerModal() {
                     </div>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <Input
+                        <NumberInput
                           id={`apartment-usage-${wohnungName}`}
-                          type="number"
                           step="0.01"
                           min="0"
                           value={apartmentUsage[wohnungName] || ''}
@@ -647,7 +649,7 @@ export function WasserzaehlerModal() {
                             ) : (
                               <TrendingDown className="h-3 w-3" />
                             )}
-                            {consumptionChange > 0 ? '+' : ''}{consumptionChange.toFixed(1)}%
+                            {consumptionChange > 0 ? '+' : ''}{formatNumber(consumptionChange, 1)}%
                           </div>
                         )}
                       </div>
@@ -660,11 +662,11 @@ export function WasserzaehlerModal() {
                           </Badge>
                           <Badge variant="outline" className="gap-1.5">
                             <Gauge className="h-3 w-3" />
-                            <span>Stand: {entry.previous_reading.zaehlerstand} m³</span>
+                            <span>Stand: {formatNumber(entry.previous_reading.zaehlerstand)} m³</span>
                           </Badge>
                           <Badge variant="outline" className="gap-1.5">
                             <Droplet className="h-3 w-3" />
-                            <span>Verbrauch: {entry.previous_reading.verbrauch} m³</span>
+                            <span>Verbrauch: {formatNumber(entry.previous_reading.verbrauch)} m³</span>
                           </Badge>
                         </div>
                       ) : (
@@ -691,9 +693,8 @@ export function WasserzaehlerModal() {
                           <Label htmlFor={`zaehlerstand-${entry.mieter_id}`}>
                             Neuer Zählerstand (m³)
                           </Label>
-                          <Input
+                          <NumberInput
                             id={`zaehlerstand-${entry.mieter_id}`}
-                            type="number"
                             step="0.01"
                             value={entry.zaehlerstand}
                             onChange={(e) => handleInputChange(index, 'zaehlerstand', e.target.value)}
@@ -705,9 +706,8 @@ export function WasserzaehlerModal() {
                           <Label htmlFor={`verbrauch-${entry.mieter_id}`}>
                             Verbrauch (m³)
                           </Label>
-                          <Input
+                          <NumberInput
                             id={`verbrauch-${entry.mieter_id}`}
-                            type="number"
                             step="0.01"
                             value={entry.verbrauch}
                             onChange={(e) => handleInputChange(index, 'verbrauch', e.target.value)}
