@@ -1,11 +1,9 @@
 'use client';
 
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion";
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const faqItems = [
     {
@@ -27,6 +25,8 @@ const faqItems = [
 ];
 
 export function FAQ() {
+    const [openIndex, setOpenIndex] = useState<number | null>(null);
+
     return (
         <section className="py-16 px-4" id="faq">
             <div className="max-w-3xl mx-auto">
@@ -37,18 +37,53 @@ export function FAQ() {
                     </p>
                 </div>
 
-                <Accordion type="single" collapsible className="w-full">
+                <div className="space-y-4">
                     {faqItems.map((item, index) => (
-                        <AccordionItem key={index} value={`item-${index}`}>
-                            <AccordionTrigger className="text-left text-lg font-medium">
-                                {item.question}
-                            </AccordionTrigger>
-                            <AccordionContent className="text-muted-foreground text-base leading-relaxed">
-                                {item.answer}
-                            </AccordionContent>
-                        </AccordionItem>
+                        <div
+                            key={index}
+                            className={cn(
+                                "border rounded-2xl overflow-hidden transition-all duration-200",
+                                openIndex === index
+                                    ? "bg-primary/5 border-primary/20 shadow-sm"
+                                    : "bg-card hover:bg-muted/50 border-border"
+                            )}
+                        >
+                            <button
+                                onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                                className="flex items-center justify-between w-full p-6 text-left"
+                            >
+                                <span className="text-lg font-medium pr-8">
+                                    {item.question}
+                                </span>
+                                <motion.div
+                                    animate={{ rotate: openIndex === index ? 180 : 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className={cn(
+                                        "flex-shrink-0 rounded-full p-1",
+                                        openIndex === index ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                                    )}
+                                >
+                                    <ChevronDown className="w-5 h-5" />
+                                </motion.div>
+                            </button>
+
+                            <AnimatePresence initial={false}>
+                                {openIndex === index && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    >
+                                        <div className="px-6 pb-6 text-muted-foreground leading-relaxed">
+                                            {item.answer}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     ))}
-                </Accordion>
+                </div>
             </div>
         </section>
     );
