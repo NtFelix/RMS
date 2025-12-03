@@ -575,7 +575,7 @@ export default function Pricing({
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {groupedPlans.map((group) => {
+            {groupedPlans.filter(group => group.position !== 0).map((group) => {
               const planToDisplay = billingCycle === 'monthly' ? group.monthly : group.annually;
               if (!planToDisplay) {
                 // If the selected cycle isn't available for this group, maybe show a message or skip
