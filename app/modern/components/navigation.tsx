@@ -6,6 +6,7 @@ import { useFeatureFlagEnabled } from "posthog-js/react"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight, Sparkles } from "lucide-react"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { LOGO_URL } from "@/lib/constants"
 import { Button } from '@/components/ui/button'
@@ -44,7 +45,6 @@ const loesungenItems = [
 
 const hilfeItems = [
   { name: "Dokumentation", href: "/hilfe/dokumentation", icon: BookOpen, description: "Ausführliche Anleitungen" },
-  { name: "FAQ", href: "#cta", icon: HelpCircle, description: "Häufig gestellte Fragen" },
   { name: "Support", href: "#cta", icon: MessageSquare, description: "Kontaktieren Sie unser Team" },
   { name: "Kontakt", href: "#cta", icon: Mail, description: "Schreiben Sie uns" },
 ]
@@ -234,10 +234,11 @@ export default function Navigation({ onLogin }: NavigationProps) {
             </PillContainer>
             <Link href="/" className="flex items-center space-x-1 group">
               <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
-                <img
+                <Image
                   src={LOGO_URL}
                   alt="Mietfluss Logo"
-                  className="object-cover w-full h-full"
+                  fill
+                  className="object-cover"
                 />
               </div>
               <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
@@ -255,10 +256,11 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 {/* Logo Section */}
                 <Link href="/" className="flex items-center space-x-2 group px-2">
                   <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
-                    <img
+                    <Image
                       src={LOGO_URL}
                       alt="Mietfluss Logo"
-                      className="object-cover w-full h-full"
+                      fill
+                      className="object-cover"
                     />
                   </div>
                   <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">

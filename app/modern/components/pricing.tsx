@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight, Sparkles } from "lucide-react";
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import { WaitlistButton } from './waitlist-button';
+import { FAQ } from './faq';
 import { Profile } from '@/types/supabase';
 
 // Updated Plan interface to match the API response structure
@@ -516,126 +517,128 @@ export default function Pricing({
   }
 
 
-
   return (
-    <section className="py-16 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Einfache, transparente Preise</h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Wählen Sie den perfekten Plan für Ihre Bedürfnisse. Jederzeit erweiter- oder herabstufbar.
-          </p>
-        </div>
-
-        <div className="flex justify-center mb-12">
-          <div className="inline-flex items-center rounded-full bg-muted p-1">
-            <Button
-              variant={billingCycle === "monthly" ? "default" : "ghost"}
-              onClick={() => setBillingCycle("monthly")}
-              className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-            >
-              Monatlich
-            </Button>
-            <Button
-              variant={billingCycle === "yearly" ? "default" : "ghost"}
-              onClick={() => setBillingCycle("yearly")}
-              className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-            >
-              Jährlich (20% Rabatt)
-            </Button>
+    <>
+      <section className="py-16 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Einfache, transparente Preise</h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Wählen Sie den perfekten Plan für Ihre Bedürfnisse. Jederzeit erweiter- oder herabstufbar.
+            </p>
           </div>
-        </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {groupedPlans.map((group) => {
-            const planToDisplay = billingCycle === 'monthly' ? group.monthly : group.annually;
-            if (!planToDisplay) {
-              // If the selected cycle isn't available for this group, maybe show a message or skip
-              // For now, skipping seems fine as per original logic.
-              return null;
-            }
-
-            // const yearlySavings = group.monthly && group.annually
-            //   ? (group.monthly.price * 12) - group.annually.price
-            //   : 0;
-            // The example UI doesn't show savings this way, but has a "(20% off)" in the yearly button.
-            // We'll stick to the example's UI for now.
-
-            return (
-              <Card
-                key={group.productName}
-                className={`relative flex flex-col rounded-[2.5rem] ${group.popular ? "border-primary shadow-lg scale-105" : "border-border"}`}
+          <div className="flex justify-center mb-12">
+            <div className="inline-flex items-center rounded-full bg-muted p-1">
+              <Button
+                variant={billingCycle === "monthly" ? "default" : "ghost"}
+                onClick={() => setBillingCycle("monthly")}
+                className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
               >
-                {group.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">Am beliebtesten</Badge>
-                )}
+                Monatlich
+              </Button>
+              <Button
+                variant={billingCycle === "yearly" ? "default" : "ghost"}
+                onClick={() => setBillingCycle("yearly")}
+                className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
+              >
+                Jährlich (20% Rabatt)
+              </Button>
+            </div>
+          </div>
 
-                <CardHeader className="text-center pb-8">
-                  <CardTitle className="text-xl font-semibold">{group.productName}</CardTitle>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">
-                      {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {billingCycle === "monthly" ? "/Monat" : "/Jahr"}
-                    </span>
-                  </div>
-                  <CardDescription className="mt-2 h-12 overflow-hidden"> {/* Added fixed height and overflow for description consistency */}
-                    {group.description || `Unser ${group.productName} Plan.`} {/* Use group's description */}
-                  </CardDescription>
-                </CardHeader>
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {groupedPlans.map((group) => {
+              const planToDisplay = billingCycle === 'monthly' ? group.monthly : group.annually;
+              if (!planToDisplay) {
+                // If the selected cycle isn't available for this group, maybe show a message or skip
+                // For now, skipping seems fine as per original logic.
+                return null;
+              }
 
-                <CardContent className="flex-grow">
-                  <ul className="space-y-3">
-                    {group.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} className="flex items-center gap-3">
-                        <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
+              // const yearlySavings = group.monthly && group.annually
+              //   ? (group.monthly.price * 12) - group.annually.price
+              //   : 0;
+              // The example UI doesn't show savings this way, but has a "(20% off)" in the yearly button.
+              // We'll stick to the example's UI for now.
 
-                <CardFooter className="mt-auto py-6">
-                  <Button
-                    onClick={() => onSelectPlan(planToDisplay.priceId)}
-                    className="w-full rounded-xl"
-                    variant={group.popular ? "default" : "outline"}
-                    size="lg"
-                    disabled={getButtonTextAndState(planToDisplay.priceId).disabled}
-                  >
-                    {getButtonTextAndState(planToDisplay.priceId).text}
-                  </Button>
-                </CardFooter>
-              </Card>
-            );
-          })}
+              return (
+                <Card
+                  key={group.productName}
+                  className={`relative flex flex-col rounded-[2.5rem] ${group.popular ? "border-primary shadow-lg scale-105" : "border-border"}`}
+                >
+                  {group.popular && (
+                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">Am beliebtesten</Badge>
+                  )}
+
+                  <CardHeader className="text-center pb-8">
+                    <CardTitle className="text-xl font-semibold">{group.productName}</CardTitle>
+                    <div className="mt-4">
+                      <span className="text-4xl font-bold">
+                        {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {billingCycle === "monthly" ? "/Monat" : "/Jahr"}
+                      </span>
+                    </div>
+                    <CardDescription className="mt-2 h-12 overflow-hidden"> {/* Added fixed height and overflow for description consistency */}
+                      {group.description || `Unser ${group.productName} Plan.`} {/* Use group's description */}
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="flex-grow">
+                    <ul className="space-y-3">
+                      {group.features.map((feature, featureIndex) => (
+                        <li key={featureIndex} className="flex items-center gap-3">
+                          <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                          <span className="text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+
+                  <CardFooter className="mt-auto py-6">
+                    <Button
+                      onClick={() => onSelectPlan(planToDisplay.priceId)}
+                      className="w-full rounded-xl"
+                      variant={group.popular ? "default" : "outline"}
+                      size="lg"
+                      disabled={getButtonTextAndState(planToDisplay.priceId).disabled}
+                    >
+                      {getButtonTextAndState(planToDisplay.priceId).text}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+
+          {isTrialEligible && (
+            <div className="text-center mt-12">
+              <p className="text-muted-foreground">Alle Pläne beinhalten eine 14-tägige kostenlose Testversion. Keine Kreditkarte erforderlich.</p>
+            </div>
+          )}
+
+          {showComparison && <ComparisonTable plans={groupedPlans} billingCycle={billingCycle} />}
+
+          {showViewAllButton && (
+            <div className="text-center mt-16">
+              <Button
+                size="lg"
+                variant="outline"
+                className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg rounded-full"
+                onClick={() => window.location.href = '/preise'}
+              >
+                <span className="flex items-center gap-2">
+                  Alle Preise und Pläne ansehen
+                  <SquareArrowOutUpRight className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                </span>
+              </Button>
+            </div>
+          )}
         </div>
-
-        {isTrialEligible && (
-          <div className="text-center mt-12">
-            <p className="text-muted-foreground">Alle Pläne beinhalten eine 14-tägige kostenlose Testversion. Keine Kreditkarte erforderlich.</p>
-          </div>
-        )}
-
-        {showComparison && <ComparisonTable plans={groupedPlans} billingCycle={billingCycle} />}
-
-        {showViewAllButton && (
-          <div className="text-center mt-16">
-            <Button
-              size="lg"
-              variant="outline"
-              className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg rounded-full"
-              onClick={() => window.location.href = '/preise'}
-            >
-              <span className="flex items-center gap-2">
-                Alle Preise und Pläne ansehen
-                <SquareArrowOutUpRight className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-              </span>
-            </Button>
-          </div>
-        )}
-      </div>
-    </section>
+      </section>
+      <FAQ />
+    </>
   );
 }
