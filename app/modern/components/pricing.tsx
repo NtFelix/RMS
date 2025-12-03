@@ -121,9 +121,11 @@ const comparisonConfig: CategoryConfig[] = [
 interface ComparisonTableProps {
   plans: GroupedPlan[];
   billingCycle: "monthly" | "yearly";
+  onSelectPlan: (priceId: string) => void;
+  getButtonTextAndState: (priceId: string) => { text: string; disabled: boolean };
 }
 
-function ComparisonTable({ plans, billingCycle }: ComparisonTableProps) {
+function ComparisonTable({ plans, billingCycle, onSelectPlan, getButtonTextAndState }: ComparisonTableProps) {
   // Filter configuration to only include features that have data in at least one plan
   const filteredConfig = useMemo(() => {
     return comparisonConfig.map(category => {
@@ -195,6 +197,29 @@ function ComparisonTable({ plans, billingCycle }: ComparisonTableProps) {
             );
           })}
 
+          {/* Button Row */}
+          <div className="p-4 pl-6 min-h-[60px]"></div> {/* Empty cell for left column */}
+          {plans.map((plan) => {
+            const planVariant = billingCycle === 'monthly' ? plan.monthly : plan.annually;
+            if (!planVariant) return <div key={`${plan.productName}-btn-top`} className="p-4"></div>;
+
+            const { text, disabled } = getButtonTextAndState(planVariant.priceId);
+
+            return (
+              <div key={`${plan.productName}-btn-top`} className="p-4 flex justify-center items-center min-h-[60px] pb-6">
+                <Button
+                  onClick={() => onSelectPlan(planVariant.priceId)}
+                  className="w-full rounded-xl"
+                  variant={plan.popular ? "default" : "outline"}
+                  size="lg"
+                  disabled={disabled}
+                >
+                  {text}
+                </Button>
+              </div>
+            );
+          })}
+
           {/* Data Rows */}
           {filteredConfig.map((category, catIndex) => (
             <Fragment key={catIndex}>
@@ -244,6 +269,8 @@ function ComparisonTable({ plans, billingCycle }: ComparisonTableProps) {
               ))}
             </Fragment>
           ))}
+
+
         </div>
       </div>
     </div>
@@ -619,7 +646,12 @@ export default function Pricing({
             </div>
           )}
 
-          {showComparison && <ComparisonTable plans={groupedPlans} billingCycle={billingCycle} />}
+          {showComparison && <ComparisonTable
+            plans={groupedPlans}
+            billingCycle={billingCycle}
+            onSelectPlan={onSelectPlan}
+            getButtonTextAndState={getButtonTextAndState}
+          />}
 
           {showViewAllButton && (
             <div className="text-center mt-16">
