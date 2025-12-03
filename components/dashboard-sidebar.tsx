@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import Image from "next/image"
+
 import { usePathname } from "next/navigation"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard, Folder, Mail } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
@@ -70,7 +70,7 @@ export function DashboardSidebar() {
   // User email handling is managed by the UserSettings component
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   const mailsEnabled = useFeatureFlagEnabled('mails-tab')
-  
+
   // Feature flags for navigation items
   const featureFlags = new Map([
     ['/dateien', documentsEnabled],
@@ -106,18 +106,16 @@ export function DashboardSidebar() {
           <div className="border-b px-6 py-4 dark:sidebar-header">
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <div className="relative w-8 h-8 rounded-full overflow-hidden">
-                <Image
+                <img
                   src={LOGO_URL}
                   alt="IV Logo"
-                  fill
-                  className="object-cover"
-                  sizes="32px"
+                  className="object-cover w-full h-full"
                 />
               </div>
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          
+
           {/* Navigation section - takes remaining space */}
           <div className="pt-4 pb-4 overflow-y-auto min-h-0">
             <nav className="grid gap-1 px-2 pr-4">
@@ -125,7 +123,7 @@ export function DashboardSidebar() {
                 .filter(item => !featureFlags.has(item.href) || featureFlags.get(item.href))
                 .map((item) => {
                   const isActive = isRouteActive(item.href);
-                  
+
                   return (
                     <Link
                       key={item.href}
@@ -147,7 +145,7 @@ export function DashboardSidebar() {
                 })}
             </nav>
           </div>
-          
+
           {/* Profile section - fixed at bottom */}
           <div className="border-t p-4 pb-6 dark:sidebar-footer">
             <UserSettings />
