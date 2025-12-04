@@ -5,30 +5,26 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/mobile-bottom-navigation"
-import { SearchIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useCommandMenu } from "@/hooks/use-command-menu"
 import { cn } from "@/lib/utils"
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { setOpen } = useCommandMenu()
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
   // Prevent hydration errors and handle responsive behavior
   useEffect(() => {
     setMounted(true)
-    
+
     // Check initial screen size with proper breakpoint detection
     const checkScreenSize = () => {
       const newIsMobile = window.innerWidth < 768
       setIsMobile(newIsMobile)
       return newIsMobile
     }
-    
+
     // Set initial state
     checkScreenSize()
-    
+
     // Add resize listener for responsive behavior with debouncing
     let resizeTimeout: NodeJS.Timeout
     const handleResize = () => {
@@ -37,9 +33,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         checkScreenSize()
       }, 150) // Debounce resize events to prevent excessive re-renders
     }
-    
+
     window.addEventListener('resize', handleResize, { passive: true })
-    
+
     return () => {
       window.removeEventListener('resize', handleResize)
       clearTimeout(resizeTimeout)
@@ -65,11 +61,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-6">
-            <div className="mx-auto w-full max-w-3xl">
-              <div className="h-10 bg-muted rounded animate-pulse" />
-            </div>
-          </header>
+
           <main className="flex flex-1 flex-col min-h-0 p-6 pt-6 md:pt-6 main-content-responsive responsive-transition prevent-layout-shift">
             <div className="flex-1 overflow-y-auto rounded-2xl border shadow-sm mb-4 md:mb-0">
               <div className="p-6">
@@ -83,7 +75,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
         {/* Mobile navigation placeholder with enhanced CSS-only responsive behavior */}
-        <nav 
+        <nav
           className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
           role="navigation"
           aria-label="Main mobile navigation"
@@ -108,23 +100,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift">
         <DashboardSidebar />
       </div>
-      
+
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-6 dark:header-container">
-          <div className="mx-auto w-full max-w-3xl">
-            <Button
-              variant="outline"
-              className="flex w-full items-center gap-2 rounded-lg border-muted-foreground/20 text-sm text-muted-foreground"
-              onClick={() => setOpen(true)}
-            >
-              <SearchIcon className="h-4 w-4" />
-              <span>Suchen...</span>
-              <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                <span className="text-xs">⌘</span>K
-              </kbd>
-            </Button>
-          </div>
-        </header>
+
         <main className={cn(
           "flex flex-1 flex-col min-h-0",
           // Enhanced responsive padding with CSS-only fallbacks
@@ -151,7 +129,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
-      
+
       {/* Mobile bottom navigation - shown only on mobile with enhanced safety */}
       {mounted && isMobile && <MobileBottomNavigation />}
     </div>
