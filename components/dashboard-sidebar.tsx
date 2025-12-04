@@ -107,15 +107,19 @@ export function DashboardSidebar() {
     expanded: {
       width: "18rem",
       transition: {
-        duration: 0.5,
-        ease: [0.22, 1, 0.36, 1] // Custom bezier for smooth "premium" feel
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+        mass: 0.8,
       }
     },
     collapsed: {
-      width: "5rem", // Slightly wider for better visual balance
+      width: "5rem",
       transition: {
-        duration: 0.5,
-        ease: [0.22, 1, 0.36, 1]
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+        mass: 0.8,
       }
     }
   }
@@ -124,22 +128,50 @@ export function DashboardSidebar() {
     expanded: {
       opacity: 1,
       x: 0,
+      scale: 1,
+      filter: "blur(0px)",
       display: "block",
       transition: {
-        duration: 0.4,
-        delay: 0.1,
-        ease: [0.22, 1, 0.36, 1] // Custom bezier for smooth "premium" feel
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+        mass: 0.5,
+        delay: 0.08, // Slight delay for staggered feel
       }
     },
     collapsed: {
       opacity: 0,
-      x: -20,
+      x: -12,
+      scale: 0.95,
+      filter: "blur(4px)",
       transition: {
-        duration: 0.3,
-        ease: [0.22, 1, 0.36, 1]
+        type: "spring",
+        stiffness: 500,
+        damping: 30,
+        mass: 0.4,
       },
       transitionEnd: {
         display: "none"
+      }
+    }
+  }
+
+  const iconVariants: Variants = {
+    expanded: {
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+      }
+    },
+    collapsed: {
+      scale: 1.15,
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+        delay: 0.1,
       }
     }
   }
@@ -170,7 +202,12 @@ export function DashboardSidebar() {
         className={cn(
           "hidden md:flex flex-col z-30 ml-6 my-6 h-[calc(100vh-3rem)] rounded-[2.5rem] border bg-white dark:bg-background shadow-sm sticky top-6 overflow-hidden",
         )}
-        style={{ willChange: "width" }}
+        style={{
+          willChange: "width, transform",
+          transformOrigin: "left center",
+          backfaceVisibility: "hidden",
+          WebkitBackfaceVisibility: "hidden",
+        }}
       >
         {/* Desktop Content */}
         <div className="hidden md:flex flex-col h-full w-full">
@@ -185,6 +222,7 @@ export function DashboardSidebar() {
             setIsOpen={setIsOpen}
             toggleCollapse={() => setIsCollapsed(!isCollapsed)}
             textVariants={textVariants}
+            iconVariants={iconVariants}
           />
         </div>
       </motion.aside>
@@ -222,6 +260,7 @@ interface SidebarContentProps {
   setIsOpen: (open: boolean) => void
   toggleCollapse?: () => void
   textVariants?: Variants
+  iconVariants?: Variants
 }
 
 // Extracted content component to reuse
@@ -235,7 +274,8 @@ function SidebarContent({
   isMobile,
   setIsOpen,
   toggleCollapse,
-  textVariants
+  textVariants,
+  iconVariants
 }: SidebarContentProps) {
   return (
     <div className="h-full w-full flex flex-col relative">
@@ -266,7 +306,7 @@ function SidebarContent({
       {/* Navigation section - takes remaining space */}
       <div className="flex-1 overflow-y-auto min-h-0 py-4 custom-scrollbar">
         <nav className="grid gap-1.5 px-5">
-          <TooltipProvider delayDuration={0}>
+          <TooltipProvider delayDuration={100} skipDelayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -276,7 +316,16 @@ function SidebarContent({
                     // Removed conditional layout classes to prevent jiggle
                   )}
                 >
-                  <Search className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                  {!isMobile && iconVariants ? (
+                    <motion.div
+                      variants={iconVariants}
+                      className="flex-shrink-0"
+                    >
+                      <Search className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
+                    </motion.div>
+                  ) : (
+                    <Search className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                  )}
                   {!isMobile && textVariants && (
                     <motion.div
                       variants={{
@@ -330,7 +379,16 @@ function SidebarContent({
                         data-active={isActive}
                         aria-current={isActive ? "page" : undefined}
                       >
-                        <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                        {!isMobile && iconVariants ? (
+                          <motion.div
+                            variants={iconVariants}
+                            className="flex-shrink-0"
+                          >
+                            <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
+                          </motion.div>
+                        ) : (
+                          <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                        )}
                         {!isMobile && textVariants && (
                           <motion.span
                             variants={textVariants}
