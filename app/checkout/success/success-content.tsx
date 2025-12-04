@@ -203,12 +203,12 @@ export default function SuccessContent() {
           {verificationStatus === 'success' ? (
             <>
               <Button asChild className="flex-1" size="lg">
-                <Link href="/dashboard">
+                <Link href="/home">
                   Zum Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button variant="outline" asChild className="flex-1" size="lg">
-                <Link href="/home">Zur Startseite</Link>
+                <Link href="/">Zur Startseite</Link>
               </Button>
             </>
           ) : (
@@ -217,7 +217,7 @@ export default function SuccessContent() {
                 <Link href="/preise">Zurück zu den Preisen</Link>
               </Button>
               <Button variant="ghost" asChild className="flex-1">
-                <Link href="/home">
+                <Link href="/">
                   <Home className="mr-2 h-4 w-4" /> Startseite
                 </Link>
               </Button>
