@@ -233,6 +233,7 @@ function PricingPageContent() {
                 },
                 body: JSON.stringify({
                     userId: sessionUser.id,
+                    return_url: `${window.location.origin}/preise`,
                 }),
             });
 
