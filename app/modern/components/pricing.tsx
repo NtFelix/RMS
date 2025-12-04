@@ -353,6 +353,12 @@ export default function Pricing({
           popular: false, // Default to false
         };
       }
+
+      // Check if this plan has the highlighted metadata
+      if (plan.metadata?.highlighted === 'true') {
+        groups[productName].popular = true;
+      }
+
       if (plan.interval === 'month') {
         groups[productName].monthly = plan;
       } else if (plan.interval === 'year') {
@@ -362,22 +368,6 @@ export default function Pricing({
 
     const sortedGroups = Object.values(groups).sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
 
-    // Mark the first plan (lowest position) as popular if not otherwise set
-    // This is a common default, adjust if API provides a specific 'popular' flag
-    if (sortedGroups.length > 0) {
-      // Find the plan intended to be popular, e.g., by specific name or lowest position.
-      // For now, let's assume the API might provide a 'popular' hint via position or a metadata tag in future.
-      // Or, we can hardcode based on productName if known.
-      // Example: Mark "Professional" as popular if it exists.
-      const professionalPlan = sortedGroups.find(p => p.productName.toLowerCase() === "professional");
-      if (professionalPlan) {
-        professionalPlan.popular = true;
-      } else if (sortedGroups.length > 1) { // Fallback: if "Professional" not found, mark the middle one or second one.
-        sortedGroups[1].popular = true; // Example: mark the second plan as popular
-      } else if (sortedGroups.length === 1) { // If only one plan
-        sortedGroups[0].popular = true;
-      }
-    }
     return sortedGroups;
   }, [allPlans]);
 
