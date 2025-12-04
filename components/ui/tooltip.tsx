@@ -26,8 +26,8 @@ const TooltipContent = React.forwardRef<
         // Smooth exit animation  
         "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.96] data-[state=closed]:slide-out-to-left-1",
         // Custom timing for premium feel
-        "duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
-        "data-[state=closed]:duration-150 data-[state=closed]:ease-[cubic-bezier(0.32,0.72,0,1)]",
+        "duration-200 ease-smooth",
+        "data-[state=closed]:duration-150 data-[state=closed]:ease-smooth",
         className
       )}
       {...props}

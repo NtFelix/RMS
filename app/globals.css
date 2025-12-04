@@ -136,6 +136,9 @@
 
 @layer base {
   :root {
+    /* Custom easing functions */
+    --ease-smooth: cubic-bezier(0.32, 0.72, 0, 1);
+
     /* Z-index management */
     --z-index-dropdown: 1000;
     --z-index-sticky: 1020;
