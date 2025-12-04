@@ -34,8 +34,8 @@ const config = {
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-DEFAULT: "hsl(var(--destructive))",
-foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
         },
         success: { // Added success
           DEFAULT: "#22c55e", // green-500
@@ -128,6 +128,9 @@ foreground: "hsl(var(--destructive-foreground))",
         "scale-in": "scale-in 0.2s ease-out",
         "slide-up": "slide-up 0.3s ease-out",
         "bounce-subtle": "bounce-subtle 0.6s ease-in-out",
+      },
+      transitionTimingFunction: {
+        smooth: "cubic-bezier(0.32, 0.72, 0, 1)",
       },
     },
   },
