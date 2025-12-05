@@ -69,13 +69,13 @@ export async function middleware(request: NextRequest) {
   // Subscription check
   // This requires a Supabase client, so we create one here if needed.
   if (sessionUser &&
-      !publicRoutes.some(route => {
-        const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
-        return regex.test(pathname);
-      }) &&
-      pathname !== '/subscription-locked' &&
-      pathname !== '/api/stripe/checkout-session' // Exempt checkout session from subscription status check
-     ) {
+    !publicRoutes.some(route => {
+      const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
+      return regex.test(pathname);
+    }) &&
+    pathname !== '/subscription-locked' &&
+    pathname !== '/api/stripe/checkout-session' // Exempt checkout session from subscription status check
+  ) {
     // Create a Supabase client only for this block if sessionUser exists
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -111,8 +111,8 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url);
       }
     } else if (!profile ||
-               (profile.stripe_subscription_status !== 'active' &&
-                profile.stripe_subscription_status !== 'trialing')) {
+      (profile.stripe_subscription_status !== 'active' &&
+        profile.stripe_subscription_status !== 'trialing')) {
       if (pathname.startsWith('/api/')) {
         // For API routes, return a JSON response indicating subscription issue
         return NextResponse.json({ error: 'Subscription inactive or invalid. Please subscribe or manage your subscription.' }, { status: 403 });

@@ -3,6 +3,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { WasserZaehler, WasserAblesung, Wohnung, Mieter } from "@/lib/data-fetching";
+import { logAction } from '@/lib/logging-middleware';
+
 
 // Type for the Supabase client from our createClient utility
 type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
@@ -367,11 +369,15 @@ export async function getWasserAblesenDataAction(meterId: string) {
  * Create a new water meter
  */
 export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user_id'>) {
+  const actionName = 'createWaterMeter';
+  logAction(actionName, 'start', { apartment_id: data.wohnung_id });
+
   const supabase = await createClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+      logAction(actionName, 'error', { error_message: 'Benutzer nicht authentifiziert.' });
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
@@ -382,14 +388,15 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
       .single();
 
     if (error) {
-      console.error("Error creating water meter:", error);
+      logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: error.message });
       return { success: false, message: error.message };
     }
 
     revalidatePath("/betriebskosten");
+    logAction(actionName, 'success', { meter_id: result?.id, apartment_id: data.wohnung_id });
     return { success: true, data: result };
   } catch (error: any) {
-    console.error("Unexpected error in createWasserZaehler:", error);
+    logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: error.message });
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
