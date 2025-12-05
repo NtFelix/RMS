@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
+import { EXAMPLE_BILL_PDF_URL } from '@/lib/constants';
 
 export default function UtilityCostPage() {
   // Mock data for Cost Items (replacing Operating Costs)
@@ -381,7 +382,7 @@ export default function UtilityCostPage() {
                         variant="outline"
                         size="sm"
                         className="gap-2 h-9 border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary hover:text-primary"
-                        onClick={() => window.open('https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/Beispielabrechnung.pdf', '_blank')}
+                        onClick={() => window.open(EXAMPLE_BILL_PDF_URL, '_blank')}
                       >
                         <FileDown className="w-4 h-4" />
                         Beispiel als PDF
