@@ -15,9 +15,9 @@ interface DashboardMenuItemProps {
 
 const DashboardMenuItem = ({ onClick }: DashboardMenuItemProps) => (
   <DropdownMenuItem asChild>
-    <Link 
-      href="/home" 
-      className="flex items-center cursor-pointer relative overflow-hidden group" 
+    <Link
+      href="/home"
+      className="flex items-center cursor-pointer relative overflow-hidden group"
       onClick={onClick}
     >
       <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
@@ -57,28 +57,28 @@ interface NavigationProps {
 function useDebouncedResize(callback: () => void, delay = 100) {
   // Store the callback in a ref to avoid re-subscribing on every render
   const savedCallback = useRef(callback);
-  
+
   // Update the saved callback if it changes
   useEffect(() => {
     savedCallback.current = callback;
   }, [callback]);
-  
+
   useEffect(() => {
     let resizeTimer: ReturnType<typeof setTimeout>;
-    
+
     const handleResize = () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => savedCallback.current(), delay);
     };
-    
+
     // Add event listener
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', handleResize);
-      
+
       // Initial call
       handleResize();
     }
-    
+
     // Clean up
     return () => {
       if (typeof window !== 'undefined') {
@@ -109,17 +109,17 @@ function useIsOverflowing() {
 
   // Use the debounced resize hook
   useDebouncedResize(checkOverflow);
-  
+
   // Check for mutations (like when content changes)
   useEffect(() => {
     if (!container) return;
-    
+
     // Initial check
     checkOverflow();
-    
+
     const observer = new MutationObserver(checkOverflow);
     observer.observe(container, { childList: true, subtree: true });
-    
+
     return () => {
       observer.disconnect();
     };
@@ -134,15 +134,15 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
+
   // Check if the navigation is overflowing
   const { ref: navRef, isOverflowing } = useIsOverflowing();
-  
+
   // Set hasMounted to true after component mounts on client side
   useEffect(() => {
     setHasMounted(true);
   }, []);
-  
+
   // Use a ref to store the resize handler
   const resizeHandler = useRef<(() => void) | null>(null);
 
@@ -157,23 +157,23 @@ export default function Navigation({ onLogin }: NavigationProps) {
   // Update mobile state based on viewport width and overflow
   useEffect(() => {
     if (!hasMounted) return;
-    
+
     // Initial check
     checkIfMobile();
-    
+
     // Set up debounced resize handler
     let resizeTimer: ReturnType<typeof setTimeout>;
     const handleResize = () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(checkIfMobile, 100);
     };
-    
+
     // Store the handler in the ref
     resizeHandler.current = handleResize;
-    
+
     // Add event listener
     window.addEventListener('resize', handleResize);
-    
+
     // Clean up
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -280,119 +280,118 @@ export default function Navigation({ onLogin }: NavigationProps) {
           <div className="flex justify-center">
             <div className="inline-flex w-auto max-w-full" ref={navRef}>
               <PillContainer className="flex items-center gap-2 w-full">
-              {/* Logo Section */}
-              <Link href="/" className="flex items-center space-x-2 group px-2">
-                <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
-                  <Image
-                    src={LOGO_URL}
-                    alt="IV Logo"
-                    fill
-                    className="object-cover"
-                    sizes="32px"
-                  />
+                {/* Logo Section */}
+                <Link href="/" className="flex items-center space-x-2 group px-2">
+                  <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+                    <Image
+                      src={LOGO_URL}
+                      alt="IV Logo"
+                      fill
+                      className="object-cover"
+                      sizes="32px"
+                    />
+                  </div>
+                  <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">
+                    <span className="text-primary">Miet</span>fluss
+                  </span>
+                </Link>
+
+                {/* Divider */}
+                <div className="h-8 w-px bg-border/50 mx-2" />
+
+                {/* Navigation Items Section */}
+                <div className="flex items-center gap-1">
+                  {pathname === "/" ? (
+                    // Home page navigation with smooth scroll
+                    <>
+                      {navItems.map((item) => (
+                        <button
+                          key={item.name}
+                          onClick={() => handleNavClick(item.href)}
+                          className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
+                        >
+                          {item.icon && <item.icon className="w-4 h-4" />}
+                          <span>{item.name}</span>
+                        </button>
+                      ))}
+                      {/* Static navigation items */}
+                      {staticNavItems.map((item) => (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
+                        >
+                          {item.icon && <item.icon className="w-4 h-4" />}
+                          <span>{item.name}</span>
+                        </Link>
+                      ))}
+                    </>
+                  ) : (
+                    // Other pages navigation
+                    <>
+                      <Button asChild variant="ghost" className="rounded-full text-foreground whitespace-nowrap">
+                        <Link href="/">
+                          Startseite
+                        </Link>
+                      </Button>
+                      {staticNavItems.map((item) => (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 whitespace-nowrap ${pathname === item.href
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-foreground hover:bg-gray-200'
+                            }`}
+                        >
+                          {item.icon && <item.icon className="w-4 h-4" />}
+                          <span>{item.name}</span>
+                        </Link>
+                      ))}
+                    </>
+                  )}
                 </div>
-                <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">
-                  <span className="text-primary">Miet</span>fluss
-                </span>
-              </Link>
 
-              {/* Divider */}
-              <div className="h-8 w-px bg-border/50 mx-2" />
+                {/* Divider */}
+                <div className="h-8 w-px bg-border/50 mx-2" />
 
-              {/* Navigation Items Section */}
-              <div className="flex items-center gap-1">
-                {pathname === "/" ? (
-                  // Home page navigation with smooth scroll
-                  <>
-                    {navItems.map((item) => (
-                      <button
-                        key={item.name}
-                        onClick={() => handleNavClick(item.href)}
-                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
-                      >
-                        {item.icon && <item.icon className="w-4 h-4" />}
-                        <span>{item.name}</span>
-                      </button>
-                    ))}
-                    {/* Static navigation items */}
-                    {staticNavItems.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
-                      >
-                        {item.icon && <item.icon className="w-4 h-4" />}
-                        <span>{item.name}</span>
-                      </Link>
-                    ))}
-                  </>
-                ) : (
-                  // Other pages navigation
-                  <>
-                    <Button asChild variant="ghost" className="rounded-full text-foreground whitespace-nowrap">
-                      <Link href="/">
-                        Startseite
-                      </Link>
+                {/* Auth Section */}
+                <div className="flex items-center pr-0">
+                  {currentUser ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
+                            <AvatarFallback className="bg-muted">
+                              <UserIcon className="w-4 h-4 text-muted-foreground" />
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
+                        <DashboardMenuItem />
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onSelect={handleLogout}
+                          className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4 mr-2" />
+                          Abmelden
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="rounded-full whitespace-nowrap shadow-sm hover:shadow-md transition-shadow"
+                      onClick={handleOpenLoginModal}
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Anmelden
                     </Button>
-                    {staticNavItems.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 whitespace-nowrap ${
-                          pathname === item.href 
-                            ? 'bg-primary text-primary-foreground' 
-                            : 'text-foreground hover:bg-gray-200'
-                        }`}
-                      >
-                        {item.icon && <item.icon className="w-4 h-4" />}
-                        <span>{item.name}</span>
-                      </Link>
-                    ))}
-                  </>
-                )}
-              </div>
-
-              {/* Divider */}
-              <div className="h-8 w-px bg-border/50 mx-2" />
-
-              {/* Auth Section */}
-              <div className="flex items-center pr-0">
-                {currentUser ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
-                          <AvatarFallback className="bg-muted">
-                            <UserIcon className="w-4 h-4 text-muted-foreground" />
-                          </AvatarFallback>
-                        </Avatar>
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
-                      <DashboardMenuItem />
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onSelect={handleLogout}
-                        className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Abmelden
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="rounded-full whitespace-nowrap shadow-sm hover:shadow-md transition-shadow"
-                    onClick={handleOpenLoginModal}
-                  >
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Anmelden
-                  </Button>
-                )}
-              </div>
+                  )}
+                </div>
               </PillContainer>
             </div>
           </div>
@@ -412,7 +411,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
               className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
               onClick={() => setIsOpen(false)}
             />
-            
+
             {/* Menu Panel */}
             <motion.div
               initial={{ x: '-100%' }}
@@ -475,11 +474,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           key={item.name}
                           href={item.href}
                           onClick={() => setIsOpen(false)}
-                          className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 ${
-                            pathname === item.href 
-                              ? 'bg-primary text-primary-foreground' 
+                          className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 ${pathname === item.href
+                              ? 'bg-primary text-primary-foreground'
                               : 'text-foreground hover:bg-muted/50'
-                          }`}
+                            }`}
                         >
                           {item.icon && <item.icon className="w-5 h-5 mr-3" />}
                           <span className="text-base">{item.name}</span>
