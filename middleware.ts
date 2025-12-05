@@ -33,7 +33,6 @@ export async function middleware(request: NextRequest) {
     '/api/ai-assistant', // AI assistant API route
     '/datenschutz', // Datenschutz page
     '/agb', // AGB page
-    '/(landing)(/.*)?', // All routes under (landing)
     '/loesungen(/.*)?', // All routes under loesungen
     '/funktionen(/.*)?', // All routes under funktionen
     '/warteliste(/.*)?', // All routes under warteliste
