@@ -1,5 +1,9 @@
-export function register() {
-  // No-op for initialization
+export async function register() {
+  // Initialize PostHog logging (OpenTelemetry-based)
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { initLogger } = await import('./lib/posthog-logger');
+    initLogger();
+  }
 }
 
 export const onRequestError = async (err, request, context) => {
