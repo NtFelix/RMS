@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
+import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -57,8 +58,8 @@ export default function RegisterPage() {
         email,
         error: error.message,
       })
-      
-      setError(error.message)
+
+      setError(getAuthErrorMessage(error))
       setIsLoading(false)
       return
     }
@@ -69,7 +70,7 @@ export default function RegisterPage() {
         email: data.user.email,
         signup_date: new Date().toISOString(),
       })
-      
+
       posthog.capture('signup_success', {
         email: data.user.email,
         provider: 'email',

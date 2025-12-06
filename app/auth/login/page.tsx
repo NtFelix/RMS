@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
+import { getAuthErrorMessage, getUrlErrorMessage } from "@/lib/auth-error-handler"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -25,6 +26,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error")
+    if (errorParam) {
+      setError(getUrlErrorMessage(errorParam))
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,8 +53,8 @@ export default function LoginPage() {
         email,
         error: error.message,
       })
-      
-      setError(error.message)
+
+      setError(getAuthErrorMessage(error))
       setIsLoading(false)
       return
     }
@@ -58,7 +66,7 @@ export default function LoginPage() {
         name: data.user.user_metadata?.name || '',
         last_sign_in: data.user.last_sign_in_at,
       })
-      
+
       posthog.capture('login_success', {
         email: data.user.email,
         provider: 'email',

@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 
 export default function UpdatePasswordPage() {
   const router = useRouter()
@@ -38,7 +39,7 @@ export default function UpdatePasswordPage() {
     })
 
     if (error) {
-      setError(error.message)
+      setError(getAuthErrorMessage(error))
       setIsLoading(false)
       return
     }
