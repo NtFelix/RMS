@@ -90,13 +90,13 @@ export default function ApartmentManagementPage() {
             />
           </MacWindow>
 
-          </div>
+        </div>
       </div>
 
       {/* Datenübersichten Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-7xl mx-auto">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -107,7 +107,7 @@ export default function ApartmentManagementPage() {
           </motion.div>
 
           {/* Wohnungen Section - 2 Column Layout (Table Left, Text Right) */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -115,7 +115,7 @@ export default function ApartmentManagementPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Table in Mac Window */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
@@ -144,7 +144,7 @@ export default function ApartmentManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {mockApartments.map((apartment) => (
-                        <TableRow 
+                        <TableRow
                           key={apartment.id}
                           className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
                         >
@@ -186,7 +186,7 @@ export default function ApartmentManagementPage() {
           </motion.div>
 
           {/* Mieter Section - 2 Column Layout */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.8 }}
@@ -213,7 +213,7 @@ export default function ApartmentManagementPage() {
             </motion.div>
 
             {/* Right Column - Table in Mac Window */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 1.2 }}
@@ -240,7 +240,7 @@ export default function ApartmentManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {mockTenants.map((tenant) => (
-                        <TableRow 
+                        <TableRow
                           key={tenant.id}
                           className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
                         >
@@ -257,7 +257,7 @@ export default function ApartmentManagementPage() {
           </motion.div>
 
           {/* Häuser Section - 2 Column Layout (Table Left, Text Right) */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 1.4 }}
@@ -265,7 +265,7 @@ export default function ApartmentManagementPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Table in Mac Window */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 1.6 }}
@@ -293,7 +293,7 @@ export default function ApartmentManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {mockHouses.map((house) => (
-                        <TableRow 
+                        <TableRow
                           key={house.id}
                           className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
                         >
@@ -336,7 +336,7 @@ export default function ApartmentManagementPage() {
       </div>
 
       {/* Bottom CTA Section */}
-      <BottomCTA 
+      <BottomCTA
         onGetStarted={handleGetStarted}
         theme="houses"
         title="Starten Sie noch heute mit der"
@@ -346,7 +346,6 @@ export default function ApartmentManagementPage() {
         primaryButtonText="14 Tage kostenlos testen"
         secondaryButtonText="Demo anfordern"
       />
-
-          </div>
+    </div>
   );
 }
