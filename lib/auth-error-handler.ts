@@ -76,7 +76,7 @@ const MESSAGE_PATTERNS: Array<{ pattern: string; message: string }> = [
 
     // Rate limiting (handle both correct spelling and common typo)
     { pattern: "Too many requests", message: "Zu viele Anfragen. Bitte warten Sie einen Moment." },
-    { pattern: "rate limit", message: "Zu viele Anfragen. Bitte warten Sie einen Moment." },
+    { pattern: "rate limit exceeded", message: "Zu viele Anfragen. Bitte warten Sie einen Moment." },
 ]
 
 /**
