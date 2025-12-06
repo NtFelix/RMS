@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
-import { Trash2, MoveDiagonal2 } from "lucide-react"; // Changed icon
+import { Trash2, GripVertical } from "lucide-react";
 import { createClient } from "@/utils/supabase/client" // Added
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -437,7 +437,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                   className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
                   onMouseDown={initResize}
                 >
-                  <MoveDiagonal2 className="h-4 w-4 text-foreground/70" />
+                  <GripVertical className="h-4 w-4 text-foreground/70" />
                 </div>
               </div>
             </div>
