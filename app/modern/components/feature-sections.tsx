@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { CheckCircle, X, ZoomIn } from "lucide-react"
 import { useState, useCallback, useEffect } from "react"
+import Image from "next/image"
 
 const features = [
   {
@@ -105,12 +106,14 @@ export default function FeatureSections() {
                   onClick={() => openImagePreview(feature.image, feature.image_alt, feature.title)}
                 >
                   <div className="relative w-full">
-                    <img
+                    <Image
                       src={feature.image}
                       alt={feature.image_alt}
                       width={800}
                       height={600}
                       className="w-full h-auto object-contain rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+                      priority={index === 0}
+                      unoptimized
                     />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -129,13 +132,15 @@ export default function FeatureSections() {
                     onClick={() => openImagePreview(feature.imageDark, feature.image_alt, feature.title)}
                   >
                     <div className="relative w-full">
-                      <img
+                      <Image
                         // @ts-ignore
                         src={feature.imageDark}
                         alt={feature.image_alt}
                         width={800}
                         height={600}
                         className="w-full h-auto object-contain rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+                        priority={index === 0}
+                        unoptimized
                       />
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -199,12 +204,14 @@ export default function FeatureSections() {
 
             {/* Image Container */}
             <div className="relative bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
-              <img
+              <Image
                 src={selectedImage.src}
                 alt={selectedImage.alt}
                 width={1200}
                 height={900}
                 className="w-full h-auto object-contain max-h-[80vh]"
+                priority
+                unoptimized
               />
             </div>
           </motion.div>
