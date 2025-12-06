@@ -24,6 +24,11 @@ export default function SuccessContent() {
     if (!sessionId) {
       setVerificationStatus('not_verified');
       setErrorMessage('Keine Sitzungs-ID gefunden. Ihre Zahlung kann momentan nicht verifiziert werden.');
+      toast({
+        title: 'Verifizierungsproblem',
+        description: 'Keine Sitzungs-ID gefunden. Die Zahlung kann nicht überprüft werden.',
+        variant: 'destructive',
+      });
       return;
     }
 
