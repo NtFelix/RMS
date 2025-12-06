@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
+import { getAuthErrorMessage, getUrlErrorMessage } from "@/lib/auth-error-handler"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -29,13 +30,7 @@ export default function LoginPage() {
   useEffect(() => {
     const errorParam = searchParams.get("error")
     if (errorParam) {
-      const errorMap: Record<string, string> = {
-        invalid_code: "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an.",
-        auth_failed: "Die Authentifizierung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
-        unexpected_error: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
-        access_denied: "Zugriff verweigert.",
-      }
-      setError(errorMap[errorParam] || "Ein Fehler ist aufgetreten.")
+      setError(getUrlErrorMessage(errorParam))
     }
   }, [searchParams])
 
@@ -59,19 +54,7 @@ export default function LoginPage() {
         error: error.message,
       })
 
-      let errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
-
-      if (error.message.includes("Invalid login credentials")) {
-        errorMessage = "Ungültige E-Mail-Adresse oder Passwort. Bitte überprüfen Sie Ihre Eingaben."
-      } else if (error.message.includes("Email not confirmed")) {
-        errorMessage = "Ihre E-Mail-Adresse wurde noch nicht bestätigt. Bitte überprüfen Sie Ihren Posteingang."
-      } else if (error.message.includes("Too many requests")) {
-        errorMessage = "Zu viele Anmeldeversuche. Bitte warten Sie einen Moment, bevor Sie es erneut versuchen."
-      } else {
-        errorMessage = error.message // Fallback to original message if unknown
-      }
-
-      setError(errorMessage)
+      setError(getAuthErrorMessage(error))
       setIsLoading(false)
       return
     }

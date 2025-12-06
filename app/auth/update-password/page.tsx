@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 
 export default function UpdatePasswordPage() {
   const router = useRouter()
@@ -38,17 +39,7 @@ export default function UpdatePasswordPage() {
     })
 
     if (error) {
-      let errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
-
-      if (error.message.includes("Password should be at least")) {
-        errorMessage = "Das Passwort muss mindestens 6 Zeichen lang sein."
-      } else if (error.message.includes("New password should be different")) {
-        errorMessage = "Das neue Passwort muss sich vom alten unterscheiden."
-      } else {
-        errorMessage = error.message
-      }
-
-      setError(errorMessage)
+      setError(getAuthErrorMessage(error))
       setIsLoading(false)
       return
     }

@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
+import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -58,19 +59,7 @@ export default function RegisterPage() {
         error: error.message,
       })
 
-      let errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
-
-      if (error.message.includes("User already registered")) {
-        errorMessage = "Diese E-Mail-Adresse ist bereits registriert. Bitte melden Sie sich an."
-      } else if (error.message.includes("Password should be at least")) {
-        errorMessage = "Das Passwort muss mindestens 6 Zeichen lang sein."
-      } else if (error.message.includes("To many requests")) {
-        errorMessage = "Zu viele Versuche. Bitte warten Sie einen Moment."
-      } else {
-        errorMessage = error.message
-      }
-
-      setError(errorMessage)
+      setError(getAuthErrorMessage(error))
       setIsLoading(false)
       return
     }

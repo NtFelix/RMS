@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState("")
@@ -31,15 +32,7 @@ export default function ResetPasswordPage() {
     })
 
     if (error) {
-      let errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
-
-      if (error.message.includes("Too many requests")) {
-        errorMessage = "Zu viele Anfragen. Bitte warten Sie einen Moment."
-      } else {
-        errorMessage = error.message
-      }
-
-      setError(errorMessage)
+      setError(getAuthErrorMessage(error))
       setIsLoading(false)
       return
     }
