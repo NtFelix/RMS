@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight, Sparkles } from "lucide-react"
@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuthModal } from "@/components/auth-modal-provider";
+import { useIsOverflowing } from "@/hooks/use-responsive";
 
 // Navigation dropdown items
 const produkteItems = [
@@ -53,49 +54,6 @@ interface NavigationProps {
   onLogin?: () => void;
 }
 
-// Custom hook for debounced window resize events
-function useDebouncedResize(callback: () => void, delay = 100) {
-  const savedCallback = useRef(callback);
-
-  useEffect(() => {
-    savedCallback.current = callback;
-  }, [callback]);
-
-  useEffect(() => {
-    let resizeTimer: ReturnType<typeof setTimeout>;
-
-    const handleResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => savedCallback.current(), delay);
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, [delay]);
-}
-
-// Custom hook to check if container is overflowing
-function useIsOverflowing() {
-  const [isOverflowing, setIsOverflowing] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  const checkOverflow = useCallback(() => {
-    if (ref.current) {
-      const { scrollWidth, clientWidth } = ref.current;
-      setIsOverflowing(scrollWidth > clientWidth);
-    }
-  }, []);
-
-  useDebouncedResize(checkOverflow);
-
-  useEffect(() => {
-    checkOverflow();
-  }, [checkOverflow]);
-
-  return { ref, isOverflowing };
-}
 
 export default function Navigation({ onLogin }: NavigationProps) {
   const [hasMounted, setHasMounted] = useState(false);
