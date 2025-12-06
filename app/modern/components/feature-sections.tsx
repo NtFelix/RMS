@@ -113,7 +113,7 @@ export default function FeatureSections() {
                       height={600}
                       className="w-full h-auto object-contain rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]"
                       priority={index === 0}
-                      unoptimized
+                      unoptimized // Supabase images are stored as pre-optimized .avif
                     />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -140,7 +140,7 @@ export default function FeatureSections() {
                         height={600}
                         className="w-full h-auto object-contain rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]"
                         priority={index === 0}
-                        unoptimized
+                        unoptimized // Supabase images are stored as pre-optimized .avif
                       />
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -211,7 +211,7 @@ export default function FeatureSections() {
                 height={900}
                 className="w-full h-auto object-contain max-h-[80vh]"
                 priority
-                unoptimized
+                unoptimized // Supabase images are stored as pre-optimized .avif
               />
             </div>
           </motion.div>

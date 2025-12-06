@@ -35,7 +35,7 @@ export function MediaContent({ src, alt = '', type, className = '', priority = f
       height={800}
       className={`w-full h-auto rounded-2xl ${className}`}
       priority={priority}
-      unoptimized
+      unoptimized // Supabase images are stored as pre-optimized .avif
     />
   )
 }

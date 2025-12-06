@@ -283,7 +283,7 @@ function SidebarContent({
               fill
               className="object-cover"
               sizes="32px"
-              unoptimized
+              unoptimized // Supabase images are stored as pre-optimized .avif
             />
           </div>
           {!isMobile && textVariants && (

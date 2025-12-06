@@ -56,7 +56,7 @@ export default function NotFound() {
               alt="Mietfluss Logo"
               fill
               className="object-cover"
-              unoptimized
+              unoptimized // Supabase images are stored as pre-optimized .avif
             />
           </div>
           <span className="text-lg">Mietfluss</span>

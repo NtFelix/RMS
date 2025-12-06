@@ -197,7 +197,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   alt="Mietfluss Logo"
                   fill
                   className="object-cover"
-                  unoptimized
+                  unoptimized // Supabase images are stored as pre-optimized .avif
                 />
               </div>
               <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
@@ -220,7 +220,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       alt="Mietfluss Logo"
                       fill
                       className="object-cover"
-                      unoptimized
+                      unoptimized // Supabase images are stored as pre-optimized .avif
                     />
                   </div>
                   <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">
