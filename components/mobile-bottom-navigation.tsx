@@ -320,7 +320,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     {
       id: 'homepage',
       title: 'Homepage',
-      href: '/landing',
+      href: '/',
       icon: Globe
     },
     {

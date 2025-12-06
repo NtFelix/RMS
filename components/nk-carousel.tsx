@@ -53,7 +53,7 @@ export function NKCarousel() {
           {features.map((feature, index) => (
             <CarouselItem key={feature.title} className="md:basis-1/2 lg:basis-1/3">
               <div className="p-2 h-full">
-                <Card className="h-full p-6 hover:shadow-md transition-shadow">
+                <Card className="h-full p-6 hover:shadow-md transition-shadow rounded-3xl">
                   <CardHeader className="p-0 mb-4">
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                       <feature.icon className="h-6 w-6 text-primary" />

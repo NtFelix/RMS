@@ -16,9 +16,9 @@ export default function CheckoutCancelPage() {
         You can try subscribing again when you are ready.
       </p>
       <Button asChild>
-        <Link href="/subscription">View Subscription Options</Link>
+        <Link href="/preise">View Subscription Options</Link>
       </Button>
-       <Button variant="link" asChild className="mt-4">
+      <Button variant="link" asChild className="mt-4">
         <Link href="/home">Back to Dashboard</Link>
       </Button>
     </div>

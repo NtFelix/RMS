@@ -66,6 +66,7 @@ export async function GET() {
         limit_wohnungen: limitWohnungen ?? null,
         position: position, // This position is used to sort products
         description: product.description || '',
+        metadata: product.metadata, // Pass all metadata to frontend
       };
     });
 

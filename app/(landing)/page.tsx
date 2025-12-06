@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
+import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Hero from '../modern/components/hero';
-import FeatureSections from '../modern/components/feature-sections';
-import FinanceShowcase from '../modern/components/finance-showcase';
-import MoreFeatures from '../modern/components/more-features';
-import CTA from '../modern/components/cta';
-import Footer from '../modern/components/footer';
-import Navigation from '../modern/components/navigation';
-import Pricing from '../modern/components/pricing';
-import NebenkostenSection from '../modern/components/nebenkosten-section';
+import Hero from '@/app/modern/components/hero';
+import FeatureSections from '@/app/modern/components/feature-sections';
+
+import MoreFeatures from '@/app/modern/components/more-features';
+import CTA from '@/app/modern/components/cta';
+import BottomCTA from '@/components/ui/bottom-cta';
+
+import Pricing from '@/app/modern/components/pricing';
+import NebenkostenSection from '@/app/modern/components/nebenkosten-section';
 import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -37,7 +38,7 @@ function ProfileErrorToastHandler() {
         description: "Could not retrieve your user details. Please try logging in again or contact support if the issue persists.",
         variant: "destructive",
       });
-      router.replace('/landing', { scroll: false });
+      router.replace('/', { scroll: false });
     }
   }, [searchParams, router, toast]);
 
@@ -270,16 +271,16 @@ function LandingPageContent() {
 
   const handleGetStarted = async () => {
     if (sessionUser) {
-        router.push('/home');
+      router.push('/home');
     } else {
-        // Store intent to redirect to dashboard after login
-        try {
-          sessionStorage.setItem('authIntent', 'get-started');
-        } catch (e) {
-          // In browsers without sessionStorage, the redirect intent will be lost
-          console.warn('SessionStorage not available. The "get-started" redirect flow will not work as intended.');
-        }
-        openAuthModal('login');
+      // Store intent to redirect to dashboard after login
+      try {
+        sessionStorage.setItem('authIntent', 'get-started');
+      } catch (e) {
+        // In browsers without sessionStorage, the redirect intent will be lost
+        console.warn('SessionStorage not available. The "get-started" redirect flow will not work as intended.');
+      }
+      openAuthModal('login');
     }
   };
 
@@ -300,8 +301,7 @@ function LandingPageContent() {
       <Suspense fallback={null}>
         <URLParamHandler />
       </Suspense>
-      <Navigation onLogin={() => openAuthModal('login')} />
-      <main className="min-h-screen overflow-x-hidden">
+      <div className="min-h-screen overflow-x-hidden">
         <div id="hero">
           <Hero onGetStarted={handleGetStarted} />
         </div>
@@ -311,9 +311,7 @@ function LandingPageContent() {
         <div id="nebenkosten">
           <NebenkostenSection />
         </div>
-        <div id="finance-showcase">
-          <FinanceShowcase />
-        </div>
+
         <div id="more-features">
           <MoreFeatures />
         </div>
@@ -322,14 +320,23 @@ function LandingPageContent() {
             onSelectPlan={handleSelectPlan}
             userProfile={userProfile}
             isLoading={isProcessingCheckout}
+            showComparison={false}
+            showViewAllButton={true}
           />
         </div>
-        
         <div id="cta">
-          <CTA onGetStarted={handleGetStarted} />
+          <BottomCTA
+            onGetStarted={handleGetStarted}
+            theme="city"
+            title="Übernehmen Sie die Kontrolle über Ihre"
+            subtitle="Immobilien noch heute"
+            description="Beginnen Sie noch heute, Ihre Immobilien effizienter zu verwalten und profitieren Sie von einer modernen und benutzerfreundlichen Plattform."
+            badgeText="Bereit zur Vereinfachung?"
+            primaryButtonText="Jetzt loslegen"
+            secondaryButtonText="Demo anfordern"
+          />
         </div>
-        <Footer />
-      </main>
+      </div>
     </>
   );
 }

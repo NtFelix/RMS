@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, Download, ExternalLink } from "lucide-react"
+import { ArrowRight, Download, ExternalLink, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { EXAMPLE_BILL_PDF_URL } from "@/lib/constants"
@@ -43,7 +43,7 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
         <Button
           size="lg"
           variant="outline"
-          className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
+          className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
           asChild
         >
           <Link 
@@ -52,7 +52,7 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
             rel="noopener noreferrer"
           >
             <span className="flex items-center">
-              <Download className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
+              <Download className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
               Beispiel-Abrechnung
             </span>
           </Link>
@@ -63,7 +63,7 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
             <Button
               size="lg"
               variant="outline"
-              className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
+              className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
             >
               <span className="flex items-center">
                 Demo anfordern
