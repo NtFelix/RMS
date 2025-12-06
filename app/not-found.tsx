@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 
 import { Home, Building2, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
@@ -50,10 +51,12 @@ export default function NotFound() {
       <header className="border-b bg-background px-6 py-4">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <div className="relative w-8 h-8 rounded-full overflow-hidden">
-            <img
+            <Image
               src={LOGO_URL}
               alt="Mietfluss Logo"
-              className="object-cover w-full h-full"
+              fill
+              className="object-cover"
+              unoptimized
             />
           </div>
           <span className="text-lg">Mietfluss</span>

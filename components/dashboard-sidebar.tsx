@@ -283,6 +283,7 @@ function SidebarContent({
               fill
               className="object-cover"
               sizes="32px"
+              unoptimized
             />
           </div>
           {!isMobile && textVariants && (

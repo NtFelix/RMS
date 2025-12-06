@@ -1,15 +1,17 @@
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 
 interface MediaContentProps {
   src: string
   alt?: string
   type: 'image' | 'video'
   className?: string
+  priority?: boolean
 }
 
-export function MediaContent({ src, alt = '', type, className = '' }: MediaContentProps) {
+export function MediaContent({ src, alt = '', type, className = '', priority = false }: MediaContentProps) {
   if (type === 'video') {
     return (
       <video
@@ -26,10 +28,14 @@ export function MediaContent({ src, alt = '', type, className = '' }: MediaConte
   }
 
   return (
-    <img
+    <Image
       src={src}
       alt={alt}
+      width={1200}
+      height={800}
       className={`w-full h-auto rounded-2xl ${className}`}
+      priority={priority}
+      unoptimized
     />
   )
 }
