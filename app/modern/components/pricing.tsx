@@ -255,8 +255,8 @@ function ComparisonTable({ plans, billingCycle, onSelectPlan, getButtonTextAndSt
                     let valueToRender: string | boolean = rawValue || false;
 
                     if (feature.type === 'boolean') {
-                      // Check for "true", "yes", "1"
-                      valueToRender = rawValue === 'true' || rawValue === 'yes' || rawValue === '1';
+                      // Only check for "true" string value (as per STRIPE_METADATA_GUIDE.md)
+                      valueToRender = rawValue === 'true';
                     }
 
                     return (

@@ -53,6 +53,6 @@ Repeat this for all your products.
 
 ## Notes
 
-*   **Boolean Values**: For features that are either included or not (checked/unchecked), use `true` or `false` (or `yes`/`no`, `1`/`0`).
+*   **Boolean Values**: For features that are either included or not (checked/unchecked), use `true` or `false` as string values.
 *   **Text Values**: For features with specific limits or descriptions, enter the text exactly as you want it to appear (e.g., "10 GB").
 *   **Missing Keys**: If a key is missing for a product, it will appear as a "minus" (not included) in the table.
