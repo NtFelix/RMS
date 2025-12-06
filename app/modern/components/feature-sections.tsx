@@ -5,7 +5,16 @@ import { CheckCircle, X, ZoomIn } from "lucide-react"
 import { useState, useCallback, useEffect } from "react"
 import Image from "next/image"
 
-const features = [
+interface Feature {
+  title: string;
+  description: string;
+  points: string[];
+  image: string;
+  imageDark?: string;
+  image_alt: string;
+}
+
+const features: Feature[] = [
   {
     title: "Zentrale Haus- & Mieterverwaltung",
     description:
@@ -99,10 +108,7 @@ export default function FeatureSections() {
               <div className="w-full md:w-1/2">
                 {/* Light Mode Image (or default if no dark image) */}
                 <div
-                  className={`relative rounded-2xl overflow-hidden shadow-2xl group bg-white/5 backdrop-blur-sm border border-white/10 cursor-pointer ${
-                    // @ts-ignore
-                    feature.imageDark ? "dark:hidden" : ""
-                    }`}
+                  className={`relative rounded-2xl overflow-hidden shadow-2xl group bg-white/5 backdrop-blur-sm border border-white/10 cursor-pointer ${feature.imageDark ? "dark:hidden" : ""}`}
                   onClick={() => openImagePreview(feature.image, feature.image_alt, feature.title)}
                 >
                   <div className="relative w-full">
@@ -124,17 +130,14 @@ export default function FeatureSections() {
                 </div>
 
                 {/* Dark Mode Image (only if provided) */}
-                {/* @ts-ignore */}
                 {feature.imageDark && (
                   <div
                     className="relative rounded-2xl overflow-hidden shadow-2xl group bg-white/5 backdrop-blur-sm border border-white/10 cursor-pointer hidden dark:block"
-                    // @ts-ignore
-                    onClick={() => openImagePreview(feature.imageDark, feature.image_alt, feature.title)}
+                    onClick={() => openImagePreview(feature.imageDark!, feature.image_alt, feature.title)}
                   >
                     <div className="relative w-full">
                       <Image
-                        // @ts-ignore
-                        src={feature.imageDark}
+                        src={feature.imageDark!}
                         alt={feature.image_alt}
                         width={800}
                         height={600}
