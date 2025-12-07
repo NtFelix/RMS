@@ -17,7 +17,9 @@ import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight, Sparkles }
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import { WaitlistButton } from './waitlist-button';
 import { FAQ } from './faq';
+import { PreviewLimitNoticeBanner } from './preview-limit-notice-banner';
 import { Profile } from '@/types/supabase';
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
 
 // Updated Plan interface to match the API response structure
 interface Plan {
@@ -306,7 +308,7 @@ export default function Pricing({
   const [error, setError] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const posthog = usePostHog();
-  const showWaitlistMode = useFeatureFlagEnabled('show-waitlist-button');
+  const showWaitlistMode = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SHOW_WAITLIST_BUTTON);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -544,6 +546,8 @@ export default function Pricing({
               Wählen Sie den perfekten Plan für Ihre Bedürfnisse. Jederzeit erweiter- oder herabstufbar.
             </p>
           </div>
+
+          <PreviewLimitNoticeBanner />
 
           <div className="flex justify-center mb-12">
             <div className="inline-flex items-center rounded-full bg-muted p-1">
