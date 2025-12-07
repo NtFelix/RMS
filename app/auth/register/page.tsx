@@ -315,11 +315,11 @@ export default function RegisterPage() {
 
               <p className="text-xs text-center text-muted-foreground pt-2">
                 Mit der Registrierung stimmen Sie unseren{" "}
-                <Link href="/legal/nutzungsbedingungen" className="text-primary hover:underline">
+                <Link href="/legal/nutzungsbedingungen" className="text-white hover:underline">
                   Nutzungsbedingungen
                 </Link>{" "}
                 und der{" "}
-                <Link href="/legal/datenschutz" className="text-primary hover:underline">
+                <Link href="/legal/datenschutz" className="text-white hover:underline">
                   Datenschutzerklärung
                 </Link>{" "}
                 zu.
@@ -329,7 +329,7 @@ export default function RegisterPage() {
                 Bereits ein Konto?{" "}
                 <Link
                   href="/auth/login"
-                  className="text-primary font-semibold hover:text-primary/80 transition-colors"
+                  className="text-white font-semibold hover:text-white/80 transition-colors"
                 >
                   Anmelden
                 </Link>

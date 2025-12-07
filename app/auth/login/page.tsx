@@ -227,7 +227,7 @@ export default function LoginPage() {
               <div className="flex items-center justify-end">
                 <Link
                   href="/auth/reset-password"
-                  className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                  className="text-sm text-white hover:text-white/80 font-medium transition-colors"
                 >
                   Passwort vergessen?
                 </Link>
@@ -252,7 +252,7 @@ export default function LoginPage() {
                 Noch kein Konto?{" "}
                 <Link
                   href="/auth/register"
-                  className="text-primary font-semibold hover:text-primary/80 transition-colors"
+                  className="text-white font-semibold hover:text-white/80 transition-colors"
                 >
                   Registrieren
                 </Link>
