@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight, Sparkles } from "lucide-react";
 import { useEffect, useState, useMemo, Fragment } from 'react';
-import Link from 'next/link';
 import { WaitlistButton } from './waitlist-button';
 import { FAQ } from './faq';
 import { PreviewLimitNoticeBanner } from './preview-limit-notice-banner';

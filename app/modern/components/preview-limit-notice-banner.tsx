@@ -36,7 +36,7 @@ export function PreviewLimitNoticeBanner() {
                     <div className="flex items-start gap-4">
                         <div className="flex-shrink-0">
                             <div className="rounded-full bg-primary/20 p-3 ring-1 ring-primary/30">
-                                <Gift className="w-6 h-6 text-primary" />
+                                <Gift className="w-6 h-6 text-primary" aria-hidden="true" />
                             </div>
                         </div>
                         <div className="flex-1">
@@ -52,7 +52,7 @@ export function PreviewLimitNoticeBanner() {
                         <Button asChild className="w-full rounded-2xl">
                             <Link href={ROUTES.REGISTER}>
                                 Jetzt starten
-                                <ArrowRight className="w-4 h-4 ml-2" />
+                                <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />
                             </Link>
                         </Button>
                     </div>
