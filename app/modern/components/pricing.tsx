@@ -13,11 +13,12 @@ import {
 } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight, Sparkles, Gift } from "lucide-react";
+import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight, Sparkles } from "lucide-react";
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import Link from 'next/link';
 import { WaitlistButton } from './waitlist-button';
 import { FAQ } from './faq';
+import { PreviewLimitNoticeBanner } from './preview-limit-notice-banner';
 import { Profile } from '@/types/supabase';
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
 
@@ -309,7 +310,6 @@ export default function Pricing({
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const posthog = usePostHog();
   const showWaitlistMode = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SHOW_WAITLIST_BUTTON);
-  const showPreviewLimitNotice = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.PRICING_PAGE_PREVIEW_LIMIT_NOTICE);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -548,42 +548,7 @@ export default function Pricing({
             </p>
           </div>
 
-          {/* Preview Limit Notice Banner */}
-          {isMounted && showPreviewLimitNotice && (
-            <div className="mb-12 max-w-3xl mx-auto">
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/20 p-6">
-                {/* Decorative background elements */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-
-                <div className="relative flex flex-col gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="rounded-full bg-primary/20 p-3 ring-1 ring-primary/30">
-                        <Gift className="w-6 h-6 text-primary" />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-1">
-                        Vorschau-Bonus: 25 Wohnungen kostenlos
-                      </h3>
-                      <p className="text-muted-foreground">
-                        Während der Vorschau-Phase enthält der kostenlose Plan <span className="font-semibold text-foreground">bis zu 25 Wohnungen.</span> Nutzen Sie diese Gelegenheit!
-                      </p>
-                    </div>
-                  </div>
-                  <div className="pt-2">
-                    <Button asChild className="w-full rounded-2xl">
-                      <Link href="/auth/register">
-                        Jetzt starten
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          <PreviewLimitNoticeBanner />
 
           <div className="flex justify-center mb-12">
             <div className="inline-flex items-center rounded-full bg-muted p-1">
