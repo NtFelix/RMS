@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { WaitlistButton } from './waitlist-button';
 import { FAQ } from './faq';
 import { Profile } from '@/types/supabase';
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
 
 // Updated Plan interface to match the API response structure
 interface Plan {
@@ -307,8 +308,8 @@ export default function Pricing({
   const [error, setError] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const posthog = usePostHog();
-  const showWaitlistMode = useFeatureFlagEnabled('show-waitlist-button');
-  const showPreviewLimitNotice = useFeatureFlagEnabled('pricing-page-preview-limit-notice');
+  const showWaitlistMode = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SHOW_WAITLIST_BUTTON);
+  const showPreviewLimitNotice = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.PRICING_PAGE_PREVIEW_LIMIT_NOTICE);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
