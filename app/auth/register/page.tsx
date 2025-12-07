@@ -87,16 +87,42 @@ export default function RegisterPage() {
   ]
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a1628] p-4 md:p-8">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden">
+      {/* Animated grid background */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+
+      {/* Gradient orbs in background */}
+      <motion.div
+        className="absolute top-1/3 right-1/4 w-96 h-96 rounded-full bg-secondary/20 blur-[100px]"
+        animate={{
+          x: [0, -50, 0],
+          y: [0, 40, 0],
+          scale: [1, 1.15, 1],
+        }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute bottom-1/3 left-1/4 w-80 h-80 rounded-full bg-primary/20 blur-[100px]"
+        animate={{
+          x: [0, 30, 0],
+          y: [0, -40, 0],
+          scale: [1, 1.1, 1],
+        }}
+        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Radial spotlight */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,hsl(var(--muted)/0.8)_0%,transparent_50%)]" />
+
       {/* Main container with split layout */}
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-5xl bg-card rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[650px]"
+        className="relative z-10 w-full max-w-5xl bg-card rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[650px]"
       >
         {/* Left side - Hero/Branding */}
-        <div className="relative lg:w-1/2 bg-gradient-to-br from-secondary via-primary to-primary/90 p-8 md:p-12 flex flex-col justify-between overflow-hidden">
+        <div className="relative lg:w-1/2 bg-secondary p-8 md:p-12 flex flex-col justify-between overflow-hidden">
           {/* Background pattern */}
           <div className="absolute inset-0 opacity-20">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00eiIvPjwvZz48L2c+PC9zdmc+')] bg-repeat" />
@@ -315,11 +341,11 @@ export default function RegisterPage() {
 
               <p className="text-xs text-center text-muted-foreground pt-2">
                 Mit der Registrierung stimmen Sie unseren{" "}
-                <Link href="/legal/nutzungsbedingungen" className="text-white hover:underline">
+                <Link href="/legal/nutzungsbedingungen" className="text-foreground hover:underline">
                   Nutzungsbedingungen
                 </Link>{" "}
                 und der{" "}
-                <Link href="/legal/datenschutz" className="text-white hover:underline">
+                <Link href="/legal/datenschutz" className="text-foreground hover:underline">
                   Datenschutzerklärung
                 </Link>{" "}
                 zu.
@@ -329,7 +355,7 @@ export default function RegisterPage() {
                 Bereits ein Konto?{" "}
                 <Link
                   href="/auth/login"
-                  className="text-white font-semibold hover:text-white/80 transition-colors"
+                  className="text-foreground font-semibold hover:text-foreground/80 transition-colors"
                 >
                   Anmelden
                 </Link>
