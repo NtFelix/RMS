@@ -61,29 +61,29 @@ export function OccupancyChart() {
         // Calculate the target year (adjust year if we wrap around)
         const yearAdjustment = Math.floor((currentMonth - 11 + i) / 12);
         const targetYear = currentYear + yearAdjustment;
-        
+
         // Create date for the first day of the target month
         const firstDayOfMonth = new Date(targetYear, targetMonth, 1);
         const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0);
-        
+
         // Format month for display
         const monthName = new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(firstDayOfMonth);
         const monthKey = `${targetYear}-${targetMonth + 1}`;
-        
+
         // Count occupied apartments for this month
         let vermietetCount = 0;
-        
+
         for (const m of mieterWithDates) {
           if (!m.einzug) continue; // Skip if no move-in date
-          
+
           const movedIn = m.einzug <= lastDayOfMonth;
           const notMovedOut = !m.auszug || m.auszug >= firstDayOfMonth;
-          
+
           if (movedIn && notMovedOut) {
             vermietetCount++;
           }
         }
-        
+
         occupancy[monthKey] = {
           month: monthName,
           vermietet: vermietetCount,
@@ -119,15 +119,15 @@ export function OccupancyChart() {
         <CardTitle className="text-lg">Belegung</CardTitle>
         <CardDescription>Wohnungsbelegung nach Monat</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 p-2 min-h-0" ref={containerRef}>
+      <CardContent className="flex-1 p-2 min-h-[200px]" ref={containerRef}>
         <ChartContainer
-          className="w-full h-full"
+          className="w-full h-full min-h-[200px]"
           config={{
             vermietet: { label: "Vermietet", color: "hsl(var(--chart-1))" },
             frei: { label: "Frei", color: "hsl(var(--chart-3))" },
           }}
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={200}>
             <LineChart
               data={occupancyData}
               margin={{ top: 5, right: 5, left: 5, bottom: 5 }}

@@ -236,7 +236,7 @@ export default function FinanceManagementPage() {
                   {/* Real Chart for Large Screens */}
                   <div className="hidden lg:block">
                     <div className="h-48 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={192}>
                         <RechartsPieChart>
                           <Pie
                             data={incomeByApartmentData}
@@ -321,7 +321,7 @@ export default function FinanceManagementPage() {
                   {/* Real Chart for Large Screens */}
                   <div className="hidden lg:block">
                     <div className="h-48 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={192}>
                         <LineChart data={monthlyIncomeData}>
                           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                           <XAxis 
@@ -405,7 +405,7 @@ export default function FinanceManagementPage() {
                   {/* Real Chart for Large Screens */}
                   <div className="hidden lg:block">
                     <div className="h-48 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={192}>
                         <BarChart data={incomeExpenseData}>
                           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                           <XAxis 
@@ -482,7 +482,7 @@ export default function FinanceManagementPage() {
                   {/* Real Chart for Large Screens */}
                   <div className="hidden lg:block">
                     <div className="h-48 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={192}>
                         <RechartsPieChart>
                           <Pie
                             data={expenseCategoriesData}

@@ -66,8 +66,8 @@ export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProp
         </div>
         <CardDescription>Verteilung der Betriebskosten (Jahr {year})</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 p-2 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
+      <CardContent className="flex-1 p-2 min-h-[200px]">
+        <ResponsiveContainer width="100%" height={200}>
           <PieChart>
             <Pie
               data={data}
@@ -81,9 +81,9 @@ export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProp
               paddingAngle={2}
             >
               {data.map((entry, idx) => (
-                <Cell 
-                  key={`cell-${idx}`} 
-                  fill={colors[idx % colors.length]} 
+                <Cell
+                  key={`cell-${idx}`}
+                  fill={colors[idx % colors.length]}
                 />
               ))}
             </Pie>

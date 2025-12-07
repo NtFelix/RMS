@@ -38,7 +38,7 @@ export function MaintenanceDonutChart() {
   useEffect(() => {
     const fetchMaintenanceData = async () => {
       const supabase = createClient();
-      
+
       try {
         // Fetch ALL finance data without limits - expenses only
         let allFinanzenData: FinanzDaten[] = [];
@@ -104,7 +104,7 @@ export function MaintenanceDonutChart() {
 
         // Only show categories with values > 0
         const filteredData = formattedData.filter(item => item.value > 0);
-        
+
         setMaintenanceData(filteredData.length > 0 ? filteredData : [
           { name: "Keine Daten", value: 1 }
         ]);
@@ -135,9 +135,9 @@ export function MaintenanceDonutChart() {
         <div className="bg-white p-2 border rounded shadow-lg">
           <p className="text-sm font-medium">{data.name}</p>
           <p className="text-sm text-blue-600">
-            {new Intl.NumberFormat('de-DE', { 
-              style: 'currency', 
-              currency: 'EUR' 
+            {new Intl.NumberFormat('de-DE', {
+              style: 'currency',
+              currency: 'EUR'
             }).format(data.value)}
           </p>
         </div>
@@ -152,13 +152,13 @@ export function MaintenanceDonutChart() {
         <CardTitle className="text-lg">Ausgaben nach Kategorie</CardTitle>
         <CardDescription>Verteilung der Betriebskosten</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 p-2 min-h-0">
+      <CardContent className="flex-1 p-2 min-h-[200px]">
         {loading ? (
-          <div className="flex justify-center items-center h-full">
+          <div className="flex justify-center items-center h-full min-h-[200px]">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={200}>
             <PieChart>
               <Pie
                 data={maintenanceData}

@@ -30,7 +30,7 @@ export function RevenueExpensesChart() {
   useEffect(() => {
     const fetchData = async () => {
       const supabase = createClient();
-      
+
       // Fetch ALL finance data without any limits
       let allFinanzenData: any[] = [];
       let page = 0;
@@ -107,15 +107,15 @@ export function RevenueExpensesChart() {
         <CardTitle className="text-lg">Einnahmen & Ausgaben</CardTitle>
         <CardDescription>Monatliche Übersicht der Finanzen</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 p-3 min-h-0" ref={containerRef}>
+      <CardContent className="flex-1 p-3 min-h-[200px]" ref={containerRef}>
         <ChartContainer
-          className="w-full h-full"
+          className="w-full h-full min-h-[200px]"
           config={{
             einnahmen: { label: "Einnahmen", color: "hsl(var(--chart-1))" },
             ausgaben: { label: "Ausgaben", color: "hsl(var(--chart-2))" },
           }}
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={200}>
             <BarChart
               data={revenueData}
               margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
