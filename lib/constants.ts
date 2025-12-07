@@ -40,6 +40,26 @@ export const POSTHOG_FEATURE_FLAGS = {
   SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
 } as const;
 
+// Application routes - centralized to prevent hardcoded paths
+export const ROUTES = {
+  // Auth
+  LOGIN: '/auth/login',
+  REGISTER: '/auth/register',
+  RESET_PASSWORD: '/auth/reset-password',
+  UPDATE_PASSWORD: '/auth/update-password',
+  // Dashboard
+  HOME: '/home',
+  PROPERTIES: '/objekte',
+  TENANTS: '/mieter',
+  FINANCES: '/finanzen',
+  DOCUMENTS: '/dateien',
+  SETTINGS: '/einstellungen',
+  // Landing
+  LANDING: '/',
+  PRICING: '/preise',
+  FEATURES: '/funktionen',
+} as const;
+
 // Video URLs
 export const HERO_VIDEO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/nebenkosten-overview.mp4';
 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { Gift, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
+import { POSTHOG_FEATURE_FLAGS, ROUTES } from '@/lib/constants';
 
 /**
  * Banner component that displays a preview phase notice.
@@ -50,7 +50,7 @@ export function PreviewLimitNoticeBanner() {
                     </div>
                     <div className="pt-2">
                         <Button asChild className="w-full rounded-2xl">
-                            <Link href="/auth/register">
+                            <Link href={ROUTES.REGISTER}>
                                 Jetzt starten
                                 <ArrowRight className="w-4 h-4 ml-2" />
                             </Link>
