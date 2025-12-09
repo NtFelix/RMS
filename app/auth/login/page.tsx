@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
 import { getAuthErrorMessage, getUrlErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
+import { Auth3DDecorations } from "@/components/auth-3d-decorations"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -118,67 +119,8 @@ export default function LoginPage() {
           {/* Tilted Grid pattern */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:3rem_3rem] [transform:perspective(500px)_rotateX(20deg)_scale(1.2)] origin-top opacity-50" />
 
-          {/* 3D Decorative rotating rings */}
-          <div className="absolute inset-0 pointer-events-none" style={{ transformStyle: 'preserve-3d' }}>
-            <motion.div
-              className="absolute -top-32 -right-32 w-96 h-96 border border-white/[0.06] rounded-full"
-              animate={{ rotateX: [0, 360], rotateY: [0, 360], rotateZ: [0, 180] }}
-              transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            />
-            <motion.div
-              className="absolute top-1/2 -left-32 w-80 h-80 border border-white/[0.06] rounded-full"
-              animate={{ rotateX: [0, -360], rotateY: [0, 180], rotateZ: [0, -90] }}
-              transition={{ duration: 35, repeat: Infinity, ease: "linear" }}
-            />
-            <motion.div
-              className="absolute -bottom-32 left-1/2 w-[30rem] h-[30rem] border border-white/[0.04] rounded-full"
-              animate={{ rotateX: [45, 405], rotateY: [0, 0], rotateZ: [0, 360] }}
-              transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
-            />
-          </div>
-
-          {/* 3D Spheres (High gloss) */}
-          <motion.div
-            className="absolute top-20 right-20 w-24 h-24 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.12)] opacity-55"
-            style={{
-              background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.2) 20%, rgba(255,255,255,0.04) 60%, transparent 100%)",
-              backdropFilter: "blur(2px)"
-            }}
-            animate={{
-              y: [0, -20, 0],
-              scale: [1, 1.05, 1],
-              rotate: [0, 10, 0]
-            }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute bottom-32 left-12 w-32 h-32 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.12)] opacity-55"
-            style={{
-              background: "radial-gradient(circle at 70% 30%, rgba(var(--accent-rgb),0.5) 0%, rgba(var(--accent-rgb),0.12) 40%, transparent 100%)",
-              border: "1px solid rgba(255,255,255,0.05)"
-            }}
-            animate={{
-              y: [0, 25, 0],
-              x: [0, 10, 0],
-              rotate: [0, -10, 0]
-            }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          >
-            {/* Inner glass reflection */}
-            <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.25)_0%,transparent_30%)]" />
-          </motion.div>
-
-          <motion.div
-            className="absolute top-1/2 right-1/4 w-16 h-16 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.1)] opacity-55"
-            style={{
-              background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.05) 50%, transparent 100%)"
-            }}
-            animate={{
-              y: [0, -15, 0],
-              x: [0, -10, 0]
-            }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          />
+          {/* 3D Decorative elements (shared component) */}
+          <Auth3DDecorations />
 
           {/* Logo */}
           <div className="relative z-10 flex items-center gap-3">
