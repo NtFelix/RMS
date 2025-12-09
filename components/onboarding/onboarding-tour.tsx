@@ -43,6 +43,15 @@ export function OnboardingTour() {
     const router = useRouter();
     const pathname = usePathname();
 
+    // Use refs to access current values in driver callbacks without closure staleness
+    const pathnameRef = useRef(pathname);
+    const routerRef = useRef(router);
+
+    useEffect(() => {
+        pathnameRef.current = pathname;
+        routerRef.current = router;
+    }, [pathname, router]);
+
     useEffect(() => {
         const checkOnboardingStatus = async () => {
             try {
@@ -73,7 +82,18 @@ export function OnboardingTour() {
                     useOnboardingStore.getState().goToPreviousStep();
                 },
                 onNextClick: () => {
-                    useOnboardingStore.getState().goToNextStep();
+                    const store = useOnboardingStore.getState();
+                    const currentStep = TOUR_STEPS[store.currentStepIndex];
+                    const currentPath = pathnameRef.current;
+
+                    // If we are on a step that requires navigation and we are not there,
+                    // "Next" means "Auto-Navigate"
+                    if (currentStep && currentStep.path && currentPath !== currentStep.path) {
+                        routerRef.current.push(currentStep.path);
+                        // Do NOT advance step index yet, let the page load and show the step target
+                    } else {
+                        store.goToNextStep();
+                    }
                 },
                 onDestroyStarted: () => {
                     // This is called when the driver is destroyed (e.g. by 'close' button or programmatically)
@@ -122,7 +142,7 @@ export function OnboardingTour() {
                                     align: 'center',
                                     showButtons: buttons,
                                     progressText: `${currentStepIndex + 1} von ${TOUR_STEPS.length}`,
-                                    nextBtnText: 'Überspringen' // Change text to indicate skipping navigation
+                                    nextBtnText: 'Automatisch navigieren' // Clearer text
                                 }
                             });
                             return; // Wait for user to navigate
@@ -159,12 +179,21 @@ export function OnboardingTour() {
 
 
         return () => {
+            // We do NOT destroy the driver here because recreating it resets config.
+            // We only destroy if the component unmounts for real.
+            // But here we used refs, so config is stable.
+        };
+    }, [isActive, currentStepIndex, stopTour, theme, pathname, router]); // Re-run when these change
+
+    // Clean up on unmount
+    useEffect(() => {
+        return () => {
             if (driverRef.current) {
                 driverRef.current.destroy();
                 driverRef.current = null;
             }
         };
-    }, [isActive, currentStepIndex, stopTour, theme, pathname, router]);
+    }, []);
 
     return null;
 }
