@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { driver } from 'driver.js';
 import "driver.js/dist/driver.css";
@@ -9,6 +9,16 @@ import "./onboarding.css";
 import { useOnboardingStore } from '@/hooks/use-onboarding-store';
 import { TOUR_STEPS } from '@/constants/onboarding-steps';
 import { useTheme } from 'next-themes';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const waitForElement = (selector: string, timeout = 5000): Promise<Element> => {
     return new Promise((resolve, reject) => {
@@ -43,15 +53,18 @@ export function OnboardingTour() {
     const { theme } = useTheme();
     const router = useRouter();
     const pathname = usePathname();
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
     // Use refs to access current values in driver callbacks without closure staleness
     const pathnameRef = useRef(pathname);
     const routerRef = useRef(router);
+    const setShowCloseConfirmRef = useRef(setShowCloseConfirm);
 
     useEffect(() => {
         pathnameRef.current = pathname;
         routerRef.current = router;
-    }, [pathname, router]);
+        setShowCloseConfirmRef.current = setShowCloseConfirm;
+    }, [pathname, router, setShowCloseConfirm]);
 
     useEffect(() => {
         const checkOnboardingStatus = async () => {
@@ -71,7 +84,29 @@ export function OnboardingTour() {
         checkOnboardingStatus();
     }, []);
 
+    const handleConfirmClose = () => {
+        // Mark onboarding as complete in the database
+        fetch('/api/user/onboarding', { method: 'POST' }).catch(console.error);
+        // Stop the tour
+        useOnboardingStore.getState().stopTour();
+        // Destroy driver
+        if (driverRef.current) {
+            driverRef.current.destroy();
+        }
+        setShowCloseConfirm(false);
+    };
+
+    const handleCancelClose = () => {
+        setShowCloseConfirm(false);
+        // Driver will be re-initialized by the useEffect since showCloseConfirm changes
+    };
+
     useEffect(() => {
+        // If confirmation dialog is open, do not run the driver
+        if (showCloseConfirm) {
+            return;
+        }
+
         // Initialize driver if not exists
         if (!driverRef.current) {
             driverRef.current = driver({
@@ -97,13 +132,18 @@ export function OnboardingTour() {
                         store.goToNextStep();
                     }
                 },
-                onDestroyStarted: () => {
-                    // This is called when the driver is destroyed (e.g. by 'close' button or programmatically)
-                    // We need to distinguish between explicit close and programatic destroy
-                    // For now, assume if the user clicks 'Close', it triggers this.
-                    if (useOnboardingStore.getState().isActive) {
-                        stopTour();
+                onCloseClick: () => {
+                    // Destroy the driver completely to prevent z-index/focus issues with the modal
+                    if (driverRef.current) {
+                        driverRef.current.destroy();
+                        driverRef.current = null;
                     }
+                    // Show confirmation dialog
+                    setShowCloseConfirmRef.current(true);
+                },
+                onDestroyStarted: () => {
+                    // This is called when the driver is destroyed programmatically
+                    // We handle explicit close via onCloseClick now
                 },
                 popoverClass: 'driverjs-theme', // Use our custom class
             });
@@ -185,7 +225,7 @@ export function OnboardingTour() {
             // We only destroy if the component unmounts for real.
             // But here we used refs, so config is stable.
         };
-    }, [isActive, currentStepIndex, stopTour, theme, pathname, router]); // Re-run when these change
+    }, [isActive, currentStepIndex, stopTour, theme, pathname, router, showCloseConfirm]); // Re-run when these change
 
     // Clean up on unmount
     useEffect(() => {
@@ -197,5 +237,24 @@ export function OnboardingTour() {
         };
     }, []);
 
-    return null;
+    return (
+        <AlertDialog open={showCloseConfirm} onOpenChange={(open) => !open && handleCancelClose()}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Einrichtung abbrechen?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Möchten Sie den Einrichtungsassistenten wirklich beenden?
+                        Der Assistent wird als abgeschlossen markiert und Sie können ihn jederzeit in den Einstellungen neu starten.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={handleCancelClose}>Zurück zum Assistenten</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmClose}>
+                        Einrichtung beenden
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
 }
+
