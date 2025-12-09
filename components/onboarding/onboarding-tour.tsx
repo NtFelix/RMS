@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { driver } from 'driver.js';
 import "driver.js/dist/driver.css";
+import "./onboarding.css";
 import { useOnboardingStore } from '@/hooks/use-onboarding-store';
 import { TOUR_STEPS } from '@/constants/onboarding-steps';
 import { useTheme } from 'next-themes';
@@ -77,6 +78,7 @@ export function OnboardingTour() {
                 animate: true,
                 showProgress: true,
                 allowClose: false, // Prevent closing by clicking outside or ESC
+                prevBtnText: 'Zurück', // Localize previous button text
                 // Handle button clicks
                 onPrevClick: () => {
                     useOnboardingStore.getState().goToPreviousStep();
@@ -103,7 +105,7 @@ export function OnboardingTour() {
                         stopTour();
                     }
                 },
-                popoverClass: theme === 'dark' ? 'driver-popover-dark' : '',
+                popoverClass: 'driverjs-theme', // Use our custom class
             });
         }
 
