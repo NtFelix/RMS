@@ -43,14 +43,14 @@ import { DEFAULT_COST_ITEMS } from "@/lib/constants/betriebskosten";
 import { generateId } from "@/lib/utils/generate-id";
 import {
   getNebenkostenDetailsAction,
-  createNebenkosten, 
-  updateNebenkosten, 
-  createRechnungenBatch, 
+  createNebenkosten,
+  updateNebenkosten,
+  createRechnungenBatch,
   RechnungData,
   deleteRechnungenByNebenkostenId,
   getLatestBetriebskostenByHausId,
 } from "../app/betriebskosten-actions";
-import { getMieterByHausIdAction } from "../app/mieter-actions"; 
+import { getMieterByHausIdAction } from "../app/mieter-actions";
 import { useToast } from "../hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { LabelWithTooltip } from "./ui/label-with-tooltip";
@@ -61,10 +61,11 @@ import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDat
 
 // Re-export for other components that might need it
 export type { CostItem, RechnungEinzel };
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
-interface BetriebskostenEditModalPropsRefactored {}
+interface BetriebskostenEditModalPropsRefactored { }
 
-export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactored) {
+export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefactored) {
   const {
     isBetriebskostenModalOpen,
     closeBetriebskostenModal,
@@ -92,7 +93,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
   // Tooltip next to dropdown: track hovered verteilerschlüssel, dropdown rect, and hovered item position
   const [hoveredBerechnungsart, setHoveredBerechnungsart] = useState<BerechnungsartValue | ''>('');
-  
+
   // Map of tooltip texts for each Berechnungsart
   const tooltipMap: Record<BerechnungsartValue | '', string> = {
     'pro Flaeche': 'Kosten werden anteilig nach Wohnungsfläche verteilt.',
@@ -149,7 +150,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const handleRechnungChange = (costItemId: string, mieterId: string, newBetrag: string) => {
     setRechnungen(prevRechnungen => {
       const costItemRechnungen = prevRechnungen[costItemId] || selectedHausMieter.map(m => ({ mieterId: m.id, betrag: '' }));
-      
+
       let mieterEntryExists = false;
       const updatedRechnungenForCostItem = costItemRechnungen.map(r => {
         if (r.mieterId === mieterId) {
@@ -162,7 +163,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       if (!mieterEntryExists) {
         updatedRechnungenForCostItem.push({ mieterId, betrag: newBetrag });
       }
-      
+
       return {
         ...prevRechnungen,
         [costItemId]: updatedRechnungenForCostItem,
@@ -172,8 +173,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   };
 
   const handleCostItemChange = (
-    index: number, 
-    field: keyof Omit<CostItem, 'id'>, 
+    index: number,
+    field: keyof Omit<CostItem, 'id'>,
     value: string | BerechnungsartValue
   ) => {
     const newCostItems = [...costItems];
@@ -186,14 +187,14 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     if (field === 'berechnungsart') {
       if (value === 'nach Rechnung') {
         newCostItems[index].betrag = '';
-        
+
         // Initialize rechnungen for this cost item with empty values for all tenants
         setRechnungen(prevRechnungen => {
           // If we already have rechnungen for this cost item, keep them
           if (prevRechnungen[costItemId]) {
             return prevRechnungen;
           }
-          
+
           // Otherwise, initialize with empty values for all selected tenants
           return {
             ...prevRechnungen,
@@ -215,12 +216,12 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     setCostItems(newCostItems);
     setBetriebskostenModalDirty(true);
   };
-  
+
   const addCostItem = () => {
     const newId = generateId();
-    const newBerechnungsart = BERECHNUNGSART_OPTIONS[0]?.value || ''; 
+    const newBerechnungsart = BERECHNUNGSART_OPTIONS[0]?.value || '';
     const newCostItem: CostItem = { id: newId, art: '', betrag: '', berechnungsart: newBerechnungsart };
-    
+
     setCostItems(prevCostItems => [...prevCostItems, newCostItem]);
     setBetriebskostenModalDirty(true);
   };
@@ -228,7 +229,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const removeCostItem = (index: number) => {
     if (costItems.length <= 1) return;
     const itemToRemove = costItems[index];
-    
+
     setCostItems(prevCostItems => prevCostItems.filter((_, i) => i !== index));
 
     if (itemToRemove.berechnungsart === 'nach Rechnung') {
@@ -271,7 +272,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       if (isOpen) {
         // Add class to body to prevent scrolling
         document.body.classList.add('modal-open');
-        
+
         // Calculate and set padding to prevent layout shift
         const scrollY = window.scrollY;
         document.body.style.setProperty('--scroll-y', `${scrollY}px`);
@@ -281,13 +282,13 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       } else {
         // Remove modal-open class and reset styles
         document.body.classList.remove('modal-open');
-        
+
         // Restore scroll position
         const scrollY = document.body.style.getPropertyValue('--scroll-y');
         document.body.style.position = '';
         document.body.style.top = '';
         document.body.style.width = '';
-        
+
         if (scrollY) {
           window.scrollTo(0, parseInt(scrollY, 10));
         }
@@ -310,13 +311,13 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const setupDefaultCostItems = () => {
     // Create a deep copy of the default items to avoid reference issues
     const defaultItems = JSON.parse(JSON.stringify(DEFAULT_COST_ITEMS)) as CostItem[];
-    
+
     // Set the cost items first
     setCostItems(defaultItems);
-    
+
     // Initialize empty rechnungen entries for all items that might use 'nach Rechnung'
     const initialRechnungen: Record<string, RechnungEinzel[]> = {};
-    
+
     // If we have selected tenants, initialize empty entries for them
     if (selectedHausMieter.length > 0) {
       defaultItems.forEach((item: CostItem) => {
@@ -326,7 +327,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         }));
       });
     }
-    
+
     setRechnungen(initialRechnungen);
     setIsLoadingTemplate(false);
 
@@ -343,7 +344,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     newItems: Record<string, RechnungEinzel[]>
   ): Record<string, RechnungEinzel[]> => {
     const merged = { ...existing };
-    
+
     // For each cost item in new items
     Object.entries(newItems).forEach(([costItemId, rechnungen]) => {
       // If we don't have this cost item yet, just add it
@@ -351,20 +352,20 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         merged[costItemId] = [...rechnungen];
         return;
       }
-      
+
       // Otherwise, merge the rechnungen, preserving existing values when possible
       const existingRechnungen = merged[costItemId] || [];
       const existingByMieter = new Map(
         existingRechnungen.map(r => [r.mieterId, r.betrag])
       );
-      
+
       // Update with new rechnungen, but keep existing values when available
       merged[costItemId] = rechnungen.map(r => ({
         mieterId: r.mieterId,
         betrag: existingByMieter.has(r.mieterId) ? existingByMieter.get(r.mieterId)! : r.betrag
       }));
     });
-    
+
     return merged;
   };
 
@@ -380,26 +381,26 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
     try {
       setIsLoadingTemplate(true);
-      
+
       // First, ensure we have the latest tenant data
       const tenantsResponse = await getMieterByHausIdAction(hausId);
       const currentTenants = tenantsResponse.success ? tenantsResponse.data || [] : [];
-      
+
       // Update selectedHausMieter state
       setSelectedHausMieter(currentTenants);
-      
+
       // Save current rechnungen to preserve values when switching between periods
       const currentRechnungen = { ...rechnungen };
-      
+
       // Then fetch the latest Betriebskosten
       const response = await getLatestBetriebskostenByHausId(hausId);
       if (response.success && response.data) {
         const latest = response.data;
-        
+
         // Process cost items and rechnungen together
         const processCostItems = async () => {
           if (!latest.nebenkostenart?.length) return;
-          
+
           // First, create all the cost items
           const items = latest.nebenkostenart.map((art: string, idx: number) => ({
             id: generateId(),
@@ -407,26 +408,26 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             betrag: latest.berechnungsart?.[idx] === 'nach Rechnung' ? '' : (latest.betrag?.[idx]?.toString() || ''),
             berechnungsart: normalizeBerechnungsart(latest.berechnungsart?.[idx] || '')
           }));
-          
+
           // Set the cost items first
           setCostItems(items);
-          
+
           // Then set up the rechnungen for 'nach Rechnung' items
           const newRechnungen: Record<string, RechnungEinzel[]> = {};
           const rechnungenFromApi = latest.Rechnungen || [];
-          
+
           // Create a map of cost item names to their new IDs for easier lookup
           const costItemMap = new Map<string, string>();
           items.forEach((item: CostItem) => {
             costItemMap.set(item.art, item.id);
           });
-          
+
           // Process all 'nach Rechnung' items from the latest entry
           latest.berechnungsart?.forEach((berechnungsart: string, idx: number) => {
             if (berechnungsart === 'nach Rechnung') {
               const costItemArt = latest.nebenkostenart?.[idx];
               const costItemId = costItemArt ? costItemMap.get(costItemArt) : null;
-              
+
               if (costItemId && costItemArt) {
                 // Filter rechnungen for this cost item by name
                 const itemRechnungen = rechnungenFromApi
@@ -435,7 +436,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                     mieterId: r.mieter_id,
                     betrag: r.betrag !== null ? r.betrag.toString() : ''
                   }));
-                
+
                 // Initialize with existing values or empty strings
                 const tenantRechnungen = currentTenants.map(mieter => {
                   // Try to find existing value for this tenant
@@ -445,20 +446,20 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                   );
 
                   // If we have an existing value, use it, otherwise use the value from API or empty string
-                  const existingValue = existing ? existing.betrag : 
+                  const existingValue = existing ? existing.betrag :
                     (itemRechnungen.find((r: { mieterId: string }) => r.mieterId === mieter.id)?.betrag || '');
-                  
+
                   return {
                     mieterId: mieter.id,
                     betrag: existingValue
                   };
                 });
-                
+
                 newRechnungen[costItemId] = tenantRechnungen;
               }
             }
           });
-          
+
           // Ensure all 'nach Rechnung' items have entries in rechnungen
           items.forEach((item: CostItem) => {
             if (item.berechnungsart === 'nach Rechnung' && !newRechnungen[item.id] && currentTenants.length > 0) {
@@ -467,7 +468,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                 const existing = Object.values(currentRechnungen)
                   .flat()
                   .find(r => r.mieterId === mieter.id && r.betrag && r.betrag.trim() !== '');
-                
+
                 return {
                   mieterId: mieter.id,
                   betrag: existing ? existing.betrag : ''
@@ -475,49 +476,49 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
               });
             }
           });
-          
+
           // Merge with existing rechnungen to preserve values
           const mergedRechnungen = mergeRechnungen(currentRechnungen, newRechnungen);
-          
+
           // Update the rechnungen state
           setRechnungen(mergedRechnungen);
-          
+
           return items;
         };
-        
+
         // Process cost items and rechnungen
         await processCostItems();
-        
+
         // Set wasserkosten if available
         if (latest.wasserkosten) {
           setWasserkosten(latest.wasserkosten.toString());
         }
-        
+
         // Set the date range if available
         if (latest.startdatum || latest.enddatum) {
           // Format the date to DD.MM.YYYY if it's in a different format
           const formatDate = (dateString: string | Date | null) => {
             if (!dateString) return '';
-            
+
             try {
               const date = new Date(dateString);
               if (isNaN(date.getTime())) return '';
-              
+
               const day = String(date.getDate()).padStart(2, '0');
               const month = String(date.getMonth() + 1).padStart(2, '0');
               const year = date.getFullYear();
-              
+
               return `${day}.${month}.${year}`;
             } catch (e) {
               console.error('Error formatting date:', e);
               return '';
             }
           };
-          
+
           setStartdatum(formatDate(latest.startdatum) || '');
           setEnddatum(formatDate(latest.enddatum) || '');
         }
-        
+
         toast({
           title: "Letzte Nebenkosten übernommen",
           description: "Die Nebenkostenarten der letzten Abrechnung wurden übernommen. Bitte überprüfen Sie die Werte.",
@@ -561,19 +562,19 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       setWasserkosten("");
       const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
       setHausId(initialHausId);
-      
+
       // Always start with a single empty cost item for new entries
       if (forNewEntry) {
-        setCostItems([{ 
-          id: generateId(), 
-          art: '', 
-          betrag: '', 
-          berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || 'pro Flaeche' 
+        setCostItems([{
+          id: generateId(),
+          art: '',
+          betrag: '',
+          berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || 'pro Flaeche'
         }]);
       } else {
         setCostItems([]);
       }
-      
+
       setSelectedHausMieter([]);
       setRechnungen({});
       setIsSaving(false);
@@ -581,7 +582,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       setModalNebenkostenData(null);
       currentlyLoadedNebenkostenId.current = null;
       if (isBetriebskostenModalOpen) setBetriebskostenModalDirty(false);
-      
+
       // Only fetch latest data if this is a new entry with a default house and using a template
       if (forNewEntry && initialHausId && betriebskostenInitialData?.useTemplate) {
         fetchAndApplyLatestBetriebskosten(initialHausId);
@@ -649,13 +650,13 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
           // Convert German dates to ISO format for API call
           const startIso = germanToIsoDate(startdatum);
           const endIso = germanToIsoDate(enddatum);
-          
+
           if (!startIso || !endIso) {
             setSelectedHausMieter([]);
             setIsFetchingTenants(false);
             return;
           }
-          
+
           const tenantResponse = await getMieterByHausIdAction(hausId, startIso, endIso);
           if (tenantResponse.success && tenantResponse.data) {
             setSelectedHausMieter(tenantResponse.data);
@@ -677,7 +678,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   }, [isBetriebskostenModalOpen, hausId, startdatum, enddatum, toast]);
 
   const syncRechnungenState = (
-    currentTenants: Mieter[], 
+    currentTenants: Mieter[],
     currentCostItems: CostItem[],
   ) => {
     setRechnungen(prevRechnungen => {
@@ -691,7 +692,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
               dbR => dbR.mieter_id === tenant.id && dbR.name === costItem.art
             );
             const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
-            
+
             let betragToSet = '';
             if (dbRechnungForTenant) {
               betragToSet = dbRechnungForTenant.betrag.toString();
@@ -722,10 +723,10 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     const dateValidation = validateDateRange(startdatum, enddatum);
     if (!dateValidation.isValid) {
       const errorMessages = Object.values(dateValidation.errors).filter(Boolean);
-      toast({ 
-        title: "Ungültige Datumsangaben", 
-        description: errorMessages.join('. '), 
-        variant: "destructive" 
+      toast({
+        title: "Ungültige Datumsangaben",
+        description: errorMessages.join('. '),
+        variant: "destructive"
       });
       setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
@@ -736,7 +737,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
     }
-    
+
     const parsedWasserkosten = wasserkosten ? parseFloat(wasserkosten) : null;
     if (wasserkosten.trim() !== '' && isNaN(parsedWasserkosten as number)) {
       toast({ title: "Ungültige Eingabe", description: "Wasserkosten müssen eine gültige Zahl sein.", variant: "destructive" });
@@ -745,9 +746,9 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     }
 
     if (costItems.length === 0) {
-        toast({ title: "Validierungsfehler", description: "Mindestens ein Kostenpunkt muss hinzugefügt werden.", variant: "destructive" });
-        setIsSaving(false); setBetriebskostenModalDirty(true);
-        return;
+      toast({ title: "Validierungsfehler", description: "Mindestens ein Kostenpunkt muss hinzugefügt werden.", variant: "destructive" });
+      setIsSaving(false); setBetriebskostenModalDirty(true);
+      return;
     }
 
     const nebenkostenartArray: string[] = [];
@@ -760,16 +761,16 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       let currentBetragValue: number;
 
       if (!art) {
-        toast({ 
-          title: "Validierungsfehler", 
-          description: `Art der Kosten darf nicht leer sein. Bitte überprüfen Sie Posten ${costItems.indexOf(item) + 1}.`, 
-          variant: "destructive" 
+        toast({
+          title: "Validierungsfehler",
+          description: `Art der Kosten darf nicht leer sein. Bitte überprüfen Sie Posten ${costItems.indexOf(item) + 1}.`,
+          variant: "destructive"
         });
         setIsSaving(false);
         setBetriebskostenModalDirty(true);
         return;
       }
-      if (!berechnungsart) { 
+      if (!berechnungsart) {
         toast({ title: "Validierungsfehler", description: `Berechnungsart muss für Kostenart "${art}" ausgewählt werden.`, variant: "destructive" });
         setIsSaving(false); setBetriebskostenModalDirty(true);
         return;
@@ -794,7 +795,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     // Convert German dates to ISO format for database
     const startIso = germanToIsoDate(startdatum.trim());
     const endIso = germanToIsoDate(enddatum.trim());
-    
+
     if (!startIso || !endIso) {
       toast({ title: "Ungültige Datumsangaben", description: "Bitte überprüfen Sie die Datumsformate.", variant: "destructive" });
       setIsSaving(false); setBetriebskostenModalDirty(true);
@@ -849,27 +850,30 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         if (rechnungenToSave.length > 0) {
           const rechnungenSaveResponse = await createRechnungenBatch(rechnungenToSave);
           if (!rechnungenSaveResponse.success) {
-            toast({ 
-              title: "Fehler beim Speichern der Einzelrechnungen", 
-              description: rechnungenSaveResponse.message, 
-              variant: "destructive" 
+            toast({
+              title: "Fehler beim Speichern der Einzelrechnungen",
+              description: rechnungenSaveResponse.message,
+              variant: "destructive"
             });
             setIsSaving(false);
             setBetriebskostenModalDirty(true);
             return; // Stop execution if saving individual bills fails
           }
         }
-        
+
       }
-      
+
       // Only show success and close if everything was successful
-      toast({ 
+      toast({
         title: "Erfolg",
         description: "Betriebskosten erfolgreich gespeichert",
-        variant: "success" 
+        variant: "success"
       });
       setBetriebskostenModalDirty(false); // Clear dirty state before closing
-      if (betriebskostenModalOnSuccess) betriebskostenModalOnSuccess();
+      if (betriebskostenModalOnSuccess) {
+        betriebskostenModalOnSuccess();
+      }
+      useOnboardingStore.getState().completeStep('create-bill-form');
       closeBetriebskostenModal();
     } else {
       toast({ title: "Fehler beim Speichern", description: response.message, variant: "destructive" });
@@ -901,24 +905,24 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     }
   };
 
-  const handleStartdatumChange = (date: string) => { 
-    setStartdatum(date); 
-    setBetriebskostenModalDirty(true); 
+  const handleStartdatumChange = (date: string) => {
+    setStartdatum(date);
+    setBetriebskostenModalDirty(true);
   };
-  
-  const handleEnddatumChange = (date: string) => { 
-    setEnddatum(date); 
-    setBetriebskostenModalDirty(true); 
+
+  const handleEnddatumChange = (date: string) => {
+    setEnddatum(date);
+    setBetriebskostenModalDirty(true);
   };
-  
-  const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => { 
-    setWasserkosten(e.target.value); 
-    setBetriebskostenModalDirty(true); 
+
+  const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setWasserkosten(e.target.value);
+    setBetriebskostenModalDirty(true);
   };
-  
-  const handleHausChange = (newHausId: string | null) => { 
-    setHausId(newHausId || ''); 
-    setBetriebskostenModalDirty(true); 
+
+  const handleHausChange = (newHausId: string | null) => {
+    setHausId(newHausId || '');
+    setBetriebskostenModalDirty(true);
   };
 
   if (!isBetriebskostenModalOpen) {
@@ -933,16 +937,13 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   };
 
   return (
-    <Dialog 
-      open={isBetriebskostenModalOpen} 
-      onOpenChange={handleOpenChange}
-    >
+    <Dialog open={isBetriebskostenModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent
-        className="max-w-4xl"
-        isDirty={isBetriebskostenModalDirty}
+        id="utility-bill-form-container"
+        className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
         onAttemptClose={attemptClose}
-      >
-        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+        isDirty={isBetriebskostenModalDirty}
+      >  <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <DialogHeader className="px-4">
             <DialogTitle>
               {betriebskostenInitialData?.id ? "Betriebskosten bearbeiten" : "Neue Betriebskostenabrechnung"}
@@ -951,7 +952,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
               {isFormLoading ? "Daten werden vorbereitet..." : "Füllen Sie die Details für die Betriebskostenabrechnung aus."}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6 overflow-y-auto max-h-[70vh] p-4">
             {/* Property & Period Selection Section */}
             <div className="bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 space-y-4">
@@ -982,7 +983,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       disabled={isSaving || isFormLoading}
                       showPeriodInfo={false}
                     />
-                    
+
                     {/* Year Navigation Buttons - positioned directly below date inputs */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <Button
@@ -1024,7 +1025,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                         +1 Jahr
                       </Button>
                     </div>
-                    
+
                     {/* Period information - moved below the year buttons */}
                     {(() => {
                       const validation = validateDateRange(startdatum, enddatum);
@@ -1035,7 +1036,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                               <strong>Abrechnungszeitraum:</strong> {formatPeriodDuration(startdatum, enddatum)}
                             </div>
                           )}
-                          
+
                           {validation.errors.range && (
                             <p className={`text-sm ${validation.errors.range.startsWith('Warnung') ? 'text-yellow-600' : 'text-red-600'}`}>
                               {validation.errors.range}

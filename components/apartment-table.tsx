@@ -21,6 +21,7 @@ import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { ChevronsUpDown, ArrowUp, ArrowDown, Home, Ruler, Euro, Building2, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
 import { formatNumber } from "@/utils/format"
+import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 
 export interface Apartment {
   id: string
@@ -69,14 +70,14 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
 
   const sortedAndFilteredData = useMemo(() => {
     let result = [...(initialApartments ?? [])]
-    
+
     // Filter by status
     if (filter === 'free') {
       result = result.filter(apt => apt.status === 'frei')
     } else if (filter === 'rented') {
       result = result.filter(apt => apt.status === 'vermietet')
     }
-    
+
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -122,7 +123,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
         }
       })
     }
-    
+
     return result
   }, [initialApartments, filter, searchQuery, sortKey, sortDirection])
 
@@ -193,17 +194,17 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
 
       const { successCount } = await response.json();
       const failedCount = selectedIds.length - successCount;
-      
+
       setShowBulkDeleteConfirm(false);
       setSelectedApartments(new Set());
-      
+
       if (successCount > 0) {
         toast({
           title: "Erfolg",
           description: `${successCount} Wohnungen erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`,
           variant: "success",
         });
-        
+
         if (onTableRefresh) await onTableRefresh();
         router.refresh();
       } else {
@@ -236,10 +237,10 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
 
   const handleBulkExport = () => {
     const selectedApartmentsData = (initialApartments ?? []).filter(a => selectedApartments.has(a.id))
-    
+
     const headers = ['Wohnung', 'Größe (m²)', 'Miete (€)', '€/m²', 'Haus', 'Status']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     const csvRows = selectedApartmentsData.map(a => {
       const row = [
         a.name,
@@ -251,7 +252,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -362,7 +363,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                 sortedAndFilteredData.map((apt, index) => {
                   const isLastRow = index === sortedAndFilteredData.length - 1
                   const isSelected = selectedApartments.has(apt.id)
-                  
+
                   return (
                     <ApartmentContextMenu
                       key={apt.id}
@@ -374,7 +375,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                         }
                       }}
                     >
-                      <TableRow 
+                      <TableRow
                         ref={(el) => {
                           if (el) {
                             contextMenuRefs.current.set(apt.id, el)
@@ -382,15 +383,14 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                             contextMenuRefs.current.delete(apt.id)
                           }
                         }}
-                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
-                          isSelected 
-                            ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                        }`}
+                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                          }`}
                         onClick={() => onEdit?.(apt)}
                       >
-                        <TableCell 
-                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`} 
+                        <TableCell
+                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <Checkbox
@@ -415,15 +415,19 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell 
-                          className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
+                        <TableCell
+                          className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <Button
+                            id={index === 0 ? "apartment-menu-trigger-0" : undefined}
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
                             onClick={(e) => {
+                              if (index === 0) {
+                                useOnboardingStore.getState().completeStep('create-meter-open-menu');
+                              }
                               e.stopPropagation()
                               const rowElement = contextMenuRefs.current.get(apt.id)
                               if (rowElement) {

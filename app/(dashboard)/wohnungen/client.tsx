@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -79,7 +80,7 @@ export default function WohnungenClientView({
   useEffect(() => {
     let message = "";
     const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
-    
+
     if (!serverUserIsEligibleToAdd) {
       message = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
     } else if (limitReached) {
@@ -91,7 +92,7 @@ export default function WohnungenClientView({
         message = "Das Wohnungslimit ist erreicht.";
       }
     }
-    
+
     setButtonTooltipMessage(message);
     setIsAddButtonDisabled(!serverUserIsEligibleToAdd || limitReached);
   }, [serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd, serverLimitReason]);
@@ -129,10 +130,10 @@ export default function WohnungenClientView({
 
   const handleBulkExport = useCallback(() => {
     const selectedApartmentsData = apartments.filter(a => selectedApartments.has(a.id))
-    
+
     const headers = ['Name', 'Größe (m²)', 'Miete (€)', 'Miete pro m²', 'Haus', 'Status']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     const csvRows = selectedApartmentsData.map(a => {
       const row = [
         a.name,
@@ -144,7 +145,7 @@ export default function WohnungenClientView({
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -179,10 +180,10 @@ export default function WohnungenClientView({
       }
 
       const { successCount } = await response.json();
-      
+
       setShowBulkDeleteConfirm(false);
       setSelectedApartments(new Set());
-      
+
       toast({
         title: "Erfolg",
         description: `${successCount} Wohnungen erfolgreich gelöscht.`,
@@ -214,7 +215,7 @@ export default function WohnungenClientView({
     }
 
     setIsUpdating(true)
-    
+
     try {
       const selectedIds = Array.from(selectedApartments)
       if (selectedIds.length === 0) return
@@ -237,7 +238,7 @@ export default function WohnungenClientView({
 
       const { successCount } = await response.json()
       const failedCount = selectedIds.length - successCount
-      
+
       if (successCount > 0) {
         toast({
           title: "Erfolgreich aktualisiert",
@@ -245,7 +246,7 @@ export default function WohnungenClientView({
           variant: "success"
         })
       }
-      
+
       if (failedCount > 0) {
         toast({
           title: "Teilweise Fehler",
@@ -253,7 +254,7 @@ export default function WohnungenClientView({
           variant: "destructive"
         })
       }
-      
+
       if (successCount > 0) {
         setIsAssignDialogOpen(false)
         setSelectedHouse("none")
@@ -303,7 +304,7 @@ export default function WohnungenClientView({
 
   useEffect(() => {
     const handleEditApartmentListener = async (event: Event) => {
-      const customEvent = event as CustomEvent<{id: string}>;
+      const customEvent = event as CustomEvent<{ id: string }>;
       const apartmentId = customEvent.detail?.id;
       if (!apartmentId) return;
       try {
@@ -365,9 +366,13 @@ export default function WohnungenClientView({
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Wohnungen</p>
             </div>
             <div className="mt-1">
-              <ButtonWithHoverCard 
-                onClick={handleAddWohnung} 
-                className="sm:w-auto" 
+              <ButtonWithHoverCard
+                id="create-unit-btn"
+                onClick={() => {
+                  useOnboardingStore.getState().completeStep('create-apartment-start');
+                  handleAddWohnung();
+                }}
+                className="sm:w-auto"
                 disabled={isAddButtonDisabled}
                 tooltip={buttonTooltipMessage}
                 showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}

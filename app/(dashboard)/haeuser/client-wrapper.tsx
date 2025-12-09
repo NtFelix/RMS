@@ -13,6 +13,7 @@ import { useModalStore } from "@/hooks/use-modal-store";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 // Props for the main client view component
 interface HaeuserClientViewProps {
@@ -78,10 +79,10 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
   const handleBulkExport = useCallback(() => {
     const selectedHousesData = enrichedHaeuser.filter(h => selectedHouses.has(h.id))
-    
+
     const headers = ['Haus', 'Ort', 'Größe (m²)', 'Miete (€)', '€/m²', 'Status']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     const csvRows = selectedHousesData.map(h => {
       const row = [
         h.name,
@@ -93,7 +94,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -167,22 +168,22 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
         }}
       />
       <div className="flex flex-wrap gap-4">
-        <StatCard 
-          title="Häuser gesamt" 
-          value={summary.totalHouses} 
-          icon={<Building className="h-4 w-4 text-muted-foreground" />} 
+        <StatCard
+          title="Häuser gesamt"
+          value={summary.totalHouses}
+          icon={<Building className="h-4 w-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
-        <StatCard 
-          title="Wohnungen gesamt" 
-          value={summary.totalApartments} 
-          icon={<Home className="h-4 w-4 text-muted-foreground" />} 
+        <StatCard
+          title="Wohnungen gesamt"
+          value={summary.totalApartments}
+          icon={<Home className="h-4 w-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
-        <StatCard 
-          title="Freie Wohnungen" 
-          value={summary.freeApartments} 
-          icon={<Key className="h-4 w-4 text-muted-foreground" />} 
+        <StatCard
+          title="Freie Wohnungen"
+          value={summary.freeApartments}
+          icon={<Key className="h-4 w-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
       </div>
@@ -194,7 +195,14 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Häuser</p>
             </div>
             <div className="mt-1">
-              <ButtonWithTooltip onClick={handleAdd} className="sm:w-auto">
+              <ButtonWithTooltip
+                id="create-object-btn"
+                onClick={() => {
+                  useOnboardingStore.getState().completeStep('create-house-start');
+                  handleAdd();
+                }}
+                className="sm:w-auto"
+              >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Haus hinzufügen
               </ButtonWithTooltip>

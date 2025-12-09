@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 interface CreateAbrechnungDropdownProps {
   onBlankClick: () => void;
@@ -31,7 +32,9 @@ export function CreateAbrechnungDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <ButtonWithTooltip 
+        <ButtonWithTooltip
+          id="create-utility-bill-btn"
+          onClick={() => useOnboardingStore.getState().completeStep('create-bill-start')}
           className={className}
           variant={buttonVariant}
         >

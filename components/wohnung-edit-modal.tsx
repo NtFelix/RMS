@@ -25,7 +25,8 @@ import {
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { toast } from "@/hooks/use-toast"; // Changed import
 import { createClient } from "@/utils/supabase/client";
-import { useModalStore } from "@/hooks/use-modal-store"; // Added import
+import { useModalStore } from "@/hooks/use-modal-store";
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 // Define interfaces based on expected data structure
 interface Wohnung {
@@ -133,10 +134,10 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
   // Sync internalHaeuser with store's wohnungModalHaeuser
   useEffect(() => {
     if (isWohnungModalOpen) { // Only run if modal is open
-        setInternalHaeuser(wohnungModalHaeuser || []);
-        // If there's a need to fetch Haeuser because wohnungModalHaeuser is empty,
-        // that logic would go here, perhaps setting setIsLoadingHaeuser.
-        // For now, we assume openWohnungModal provides the necessary haeuser list.
+      setInternalHaeuser(wohnungModalHaeuser || []);
+      // If there's a need to fetch Haeuser because wohnungModalHaeuser is empty,
+      // that logic would go here, perhaps setting setIsLoadingHaeuser.
+      // For now, we assume openWohnungModal provides the necessary haeuser list.
     }
   }, [isWohnungModalOpen, wohnungModalHaeuser]);
 
@@ -255,6 +256,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
           };
           wohnungModalOnSuccess(successData);
         }
+        useOnboardingStore.getState().completeStep('create-apartment-form');
         closeWohnungModal();
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
@@ -274,6 +276,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
   return (
     <Dialog open={isWohnungModalOpen} onOpenChange={(openValue) => !openValue && attemptClose()}>
       <DialogContent
+        id="wohnung-form-container"
         className="sm:max-w-[500px]"
         isDirty={isWohnungModalDirty}
         onAttemptClose={attemptClose}
@@ -350,7 +353,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             <p className="text-sm text-red-500 mb-2 text-center">{contextualSaveMessage}</p>
           )}
           <DialogFooter>
-             <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button
