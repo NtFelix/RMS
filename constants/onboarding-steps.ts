@@ -71,14 +71,20 @@ export const TOUR_STEPS: TourStep[] = [
         id: 'create-bill-start',
         element: '#create-utility-bill-btn',
         title: 'Abrechnung erstellen',
-        description: 'Jetzt können Sie eine Nebenkostenabrechnung erzeugen.',
+        description: 'Klicken Sie hier, um das Menü für neue Abrechnungen zu öffnen.',
         path: '/betriebskosten',
+    },
+    {
+        id: 'create-bill-select',
+        element: '#utility-bill-template-option',
+        title: 'Standard-Vorlage wählen',
+        description: 'Wählen Sie die Standard-Vorlage, um eine neue Betriebskostenabrechnung mit vordefinierten Werten zu erstellen.',
     },
     {
         id: 'create-bill-form',
         element: '#utility-bill-form-container',
         title: 'Abrechnung konfigurieren',
-        description: 'Wählen Sie den Zeitraum und die Kostenarten.',
+        description: 'Füllen Sie die Abrechnungsdaten aus und speichern Sie.',
     },
     {
         id: 'overview-open',
