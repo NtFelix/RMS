@@ -72,6 +72,9 @@ export function OnboardingTour() {
                 onPrevClick: () => {
                     useOnboardingStore.getState().goToPreviousStep();
                 },
+                onNextClick: () => {
+                    useOnboardingStore.getState().goToNextStep();
+                },
                 onDestroyStarted: () => {
                     // This is called when the driver is destroyed (e.g. by 'close' button or programmatically)
                     // We need to distinguish between explicit close and programatic destroy
@@ -96,6 +99,11 @@ export function OnboardingTour() {
                         if (currentStepIndex > 0) {
                             buttons.push('previous');
                         }
+
+                        // Add next button
+                        // If it's the last step, driver.js automatically changes logic, but we handle it via store
+                        buttons.push('next');
+
                         // Always show close button since allowClose is false
                         buttons.push('close');
 
@@ -114,6 +122,7 @@ export function OnboardingTour() {
                                     align: 'center',
                                     showButtons: buttons,
                                     progressText: `${currentStepIndex + 1} von ${TOUR_STEPS.length}`,
+                                    nextBtnText: 'Überspringen' // Change text to indicate skipping navigation
                                 }
                             });
                             return; // Wait for user to navigate
@@ -132,6 +141,7 @@ export function OnboardingTour() {
                                 align: 'start',
                                 showButtons: buttons,
                                 progressText: `${currentStepIndex + 1} von ${TOUR_STEPS.length}`,
+                                nextBtnText: currentStepIndex === TOUR_STEPS.length - 1 ? 'Beenden' : 'Weiter'
                             }
                         });
                     } catch (e) {

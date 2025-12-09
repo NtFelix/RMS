@@ -12,6 +12,7 @@ interface OnboardingState {
     stopTour: () => void;
     completeStep: (stepId: string) => void;
     goToPreviousStep: () => void;
+    goToNextStep: () => void;
     resetTour: () => void;
     skipTour: () => void;
 }
@@ -62,6 +63,19 @@ export const useOnboardingStore = create<OnboardingState>()(
                 const { currentStepIndex } = get();
                 if (currentStepIndex > 0) {
                     set({ currentStepIndex: currentStepIndex - 1 });
+                }
+            },
+
+            goToNextStep: () => {
+                const { currentStepIndex } = get();
+                const nextIndex = currentStepIndex + 1;
+
+                if (nextIndex >= TOUR_STEPS.length) {
+                    // Tour finished
+                    set({ isActive: false, currentStepIndex: 0 });
+                    fetch('/api/user/onboarding', { method: 'POST' }).catch(console.error);
+                } else {
+                    set({ currentStepIndex: nextIndex });
                 }
             },
         }),
