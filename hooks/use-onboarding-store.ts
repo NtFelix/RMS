@@ -11,6 +11,7 @@ interface OnboardingState {
     startTour: () => void;
     stopTour: () => void;
     completeStep: (stepId: string) => void;
+    goToPreviousStep: () => void;
     resetTour: () => void;
     skipTour: () => void;
 }
@@ -55,7 +56,14 @@ export const useOnboardingStore = create<OnboardingState>()(
                         set({ currentStepIndex: nextIndex });
                     }
                 }
-            }
+            },
+
+            goToPreviousStep: () => {
+                const { currentStepIndex } = get();
+                if (currentStepIndex > 0) {
+                    set({ currentStepIndex: currentStepIndex - 1 });
+                }
+            },
         }),
         {
             name: 'onboarding-storage',

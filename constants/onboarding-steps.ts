@@ -1,9 +1,11 @@
 
+
 export interface TourStep {
     id: string;
     element: string;
     title: string;
     description: string;
+    path?: string;
 }
 
 export const TOUR_STEPS: TourStep[] = [
@@ -12,6 +14,7 @@ export const TOUR_STEPS: TourStep[] = [
         element: '#create-object-btn',
         title: 'Objekt anlegen',
         description: 'Beginnen Sie hier, um Ihre erste Immobilie anzulegen.',
+        path: '/haeuser',
     },
     {
         id: 'create-house-form',
@@ -24,6 +27,7 @@ export const TOUR_STEPS: TourStep[] = [
         element: '#create-unit-btn',
         title: 'Wohnung hinzufügen',
         description: 'Legen Sie nun eine Einheit in diesem Objekt an.',
+        path: '/wohnungen',
     },
     {
         id: 'create-apartment-form',
@@ -36,6 +40,7 @@ export const TOUR_STEPS: TourStep[] = [
         element: '#apartment-menu-trigger-0',
         title: 'Wohnungsoptionen',
         description: 'Klicken Sie auf das Menü, um weitere Optionen für die Wohnung zu sehen.',
+        path: '/wohnungen',
     },
     {
         id: 'create-meter-select',
@@ -54,6 +59,7 @@ export const TOUR_STEPS: TourStep[] = [
         element: '#add-tenant-btn',
         title: 'Mieter zuweisen',
         description: 'Verknüpfen Sie nun einen Mieter mit der Wohnung.',
+        path: '/mieter',
     },
     {
         id: 'assign-tenant-form',
@@ -66,6 +72,7 @@ export const TOUR_STEPS: TourStep[] = [
         element: '#create-utility-bill-btn',
         title: 'Abrechnung erstellen',
         description: 'Jetzt können Sie eine Nebenkostenabrechnung erzeugen.',
+        path: '/betriebskosten',
     },
     {
         id: 'create-bill-form',
@@ -75,8 +82,9 @@ export const TOUR_STEPS: TourStep[] = [
     },
     {
         id: 'overview-open',
-        element: '#sidebar-overview-link',
+        element: '#sidebar-nav-home',
         title: 'Zur Übersicht',
         description: 'Kehren Sie zum Dashboard zurück, um Ihre Auswertung zu sehen.',
     },
 ];
+

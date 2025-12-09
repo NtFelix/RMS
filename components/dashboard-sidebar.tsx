@@ -365,7 +365,7 @@ function SidebarContent({
                     <TooltipTrigger asChild>
                       <Link
                         href={item.href}
-                        id={item.href === '/home' ? 'sidebar-overview-link' : undefined}
+                        id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
                         onClick={() => {
                           setIsOpen(false)
                           if (item.href === '/home') {

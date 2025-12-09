@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { driver } from 'driver.js';
 import "driver.js/dist/driver.css";
 import { useOnboardingStore } from '@/hooks/use-onboarding-store';
@@ -39,6 +40,8 @@ export function OnboardingTour() {
     const { isActive, currentStepIndex, stopTour } = useOnboardingStore();
     const driverRef = useRef<any>(null);
     const { theme } = useTheme();
+    const router = useRouter();
+    const pathname = usePathname();
 
     useEffect(() => {
         const checkOnboardingStatus = async () => {
@@ -46,8 +49,6 @@ export function OnboardingTour() {
                 const response = await fetch('/api/user/onboarding');
                 if (response.ok) {
                     const data = await response.json();
-                    // If onboarding is not completed, start the tour
-                    // This will force restart if closed early until completed
                     if (!data.completed && !useOnboardingStore.getState().isActive) {
                         useOnboardingStore.getState().startTour();
                     }
@@ -66,20 +67,19 @@ export function OnboardingTour() {
             driverRef.current = driver({
                 animate: true,
                 showProgress: true,
-                allowClose: true,
+                allowClose: false, // Prevent closing by clicking outside or ESC
+                // Handle button clicks
+                onPrevClick: () => {
+                    useOnboardingStore.getState().goToPreviousStep();
+                },
                 onDestroyStarted: () => {
-                    // If the tour is active and we are destroying it (user clicked close),
-                    // we should stop the tour in the store.
-                    // Note: This callback might be triggered during programatic destroy too,
-                    // so we need to be careful not to create loops.
-                    // However, since we control 'isActive' in the dependency array,
-                    // we can check if we initiated the destroy or the user did.
-                    // For now, simpler is better: if it destroys, we ensure store is stopped.
+                    // This is called when the driver is destroyed (e.g. by 'close' button or programmatically)
+                    // We need to distinguish between explicit close and programatic destroy
+                    // For now, assume if the user clicks 'Close', it triggers this.
                     if (useOnboardingStore.getState().isActive) {
                         stopTour();
                     }
                 },
-                // Custom styling helper class
                 popoverClass: theme === 'dark' ? 'driver-popover-dark' : '',
             });
         }
@@ -92,11 +92,37 @@ export function OnboardingTour() {
                 const step = TOUR_STEPS[currentStepIndex];
                 if (step) {
                     try {
+                        const buttons = [];
+                        if (currentStepIndex > 0) {
+                            buttons.push('previous');
+                        }
+                        // Always show close button since allowClose is false
+                        buttons.push('close');
+
+                        // Check if we need to navigate
+                        if (step.path && pathname !== step.path) {
+                            const navId = `#sidebar-nav-${step.path.replace(/^\//, '')}`;
+                            // Wait for sidebar element
+                            await waitForElement(navId, 5000);
+
+                            driverInstance.highlight({
+                                element: navId,
+                                popover: {
+                                    title: "Weiter geht's",
+                                    description: "Klicken Sie auf diesen Menüpunkt, um zum nächsten Schritt zu gelangen.",
+                                    side: "right",
+                                    align: 'center',
+                                    showButtons: buttons,
+                                    progressText: `${currentStepIndex + 1} von ${TOUR_STEPS.length}`,
+                                }
+                            });
+                            return; // Wait for user to navigate
+                        }
+
                         // Wait for element to be present in DOM
                         await waitForElement(step.element, 5000);
 
                         // Use highlight to show the specific step
-                        // We configure it to NOT show navigation buttons since we want auto-advance
                         driverInstance.highlight({
                             element: step.element,
                             popover: {
@@ -104,23 +130,17 @@ export function OnboardingTour() {
                                 description: step.description,
                                 side: "left",
                                 align: 'start',
-                                showButtons: [], // Hide Next/Prev buttons
+                                showButtons: buttons,
                                 progressText: `${currentStepIndex + 1} von ${TOUR_STEPS.length}`,
                             }
                         });
                     } catch (e) {
                         console.warn(`Could not find element ${step.element} for step ${step.id}`);
-                        // Optionally auto-skip or show error? For now just log.
-                        // If we can't find the element, the tour might get stuck.
-                        // We could skip to next step?
-                        // useOnboardingStore.getState().completeStep(step.id);
                     }
                 } else {
-                    // Index out of bounds, maybe finished?
                     driverInstance.destroy();
                 }
             } else {
-                // If not active, ensure driver is destroyed
                 driverInstance.destroy();
             }
         };
@@ -128,14 +148,13 @@ export function OnboardingTour() {
         handleStep();
 
 
-        // Cleanup not strictly necessary for singleton but good practice if component unmounts
         return () => {
             if (driverRef.current) {
                 driverRef.current.destroy();
                 driverRef.current = null;
             }
         };
-    }, [isActive, currentStepIndex, stopTour, theme]);
+    }, [isActive, currentStepIndex, stopTour, theme, pathname, router]);
 
     return null;
 }
