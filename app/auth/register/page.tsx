@@ -16,6 +16,13 @@ import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth-3d-decorations"
 
+const benefits = [
+  "14 Tage kostenlos testen",
+  "Keine Kreditkarte erforderlich",
+  "Jederzeit kündbar",
+]
+
+
 export default function RegisterPage() {
   const router = useRouter()
 
@@ -81,11 +88,7 @@ export default function RegisterPage() {
     setIsLoading(false)
   }
 
-  const benefits = [
-    "14 Tage kostenlos testen",
-    "Keine Kreditkarte erforderlich",
-    "Jederzeit kündbar",
-  ]
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden">
