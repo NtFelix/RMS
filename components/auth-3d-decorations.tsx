@@ -44,19 +44,19 @@ export function Auth3DDecorations() {
             {/* 3D Decorative rotating rings */}
             <div className="absolute inset-0 pointer-events-none" style={{ transformStyle: 'preserve-3d' }}>
                 <motion.div
-                    className={`absolute -top-32 -right-32 w-96 h-96 border border-white/[${RING_OPACITY.primary}] rounded-full`}
+                    className="absolute -top-32 -right-32 w-96 h-96 border rounded-full"
                     style={{ borderColor: `rgba(255, 255, 255, ${RING_OPACITY.primary})` }}
                     animate={{ rotateX: [0, 360], rotateY: [0, 360], rotateZ: [0, 180] }}
                     transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
                 />
                 <motion.div
-                    className={`absolute top-1/2 -left-32 w-80 h-80 border border-white/[${RING_OPACITY.primary}] rounded-full`}
+                    className="absolute top-1/2 -left-32 w-80 h-80 border rounded-full"
                     style={{ borderColor: `rgba(255, 255, 255, ${RING_OPACITY.primary})` }}
                     animate={{ rotateX: [0, -360], rotateY: [0, 180], rotateZ: [0, -90] }}
                     transition={{ duration: 35, repeat: Infinity, ease: "linear" }}
                 />
                 <motion.div
-                    className={`absolute -bottom-32 left-1/2 w-[30rem] h-[30rem] border border-white/[${RING_OPACITY.secondary}] rounded-full`}
+                    className="absolute -bottom-32 left-1/2 w-[30rem] h-[30rem] border rounded-full"
                     style={{ borderColor: `rgba(255, 255, 255, ${RING_OPACITY.secondary})` }}
                     animate={{ rotateX: [45, 405], rotateY: [0, 0], rotateZ: [0, 360] }}
                     transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
