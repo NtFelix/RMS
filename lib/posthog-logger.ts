@@ -13,31 +13,26 @@
  * @see https://posthog.com/docs/logs/installation
  */
 
-// Types for log attributes
-export interface LogAttributes {
-    [key: string]: string | number | boolean | string[] | number[] | null | undefined;
-}
+import {
+    LogAttributes,
+    SERVICE_NAME,
+    POSTHOG_API_KEY,
+    POSTHOG_HOST,
+    getLogsEndpoint,
+    buildOTLPPayloadBatch,
+} from './otlp-utils';
+
+// Re-export LogAttributes for consumers
+export type { LogAttributes };
 
 // Configuration
-const SERVICE_NAME = 'mietfluss';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-
-// Use the project API key (starts with phc_) for logs
-const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY;
-const POSTHOG_HOST = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com';
 
 // Debug mode - set POSTHOG_LOGS_DEBUG=true to enable verbose logging
 const DEBUG_MODE = process.env.POSTHOG_LOGS_DEBUG === 'true';
 
 // Always send logs to PostHog when API key is configured (both dev and production)
 const SHOULD_SEND_TO_POSTHOG = !!POSTHOG_API_KEY;
-
-
-// Derive logs endpoint from PostHog host
-function getLogsEndpoint(): string {
-    const host = POSTHOG_HOST.replace(/\/$/, ''); // Remove trailing slash
-    return `${host}/i/v1/logs`;
-}
 
 function debugLog(...args: unknown[]): void {
     if (DEBUG_MODE) {
@@ -68,82 +63,6 @@ let stats = {
 let flushTimeout: NodeJS.Timeout | null = null;
 
 /**
- * Build the OTLP payload for PostHog
- */
-function buildOTLPPayload(logs: typeof logBatch) {
-    return {
-        resourceLogs: [{
-            resource: {
-                attributes: [
-                    { key: 'service.name', value: { stringValue: SERVICE_NAME } },
-                    { key: 'deployment.environment', value: { stringValue: process.env.NODE_ENV || 'development' } },
-                    { key: 'telemetry.sdk.name', value: { stringValue: 'posthog-logger' } },
-                    { key: 'telemetry.sdk.version', value: { stringValue: '1.0.0' } },
-                ]
-            },
-            scopeLogs: [{
-                scope: { name: SERVICE_NAME, version: '1.0.0' },
-                logRecords: logs.map(log => ({
-                    timeUnixNano: String(new Date(log.timestamp).getTime() * 1000000),
-                    observedTimeUnixNano: String(Date.now() * 1000000),
-                    severityNumber: getSeverityNumber(log.severityText),
-                    severityText: log.severityText.toUpperCase(),
-                    body: { stringValue: log.body },
-                    attributes: Object.entries(log.attributes)
-                        .filter(([, v]) => v !== null && v !== undefined)
-                        .map(([key, value]) => ({
-                            key,
-                            value: formatAttributeValue(value)
-                        }))
-                }))
-            }]
-        }]
-    };
-}
-
-/**
- * Convert severity text to OpenTelemetry severity number
- */
-function getSeverityNumber(severity: string): number {
-    const map: Record<string, number> = {
-        'trace': 1,
-        'debug': 5,
-        'info': 9,
-        'warn': 13,
-        'warning': 13,
-        'error': 17,
-        'fatal': 21,
-    };
-    return map[severity.toLowerCase()] || 9;
-}
-
-/**
- * Format attribute value for OTLP
- */
-function formatAttributeValue(value: unknown): Record<string, unknown> {
-    if (typeof value === 'string') {
-        return { stringValue: value };
-    }
-    if (typeof value === 'number') {
-        if (Number.isInteger(value)) {
-            return { intValue: String(value) };
-        }
-        return { doubleValue: value };
-    }
-    if (typeof value === 'boolean') {
-        return { boolValue: value };
-    }
-    if (Array.isArray(value)) {
-        return {
-            arrayValue: {
-                values: value.map(v => formatAttributeValue(v))
-            }
-        };
-    }
-    return { stringValue: String(value) };
-}
-
-/**
  * Send logs to PostHog via OTLP HTTP
  */
 async function flushLogs(): Promise<void> {
@@ -162,7 +81,7 @@ async function flushLogs(): Promise<void> {
     logBatch = [];
 
     const endpoint = getLogsEndpoint();
-    const payload = buildOTLPPayload(logsToSend);
+    const payload = buildOTLPPayloadBatch(logsToSend);
 
     debugLog(`Flushing ${logsToSend.length} logs to ${endpoint}`);
     debugLog('Payload:', JSON.stringify(payload, null, 2));
