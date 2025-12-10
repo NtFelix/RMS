@@ -142,7 +142,7 @@
     /* Z-index management */
     --z-index-dropdown: 1000;
     --z-index-sticky: 1020;
-    
+
     /* Chart colors */
     --chart-color-1: #34d399;
     --chart-color-2: #f59e42;
@@ -152,7 +152,8 @@
     --chart-color-6: #fb923c;
     --chart-color-7: #4ade80;
     --chart-color-8: #fbbf24;
-    --chart-color-empty: #94a3b8; /* For empty/placeholder data */
+    --chart-color-empty: #94a3b8;
+    /* For empty/placeholder data */
     --z-index-fixed: 1030;
     --z-index-modal-backdrop: 1040;
     --z-index-modal: 1050;
@@ -169,20 +170,27 @@
     --bg-color: #ecf0f1;
 
     /* Tailwind CSS Variablen mit den neuen Farben */
-    --background: 195 9% 95%; /* #ecf0f1 */
-    --foreground: 0 0% 20%; /* #333 */
+    --background: 195 9% 95%;
+    /* #ecf0f1 */
+    --foreground: 0 0% 20%;
+    /* #333 */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
-    --primary: 210 29% 24%; /* #2c3e50 */
-    --primary-rgb: 44, 62, 80; /* RGB equivalent of #2c3e50 */
+    --primary: 210 29% 24%;
+    /* #2c3e50 */
+    --primary-rgb: 44, 62, 80;
+    /* RGB equivalent of #2c3e50 */
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 29% 29%; /* #34495e */
+    --secondary: 210 29% 29%;
+    /* #34495e */
     --secondary-foreground: 210 40% 98%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 210 29% 29%;
+    --accent-rgb: 52, 73, 94;
+    /* for #34495e */
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -201,43 +209,76 @@
 
   .dark {
     /* Custom Dark Mode Palette - Original colors with darker blue primary/accent */
-    --background: 0 0% 9.4%; /* #181818 - bg-primary */
-    --foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
-    --card: 210 11% 13.7%; /* #22272e - bg-elevated */
-    --card-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
-    --popover: 210 11% 13.7%; /* #22272e - bg-elevated */
-    --popover-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
-    --primary: 220 39% 25%; /* #2D4A6B - darker blue primary for hover states */
-    --primary-rgb: 45, 74, 107; /* RGB equivalent of #2D4A6B */
-    --primary-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
-    --secondary: 215 14% 16%; /* #23272a - bg-secondary (original) */
-    --secondary-foreground: 214 15% 76%; /* #BFC8D9 - text-secondary */
-    --muted: 215 14% 16%; /* #23272a - bg-secondary (original) */
-    --muted-foreground: 214 15% 76%; /* #BFC8D9 - text-secondary */
-    --accent: 220 39% 25%; /* #2D4A6B - darker blue accent for hover states */
-    --accent-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
-    --destructive: 0 100% 67%; /* #FF5757 - error */
-    --destructive-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
-    --border: 215 15% 26%; /* #3C4251 - border-color (original) */
-    --input: 220 11% 13%; /* #22252b - input-bg (original) */
-    --ring: 220 39% 25%; /* #2D4A6B - darker blue ring */
+    --background: 0 0% 9.4%;
+    /* #181818 - bg-primary */
+    --foreground: 220 9% 95%;
+    /* #F3F4F6 - text-primary */
+    --card: 210 11% 13.7%;
+    /* #22272e - bg-elevated */
+    --card-foreground: 220 9% 95%;
+    /* #F3F4F6 - text-primary */
+    --popover: 210 11% 13.7%;
+    /* #22272e - bg-elevated */
+    --popover-foreground: 220 9% 95%;
+    /* #F3F4F6 - text-primary */
+    --primary: 220 39% 25%;
+    /* #2D4A6B - darker blue primary for hover states */
+    --primary-rgb: 45, 74, 107;
+    /* RGB equivalent of #2D4A6B */
+    --primary-foreground: 220 9% 95%;
+    /* #F3F4F6 - text-primary */
+    --secondary: 215 14% 16%;
+    /* #23272a - bg-secondary (original) */
+    --secondary-foreground: 214 15% 76%;
+    /* #BFC8D9 - text-secondary */
+    --muted: 215 14% 16%;
+    /* #23272a - bg-secondary (original) */
+    --muted-foreground: 214 15% 76%;
+    /* #BFC8D9 - text-secondary */
+    --accent: 220 39% 25%;
+    /* #2D4A6B - darker blue accent for hover states */
+    --accent-rgb: 45, 74, 107;
+    /* for #2d4a6b */
+    --accent-foreground: 220 9% 95%;
+    /* #F3F4F6 - text-primary */
+    --destructive: 0 100% 67%;
+    /* #FF5757 - error */
+    --destructive-foreground: 220 9% 95%;
+    /* #F3F4F6 - text-primary */
+    --border: 215 15% 26%;
+    /* #3C4251 - border-color (original) */
+    --input: 220 11% 13%;
+    /* #22252b - input-bg (original) */
+    --ring: 220 39% 25%;
+    /* #2D4A6B - darker blue ring */
 
     /* Custom variables for specific use cases */
-    --btn-bg: 215 25% 19%; /* #232f3e - btn-bg (original) */
-    --btn-hover: 215 30% 22%; /* #25344a - btn-hover (original) */
-    --success: 162 100% 50%; /* #00ffa3 - success */
-    --warning: 50 100% 73%; /* #ffe176 - warning */
-    --input-placeholder: 0 0% 57%; /* #919191 - input-placeholder */
-    --text-disabled: 215 8% 61%; /* #9399a2 - text-disabled */
-    
+    --btn-bg: 215 25% 19%;
+    /* #232f3e - btn-bg (original) */
+    --btn-hover: 215 30% 22%;
+    /* #25344a - btn-hover (original) */
+    --success: 162 100% 50%;
+    /* #00ffa3 - success */
+    --warning: 50 100% 73%;
+    /* #ffe176 - warning */
+    --input-placeholder: 0 0% 57%;
+    /* #919191 - input-placeholder */
+    --text-disabled: 215 8% 61%;
+    /* #9399a2 - text-disabled */
+
     /* Main container color - slightly lighter than background */
-    --main-container: 0 0% 12%; /* #1F1F1F - slightly lighter than #181818 background */
+    --main-container: 0 0% 12%;
+    /* #1F1F1F - slightly lighter than #181818 background */
 
     /* Chart Farben */
-    --chart-1: 220 39% 25%; /* #2D4A6B - darker blue */
-    --chart-2: 0 100% 67%; /* #FF5757 - error */
-    --chart-3: 162 100% 50%; /* #00ffa3 - success */
-    --chart-4: 50 100% 73%; /* #ffe176 - warning */
+    --chart-1: 220 39% 25%;
+    /* #2D4A6B - darker blue */
+    --chart-2: 0 100% 67%;
+    /* #FF5757 - error */
+    --chart-3: 162 100% 50%;
+    /* #00ffa3 - success */
+    --chart-4: 50 100% 73%;
+    /* #ffe176 - warning */
     --chart-5: 262.1 83.3% 67.8%;
   }
 }
@@ -246,12 +287,14 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
 @layer components {
+
   /* Command menu item selection styling */
   [cmdk-item] {
     transition: background-color 150ms ease, color 150ms ease;
@@ -299,57 +342,69 @@
 
   /* Sidebar styling for dark mode - use same background as main to hide borders */
   .dark .sidebar-container {
-    background-color: hsl(var(--background)); /* Use main background color */
-    border-right-color: hsl(var(--background)); /* Match main background */
+    background-color: hsl(var(--background));
+    /* Use main background color */
+    border-right-color: hsl(var(--background));
+    /* Match main background */
   }
 
   .dark .sidebar-header {
-    border-bottom-color: hsl(var(--background)); /* Match main background */
+    border-bottom-color: hsl(var(--background));
+    /* Match main background */
   }
 
   .dark .sidebar-footer {
-    border-top-color: hsl(var(--background)); /* Match main background */
+    border-top-color: hsl(var(--background));
+    /* Match main background */
   }
 
   /* Header border styling for dark mode - hide border by matching background */
   .dark .header-container {
-    border-bottom-color: hsl(var(--background)); /* Match main background */
+    border-bottom-color: hsl(var(--background));
+    /* Match main background */
   }
 
   /* Enhanced hover styles for dark mode */
   /* Table row hover - use darker blue instead of muted */
   .dark .table-row-hover:hover {
-    background-color: hsl(var(--primary) / 0.1); /* Subtle darker blue hover */
+    background-color: hsl(var(--primary) / 0.1);
+    /* Subtle darker blue hover */
   }
 
   /* Button hover enhancements for dark mode */
   .dark .btn-outline-hover:hover {
-    background-color: hsl(var(--primary) / 0.15); /* Darker blue for outline buttons */
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for outline buttons */
     border-color: hsl(var(--primary) / 0.3);
   }
 
   .dark .btn-ghost-hover:hover {
-    background-color: hsl(var(--primary) / 0.12); /* Darker blue for ghost buttons */
+    background-color: hsl(var(--primary) / 0.12);
+    /* Darker blue for ghost buttons */
   }
 
   /* Context menu hover enhancements for dark mode */
   .dark .context-menu-item:focus {
-    background-color: hsl(var(--primary) / 0.15); /* Darker blue for context menu items */
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for context menu items */
   }
 
   .dark .context-menu-subtrigger:focus,
   .dark .context-menu-subtrigger[data-state="open"] {
-    background-color: hsl(var(--primary) / 0.15); /* Darker blue for submenu triggers */
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for submenu triggers */
   }
 
   .dark .context-menu-checkbox:focus,
   .dark .context-menu-radio:focus {
-    background-color: hsl(var(--primary) / 0.15); /* Darker blue for checkbox/radio items */
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for checkbox/radio items */
   }
 
   /* Modal close button hover enhancement */
   .dark .modal-close-hover:hover {
-    background-color: hsl(var(--primary) / 0.15); /* Darker blue for modal close button */
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for modal close button */
   }
 
   /* Shimmer animation for loading states */
@@ -357,6 +412,7 @@
     0% {
       transform: translateX(-100%);
     }
+
     100% {
       transform: translateX(100%);
     }
@@ -371,14 +427,37 @@
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  .animate-pulse-staggered:nth-child(1) { animation-delay: 0ms; }
-  .animate-pulse-staggered:nth-child(2) { animation-delay: 100ms; }
-  .animate-pulse-staggered:nth-child(3) { animation-delay: 200ms; }
-  .animate-pulse-staggered:nth-child(4) { animation-delay: 300ms; }
-  .animate-pulse-staggered:nth-child(5) { animation-delay: 400ms; }
-  .animate-pulse-staggered:nth-child(6) { animation-delay: 500ms; }
-  .animate-pulse-staggered:nth-child(7) { animation-delay: 600ms; }
-  .animate-pulse-staggered:nth-child(8) { animation-delay: 700ms; }
+  .animate-pulse-staggered:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .animate-pulse-staggered:nth-child(2) {
+    animation-delay: 100ms;
+  }
+
+  .animate-pulse-staggered:nth-child(3) {
+    animation-delay: 200ms;
+  }
+
+  .animate-pulse-staggered:nth-child(4) {
+    animation-delay: 300ms;
+  }
+
+  .animate-pulse-staggered:nth-child(5) {
+    animation-delay: 400ms;
+  }
+
+  .animate-pulse-staggered:nth-child(6) {
+    animation-delay: 500ms;
+  }
+
+  .animate-pulse-staggered:nth-child(7) {
+    animation-delay: 600ms;
+  }
+
+  .animate-pulse-staggered:nth-child(8) {
+    animation-delay: 700ms;
+  }
 
   /* Smooth transitions for loading states */
   .loading-transition {
@@ -391,6 +470,7 @@
       opacity: 0;
       transform: translateY(10px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -516,12 +596,14 @@
 
   /* Main content responsive padding - CSS-only fallbacks */
   .main-content-responsive {
-    padding-bottom: 5rem; /* 80px for mobile nav */
+    padding-bottom: 5rem;
+    /* 80px for mobile nav */
   }
 
   @media (min-width: 768px) {
     .main-content-responsive {
-      padding-bottom: 1.5rem; /* 24px for desktop */
+      padding-bottom: 1.5rem;
+      /* 24px for desktop */
     }
   }
 
@@ -587,6 +669,7 @@
       opacity: 0;
       transform: translateY(10px) scale(0.95);
     }
+
     to {
       opacity: 1;
       transform: translateY(0) scale(1);
@@ -598,6 +681,7 @@
       opacity: 1;
       transform: translateY(0) scale(1);
     }
+
     to {
       opacity: 0;
       transform: translateY(10px) scale(0.95);

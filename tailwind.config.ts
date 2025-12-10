@@ -144,6 +144,12 @@ const config = {
           "-webkit-backdrop-filter": "blur(8px) saturate(150%)",
           "border": "1px solid rgba(255, 255, 255, 0.2)",
         },
+        ".dark .glass": {
+          "background-color": "rgba(17, 24, 39, 0.4)",
+          "backdrop-filter": "blur(8px) saturate(150%)",
+          "-webkit-backdrop-filter": "blur(8px) saturate(150%)",
+          "border": "1px solid rgba(55, 65, 81, 0.3)",
+        },
         ".line-clamp-1": {
           "overflow": "hidden",
           "display": "-webkit-box",

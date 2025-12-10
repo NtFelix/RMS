@@ -20,21 +20,23 @@ export async function middleware(request: NextRequest) {
 
   // Public routes that don't require authentication
   const publicRoutes = [
-    '/',
-    '/landing',
-    '/dokumentation',
-    '/dokumentation/.*', // Allow all sub-routes under dokumentation
-    '/auth/.*', // Allow all auth routes
-    '/_next/.*', // Allow Next.js internal routes
-    '/favicon.ico', // Allow favicon
-    '/subscription-locked', // Allow subscription locked page
+    '/', // Homepage
+    '/hilfe/dokumentation(.*)?', // All documentation routes under help
+    '/dokumentation(.*)?', // Keep old path for backward compatibility
+    '/auth(.*)?', // All auth routes
+    '/_next(.*)?', // Next.js internal routes
+    '/favicon.ico', // Favicon
+    '/subscription-locked', // Subscription locked page
     '/api/stripe/plans', // Public API route for fetching plans
-    '/api/posthog-config', // Public API route for PostHog configuration
-    '/api/dokumentation', // Allow dokumentation API route
-    '/api/dokumentation/.*', // Allow all dokumentation API routes
-    '/api/ai-assistant', // Allow AI assistant API route
-    '/datenschutz', // Allow access to datenschutz page
-    '/agb', // Allow access to AGB page
+    '/api/posthog-config', // Public API route for PostHog
+    '/api/dokumentation(.*)?', // Documentation API routes
+    '/api/ai-assistant', // AI assistant API route
+    '/datenschutz', // Datenschutz page
+    '/agb', // AGB page
+    '/loesungen(/.*)?', // All routes under loesungen
+    '/funktionen(/.*)?', // All routes under funktionen
+    '/warteliste(/.*)?', // All routes under warteliste
+    '/preise' // Pricing page
   ]
 
   // If we're already on the login page, don't redirect
@@ -106,7 +108,7 @@ export async function middleware(request: NextRequest) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Failed to fetch user profile for subscription status.', details: profileError.message }, { status: 500 });
       } else {
-        const url = new URL('/landing', request.url); // Or a generic error page
+        const url = new URL('/', request.url); // Or a generic error page
         url.searchParams.set('error', 'profile_fetch_failed');
         return NextResponse.redirect(url);
       }

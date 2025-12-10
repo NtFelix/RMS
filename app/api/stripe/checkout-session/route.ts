@@ -85,6 +85,10 @@ export async function POST(req: Request) {
       });
     }
 
+    // Retrieve the price details to check if it's a free plan
+    const price = await stripe.prices.retrieve(requestedPriceId);
+    const isFreePlan = price.unit_amount === 0;
+
     // Prepare parameters for Stripe session creation
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_collection: 'if_required',
@@ -104,11 +108,18 @@ export async function POST(req: Request) {
 
     // Determine trial eligibility based on subscription history
     const isEligibleForTrial = () => {
+      // Free plans do not need a trial
+      if (isFreePlan) return false;
+
+      // A user is eligible for a trial only if they have no subscription history.
+      // The presence of a `stripe_price_id` indicates a past or present subscription.
       return !(profile && profile.stripe_price_id);
     };
 
     if (isEligibleForTrial()) {
       sessionParams.subscription_data = { trial_period_days: 14 };
+    } else {
+      console.log("Not applying a trial period. User has a subscription history or plan is free.");
     }
 
     if (profile && profile.stripe_customer_id) {

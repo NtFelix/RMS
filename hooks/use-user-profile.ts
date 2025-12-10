@@ -35,8 +35,16 @@ export function useUserProfile() {
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
 
+        // If no user is found, return default values instead of throwing an error
         if (authError || !user) {
-          throw new Error(authError?.message || 'No user found');
+          return setState({
+            user: null,
+            userName: 'Gast',
+            userEmail: '',
+            userInitials: 'G',
+            isLoading: false,
+            error: null,
+          });
         }
 
         const { first_name: rawFirstName, last_name: rawLastName } = user.user_metadata || {};

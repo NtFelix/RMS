@@ -16,7 +16,6 @@ import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 
-// Stelle sicher, dass der Mieter-Link korrekt ist
 const sidebarNavItems = [
   {
     title: "Dashboard",
@@ -71,7 +70,6 @@ export function DashboardSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   const { setOpen } = useCommandMenu()
-  // User email handling is managed by the UserSettings component
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   const mailsEnabled = useFeatureFlagEnabled('mails-tab')
 
@@ -86,14 +84,11 @@ export function DashboardSidebar() {
     const mediaQuery = window.matchMedia('(max-width: 1023px)');
 
     const handleMediaChange = (e: MediaQueryListEvent) => {
-      // Only force collapse when the screen becomes small.
-      // This preserves the user's choice to keep it collapsed on larger screens.
       if (e.matches) {
         setIsCollapsed(true);
       }
     };
 
-    // Initial check
     if (mediaQuery.matches) {
       setIsCollapsed(true);
     }
@@ -136,7 +131,7 @@ export function DashboardSidebar() {
         stiffness: 400,
         damping: 25,
         mass: 0.5,
-        delay: 0.08, // Slight delay for staggered feel
+        delay: 0.08,
       }
     },
     collapsed: {
@@ -227,7 +222,7 @@ export function DashboardSidebar() {
         </div>
       </motion.aside>
 
-      {/* Mobile Drawer (Separate element to avoid conflict with floating desktop sidebar) */}
+      {/* Mobile Drawer */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-[49] flex flex-col bg-background border-r transition-transform duration-300 ease-in-out w-72 md:hidden",
@@ -263,7 +258,6 @@ interface SidebarContentProps {
   iconVariants?: Variants
 }
 
-// Extracted content component to reuse
 function SidebarContent({
   isCollapsed,
   pathname,
@@ -289,6 +283,7 @@ function SidebarContent({
               fill
               className="object-cover"
               sizes="32px"
+              unoptimized // Supabase images are stored as pre-optimized .avif
             />
           </div>
           {!isMobile && textVariants && (
@@ -303,7 +298,7 @@ function SidebarContent({
         </Link>
       </div>
 
-      {/* Navigation section - takes remaining space */}
+      {/* Navigation section */}
       <div className="flex-1 overflow-y-auto min-h-0 py-4 custom-scrollbar">
         <nav className="grid gap-1.5 px-5">
           <TooltipProvider delayDuration={100} skipDelayDuration={300}>
@@ -313,7 +308,6 @@ function SidebarContent({
                   onClick={() => setOpen(true)}
                   className={cn(
                     "group flex w-full items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2",
-                    // Removed conditional layout classes to prevent jiggle
                   )}
                 >
                   {!isMobile && iconVariants ? (
@@ -374,7 +368,6 @@ function SidebarContent({
                         className={cn(
                           "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2",
                           getActiveStateClasses(item.href),
-                          // Removed conditional layout classes to prevent jiggle
                         )}
                         data-active={isActive}
                         aria-current={isActive ? "page" : undefined}
@@ -412,7 +405,7 @@ function SidebarContent({
         </nav>
       </div>
 
-      {/* Profile section - fixed at bottom */}
+      {/* Profile section */}
       <div className="pt-2 pb-4 flex flex-col gap-2 px-5">
         {!isMobile && (
           <Button

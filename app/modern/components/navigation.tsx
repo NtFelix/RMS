@@ -1,36 +1,20 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen } from "lucide-react"
-import Image from "next/image"
+import { useFeatureFlagEnabled } from "posthog-js/react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight, Sparkles } from "lucide-react"
+
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { LOGO_URL } from "@/lib/constants"
 import { Button } from '@/components/ui/button'
-
-interface DashboardMenuItemProps {
-  onClick?: () => void;
-}
-
-const DashboardMenuItem = ({ onClick }: DashboardMenuItemProps) => (
-  <DropdownMenuItem asChild>
-    <Link
-      href="/home"
-      className="flex items-center cursor-pointer relative overflow-hidden group"
-      onClick={onClick}
-    >
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-      <LayoutDashboard className="w-4 h-4 mr-2 relative z-10" />
-      <span className="relative z-10">Dashboard</span>
-    </Link>
-  </DropdownMenuItem>
-);
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
-import AuthModal from "@/components/auth-modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { PillContainer } from "@/components/ui/pill-container";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,95 +22,38 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { useAuthModal } from "@/components/auth-modal-provider";
+import { useIsOverflowing } from "@/hooks/use-responsive";
 
-const navItems = [
-  { name: "Startseite", href: "#hero", icon: Home },
-  { name: "Funktionen", href: "#features", icon: Check },
-  { name: "Preise", href: "#pricing", icon: DollarSign },
+// Navigation dropdown items
+const produkteItems = [
+  { name: "Web-Anwendung", href: "/home", icon: LayoutDashboard, description: "Die Web-Anwendung" },
+  { name: "Browser-Erweiterung", href: "/warteliste/browser-erweiterung", icon: Package, description: "Demnächst verfügbar" },
+  { name: "Mobile App", href: "/warteliste/mobile-app", icon: Phone, description: "Demnächst verfügbar" },
 ]
 
-const staticNavItems = [
-  { name: "Dokumentation", href: "/dokumentation", icon: BookOpen },
+const funktionenItems = [
+  { name: "Wohnungsverwaltung", href: "/funktionen/wohnungsverwaltung", icon: Building2, description: "Verwalten Sie Ihre Wohnungen zentral" },
+  { name: "Finanzverwaltung", href: "/funktionen/finanzverwaltung", icon: TrendingUp, description: "Behalten Sie Ihre Finanzen im Blick" },
+  { name: "Betriebskosten", href: "/funktionen/betriebskosten", icon: Calculator, description: "Automatische Nebenkostenabrechnung" },
+]
+
+const loesungenItems = [
+  { name: "Für Privatvermieter", href: "/loesungen/privatvermieter", icon: Home, description: "Perfekt für private Vermieter" },
+  { name: "Für kleine bis mittlere Hausverwaltungen", href: "/loesungen/kleine-mittlere-hausverwaltungen", icon: Building2, description: "Professionelle Verwaltungslösung" },
+  { name: "Für große Hausverwaltungen", href: "/loesungen/grosse-hausverwaltungen", icon: TrendingUp, description: "Enterprise-Lösungen für große Portfolios" },
+]
+
+const hilfeItems = [
+  { name: "Dokumentation", href: "/hilfe/dokumentation", icon: BookOpen, description: "Ausführliche Anleitungen" },
+  { name: "Support", href: "#cta", icon: MessageSquare, description: "Kontaktieren Sie unser Team" },
+  { name: "Kontakt", href: "#cta", icon: Mail, description: "Schreiben Sie uns" },
 ]
 
 interface NavigationProps {
   onLogin?: () => void;
 }
 
-// Custom hook for debounced window resize events
-function useDebouncedResize(callback: () => void, delay = 100) {
-  // Store the callback in a ref to avoid re-subscribing on every render
-  const savedCallback = useRef(callback);
-
-  // Update the saved callback if it changes
-  useEffect(() => {
-    savedCallback.current = callback;
-  }, [callback]);
-
-  useEffect(() => {
-    let resizeTimer: ReturnType<typeof setTimeout>;
-
-    const handleResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => savedCallback.current(), delay);
-    };
-
-    // Add event listener
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', handleResize);
-
-      // Initial call
-      handleResize();
-    }
-
-    // Clean up
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('resize', handleResize);
-      }
-      clearTimeout(resizeTimer);
-    };
-  }, [delay]);
-}
-
-// Custom hook to check if container is overflowing
-function useIsOverflowing() {
-  const [isOverflowing, setIsOverflowing] = useState(false);
-  const [container, setContainer] = useState<HTMLElement | null>(null);
-
-  const ref = useCallback((node: HTMLElement | null) => {
-    if (node !== null) {
-      setContainer(node);
-    }
-  }, []);
-
-  const checkOverflow = useCallback(() => {
-    if (container) {
-      const { scrollWidth, clientWidth } = container;
-      setIsOverflowing(scrollWidth > clientWidth);
-    }
-  }, [container]);
-
-  // Use the debounced resize hook
-  useDebouncedResize(checkOverflow);
-
-  // Check for mutations (like when content changes)
-  useEffect(() => {
-    if (!container) return;
-
-    // Initial check
-    checkOverflow();
-
-    const observer = new MutationObserver(checkOverflow);
-    observer.observe(container, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [container, checkOverflow]);
-
-  return { ref, isOverflowing };
-}
 
 export default function Navigation({ onLogin }: NavigationProps) {
   const [hasMounted, setHasMounted] = useState(false);
@@ -134,19 +61,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-  // Check if the navigation is overflowing
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { userName } = useUserProfile();
   const { ref: navRef, isOverflowing } = useIsOverflowing();
+  const showProdukte = useFeatureFlagEnabled('show-produkte-dropdown');
+  const showLoesungen = useFeatureFlagEnabled('show-loesungen-dropdown');
+  const { openAuthModal } = useAuthModal();
 
-  // Set hasMounted to true after component mounts on client side
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
-  // Use a ref to store the resize handler
-  const resizeHandler = useRef<(() => void) | null>(null);
-
-  // Define the checkIfMobile function
   const checkIfMobile = useCallback(() => {
     if (typeof window === 'undefined' || !hasMounted) return;
     const isSmallScreen = window.innerWidth < 768;
@@ -154,31 +79,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
     setIsMobile(shouldUseMobile);
   }, [isOverflowing, hasMounted]);
 
-  // Update mobile state based on viewport width and overflow
   useEffect(() => {
     if (!hasMounted) return;
 
-    // Initial check
     checkIfMobile();
 
-    // Set up debounced resize handler
-    let resizeTimer: ReturnType<typeof setTimeout>;
     const handleResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(checkIfMobile, 100);
+      checkIfMobile();
     };
 
-    // Store the handler in the ref
-    resizeHandler.current = handleResize;
-
-    // Add event listener
     window.addEventListener('resize', handleResize);
-
-    // Clean up
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(resizeTimer);
-    };
+    return () => window.removeEventListener('resize', handleResize);
   }, [checkIfMobile, hasMounted]);
 
   useEffect(() => {
@@ -200,16 +111,29 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
   const handleNavClick = (href: string) => {
     if (href.startsWith("#") && pathname === "/") {
-      const element = document.querySelector(href)
+      const element = document.querySelector(href);
       if (element) {
-        element.scrollIntoView({ behavior: "smooth" })
+        element.scrollIntoView({ behavior: "smooth" });
       }
+      setIsOpen(false);
+    } else if (href.startsWith("#")) {
+      window.location.href = `/${href}`;
+    } else {
+      window.location.href = href;
     }
-    setIsOpen(false)
-  }
+  };
+
+  const scrollToPricing = () => {
+    const pricingSection = document.getElementById('pricing');
+    if (pricingSection) {
+      pricingSection.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      // If we're not on a page with the pricing section, redirect to home with hash
+      window.location.href = '/#pricing';
+    }
+  };
 
   const handleOpenLoginModal = () => {
-    // Clear any existing auth intent for regular login
     try {
       sessionStorage.removeItem('authIntent');
     } catch (e) {
@@ -217,36 +141,44 @@ export default function Navigation({ onLogin }: NavigationProps) {
     }
     if (onLogin) {
       onLogin();
+    } else {
+      openAuthModal('login');
     }
   };
 
   const handleLogout = async () => {
     const supabase = createClient();
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Error logging out:", error.message);
-        // Optionally: toast({ title: "Logout Failed", description: error.message, variant: "destructive" });
-      } else {
-        setCurrentUser(null);
-        // Optionally: toast({ title: "Logged Out", description: "You have been successfully logged out." });
-      }
-    } catch (error: any) {
-      console.error("Error logging out (catch):", error.message);
-      // Optionally: toast({ title: "Logout Failed", description: "An unexpected error occurred.", variant: "destructive" });
+      await supabase.auth.signOut();
+      setCurrentUser(null);
+    } catch (error) {
+      console.error("Error logging out:", error);
     }
   };
 
-  // Don't render the navigation until we're on the client side to prevent hydration issues
   if (!hasMounted) {
-    // Render a placeholder with the same dimensions to prevent layout shift
     return <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4 h-16"></nav>;
   }
+
+  const renderNavItem = (item: { name: string; href: string; icon: any; description: string }, index: number) => (
+    <Link
+      key={index}
+      href={item.href}
+      onClick={() => setIsOpen(false)}
+      className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
+    >
+      <item.icon className="w-5 h-5 mr-3" />
+      <div>
+        <div className="font-medium">{item.name}</div>
+        <div className="text-sm text-muted-foreground">{item.description}</div>
+      </div>
+    </Link>
+  );
 
   return (
     <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4">
       <div className="max-w-7xl mx-auto">
-        {/* Mobile Header with Menu Button and Logo - shown on mobile or when content overflows */}
+        {/* Mobile Header with Menu Button and Logo */}
         {(isMobile || isOverflowing) && (
           <div className="flex items-center space-x-2">
             <PillContainer>
@@ -262,10 +194,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
               <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
                 <Image
                   src={LOGO_URL}
-                  alt="IV Logo"
+                  alt="Mietfluss Logo"
                   fill
                   className="object-cover"
-                  sizes="24px"
+                  unoptimized // Supabase images are stored as pre-optimized .avif
                 />
               </div>
               <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
@@ -275,7 +207,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
           </div>
         )}
 
-        {/* Desktop Navigation - One Big Pill - hidden on mobile or when content overflows */}
+        {/* Desktop Navigation */}
         {!isMobile && !isOverflowing && (
           <div className="flex justify-center">
             <div className="inline-flex w-auto max-w-full" ref={navRef}>
@@ -285,10 +217,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
                     <Image
                       src={LOGO_URL}
-                      alt="IV Logo"
+                      alt="Mietfluss Logo"
                       fill
                       className="object-cover"
-                      sizes="32px"
+                      unoptimized // Supabase images are stored as pre-optimized .avif
                     />
                   </div>
                   <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">
@@ -301,54 +233,144 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
                 {/* Navigation Items Section */}
                 <div className="flex items-center gap-1">
-                  {pathname === "/" ? (
-                    // Home page navigation with smooth scroll
-                    <>
-                      {navItems.map((item) => (
-                        <button
-                          key={item.name}
-                          onClick={() => handleNavClick(item.href)}
-                          className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
-                        >
-                          {item.icon && <item.icon className="w-4 h-4" />}
-                          <span>{item.name}</span>
+                  {/* Produkte Dropdown */}
+                  {showProdukte && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                          <Package className="w-4 h-4" />
+                          <span>Produkte</span>
+                          <ChevronDown className="w-3 h-3" />
                         </button>
-                      ))}
-                      {/* Static navigation items */}
-                      {staticNavItems.map((item) => (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 whitespace-nowrap"
-                        >
-                          {item.icon && <item.icon className="w-4 h-4" />}
-                          <span>{item.name}</span>
-                        </Link>
-                      ))}
-                    </>
-                  ) : (
-                    // Other pages navigation
-                    <>
-                      <Button asChild variant="ghost" className="rounded-full text-foreground whitespace-nowrap">
-                        <Link href="/">
-                          Startseite
-                        </Link>
-                      </Button>
-                      {staticNavItems.map((item) => (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 whitespace-nowrap ${pathname === item.href
-                              ? 'bg-primary text-primary-foreground'
-                              : 'text-foreground hover:bg-gray-200'
-                            }`}
-                        >
-                          {item.icon && <item.icon className="w-4 h-4" />}
-                          <span>{item.name}</span>
-                        </Link>
-                      ))}
-                    </>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-72">
+                        {produkteItems.map((item, index) => (
+                          <DropdownMenuItem key={index} asChild>
+                            <Link href={item.href}>
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
+
+                  {/* Funktionen Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                        <Wrench className="w-4 h-4" />
+                        <span>Funktionen</span>
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-[600px] p-0">
+                      <div className="grid grid-cols-2">
+                        <div className="p-2">
+                          {funktionenItems.map((item, index) => (
+                            <DropdownMenuItem key={index} asChild>
+                              <Link href={item.href}>
+                                <item.icon className="w-4 h-4 shrink-0" />
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-xs text-muted-foreground">{item.description}</span>
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                        <div className="p-2">
+                          <div className="h-full w-full rounded-xl bg-gradient-to-br from-primary/5 via-muted/20 to-transparent border border-border/50 p-4 flex flex-col justify-between relative overflow-hidden group/card hover:border-primary/20 transition-colors">
+                            {/* Abstract shapes/illustration */}
+                            <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl group-hover/card:bg-primary/20 transition-colors duration-500" />
+                            <div className="absolute right-2 top-2 opacity-[0.08] group-hover/card:opacity-[0.15] transition-all duration-500 transform group-hover/card:scale-110 group-hover/card:-rotate-6">
+                              <Sparkles className="w-20 h-20" />
+                            </div>
+
+                            <div className="relative z-10">
+                              <div className="font-semibold text-sm mb-1">Mietfluss erleben</div>
+                              <p className="text-xs text-muted-foreground">
+                                Starten Sie jetzt und entdecken Sie alle Funktionen in der kostenlosen Testphase.
+                              </p>
+                            </div>
+
+                            <div className="relative z-10 mt-2">
+                              <DropdownMenuItem asChild>
+                                <Button
+                                  onClick={handleOpenLoginModal}
+                                  size="sm"
+                                  className="w-full group h-8 text-xs"
+                                >
+                                  Kostenlos starten
+                                  <ArrowRight className="w-3 h-3 ml-2 transition-transform group-hover:translate-x-1" />
+                                </Button>
+                              </DropdownMenuItem>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Lösungen Dropdown */}
+                  {showLoesungen && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                          <Lightbulb className="w-4 h-4" />
+                          <span>Lösungen</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-72">
+                        {loesungenItems.map((item, index) => (
+                          <DropdownMenuItem key={index} asChild>
+                            <Link href={item.href}>
+                              <item.icon className="w-4 h-4 shrink-0" />
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-xs text-muted-foreground">{item.description}</span>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+
+                  {/* Preise Link */}
+                  <Link href="/preise" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                    <DollarSign className="w-4 h-4" />
+                    <span>Preise</span>
+                  </Link>
+
+                  {/* Hilfe Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                        <HelpCircle className="w-4 h-4" />
+                        <span>Hilfe</span>
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-72">
+                      {hilfeItems.map((item, index) => (
+                        <DropdownMenuItem key={index} asChild>
+                          <Link href={item.href}>
+                            <item.icon className="w-4 h-4 shrink-0" />
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="font-medium">{item.name}</span>
+                              <span className="text-xs text-muted-foreground">{item.description}</span>
+                            </div>
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* Divider */}
@@ -359,37 +381,81 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {currentUser ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
-                            <AvatarFallback className="bg-muted">
-                              <UserIcon className="w-4 h-4 text-muted-foreground" />
+                        <button className="px-2 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
+                            <AvatarFallback className="text-xs">
+                              {currentUser.email?.charAt(0).toUpperCase() || 'U'}
                             </AvatarFallback>
                           </Avatar>
-                        </div>
+                          <span className="whitespace-nowrap">Mein Konto</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
-                        <DashboardMenuItem />
-                        <DropdownMenuSeparator />
+                      <DropdownMenuContent align="end" className="w-60 p-2">
+                        <div className="flex items-center space-x-3 px-2 py-2">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
+                            <AvatarFallback className="text-sm">
+                              {currentUser.email?.charAt(0).toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium line-clamp-1">
+                              {userName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {currentUser.email || 'Konto verwalten'}
+                            </p>
+                          </div>
+                        </div>
+                        <DropdownMenuSeparator className="my-2" />
+                        <DropdownMenuItem asChild className="px-3 py-2 rounded-xl group">
+                          <Link href="/home" className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
+                            <LayoutDashboard className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
+                            <span>Dashboard</span>
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem
-                          onSelect={handleLogout}
-                          className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
+                          className="px-3 py-2 rounded-xl group hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90 cursor-pointer"
+                          onClick={() => {
+                            // Navigate to dashboard first
+                            window.location.href = '/home';
+                            // Then open settings after a small delay to ensure navigation completes
+                            setTimeout(() => {
+                              setIsSettingsOpen(true);
+                            }, 100);
+                          }}
                         >
-                          <LogOut className="w-4 h-4 mr-2" />
-                          Abmelden
+                          <Settings className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
+                          <span>Einstellungen</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="my-2" />
+                        <DropdownMenuItem
+                          onClick={handleLogout}
+                          className="px-3 py-2 rounded-xl group hover:bg-red-600 hover:text-white dark:hover:bg-red-600/90 cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4 mr-3 group-hover:text-white" />
+                          <span className="group-hover:text-white">Abmelden</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   ) : (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="rounded-full whitespace-nowrap shadow-sm hover:shadow-md transition-shadow"
-                      onClick={handleOpenLoginModal}
-                    >
-                      <LogIn className="w-4 h-4 mr-2" />
-                      Anmelden
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        onClick={handleOpenLoginModal}
+                        className="px-4 py-2 h-9 text-sm font-medium text-foreground hover:bg-muted/50"
+                      >
+                        Anmelden
+                      </Button>
+                      <Button
+                        onClick={scrollToPricing}
+                        className="ml-2 px-4 py-2 h-9 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
+                      >
+                        Kostenlos testen
+                      </Button>
+                    </>
                   )}
                 </div>
               </PillContainer>
@@ -412,13 +478,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
               onClick={() => setIsOpen(false)}
             />
 
-            {/* Menu Panel */}
+            {/* Mobile Menu */}
             <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
-              className="fixed inset-y-0 left-0 w-72 max-w-full bg-background/95 backdrop-blur-lg z-50 shadow-2xl md:hidden overflow-y-auto"
+              transition={{ type: 'tween', duration: 0.2 }}
+              className="fixed inset-y-0 left-0 w-80 max-w-[90vw] bg-background border-r border-border/50 z-50 shadow-xl overflow-y-auto"
             >
               <div className="h-full flex flex-col">
                 <div className="p-4 border-b border-border/50">
@@ -433,100 +499,97 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     </button>
                   </div>
                 </div>
+
                 <div className="flex-1 overflow-y-auto p-4 space-y-1">
-                  {pathname === "/" ? (
-                    <>
-                      {navItems.map((item) => (
-                        <button
-                          key={item.name}
-                          onClick={() => handleNavClick(item.href)}
-                          className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
-                        >
-                          {item.icon && <item.icon className="w-5 h-5 mr-3 text-muted-foreground" />}
-                          <span className="text-base">{item.name}</span>
-                        </button>
-                      ))}
-                      {/* Static navigation items */}
-                      {staticNavItems.map((item) => (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          onClick={() => setIsOpen(false)}
-                          className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
-                        >
-                          {item.icon && <item.icon className="w-5 h-5 mr-3 text-muted-foreground" />}
-                          <span className="text-base">{item.name}</span>
-                        </Link>
-                      ))}
-                    </>
-                  ) : (
-                    <>
-                      <Link
-                        href="/"
-                        onClick={() => setIsOpen(false)}
-                        className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
-                      >
-                        <Home className="w-5 h-5 mr-3 text-muted-foreground" />
-                        <span className="text-base">Startseite</span>
-                      </Link>
-                      {staticNavItems.map((item) => (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          onClick={() => setIsOpen(false)}
-                          className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 ${pathname === item.href
-                              ? 'bg-primary text-primary-foreground'
-                              : 'text-foreground hover:bg-muted/50'
-                            }`}
-                        >
-                          {item.icon && <item.icon className="w-5 h-5 mr-3" />}
-                          <span className="text-base">{item.name}</span>
-                        </Link>
-                      ))}
-                    </>
+                  {/* Produkte Section */}
+                  {showProdukte && (
+                    <div className="mb-4">
+                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Produkte
+                      </div>
+                      {produkteItems.map((item, index) => renderNavItem(item, index))}
+                    </div>
                   )}
 
-                  <div className="pt-2 mt-2 border-t border-border/50">
-                    {currentUser ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <div className="flex items-center space-x-3 cursor-pointer w-full p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                            <Avatar className="w-9 h-9">
-                              <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
-                              <AvatarFallback className="bg-muted">
-                                <UserIcon className="w-4 h-4 text-muted-foreground" />
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="text-sm font-medium">Mein Konto</p>
-                              <p className="text-xs text-muted-foreground">Profil verwalten</p>
-                            </div>
-                          </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56 bg-background/95 backdrop-blur-lg border-border/50 shadow-xl">
-                          <DashboardMenuItem onClick={() => setIsOpen(false)} />
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onSelect={handleLogout}
-                            className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
-                          >
-                            <LogOut className="w-4 h-4 mr-2" />
-                            Abmelden
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="lg"
-                        className="w-full justify-start px-4 py-6 text-base hover:bg-muted/50"
-                        onClick={handleOpenLoginModal}
-                      >
-                        <LogIn className="w-5 h-5 mr-3" />
-                        <span>Anmelden</span>
-                      </Button>
-                    )}
+                  {/* Funktionen Section */}
+                  <div className="mb-4">
+                    <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Funktionen
+                    </div>
+                    {funktionenItems.map((item, index) => renderNavItem(item, index))}
                   </div>
+
+                  {/* Lösungen Section */}
+                  {showLoesungen && (
+                    <div className="mb-4">
+                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Lösungen
+                      </div>
+                      {loesungenItems.map((item, index) => renderNavItem(item, index))}
+                    </div>
+                  )}
+
+                  {/* Preise Section */}
+                  <div className="mb-4">
+                    <Link
+                      href="/preise"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
+                    >
+                      <DollarSign className="w-5 h-5 mr-3" />
+                      <div>
+                        <div className="font-medium">Preise</div>
+                        <div className="text-sm text-muted-foreground">Unsere Tarife im Überblick</div>
+                      </div>
+                    </Link>
+                  </div>
+
+                  {/* Hilfe Section */}
+                  <div className="mb-4">
+                    <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Hilfe
+                    </div>
+                    {hilfeItems.map((item, index) => renderNavItem(item, index))}
+                  </div>
+                </div>
+
+                {/* Auth Section */}
+                <div className="p-4 border-t border-border/50">
+                  {currentUser ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3 px-2">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
+                          <AvatarFallback>
+                            {currentUser.email?.charAt(0).toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{currentUser.email}</p>
+                          <p className="text-xs text-muted-foreground">Konto verwalten</p>
+                        </div>
+                      </div>
+                      <Button asChild variant="outline" className="w-full">
+                        <Link href="/home">
+                          <LayoutDashboard className="w-4 h-4 mr-2" />
+                          Dashboard
+                        </Link>
+                      </Button>
+                      <Button variant="outline" className="w-full" onClick={handleLogout}>
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Abmelden
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Button onClick={handleOpenLoginModal} className="w-full">
+                        Anmelden
+                      </Button>
+                      <Button variant="outline" onClick={scrollToPricing} className="w-full">
+                        Kostenlos testen
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

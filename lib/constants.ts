@@ -10,8 +10,8 @@ export type BerechnungsartValue = typeof BERECHNUNGSART_OPTIONS[number]['value']
 // You can also export an array of the values if that's useful
 export const BERECHNUNGSART_VALUES = BERECHNUNGSART_OPTIONS.map(opt => opt.value);
 
-// Logo URL configured via NEXT_PUBLIC_LOGO_URL environment variable
-export const LOGO_URL = process.env.NEXT_PUBLIC_LOGO_URL!;
+// Logo URL
+export const LOGO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/mascot/normal.avif';
 
 // Feature flags for gradual rollout
 export const FEATURE_FLAGS = {
@@ -20,6 +20,44 @@ export const FEATURE_FLAGS = {
   ENABLE_HYBRID_NAVIGATION: process.env.NEXT_PUBLIC_ENABLE_HYBRID_NAVIGATION !== 'false', // Default enabled
   ENABLE_NAVIGATION_CACHE: process.env.NEXT_PUBLIC_ENABLE_NAVIGATION_CACHE !== 'false', // Default enabled
   ENABLE_OPTIMISTIC_UI: process.env.NEXT_PUBLIC_ENABLE_OPTIMISTIC_UI !== 'false', // Default enabled
+} as const;
+
+// PostHog feature flag keys - centralized to prevent magic strings
+export const POSTHOG_FEATURE_FLAGS = {
+  // Pricing page
+  SHOW_WAITLIST_BUTTON: 'show-waitlist-button',
+  PRICING_PAGE_PREVIEW_LIMIT_NOTICE: 'pricing-page-preview-limit-notice',
+  // Navigation
+  DOCUMENTS_TAB_ACCESS: 'documents_tab_access',
+  MAILS_TAB: 'mails-tab',
+  // Features
+  TEMPLATE_MODAL_ENABLED: 'template-modal-enabled',
+  CREATE_FILE_OPTION: 'create-file-option',
+  DARK_MODE: 'dark-mode',
+  AI_DOCUMENTATION_MODE: 'ai-documentation-mode',
+  // Landing page
+  SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
+  SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
+} as const;
+
+// Application routes - centralized to prevent hardcoded paths
+export const ROUTES = {
+  // Auth
+  LOGIN: '/auth/login',
+  REGISTER: '/auth/register',
+  RESET_PASSWORD: '/auth/reset-password',
+  UPDATE_PASSWORD: '/auth/update-password',
+  // Dashboard
+  HOME: '/home',
+  PROPERTIES: '/objekte',
+  TENANTS: '/mieter',
+  FINANCES: '/finanzen',
+  DOCUMENTS: '/dateien',
+  SETTINGS: '/einstellungen',
+  // Landing
+  LANDING: '/',
+  PRICING: '/preise',
+  FEATURES: '/funktionen',
 } as const;
 
 // Video URLs

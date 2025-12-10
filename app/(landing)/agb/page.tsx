@@ -1,7 +1,7 @@
 'use client';
 
-import Navigation from '../modern/components/navigation';
-import Footer from '../modern/components/footer';
+import Navigation from '@/app/modern/components/navigation';
+import Footer from '@/app/modern/components/footer';
 import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
 
 function AGBPageContent() {

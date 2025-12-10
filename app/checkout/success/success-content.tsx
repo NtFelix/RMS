@@ -1,4 +1,3 @@
-// app/checkout/success/success-content.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -6,6 +5,9 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { CheckCircle2, XCircle, AlertCircle, Loader2, ArrowRight, Home } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type VerificationStatus = 'idle' | 'loading' | 'success' | 'error' | 'not_verified';
 
@@ -21,10 +23,10 @@ export default function SuccessContent() {
   useEffect(() => {
     if (!sessionId) {
       setVerificationStatus('not_verified');
-      setErrorMessage('No session ID found. Your payment cannot be verified at this moment.');
+      setErrorMessage('Keine Sitzungs-ID gefunden. Ihre Zahlung kann momentan nicht verifiziert werden.');
       toast({
-        title: 'Verification Issue',
-        description: 'No session ID found.',
+        title: 'Verifizierungsproblem',
+        description: 'Keine Sitzungs-ID gefunden. Die Zahlung kann nicht überprüft werden.',
         variant: 'destructive',
       });
       return;
@@ -51,129 +53,183 @@ export default function SuccessContent() {
             setVerificationStatus('success');
             setCustomerEmail(data.customer_email);
             toast({
-              title: 'Payment Successful!',
-              description: 'Your subscription has been activated.',
-              variant: 'default', // Or 'success'
+              title: 'Zahlung erfolgreich!',
+              description: 'Ihr Abonnement wurde aktiviert.',
+              variant: 'default',
             });
           } else {
             setVerificationStatus('not_verified');
-            setErrorMessage(`Payment status: ${data.payment_status}. Session status: ${data.status}. Please contact support if payment was made.`);
-            toast({
-              title: 'Payment Not Confirmed',
-              description: 'Your payment could not be confirmed. Please contact support.',
-              variant: 'destructive',
-            });
+            setErrorMessage(`Zahlungsstatus: ${data.payment_status}. Sitzungsstatus: ${data.status}. Bitte kontaktieren Sie den Support.`);
           }
         } else {
           setVerificationStatus('error');
-          setErrorMessage(data.error || 'Failed to verify session. Please contact support.');
-          toast({
-            title: 'Verification Error',
-            description: data.error || 'An error occurred while verifying your payment.',
-            variant: 'destructive',
-          });
+          setErrorMessage(data.error || 'Sitzung konnte nicht verifiziert werden.');
         }
       } catch (error) {
         setVerificationStatus('error');
-        const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
+        const message = error instanceof Error ? error.message : 'Ein unbekannter Netzwerkfehler ist aufgetreten.';
         setErrorMessage(message);
-        toast({
-          title: 'Network Error',
-          description: 'Could not connect to verification service. ' + message,
-          variant: 'destructive',
-        });
       }
     };
 
     verifySession();
   }, [sessionId, toast]);
 
-  if (verificationStatus === 'loading') {
+  const renderContent = () => {
     return (
-      <div className="container mx-auto p-4 min-h-screen flex flex-col items-center justify-center text-center">
-        <h1 className="text-2xl font-semibold mb-4">Verifying your payment details...</h1>
-        <p>Please wait a moment.</p>
-        {/* You could add a spinner here */}
-      </div>
-    );
-  }
-
-  if (verificationStatus === 'success') {
-    return (
-      <div className="container mx-auto p-4 min-h-screen flex flex-col items-center justify-center text-center">
-        <h1 className="text-3xl font-bold text-green-600 mb-4">Payment Successful!</h1>
-        <p className="text-lg mb-6">
-          Thank you for your purchase. Your subscription is now active.
-        </p>
-        {customerEmail && (
-          <p className="mb-4">
-            A confirmation email has been sent to <strong>{customerEmail}</strong>.
-          </p>
+      <AnimatePresence mode="wait">
+        {verificationStatus === 'loading' && (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col items-center justify-center py-12 space-y-6"
+          >
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
+              <Loader2 className="h-16 w-16 text-primary animate-spin relative z-10" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-semibold">Zahlung wird verifiziert...</h3>
+              <p className="text-muted-foreground">Bitte haben Sie einen Moment Geduld.</p>
+            </div>
+          </motion.div>
         )}
-        <p className="mb-8">
-          You can now access all the premium features.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Button asChild>
-            <Link href="/subscription">Go to My Subscription</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/home">Back to Dashboard</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
-  if (verificationStatus === 'error') {
-    return (
-      <div className="container mx-auto p-4 min-h-screen flex flex-col items-center justify-center text-center">
-        <h1 className="text-3xl font-bold text-red-600 mb-4">Error Verifying Payment</h1>
-        <p className="text-lg mb-6">
-          We encountered an error while trying to verify your payment.
-        </p>
-        {errorMessage && <p className="mb-4 text-sm text-red-700 bg-red-100 p-3 rounded-md">{errorMessage}</p>}
-        <p className="mb-8">
-          Please contact our support team for assistance.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Button asChild>
-            <Link href="/">Back to Landing Page</Link>
-          </Button>
-          {/* <Button variant="outline" asChild> <Link href="/support">Contact Support</Link> </Button> */}
-        </div>
-      </div>
-    );
-  }
+        {verificationStatus === 'success' && (
+          <motion.div
+            key="success"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col items-center justify-center py-8 space-y-6"
+          >
+            <div className="relative">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.5, type: "spring", stiffness: 200, damping: 20, delay: 0.1 }}
+                className="rounded-full bg-green-100 dark:bg-green-900/30 p-4 ring-1 ring-green-200 dark:ring-green-800"
+              >
+                <svg
+                  className="h-12 w-12 text-green-600 dark:text-green-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                >
+                  <motion.path
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ duration: 0.5, delay: 0.3, ease: "easeInOut" }}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </motion.div>
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-2xl font-bold">Zahlung erfolgreich!</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Vielen Dank für Ihr Vertrauen. Ihr Abonnement ist jetzt aktiv und Sie haben vollen Zugriff auf alle Funktionen.
+              </p>
+              {customerEmail && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Eine Bestätigung wurde an <span className="font-medium text-foreground">{customerEmail}</span> gesendet.
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
 
-  if (verificationStatus === 'not_verified') {
-    return (
-      <div className="container mx-auto p-4 min-h-screen flex flex-col items-center justify-center text-center">
-        <h1 className="text-3xl font-bold text-orange-500 mb-4">Payment Not Verified</h1>
-        <p className="text-lg mb-6">
-          Your payment could not be fully confirmed at this moment.
-        </p>
-        {errorMessage && <p className="mb-4 text-sm text-orange-700 bg-orange-100 p-3 rounded-md">{errorMessage}</p>}
-        <p className="mb-8">
-          If you believe this is an error or your payment has been processed, please contact our support team.
-        </p>
-         <div className="flex flex-col sm:flex-row gap-4">
-          <Button asChild>
-            <Link href="/">Back to Landing Page</Link>
-          </Button>
-           {/* <Button variant="outline" asChild> <Link href="/support">Contact Support</Link> </Button> */}
-        </div>
-      </div>
-    );
-  }
+        {verificationStatus === 'error' && (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col items-center justify-center py-8 space-y-6"
+          >
+            <div className="rounded-full bg-red-100 dark:bg-red-900/30 p-4 ring-1 ring-red-200 dark:ring-red-800">
+              <XCircle className="h-12 w-12 text-red-600 dark:text-red-400" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-2xl font-bold">Verifizierungsfehler</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Wir konnten Ihre Zahlung leider nicht verifizieren.
+              </p>
+              {errorMessage && (
+                <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mt-4">
+                  {errorMessage}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
 
-  // Fallback for 'idle' or any other unexpected status
+        {verificationStatus === 'not_verified' && (
+          <motion.div
+            key="not_verified"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col items-center justify-center py-8 space-y-6"
+          >
+            <div className="rounded-full bg-orange-100 dark:bg-orange-900/30 p-4 ring-1 ring-orange-200 dark:ring-orange-800">
+              <AlertCircle className="h-12 w-12 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-2xl font-bold">Status unklar</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Ihre Zahlung konnte nicht abschließend bestätigt werden.
+              </p>
+              {errorMessage && (
+                <div className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 text-sm p-3 rounded-md mt-4">
+                  {errorMessage}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  };
+
   return (
-     <div className="container mx-auto p-4 min-h-screen flex flex-col items-center justify-center text-center">
-        <h1 className="text-2xl font-semibold mb-4">Processing your request...</h1>
-         <Button variant="link" asChild className="mt-4">
-            <Link href="/">Go to Homepage</Link>
-        </Button>
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
+      <Card className="w-full max-w-lg shadow-2xl border-primary/10 rounded-[2.5rem]">
+        <CardContent className="pt-6">
+          {renderContent()}
+        </CardContent>
+        <CardFooter className="flex w-full gap-4 pb-8 px-6 sm:px-8">
+          {verificationStatus === 'success' ? (
+            <>
+              <Button asChild className="flex-1" size="lg">
+                <Link href="/home">
+                  Zum Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="flex-1" size="lg">
+                <Link href="/">Zur Startseite</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild className="flex-1" variant="default">
+                <Link href="/preise">Zurück zu den Preisen</Link>
+              </Button>
+              <Button variant="ghost" asChild className="flex-1">
+                <Link href="/">
+                  <Home className="mr-2 h-4 w-4" /> Startseite
+                </Link>
+              </Button>
+            </>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   );
 }

@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
-import { Trash2 } from "lucide-react"; // Added
+import { Trash2, GripVertical } from "lucide-react";
 import { createClient } from "@/utils/supabase/client" // Added
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -15,12 +15,13 @@ import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker import
+import { Textarea } from "@/components/ui/textarea" // New import
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
 import { cn } from "@/lib/utils"; // Import cn utility
 
-interface Mieter extends Tenant {}
+interface Mieter extends Tenant { }
 
 interface Wohnung {
   id: string;
@@ -40,16 +41,73 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     tenantInitialData,
     tenantModalWohnungen, // Use this from store
     // tenantModalOnSuccess, // Not explicitly defined in store, router.refresh() and onClose handled it.
-                            // If an onSuccess callback is needed, it should be added to the store.
+    // If an onSuccess callback is needed, it should be added to the store.
     isTenantModalDirty,
     setTenantModalDirty,
     openConfirmationModal,
   } = useModalStore();
 
   const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // State and ref for textarea resize functionality
+  const [isResizing, setIsResizing] = useState(false);
+  const dragInfoRef = useRef({ startY: 0, startHeight: 0 });
+
+  const MIN_HEIGHT_PX = 80; // Corresponds to min-h-[80px]
+  const MAX_HEIGHT_PX = 150; // Define a max height in pixels (approx. 6 lines of text)
+
+  const initResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Store initial drag values in ref
+    dragInfoRef.current = {
+      startY: e.clientY,
+      startHeight: textarea.offsetHeight,
+    };
+    setIsResizing(true);
+  };
+
+  // Effect to manage resize event listeners - ensures cleanup on unmount
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setIsResizing(false);
+      return;
+    }
+
+    const { startY, startHeight } = dragInfoRef.current;
+
+    const doDrag = (e: MouseEvent) => {
+      let newHeight = startHeight + e.clientY - startY;
+
+      // Constrain newHeight to be within MIN_HEIGHT_PX and MAX_HEIGHT_PX
+      newHeight = Math.max(MIN_HEIGHT_PX, newHeight);
+      newHeight = Math.min(MAX_HEIGHT_PX, newHeight);
+
+      textarea.style.height = `${newHeight}px`;
+    };
+
+    const stopDrag = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+
+    // Cleanup function - removes listeners on unmount or when isResizing changes
+    return () => {
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', stopDrag);
+    };
+  }, [isResizing]);
   const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([]);
-  
+
   // Helper function to generate unique IDs
   const generateId = () => crypto.randomUUID();
   const [nebenkostenValidationErrors, setNebenkostenValidationErrors] = useState<Record<string, { amount?: string; date?: string }>>({});
@@ -114,7 +172,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   //   }
   // }, [isTenantModalOpen, tenantModalWohnungen]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setTenantModalDirty(true);
   };
@@ -128,8 +186,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     const errors: { amount?: string; date?: string } = {};
     const amountValue = entry.amount.trim() === "" ? NaN : parseFloat(entry.amount);
     if (entry.amount.trim() !== "") {
-        if (isNaN(amountValue)) errors.amount = "Ungültiger Betrag.";
-        else if (amountValue <= 0) errors.amount = "Betrag muss positiv sein.";
+      if (isNaN(amountValue)) errors.amount = "Ungültiger Betrag.";
+      else if (amountValue <= 0) errors.amount = "Betrag muss positiv sein.";
     }
     if (entry.amount.trim() !== "" && entry.date.trim() === "") {
       errors.date = "Datum ist erforderlich, wenn ein Betrag vorhanden ist.";
@@ -165,7 +223,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     const newId = generateId();
     setNebenkostenEntries(entries => getSortedNebenkostenEntries([...entries, { id: newId, amount: "", date: "" }]));
     setNebenkostenValidationErrors(prev => {
-        const newErrors = {...prev}; delete newErrors[newId]; return newErrors;
+      const newErrors = { ...prev }; delete newErrors[newId]; return newErrors;
     });
     setTenantModalDirty(true);
   };
@@ -182,7 +240,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     const formattedDate = date ? format(date, "yyyy-MM-dd") : "";
     setFormData(prevFormData => {
       const newFormData = { ...prevFormData, [name]: formattedDate };
-      
+
       // If this is the move-in date (einzug) and it's being set (not cleared)
       if (name === 'einzug' && formattedDate) {
         setNebenkostenEntries(prevEntries => {
@@ -190,7 +248,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           if (prevEntries.length === 0) {
             return [{ id: generateId(), amount: "", date: formattedDate }];
           }
-          
+
           // Update the first entry's date if it's empty or matches the previous move-in date
           const firstEntry = prevEntries[0];
           if (firstEntry && (!firstEntry.date || firstEntry.date === prevFormData.einzug)) {
@@ -199,11 +257,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               ...prevEntries.slice(1)
             ]);
           }
-          
+
           return prevEntries;
         });
       }
-      
+
       return newFormData;
     });
     setTenantModalDirty(true);
@@ -238,12 +296,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           let hasValidationErrors = false;
           for (const entry of nebenkostenEntries) {
             if (entry.amount.trim() === "" && entry.date.trim() === "") {
-                if (nebenkostenValidationErrors[entry.id]) {
-                    setNebenkostenValidationErrors(prev => {
-                        const newErrors = { ...prev }; delete newErrors[entry.id]; return newErrors;
-                    });
-                }
-                continue;
+              if (nebenkostenValidationErrors[entry.id]) {
+                setNebenkostenValidationErrors(prev => {
+                  const newErrors = { ...prev }; delete newErrors[entry.id]; return newErrors;
+                });
+              }
+              continue;
             }
             const entryErrors = validateNebenkostenEntry(entry);
             if (Object.keys(entryErrors).length > 0) {
@@ -288,7 +346,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
             }
           } catch (error: any) {
             toast({ title: "Unerwarteter Fehler", description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.", variant: "destructive" });
-             // Don't reset dirty flag, error occurred
+            // Don't reset dirty flag, error occurred
           } finally {
             setIsSubmitting(false);
           }
@@ -317,18 +375,18 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 <Label htmlFor="name">Name</Label>
                 <InfoTooltip infoText="Vollständiger Name des Mieters (z.B. 'Max Mustermann')." />
               </div>
-              <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting}/>
+              <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting} />
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="einzug">Einzug</Label>
                 <InfoTooltip infoText="Einzugsdatum im Format TT.MM.JJJJ. Wird für Mietbeginn und Abrechnungen verwendet." />
               </div>
-              <DatePicker 
+              <DatePicker
                 id="einzug"
-                value={formData.einzug} 
-                onChange={(date) => handleDateChange('einzug', date)} 
-                placeholder="TT.MM.JJJJ" 
+                value={formData.einzug}
+                onChange={(date) => handleDateChange('einzug', date)}
+                placeholder="TT.MM.JJJJ"
                 disabled={isSubmitting}
               />
               <input type="hidden" name="einzug" value={formData.einzug} />
@@ -338,11 +396,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 <Label htmlFor="auszug">Auszug</Label>
                 <InfoTooltip infoText="Auszugsdatum (optional). Leer lassen, wenn der Mietvertrag noch aktiv ist." />
               </div>
-              <DatePicker 
+              <DatePicker
                 id="auszug"
-                value={formData.auszug} 
-                onChange={(date) => handleDateChange('auszug', date)} 
-                placeholder="TT.MM.JJJJ" 
+                value={formData.auszug}
+                onChange={(date) => handleDateChange('auszug', date)}
+                placeholder="TT.MM.JJJJ"
                 disabled={isSubmitting}
               />
               <input type="hidden" name="auszug" value={formData.auszug} />
@@ -352,21 +410,37 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 <Label htmlFor="email">E-Mail</Label>
                 <InfoTooltip infoText="Kontakt-E-Mail (empfohlen für bessere Organisation und schnelle Erreichbarkeit)." />
               </div>
-              <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isSubmitting}/>
+              <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isSubmitting} />
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="telefonnummer">Telefon</Label>
                 <InfoTooltip infoText="Telefonnummer (hilft bei der Organisation und schnellen Kontaktaufnahme)." />
               </div>
-              <Input id="telefonnummer" name="telefonnummer" value={formData.telefonnummer} onChange={handleChange} disabled={isSubmitting}/>
+              <Input id="telefonnummer" name="telefonnummer" value={formData.telefonnummer} onChange={handleChange} disabled={isSubmitting} />
             </div>
             <div className="col-span-2 space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="notiz">Notiz</Label>
                 <InfoTooltip infoText="Hier können Sie zusätzliche Informationen oder Anmerkungen zum Mieter erfassen." />
               </div>
-              <Input id="notiz" name="notiz" value={formData.notiz} onChange={handleChange} disabled={isSubmitting}/>
+              <div className="relative">
+                <Textarea
+                  ref={textareaRef}
+                  id="notiz"
+                  name="notiz"
+                  value={formData.notiz}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  className="min-h-[80px] resize-none pr-8"
+                />
+                <div
+                  className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
+                  onMouseDown={initResize}
+                >
+                  <GripVertical className="h-4 w-4 text-foreground/70" />
+                </div>
+              </div>
             </div>
             <div className="col-span-2 space-y-3">
               <div className="flex items-center gap-2">

@@ -37,7 +37,7 @@ export function DocumentationBreadcrumb({
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => router.push('/dokumentation')}
+        onClick={() => router.push('/hilfe/dokumentation')}
         className="h-auto p-1 hover:bg-transparent hover:text-foreground"
         aria-label="Zur Dokumentation Startseite"
       >

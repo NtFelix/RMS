@@ -50,7 +50,7 @@ async function initializePostHog() {
   // Check if we're on a public documentation page
   const isDocumentationPage = typeof window !== 'undefined' && 
     (window.location.pathname.startsWith('/dokumentation') || 
-     window.location.pathname.startsWith('/landing'));
+     window.location.pathname === '/');
   
   posthog.init(config.key, {
     api_host: config.host,
@@ -115,7 +115,7 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
         const { data: { user } } = await supabase.auth.getUser();
         
         const currentDistinctId = posthog.get_distinct_id();
-        const isDocumentationPage = pathname?.startsWith('/dokumentation') || pathname?.startsWith('/landing');
+        const isDocumentationPage = pathname?.startsWith('/dokumentation') || pathname === '/';
         
         if (user) {
           // User is authenticated - identify them if not already identified correctly

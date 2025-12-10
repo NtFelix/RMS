@@ -14,4 +14,5 @@ export interface StripePlan {
   mostPopular?: boolean;
   description: string;
   position?: number;
+  metadata?: Record<string, string>;
 }

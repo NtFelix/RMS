@@ -11,7 +11,7 @@ const SubscriptionLockedPage = () => {
   const { isExporting, handleDataExport } = useDataExport(); // Use the custom hook
 
   const handleSelectSubscription = () => {
-    router.push('/landing#pricing');
+    router.push('/#pricing');
   };
 
   return (

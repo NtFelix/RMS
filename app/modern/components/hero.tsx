@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react"
 import { CallToAction } from "./call-to-action"
 import { VideoPlayer } from "@/components/ui/video-player"
 import { BackgroundBeams } from "@/components/ui/background-beams"
+import { MacWindow } from "@/components/ui/mac-window"
 import { HERO_VIDEO_URL } from "@/lib/constants"
 
 interface HeroProps {
@@ -49,34 +50,27 @@ export default function Hero({ onGetStarted }: HeroProps) {
           {/* Right: Product mockup */}
           <div className="w-full">
             <div className="relative">
-              <div className="absolute -inset-6 bg-gradient-to-r from-primary/20 to-secondary/20 blur-2xl rounded-3xl" aria-hidden />
-              <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-                {/* Window top bar */}
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
-                  <span className="w-3 h-3 rounded-full bg-red-400" />
-                  <span className="w-3 h-3 rounded-full bg-yellow-400" />
-                  <span className="w-3 h-3 rounded-full bg-green-400" />
-                  <div className="ml-3 text-sm text-muted-foreground truncate">Demo: Abrechnung erstellen</div>
-                </div>
-
+              <MacWindow>
                 {/* Video content */}
-                <div className="p-4 sm:p-6">
+                <div>
                   <VideoPlayer
                     src={HERO_VIDEO_URL}
-                    className="w-full aspect-video rounded-lg"
+                    className="w-full aspect-video"
                     autoplay={true}
                     muted={true}
                     loop={true}
                     playsInline={true}
                     showPosterFallback={true}
                   />
-                  
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Sehen Sie, wie einfach es ist, eine komplette Nebenkostenabrechnung zu erstellen. 
-                    Von der Eingabe bis zum fertigen PDF in wenigen Minuten.
-                  </p>
+
+                  <div className="p-4 sm:p-6">
+                    <p className="text-sm text-muted-foreground">
+                      Sehen Sie, wie einfach es ist, eine komplette Nebenkostenabrechnung zu erstellen.
+                      Von der Eingabe bis zur fertigen PDF in wenigen Minuten.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              </MacWindow>
             </div>
           </div>
         </div>

@@ -21,7 +21,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -48,20 +48,20 @@ const DialogContent = React.forwardRef<
 
     // Check if the interaction is with a combobox or popover element
     const target = event.target as Element;
-    
+
     // More comprehensive check for combobox elements
-    if (target?.closest('[data-radix-popover-content]') || 
-        target?.closest('[data-radix-popper-content-wrapper]') ||
-        target?.hasAttribute('cmdk-input') ||
-        target?.hasAttribute('cmdk-item') ||
-        target?.hasAttribute('cmdk-list') ||
-        target?.closest('[role="combobox"]') ||
-        target?.closest('[role="option"]') ||
-        target?.closest('[role="listbox"]') ||
-        target?.closest('[data-dialog-ignore-interaction]') ||
-        target?.closest('[data-combobox-dropdown]') ||
-        target?.hasAttribute('data-combobox-input') ||
-        target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
+    if (target?.closest('[data-radix-popover-content]') ||
+      target?.closest('[data-radix-popper-content-wrapper]') ||
+      target?.hasAttribute('cmdk-input') ||
+      target?.hasAttribute('cmdk-item') ||
+      target?.hasAttribute('cmdk-list') ||
+      target?.closest('[role="combobox"]') ||
+      target?.closest('[role="option"]') ||
+      target?.closest('[role="listbox"]') ||
+      target?.closest('[data-dialog-ignore-interaction]') ||
+      target?.closest('[data-combobox-dropdown]') ||
+      target?.hasAttribute('data-combobox-input') ||
+      target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
       // Allow interactions with combobox elements - just return without preventing
       return;
     }
@@ -107,14 +107,14 @@ const DialogContent = React.forwardRef<
           // Don't prevent focus from moving to combobox elements or when combobox is actively being used
           const target = e.target as Element;
           const activeComboboxInput = document.querySelector('[data-combobox-active="true"]')
-          
-          if (target?.hasAttribute('data-combobox-input') || 
-              target?.hasAttribute('data-combobox-active') ||
-              target?.closest('[data-dialog-ignore-interaction]') ||
-              target?.closest('[data-combobox-dropdown]') ||
-              target?.closest('[role="listbox"]') ||
-              target?.closest('[role="option"]') ||
-              activeComboboxInput) {
+
+          if (target?.hasAttribute('data-combobox-input') ||
+            target?.hasAttribute('data-combobox-active') ||
+            target?.closest('[data-dialog-ignore-interaction]') ||
+            target?.closest('[data-combobox-dropdown]') ||
+            target?.closest('[role="listbox"]') ||
+            target?.closest('[role="option"]') ||
+            activeComboboxInput) {
             e.preventDefault();
           }
         }}
