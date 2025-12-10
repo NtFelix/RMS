@@ -167,9 +167,9 @@ export default function ResetPasswordPage() {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                 >
-                  <Alert className="rounded-xl border-green-500/50 bg-green-500/10">
-                    <Check className="h-4 w-4 text-green-500" />
-                    <AlertDescription className="text-green-600 dark:text-green-400">
+                  <Alert variant="success" className="rounded-xl">
+                    <Check className="h-4 w-4" />
+                    <AlertDescription>
                       {message}
                     </AlertDescription>
                   </Alert>
