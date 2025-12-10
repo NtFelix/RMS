@@ -16,7 +16,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
   const actionName = id ? 'updateHouse' : 'createHouse';
   const houseName = formData.get('name')?.toString() || 'unknown';
 
-  logAction(actionName, 'start', { house_id: id, house_name: houseName });
+  logAction(actionName, 'start', { ...(id && { house_id: id }), house_name: houseName });
 
   const supabase = await createClient();
 
@@ -38,7 +38,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
 
     // Validate required field
     if (!name) {
-      logAction(actionName, 'failed', { house_id: id, error_message: 'Name ist ein Pflichtfeld.' });
+      logAction(actionName, 'failed', { ...(id && { house_id: id }), error_message: 'Name ist ein Pflichtfeld.' });
       return { success: false, error: { message: 'Name ist ein Pflichtfeld.' } };
     }
 
@@ -71,10 +71,10 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       }
     }
     revalidatePath("/haeuser");
-    logAction(actionName, 'success', { house_id: id, house_name: houseName });
+    logAction(actionName, 'success', { ...(id && { house_id: id }), house_name: houseName });
     return { success: true };
   } catch (e) {
-    logAction(actionName, 'error', { house_id: id, house_name: houseName, error_message: (e as Error).message });
+    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: (e as Error).message });
     return { success: false, error: { message: (e as Error).message } };
   }
 }
