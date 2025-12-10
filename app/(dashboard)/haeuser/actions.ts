@@ -1,6 +1,7 @@
 "use server";
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { logAction } from '@/lib/logging-middleware';
 
 // Update function signature to accept id as the first parameter
 // Define the expected fields and their types
@@ -12,6 +13,11 @@ interface HouseData {
 }
 
 export async function handleSubmit(id: string | null, formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
+  const actionName = id ? 'updateHouse' : 'createHouse';
+  const houseName = formData.get('name')?.toString() || 'unknown';
+
+  logAction(actionName, 'start', { ...(id && { house_id: id }), house_name: houseName });
+
   const supabase = await createClient();
 
   try {
@@ -32,6 +38,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
 
     // Validate required field
     if (!name) {
+      logAction(actionName, 'failed', { ...(id && { house_id: id }), error_message: 'Name ist ein Pflichtfeld.' });
       return { success: false, error: { message: 'Name ist ein Pflichtfeld.' } };
     }
 
@@ -48,27 +55,34 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
         .from("Haeuser")
         .update(houseData)
         .eq("id", id);
-      
+
       if (error) {
+        logAction(actionName, 'error', { house_id: id, house_name: houseName, error_message: error.message });
         return { success: false, error: { message: error.message } };
       }
     } else {
       const { error: insertError } = await supabase
         .from("Haeuser")
         .insert(houseData);
-      
+
       if (insertError) {
+        logAction(actionName, 'error', { house_name: houseName, error_message: insertError.message });
         return { success: false, error: { message: insertError.message } };
       }
     }
     revalidatePath("/haeuser");
+    logAction(actionName, 'success', { ...(id && { house_id: id }), house_name: houseName });
     return { success: true };
   } catch (e) {
+    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: (e as Error).message });
     return { success: false, error: { message: (e as Error).message } };
   }
 }
 
 export async function deleteHouseAction(houseId: string): Promise<{ success: boolean; error?: { message: string } }> {
+  const actionName = 'deleteHouse';
+  logAction(actionName, 'start', { house_id: houseId });
+
   try {
     const supabase = await createClient();
     const { error } = await supabase
@@ -77,21 +91,18 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
       .eq("id", houseId);
 
     if (error) {
-      // Log the error for server-side visibility
-      console.error("Error deleting house from Supabase:", error);
+      logAction(actionName, 'error', { house_id: houseId, error_message: error.message });
       return { success: false, error: { message: error.message } };
     }
 
-    revalidatePath('/haeuser'); // Revalidate the main houses page
-
+    revalidatePath('/haeuser');
+    logAction(actionName, 'success', { house_id: houseId });
     return { success: true };
 
-  } catch (e: unknown) { // Using unknown for better type safety with instanceof
-    console.error("Unexpected error in deleteHouseAction:", e);
-    if (e instanceof Error) {
-      return { success: false, error: { message: e.message } };
-    }
-    return { success: false, error: { message: "An unknown server error occurred" } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { house_id: houseId, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -108,3 +119,4 @@ export async function getWasserzaehlerModalDataLegacyAction(nebenkostenId: strin
     return { mieterList: [], existingReadings: [] };
   }
 }
+

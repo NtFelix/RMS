@@ -1,28 +1,36 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createSupabaseServerClient } from '@/lib/supabase-server'; // Import Supabase client
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
-
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!); // Moved inside POST
+import { logApiRoute } from '@/lib/logging-middleware';
 
 export async function POST(req: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
+
+  logApiRoute('/api/stripe/checkout-session', 'POST', 'request', {});
+
   try {
     const supabase = createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user || !user.email) {
+      logApiRoute('/api/stripe/checkout-session', 'POST', 'error', {
+        error_message: 'Unauthorized or email missing'
+      });
       return new NextResponse(JSON.stringify({ error: 'Unauthorized or email missing' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // The priceId is expected from the client request body now, not hardcoded.
-    const { priceId: requestedPriceId } = await req.json(); // Renamed for clarity
+    const { priceId: requestedPriceId } = await req.json();
 
     if (!requestedPriceId) {
+      logApiRoute('/api/stripe/checkout-session', 'POST', 'error', {
+        error_message: 'Price ID is required',
+        user_id: user.id
+      });
       return new NextResponse(JSON.stringify({ error: 'Price ID (requestedPriceId) is required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -36,9 +44,11 @@ export async function POST(req: Request) {
       .eq('id', user.id)
       .single();
 
-    if (profileError && profileError.code !== 'PGRST116') { // PGRST116: 'Not a single row' (user may not have a profile yet)
-      console.error('Error fetching profile for Stripe details:', profileError);
-      // For other errors, it might be critical
+    if (profileError && profileError.code !== 'PGRST116') {
+      logApiRoute('/api/stripe/checkout-session', 'POST', 'error', {
+        error_message: 'Failed to fetch user profile',
+        user_id: user.id
+      });
       return new NextResponse(JSON.stringify({ error: 'Failed to fetch user profile.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
@@ -49,14 +59,19 @@ export async function POST(req: Request) {
     if (profile && profile.stripe_subscription_id &&
       (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing') &&
       profile.stripe_price_id === requestedPriceId) {
-      console.log(`User is already subscribed to the requested plan: ${requestedPriceId}.`);
+
+      logApiRoute('/api/stripe/checkout-session', 'POST', 'response', {
+        user_id: user.id,
+        price_id: requestedPriceId,
+        action: 'already_subscribed'
+      });
+
       let formattedDate = 'N/A';
       if (profile.stripe_current_period_end) {
         try {
           const date = new Date(profile.stripe_current_period_end);
           formattedDate = date.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
         } catch (dateError) {
-          console.error('Error formatting stripe_current_period_end:', dateError);
           formattedDate = typeof profile.stripe_current_period_end === 'string' ? profile.stripe_current_period_end : 'Invalid Date';
         }
       }
@@ -65,7 +80,7 @@ export async function POST(req: Request) {
         message: `Du bist bereits für diesen Plan angemeldet. Dein aktuelles Abonnement endet am ${formattedDate}.`,
         subscriptionEndDate: formattedDate,
       }), {
-        status: 409, // Conflict
+        status: 409,
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -85,7 +100,7 @@ export async function POST(req: Request) {
         },
       ],
       metadata: {
-        userId: user.id, // Store Supabase user ID in metadata
+        userId: user.id,
       },
       success_url: `${req.headers.get('origin')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get('origin')}/checkout/cancel`,
@@ -102,7 +117,6 @@ export async function POST(req: Request) {
     };
 
     if (isEligibleForTrial()) {
-      console.log("Applying 14-day trial for a new user.");
       sessionParams.subscription_data = { trial_period_days: 14 };
     } else {
       console.log("Not applying a trial period. User has a subscription history or plan is free.");
@@ -110,18 +124,26 @@ export async function POST(req: Request) {
 
     if (profile && profile.stripe_customer_id) {
       sessionParams.customer = profile.stripe_customer_id;
-      // customer_email should not be set if customer is set
     } else {
       sessionParams.customer_email = user.email;
-      // customer should not be set if customer_email is set
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
+    logApiRoute('/api/stripe/checkout-session', 'POST', 'response', {
+      user_id: user.id,
+      price_id: requestedPriceId,
+      session_id: session.id,
+      has_trial: isEligibleForTrial(),
+      action: 'checkout_session_created'
+    });
+
     return NextResponse.json({ sessionId: session.id, url: session.url });
   } catch (error) {
-    console.error('Error creating Stripe checkout session:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    logApiRoute('/api/stripe/checkout-session', 'POST', 'error', {
+      error_message: errorMessage
+    });
     return new NextResponse(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
