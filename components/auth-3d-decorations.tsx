@@ -13,6 +13,24 @@ import { motion } from "framer-motion"
 // OPACITY CONFIGURATION
 // Adjust these values to change the visibility of 3D elements across all auth pages
 // ============================================================================
+// ============================================================================
+// ANIMATION CONFIGURATION
+// Adjust these values to change the speed of animations
+// ============================================================================
+
+const ANIMATION_DURATIONS = {
+    ring1: 40,
+    ring2: 35,
+    ring3: 45,
+    sphere1: 6,
+    sphere2: 8,
+    sphere3: 5,
+}
+
+// ============================================================================
+// OPACITY CONFIGURATION
+// Adjust these values to change the visibility of 3D elements across all auth pages
+// ============================================================================
 
 const RING_OPACITY = {
     primary: 0.06,    // Top-right and left rotating rings
@@ -47,19 +65,19 @@ export function Auth3DDecorations() {
                     className="absolute -top-32 -right-32 w-96 h-96 border rounded-full"
                     style={{ borderColor: `rgba(255, 255, 255, ${RING_OPACITY.primary})` }}
                     animate={{ rotateX: [0, 360], rotateY: [0, 360], rotateZ: [0, 180] }}
-                    transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: ANIMATION_DURATIONS.ring1, repeat: Infinity, ease: "linear" }}
                 />
                 <motion.div
                     className="absolute top-1/2 -left-32 w-80 h-80 border rounded-full"
                     style={{ borderColor: `rgba(255, 255, 255, ${RING_OPACITY.primary})` }}
                     animate={{ rotateX: [0, -360], rotateY: [0, 180], rotateZ: [0, -90] }}
-                    transition={{ duration: 35, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: ANIMATION_DURATIONS.ring2, repeat: Infinity, ease: "linear" }}
                 />
                 <motion.div
                     className="absolute -bottom-32 left-1/2 w-[30rem] h-[30rem] border rounded-full"
                     style={{ borderColor: `rgba(255, 255, 255, ${RING_OPACITY.secondary})` }}
                     animate={{ rotateX: [45, 405], rotateY: [0, 0], rotateZ: [0, 360] }}
-                    transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: ANIMATION_DURATIONS.ring3, repeat: Infinity, ease: "linear" }}
                 />
             </div>
 
@@ -77,7 +95,7 @@ export function Auth3DDecorations() {
                     scale: [1, 1.05, 1],
                     rotate: [0, 10, 0]
                 }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: ANIMATION_DURATIONS.sphere1, repeat: Infinity, ease: "easeInOut" }}
             />
             <motion.div
                 className="absolute bottom-32 left-12 w-32 h-32 rounded-full"
@@ -92,7 +110,7 @@ export function Auth3DDecorations() {
                     x: [0, 10, 0],
                     rotate: [0, -10, 0]
                 }}
-                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: ANIMATION_DURATIONS.sphere2, repeat: Infinity, ease: "easeInOut" }}
             >
                 {/* Inner glass reflection */}
                 <div
@@ -114,7 +132,7 @@ export function Auth3DDecorations() {
                     y: [0, -15, 0],
                     x: [0, -10, 0]
                 }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                transition={{ duration: ANIMATION_DURATIONS.sphere3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
             />
         </>
     )
