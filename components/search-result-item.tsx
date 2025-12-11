@@ -241,16 +241,16 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
       className="group flex items-center justify-between !p-2 rounded-xl hover:bg-muted/50 focus:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 my-1 !opacity-100"
       tabIndex={0}
     >
-      <div className="flex items-start gap-4 flex-1 min-w-0">
+      <div className="flex items-center gap-4 flex-1 min-w-0">
 
         {/* Icon Container */}
         <div className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg shadow-sm border border-transparent",
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg shadow-sm border border-transparent",
           theme.bg,
           theme.text,
           "group-hover:shadow-md transition-shadow duration-200"
         )}>
-          <Icon className="!h-5 !w-5" />
+          <Icon className="!h-6 !w-6" />
         </div>
 
         {/* Content */}
