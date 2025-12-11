@@ -40,10 +40,10 @@ jobs:
       # Restore cache of previously passing tests
       - name: Restore passing tests cache
         id: cache-passing-tests
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .test-cache
-          key: passing-tests-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          key: passing-tests-${{ runner.os }}-dummy-key-for-restore
           restore-keys: |
             passing-tests-${{ runner.os }}-
 
@@ -641,7 +641,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .test-cache
-          key: passing-tests-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          key: passing-tests-${{ runner.os }}-dummy-key-for-restore
           restore-keys: |
             passing-tests-${{ runner.os }}-
 
@@ -681,11 +681,14 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
       # Save updated passing tests cache
+      # Note: GitHub cache keys are immutable, so we use run_id + timestamp to ensure uniqueness
       - name: Save passing tests cache
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: .test-cache
-          key: passing-tests-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
+          key: passing-tests-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+        continue-on-error: true
       
       # Aggregate results and send Discord notification
       - name: Aggregate results and notify Discord
