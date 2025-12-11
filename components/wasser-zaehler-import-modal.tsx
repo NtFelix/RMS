@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calendar, Gauge, Droplets } from "lucide-react";
 import { WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
 import { bulkCreateWasserAblesungen } from "@/app/wasser-zaehler-actions";
-import { isoToGermanDate } from "@/utils/date-calculations";
+import { isoToGermanDate, excelDateToJS } from "@/utils/date-calculations";
 import { StatCard } from "@/components/stat-card";
 
 interface WasserZaehlerImportModalProps {
@@ -130,9 +130,8 @@ export function WasserZaehlerImportModal({
 
     // Handle Excel serial dates
     if (typeof value === 'number') {
-      // Excel's epoch starts on 1899-12-30. 25569 is the serial for 1970-01-01, accounting for the 1900 leap year bug.
-      const date = new Date((value - 25569) * 86400 * 1000);
-      return date.toISOString().split('T')[0];
+      const date = excelDateToJS(value);
+      return date ? date.toISOString().split('T')[0] : null;
     }
 
     if (value instanceof Date) {

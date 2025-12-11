@@ -222,3 +222,15 @@ export function formatPeriodDuration(startdatum: string, enddatum: string): stri
     return 'Ungültiger Zeitraum';
   }
 }
+
+/**
+ * Convert Excel serial date number to JavaScript Date object
+ * Excel's epoch starts on 1899-12-30. 25569 is the serial for 1970-01-01.
+ */
+export function excelDateToJS(serial: number): Date | null {
+  if (typeof serial !== 'number' || isNaN(serial)) {
+    return null;
+  }
+  // Excel's epoch starts on 1899-12-30. 25569 is the serial for 1970-01-01.
+  return new Date((serial - 25569) * 86400 * 1000);
+}
