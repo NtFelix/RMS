@@ -19,7 +19,11 @@ import {
   CheckCircle,
   Circle,
   FileText,
-  MoreHorizontal
+  MoreHorizontal,
+  ArrowRight,
+  TrendingUp,
+  TrendingDown,
+  AlertCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -31,216 +35,193 @@ interface SearchResultItemProps {
   searchQuery?: string
 }
 
-// Icon mapping for different entity types
-const getEntityIcon = (type: SearchResult['type']) => {
+// Entity Theme Configuration
+const getEntityTheme = (type: SearchResult['type']) => {
   switch (type) {
     case 'tenant':
-      return Users
+      return {
+        bg: 'bg-blue-100 dark:bg-blue-500/20',
+        text: 'text-blue-600 dark:text-blue-400',
+        icon: Users
+      }
     case 'house':
-      return Building2
+      return {
+        bg: 'bg-indigo-100 dark:bg-indigo-500/20',
+        text: 'text-indigo-600 dark:text-indigo-400',
+        icon: Building2
+      }
     case 'apartment':
-      return Home
+      return {
+        bg: 'bg-emerald-100 dark:bg-emerald-500/20',
+        text: 'text-emerald-600 dark:text-emerald-400',
+        icon: Home
+      }
     case 'finance':
-      return Wallet
+      return {
+        bg: 'bg-amber-100 dark:bg-amber-500/20',
+        text: 'text-amber-600 dark:text-amber-400',
+        icon: Wallet
+      }
     case 'task':
-      return CheckSquare
+      return {
+        bg: 'bg-rose-100 dark:bg-rose-500/20',
+        text: 'text-rose-600 dark:text-rose-400',
+        icon: CheckSquare
+      }
     default:
-      return Circle
+      return {
+        bg: 'bg-muted',
+        text: 'text-muted-foreground',
+        icon: Circle
+      }
   }
 }
 
-// Color mapping for different entity types (all using primary color)
-const getEntityColor = () => 'text-primary'
-
-// Localized label for entity type (for a compact badge)
+// Localized label for entity type
 const getEntityLabel = (type: SearchResult['type']) => {
   switch (type) {
-    case 'tenant':
-      return 'Mieter'
-    case 'house':
-      return 'Haus'
-    case 'apartment':
-      return 'Wohnung'
-    case 'finance':
-      return 'Finanzen'
-    case 'task':
-      return 'Aufgabe'
-    default:
-      return ''
+    case 'tenant': return 'Mieter'
+    case 'house': return 'Haus'
+    case 'apartment': return 'Wohnung'
+    case 'finance': return 'Finanzen'
+    case 'task': return 'Aufgabe'
+    default: return ''
   }
 }
 
-// Format metadata for display based on entity type
-const formatMetadata = (result: SearchResult) => {
+// Render formatted metadata in a grid/list style
+const renderMetadata = (result: SearchResult) => {
   const { type, metadata } = result
 
   switch (type) {
     case 'tenant':
       return (
-        <div className="space-y-1">
+        <>
           {metadata?.email && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Mail className="h-3 w-3 text-primary" />
-              <a href={`mailto:${metadata.email}`} className="hover:underline truncate">{metadata.email}</a>
-            </div>
-          )}
-          {metadata?.address && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <MapPin className="h-3 w-3 text-primary" />
-              <span className="truncate">{metadata.address}</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Mail className="h-3 w-3 opacity-70" />
+              <span className="truncate">{metadata.email}</span>
             </div>
           )}
           {metadata?.phone && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Phone className="h-3 w-3 text-primary" />
-              <a href={`tel:${metadata.phone}`} className="hover:underline truncate">{metadata.phone}</a>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Phone className="h-3 w-3 opacity-70" />
+              <span className="truncate">{metadata.phone}</span>
             </div>
           )}
-          {metadata?.move_in_date && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3 text-primary" />
-              <span>Eingezogen: {new Date(metadata.move_in_date).toLocaleDateString('de-DE')}</span>
+          {metadata?.address && (
+            <div className="flex items-center gap-1.5 min-w-0 col-span-2">
+              <MapPin className="h-3 w-3 opacity-70" />
+              <span className="truncate">{metadata.address}</span>
             </div>
           )}
-        </div>
+        </>
       )
 
     case 'house':
       return (
-        <div className="space-y-2">
+        <>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Home className="h-3 w-3 opacity-70" />
+            <span>{metadata?.apartment_count || 0} Wohnungen</span>
+          </div>
+          {metadata?.total_rent && (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Euro className="h-3 w-3 opacity-70" />
+              <span>{metadata.total_rent} / Monat</span>
+            </div>
+          )}
           {metadata?.address && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-1.5 min-w-0 col-span-2">
+              <MapPin className="h-3 w-3 opacity-70" />
               <span className="truncate">{metadata.address}</span>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            {metadata?.apartment_count && (
-              <div className="flex items-center gap-1.5">
-                <Home className="h-3.5 w-3.5 text-primary" />
-                <span>{metadata.apartment_count} Wohnungen</span>
-              </div>
-            )}
-            {metadata?.free_apartments !== undefined && (
-              <div className="flex items-center gap-1.5">
-                <CheckCircle className="h-3.5 w-3.5 text-primary" />
-                <span>{metadata.free_apartments} frei</span>
-              </div>
-            )}
-          </div>
-          {metadata?.total_rent && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Euro className="h-3.5 w-3.5 text-primary" />
-              <span>Gesamtmiete: {metadata.total_rent}€</span>
-            </div>
-          )}
-        </div>
+        </>
       )
 
     case 'apartment':
       return (
-        <div className="space-y-1">
-          {metadata?.current_tenant && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="h-3.5 w-3.5 text-primary" />
-              <span>{metadata.current_tenant.name}</span>
-            </div>
-          )}
+        <>
           {metadata?.house_name && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Building2 className="h-3.5 w-3.5 text-primary" />
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Building2 className="h-3 w-3 opacity-70" />
               <span className="truncate">{metadata.house_name}</span>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3">
             {metadata?.size && (
-              <div className="flex items-center gap-1.5">
-                <Ruler className="h-3.5 w-3.5 text-primary" />
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Ruler className="h-3 w-3 opacity-70" />
                 <span>{metadata.size}m²</span>
               </div>
             )}
             {metadata?.rent && (
-              <div className="flex items-center gap-1.5">
-                <Euro className="h-3.5 w-3.5 text-primary" />
-                <span>{metadata.rent}€/Monat</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Euro className="h-3 w-3 opacity-70" />
+                <span>{metadata.rent}</span>
               </div>
             )}
           </div>
-        </div>
+          {metadata?.current_tenant && (
+            <div className="flex items-center gap-1.5 min-w-0 col-span-2 text-primary/80">
+              <Users className="h-3 w-3" />
+              <span className="truncate font-medium">{metadata.current_tenant.name}</span>
+            </div>
+          )}
+        </>
       )
 
     case 'finance':
       return (
-        <div className="space-y-2">
-          {metadata?.apartment && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Home className="h-3.5 w-3.5 text-primary" />
-              <span className="font-medium">{metadata.apartment.name}</span>
-              <span className="text-muted-foreground/60">•</span>
-              <Building2 className="h-3 w-3 text-muted-foreground/80" />
-              <span className="text-muted-foreground/80">{metadata.apartment.house_name}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-4">
-            {metadata?.date && (
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>{new Date(metadata.date).toLocaleDateString('de-DE')}</span>
-              </div>
+        <>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {metadata?.type === 'income' ? (
+              <TrendingUp className="h-3 w-3 text-emerald-500" />
+            ) : (
+              <TrendingDown className="h-3 w-3 text-rose-500" />
             )}
-            {metadata?.amount && (
-              <div className="flex items-center gap-1.5">
-                <Euro className="h-3.5 w-3.5 text-muted-foreground" />
-                <span
-                  className={cn(
-                    'font-semibold',
-                    metadata.type === 'income' ? 'text-green-600' : 'text-red-600'
-                  )}
-                >
-                  {metadata.type === 'income' ? '+' : '-'}{Math.abs(metadata.amount)}€
-                </span>
-              </div>
-            )}
+            <span className={cn("font-medium", metadata?.type === 'income' ? "text-emerald-600" : "text-rose-600")}>
+              {metadata?.amount !== undefined ? `${metadata.amount}€` : '-'}
+            </span>
           </div>
-          {metadata?.notes && (
-            <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground/90">
-              <FileText className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />
-              <span className="line-clamp-2">{metadata.notes}</span>
+          {metadata?.date && (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Calendar className="h-3 w-3 opacity-70" />
+              <span>{new Date(metadata.date).toLocaleDateString('de-DE')}</span>
             </div>
           )}
-        </div>
+          {metadata?.apartment && (
+            <div className="flex items-center gap-1.5 min-w-0 col-span-2">
+              <Home className="h-3 w-3 opacity-70" />
+              <span className="truncate">{metadata.apartment.name}</span>
+              <span className="text-muted-foreground/40 mx-0.5">•</span>
+              <span className="truncate opacity-70">{metadata.apartment.house_name}</span>
+            </div>
+          )}
+        </>
       )
 
     case 'task':
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            {metadata?.completed !== undefined && (
-              <div className="flex items-center gap-1.5">
-                {metadata.completed ? (
-                  <CheckCircle className="h-3.5 w-3.5 text-green-600" />
-                ) : (
-                  <Circle className="h-3.5 w-3.5 text-muted-foreground/70" />
-                )}
-                <span className="text-sm font-medium">
-                  {metadata.completed ? 'Erledigt' : 'Offen'}
-                </span>
-              </div>
-            )}
-            {metadata?.due_date && (
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>Fällig: {new Date(metadata.due_date).toLocaleDateString('de-DE')}</span>
-              </div>
+        <>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {metadata?.due_date ? (
+              <>
+                <Calendar className="h-3 w-3 opacity-70" />
+                <span>{new Date(metadata.due_date).toLocaleDateString('de-DE')}</span>
+              </>
+            ) : (
+              <span className="text-muted-foreground/60">Kein Datum</span>
             )}
           </div>
           {metadata?.description && (
-            <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground/90">
-              <FileText className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />
-              <span className="line-clamp-2">{metadata.description}</span>
+            <div className="flex items-center gap-1.5 min-w-0 col-span-2">
+              <FileText className="h-3 w-3 opacity-70" />
+              <span className="truncate">{metadata.description}</span>
             </div>
           )}
-        </div>
+        </>
       )
 
     default:
@@ -249,105 +230,105 @@ const formatMetadata = (result: SearchResult) => {
 }
 
 export function SearchResultItem({ result, onSelect, onAction }: SearchResultItemProps) {
-  const EntityIcon = getEntityIcon(result.type)
-  const entityColor = getEntityColor()
+  const theme = getEntityTheme(result.type)
   const entityLabel = getEntityLabel(result.type)
+  const Icon = theme.icon
 
   return (
     <CommandItem
       key={result.id}
       onSelect={() => onSelect(result)}
-      className="group flex items-center justify-between p-3 rounded-md hover:bg-secondary/25 focus:bg-secondary/25 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer transition-colors"
+      className="group flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 focus:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 my-1"
       tabIndex={0}
     >
+      <div className="flex items-start gap-4 flex-1 min-w-0">
 
-
-      <div className="flex items-start gap-3 flex-1 min-w-0">
-        {/* Entity Icon */}
-        <div className="flex-shrink-0 mt-0.5 text-primary">
-          <EntityIcon className="h-4 w-4" />
+        {/* Icon Container */}
+        <div className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg shadow-sm border border-transparent",
+          theme.bg,
+          theme.text,
+          "group-hover:shadow-md transition-shadow duration-200"
+        )}>
+          <Icon className="h-5 w-5" />
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0 space-y-1">
-          {/* Title with status badge */}
-          <div className="font-medium text-sm truncate flex items-center gap-2">
-            <span className="truncate">{result.title}</span>
-            {result.type === 'tenant' && result.metadata?.status ? (
-              <Badge
-                variant={result.metadata.status === 'active' ? 'default' : 'secondary'}
-                className="text-[10px] px-1.5 py-0 h-5"
-              >
+        <div className="flex-1 min-w-0 flex flex-col gap-1 py-0.5">
+          {/* Header Row */}
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm truncate text-foreground">
+              {result.title}
+            </span>
+
+            {/* Context/Subtitle placed nicely next to title if short, or below */}
+            {result.subtitle && result.type !== 'tenant' && result.type !== 'house' && (
+              <span className="text-xs text-muted-foreground truncate hidden sm:inline-block">
+                • {result.subtitle}
+              </span>
+            )}
+
+            {/* Status Badges */}
+            {result.type === 'tenant' && result.metadata?.status && (
+              <Badge variant={result.metadata.status === 'active' ? 'outline' : 'secondary'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.status === 'active' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
                 {result.metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
               </Badge>
-            ) : result.type === 'apartment' && result.metadata?.status ? (
-              <Badge
-                variant={result.metadata.status === 'free' ? 'secondary' : 'default'}
-                className="text-[10px] px-1.5 py-0 h-5"
-              >
+            )}
+            {result.type === 'apartment' && result.metadata?.status && (
+              <Badge variant={result.metadata.status === 'free' ? 'secondary' : 'outline'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.status === 'free' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
                 {result.metadata.status === 'free' ? 'Frei' : 'Vermietet'}
               </Badge>
-            ) : entityLabel && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-primary border-primary/40">
-                {entityLabel}
+            )}
+            {result.type === 'task' && result.metadata?.completed !== undefined && (
+              <Badge variant={result.metadata.completed ? 'outline' : 'secondary'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.completed && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
+                {result.metadata.completed ? 'Erledigt' : 'Offen'}
               </Badge>
             )}
           </div>
 
-          {/* Subtitle - hidden for tenant and house to avoid duplicating information */}
-          {result.type !== 'tenant' && result.type !== 'house' && result.subtitle && (
-            <div className="text-xs text-muted-foreground truncate">
-              {result.subtitle}
-            </div>
-          )}
-
-          {/* Context */}
-          {result.context && (
-            <div className="text-xs text-muted-foreground/80 truncate">
+          {/* Subtitle Mobile Only (if hidden above) or if Context needs showing */}
+          {(result.context) && (
+            <div className="text-xs text-muted-foreground line-clamp-1">
               {result.context}
             </div>
           )}
 
-          {/* Enhanced Details */}
-          {/* Removed visible ID as it is irrelevant to the user */}
-
-          {/* Metadata */}
-          {formatMetadata(result)}
+          {/* Metadata Grid */}
+          <div className="grid grid-cols-[auto_auto] sm:flex sm:flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground/80 mt-0.5">
+            {renderMetadata(result)}
+          </div>
         </div>
       </div>
 
-      {/* Actions */}
-      {result.actions && result.actions.length > 0 && (
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {result.actions.slice(0, 2).map((action, index) => (
-            <Button
-              key={index}
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={(e) => {
-                e.stopPropagation()
-                onAction?.(result, index)
-              }}
-            >
-              {React.createElement(action.icon, { className: "h-3 w-3" })}
-            </Button>
-          ))}
-          {result.actions.length > 2 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={(e) => {
-                e.stopPropagation()
-                // Could open a context menu or dropdown for additional actions
-              }}
-            >
-              <MoreHorizontal className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
-      )}
+      {/* Actions Section */}
+      <div className="flex items-center self-center pl-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+
+        {result.actions && result.actions.length > 0 && (
+          <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm p-1 rounded-lg border shadow-sm">
+            {result.actions.slice(0, 3).map((action, index) => (
+              <Button
+                key={index}
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+                title={action.label}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAction?.(result, index)
+                }}
+              >
+                {React.createElement(action.icon, { className: "h-3.5 w-3.5" })}
+              </Button>
+            ))}
+
+            {/* Enter Action Hint */}
+            <div className="w-px h-4 bg-border mx-1" />
+            <div className="flex items-center justify-center h-7 w-7 text-muted-foreground/50">
+              <ArrowRight className="h-3.5 w-3.5" />
+            </div>
+          </div>
+        )}
+      </div>
     </CommandItem>
   )
 }

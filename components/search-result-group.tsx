@@ -8,7 +8,8 @@ import {
   Building2,
   Home,
   Wallet,
-  CheckSquare
+  CheckSquare,
+  Sparkles
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -36,12 +37,21 @@ const getGroupIcon = (type: SearchResult['type']) => {
     case 'task':
       return CheckSquare
     default:
-      return null
+      return Sparkles
   }
 }
 
-// Color mapping for group headers (all using primary color for consistency)
-const getGroupColor = () => 'text-primary'
+// Color mapping for group headers
+const getGroupColor = (type: SearchResult['type']) => {
+  switch (type) {
+    case 'tenant': return 'text-blue-500'
+    case 'house': return 'text-indigo-500'
+    case 'apartment': return 'text-emerald-500'
+    case 'finance': return 'text-amber-500'
+    case 'task': return 'text-rose-500'
+    default: return 'text-primary'
+  }
+}
 
 // German translations for entity types
 const getGroupTitle = (type: SearchResult['type'], count: number) => {
@@ -71,27 +81,26 @@ export function SearchResultGroup({
   }
 
   const GroupIcon = getGroupIcon(type)
-  const groupColor = getGroupColor()
+  const groupColor = getGroupColor(type)
   const groupTitle = title || getGroupTitle(type, results.length)
 
   return (
     <>
-      {showSeparator && <CommandSeparator />}
+      {showSeparator && <CommandSeparator className="my-2" />}
       <CommandGroup>
-
-        {/* Group Header */}
-        <div className="flex items-center gap-2 px-2 py-2 mb-1 text-sm font-medium text-foreground/80">
-          {GroupIcon && (
-            <GroupIcon className={cn("h-4 w-4 text-muted-foreground", groupColor)} />
-          )}
-          <span>{groupTitle}</span>
-          <span className="ml-auto text-xs text-muted-foreground/60 bg-muted/50 px-1.5 py-0.5 rounded font-mono">
-            {results.length}
-          </span>
-        </div>
-
         {/* Results */}
-        <div className="space-y-0">
+        <div className="space-y-1">
+          {/* Custom Header within the group flow for better control than CommandGroup heading */}
+          <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 select-none">
+            {GroupIcon && (
+              <GroupIcon className={cn("h-3.5 w-3.5", groupColor)} />
+            )}
+            <span>{groupTitle}</span>
+            <div className="ml-auto flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-muted/50 text-[10px] font-medium text-muted-foreground">
+              {results.length}
+            </div>
+          </div>
+
           {results.map((result) => (
             <SearchResultItem
               key={result.id}
