@@ -128,7 +128,7 @@ const CommandItem = React.forwardRef<
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default gap-3 select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected='true']:bg-accent data-[selected='true']:text-accent-foreground data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 pointer-events-auto transition-colors",
+      "group relative flex cursor-default gap-3 select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected='true']:bg-accent data-[selected='true']:text-accent-foreground data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 pointer-events-auto transition-colors",
       className
     )}
     cmdk-item=""
@@ -145,7 +145,11 @@ const CommandShortcut = ({
   return (
     <span
       className={cn(
-        "ml-auto text-xs tracking-widest text-muted-foreground/70",
+        "ml-auto flex items-center gap-1",
+        // Base styles for keys (applied to span children)
+        "[&_span]:flex [&_span]:h-5 [&_span]:min-w-[20px] [&_span]:items-center [&_span]:justify-center [&_span]:rounded [&_span]:border [&_span]:border-border/50 [&_span]:bg-muted/50 [&_span]:px-1 [&_span]:font-mono [&_span]:text-[10px] [&_span]:font-medium [&_span]:text-muted-foreground [&_span]:select-none [&_span]:pointer-events-none",
+        // Selection state styles (using group-data from parent Item)
+        "group-data-[selected=true]:[&_span]:text-accent-foreground group-data-[selected=true]:[&_span]:border-accent-foreground/30 group-data-[selected=true]:[&_span]:bg-accent-foreground/10",
         className
       )}
       {...props}

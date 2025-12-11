@@ -1107,7 +1107,7 @@ export function CommandMenu() {
                   >
                     <Users className="mr-2 h-4 w-4" />
                     <span>Mieter suchen</span>
-                    <CommandShortcut>⌘M</CommandShortcut>
+                    <CommandShortcut><span>⌘</span><span>M</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
                     onSelect={() => {
@@ -1116,7 +1116,7 @@ export function CommandMenu() {
                   >
                     <Building2 className="mr-2 h-4 w-4" />
                     <span>Häuser suchen</span>
-                    <CommandShortcut>⌘H</CommandShortcut>
+                    <CommandShortcut><span>⌘</span><span>H</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
                     onSelect={() => {
@@ -1125,7 +1125,7 @@ export function CommandMenu() {
                   >
                     <Home className="mr-2 h-4 w-4" />
                     <span>Wohnungen suchen</span>
-                    <CommandShortcut>⌘J</CommandShortcut>
+                    <CommandShortcut><span>⌘</span><span>J</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
                     onSelect={() => {
@@ -1134,7 +1134,7 @@ export function CommandMenu() {
                   >
                     <Wallet className="mr-2 h-4 w-4" />
                     <span>Finanzen suchen</span>
-                    <CommandShortcut>⌘F</CommandShortcut>
+                    <CommandShortcut><span>⌘</span><span>F</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
                     onSelect={() => {
@@ -1143,7 +1143,7 @@ export function CommandMenu() {
                   >
                     <CheckSquare className="mr-2 h-4 w-4" />
                     <span>Aufgaben suchen</span>
-                    <CommandShortcut>⌘A</CommandShortcut>
+                    <CommandShortcut><span>⌘</span><span>A</span></CommandShortcut>
                   </CommandItem>
                 </CommandGroup>
 
