@@ -99,19 +99,19 @@ const renderMetadata = (result: SearchResult) => {
         <>
           {metadata?.email && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Mail className="h-3 w-3 opacity-70" />
+              <Mail className="!h-3 !w-3 opacity-70" />
               <span className="truncate">{metadata.email}</span>
             </div>
           )}
           {metadata?.phone && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Phone className="h-3 w-3 opacity-70" />
+              <Phone className="!h-3 !w-3 opacity-70" />
               <span className="truncate">{metadata.phone}</span>
             </div>
           )}
           {metadata?.address && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <MapPin className="h-3 w-3 opacity-70" />
+              <MapPin className="!h-3 !w-3 opacity-70" />
               <span className="truncate">{metadata.address}</span>
             </div>
           )}
@@ -122,18 +122,18 @@ const renderMetadata = (result: SearchResult) => {
       return (
         <>
           <div className="flex items-center gap-1.5 min-w-0">
-            <Home className="h-3 w-3 opacity-70" />
+            <Home className="!h-3 !w-3 opacity-70" />
             <span>{metadata?.apartment_count || 0} Wohnungen</span>
           </div>
           {metadata?.total_rent && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Euro className="h-3 w-3 opacity-70" />
+              <Euro className="!h-3 !w-3 opacity-70" />
               <span>{metadata.total_rent} / Monat</span>
             </div>
           )}
           {metadata?.address && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <MapPin className="h-3 w-3 opacity-70" />
+              <MapPin className="!h-3 !w-3 opacity-70" />
               <span className="truncate">{metadata.address}</span>
             </div>
           )}
@@ -145,27 +145,27 @@ const renderMetadata = (result: SearchResult) => {
         <>
           {metadata?.house_name && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Building2 className="h-3 w-3 opacity-70" />
+              <Building2 className="!h-3 !w-3 opacity-70" />
               <span className="truncate">{metadata.house_name}</span>
             </div>
           )}
           <div className="flex items-center gap-3">
             {metadata?.size && (
               <div className="flex items-center gap-1.5 min-w-0">
-                <Ruler className="h-3 w-3 opacity-70" />
+                <Ruler className="!h-3 !w-3 opacity-70" />
                 <span>{metadata.size}m²</span>
               </div>
             )}
             {metadata?.rent && (
               <div className="flex items-center gap-1.5 min-w-0">
-                <Euro className="h-3 w-3 opacity-70" />
+                <Euro className="!h-3 !w-3 opacity-70" />
                 <span>{metadata.rent}</span>
               </div>
             )}
           </div>
           {metadata?.current_tenant && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2 text-primary/80">
-              <Users className="h-3 w-3" />
+              <Users className="!h-3 !w-3" />
               <span className="truncate font-medium">{metadata.current_tenant.name}</span>
             </div>
           )}
@@ -177,9 +177,9 @@ const renderMetadata = (result: SearchResult) => {
         <>
           <div className="flex items-center gap-1.5 min-w-0">
             {metadata?.type === 'income' ? (
-              <TrendingUp className="h-3 w-3 text-emerald-500" />
+              <TrendingUp className="!h-3 !w-3 text-emerald-500" />
             ) : (
-              <TrendingDown className="h-3 w-3 text-rose-500" />
+              <TrendingDown className="!h-3 !w-3 text-rose-500" />
             )}
             <span className={cn("font-medium", metadata?.type === 'income' ? "text-emerald-600" : "text-rose-600")}>
               {metadata?.amount !== undefined ? `${metadata.amount}€` : '-'}
@@ -187,13 +187,13 @@ const renderMetadata = (result: SearchResult) => {
           </div>
           {metadata?.date && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Calendar className="h-3 w-3 opacity-70" />
+              <Calendar className="!h-3 !w-3 opacity-70" />
               <span>{new Date(metadata.date).toLocaleDateString('de-DE')}</span>
             </div>
           )}
           {metadata?.apartment && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <Home className="h-3 w-3 opacity-70" />
+              <Home className="!h-3 !w-3 opacity-70" />
               <span className="truncate">{metadata.apartment.name}</span>
               <span className="text-muted-foreground/40 mx-0.5">•</span>
               <span className="truncate opacity-70">{metadata.apartment.house_name}</span>
@@ -208,7 +208,7 @@ const renderMetadata = (result: SearchResult) => {
           <div className="flex items-center gap-1.5 min-w-0">
             {metadata?.due_date ? (
               <>
-                <Calendar className="h-3 w-3 opacity-70" />
+                <Calendar className="!h-3 !w-3 opacity-70" />
                 <span>{new Date(metadata.due_date).toLocaleDateString('de-DE')}</span>
               </>
             ) : (
@@ -217,7 +217,7 @@ const renderMetadata = (result: SearchResult) => {
           </div>
           {metadata?.description && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <FileText className="h-3 w-3 opacity-70" />
+              <FileText className="!h-3 !w-3 opacity-70" />
               <span className="truncate">{metadata.description}</span>
             </div>
           )}
@@ -238,7 +238,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
     <CommandItem
       key={result.id}
       onSelect={() => onSelect(result)}
-      className="group flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 focus:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 my-1"
+      className="group flex items-center justify-between !p-2 rounded-xl hover:bg-muted/50 focus:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 my-1 !opacity-100"
       tabIndex={0}
     >
       <div className="flex items-start gap-4 flex-1 min-w-0">
@@ -250,7 +250,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
           theme.text,
           "group-hover:shadow-md transition-shadow duration-200"
         )}>
-          <Icon className="h-5 w-5" />
+          <Icon className="!h-5 !w-5" />
         </div>
 
         {/* Content */}
@@ -317,14 +317,14 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
                   onAction?.(result, index)
                 }}
               >
-                {React.createElement(action.icon, { className: "h-3.5 w-3.5" })}
+                {React.createElement(action.icon, { className: "!h-3.5 !w-3.5" })}
               </Button>
             ))}
 
             {/* Enter Action Hint */}
             <div className="w-px h-4 bg-border mx-1" />
             <div className="flex items-center justify-center h-7 w-7 text-muted-foreground/50">
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="!h-3.5 !w-3.5" />
             </div>
           </div>
         )}
