@@ -3,12 +3,12 @@
 import { SearchResult } from "@/types/search"
 import { CommandGroup, CommandSeparator } from "@/components/ui/command"
 import { SearchResultItem } from "./search-result-item"
-import { 
-  Users, 
-  Building2, 
-  Home, 
-  Wallet, 
-  CheckSquare 
+import {
+  Users,
+  Building2,
+  Home,
+  Wallet,
+  CheckSquare
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -52,15 +52,15 @@ const getGroupTitle = (type: SearchResult['type'], count: number) => {
     finance: count === 1 ? 'Finanzen' : 'Finanzen',
     task: count === 1 ? 'Aufgabe' : 'Aufgaben'
   }
-  
+
   return titles[type] || 'Ergebnisse'
 }
 
-export function SearchResultGroup({ 
-  title, 
-  type, 
-  results, 
-  onSelect, 
+export function SearchResultGroup({
+  title,
+  type,
+  results,
+  onSelect,
   onAction,
   showSeparator = false,
   searchQuery = ''
@@ -80,16 +80,16 @@ export function SearchResultGroup({
       <CommandGroup>
 
         {/* Group Header */}
-        <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-muted-foreground">
+        <div className="flex items-center gap-2 px-2 py-2 mb-1 text-sm font-medium text-foreground/80">
           {GroupIcon && (
-            <GroupIcon className={cn("h-3 w-3", groupColor)} />
+            <GroupIcon className={cn("h-4 w-4 text-muted-foreground", groupColor)} />
           )}
           <span>{groupTitle}</span>
-          <span className="ml-auto text-xs text-muted-foreground/60">
+          <span className="ml-auto text-xs text-muted-foreground/60 bg-muted/50 px-1.5 py-0.5 rounded font-mono">
             {results.length}
           </span>
         </div>
-        
+
         {/* Results */}
         <div className="space-y-0">
           {results.map((result) => (

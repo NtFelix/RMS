@@ -4,11 +4,11 @@ import React from "react"
 import { SearchResult } from "@/types/search"
 import { CommandItem } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
-import { 
-  Users, 
-  Building2, 
-  Home, 
-  Wallet, 
+import {
+  Users,
+  Building2,
+  Home,
+  Wallet,
   CheckSquare,
   Euro,
   Calendar,
@@ -73,7 +73,7 @@ const getEntityLabel = (type: SearchResult['type']) => {
 // Format metadata for display based on entity type
 const formatMetadata = (result: SearchResult) => {
   const { type, metadata } = result
-  
+
   switch (type) {
     case 'tenant':
       return (
@@ -104,7 +104,7 @@ const formatMetadata = (result: SearchResult) => {
           )}
         </div>
       )
-    
+
     case 'house':
       return (
         <div className="space-y-2">
@@ -136,7 +136,7 @@ const formatMetadata = (result: SearchResult) => {
           )}
         </div>
       )
-    
+
     case 'apartment':
       return (
         <div className="space-y-1">
@@ -168,7 +168,7 @@ const formatMetadata = (result: SearchResult) => {
           </div>
         </div>
       )
-    
+
     case 'finance':
       return (
         <div className="space-y-2">
@@ -210,7 +210,7 @@ const formatMetadata = (result: SearchResult) => {
           )}
         </div>
       )
-    
+
     case 'task':
       return (
         <div className="space-y-1">
@@ -242,7 +242,7 @@ const formatMetadata = (result: SearchResult) => {
           )}
         </div>
       )
-    
+
     default:
       return null
   }
@@ -261,28 +261,28 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
       tabIndex={0}
     >
 
-      
+
       <div className="flex items-start gap-3 flex-1 min-w-0">
         {/* Entity Icon */}
         <div className="flex-shrink-0 mt-0.5 text-primary">
           <EntityIcon className="h-4 w-4" />
         </div>
-        
+
         {/* Content */}
         <div className="flex-1 min-w-0 space-y-1">
           {/* Title with status badge */}
           <div className="font-medium text-sm truncate flex items-center gap-2">
             <span className="truncate">{result.title}</span>
             {result.type === 'tenant' && result.metadata?.status ? (
-              <Badge 
-                variant={result.metadata.status === 'active' ? 'default' : 'secondary'} 
+              <Badge
+                variant={result.metadata.status === 'active' ? 'default' : 'secondary'}
                 className="text-[10px] px-1.5 py-0 h-5"
               >
                 {result.metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
               </Badge>
             ) : result.type === 'apartment' && result.metadata?.status ? (
-              <Badge 
-                variant={result.metadata.status === 'free' ? 'secondary' : 'default'} 
+              <Badge
+                variant={result.metadata.status === 'free' ? 'secondary' : 'default'}
                 className="text-[10px] px-1.5 py-0 h-5"
               >
                 {result.metadata.status === 'free' ? 'Frei' : 'Vermietet'}
@@ -293,29 +293,29 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
               </Badge>
             )}
           </div>
-          
+
           {/* Subtitle - hidden for tenant and house to avoid duplicating information */}
           {result.type !== 'tenant' && result.type !== 'house' && result.subtitle && (
             <div className="text-xs text-muted-foreground truncate">
               {result.subtitle}
             </div>
           )}
-          
+
           {/* Context */}
           {result.context && (
             <div className="text-xs text-muted-foreground/80 truncate">
               {result.context}
             </div>
           )}
-          
+
           {/* Enhanced Details */}
           {/* Removed visible ID as it is irrelevant to the user */}
-          
+
           {/* Metadata */}
           {formatMetadata(result)}
         </div>
       </div>
-      
+
       {/* Actions */}
       {result.actions && result.actions.length > 0 && (
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

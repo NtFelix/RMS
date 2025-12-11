@@ -19,11 +19,11 @@ import { useSearch } from "@/hooks/use-search"
 import { useSearchModalIntegration } from "@/hooks/use-search-modal-integration"
 import { SearchResultGroup } from "@/components/search-result-group"
 import { SearchErrorBoundary } from "@/components/search-error-boundary"
-import { 
-  SearchLoadingIndicator, 
-  SearchEmptyState, 
+import {
+  SearchLoadingIndicator,
+  SearchEmptyState,
   SearchStatusBar,
-  NetworkStatusIndicator 
+  NetworkStatusIndicator
 } from "@/components/search-loading-states"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
@@ -92,7 +92,7 @@ export function CommandMenu() {
   const [isLoadingWohnungContext, setIsLoadingWohnungContext] = useState(false)
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  
+
   // Search functionality with enhanced error handling
   const {
     query,
@@ -175,7 +175,7 @@ export function CommandMenu() {
       // Try focusing immediately and again after the next frame to handle race conditions
       focusInput()
       requestAnimationFrame(focusInput)
-      
+
       // Also try after a short delay to ensure the dialog is fully rendered
       setTimeout(focusInput, 50)
     } else if (query.trim().length > 0) {
@@ -266,7 +266,7 @@ export function CommandMenu() {
 
   // Get the current query from the store
   const storeQuery = useSearchStore((state) => state.query);
-  
+
   // Update local query when store query changes
   useEffect(() => {
     if (storeQuery && storeQuery !== query) {
@@ -303,7 +303,7 @@ export function CommandMenu() {
     onEntityUpdated: (entityType, entityName) => {
       // Refresh search results when entity is updated through modal
       refreshSearchResults()
-      
+
       // Show success toast if not already shown by modal
       if (query.trim()) {
         toast({
@@ -315,7 +315,7 @@ export function CommandMenu() {
     onCacheInvalidate: (entityType) => {
       // Invalidate cache when entity is updated
       invalidateEntityCache(entityType)
-      
+
       // Also invalidate related entity caches
       switch (entityType) {
         case 'mieter':
@@ -341,7 +341,7 @@ export function CommandMenu() {
       // Invalidate cache for the specific entity type and related entities
       if (entityType) {
         invalidateEntityCache(entityType)
-        
+
         // Invalidate related entity caches based on relationships
         switch (entityType) {
           case 'mieter':
@@ -366,16 +366,16 @@ export function CommandMenu() {
         // If no specific entity type, clear all cache
         entityCache.current = {}
       }
-      
+
       // Refresh search results to show updated data
       refreshSearchResults()
-      
+
       // Show success message
       toast({
         title: 'Erfolg',
         description: `${entityName} wurde erfolgreich aktualisiert.`,
       })
-      
+
       // If we're on the relevant page, trigger a page refresh for immediate UI update
       const currentPath = window.location.pathname
       const shouldRefreshPage = (
@@ -385,7 +385,7 @@ export function CommandMenu() {
         (entityType === 'finanzen' && currentPath === '/finanzen') ||
         (entityType === 'todos' && currentPath === '/todos')
       )
-      
+
       if (shouldRefreshPage) {
         // Use a small delay to allow modal to close first
         setTimeout(() => {
@@ -402,7 +402,7 @@ export function CommandMenu() {
   const fetchEntityData = useCallback(async (entityType: string, forceRefresh = false) => {
     const cacheKey = entityType
     const cached = entityCache.current[cacheKey]
-    
+
     // Return cached data if it's still valid and not forcing refresh
     if (!forceRefresh && cached && Date.now() - cached.timestamp < ENTITY_CACHE_DURATION) {
       return cached.data
@@ -411,15 +411,15 @@ export function CommandMenu() {
     try {
       const response = await fetch(`/api/${entityType}`)
       if (!response.ok) throw new Error(`Failed to fetch ${entityType}`)
-      
+
       const data = await response.json()
-      
+
       // Cache the data
       entityCache.current[cacheKey] = {
         data,
         timestamp: Date.now()
       }
-      
+
       return data
     } catch (error) {
       console.error(`Error fetching ${entityType}:`, error)
@@ -430,7 +430,7 @@ export function CommandMenu() {
   // Handle search result selection (main click)
   const handleSearchResultSelect = (result: SearchResult) => {
     setOpen(false)
-    
+
     // Navigate to the appropriate page based on result type
     switch (result.type) {
       case 'tenant':
@@ -459,7 +459,7 @@ export function CommandMenu() {
     if (!action) return
 
     setOpen(false)
-    
+
     // Handle actions based on result type and action label
     switch (result.type) {
       case 'tenant':
@@ -469,7 +469,7 @@ export function CommandMenu() {
           router.push('/mieter')
         }
         break
-        
+
       case 'house':
         if (action.label === 'Bearbeiten') {
           handleEditHouse(result.id, result)
@@ -477,7 +477,7 @@ export function CommandMenu() {
           router.push('/haeuser')
         }
         break
-        
+
       case 'apartment':
         if (action.label === 'Bearbeiten') {
           handleEditApartment(result.id, result)
@@ -485,7 +485,7 @@ export function CommandMenu() {
           router.push('/wohnungen')
         }
         break
-        
+
       case 'finance':
         if (action.label === 'Bearbeiten') {
           handleEditFinance(result.id, result)
@@ -495,7 +495,7 @@ export function CommandMenu() {
           handleDeleteFinanceRecord(result)
         }
         break
-        
+
       case 'task':
         if (action.label === 'Bearbeiten') {
           handleEditTask(result.id, result)
@@ -505,7 +505,7 @@ export function CommandMenu() {
           handleDeleteTask(result)
         }
         break
-        
+
       default:
         break
     }
@@ -518,10 +518,10 @@ export function CommandMenu() {
       const tenantResponse = await fetch(`/api/mieter/${tenantId}`);
       if (!tenantResponse.ok) throw new Error('Tenant not found');
       const tenant = await tenantResponse.json();
-      
+
       // Only fetch wohnungen if we need them for the modal
       const wohnungen = await fetchEntityData('wohnungen');
-      
+
       // Add search context to the modal data if available
       const tenantWithContext = searchResult ? {
         ...tenant,
@@ -531,9 +531,9 @@ export function CommandMenu() {
           resultTitle: searchResult.title
         }
       } : tenant;
-      
+
       useModalStore.getState().openTenantModal(tenantWithContext, wohnungen);
-      
+
       // Success handling is done through the useSearchModalIntegration hook
     } catch (error) {
       console.error('Error loading tenant for edit:', error)
@@ -551,9 +551,9 @@ export function CommandMenu() {
       const response = await fetch(`/api/haeuser/${houseId}`);
       if (!response.ok) throw new Error('House not found');
       const house = await response.json();
-      
+
       const onSuccess = createModalSuccessCallback('Haus', 'haeuser');
-      
+
       // Add search context to the modal data if available
       const houseWithContext = searchResult ? {
         ...house,
@@ -563,7 +563,7 @@ export function CommandMenu() {
           resultTitle: searchResult.title
         }
       } : house;
-      
+
       useModalStore.getState().openHouseModal(houseWithContext, onSuccess);
     } catch (error) {
       console.error('Error loading house for edit:', error)
@@ -581,12 +581,12 @@ export function CommandMenu() {
         fetchEntityData('wohnungen'),
         fetchEntityData('haeuser')
       ])
-      
+
       const apartment = apartments.find((a: any) => a.id === apartmentId)
-      
+
       if (apartment) {
         const onSuccess = createModalSuccessCallback('Wohnung', 'wohnungen')
-        
+
         // Add search context to the modal data if available
         const apartmentWithContext = searchResult ? {
           ...apartment,
@@ -596,10 +596,10 @@ export function CommandMenu() {
             resultTitle: searchResult.title
           }
         } : apartment
-        
+
         useModalStore.getState().openWohnungModal(
-          apartmentWithContext, 
-          houses, 
+          apartmentWithContext,
+          houses,
           onSuccess,
           undefined, // apartmentCount
           undefined, // apartmentLimit
@@ -628,12 +628,12 @@ export function CommandMenu() {
         fetchEntityData('finanzen'),
         fetchEntityData('wohnungen')
       ])
-      
+
       const finance = finances.find((f: any) => f.id === financeId)
-      
+
       if (finance) {
         const onSuccess = createModalSuccessCallback('Finanzeintrag', 'finanzen')
-        
+
         // Add search context to the modal data if available
         const financeWithContext = searchResult ? {
           ...finance,
@@ -643,7 +643,7 @@ export function CommandMenu() {
             resultTitle: searchResult.title
           }
         } : finance
-        
+
         useModalStore.getState().openFinanceModal(financeWithContext, wohnungen, onSuccess)
       } else {
         toast({
@@ -666,10 +666,10 @@ export function CommandMenu() {
     try {
       const tasks = await fetchEntityData('todos')
       const task = tasks.find((t: any) => t.id === taskId)
-      
+
       if (task) {
         const onSuccess = createModalSuccessCallback('Aufgabe', 'todos')
-        
+
         // Add search context to the modal data if available
         const taskWithContext = searchResult ? {
           ...task,
@@ -679,7 +679,7 @@ export function CommandMenu() {
             resultTitle: searchResult.title
           }
         } : task
-        
+
         useModalStore.getState().openAufgabeModal(taskWithContext, onSuccess)
       } else {
         toast({
@@ -710,20 +710,20 @@ export function CommandMenu() {
           const response = await fetch(`/api/finanzen/${result.id}`, {
             method: 'DELETE',
           })
-          
+
           if (response.ok) {
             // Invalidate finance cache and related caches
             invalidateEntityCache('finanzen')
             invalidateEntityCache('wohnungen')
-            
+
             toast({
               title: 'Erfolg',
               description: 'Finanzeintrag wurde gelöscht.',
             })
-            
+
             // Refresh search results if we have an active query
             refreshSearchResults()
-            
+
             // Refresh the current page if we're on the finance page
             if (window.location.pathname === '/finanzen') {
               setTimeout(() => {
@@ -758,19 +758,19 @@ export function CommandMenu() {
           ist_erledigt: !isCompleted
         })
       })
-      
+
       if (response.ok) {
         // Invalidate tasks cache
         invalidateEntityCache('todos')
-        
+
         toast({
           title: 'Erfolg',
           description: `Aufgabe wurde als ${!isCompleted ? 'erledigt' : 'offen'} markiert.`,
         })
-        
+
         // Refresh search results if we have an active query
         refreshSearchResults()
-        
+
         // Refresh the current page if we're on the tasks page
         if (window.location.pathname === '/todos') {
           setTimeout(() => {
@@ -802,19 +802,19 @@ export function CommandMenu() {
           const response = await fetch(`/api/todos/${result.id}`, {
             method: 'DELETE',
           })
-          
+
           if (response.ok) {
             // Invalidate tasks cache
             invalidateEntityCache('todos')
-            
+
             toast({
               title: 'Erfolg',
               description: 'Aufgabe wurde gelöscht.',
             })
-            
+
             // Refresh search results if we have an active query
             refreshSearchResults()
-            
+
             // Refresh the current page if we're on the tasks page
             if (window.location.pathname === '/todos') {
               setTimeout(() => {
@@ -854,7 +854,7 @@ export function CommandMenu() {
       }
 
       const { url } = await response.json();
-      
+
       if (url) {
         window.location.href = url;
       } else {
@@ -897,329 +897,347 @@ export function CommandMenu() {
     >
       <CommandDialog open={open} onOpenChange={setOpen}>
         <Command shouldFilter={false}>
-          <CommandInput 
+          <CommandInput
             ref={inputRef}
-            placeholder="Suchen Sie nach Mietern, Häusern, Wohnungen..." 
+            placeholder="Suchen Sie nach Mietern, Häusern, Wohnungen..."
             value={query}
             onValueChange={setQuery}
             data-dialog-ignore-interaction
           />
-        
-        {/* Network Status Indicator */}
-        <NetworkStatusIndicator 
-          isOffline={isOffline} 
-          onRetry={retrySearch}
-        />
-        
-        <CommandList>
-        {/* Search Results */}
-        {showSearchResults && (
-          <>
-            {/* Loading State */}
-            {isSearchLoading && (
-              <SearchLoadingIndicator 
-                query={query}
-                isLoading={isSearchLoading}
-                retryCount={retryCount}
-                maxRetries={3}
-              />
-            )}
 
-            {/* Search Status Bar */}
-            {!isSearchLoading && hasSearchResults && (
-              <SearchStatusBar
-                totalCount={totalCount}
-                executionTime={executionTime}
-                query={query}
-                isLoading={isSearchLoading}
-                retryCount={retryCount}
-                isOffline={isOffline}
-                resultBreakdown={{
-                  tenant: groupedResults.tenant?.length || 0,
-                  house: groupedResults.house?.length || 0,
-                  apartment: groupedResults.apartment?.length || 0,
-                  finance: groupedResults.finance?.length || 0,
-                  task: groupedResults.task?.length || 0
-                }}
-              />
-            )}
+          {/* Network Status Indicator */}
+          <NetworkStatusIndicator
+            isOffline={isOffline}
+            onRetry={retrySearch}
+          />
 
-            {/* Quick Search Tips - Removed as per user request */}
-
+          <CommandList>
             {/* Search Results */}
-            {!isSearchLoading && !searchError && hasSearchResults && (
+            {showSearchResults && (
               <>
+                {/* Loading State */}
+                {isSearchLoading && (
+                  <SearchLoadingIndicator
+                    query={query}
+                    isLoading={isSearchLoading}
+                    retryCount={retryCount}
+                    maxRetries={3}
+                  />
+                )}
+
+                {/* Search Status Bar */}
+                {!isSearchLoading && hasSearchResults && (
+                  <SearchStatusBar
+                    totalCount={totalCount}
+                    executionTime={executionTime}
+                    query={query}
+                    isLoading={isSearchLoading}
+                    retryCount={retryCount}
+                    isOffline={isOffline}
+                    resultBreakdown={{
+                      tenant: groupedResults.tenant?.length || 0,
+                      house: groupedResults.house?.length || 0,
+                      apartment: groupedResults.apartment?.length || 0,
+                      finance: groupedResults.finance?.length || 0,
+                      task: groupedResults.task?.length || 0
+                    }}
+                  />
+                )}
+
+                {/* Quick Search Tips - Removed as per user request */}
+
+                {/* Search Results */}
+                {!isSearchLoading && !searchError && hasSearchResults && (
+                  <>
 
 
-                {/* Grouped Results */}
-                {groupedResults.tenant && (
-                  <SearchResultGroup
-                    title="Mieter"
-                    type="tenant"
-                    results={groupedResults.tenant}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                    searchQuery={query}
+                    {/* Grouped Results */}
+                    {groupedResults.tenant && (
+                      <SearchResultGroup
+                        title="Mieter"
+                        type="tenant"
+                        results={groupedResults.tenant}
+                        onSelect={handleSearchResultSelect}
+                        onAction={handleSearchResultAction}
+                        searchQuery={query}
+                      />
+                    )}
+
+                    {groupedResults.house && (
+                      <SearchResultGroup
+                        title="Häuser"
+                        type="house"
+                        results={groupedResults.house}
+                        onSelect={handleSearchResultSelect}
+                        onAction={handleSearchResultAction}
+                        showSeparator={!!groupedResults.tenant}
+                        searchQuery={query}
+                      />
+                    )}
+
+                    {groupedResults.apartment && (
+                      <SearchResultGroup
+                        title="Wohnungen"
+                        type="apartment"
+                        results={groupedResults.apartment}
+                        onSelect={handleSearchResultSelect}
+                        onAction={handleSearchResultAction}
+                        showSeparator={!!(groupedResults.tenant || groupedResults.house)}
+                        searchQuery={query}
+                      />
+                    )}
+
+                    {groupedResults.finance && (
+                      <SearchResultGroup
+                        title="Finanzen"
+                        type="finance"
+                        results={groupedResults.finance}
+                        onSelect={handleSearchResultSelect}
+                        onAction={handleSearchResultAction}
+                        showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment)}
+                        searchQuery={query}
+                      />
+                    )}
+
+                    {groupedResults.task && (
+                      <SearchResultGroup
+                        title="Aufgaben"
+                        type="task"
+                        results={groupedResults.task}
+                        onSelect={handleSearchResultSelect}
+                        onAction={handleSearchResultAction}
+                        showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment || groupedResults.finance)}
+                        searchQuery={query}
+                      />
+                    )}
+
+                  </>
+                )}
+
+                {/* Error State */}
+                {searchError && !isSearchLoading && (
+                  <SearchEmptyState
+                    query={query}
+                    hasError={true}
+                    isOffline={isOffline}
+                    onRetry={retrySearch}
+                    suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
                   />
                 )}
-                
-                {groupedResults.house && (
-                  <SearchResultGroup
-                    title="Häuser"
-                    type="house"
-                    results={groupedResults.house}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                    showSeparator={!!groupedResults.tenant}
-                    searchQuery={query}
-                  />
+
+                {/* No Results */}
+                {!isSearchLoading && !searchError && !hasSearchResults && (
+                  <CommandEmpty>
+                    <SearchEmptyState
+                      query={query}
+                      hasError={false}
+                      isOffline={isOffline}
+                      suggestions={['Mieter', 'Wohnung', 'Haus', 'Finanzen']}
+                    />
+                  </CommandEmpty>
                 )}
-                
-                {groupedResults.apartment && (
-                  <SearchResultGroup
-                    title="Wohnungen"
-                    type="apartment"
-                    results={groupedResults.apartment}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                    showSeparator={!!(groupedResults.tenant || groupedResults.house)}
-                    searchQuery={query}
-                  />
+              </>
+            )}
+
+            {/* Search Suggestions and Recent Searches */}
+            {query.trim().length > 0 && query.trim().length < 3 && !isSearchLoading && (
+              <>
+                {/* Recent Searches */}
+                {recentSearches.length > 0 && (
+                  <CommandGroup heading="Letzte Suchen">
+                    {recentSearches.slice(0, 3).map((recentQuery, index) => (
+                      <CommandItem
+                        key={`recent-${index}`}
+                        onSelect={() => {
+                          setQuery(recentQuery)
+                        }}
+                      >
+                        <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                        {recentQuery}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
                 )}
-                
-                {groupedResults.finance && (
-                  <SearchResultGroup
-                    title="Finanzen"
-                    type="finance"
-                    results={groupedResults.finance}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                    showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment)}
-                    searchQuery={query}
-                  />
-                )}
-                
-                {groupedResults.task && (
-                  <SearchResultGroup
-                    title="Aufgaben"
-                    type="task"
-                    results={groupedResults.task}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                    showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment || groupedResults.finance)}
-                    searchQuery={query}
-                  />
+
+                {/* Search Suggestions */}
+                {suggestions.length > 0 && (
+                  <CommandGroup heading="Vorschläge">
+                    {suggestions.map((suggestion, index) => (
+                      <CommandItem
+                        key={`suggestion-${index}`}
+                        onSelect={() => {
+                          setQuery(suggestion)
+                        }}
+                      >
+                        <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                        {suggestion}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
                 )}
 
               </>
             )}
 
-            {/* Error State */}
-            {searchError && !isSearchLoading && (
-              <SearchEmptyState
-                query={query}
-                hasError={true}
-                isOffline={isOffline}
-                onRetry={retrySearch}
-                suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
-              />
-            )}
+            {/* Navigation and Actions (shown when not searching) */}
+            {!showSearchResults && query.trim().length === 0 && (
+              <>
+                {/* Recent Searches */}
+                {recentSearches.length > 0 && (
+                  <CommandGroup heading="Letzte Suchen">
+                    {recentSearches.slice(0, 3).map((recentQuery, index) => (
+                      <CommandItem
+                        key={`recent-nav-${index}`}
+                        onSelect={() => {
+                          setQuery(recentQuery)
+                        }}
+                      >
+                        <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                        {recentQuery}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
 
-            {/* No Results */}
-            {!isSearchLoading && !searchError && !hasSearchResults && (
-              <CommandEmpty>
-                <SearchEmptyState
-                  query={query}
-                  hasError={false}
-                  isOffline={isOffline}
-                  suggestions={['Mieter', 'Wohnung', 'Haus', 'Finanzen']}
-                />
-              </CommandEmpty>
-            )}
-          </>
-        )}
-
-        {/* Search Suggestions and Recent Searches */}
-        {query.trim().length > 0 && query.trim().length < 3 && !isSearchLoading && (
-          <>
-            {/* Recent Searches */}
-            {recentSearches.length > 0 && (
-              <CommandGroup heading="Letzte Suchen">
-                {recentSearches.slice(0, 3).map((recentQuery, index) => (
+                <CommandGroup heading="Schnellsuche">
                   <CommandItem
-                    key={`recent-${index}`}
                     onSelect={() => {
-                      setQuery(recentQuery)
+                      setQuery("M-")
                     }}
                   >
-                    <Search className="mr-2 h-4 w-4 text-muted-foreground" />
-                    {recentQuery}
+                    <Users className="mr-2 h-4 w-4" />
+                    <span>Mieter suchen</span>
+                    <CommandShortcut><span>⌘</span><span>M</span></CommandShortcut>
                   </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-
-            {/* Search Suggestions */}
-            {suggestions.length > 0 && (
-              <CommandGroup heading="Vorschläge">
-                {suggestions.map((suggestion, index) => (
                   <CommandItem
-                    key={`suggestion-${index}`}
                     onSelect={() => {
-                      setQuery(suggestion)
+                      setQuery("H-")
                     }}
                   >
-                    <Search className="mr-2 h-4 w-4 text-muted-foreground" />
-                    {suggestion}
+                    <Building2 className="mr-2 h-4 w-4" />
+                    <span>Häuser suchen</span>
+                    <CommandShortcut><span>⌘</span><span>H</span></CommandShortcut>
                   </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-
-          </>
-        )}
-
-        {/* Navigation and Actions (shown when not searching) */}
-        {!showSearchResults && query.trim().length === 0 && (
-          <>
-            {/* Recent Searches */}
-            {recentSearches.length > 0 && (
-              <CommandGroup heading="Letzte Suchen">
-                {recentSearches.slice(0, 3).map((recentQuery, index) => (
                   <CommandItem
-                    key={`recent-nav-${index}`}
                     onSelect={() => {
-                      setQuery(recentQuery)
+                      setQuery("W-")
                     }}
                   >
-                    <Search className="mr-2 h-4 w-4 text-muted-foreground" />
-                    {recentQuery}
+                    <Home className="mr-2 h-4 w-4" />
+                    <span>Wohnungen suchen</span>
+                    <CommandShortcut><span>⌘</span><span>J</span></CommandShortcut>
                   </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
+                  <CommandItem
+                    onSelect={() => {
+                      setQuery("F-")
+                    }}
+                  >
+                    <Wallet className="mr-2 h-4 w-4" />
+                    <span>Finanzen suchen</span>
+                    <CommandShortcut><span>⌘</span><span>F</span></CommandShortcut>
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => {
+                      setQuery("T-")
+                    }}
+                  >
+                    <CheckSquare className="mr-2 h-4 w-4" />
+                    <span>Aufgaben suchen</span>
+                    <CommandShortcut><span>⌘</span><span>A</span></CommandShortcut>
+                  </CommandItem>
+                </CommandGroup>
 
-            <CommandGroup heading="Schnellsuche">
-              <CommandItem
-                onSelect={() => {
-                  setQuery("M-")
-                }}
-              >
-                <Users className="mr-2 h-4 w-4" />
-                <span>Mieter suchen</span>
-                <CommandShortcut>⌘M</CommandShortcut>
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setQuery("H-")
-                }}
-              >
-                <Building2 className="mr-2 h-4 w-4" />
-                <span>Häuser suchen</span>
-                <CommandShortcut>⌘H</CommandShortcut>
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setQuery("W-")
-                }}
-              >
-                <Home className="mr-2 h-4 w-4" />
-                <span>Wohnungen suchen</span>
-                <CommandShortcut>⌘J</CommandShortcut>
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setQuery("F-")
-                }}
-              >
-                <Wallet className="mr-2 h-4 w-4" />
-                <span>Finanzen suchen</span>
-                <CommandShortcut>⌘F</CommandShortcut>
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setQuery("T-")
-                }}
-              >
-                <CheckSquare className="mr-2 h-4 w-4" />
-                <span>Aufgaben suchen</span>
-                <CommandShortcut>⌘A</CommandShortcut>
-              </CommandItem>
-            </CommandGroup>
-            
-            <CommandGroup heading="Navigation">
-              {navigationItems.map((item) => (
-                <CommandItem
-                  key={item.href}
-                  onSelect={() => {
-                    router.push(item.href)
-                    setOpen(false)
-                  }}
-                >
-                  <item.icon className="mr-2 h-4 w-4" />
-                  {item.title}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-            <CommandGroup heading="Aktionen">
-              <CommandItem
-                onSelect={() => {
-                  setOpen(false)
-                  useModalStore.getState().openTenantModal()
-                }}
-              >
-                <Users className="mr-2 h-4 w-4" />
-                Mieter hinzufügen
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setOpen(false)
-                  useModalStore.getState().openHouseModal()
-                }}
-              >
-                <Building2 className="mr-2 h-4 w-4" />
-                Haus hinzufügen
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setOpen(false)
-                  useModalStore.getState().openFinanceModal()
-                }}
-              >
-                <Wallet className="mr-2 h-4 w-4" />
-                Rechnung erstellen
-              </CommandItem>
-              <CommandItem
-                disabled={isLoadingWohnungContext}
-                onSelect={handleAddApartment}
-              >
-                <Home className="mr-2 h-4 w-4" />
-                Wohnung hinzufügen
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setOpen(false)
-                  useModalStore.getState().openAufgabeModal()
-                }}
-              >
-                <CheckSquare className="mr-2 h-4 w-4" />
-                Aufgabe hinzufügen
-              </CommandItem>
-              <CommandItem
-                onSelect={handleManageSubscription}
-                disabled={isLoadingSubscription}
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                {isLoadingSubscription ? 'Lade...' : 'Abonnement verwalten'}
-              </CommandItem>
-            </CommandGroup>
-          </>
-        )}
-      </CommandList>
-      
-      {/* Keyboard Shortcuts Hint - Removed as per user request */}
+                <CommandGroup heading="Navigation">
+                  {navigationItems.map((item) => (
+                    <CommandItem
+                      key={item.href}
+                      onSelect={() => {
+                        router.push(item.href)
+                        setOpen(false)
+                      }}
+                    >
+                      <item.icon className="mr-2 h-4 w-4" />
+                      {item.title}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+                <CommandGroup heading="Aktionen">
+                  <CommandItem
+                    onSelect={() => {
+                      setOpen(false)
+                      useModalStore.getState().openTenantModal()
+                    }}
+                  >
+                    <Users className="mr-2 h-4 w-4" />
+                    Mieter hinzufügen
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => {
+                      setOpen(false)
+                      useModalStore.getState().openHouseModal()
+                    }}
+                  >
+                    <Building2 className="mr-2 h-4 w-4" />
+                    Haus hinzufügen
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => {
+                      setOpen(false)
+                      useModalStore.getState().openFinanceModal()
+                    }}
+                  >
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Rechnung erstellen
+                  </CommandItem>
+                  <CommandItem
+                    disabled={isLoadingWohnungContext}
+                    onSelect={handleAddApartment}
+                  >
+                    <Home className="mr-2 h-4 w-4" />
+                    Wohnung hinzufügen
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => {
+                      setOpen(false)
+                      useModalStore.getState().openAufgabeModal()
+                    }}
+                  >
+                    <CheckSquare className="mr-2 h-4 w-4" />
+                    Aufgabe hinzufügen
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={handleManageSubscription}
+                    disabled={isLoadingSubscription}
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    {isLoadingSubscription ? 'Lade...' : 'Abonnement verwalten'}
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            )}
+          </CommandList>
+
+
+          {/* Footer with shortcuts */}
+          <div className="hidden h-10 items-center justify-between border-t border-border/40 bg-muted/20 px-3 py-1.5 text-[10px] text-muted-foreground sm:flex">
+            <div className="flex gap-3">
+              <div className="flex items-center gap-1">
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                  <span className="text-xs">↵</span>
+                </kbd>
+                <span className="font-medium">Auswählen</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                  <span className="text-xs">esc</span>
+                </kbd>
+                <span className="font-medium">Schließen</span>
+              </div>
+            </div>
+            <div className="font-medium opacity-50">Mietfluss</div>
+          </div>
         </Command>
-    </CommandDialog>
+      </CommandDialog>
     </SearchErrorBoundary>
   )
 }
