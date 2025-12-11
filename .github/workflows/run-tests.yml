@@ -22,116 +22,281 @@ env:
   FORCE_COLOR: '1'
 
 jobs:
-  # Job to discover all test files and distribute them across runners
-  discover-tests:
-    name: Discover Test Files
+  # Setup job to dynamically discover test files and determine which need to run
+  setup:
+    name: Discover & Filter Test Files
     runs-on: ubuntu-latest
     outputs:
-      test-files-1: ${{ steps.distribute.outputs.group1 }}
-      test-files-2: ${{ steps.distribute.outputs.group2 }}
-      test-files-3: ${{ steps.distribute.outputs.group3 }}
-      total-files: ${{ steps.distribute.outputs.total }}
-    
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      total-files: ${{ steps.set-matrix.outputs.total-files }}
+      files-to-test: ${{ steps.set-matrix.outputs.files-to-test }}
+      is-full-run: ${{ steps.set-matrix.outputs.is-full-run }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Find and distribute test files
-        id: distribute
+        with:
+          fetch-depth: 0  # Need full history for changed file detection
+
+      # Restore cache of previously passing tests
+      - name: Restore passing tests cache
+        id: cache-passing-tests
+        uses: actions/cache@v4
+        with:
+          path: .test-cache
+          key: passing-tests-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            passing-tests-${{ runner.os }}-
+
+      # Get changed files for PR or push
+      - name: Get changed files
+        id: changed-files
         run: |
-          # Find all test files (excluding node_modules, .next, and other build directories)
-          echo "Searching for test files..."
+          # Determine if this is a PR or a push
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            # For push events, compare with the previous commit
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+            
+            # If before is empty (first push), use parent commit
+            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+            fi
+          fi
           
-          TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
-            ! -path "./node_modules/*" \
-            ! -path "./.next/*" \
-            ! -path "./dist/*" \
-            ! -path "./build/*" \
-            ! -path "./coverage/*" \
+          echo "Base SHA: $BASE_SHA"
+          echo "Head SHA: $HEAD_SHA"
+          
+          # Get changed files
+          if [ -n "$BASE_SHA" ]; then
+            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx)$' || echo "")
+          else
+            # Fallback: consider all source files as changed
+            CHANGED_FILES="ALL"
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Save to file for next step
+          echo "$CHANGED_FILES" > changed_files.txt
+          
+          # Output for debugging
+          if [ "$CHANGED_FILES" = "ALL" ]; then
+            echo "all-changed=true" >> $GITHUB_OUTPUT
+          else
+            CHANGED_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
+            echo "all-changed=false" >> $GITHUB_OUTPUT
+            echo "changed-count=$CHANGED_COUNT" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Find and filter test files
+        id: set-matrix
+        run: |
+          # Find all test files
+          ALL_TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
+            -not -path "./node_modules/*" \
+            -not -path "./.next/*" \
+            -not -path "./coverage/*" \
+            -not -path "./.git/*" \
             | sed 's|^\./||' \
             | sort)
           
-          # Count total files
-          TOTAL=$(echo "$TEST_FILES" | grep -c . || echo "0")
-          echo "Found $TOTAL test files"
-          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          mapfile -t ALL_FILES_ARRAY <<< "$ALL_TEST_FILES"
+          TOTAL_ALL_FILES=${#ALL_FILES_ARRAY[@]}
           
-          if [ "$TOTAL" -eq 0 ]; then
-            echo "No test files found!"
-            echo "group1=" >> $GITHUB_OUTPUT
-            echo "group2=" >> $GITHUB_OUTPUT
-            echo "group3=" >> $GITHUB_OUTPUT
+          echo "Found $TOTAL_ALL_FILES total test files"
+          
+          # Determine if we should run all tests or just changed ones
+          IS_MAIN_BRANCH=false
+          IS_FULL_RUN=false
+          
+          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            IS_MAIN_BRANCH=true
+            IS_FULL_RUN=true
+            echo "Main branch or manual trigger - running ALL tests"
+          fi
+          
+          # Load passing tests cache
+          PASSING_TESTS_FILE=".test-cache/passing-tests.json"
+          if [ -f "$PASSING_TESTS_FILE" ]; then
+            echo "Found passing tests cache"
+            cat "$PASSING_TESTS_FILE" | head -20
+          else
+            echo "No passing tests cache found - will run all tests"
+            IS_FULL_RUN=true
+            mkdir -p .test-cache
+            echo '{}' > "$PASSING_TESTS_FILE"
+          fi
+          
+          # Read changed files
+          CHANGED_FILES=$(cat changed_files.txt)
+          
+          if [ "$CHANGED_FILES" = "ALL" ]; then
+            echo "Cannot determine changed files - running all tests"
+            IS_FULL_RUN=true
+          fi
+          
+          # Determine which test files to run
+          TEST_FILES_TO_RUN=""
+          SKIPPED_FILES=""
+          
+          if [ "$IS_FULL_RUN" = "true" ]; then
+            TEST_FILES_TO_RUN="$ALL_TEST_FILES"
+            echo "Running all $TOTAL_ALL_FILES tests (full run)"
+          else
+            echo "Smart mode: checking which tests need to run..."
+            
+            for TEST_FILE in "${ALL_FILES_ARRAY[@]}"; do
+              SHOULD_RUN=false
+              
+              # Check if the test file itself was changed
+              if grep -Fxq "$TEST_FILE" changed_files.txt 2>/dev/null; then
+                echo "  ✓ $TEST_FILE - changed directly"
+                SHOULD_RUN=true
+              fi
+              
+              # Check if any related source file was changed
+              # Extract the source file path that this test might be testing
+              SOURCE_FILE=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.tsx|' | sed 's|\.test\.ts$|.ts|')
+              SOURCE_FILE_ALT=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.ts|')
+              
+              if grep -q "$SOURCE_FILE" changed_files.txt 2>/dev/null || grep -q "$SOURCE_FILE_ALT" changed_files.txt 2>/dev/null; then
+                echo "  ✓ $TEST_FILE - related source changed"
+                SHOULD_RUN=true
+              fi
+              
+              # Check if test was previously passing (if not, run it again)
+              if [ "$SHOULD_RUN" = "false" ]; then
+                # Calculate hash of test file content
+                if [ -f "$TEST_FILE" ]; then
+                  FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
+                  CACHED_HASH=$(jq -r --arg file "$TEST_FILE" '.[$file] // ""' "$PASSING_TESTS_FILE")
+                  
+                  if [ "$FILE_HASH" = "$CACHED_HASH" ]; then
+                    echo "  ⏭ $TEST_FILE - cached as passing (skipping)"
+                    SKIPPED_FILES="$SKIPPED_FILES $TEST_FILE"
+                  else
+                    echo "  ✓ $TEST_FILE - content changed or not in cache"
+                    SHOULD_RUN=true
+                  fi
+                else
+                  SHOULD_RUN=true
+                fi
+              fi
+              
+              if [ "$SHOULD_RUN" = "true" ]; then
+                TEST_FILES_TO_RUN="$TEST_FILES_TO_RUN $TEST_FILE"
+              fi
+            done
+          fi
+          
+          # Trim and convert to array
+          TEST_FILES_TO_RUN=$(echo "$TEST_FILES_TO_RUN" | xargs)
+          mapfile -t FILES_ARRAY <<< "$(echo "$TEST_FILES_TO_RUN" | tr ' ' '\n' | grep -v '^$')"
+          TOTAL_FILES=${#FILES_ARRAY[@]}
+          
+          # Count skipped
+          SKIPPED_COUNT=$(echo "$SKIPPED_FILES" | wc -w | xargs)
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Test Summary:"
+          echo "   Total test files:  $TOTAL_ALL_FILES"
+          echo "   Skipped (cached):  $SKIPPED_COUNT"
+          echo "   Running:           $TOTAL_FILES"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          echo "total-files=$TOTAL_FILES" >> $GITHUB_OUTPUT
+          echo "is-full-run=$IS_FULL_RUN" >> $GITHUB_OUTPUT
+          
+          if [ "$TOTAL_FILES" -eq 0 ]; then
+            echo "No tests to run!"
+            echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
+            echo "files-to-test=" >> $GITHUB_OUTPUT
             exit 0
           fi
           
-          # Print all found test files for debugging
-          echo "Test files found:"
-          echo "$TEST_FILES"
+          # Number of parallel runners
+          NUM_GROUPS=3
           
-          # Initialize arrays for each group
-          GROUP1=""
-          GROUP2=""
-          GROUP3=""
+          # Partition files into groups using round-robin for even distribution
+          GROUP1_FILES=""
+          GROUP2_FILES=""
+          GROUP3_FILES=""
           
-          # Distribute files using round-robin assignment
           INDEX=0
-          while IFS= read -r file; do
-            if [ -n "$file" ]; then
-              GROUP_NUM=$((INDEX % 3 + 1))
+          for FILE in "${FILES_ARRAY[@]}"; do
+            if [ -n "$FILE" ]; then
+              GROUP_NUM=$(( (INDEX % NUM_GROUPS) + 1 ))
               case $GROUP_NUM in
-                1)
-                  if [ -z "$GROUP1" ]; then
-                    GROUP1="$file"
-                  else
-                    GROUP1="$GROUP1 $file"
-                  fi
-                  ;;
-                2)
-                  if [ -z "$GROUP2" ]; then
-                    GROUP2="$file"
-                  else
-                    GROUP2="$GROUP2 $file"
-                  fi
-                  ;;
-                3)
-                  if [ -z "$GROUP3" ]; then
-                    GROUP3="$file"
-                  else
-                    GROUP3="$GROUP3 $file"
-                  fi
-                  ;;
+                1) GROUP1_FILES="$GROUP1_FILES $FILE" ;;
+                2) GROUP2_FILES="$GROUP2_FILES $FILE" ;;
+                3) GROUP3_FILES="$GROUP3_FILES $FILE" ;;
               esac
               INDEX=$((INDEX + 1))
             fi
-          done <<< "$TEST_FILES"
+          done
           
-          # Output the groups
-          echo "Group 1 files: $(echo "$GROUP1" | wc -w | tr -d ' ') files"
-          echo "Group 2 files: $(echo "$GROUP2" | wc -w | tr -d ' ') files"
-          echo "Group 3 files: $(echo "$GROUP3" | wc -w | tr -d ' ') files"
+          # Trim leading spaces
+          GROUP1_FILES=$(echo "$GROUP1_FILES" | xargs)
+          GROUP2_FILES=$(echo "$GROUP2_FILES" | xargs)
+          GROUP3_FILES=$(echo "$GROUP3_FILES" | xargs)
           
-          # Set outputs (using delimiter for multiline values)
-          echo "group1=$GROUP1" >> $GITHUB_OUTPUT
-          echo "group2=$GROUP2" >> $GITHUB_OUTPUT
-          echo "group3=$GROUP3" >> $GITHUB_OUTPUT
+          # Count files per group
+          GROUP1_COUNT=$(echo "$GROUP1_FILES" | wc -w | xargs)
+          GROUP2_COUNT=$(echo "$GROUP2_FILES" | wc -w | xargs)
+          GROUP3_COUNT=$(echo "$GROUP3_FILES" | wc -w | xargs)
           
-          echo "Distribution complete!"
+          echo ""
+          echo "Distribution across runners:"
+          echo "  Group 1: $GROUP1_COUNT files"
+          echo "  Group 2: $GROUP2_COUNT files"
+          echo "  Group 3: $GROUP3_COUNT files"
+          
+          # Build matrix JSON - only include groups with files
+          INCLUDE_ARRAY="["
+          FIRST=true
+          
+          if [ -n "$GROUP1_FILES" ]; then
+            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":1,\"is-first-group\":true,\"test-files\":$(echo "$GROUP1_FILES" | jq -R .)}"
+            FIRST=false
+          fi
+          
+          if [ -n "$GROUP2_FILES" ]; then
+            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":2,\"is-first-group\":false,\"test-files\":$(echo "$GROUP2_FILES" | jq -R .)}"
+            FIRST=false
+          fi
+          
+          if [ -n "$GROUP3_FILES" ]; then
+            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":3,\"is-first-group\":false,\"test-files\":$(echo "$GROUP3_FILES" | jq -R .)}"
+            FIRST=false
+          fi
+          
+          INCLUDE_ARRAY="$INCLUDE_ARRAY]"
+          MATRIX_JSON="{\"include\":$INCLUDE_ARRAY}"
+          
+          echo ""
+          echo "Matrix JSON:"
+          echo "$MATRIX_JSON" | jq .
+          
+          # Output
+          echo "matrix=$(echo "$MATRIX_JSON" | jq -c .)" >> $GITHUB_OUTPUT
+          echo "files-to-test=$TEST_FILES_TO_RUN" >> $GITHUB_OUTPUT
 
   test:
     name: Run Tests (Group ${{ matrix.test-group }})
     runs-on: ubuntu-latest
-    needs: discover-tests
+    needs: setup
+    if: ${{ needs.setup.outputs.total-files != '0' }}
     strategy:
       fail-fast: false
-      matrix:
-        test-group: [1, 2, 3]
-        include:
-          - test-group: 1
-            is-first-group: true
-          - test-group: 2
-            is-first-group: false
-          - test-group: 3
-            is-first-group: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     
     # Job name is set by the matrix strategy
     
@@ -170,25 +335,19 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline
 
-      # Get test files for this group from the discover-tests job
+      # Get test files for this group
       - name: Get test files list
         id: test-files
         run: |
-          # Get test files from the discover-tests job based on matrix group
-          case ${{ matrix.test-group }} in
-            1) TEST_FILES_RAW="${{ needs.discover-tests.outputs.test-files-1 }}" ;;
-            2) TEST_FILES_RAW="${{ needs.discover-tests.outputs.test-files-2 }}" ;;
-            3) TEST_FILES_RAW="${{ needs.discover-tests.outputs.test-files-3 }}" ;;
-          esac
-          
-          echo "Test files for group ${{ matrix.test-group }}:"
-          echo "$TEST_FILES_RAW"
+          # Create a JSON array of test files from the matrix variable
+          TEST_FILES_RAW="${{ matrix.test-files }}"
           
           if [ -z "$TEST_FILES_RAW" ]; then
-            echo "No test files assigned to this group"
+            echo "No test files specified for this group"
             echo "[]" > test_files.json
           else
-            # Convert space-separated list to JSON array
+            # Convert space and newline-separated list to JSON array
+            # First normalize whitespace, then split on spaces/newlines
             echo "$TEST_FILES_RAW" | tr -s '[:space:]' '\n' | grep -v '^[[:space:]]*$' | jq -R . | jq -s . > test_files.json
           fi
           
@@ -394,6 +553,45 @@ jobs:
           EOF
           
           cat test-summaries/group-${{ matrix.test-group }}.json
+
+      # Record passing tests for cache
+      - name: Record passing tests
+        if: success()
+        run: |
+          # Only record passing tests if all tests in this group passed
+          echo "Recording passing tests for group ${{ matrix.test-group }}..."
+          
+          mkdir -p .test-cache
+          PASSING_TESTS_FILE=".test-cache/passing-tests-group-${{ matrix.test-group }}.json"
+          
+          # Start with empty JSON object
+          echo '{}' > "$PASSING_TESTS_FILE"
+          
+          # Read test files that were run in this group
+          if [ -f test_files.json ]; then
+            TEST_FILES=$(jq -r '.[]' test_files.json)
+            
+            # For each passing test file, record its content hash
+            for TEST_FILE in $TEST_FILES; do
+              if [ -f "$TEST_FILE" ]; then
+                FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
+                # Add to JSON using jq
+                jq --arg file "$TEST_FILE" --arg hash "$FILE_HASH" '. + {($file): $hash}' "$PASSING_TESTS_FILE" > tmp.json && mv tmp.json "$PASSING_TESTS_FILE"
+                echo "  ✓ Recorded: $TEST_FILE ($FILE_HASH)"
+              fi
+            done
+          fi
+          
+          echo "Recorded $(jq 'length' "$PASSING_TESTS_FILE") passing tests for group ${{ matrix.test-group }}"
+
+      # Upload passing tests data for cache update
+      - name: Upload passing tests data
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: passing-tests-group-${{ matrix.test-group }}
+          path: .test-cache/passing-tests-group-${{ matrix.test-group }}.json
+          retention-days: 30
       
       # Upload test summary
       - name: Upload test summary
@@ -422,6 +620,67 @@ jobs:
           pattern: test-summary-*
           path: test-summaries
           merge-multiple: true
+
+      # Download passing tests data from all groups
+      - name: Download passing tests data
+        uses: actions/download-artifact@v4
+        with:
+          pattern: passing-tests-group-*
+          path: passing-tests-data
+          merge-multiple: true
+        continue-on-error: true
+
+      # Restore and update passing tests cache
+      - name: Restore passing tests cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: .test-cache
+          key: passing-tests-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            passing-tests-${{ runner.os }}-
+
+      # Merge passing tests from all groups into cache
+      - name: Merge passing tests cache
+        run: |
+          mkdir -p .test-cache
+          CACHE_FILE=".test-cache/passing-tests.json"
+          
+          # Start with existing cache or empty object
+          if [ -f "$CACHE_FILE" ]; then
+            echo "Loading existing cache with $(jq 'length' "$CACHE_FILE") entries"
+          else
+            echo '{}' > "$CACHE_FILE"
+            echo "Starting with empty cache"
+          fi
+          
+          # Merge all group passing tests files
+          if [ -d "passing-tests-data" ]; then
+            echo "Merging passing tests from groups..."
+            for GROUP_FILE in passing-tests-data/*.json; do
+              if [ -f "$GROUP_FILE" ]; then
+                echo "  Merging: $GROUP_FILE ($(jq 'length' "$GROUP_FILE") entries)"
+                # Merge: newer entries override older ones
+                jq -s '.[0] * .[1]' "$CACHE_FILE" "$GROUP_FILE" > tmp.json && mv tmp.json "$CACHE_FILE"
+              fi
+            done
+          else
+            echo "No passing tests data to merge"
+          fi
+          
+          FINAL_COUNT=$(jq 'length' "$CACHE_FILE")
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Passing Tests Cache Updated"
+          echo "   Total cached tests: $FINAL_COUNT"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      # Save updated passing tests cache
+      - name: Save passing tests cache
+        uses: actions/cache/save@v4
+        with:
+          path: .test-cache
+          key: passing-tests-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
       
       # Aggregate results and send Discord notification
       - name: Aggregate results and notify Discord
