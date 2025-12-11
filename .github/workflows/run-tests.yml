@@ -22,9 +22,105 @@ env:
   FORCE_COLOR: '1'
 
 jobs:
-  test:
-    name: Run Tests
+  # Job to discover all test files and distribute them across runners
+  discover-tests:
+    name: Discover Test Files
     runs-on: ubuntu-latest
+    outputs:
+      test-files-1: ${{ steps.distribute.outputs.group1 }}
+      test-files-2: ${{ steps.distribute.outputs.group2 }}
+      test-files-3: ${{ steps.distribute.outputs.group3 }}
+      total-files: ${{ steps.distribute.outputs.total }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Find and distribute test files
+        id: distribute
+        run: |
+          # Find all test files (excluding node_modules, .next, and other build directories)
+          echo "Searching for test files..."
+          
+          TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
+            ! -path "./node_modules/*" \
+            ! -path "./.next/*" \
+            ! -path "./dist/*" \
+            ! -path "./build/*" \
+            ! -path "./coverage/*" \
+            | sed 's|^\./||' \
+            | sort)
+          
+          # Count total files
+          TOTAL=$(echo "$TEST_FILES" | grep -c . || echo "0")
+          echo "Found $TOTAL test files"
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No test files found!"
+            echo "group1=" >> $GITHUB_OUTPUT
+            echo "group2=" >> $GITHUB_OUTPUT
+            echo "group3=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Print all found test files for debugging
+          echo "Test files found:"
+          echo "$TEST_FILES"
+          
+          # Initialize arrays for each group
+          GROUP1=""
+          GROUP2=""
+          GROUP3=""
+          
+          # Distribute files using round-robin assignment
+          INDEX=0
+          while IFS= read -r file; do
+            if [ -n "$file" ]; then
+              GROUP_NUM=$((INDEX % 3 + 1))
+              case $GROUP_NUM in
+                1)
+                  if [ -z "$GROUP1" ]; then
+                    GROUP1="$file"
+                  else
+                    GROUP1="$GROUP1 $file"
+                  fi
+                  ;;
+                2)
+                  if [ -z "$GROUP2" ]; then
+                    GROUP2="$file"
+                  else
+                    GROUP2="$GROUP2 $file"
+                  fi
+                  ;;
+                3)
+                  if [ -z "$GROUP3" ]; then
+                    GROUP3="$file"
+                  else
+                    GROUP3="$GROUP3 $file"
+                  fi
+                  ;;
+              esac
+              INDEX=$((INDEX + 1))
+            fi
+          done <<< "$TEST_FILES"
+          
+          # Output the groups
+          echo "Group 1 files: $(echo "$GROUP1" | wc -w | tr -d ' ') files"
+          echo "Group 2 files: $(echo "$GROUP2" | wc -w | tr -d ' ') files"
+          echo "Group 3 files: $(echo "$GROUP3" | wc -w | tr -d ' ') files"
+          
+          # Set outputs (using delimiter for multiline values)
+          echo "group1=$GROUP1" >> $GITHUB_OUTPUT
+          echo "group2=$GROUP2" >> $GITHUB_OUTPUT
+          echo "group3=$GROUP3" >> $GITHUB_OUTPUT
+          
+          echo "Distribution complete!"
+
+  test:
+    name: Run Tests (Group ${{ matrix.test-group }})
+    runs-on: ubuntu-latest
+    needs: discover-tests
     strategy:
       fail-fast: false
       matrix:
@@ -32,48 +128,10 @@ jobs:
         include:
           - test-group: 1
             is-first-group: true
-            test-files: >-
-              lib/__tests__/data-fetching.test.ts
-              lib/__tests__/utils.test.ts
-              lib/__tests__/template-constants.test.ts
-              lib/__tests__/storage-service.test.ts
-              lib/__tests__/path-utils.test.ts
-              lib/__tests__/constants.test.ts
-              lib/__tests__/supabase-server.test.ts
-              lib/__tests__/stripe-server.test.ts
-              hooks/__tests__/use-command-menu.test.tsx
-              hooks/__tests__/use-search.test.ts
-              components/__tests__/house-filters.test.tsx
-              components/__tests__/wohnung-overview-modal.test.tsx
-              components/__tests__/search-error-boundary.test.tsx
-              components/__tests__/search-result-item.test.tsx
-              components/__tests__/finance-edit-modal.test.tsx
           - test-group: 2
             is-first-group: false
-            test-files: >-
-              hooks/__tests__/use-cloud-storage-upload.test.ts
-              hooks/__tests__/use-keyboard-navigation.test.ts
-              hooks/__tests__/use-cloud-storage-navigation.test.ts
-              hooks/__tests__/use-cloud-storage-store.test.ts
-              hooks/__tests__/use-modal-store-timeout.test.ts
-              components/ui/__tests__/custom-combobox.test.tsx
-              components/ui/__tests__/video-player.test.tsx
-              components/ui/__tests__/label-with-tooltip.test.tsx
-              components/ui/__tests__/button-with-tooltip.test.tsx
-              app/(dashboard)/wohnungen/__tests__/client.test.tsx
-              app/(dashboard)/todos/__tests__/client-wrapper.test.tsx
-              app/(dashboard)/betriebskosten/__tests__/client-wrapper.test.tsx
-              app/(dashboard)/betriebskosten/__tests__/client-wrapper-layout.test.tsx
-              app/__tests__/wohnungen-actions.test.ts
-              app/subscription-locked/__tests__/page.test.tsx
           - test-group: 3
             is-first-group: false
-            test-files: >-
-              __tests__/template-service.test.ts
-              __tests__/mention-utils.test.ts
-              __tests__/betriebskosten-error-recovery.test.ts
-              __tests__/template-validation.test.ts
-              lib/__tests__/directory-cache.test.ts
     
     # Job name is set by the matrix strategy
     
@@ -112,19 +170,25 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline
 
-      # Get test files for this group
+      # Get test files for this group from the discover-tests job
       - name: Get test files list
         id: test-files
         run: |
-          # Create a JSON array of test files from the matrix variable
-          TEST_FILES_RAW="${{ matrix.test-files }}"
+          # Get test files from the discover-tests job based on matrix group
+          case ${{ matrix.test-group }} in
+            1) TEST_FILES_RAW="${{ needs.discover-tests.outputs.test-files-1 }}" ;;
+            2) TEST_FILES_RAW="${{ needs.discover-tests.outputs.test-files-2 }}" ;;
+            3) TEST_FILES_RAW="${{ needs.discover-tests.outputs.test-files-3 }}" ;;
+          esac
+          
+          echo "Test files for group ${{ matrix.test-group }}:"
+          echo "$TEST_FILES_RAW"
           
           if [ -z "$TEST_FILES_RAW" ]; then
-            echo "No test files specified for this group"
+            echo "No test files assigned to this group"
             echo "[]" > test_files.json
           else
-            # Convert space and newline-separated list to JSON array
-            # First normalize whitespace, then split on spaces/newlines
+            # Convert space-separated list to JSON array
             echo "$TEST_FILES_RAW" | tr -s '[:space:]' '\n' | grep -v '^[[:space:]]*$' | jq -R . | jq -s . > test_files.json
           fi
           
