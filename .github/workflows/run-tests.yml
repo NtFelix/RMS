@@ -86,10 +86,15 @@ jobs:
           # Output for debugging
           if [ "$CHANGED_FILES" = "ALL" ]; then
             echo "all-changed=true" >> $GITHUB_OUTPUT
-          else
-            CHANGED_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
+            echo "changed-count=all" >> $GITHUB_OUTPUT
+          elif [ -z "$CHANGED_FILES" ]; then
             echo "all-changed=false" >> $GITHUB_OUTPUT
-            echo "changed-count=$CHANGED_COUNT" >> $GITHUB_OUTPUT
+            echo "changed-count=0" >> $GITHUB_OUTPUT
+          else
+            # Count non-empty lines properly
+            CHANGED_COUNT=$(echo "$CHANGED_FILES" | grep -c -v '^$' 2>/dev/null || echo "0")
+            echo "all-changed=false" >> $GITHUB_OUTPUT
+            echo "changed-count=${CHANGED_COUNT}" >> $GITHUB_OUTPUT
           fi
 
       - name: Find and filter test files
