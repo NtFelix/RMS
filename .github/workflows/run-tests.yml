@@ -199,8 +199,16 @@ jobs:
           fi
           
           # Trim and convert to array
+          # Trim and convert to array
           TEST_FILES_TO_RUN=$(echo "$TEST_FILES_TO_RUN" | xargs)
-          mapfile -t FILES_ARRAY <<< "$(echo "$TEST_FILES_TO_RUN" | tr ' ' '\n' | grep -v '^$')"
+          
+          if [ -z "$TEST_FILES_TO_RUN" ]; then
+            FILES_ARRAY=()
+          else
+            # Ensure grep doesn't fail the script if no lines match (though -z check covers most cases)
+            mapfile -t FILES_ARRAY <<< "$(echo "$TEST_FILES_TO_RUN" | tr ' ' '\n' | grep -v '^$' || true)"
+          fi
+          
           TOTAL_FILES=${#FILES_ARRAY[@]}
           
           # Count skipped
