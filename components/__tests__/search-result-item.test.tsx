@@ -508,7 +508,86 @@ describe('SearchResultItem', () => {
     });
   });
 
+  describe('Accessibility', () => {
+    const accessibleResult: SearchResult = {
+      id: '1',
+      type: 'tenant',
+      title: 'Accessible Result',
+      actions: [
+        {
+          label: 'Edit',
+          icon: Edit,
+          action: () => { },
+          variant: 'default'
+        }
+      ]
+    };
+
+    it('should be keyboard accessible', () => {
+      render(
+        <SearchResultItem
+          result={accessibleResult}
+          onSelect={mockOnSelect}
+          onAction={mockOnAction}
+        />
+      );
+
+      const item = screen.getByTestId('command-item');
+      expect(item).toHaveAttribute('tabIndex', '0');
+    });
+
+    it('should have proper ARIA attributes', () => {
+      render(
+        <SearchResultItem
+          result={accessibleResult}
+          onSelect={mockOnSelect}
+          onAction={mockOnAction}
+        />
+      );
+
+      const actionButton = screen.getByRole('button');
+      expect(actionButton).toBeInTheDocument();
+    });
+  });
+
   describe('Edge cases', () => {
+    it('should handle result without subtitle', () => {
+      const resultWithoutSubtitle: SearchResult = {
+        id: '1',
+        type: 'tenant',
+        title: 'Only Title Result'
+      };
+
+      render(
+        <SearchResultItem
+          result={resultWithoutSubtitle}
+          onSelect={mockOnSelect}
+          onAction={mockOnAction}
+        />
+      );
+
+      expect(screen.getByText('Only Title Result')).toBeInTheDocument();
+    });
+
+    it('should handle result without context', () => {
+      const resultWithoutContext: SearchResult = {
+        id: '1',
+        type: 'finance', // Changed to finance type so subtitle is displayed
+        title: 'No Context Result',
+        subtitle: 'Has subtitle'
+      };
+
+      render(
+        <SearchResultItem
+          result={resultWithoutContext}
+          onSelect={mockOnSelect}
+          onAction={mockOnAction}
+        />
+      );
+
+      expect(screen.getByText('No Context Result')).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes('Has subtitle'))).toBeInTheDocument();
+    });
     it('should handle result without actions', () => {
       const resultWithoutActions: SearchResult = {
         id: '1',

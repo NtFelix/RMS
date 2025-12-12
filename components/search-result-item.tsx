@@ -231,7 +231,7 @@ const renderMetadata = (result: SearchResult) => {
 
 export function SearchResultItem({ result, onSelect, onAction }: SearchResultItemProps) {
   const theme = getEntityTheme(result.type)
-  const entityLabel = getEntityLabel(result.type)
+
   const Icon = theme.icon
 
   return (
