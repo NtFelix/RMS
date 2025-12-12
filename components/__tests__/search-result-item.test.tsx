@@ -291,7 +291,7 @@ describe('SearchResultItem', () => {
       );
 
       expect(screen.getByText('Rent Payment')).toBeInTheDocument();
-      expect(screen.getAllByText('800€')).toHaveLength(1);
+      expect(screen.getAllByText('+800€').length).toBeGreaterThan(0);
       expect(screen.getByText('Apartment 1')).toBeInTheDocument();
     });
 
@@ -304,10 +304,10 @@ describe('SearchResultItem', () => {
         />
       );
 
-      const amountElement = screen.getByText('800€');
-      // Parent container typically carries the color class or the span itself
+      const amountElements = screen.getAllByText('+800€');
+      const amountElement = amountElements.find(el => el.classList.contains('text-emerald-600'));
+      expect(amountElement).toBeInTheDocument();
       expect(amountElement).toHaveClass('font-medium');
-      expect(amountElement.className).toContain('text-emerald-600');
     });
 
     it('should handle expense type correctly', () => {

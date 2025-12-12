@@ -182,7 +182,7 @@ const renderMetadata = (result: SearchResult) => {
               <TrendingDown className="!h-3 !w-3 text-rose-500" />
             )}
             <span className={cn("font-medium", metadata?.type === 'income' ? "text-emerald-600" : "text-rose-600")}>
-              {metadata?.amount !== undefined ? `${metadata.amount}€` : '-'}
+              {metadata?.amount !== undefined ? `${metadata.type === 'income' ? '+' : '-'}${Math.abs(metadata.amount)}€` : '-'}
             </span>
           </div>
           {metadata?.date && (
