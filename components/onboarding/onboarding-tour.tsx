@@ -27,9 +27,12 @@ const waitForElement = (selector: string, timeout = 5000): Promise<Element> => {
             return resolve(element);
         }
 
+        let timeoutId: NodeJS.Timeout;
+
         const observer = new MutationObserver(() => {
             const element = document.querySelector(selector);
             if (element) {
+                clearTimeout(timeoutId);
                 resolve(element);
                 observer.disconnect();
             }
@@ -40,7 +43,7 @@ const waitForElement = (selector: string, timeout = 5000): Promise<Element> => {
             subtree: true,
         });
 
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
             observer.disconnect();
             reject(new Error(`Element ${selector} not found within ${timeout}ms`));
         }, timeout);
