@@ -189,6 +189,8 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 210 29% 29%;
+    --accent-rgb: 52, 73, 94;
+    /* for #34495e */
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -235,6 +237,8 @@
     /* #BFC8D9 - text-secondary */
     --accent: 220 39% 25%;
     /* #2D4A6B - darker blue accent for hover states */
+    --accent-rgb: 45, 74, 107;
+    /* for #2d4a6b */
     --accent-foreground: 220 9% 95%;
     /* #F3F4F6 - text-primary */
     --destructive: 0 100% 67%;
