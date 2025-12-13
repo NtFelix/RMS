@@ -65,6 +65,7 @@
     "cmdk": "1.1.1",
     "date-fns": "^2.30.0",
     "dompurify": "^3.3.0",
+    "driver.js": "^1.4.0",
     "embla-carousel-react": "8.6.0",
     "framer-motion": "^12.23.25",
     "immer": "latest",

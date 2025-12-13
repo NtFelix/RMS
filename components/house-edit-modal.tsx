@@ -18,6 +18,7 @@ import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 // Basic House interface - replace with actual type if available elsewhere
 interface House {
@@ -33,8 +34,8 @@ interface HouseEditModalProps {
   // open: boolean; // Controlled by useModalStore.isHouseModalOpen
   // onOpenChange: (open: boolean) => void; // Now useModalStore.closeHouseModal
   // initialData?: House; // Now useModalStore.houseInitialData
-  serverAction: (id: string | null, formData: FormData) => Promise<{ 
-    success: boolean; 
+  serverAction: (id: string | null, formData: FormData) => Promise<{
+    success: boolean;
     error?: { message: string };
     data?: any;
   }>;
@@ -134,7 +135,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     const form = new FormData();
     form.append("name", formData.name);
     form.append("strasse", formData.strasse);
@@ -148,23 +149,24 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
     try {
       const result = await serverAction(houseInitialData?.id || null, form);
-      
+
       if (result.success) {
         toast({
           title: houseInitialData ? "Haus aktualisiert" : "Haus erstellt",
           description: `Das Haus "${formData.name}" wurde erfolgreich ${houseInitialData ? 'aktualisiert' : 'erstellt'}.`,
           variant: "success",
         });
-        
+
         if (houseModalOnSuccess) {
-          const successData = result.data || { 
-            ...formData, 
+          const successData = result.data || {
+            ...formData,
             id: houseInitialData?.id || ''
           };
           houseModalOnSuccess(successData);
         }
-        
+
         setHouseModalDirty(false); // Reset dirty state on successful save
+        useOnboardingStore.getState().completeStep('create-house-form');
         closeHouseModal(); // This will now close directly as dirty is false
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
@@ -188,6 +190,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
   return (
     <Dialog open={isHouseModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent
+        id="house-form-container"
         className="sm:max-w-[425px]"
         isDirty={isHouseModalDirty}
         onAttemptClose={attemptClose} // Use the new prop
@@ -200,7 +203,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
           <div className="space-y-2">
-            <LabelWithTooltip 
+            <LabelWithTooltip
               htmlFor="name"
               infoText="Geben Sie einen eindeutigen Namen für das Haus ein. Dieser wird in der Übersicht und in Dropdown-Menüs angezeigt."
             >
@@ -216,7 +219,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             />
           </div>
           <div className="space-y-2">
-            <LabelWithTooltip 
+            <LabelWithTooltip
               htmlFor="strasse"
               infoText="Geben Sie die vollständige Adresse des Hauses ein. Dieses Feld wird für die Abrechnung und die generierte PDF benötigt. Wir empfehlen dringend, die Adresse anzugeben, da sie in den offiziellen Dokumenten erscheint."
             >
@@ -232,7 +235,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             />
           </div>
           <div className="space-y-2">
-            <LabelWithTooltip 
+            <LabelWithTooltip
               htmlFor="ort"
               infoText="Geben Sie den Ort des Hauses ein. Dieses Feld ist optional, wird aber für die Abrechnung und die generierte PDF benötigt. Die Ortsangabe erscheint in den offiziellen Dokumenten und wird für die korrekte Zuordnung verwendet."
             >
@@ -254,7 +257,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
               onCheckedChange={(checked) => handleCheckboxChange(Boolean(checked))}
               disabled={isSubmitting}
             />
-            <LabelWithTooltip 
+            <LabelWithTooltip
               htmlFor="automaticSize"
               infoText="Wenn aktiviert, wird die Gesamtgröße des Hauses automatisch aus der Summe der Wohnungsflächen berechnet. Deaktivieren Sie diese Option, um die Größe manuell festzulegen."
             >

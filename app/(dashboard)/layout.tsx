@@ -45,6 +45,7 @@ const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenant-pay
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
+import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 
 export default function DashboardRootLayout({
   children,
@@ -132,157 +133,158 @@ export default function DashboardRootLayout({
     // AI Assistant Modal state
     isAIAssistantModalOpen,
   } = useModalStore()
-  
+
   return (
     <AuthProvider>
       <NestedDialogProvider>
         {/* <GlobalDragDropProvider> */}
-          <CommandMenu />
-          <DashboardLayout>{children}</DashboardLayout>
-      {/* Render modals: They control their own open/close state via the store */}
-      {/* TenantEditModal needs serverAction. Other props are from store. */}
-      <TenantEditModal serverAction={tenantServerAction} />
-      {/* HouseEditModal needs serverAction. */}
-      <HouseEditModal serverAction={houseServerAction} />
-      {/* FinanceEditModal needs serverAction. */}
-      <FinanceEditModal serverAction={financeServerAction} />
-      {/* WohnungEditModal needs serverAction. */}
-      {/* Also pass specific props if they are not part of the store's initialData object for wohnung */}
-      <WohnungEditModal
-        serverAction={wohnungServerAction}
-        currentApartmentLimitFromProps={wohnungApartmentLimit}
-        isActiveSubscriptionFromProps={wohnungIsActiveSubscription}
-        currentApartmentCountFromProps={wohnungApartmentCount}
-      />
-      {/* AufgabeEditModal needs serverAction. */}
-      <AufgabeEditModal serverAction={aufgabeServerAction} />
-      {/* BetriebskostenEditModal - Assuming it handles its own server actions internally or doesn't need a generic one passed */}
-      <BetriebskostenEditModal />
-      {/* Old WasserzaehlerModal removed - now using new Wasser_Zaehler structure */}
-      {/* WasserZaehlerModal - Manages Wasser_Zaehler entries for apartments */}
-      <WasserZaehlerModal />
-      {/* WasserAblesenModal - Manages Wasser_Ablesungen entries for water meters */}
-      <WasserAblesenModal />
-      {/* KautionModal - Handles kaution management */}
-      <KautionModal serverAction={updateKautionAction} />
-      {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
-      <HausOverviewModal />
-      {/* WohnungOverviewModal - Displays Wohnung overview with all Mieter */}
-      <WohnungOverviewModal />
-      {/* ApartmentTenantDetailsModal - Displays detailed apartment-tenant information */}
-      <ApartmentTenantDetailsModal />
-      {/* FileUploadModal - Global file upload modal */}
-      <FileUploadModal />
-      {/* FileRenameModal - Global file rename modal */}
-      {isFileRenameModalOpen && fileRenameData && (
-        <FileRenameModal
-          isOpen={isFileRenameModalOpen}
-          onClose={closeFileRenameModal}
-          fileName={fileRenameData.fileName}
-          onRename={fileRenameData.onRename}
+        <CommandMenu />
+        <DashboardLayout>{children}</DashboardLayout>
+        {/* Render modals: They control their own open/close state via the store */}
+        {/* TenantEditModal needs serverAction. Other props are from store. */}
+        <TenantEditModal serverAction={tenantServerAction} />
+        {/* HouseEditModal needs serverAction. */}
+        <HouseEditModal serverAction={houseServerAction} />
+        {/* FinanceEditModal needs serverAction. */}
+        <FinanceEditModal serverAction={financeServerAction} />
+        {/* WohnungEditModal needs serverAction. */}
+        {/* Also pass specific props if they are not part of the store's initialData object for wohnung */}
+        <WohnungEditModal
+          serverAction={wohnungServerAction}
+          currentApartmentLimitFromProps={wohnungApartmentLimit}
+          isActiveSubscriptionFromProps={wohnungIsActiveSubscription}
+          currentApartmentCountFromProps={wohnungApartmentCount}
         />
-      )}
-      {/* CreateFolderModal - Global create folder modal */}
-      {isCreateFolderModalOpen && createFolderModalData && (
-        <CreateFolderModal
-          isOpen={isCreateFolderModalOpen}
-          onClose={closeCreateFolderModal}
-          currentPath={createFolderModalData.currentPath}
-          onFolderCreated={createFolderModalData.onFolderCreated}
+        {/* AufgabeEditModal needs serverAction. */}
+        <AufgabeEditModal serverAction={aufgabeServerAction} />
+        {/* BetriebskostenEditModal - Assuming it handles its own server actions internally or doesn't need a generic one passed */}
+        <BetriebskostenEditModal />
+        {/* Old WasserzaehlerModal removed - now using new Wasser_Zaehler structure */}
+        {/* WasserZaehlerModal - Manages Wasser_Zaehler entries for apartments */}
+        <WasserZaehlerModal />
+        {/* WasserAblesenModal - Manages Wasser_Ablesungen entries for water meters */}
+        <WasserAblesenModal />
+        {/* KautionModal - Handles kaution management */}
+        <KautionModal serverAction={updateKautionAction} />
+        {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
+        <HausOverviewModal />
+        {/* WohnungOverviewModal - Displays Wohnung overview with all Mieter */}
+        <WohnungOverviewModal />
+        {/* ApartmentTenantDetailsModal - Displays detailed apartment-tenant information */}
+        <ApartmentTenantDetailsModal />
+        {/* FileUploadModal - Global file upload modal */}
+        <FileUploadModal />
+        {/* FileRenameModal - Global file rename modal */}
+        {isFileRenameModalOpen && fileRenameData && (
+          <FileRenameModal
+            isOpen={isFileRenameModalOpen}
+            onClose={closeFileRenameModal}
+            fileName={fileRenameData.fileName}
+            onRename={fileRenameData.onRename}
+          />
+        )}
+        {/* CreateFolderModal - Global create folder modal */}
+        {isCreateFolderModalOpen && createFolderModalData && (
+          <CreateFolderModal
+            isOpen={isCreateFolderModalOpen}
+            onClose={closeCreateFolderModal}
+            currentPath={createFolderModalData.currentPath}
+            onFolderCreated={createFolderModalData.onFolderCreated}
+          />
+        )}
+        {/* CreateFileModal - Global create file modal */}
+        {isCreateFileModalOpen && createFileModalData && (
+          <CreateFileModal
+            isOpen={isCreateFileModalOpen}
+            onClose={closeCreateFileModal}
+            currentPath={createFileModalData.currentPath}
+            onFileCreated={createFileModalData.onFileCreated}
+          />
+        )}
+        {/* FolderDeleteConfirmationModal - Global folder delete confirmation modal */}
+        {isFolderDeleteConfirmationModalOpen && folderDeleteConfirmationData && (
+          <FolderDeleteConfirmationModal
+            isOpen={isFolderDeleteConfirmationModalOpen}
+            onClose={closeFolderDeleteConfirmationModal}
+            folderName={folderDeleteConfirmationData.folderName}
+            folderPath={folderDeleteConfirmationData.folderPath}
+            fileCount={folderDeleteConfirmationData.fileCount}
+            onConfirm={folderDeleteConfirmationData.onConfirm}
+          />
+        )}
+        {/* FileMoveModal - Global file/folder move modal */}
+        {isFileMoveModalOpen && fileMoveData && (
+          <FileMoveModal
+            isOpen={isFileMoveModalOpen}
+            onClose={closeFileMoveModal}
+            item={fileMoveData.item}
+            itemType={fileMoveData.itemType}
+            currentPath={fileMoveData.currentPath}
+            userId={fileMoveData.userId}
+            onMove={fileMoveData.onMove}
+          />
+        )}
+        {/* ShareDocumentModal - Global document sharing modal */}
+        {isShareDocumentModalOpen && shareDocumentData && (
+          <ShareDocumentModal
+            isOpen={isShareDocumentModalOpen}
+            onClose={closeShareDocumentModal}
+            fileName={shareDocumentData.fileName}
+            filePath={shareDocumentData.filePath}
+          />
+        )}
+        {/* MarkdownEditorModal - Global markdown editor modal */}
+        {isMarkdownEditorModalOpen && markdownEditorData && (
+          <MarkdownEditorModal
+            isOpen={isMarkdownEditorModalOpen}
+            onClose={closeMarkdownEditorModal}
+            filePath={markdownEditorData.filePath}
+            fileName={markdownEditorData.fileName}
+            initialContent={markdownEditorData.initialContent}
+            isNewFile={markdownEditorData.isNewFile}
+            onSave={markdownEditorData.onSave}
+          />
+        )}
+        {/* TemplatesModal - Global templates management modal */}
+        <TemplatesModal
+          isOpen={isTemplatesModalOpen}
+          onClose={closeTemplatesModal}
+          initialCategory={templatesModalInitialCategory}
         />
-      )}
-      {/* CreateFileModal - Global create file modal */}
-      {isCreateFileModalOpen && createFileModalData && (
-        <CreateFileModal
-          isOpen={isCreateFileModalOpen}
-          onClose={closeCreateFileModal}
-          currentPath={createFileModalData.currentPath}
-          onFileCreated={createFileModalData.onFileCreated}
+        {/* TenantMailTemplatesModal - Read-only mail templates for tenants */}
+        <TenantMailTemplatesModal
+          isOpen={isTenantMailTemplatesModalOpen}
+          onClose={closeTenantMailTemplatesModal}
+          tenantName={tenantMailTemplatesModalData?.tenantName}
+          tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
         />
-      )}
-      {/* FolderDeleteConfirmationModal - Global folder delete confirmation modal */}
-      {isFolderDeleteConfirmationModalOpen && folderDeleteConfirmationData && (
-        <FolderDeleteConfirmationModal
-          isOpen={isFolderDeleteConfirmationModalOpen}
-          onClose={closeFolderDeleteConfirmationModal}
-          folderName={folderDeleteConfirmationData.folderName}
-          folderPath={folderDeleteConfirmationData.folderPath}
-          fileCount={folderDeleteConfirmationData.fileCount}
-          onConfirm={folderDeleteConfirmationData.onConfirm}
-        />
-      )}
-      {/* FileMoveModal - Global file/folder move modal */}
-      {isFileMoveModalOpen && fileMoveData && (
-        <FileMoveModal
-          isOpen={isFileMoveModalOpen}
-          onClose={closeFileMoveModal}
-          item={fileMoveData.item}
-          itemType={fileMoveData.itemType}
-          currentPath={fileMoveData.currentPath}
-          userId={fileMoveData.userId}
-          onMove={fileMoveData.onMove}
-        />
-      )}
-      {/* ShareDocumentModal - Global document sharing modal */}
-      {isShareDocumentModalOpen && shareDocumentData && (
-        <ShareDocumentModal
-          isOpen={isShareDocumentModalOpen}
-          onClose={closeShareDocumentModal}
-          fileName={shareDocumentData.fileName}
-          filePath={shareDocumentData.filePath}
-        />
-      )}
-      {/* MarkdownEditorModal - Global markdown editor modal */}
-      {isMarkdownEditorModalOpen && markdownEditorData && (
-        <MarkdownEditorModal
-          isOpen={isMarkdownEditorModalOpen}
-          onClose={closeMarkdownEditorModal}
-          filePath={markdownEditorData.filePath}
-          fileName={markdownEditorData.fileName}
-          initialContent={markdownEditorData.initialContent}
-          isNewFile={markdownEditorData.isNewFile}
-          onSave={markdownEditorData.onSave}
-        />
-      )}
-      {/* TemplatesModal - Global templates management modal */}
-      <TemplatesModal
-        isOpen={isTemplatesModalOpen}
-        onClose={closeTemplatesModal}
-        initialCategory={templatesModalInitialCategory}
-      />
-      {/* TenantMailTemplatesModal - Read-only mail templates for tenants */}
-      <TenantMailTemplatesModal
-        isOpen={isTenantMailTemplatesModalOpen}
-        onClose={closeTenantMailTemplatesModal}
-        tenantName={tenantMailTemplatesModalData?.tenantName}
-        tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
-      />
-      {/* AI Assistant Modal - Global AI assistant modal */}
-      <AIAssistantModal />
-      {/* Tenant Payment Edit Modal */}
-      <TenantPaymentEditModal />
-      {/* Tenant Payment Overview Modal */}
-      <TenantPaymentOverviewModal />
-      {/* Global Confirmation Dialog */}
-      {isConfirmationModalOpen && confirmationModalConfig && (
-        <ConfirmationDialog
-          isOpen={isConfirmationModalOpen}
-          onClose={closeConfirmationModal}
-          onConfirm={() => {
-            if (confirmationModalConfig.onConfirm) {
-              confirmationModalConfig.onConfirm();
-            }
-            // closeConfirmationModal(); // onConfirm in store should handle this
-          }}
-          title={confirmationModalConfig.title}
-          description={confirmationModalConfig.description}
-          confirmText={confirmationModalConfig.confirmText}
-          cancelText={confirmationModalConfig.cancelText}
-          variant={confirmationModalConfig.variant}
-        />
-      )}
+        {/* AI Assistant Modal - Global AI assistant modal */}
+        <AIAssistantModal />
+        {/* Tenant Payment Edit Modal */}
+        <TenantPaymentEditModal />
+        {/* Tenant Payment Overview Modal */}
+        <TenantPaymentOverviewModal />
+        {/* Global Confirmation Dialog */}
+        {isConfirmationModalOpen && confirmationModalConfig && (
+          <ConfirmationDialog
+            isOpen={isConfirmationModalOpen}
+            onClose={closeConfirmationModal}
+            onConfirm={() => {
+              if (confirmationModalConfig.onConfirm) {
+                confirmationModalConfig.onConfirm();
+              }
+              // closeConfirmationModal(); // onConfirm in store should handle this
+            }}
+            title={confirmationModalConfig.title}
+            description={confirmationModalConfig.description}
+            confirmText={confirmationModalConfig.confirmText}
+            cancelText={confirmationModalConfig.cancelText}
+            variant={confirmationModalConfig.variant}
+          />
+        )}
         {/* </GlobalDragDropProvider> */}
       </NestedDialogProvider>
+      <OnboardingTour />
     </AuthProvider>
   )
 }

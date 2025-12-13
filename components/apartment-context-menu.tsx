@@ -23,6 +23,7 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
 import type { Apartment } from "./apartment-table"; // Import the shared type
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 // Remove local Apartment interface definition
 
 interface ApartmentContextMenuProps {
@@ -85,15 +86,19 @@ export function ApartmentContextMenu({
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem 
-            onClick={() => openWasserZaehlerModal(apartment.id, apartment.name)}
+          <ContextMenuItem
+            id="context-menu-meter-item"
+            onClick={() => {
+              useOnboardingStore.getState().completeStep('create-meter-select');
+              openWasserZaehlerModal(apartment.id, apartment.name);
+            }}
             className="flex items-center gap-2 cursor-pointer"
           >
             <Droplet className="h-4 w-4" />
             <span>Wasserzähler</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem 
+          <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >

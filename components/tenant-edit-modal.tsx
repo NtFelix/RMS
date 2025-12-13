@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea" // New import
 import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
 import { cn } from "@/lib/utils"; // Import cn utility
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 interface Mieter extends Tenant { }
 
@@ -280,6 +281,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   return (
     <Dialog open={isTenantModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent
+        id="tenant-form-container"
         className="sm:max-w-[600px]"
         isDirty={isTenantModalDirty}
         onAttemptClose={attemptClose}
@@ -338,6 +340,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               });
               setTenantModalDirty(false); // Reset dirty before closing
               // No explicit onSuccess in store for tenant, rely on router.refresh and close.
+              useOnboardingStore.getState().completeStep('assign-tenant-form');
               closeTenantModal();
               router.refresh(); // Refresh data on page
             } else {

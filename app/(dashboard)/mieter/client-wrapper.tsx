@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { deleteTenantAction } from "@/app/mieter-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 
 import type { Tenant } from "@/types/Tenant";
@@ -29,7 +30,14 @@ interface MieterClientViewProps {
 // Internal AddTenantButton (could be kept from previous step if preferred)
 function AddTenantButton({ onAdd }: { onAdd: () => void }) {
   return (
-    <ButtonWithTooltip onClick={onAdd} className="sm:w-auto">
+    <ButtonWithTooltip
+      id="add-tenant-btn"
+      onClick={() => {
+        useOnboardingStore.getState().completeStep('assign-tenant-start');
+        onAdd();
+      }}
+      className="sm:w-auto"
+    >
       <PlusCircle className="mr-2 h-4 w-4" />
       Mieter hinzufügen
     </ButtonWithTooltip>
@@ -135,11 +143,11 @@ export default function MieterClientView({
 
   const handleBulkExport = useCallback(() => {
     const selectedTenantsData = initialTenants.filter(t => selectedTenants.has(t.id))
-    
+
     // Create CSV header
     const headers = ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     // Create CSV rows with proper escaping
     const csvRows = selectedTenantsData.map(t => {
       const row = [
@@ -152,7 +160,7 @@ export default function MieterClientView({
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })

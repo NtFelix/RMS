@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
+import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 
 const sidebarNavItems = [
   {
@@ -364,7 +365,13 @@ function SidebarContent({
                     <TooltipTrigger asChild>
                       <Link
                         href={item.href}
-                        onClick={() => setIsOpen(false)}
+                        id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
+                        onClick={() => {
+                          setIsOpen(false)
+                          if (item.href === '/home') {
+                            useOnboardingStore.getState().completeStep('overview-open')
+                          }
+                        }}
                         className={cn(
                           "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2",
                           getActiveStateClasses(item.href),
