@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { fetchHaeuser as fetchHaeuserServer } from "../../../lib/data-fetching";
 import { fetchNebenkostenListOptimized } from "@/app/betriebskosten-actions";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import BetriebskostenClientView from "./client-wrapper"; // Import the default export
 // Types are still needed for data fetching
 import { Haus } from "../../../lib/data-fetching";
@@ -13,7 +13,7 @@ import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
 // Server actions are fine to be imported by Server Components if needed, but not directly by client-wrapper
 
 export default async function BetriebskostenPage() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   
   // Use optimized function that eliminates individual getHausGesamtFlaeche calls

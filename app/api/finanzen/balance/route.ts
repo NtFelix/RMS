@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
 // Helper function to fetch all records with pagination - no limits
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const selectedYear = searchParams.get('selectedYear') || '';
     const selectedType = searchParams.get('selectedType') || '';
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     let query = supabase
       .from('Finanzen')
       .select('betrag, ist_einnahmen, name, notiz, datum, wohnung_id', { count: 'exact' });

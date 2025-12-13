@@ -1,5 +1,5 @@
 "use server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
 
@@ -18,7 +18,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
 
   logAction(actionName, 'start', { ...(id && { house_id: id }), house_name: houseName });
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // Process groesse field
@@ -84,7 +84,7 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
   logAction(actionName, 'start', { house_id: houseId });
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from("Haeuser")
       .delete()

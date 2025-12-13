@@ -2,13 +2,13 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import FinanzenClientWrapper from "./client-wrapper";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 
 import { PAGINATION } from "@/constants";
 
 async function getSummaryData(year: number) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   
   try {
     // Use the optimized Supabase function that handles pagination internally
@@ -37,7 +37,7 @@ async function getSummaryData(year: number) {
 }
 
 async function getSummaryDataFallback(year: number) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   
   try {
     // Fallback: Use the function that returns all transactions for the year
@@ -60,13 +60,13 @@ async function getSummaryDataFallback(year: number) {
 }
 
 async function getAvailableYears() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { fetchAvailableFinanceYears } = await import("@/utils/financeCalculations");
   return await fetchAvailableFinanceYears(supabase);
 }
 
 export default async function FinanzenPage() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   
   // Wohnungen laden
   const { data: wohnungenData } = await supabase.from('Wohnungen').select('id,name');

@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from 'next/server';
 import Papa from 'papaparse';
 
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const selectedYear = searchParams.get('selectedYear');
     const selectedType = searchParams.get('selectedType');
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const BATCH_SIZE = 5000; // Increased batch size for better performance
     let allData: any[] = [];
     let offset = 0;

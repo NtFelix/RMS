@@ -1,10 +1,10 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.from('Mieter').select('*');
     if (error) {
       console.error('GET /api/mieter error:', error);
@@ -19,7 +19,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const m = await request.json();
     console.error('POST /api/mieter payload:', m);
     const { data, error } = await supabase.from('Mieter').insert(m).select();
@@ -38,7 +38,7 @@ export async function PUT(request: Request) {
   try {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const m = await request.json();
     const { data, error } = await supabase.from('Mieter').update(m).match({ id }).select();
     if (error) {
@@ -57,7 +57,7 @@ export async function DELETE(request: Request) {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Mieter-ID erforderlich.' }, { status: 400 });
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase.from('Mieter').delete().match({ id });
     if (error) {
       console.error('DELETE /api/mieter error:', error);

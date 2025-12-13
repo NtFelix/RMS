@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
 
@@ -25,7 +25,7 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
   const actionName = id ? 'updateTask' : 'createTask';
   logAction(actionName, 'start', { task_id: id, task_name: data.name });
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   const payload = {
     name: data.name,
@@ -78,7 +78,7 @@ export async function toggleTaskStatusAction(
   logAction(actionName, 'start', { task_id: taskId, new_status: newStatus });
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({
@@ -118,7 +118,7 @@ export async function bulkUpdateTaskStatusesAction(
   }
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({
@@ -157,7 +157,7 @@ export async function bulkDeleteTasksAction(
   }
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { count, error } = await supabase
       .from("Aufgaben")
       .delete()
@@ -184,7 +184,7 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   logAction(actionName, 'start', { task_id: taskId });
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from("Aufgaben")
       .delete()

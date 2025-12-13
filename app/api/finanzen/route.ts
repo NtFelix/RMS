@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { PAGINATION } from "@/constants";
 
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
     const sortKey = searchParams.get('sortKey') || 'datum';
     const sortDirection = searchParams.get('sortDirection') as 'asc' | 'desc' || 'desc';
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     
     // Base query with only the fields we need
     let query = supabase
@@ -124,7 +124,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const data = await request.json();
     
     const { error, data: result } = await supabase
@@ -153,7 +153,7 @@ export async function PUT(request: Request) {
   try {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const data = await request.json();
     
     const { error, data: result } = await supabase
@@ -187,7 +187,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Transaktions-ID erforderlich.' }, { status: 400 });
     }
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase.from('Finanzen').delete().match({ id });
     
     if (error) {

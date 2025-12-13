@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
 export const runtime = 'edge'
 
 import { NextResponse } from "next/server"
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const {
       data: { user },
       error: userError
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const requestStartTime = Date.now()
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const {
       data: { user },
       error: userError

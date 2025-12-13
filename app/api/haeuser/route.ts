@@ -1,11 +1,11 @@
 export const runtime = 'edge';
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { formatNumber } from "@/utils/format"
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { name, strasse, ort } = await request.json()
     if (!name || !strasse || !ort) {
       return NextResponse.json({ error: "Alle Felder (Name, Straße, Ort) sind erforderlich." }, { status: 400 })
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { data: houses, error: housesError } = await supabase.from('Haeuser').select("*")
   
   if (housesError) {
@@ -93,7 +93,7 @@ export async function GET() {
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
 
@@ -117,7 +117,7 @@ export async function DELETE(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
     const { name, strasse, ort } = await request.json()

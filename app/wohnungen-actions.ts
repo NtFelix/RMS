@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
@@ -84,7 +84,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
   const actionName = id ? 'updateApartment' : 'createApartment';
   logAction(actionName, 'start', { apartment_id: id, apartment_name: data.name });
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   const payload = {
     name: data.name,

@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import ArticlePageClient from './article-page-client';
 
 export const runtime = 'edge';
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   const { articleId } = await params;
   
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: article } = await supabase
       .from('Dokumentation')
       .select('id, titel, kategorie, seiteninhalt, meta')

@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = 'edge';
@@ -16,7 +16,7 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     
     // Delete all selected finance records in a single transaction
     const { data, error } = await supabase

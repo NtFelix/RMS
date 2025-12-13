@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
 
@@ -18,7 +18,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
   const actionName = id ? 'updateFinance' : 'createFinance';
   logAction(actionName, 'start', { finance_id: id, finance_name: data.name, amount: data.betrag });
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   // Ensure betrag is a number and handle potential string input from forms
   const payload = {
@@ -63,7 +63,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
 }
 
 export async function toggleFinanceStatusAction(id: string, currentStatus: boolean): Promise<{ success: boolean; error?: any; data?: any }> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // Only update the ist_einnahmen field
@@ -92,7 +92,7 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
 
 export async function deleteFinanceAction(financeId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from("Finanzen")
       .delete()

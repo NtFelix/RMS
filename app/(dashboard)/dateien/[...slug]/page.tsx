@@ -1,12 +1,12 @@
 import { CloudStorageSimple } from "@/components/cloud-storage-simple"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { getPathContents } from "../actions"
 
 export const runtime = 'edge'
 
 export default async function DateienPathPage({ params }: { params: Promise<{ slug: string[] }> }) {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) {
     redirect('/auth/login')

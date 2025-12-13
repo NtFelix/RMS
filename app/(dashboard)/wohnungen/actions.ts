@@ -1,7 +1,7 @@
 "use server";
 
 // const APARTMENT_LIMIT = 5; // Removed hardcoded limit
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching'; // Assuming this fetches { id, email, stripe_price_id, stripe_subscription_status, ... }
 import { getPlanDetails } from '@/lib/stripe-server'; // Import getPlanDetails
@@ -32,7 +32,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
   logAction(actionName, 'start', { apartment_name: formData.name });
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
@@ -170,7 +170,7 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
   logAction(actionName, 'start', { apartment_id: id, apartment_name: formData.name });
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
@@ -274,7 +274,7 @@ export async function loescheWohnung(id: string) {
   logAction(actionName, 'start', { apartment_id: id });
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     const { error } = await supabase.from('Wohnungen')
       .delete()

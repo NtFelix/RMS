@@ -1,10 +1,10 @@
 import { GET } from '../apartments/[apartmentId]/details/route'
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
 // Mock Supabase client
-jest.mock('@/utils/supabase/server')
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>
+jest.mock('@/lib/supabase-server')
+const mockCreateClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>
 
 // Mock NextResponse
 jest.mock('next/server', () => ({

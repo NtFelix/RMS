@@ -1,6 +1,6 @@
 export const runtime = 'edge';
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createRequestLogger } from "@/utils/logger";
 
 interface WohnungWithMieter {
@@ -38,7 +38,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { id: wohnungId } = await params;
 
     // Validate input parameters

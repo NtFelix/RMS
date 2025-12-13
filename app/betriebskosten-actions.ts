@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
+import { createSupabaseServerClient } from "@/lib/supabase-server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, WasserzaehlerFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
 import { roundToNearest5 } from "@/lib/utils";
@@ -68,7 +68,7 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
   const actionName = 'createNebenkosten';
   logAction(actionName, 'start', { house_id: formData.haeuser_id });
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -103,7 +103,7 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
   const actionName = 'updateNebenkosten';
   logAction(actionName, 'start', { nebenkosten_id: id });
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("Nebenkosten")
@@ -127,7 +127,7 @@ export async function deleteNebenkosten(id: string) {
   const actionName = 'deleteNebenkosten';
   logAction(actionName, 'start', { nebenkosten_id: id });
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
     .from("Nebenkosten")
@@ -155,7 +155,7 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
     return { success: false, count: 0, message: "Keine IDs zum Löschen angegeben" };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // Use in_ operator to delete multiple records in a single query
@@ -186,7 +186,7 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
 
 export async function createRechnungenBatch(rechnungen: RechnungData[]) {
   console.log('[Server Action] createRechnungenBatch received batch of', rechnungen.length, 'items');
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -231,7 +231,7 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
 export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Promise<{ success: boolean; message?: string }> {
   console.log('[Server Action] deleteRechnungenByNebenkostenId called for nebenkostenId:', nebenkostenId);
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   // Authentication check (basic - RLS should handle actual data access control)
   const { data: { user } } = await supabase.auth.getUser();
@@ -263,7 +263,7 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
 }> {
   "use server";
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -331,7 +331,7 @@ async function getPreviousWasserzaehlerRecordAction(
     return { success: false, message: "Ungültige Mieter-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -543,7 +543,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
     return { success: false, message: "Keine Mieter-IDs angegeben." };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -618,7 +618,7 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -802,7 +802,7 @@ export async function saveWasserzaehlerDataOptimized(
 export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
   "use server";
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -928,7 +928,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
 export async function getLatestBetriebskostenByHausId(hausId: string) {
   "use server";
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // First, get the latest Nebenkosten ID for the house
@@ -1003,7 +1003,7 @@ export async function getWasserzaehlerModalDataAction(
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -1320,7 +1320,7 @@ export async function getAbrechnungModalDataAction(
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -1660,7 +1660,7 @@ export async function createAbrechnungCalculationAction(
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -1907,7 +1907,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();

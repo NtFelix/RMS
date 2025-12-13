@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { createClient } from "../../../../utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
 
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     
     // Try to use the optimized Supabase function first
     let data: any[] = [];

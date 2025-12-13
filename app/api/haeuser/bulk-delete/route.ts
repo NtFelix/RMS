@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
 
 export const runtime = 'edge';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { ids } = await request.json()
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {

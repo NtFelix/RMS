@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import type {
   SearchResponse,
@@ -167,7 +167,7 @@ export async function GET(request: Request) {
       }, { status: 400 });
     }
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     
     // Handle special "*" query for showing all results
     const isShowAllQuery = query.trim() === '*';

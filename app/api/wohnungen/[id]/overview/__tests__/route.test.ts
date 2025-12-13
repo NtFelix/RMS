@@ -1,10 +1,10 @@
 import { GET } from './route';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
 
 // Mock the Supabase client
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 // Mock NextResponse
@@ -17,7 +17,7 @@ jest.mock('next/server', () => ({
   },
 }));
 
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
+const mockCreateClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>;
 
 describe('/api/wohnungen/[id]/overview', () => {
   let mockSupabase: any;

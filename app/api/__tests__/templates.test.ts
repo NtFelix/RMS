@@ -48,8 +48,8 @@ const mockSupabaseClient = {
 };
 
 // Mock the Supabase client creation
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => Promise.resolve(mockSupabaseClient))
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => Promise.resolve(mockSupabaseClient))
 }));
 
 describe('/api/templates', () => {

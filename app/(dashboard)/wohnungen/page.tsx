@@ -5,7 +5,7 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 // Removed Card, CardContent etc. as they are used in ClientView
-import { createClient as createSupabaseClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient as createSupabaseClient } from "@/lib/supabase-server";
 import { fetchUserProfile } from '@/lib/data-fetching';
 
 import { getPlanDetails } from '@/lib/stripe-server';

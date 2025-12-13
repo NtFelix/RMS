@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
@@ -7,7 +7,7 @@ import { getPlanDetails } from "@/lib/stripe-server";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     // === BEGIN NEW LOGIC ===
     const userProfile = await fetchUserProfile(); // This already gets user or returns null
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   
   // Join Haeuser to get house name
   const { data: apartments, error } = await supabase
@@ -160,7 +160,7 @@ export async function GET() {
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) {
@@ -180,7 +180,7 @@ export async function DELETE(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const { name, groesse, miete, haus_id } = await request.json();

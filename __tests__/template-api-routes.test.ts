@@ -17,12 +17,12 @@ const mockSupabase = {
 };
 
 jest.mock('@/lib/supabase-server', () => ({
-  createClient: jest.fn(() => mockSupabase),
+  createSupabaseServerClient: jest.fn(() => mockSupabase),
 }));
 
 // Mock authentication
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => ({
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => ({
     auth: {
       getUser: jest.fn(() => ({
         data: { user: { id: 'user-123' } },

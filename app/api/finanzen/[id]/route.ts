@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
 // GET spezifische Finanztransaktion by ID
@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { id } = await params;
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from('Finanzen')
       .select('*, Wohnungen(name)')
@@ -42,7 +42,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     
     if (body.hasOwnProperty('ist_einnahmen')) {
       const { data, error } = await supabase
@@ -94,7 +94,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from('Finanzen')
       .update(body)
@@ -125,7 +125,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from('Finanzen')
       .delete()

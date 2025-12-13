@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { redirect } from 'next/navigation'
 
 export interface StorageFile {
@@ -92,7 +92,7 @@ export async function getInitialFiles(userId: string, path?: string): Promise<{
   // Create new request
   const request = (async () => {
     try {
-      const supabase = await createClient()
+      const supabase = await createSupabaseServerClient()
       
       // Verify user authentication
       const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -674,7 +674,7 @@ export async function loadFilesForPath(userId: string, path: string): Promise<{
   error?: string
 }> {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -872,7 +872,7 @@ export async function getApartmentFolderContents(userId: string, houseId: string
   error?: string
 }> {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -909,7 +909,7 @@ export async function getApartmentFolderContents(userId: string, houseId: string
 // Server-side breadcrumb builder with friendly names
 export async function getBreadcrumbs(userId: string, path: string): Promise<BreadcrumbItem[]> {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user || user.id !== userId) {
       redirect('/auth/login')
@@ -1054,7 +1054,7 @@ export async function debugTenantData(userId: string, apartmentId: string): Prom
   error?: string
 }> {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -1121,7 +1121,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
   error?: string
 }> {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()

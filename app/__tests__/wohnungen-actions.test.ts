@@ -3,20 +3,20 @@
  */
 
 // Mock dependencies first
-jest.mock('@/utils/supabase/server');
+jest.mock('@/lib/supabase-server');
 jest.mock('next/cache');
 jest.mock('@/lib/data-fetching');
 jest.mock('@/lib/stripe-server');
 
 import { wohnungServerAction } from '../wohnungen-actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { fetchUserProfile } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
 
 // Mock the auth functions that would be used to get user info
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({
@@ -31,7 +31,7 @@ jest.mock('@/lib/stripe-server', () => ({
   getPlanDetails: jest.fn(),
 }));
 
-const mockCreateClient = createClient as jest.Mock;
+const mockCreateClient = createSupabaseServerClient as jest.Mock;
 const mockRevalidatePath = revalidatePath as jest.Mock;
 const mockFetchUserProfile = fetchUserProfile as jest.Mock;
 const mockGetPlanDetails = getPlanDetails as jest.Mock;

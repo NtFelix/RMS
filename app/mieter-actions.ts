@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
 import { KautionData, KautionStatus } from "@/types/Tenant";
@@ -12,7 +12,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
   const tenantName = formData.get('name') as string;
   logAction(actionName, 'start', { tenant_id: id as string | null, tenant_name: tenantName });
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const payload: any = {
@@ -60,7 +60,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
 
 export async function deleteTenantAction(tenantId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from("Mieter")
       .delete()
@@ -99,7 +99,7 @@ export async function getMieterByHausIdAction(
     return { success: false, error: "Haus ID is required.", data: null };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   // Validate date parameters if provided
   if (startdatum && enddatum) {
@@ -175,7 +175,7 @@ export async function getMieterByHausIdAction(
 }
 
 export async function updateKautionAction(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // Extract form data
@@ -256,7 +256,7 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
 }
 
 export async function updateTenantApartment(tenantId: string, apartmentId: string): Promise<{ success: boolean; error?: { message: string } }> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { error } = await supabase
@@ -283,7 +283,7 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
 }
 
 export async function getSuggestedKautionAmount(tenantId: string): Promise<{ success: boolean; suggestedAmount?: number; error?: { message: string } }> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // Fetch tenant with associated apartment data

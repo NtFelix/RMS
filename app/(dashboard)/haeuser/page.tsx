@@ -1,13 +1,13 @@
 // "use client" directive removed. This file is now a pure Server Component.
 
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server"; // For server-side data fetching
+import { createSupabaseServerClient } from "@/lib/supabase-server"; // For server-side data fetching
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
 import { formatNumber } from "@/utils/format";
 import { House } from "@/components/house-table"; // Type for enrichedHaeuser
 
 export default async function HaeuserPage() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   // Load houses
   const { data: housesData, error: housesError } = await supabase.from('Haeuser').select('*');

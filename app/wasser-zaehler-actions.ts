@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { WasserZaehler, WasserAblesung, Wohnung, Mieter } from "@/lib/data-fetching";
 import { logAction } from '@/lib/logging-middleware';
@@ -15,7 +15,7 @@ type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
  * Falls back to individual queries if database function is not available
  */
 export async function getWasserZaehlerForHausAction(hausId: string) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const startTime = Date.now();
 
   try {
@@ -284,7 +284,7 @@ async function getWasserZaehlerForHausFallback(
  * Uses optimized database function for better performance
  */
 export async function getWasserZaehlerDataAction(wohnungId: string) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -328,7 +328,7 @@ export async function getWasserZaehlerDataAction(wohnungId: string) {
  * Uses optimized database function
  */
 export async function getWasserAblesenDataAction(meterId: string) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -372,7 +372,7 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
   const actionName = 'createWaterMeter';
   logAction(actionName, 'start', { apartment_id: data.wohnung_id });
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -405,7 +405,7 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
  * Update a water meter
  */
 export async function updateWasserZaehler(id: string, data: Partial<Omit<WasserZaehler, 'id' | 'user_id'>>) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // Get the current user
@@ -455,7 +455,7 @@ export async function updateWasserZaehler(id: string, data: Partial<Omit<WasserZ
  * Delete a water meter
  */
 export async function deleteWasserZaehler(id: string) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // Get the current user
@@ -503,7 +503,7 @@ export async function deleteWasserZaehler(id: string) {
  * Create a new water reading
  */
 export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'user_id'>) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -534,7 +534,7 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
  * Update a water reading
  */
 export async function updateWasserAblesung(id: string, data: Partial<Omit<WasserAblesung, 'id' | 'user_id'>>) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // Get the current user
@@ -584,7 +584,7 @@ export async function updateWasserAblesung(id: string, data: Partial<Omit<Wasser
  * Delete a water reading
  */
 export async function deleteWasserAblesung(id: string) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     // Get the current user
@@ -632,7 +632,7 @@ export async function deleteWasserAblesung(id: string) {
  * Bulk create water readings
  */
 export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 'id' | 'user_id'>[]) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();

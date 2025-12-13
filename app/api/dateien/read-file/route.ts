@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server"
 
 export const runtime = 'edge'
 
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File path and name are required' }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()

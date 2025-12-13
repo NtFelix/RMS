@@ -3,7 +3,7 @@
  */
 
 // Mock dependencies first
-jest.mock('@/utils/supabase/server');
+jest.mock('@/lib/supabase-server');
 jest.mock('next/cache');
 
 import {
@@ -13,10 +13,10 @@ import {
   updateKautionAction,
   getSuggestedKautionAmount,
 } from './mieter-actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 
-const mockCreateClient = createClient as jest.Mock;
+const mockCreateClient = createSupabaseServerClient as jest.Mock;
 const mockRevalidatePath = revalidatePath as jest.Mock;
 
 describe('Mieter Actions', () => {

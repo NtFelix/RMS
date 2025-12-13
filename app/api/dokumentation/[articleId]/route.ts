@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export const runtime = 'edge';
 
@@ -17,7 +17,7 @@ export async function GET(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     // First check if the table exists and has data
     const { data: tableCheck, error: tableError } = await supabase

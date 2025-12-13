@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { 
   fetchDocumentationContext, 
   processContextForAI, 
@@ -424,7 +424,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Try to authenticate user, but allow anonymous access
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     // Allow both authenticated and anonymous users

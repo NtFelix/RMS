@@ -2,7 +2,7 @@
 
 import { fetchUserProfile, getCurrentWohnungenCount } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export async function getUserSubscriptionContext(): Promise<{
   stripe_price_id: string | null;
@@ -61,7 +61,7 @@ export async function getUserApartmentCount(): Promise<{
   error?: string;
 }> {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const {
       data: { user },
       error: authError,

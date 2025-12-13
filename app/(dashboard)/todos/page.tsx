@@ -2,10 +2,10 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import TodosClientWrapper from "./client-wrapper";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export default async function TodosPage() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: tasksData } = await supabase.from('Aufgaben').select('*');
   const tasks = tasksData ?? [];
 

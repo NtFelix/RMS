@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/client';
-import { createClient as createServerClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient as createServerClient } from "@/lib/supabase-server";
 import type { DokumentationRecord } from '@/types/documentation';
 
 /**

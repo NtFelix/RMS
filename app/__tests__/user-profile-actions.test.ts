@@ -3,16 +3,16 @@
  */
 
 // Mock dependencies first
-jest.mock('@/utils/supabase/server');
+jest.mock('@/lib/supabase-server');
 jest.mock('@/lib/stripe-server');
 jest.mock('@/lib/data-fetching');
 
 import { getUserProfileForSettings } from './user-profile-actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
 
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
+const mockCreateClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>;
 const mockGetPlanDetails = getPlanDetails as jest.MockedFunction<typeof getPlanDetails>;
 const mockGetCurrentWohnungenCount = getCurrentWohnungenCount as jest.MockedFunction<typeof getCurrentWohnungenCount>;
 

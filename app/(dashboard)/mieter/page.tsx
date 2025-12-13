@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
-import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient as createSupabaseServerClient } from "@/lib/supabase-server";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
 

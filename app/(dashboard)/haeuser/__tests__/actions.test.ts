@@ -3,16 +3,16 @@
  */
 
 // Mock dependencies first
-jest.mock('@/utils/supabase/server');
+jest.mock('@/lib/supabase-server');
 jest.mock('next/cache');
 jest.mock('@/lib/data-fetching');
 
 import { handleSubmit, deleteHouseAction, getWasserzaehlerModalDataLegacyAction } from './actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { fetchWasserzaehlerModalData } from '@/lib/data-fetching';
 
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
+const mockCreateClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>;
 const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
 const mockFetchWasserzaehlerModalData = fetchWasserzaehlerModalData as jest.MockedFunction<typeof fetchWasserzaehlerModalData>;
 

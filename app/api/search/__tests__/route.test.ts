@@ -1,6 +1,6 @@
 import { GET } from './route';
 import { NextRequest } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 // Mock Next.js cookies
 jest.mock('next/headers', () => ({
@@ -11,11 +11,11 @@ jest.mock('next/headers', () => ({
 }));
 
 // Mock the Supabase client
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
+const mockCreateClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>;
 
 // Mock console methods to avoid noise in tests
 const originalConsoleError = console.error;
@@ -83,7 +83,7 @@ describe('/api/search', () => {
       from: jest.fn().mockImplementation(() => createDefaultMockQueryBuilder()),
     };
     
-    // createClient is async, so we need to mock it properly
+    // createSupabaseServerClient is async, so we need to mock it properly
     mockCreateClient.mockResolvedValue(mockSupabase);
   });
 
@@ -565,7 +565,7 @@ describe('/api/search', () => {
     }, 25000); // Increase test timeout to allow for the timeout to occur
 
     it('should return proper error response format', async () => {
-      // Mock createClient to throw an error
+      // Mock createSupabaseServerClient to throw an error
       mockCreateClient.mockRejectedValue(new Error('Database connection failed'));
 
       const request = new NextRequest('http://localhost/api/search?q=test');

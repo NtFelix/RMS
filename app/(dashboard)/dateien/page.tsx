@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { CloudStorageSimple } from "@/components/cloud-storage-simple"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { getPathContents } from "./actions"
 import DateienLoading from './loading'
@@ -28,7 +28,7 @@ async function CloudStorageContent({ userId }: { userId: string }) {
 }
 
 export default async function DateienPage() {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   
   // Get user on server side
   const { data: { user }, error } = await supabase.auth.getUser()

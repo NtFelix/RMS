@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
 
 export const runtime = 'edge';
 
@@ -12,7 +12,7 @@ type BulkUpdatePayload = {
 
 export async function PATCH(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { ids, updates } = await request.json() as BulkUpdatePayload
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {

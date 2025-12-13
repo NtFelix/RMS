@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { TemplatePayload } from "@/types/template";
 
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const resolvedParams = await params;
     
     // Validate template ID
@@ -75,7 +75,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const resolvedParams = await params;
     
     // Validate template ID
@@ -211,7 +211,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const resolvedParams = await params;
     
     // Validate template ID
