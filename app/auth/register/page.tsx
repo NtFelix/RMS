@@ -84,7 +84,7 @@ export default function RegisterPage() {
       })
     }
 
-    setMessage("Überprüfen Sie Ihre E-Mail für den Bestätigungslink.")
+    router.push('/auth/verify-email')
     setIsLoading(false)
   }
 
