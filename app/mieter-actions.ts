@@ -6,6 +6,7 @@ import { Mieter } from "../lib/data-fetching";
 import { KautionData, KautionStatus } from "@/types/Tenant";
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
+import { logger } from '@/utils/logger';
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const id = formData.get('id');
@@ -76,12 +77,12 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
             source: 'server_action'
           }
         });
-        console.log(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
+        logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
         await posthog.shutdown();
-        console.log(`[PostHog] Tenant event flushed.`);
+        logger.info(`[PostHog] Tenant event flushed.`);
       }
     } catch (phError) {
-      console.error('Failed to capture PostHog event:', phError);
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
     }
 
     return { success: true };
