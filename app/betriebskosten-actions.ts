@@ -227,8 +227,6 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
   // Or more specific if a detailed view exists: revalidatePath(`/dashboard/betriebskosten/${rechnungen[0]?.nebenkosten_id}`);
 
 
-  revalidatePath("/dashboard/betriebskosten");
-  // Or more specific if a detailed view exists: revalidatePath(`/dashboard/betriebskosten/${rechnungen[0]?.nebenkosten_id}`);
 
   try {
     const posthog = getPostHogServer();
