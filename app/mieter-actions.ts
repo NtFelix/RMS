@@ -39,15 +39,20 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     };
     const id = formData.get('id');
 
+    let finalTenantId = id as string | null;
+
     if (id) {
       const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { error } = await supabase.from('Mieter').insert(payload);
+      const { data: newTenant, error } = await supabase.from('Mieter').insert(payload).select('id').single();
       if (error) {
         return { success: false, error: { message: error.message } };
+      }
+      if (newTenant) {
+        finalTenantId = newTenant.id;
       }
     }
     revalidatePath('/mieter');
@@ -63,7 +68,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
           distinctId: user.id,
           event: eventName,
           properties: {
-            tenant_id: id || 'unknown', // Warning: ID might not be available for inserts without returning
+            tenant_id: finalTenantId || 'unknown',
             tenant_name: tenantName,
             has_property: !!payload.wohnung_id,
             property_id: payload.wohnung_id,
