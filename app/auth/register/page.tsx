@@ -78,7 +78,7 @@ export default function RegisterPage() {
         signup_date: new Date().toISOString(),
       })
 
-      posthog.capture('signup_success', {
+      posthog.capture('user_signed_up', {
         email: data.user.email,
         provider: 'email',
       })

@@ -29,6 +29,7 @@ import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Ar
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+import { usePostHog } from "posthog-js/react";
 
 // Function to fetch customer billing address
 const fetchCustomerBillingAddress = async () => {
@@ -78,9 +79,9 @@ const GERMAN_MONTHS = [
 const PREPAYMENT_BUFFER_MULTIPLIER = 1.1; // 10% buffer for prepayment calculation
 
 const calculateOccupancy = (
-  einzug: string | null | undefined, 
-  auszug: string | null | undefined, 
-  startdatum: string, 
+  einzug: string | null | undefined,
+  auszug: string | null | undefined,
+  startdatum: string,
   enddatum: string
 ): { percentage: number, daysInPeriod: number, daysOccupied: number } => {
   if (!einzug) {
@@ -189,21 +190,22 @@ export function AbrechnungModal({
   ownerName,
   ownerAddress,
 }: AbrechnungModalProps) {
+  const posthog = usePostHog();
   const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  
+
   // Ref for dropdown trigger
   const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
-  
+
   // Shared hover effect functions
   const applyDropdownHoverEffect = (isHovering: boolean, isDirectHover: boolean = true) => {
     const trigger = dropdownTriggerRef.current;
     if (!trigger || trigger.disabled) return;
-    
+
     const intensity = isDirectHover ? 1 : 0.5; // Reduce intensity for indirect hover
-    
+
     if (isHovering) {
       // Use the same accent color as other dropdown menus
       const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
@@ -217,14 +219,14 @@ export function AbrechnungModal({
       trigger.style.borderColor = `hsl(${primaryColor})`;
     }
   };
-  
+
   const applyMainButtonHoverEffect = (isHovering: boolean, isDirectHover: boolean = true, buttonElement?: HTMLButtonElement) => {
     // Find the button element if not provided
     const button = buttonElement || (dropdownTriggerRef.current?.parentElement?.querySelector('button[class*="pr-12"]') as HTMLButtonElement);
     if (!button || button.disabled) return;
-    
+
     const intensity = isDirectHover ? 1 : 0.3; // Reduce intensity for indirect hover
-    
+
     if (isHovering) {
       // Apply subtle brightness increase
       button.style.filter = `brightness(${1 + (0.1 * intensity)})`;
@@ -256,10 +258,10 @@ export function AbrechnungModal({
       setIsGeneratingPDF(false);
     }
   };
-  
+
   // Guard: ensure we always work with an array for tenants
   const safeTenants = Array.isArray(tenants) ? tenants : [];
-  
+
   // Performance monitoring - log when modal opens with pre-loaded data
   useEffect(() => {
     if (isOpen && nebenkostenItem && tenants?.length > 0) {
@@ -281,11 +283,11 @@ export function AbrechnungModal({
       } : null,
     });
   }, [isOpen, nebenkostenItem?.id, tenants]);
-  
+
   // Calculate WG factors for all tenants (memoized to prevent unnecessary recalculations)
   const wgFactors = useMemo(() => {
     if (!tenants || tenants.length === 0) return {};
-    
+
     if (!nebenkostenItem?.startdatum || !nebenkostenItem?.enddatum) {
       // Fallback to current year if date range is not available
       return computeWgFactorsByTenant(tenants, new Date().getFullYear());
@@ -317,7 +319,7 @@ export function AbrechnungModal({
     if (nebenkostenItem?.gesamtFlaeche && nebenkostenItem.gesamtFlaeche > 0) {
       return nebenkostenItem.gesamtFlaeche;
     }
-    
+
     // Fallback: calculate from tenants data if gesamtFlaeche is not available
     if (!tenants || !Array.isArray(tenants) || tenants.length === 0) return 0;
     return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
@@ -329,7 +331,7 @@ export function AbrechnungModal({
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
     if (!nebenkostenItem) return null;
-    
+
     const startdatum = nebenkostenItem.startdatum || '';
     const enddatum = nebenkostenItem.enddatum || '';
 
@@ -348,9 +350,9 @@ export function AbrechnungModal({
 
       // 1. Call calculateOccupancy
       const { percentage: occupancyPercentage, daysOccupied, daysInPeriod: daysInBillingPeriod } = calculateOccupancy(
-        tenant.einzug, 
-        tenant.auszug, 
-        itemStartdatum || startdatum, 
+        tenant.einzug,
+        tenant.auszug,
+        itemStartdatum || startdatum,
         itemEnddatum || enddatum
       );
 
@@ -377,22 +379,22 @@ export function AbrechnungModal({
       // Calculate prepayments for the actual billing period
       const billingStart = new Date(itemStartdatum || startdatum);
       const billingEnd = new Date(itemEnddatum || enddatum);
-      
+
       // Generate months within the billing period
       const currentDate = new Date(Date.UTC(billingStart.getUTCFullYear(), billingStart.getUTCMonth(), 1));
-      
+
       while (currentDate <= billingEnd) {
         const currentMonthStart = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
         const currentMonthEnd = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0));
         const monthName = GERMAN_MONTHS[currentDate.getUTCMonth()];
-        
+
         let effectivePrepaymentForMonth = 0;
         const isActiveThisMonth = !!(
           einzugDate && !isNaN(einzugDate.getTime()) &&
           einzugDate <= currentMonthEnd &&
           (!auszugDate || isNaN(auszugDate.getTime()) || auszugDate >= currentMonthStart)
         );
-        
+
         if (isActiveThisMonth) {
           // Find the base prepayment amount for this month
           let basePrepaymentAmount = 0;
@@ -402,15 +404,15 @@ export function AbrechnungModal({
             const prepaymentMonth = prepaymentSchedule[i].date.getUTCMonth();
             const currentYear = currentDate.getUTCFullYear();
             const currentMonth = currentDate.getUTCMonth();
-            
+
             // Include prepayment if it's from the same month/year or earlier
-            if (prepaymentYear < currentYear || 
-                (prepaymentYear === currentYear && prepaymentMonth <= currentMonth)) {
+            if (prepaymentYear < currentYear ||
+              (prepaymentYear === currentYear && prepaymentMonth <= currentMonth)) {
               basePrepaymentAmount = prepaymentSchedule[i].amount;
               break;
             }
           }
-          
+
           // Calculate occupancy percentage for this specific month
           const monthOccupancy = calculateOccupancy(
             tenant.einzug,
@@ -418,18 +420,18 @@ export function AbrechnungModal({
             currentMonthStart.toISOString().split('T')[0],
             currentMonthEnd.toISOString().split('T')[0]
           );
-          
+
           // Apply occupancy proration to the prepayment
           effectivePrepaymentForMonth = basePrepaymentAmount * (monthOccupancy.percentage / 100);
           totalVorauszahlungen += effectivePrepaymentForMonth;
         }
-        
+
         monthlyVorauszahlungenDetails.push({
           monthName: `${monthName} ${currentDate.getUTCFullYear()}`,
           amount: effectivePrepaymentForMonth,
           isActiveMonth: isActiveThisMonth,
         });
-        
+
         // Move to next month
         currentDate.setUTCMonth(currentDate.getUTCMonth() + 1);
       }
@@ -615,8 +617,8 @@ export function AbrechnungModal({
       console.error("jspdf-autotable module does not have applyPlugin function!", autoTableModule);
       // As a deeper fallback, try to attach the default export if it's the autoTable function
       if (autoTableModule && typeof autoTableModule.default === 'function') {
-          console.log("Attempting to attach autoTableModule.default to jsPDF.API.autoTable");
-          (jsPDF.API as any).autoTable = autoTableModule.default;
+        console.log("Attempting to attach autoTableModule.default to jsPDF.API.autoTable");
+        (jsPDF.API as any).autoTable = autoTableModule.default;
       } else {
         // If neither works, the PDF generation will likely fail, but this provides some diagnostic.
         toast({
@@ -641,7 +643,7 @@ export function AbrechnungModal({
         doc.addPage();
         startY = 20;
       }
-      
+
       // Use the reusable PDF generation function and update startY with the returned position
       startY = generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress, startY, billingAddress);
     };
@@ -652,19 +654,19 @@ export function AbrechnungModal({
     if (dataForProcessing.length === 0) {
       console.error("No tenant data available to generate PDF.");
       toast({
-         title: "Fehler bei PDF-Generierung",
-         description: "Keine Mieterdaten für den Export vorhanden.",
-         variant: "destructive",
+        title: "Fehler bei PDF-Generierung",
+        description: "Keine Mieterdaten für den Export vorhanden.",
+        variant: "destructive",
       });
       return;
     }
 
     let filename = "";
-      const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`; // Use date range for filename
+    const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`; // Use date range for filename
     if (dataForProcessing.length === 1) {
       const singleTenant = dataForProcessing[0];
       processTenant(singleTenant);
-        filename = `Abrechnung_${currentPeriod}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
+      filename = `Abrechnung_${currentPeriod}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
     } else { // Multiple tenants
       dataForProcessing.forEach((td, index) => {
         processTenant(td);
@@ -674,9 +676,15 @@ export function AbrechnungModal({
           startY = 20; // Reset Y position for the new page
         }
       });
-        filename = `Abrechnung_${currentPeriod}_Alle_Mieter.pdf`;
+      filename = `Abrechnung_${currentPeriod}_Alle_Mieter.pdf`;
     }
     doc.save(filename);
+
+    posthog?.capture('pdf_exported', {
+      type: 'settlement',
+      tenant_count: dataForProcessing.length,
+      period: currentPeriod
+    });
   };
 
   // Reusable function to generate PDF content for a single tenant
@@ -739,15 +747,15 @@ export function AbrechnungModal({
       body: tableRows,
       startY: startY,
       theme: 'plain',
-      headStyles: { 
+      headStyles: {
         fillColor: [255, 255, 255],
         textColor: [0, 0, 0],
         fontStyle: 'bold',
         lineWidth: { bottom: 0.3 },
         lineColor: [0, 0, 0]
       },
-      styles: { 
-        fontSize: 9, 
+      styles: {
+        fontSize: 9,
         cellPadding: 1.5,
         lineWidth: 0
       },
@@ -789,12 +797,12 @@ export function AbrechnungModal({
     // Draw "Betriebskosten gesamt" summary - simplified approach
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    
+
     // Use fixed positions based on table width and margins to ensure alignment
     const pageWidth = doc.internal.pageSize.getWidth();
     const tableWidth = pageWidth - 40; // Same as table margin
     const leftMargin = 20;
-    
+
     // Calculate column positions based on typical table layout
     const col1Start = leftMargin; // Leistungsart
     const col2Start = leftMargin + (tableWidth * 0.25); // Gesamtkosten (25% of table width)
@@ -802,89 +810,89 @@ export function AbrechnungModal({
     const col4Start = leftMargin + (tableWidth * 0.65); // Kosten Pro qm (65% of table width)
     const col5Start = leftMargin + (tableWidth * 0.85); // Kostenanteil (85% of table width)
     const col5End = leftMargin + tableWidth; // Right edge of Kostenanteil column
-    
+
     // No background or borders - just plain text with proper alignment
-    
+
     // Add the text with proper alignment
     doc.setTextColor(0, 0, 0);
-    
+
     // Label in first column
     doc.text("Betriebskosten gesamt:", col1Start, startY, { align: 'left' });
-    
+
     // Total cost in Gesamtkosten column (right-aligned within column)
     doc.text(formatCurrency(sumOfTotalCostForItem), col3Start + 15.65, startY, { align: 'right' });
-    
+
     // Tenant share in Kostenanteil column (right-aligned within column)
     doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col5End, startY, { align: 'right' });
-    
+
     doc.setFont("helvetica", "normal");
-    
+
     startY += 12;
 
     // Add water cost summary paragraph
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    
+
     // Get water cost data for this tenant
     const tenantWaterShare = tenantData.waterCost.tenantShare;
     const tenantWaterConsumption = tenantData.waterCost.consumption || 0;
     const buildingWaterCost = nebenkostenItem.wasserkosten || 0;
     const buildingWaterConsumption = nebenkostenItem.wasserverbrauch || 0;
     const pricePerCubicMeterCalc = buildingWaterConsumption > 0 ? buildingWaterCost / buildingWaterConsumption : 0;
-    
+
     // Water cost summary with aligned columns
     doc.text("Wasserkosten:", col1Start, startY, { align: 'left' });
     doc.text(`${tenantWaterConsumption} m³`, col3Start + 15.65, startY, { align: 'right' });
     doc.text(`${formatCurrency(pricePerCubicMeterCalc)} / m3`, col4Start + 15, startY, { align: 'right' });
     doc.text(formatCurrency(tenantWaterShare), col5End, startY, { align: 'right' });
-    
+
     startY += 16;
-    
+
     // Total line - sum of operating costs and water costs
     const totalTenantCosts = sumOfTenantSharesFromCostItems + tenantWaterShare;
     doc.text("Gesamt:", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(totalTenantCosts), col5End, startY, { align: 'right' });
-    
+
     startY += 8;
-    
+
     // Advance payments line
     doc.text("Vorauszahlungen:", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(tenantData.vorauszahlungen), col5End, startY, { align: 'right' });
-    
+
     startY += 8;
-    
+
     // Final settlement line (Nachzahlung or Guthaben)
     const isPositiveSettlement = tenantData.finalSettlement >= 0;
     const settlementLabel = isPositiveSettlement ? "Nachzahlung:" : "Guthaben:";
     const settlementAmount = Math.abs(tenantData.finalSettlement);
     doc.text(settlementLabel, col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(settlementAmount), col5End, startY, { align: 'right' });
-    
+
     startY += 8;
-    
+
     // Suggested monthly Vorauszahlung line (rounded to nearest 5)
     const suggestedVorauszahlung = tenantData.recommendedPrepayment ? roundToNearest5(tenantData.recommendedPrepayment) : 0;
     const monthlyVorauszahlung = suggestedVorauszahlung / 12; // Convert annual to monthly
-    
+
     // Calculate next month start date (at least 14 days from now)
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     const formattedDate = format(nextMonth, 'dd.MM.yy');
-    
+
     doc.setFont("helvetica", "bold");
     const label = `Vorauszahlung ab ${formattedDate}`;
     doc.text(label, col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(monthlyVorauszahlung), col5End, startY, { align: 'right' });
-    
+
     doc.setFont("helvetica", "normal");
-    
+
     startY += 10;
 
     // Add date and location row at the end
     startY += 15; // Add some space before the final row
     const currentDate = new Date();
     const formattedToday = format(currentDate, 'dd.MM.yyyy');
-    
+
     // Format location from billing address
     let location = '';
     if (billingAddress) {
@@ -892,7 +900,7 @@ export function AbrechnungModal({
       if (billingAddress.city) parts.push(billingAddress.city);
       location = parts.join(' ');
     }
-    
+
     if (location) {
       doc.setFont("helvetica", "normal");
       doc.text(`${location}, den ${formattedToday}`, col1Start, startY, { align: 'left' });
@@ -900,7 +908,7 @@ export function AbrechnungModal({
       doc.setFont("helvetica", "normal");
       doc.text(`den ${formattedToday}`, col1Start, startY, { align: 'left' });
     }
-    
+
     return startY; // Return the final Y position
   };
 
@@ -926,13 +934,13 @@ export function AbrechnungModal({
 
     // Generate individual PDFs for each tenant
     const billingAddress = await fetchCustomerBillingAddress();
-    
+
     for (const tenantData of tenantDataArray) {
       const doc = new jsPDF();
-      
+
       // Use the reusable PDF generation function
       generateSingleTenantPDF(doc, tenantData, nebenkostenItem, ownerName, ownerAddress, 20, billingAddress);
-      
+
       const pdfBlob = doc.output('blob');
       const filename = `Abrechnung_${currentPeriod}_${tenantData.tenantName.replace(/\s+/g, '_')}.pdf`;
       zip.file(filename, pdfBlob);
@@ -941,7 +949,7 @@ export function AbrechnungModal({
     // Generate and download the ZIP file
     const zipBlob = await zip.generateAsync({ type: 'blob' });
     const zipFilename = `Abrechnung_${currentPeriod}_Alle_Mieter.zip`;
-    
+
     const url = URL.createObjectURL(zipBlob);
     const a = document.createElement('a');
     a.href = url;
@@ -953,7 +961,7 @@ export function AbrechnungModal({
   };
 
   // Memoize tenant options to avoid recreating on every render
-  const tenantOptions: ComboboxOption[] = useMemo(() => 
+  const tenantOptions: ComboboxOption[] = useMemo(() =>
     (Array.isArray(tenants) ? tenants : []).map(tenant => ({
       value: tenant.id,
       label: tenant.name,
@@ -1049,7 +1057,7 @@ export function AbrechnungModal({
                     {(() => {
                       // Get all roommates in this apartment
                       const roommates = getApartmentOccupants(tenants, tenantData.apartmentId);
-                      
+
                       if (roommates.length <= 1) {
                         return (
                           <p className="text-sm text-muted-foreground">
@@ -1059,11 +1067,11 @@ export function AbrechnungModal({
                       }
 
                       // Use the pre-computed wgFactors
-                      
+
                       return (
                         <>
                           <p className="text-sm text-muted-foreground">
-                            Diese Wohnung wird von {roommates.length} Personen bewohnt. 
+                            Diese Wohnung wird von {roommates.length} Personen bewohnt.
                             Die Flächenkosten werden entsprechend der Anwesenheit aufgeteilt:
                           </p>
                           <div className="mt-2 space-y-1">
@@ -1213,7 +1221,7 @@ export function AbrechnungModal({
                             <span>{isNachzahlung ? "Nachzahlung" : "Guthaben"}:</span>
                             <span className={amountColor}>{formatCurrency(tenantData.finalSettlement)}</span>
                           </div>
-                          
+
                           {tenantData.recommendedPrepayment !== undefined && (
                             <>
                               <div className="h-px bg-border my-1"></div>
@@ -1274,7 +1282,7 @@ export function AbrechnungModal({
           <Button variant="outline" onClick={onClose} disabled={isGeneratingPDF}>
             Schließen
           </Button>
-          
+
           {/* Export Button with Dropdown - Matches Create New button style */}
           <ExportAbrechnungDropdown
             onPdfClick={() => handleExportOperation(
@@ -1295,12 +1303,12 @@ export function AbrechnungModal({
 
                 // Always use all tenants for ZIP export, not just the filtered/selected ones
                 const allTenants = tenants || [];
-                
+
                 // Calculate costs for all tenants using the memoized function
-                const tenantCosts = allTenants.map(tenant => 
+                const tenantCosts = allTenants.map(tenant =>
                   calculateCostsForTenant(tenant, pricePerCubicMeter)
                 );
-                
+
                 await handleExportOperation(
                   () => generateSettlementZIP(tenantCosts, nebenkostenItem!, ownerName, ownerAddress),
                   "Fehler bei ZIP-Generierung",

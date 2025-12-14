@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
 import { KautionData, KautionStatus } from "@/types/Tenant";
 import { logAction } from '@/lib/logging-middleware';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const id = formData.get('id');
@@ -51,6 +52,33 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     }
     revalidatePath('/mieter');
     logAction(actionName, 'success', { tenant_name: tenantName, operation: id ? 'update' : 'create' });
+
+    try {
+      const posthog = getPostHogServer();
+      const eventName = id ? 'tenant_updated' : 'tenant_added';
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        posthog.capture({
+          distinctId: user.id,
+          event: eventName,
+          properties: {
+            tenant_id: id || 'unknown', // Warning: ID might not be available for inserts without returning
+            tenant_name: tenantName,
+            has_property: !!payload.wohnung_id,
+            property_id: payload.wohnung_id,
+            has_email: !!payload.email,
+            source: 'server_action'
+          }
+        });
+        console.log(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
+        await posthog.shutdown();
+        console.log(`[PostHog] Tenant event flushed.`);
+      }
+    } catch (phError) {
+      console.error('Failed to capture PostHog event:', phError);
+    }
+
     return { success: true };
   } catch (e) {
     logAction(actionName, 'error', { tenant_name: tenantName, error_message: (e as Error).message });

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
 import { logAction } from '@/lib/logging-middleware';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
 
 interface WohnungPayload {
   name: string;
@@ -201,6 +202,30 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       apartment_name: data.name,
       operation: id ? 'update' : 'create'
     });
+
+    try {
+      const posthog = getPostHogServer();
+      const eventName = id ? 'property_updated' : 'property_created';
+
+      posthog.capture({
+        distinctId: user.id || 'unknown',
+        event: eventName,
+        properties: {
+          property_id: dbResponse.data.id,
+          name: data.name,
+          size: fullPayload.groesse,
+          rent: fullPayload.miete,
+          has_house: !!data.haus_id,
+          source: 'server_action'
+        }
+      });
+      console.log(`[PostHog] Capturing event: ${eventName} for user: ${user.id}`);
+      await posthog.shutdown(); // Ensure events are flushed
+      console.log(`[PostHog] Event flushed.`);
+    } catch (phError) {
+      console.error('Failed to capture PostHog event:', phError);
+    }
+
     return { success: true, data: dbResponse.data as WohnungDbRecord };
   } catch (error: any) {
     logAction(actionName, 'error', {

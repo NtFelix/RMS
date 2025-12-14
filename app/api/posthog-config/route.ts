@@ -6,8 +6,8 @@ export async function GET() {
   // Return PostHog configuration from server-side environment variables
   // Use the exact names from Cloudflare: POSTHOG_API_KEY, POSTHOG_HOST, POSTHOG_ENV_ID
   const config = {
-    key: process.env.POSTHOG_API_KEY,
-    host: process.env.POSTHOG_HOST || 'https://eu.i.posthog.com',
+    key: process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    host: process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com',
     envId: process.env.POSTHOG_ENV_ID
   }
 

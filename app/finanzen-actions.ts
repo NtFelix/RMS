@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
 
 // Define a more specific type for the payload, excluding id and related entities
 interface FinanzInput {
@@ -54,6 +55,32 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
 
     revalidatePath("/finanzen");
     logAction(actionName, 'success', { finance_id: dbResponse.data.id, finance_name: data.name });
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const posthog = getPostHogServer();
+        posthog.capture({
+          distinctId: user.id,
+          event: 'payment_recorded',
+          properties: {
+            payment_id: dbResponse.data.id,
+            amount: payload.betrag,
+            type: payload.ist_einnahmen ? 'income' : 'expense',
+            category: payload.notiz || 'uncategorized', // Assuming 'notiz' might contain category info or just use a generic one
+            date: payload.datum,
+            has_property: !!payload.wohnung_id,
+            source: 'server_action'
+          }
+        });
+        console.log(`[PostHog] Capturing payment event for user: ${user.id}`);
+        await posthog.shutdown();
+        console.log(`[PostHog] Payment event flushed.`);
+      }
+    } catch (phError) {
+      console.error('Failed to capture PostHog event:', phError);
+    }
+
     return { success: true, data: dbResponse.data };
   } catch (error: any) {
     logAction(actionName, 'error', { finance_id: id, error_message: error.message });
