@@ -410,7 +410,6 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
         }
       });
       logger.info(`[PostHog] Capturing event: water_meter_created for user: ${user.id}`);
-      await posthog.shutdown();
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
     }
@@ -560,7 +559,6 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
         }
       });
       logger.info(`[PostHog] Capturing event: water_reading_recorded for user: ${user.id}`);
-      await posthog.shutdown();
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
     }
@@ -743,7 +741,6 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
       // We'll stick to one bulk event to avoid flooding
 
       logger.info(`[PostHog] Capturing event: water_readings_bulk_created for user: ${user.id}`);
-      await posthog.shutdown();
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
     }
