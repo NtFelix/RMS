@@ -7,6 +7,7 @@ import { getPlanDetails } from '@/lib/stripe-server';
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
+import { posthogLogger } from '@/lib/posthog-logger';
 
 interface WohnungPayload {
   name: string;
@@ -221,6 +222,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
         }
       });
       await posthog.flush();
+      await posthogLogger.flush();
       logger.info(`[PostHog] Capturing event: ${eventName} for user: ${user.id}`);
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));

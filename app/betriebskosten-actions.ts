@@ -27,6 +27,7 @@ import {
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
+import { posthogLogger } from '@/lib/posthog-logger';
 
 /**
  * Gets the most recent water reading for each apartment from a list of readings
@@ -241,6 +242,7 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
       }
     });
     await posthog.flush();
+    await posthogLogger.flush();
     logger.info(`[PostHog] Capturing betriebskosten event for user: ${user.id}`);
   } catch (phError) {
     logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));

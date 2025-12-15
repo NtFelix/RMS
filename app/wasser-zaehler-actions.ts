@@ -6,6 +6,7 @@ import { WasserZaehler, WasserAblesung, Wohnung, Mieter } from "@/lib/data-fetch
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
+import { posthogLogger } from '@/lib/posthog-logger';
 
 
 // Type for the Supabase client from our createClient utility
@@ -22,6 +23,7 @@ async function capturePostHogEvent(user: { id: string }, event: string, properti
       properties,
     });
     await posthog.flush();
+    await posthogLogger.flush();
     logger.info(`[PostHog] Capturing event: ${event} for user: ${user.id}`);
   } catch (phError) {
     logger.error(`Failed to capture PostHog event: ${event}`, phError instanceof Error ? phError : new Error(String(phError)));

@@ -7,6 +7,7 @@ import { KautionData, KautionStatus } from "@/types/Tenant";
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
+import { posthogLogger } from '@/lib/posthog-logger';
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const id = formData.get('id');
@@ -78,6 +79,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
           }
         });
         await posthog.flush();
+        await posthogLogger.flush();
         logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
       }
     } catch (phError) {
