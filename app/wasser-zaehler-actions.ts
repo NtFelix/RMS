@@ -415,9 +415,6 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
     logAction(actionName, 'success', { meter_id: result?.id, apartment_id: data.wohnung_id });
 
     // PostHog Event Tracking
-    // PostHog Event Tracking
-    // PostHog Event Tracking
-    // PostHog Event Tracking
     await capturePostHogEvent(user, 'water_meter_created', {
       meter_id: result?.id,
       apartment_id: data.wohnung_id,
@@ -555,9 +552,6 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
 
     revalidatePath("/betriebskosten");
 
-    // PostHog Event Tracking
-    // PostHog Event Tracking
-    // PostHog Event Tracking
     // PostHog Event Tracking
     await capturePostHogEvent(user, 'water_reading_recorded', {
       reading_id: result?.id,
@@ -730,9 +724,6 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
 
     revalidatePath("/betriebskosten");
 
-    // PostHog Event Tracking for Bulk Operation
-    // PostHog Event Tracking for Bulk Operation
-    // PostHog Event Tracking for Bulk Operation
     // PostHog Event Tracking for Bulk Operation
     await capturePostHogEvent(user, 'water_readings_bulk_created', {
       reading_count: validReadings.length,
