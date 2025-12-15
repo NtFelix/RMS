@@ -4,6 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { WasserZaehler, WasserAblesung, Wohnung, Mieter } from "@/lib/data-fetching";
 import { logAction } from '@/lib/logging-middleware';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
+import { logger } from '@/utils/logger';
 
 
 // Type for the Supabase client from our createClient utility
@@ -394,6 +396,25 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
 
     revalidatePath("/betriebskosten");
     logAction(actionName, 'success', { meter_id: result?.id, apartment_id: data.wohnung_id });
+
+    // PostHog Event Tracking
+    try {
+      const posthog = getPostHogServer();
+      posthog.capture({
+        distinctId: user.id,
+        event: 'water_meter_created',
+        properties: {
+          meter_id: result?.id,
+          apartment_id: data.wohnung_id,
+          source: 'server_action'
+        }
+      });
+      logger.info(`[PostHog] Capturing event: water_meter_created for user: ${user.id}`);
+      await posthog.shutdown();
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
+    }
+
     return { success: true, data: result };
   } catch (error: any) {
     logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: error.message });
@@ -523,6 +544,27 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
     }
 
     revalidatePath("/betriebskosten");
+
+    // PostHog Event Tracking
+    try {
+      const posthog = getPostHogServer();
+      posthog.capture({
+        distinctId: user.id,
+        event: 'water_reading_recorded',
+        properties: {
+          reading_id: result?.id,
+          meter_id: data.wasser_zaehler_id,
+          reading_value: data.zaehlerstand,
+          reading_date: data.ablese_datum,
+          source: 'server_action'
+        }
+      });
+      logger.info(`[PostHog] Capturing event: water_reading_recorded for user: ${user.id}`);
+      await posthog.shutdown();
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
+    }
+
     return { success: true, data: result };
   } catch (error: any) {
     console.error("Unexpected error in createWasserAblesung:", error);
@@ -684,6 +726,28 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
     }
 
     revalidatePath("/betriebskosten");
+
+    // PostHog Event Tracking for Bulk Operation
+    try {
+      const posthog = getPostHogServer();
+      posthog.capture({
+        distinctId: user.id,
+        event: 'water_readings_bulk_created',
+        properties: {
+          reading_count: validReadings.length,
+          meter_ids: Array.from(new Set(validReadings.map(r => r.wasser_zaehler_id))),
+          source: 'server_action'
+        }
+      });
+      // Also track individual events if needed, but bulk event is usually cleaner for analytics
+      // We'll stick to one bulk event to avoid flooding
+
+      logger.info(`[PostHog] Capturing event: water_readings_bulk_created for user: ${user.id}`);
+      await posthog.shutdown();
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
+    }
+
     return { success: true, data: result };
   } catch (error: any) {
     console.error("Unexpected error in bulkCreateWasserAblesungen:", error);
