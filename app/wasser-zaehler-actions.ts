@@ -12,7 +12,8 @@ import { logger } from '@/utils/logger';
 type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
 
 // Helper for PostHog event tracking
-function capturePostHogEvent(user: { id: string }, event: string, properties: Record<string, any>) {
+// Helper for PostHog event tracking
+async function capturePostHogEvent(user: { id: string }, event: string, properties: Record<string, any>) {
   try {
     const posthog = getPostHogServer();
     posthog.capture({
@@ -20,6 +21,7 @@ function capturePostHogEvent(user: { id: string }, event: string, properties: Re
       event,
       properties,
     });
+    await posthog.flush();
     logger.info(`[PostHog] Capturing event: ${event} for user: ${user.id}`);
   } catch (phError) {
     logger.error(`Failed to capture PostHog event: ${event}`, phError instanceof Error ? phError : new Error(String(phError)));
@@ -414,7 +416,9 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
 
     // PostHog Event Tracking
     // PostHog Event Tracking
-    capturePostHogEvent(user, 'water_meter_created', {
+    // PostHog Event Tracking
+    // PostHog Event Tracking
+    await capturePostHogEvent(user, 'water_meter_created', {
       meter_id: result?.id,
       apartment_id: data.wohnung_id,
       source: 'server_action'
@@ -553,7 +557,9 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
 
     // PostHog Event Tracking
     // PostHog Event Tracking
-    capturePostHogEvent(user, 'water_reading_recorded', {
+    // PostHog Event Tracking
+    // PostHog Event Tracking
+    await capturePostHogEvent(user, 'water_reading_recorded', {
       reading_id: result?.id,
       meter_id: data.wasser_zaehler_id,
       reading_value: data.zaehlerstand,
@@ -726,7 +732,9 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
 
     // PostHog Event Tracking for Bulk Operation
     // PostHog Event Tracking for Bulk Operation
-    capturePostHogEvent(user, 'water_readings_bulk_created', {
+    // PostHog Event Tracking for Bulk Operation
+    // PostHog Event Tracking for Bulk Operation
+    await capturePostHogEvent(user, 'water_readings_bulk_created', {
       reading_count: validReadings.length,
       meter_ids: Array.from(new Set(validReadings.map(r => r.wasser_zaehler_id))),
       source: 'server_action'
