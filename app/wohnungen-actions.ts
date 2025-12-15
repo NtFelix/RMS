@@ -220,9 +220,8 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
           source: 'server_action'
         }
       });
+      await posthog.flush();
       logger.info(`[PostHog] Capturing event: ${eventName} for user: ${user.id}`);
-      await posthog.shutdown(); // Ensure events are flushed
-      logger.info(`[PostHog] Event flushed.`);
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
     }

@@ -240,9 +240,8 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
         source: 'server_action'
       }
     });
+    await posthog.flush();
     logger.info(`[PostHog] Capturing betriebskosten event for user: ${user.id}`);
-    await posthog.shutdown();
-    logger.info(`[PostHog] Betriebskosten event flushed.`);
   } catch (phError) {
     logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
   }

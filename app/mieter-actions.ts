@@ -77,9 +77,8 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
             source: 'server_action'
           }
         });
+        await posthog.flush();
         logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
-        await posthog.shutdown();
-        logger.info(`[PostHog] Tenant event flushed.`);
       }
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
