@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
 import { KautionData, KautionStatus } from "@/types/Tenant";
 import { logAction } from '@/lib/logging-middleware';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
+import { logger } from '@/utils/logger';
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const id = formData.get('id');
@@ -38,19 +40,51 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     };
     const id = formData.get('id');
 
+    let finalTenantId = id as string | null;
+
     if (id) {
       const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { error } = await supabase.from('Mieter').insert(payload);
+      const { data: newTenant, error } = await supabase.from('Mieter').insert(payload).select('id').single();
       if (error) {
         return { success: false, error: { message: error.message } };
+      }
+      if (newTenant) {
+        finalTenantId = newTenant.id;
       }
     }
     revalidatePath('/mieter');
     logAction(actionName, 'success', { tenant_name: tenantName, operation: id ? 'update' : 'create' });
+
+    try {
+      const posthog = getPostHogServer();
+      const eventName = id ? 'tenant_updated' : 'tenant_added';
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        posthog.capture({
+          distinctId: user.id,
+          event: eventName,
+          properties: {
+            tenant_id: finalTenantId || 'unknown',
+            tenant_name: tenantName,
+            has_property: !!payload.wohnung_id,
+            property_id: payload.wohnung_id,
+            has_email: !!payload.email,
+            source: 'server_action'
+          }
+        });
+        logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
+        await posthog.shutdown();
+        logger.info(`[PostHog] Tenant event flushed.`);
+      }
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
+    }
+
     return { success: true };
   } catch (e) {
     logAction(actionName, 'error', { tenant_name: tenantName, error_message: (e as Error).message });

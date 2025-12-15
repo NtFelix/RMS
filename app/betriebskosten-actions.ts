@@ -26,6 +26,7 @@ import {
 
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
 
 /**
  * Gets the most recent water reading for each apartment from a list of readings
@@ -225,6 +226,26 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
   revalidatePath("/dashboard/betriebskosten");
   // Or more specific if a detailed view exists: revalidatePath(`/dashboard/betriebskosten/${rechnungen[0]?.nebenkosten_id}`);
 
+
+
+  try {
+    const posthog = getPostHogServer();
+    posthog.capture({
+      distinctId: user.id,
+      event: 'betriebskosten_calculated',
+      properties: {
+        bill_count: rechnungen.length,
+        nebenkosten_id: rechnungen[0]?.nebenkosten_id,
+        total_amount: rechnungen.reduce((sum, r) => sum + r.betrag, 0),
+        source: 'server_action'
+      }
+    });
+    logger.info(`[PostHog] Capturing betriebskosten event for user: ${user.id}`);
+    await posthog.shutdown();
+    logger.info(`[PostHog] Betriebskosten event flushed.`);
+  } catch (phError) {
+    logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
+  }
 
   return { success: true, data };
 }

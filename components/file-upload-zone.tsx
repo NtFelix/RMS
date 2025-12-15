@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useCloudStorageUpload } from "@/hooks/use-cloud-storage-store"
 import { validateFile } from "@/lib/storage-service"
 import { cn } from "@/lib/utils"
+import { usePostHog } from "posthog-js/react"
 
 interface FileUploadZoneProps {
   targetPath: string
@@ -17,16 +18,17 @@ interface FileUploadZoneProps {
   disabled?: boolean
 }
 
-export function FileUploadZone({ 
-  targetPath, 
-  onUploadComplete, 
+export function FileUploadZone({
+  targetPath,
+  onUploadComplete,
   className,
-  disabled = false 
+  disabled = false
 }: FileUploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [dragCounter, setDragCounter] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+  const posthog = usePostHog()
+
   const {
     uploadQueue,
     isUploading,
@@ -40,17 +42,24 @@ export function FileUploadZone({
   useEffect(() => {
     const completedUploads = uploadQueue.filter(item => item.status === 'completed')
     const hasCompletedUploads = completedUploads.length > 0
-    const allCompleted = uploadQueue.length > 0 && uploadQueue.every(item => 
+    const allCompleted = uploadQueue.length > 0 && uploadQueue.every(item =>
       item.status === 'completed' || item.status === 'error'
     )
-    
+
     // Call onUploadComplete when all uploads are finished (completed or error)
     if (hasCompletedUploads && !isUploading && allCompleted) {
       // Use a timeout to ensure the upload process has fully completed
       const timeoutId = setTimeout(() => {
         onUploadComplete?.()
+        const totalSize = completedUploads.reduce((acc, item) => acc + item.file.size, 0)
+        posthog?.capture('document_uploaded', {
+          file_count: completedUploads.length,
+          total_size_bytes: totalSize,
+          target_path: targetPath,
+          source: 'file_upload_zone'
+        })
       }, 500)
-      
+
       return () => clearTimeout(timeoutId)
     }
   }, [uploadQueue, isUploading, onUploadComplete])
@@ -59,9 +68,9 @@ export function FileUploadZone({
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     if (disabled) return
-    
+
     setDragCounter(prev => prev + 1)
     if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       setIsDragOver(true)
@@ -71,7 +80,7 @@ export function FileUploadZone({
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     setDragCounter(prev => prev - 1)
     if (dragCounter <= 1) {
       setIsDragOver(false)
@@ -86,12 +95,12 @@ export function FileUploadZone({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     setIsDragOver(false)
     setDragCounter(0)
-    
+
     if (disabled) return
-    
+
     const files = Array.from(e.dataTransfer.files)
     handleFiles(files)
   }, [disabled, targetPath])
@@ -100,7 +109,7 @@ export function FileUploadZone({
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     handleFiles(files)
-    
+
     // Reset input value to allow selecting the same file again
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -110,11 +119,11 @@ export function FileUploadZone({
   // Process selected files
   const handleFiles = useCallback((files: File[]) => {
     if (files.length === 0) return
-    
+
     // Validate files before adding to queue
     const validFiles: File[] = []
     const errors: string[] = []
-    
+
     files.forEach(file => {
       const validation = validateFile(file)
       if (validation.valid) {
@@ -123,7 +132,7 @@ export function FileUploadZone({
         errors.push(`${file.name}: ${validation.error}`)
       }
     })
-    
+
     // Show validation errors if any
     if (errors.length > 0) {
       // Show toast notifications for errors
@@ -132,19 +141,19 @@ export function FileUploadZone({
         // You could add toast notifications here if needed
       })
     }
-    
+
     // Add valid files to upload queue
     if (validFiles.length > 0) {
       // Clean up target path to ensure consistency
       const cleanTargetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '')
-      
+
       console.log('Adding files to upload queue:', {
         fileCount: validFiles.length,
         targetPath,
         cleanTargetPath,
         files: validFiles.map(f => f.name)
       })
-      
+
       addToUploadQueue(validFiles, cleanTargetPath)
       // Start processing uploads automatically with a small delay
       setTimeout(() => {
@@ -224,26 +233,26 @@ export function FileUploadZone({
             "h-10 w-10 mb-3",
             isDragOver && !disabled ? "text-primary" : "text-muted-foreground"
           )} />
-          
+
           <h3 className="text-base font-semibold mb-2">
             {isDragOver && !disabled ? "Dateien hier ablegen" : "Dateien hochladen"}
           </h3>
-          
+
           <p className="text-sm text-muted-foreground mb-3">
-            {isDragOver && !disabled 
+            {isDragOver && !disabled
               ? "Lassen Sie die Dateien los, um sie hochzuladen"
               : "Ziehen Sie Dateien hierher oder klicken Sie, um Dateien auszuwählen"
             }
           </p>
-          
+
           <div className="text-xs text-muted-foreground mb-3">
             <p>Unterstützte Formate: PDF, Bilder (JPG, PNG), Dokumente</p>
             <p>Maximale Dateigröße: 10 MB</p>
           </div>
-          
+
           {!disabled && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={(e) => {
                 e.stopPropagation()
@@ -276,7 +285,7 @@ export function FileUploadZone({
               <h4 className="text-sm font-semibold">
                 Upload-Warteschlange ({uploadQueue.length})
               </h4>
-              
+
               <div className="flex items-center space-x-2">
                 {isUploading && (
                   <Badge variant="secondary" className="text-xs">
@@ -284,7 +293,7 @@ export function FileUploadZone({
                     Wird hochgeladen...
                   </Badge>
                 )}
-                
+
                 {uploadQueue.some(item => item.status === 'completed') && (
                   <Button
                     variant="ghost"
@@ -300,7 +309,7 @@ export function FileUploadZone({
                     Erledigte entfernen
                   </Button>
                 )}
-                
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -341,12 +350,12 @@ export function FileUploadZone({
                         </Button>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-xs text-muted-foreground">
                         {formatFileSize(item.file.size)}
                       </p>
-                      
+
                       {item.status === 'uploading' && (
                         <p className="text-xs text-muted-foreground">
                           {item.progress}%
