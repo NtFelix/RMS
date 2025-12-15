@@ -51,13 +51,11 @@ export function FileUploadZone({
       // Use a timeout to ensure the upload process has fully completed
       const timeoutId = setTimeout(() => {
         onUploadComplete?.()
-        /*
         posthog?.capture('document_uploaded', {
           file_count: completedUploads.length,
           target_path: targetPath,
           source: 'file_upload_zone'
         })
-        */
       }, 500)
 
       return () => clearTimeout(timeoutId)
