@@ -9,7 +9,8 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Building2, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
+import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
+import { LOGO_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
 import { getAuthErrorMessage, getUrlErrorMessage } from "@/lib/auth-error-handler"
@@ -123,12 +124,15 @@ export default function LoginPage() {
           <Auth3DDecorations />
 
           {/* Logo */}
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-white/10 backdrop-blur-sm">
-              <Building2 className="h-6 w-6 text-white" />
+          <Link href="/" className="relative z-10 flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="p-1 rounded-xl bg-white/10 backdrop-blur-sm">
+              {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN. 
+                  next/image adds unnecessary overhead for small, pre-optimized images. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={LOGO_URL} alt="Mietfluss Logo" className="h-8 w-8 object-contain" />
             </div>
             <span className="text-white font-semibold text-lg">Mietfluss</span>
-          </div>
+          </Link>
 
           {/* Hero content */}
           <div className="relative z-10 py-8 lg:py-0">
