@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Building2 } from "lucide-react"
+import { LOGO_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Dialog,
@@ -156,7 +156,7 @@ export default function AuthModal({
       const supabase = createClient()
 
       const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
-          redirectTo: `${window.location.origin}/auth/update-password`,
+        redirectTo: `${window.location.origin}/auth/update-password`,
       })
 
       if (error) {
@@ -172,21 +172,24 @@ export default function AuthModal({
   // Common header component to reduce duplication
   const AuthHeader = ({ title, description }: { title: string; description: string }) => (
     <CardHeader className="space-y-1 text-center px-6 pt-2">
-      <div className="flex justify-center mb-2">
-        <Building2 className="h-10 w-10 text-primary" />
-      </div>
+      <Link href="/" className="flex justify-center mb-2 hover:opacity-80 transition-opacity">
+        {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN. 
+            next/image adds unnecessary overhead for small, pre-optimized images. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={LOGO_URL} alt="Mietfluss Logo" className="h-12 w-12 object-contain" />
+      </Link>
       <CardTitle className="text-2xl font-bold">{title}</CardTitle>
       <CardDescription>{description}</CardDescription>
     </CardHeader>
   );
 
   // Common form wrapper to reduce duplication
-  const AuthForm = ({ 
-    onSubmit, 
-    error, 
-    successMessage, 
-    children 
-  }: { 
+  const AuthForm = ({
+    onSubmit,
+    error,
+    successMessage,
+    children
+  }: {
     onSubmit: (e: React.FormEvent) => void;
     error: string | null;
     successMessage?: string | null;
@@ -210,15 +213,15 @@ export default function AuthModal({
   );
 
   // Common input field component
-  const FormField = ({ 
-    id, 
-    label, 
-    type = "text", 
-    placeholder, 
-    value, 
-    onChange, 
+  const FormField = ({
+    id,
+    label,
+    type = "text",
+    placeholder,
+    value,
+    onChange,
     required = false,
-    extraContent 
+    extraContent
   }: {
     id: string;
     label: string;
@@ -249,7 +252,7 @@ export default function AuthModal({
     if (activeView === 'forgotPassword') {
       return (
         <CardContent>
-          <AuthHeader 
+          <AuthHeader
             title="Passwort zurücksetzen"
             description="Geben Sie Ihre E-Mail-Adresse ein, um einen Link zum Zurücksetzen des Passworts zu erhalten"
           />
@@ -302,12 +305,12 @@ export default function AuthModal({
             onTabChange={(value) => setActiveView(value as 'login' | 'register')}
           />
         </div>
-        
+
         {/* Tab content with consistent spacing */}
         <div className="px-0">
           {activeView === 'login' && (
             <>
-              <AuthHeader 
+              <AuthHeader
                 title="Anmelden"
                 description="Geben Sie Ihre E-Mail-Adresse und Ihr Passwort ein, um sich anzumelden"
               />
@@ -352,10 +355,10 @@ export default function AuthModal({
               </AuthForm>
             </>
           )}
-          
+
           {activeView === 'register' && (
             <>
-              <AuthHeader 
+              <AuthHeader
                 title="Registrieren"
                 description="Erstellen Sie ein neues Konto, um loszulegen"
               />
@@ -408,9 +411,9 @@ export default function AuthModal({
                     />
                     <Label htmlFor="agb-checkbox" className="text-sm leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                       Ich akzeptiere die{" "}
-                      <Link 
-                        href="/agb" 
-                        target="_blank" 
+                      <Link
+                        href="/agb"
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary underline hover:no-underline"
                       >
