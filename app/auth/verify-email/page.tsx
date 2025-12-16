@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Building2, Mail } from "lucide-react"
+import { Mail } from "lucide-react"
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth-3d-decorations"
 

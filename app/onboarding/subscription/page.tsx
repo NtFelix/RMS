@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -19,27 +19,7 @@ function SubscriptionPageContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
-    useEffect(() => {
-        const initUser = async () => {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
-                    router.replace('/auth/login');
-                    return;
-                }
-                setSessionUser(user);
-                await fetchUserProfile(user.id);
-            } catch (error) {
-                console.error('Error initializing user:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        initUser();
-    }, [supabase, router]);
-
-    const fetchUserProfile = async (userId: string) => {
+    const fetchUserProfile = useCallback(async (userId: string) => {
         try {
             // Retry logic could be added here as the profile might not be created immediately after registration
             let attempts = 0;
@@ -71,7 +51,27 @@ function SubscriptionPageContent() {
         } catch (error) {
             console.error('Error in fetchUserProfile:', error);
         }
-    };
+    }, [supabase]);
+
+    useEffect(() => {
+        const initUser = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    router.replace('/auth/login');
+                    return;
+                }
+                setSessionUser(user);
+                await fetchUserProfile(user.id);
+            } catch (error) {
+                console.error('Error initializing user:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        initUser();
+    }, [supabase, router, fetchUserProfile]);
 
     const handleSelectPlan = async (priceId: string) => {
         if (isProcessingCheckout) return;
