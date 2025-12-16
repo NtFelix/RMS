@@ -8,7 +8,8 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Building2, Loader2, Check, Mail } from "lucide-react"
+import { Loader2, Check, Mail } from "lucide-react"
+import { LOGO_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
@@ -90,12 +91,12 @@ export default function ResetPasswordPage() {
           <Auth3DDecorations />
 
           {/* Logo */}
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-white/10 backdrop-blur-sm">
-              <Building2 className="h-6 w-6 text-white" />
+          <Link href="/" className="relative z-10 flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="p-1 rounded-xl bg-white/10 backdrop-blur-sm">
+              <img src={LOGO_URL} alt="Mietfluss Logo" className="h-8 w-8 object-contain" />
             </div>
             <span className="text-white font-semibold text-lg">Mietfluss</span>
-          </div>
+          </Link>
 
           {/* Hero content */}
           <div className="relative z-10 py-8 lg:py-0">
