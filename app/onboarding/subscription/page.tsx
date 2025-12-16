@@ -135,7 +135,11 @@ function SubscriptionPageContent() {
 
             if (!response.ok) throw new Error('Portal session failed');
             const { url } = await response.json();
-            if (url) window.location.href = url;
+            if (url) {
+                window.location.href = url;
+            } else {
+                throw new Error('Kundenportal-URL nicht gefunden.');
+            }
         } catch (error) {
             toast({ title: 'Fehler', description: 'Kundenportal konnte nicht geöffnet werden.', variant: 'destructive' });
             setIsProcessingCheckout(false);
