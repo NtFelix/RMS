@@ -1,5 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { getPostHogServer } from '@/app/posthog-server.mjs'
+import { logger } from '@/utils/logger'
+import { posthogLogger } from '@/lib/posthog-logger'
 
 export const runtime = 'edge'
 
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     // Get all meter IDs to fetch their latest readings in one go
     const meterIds = zaehlerData.map(z => z.id);
-    
+
     // Fetch latest readings for all meters in a single query
     const { data: readingsData } = await supabase
       .from('Wasser_Ablesungen')
@@ -61,7 +64,7 @@ export async function GET(request: NextRequest) {
     if (readingsData) {
       // Use a Set to track which meters we've already processed
       const processedMeterIds = new Set<string>();
-      
+
       for (const reading of readingsData) {
         const meterId = reading.wasser_zaehler_id;
         // Only keep the first (latest) reading for each meter
@@ -131,9 +134,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create Wasserzähler' }, { status: 500 })
     }
 
+    // PostHog Event Tracking
+    try {
+      const posthog = getPostHogServer()
+      posthog.capture({
+        distinctId: user.id,
+        event: 'water_meter_created',
+        properties: {
+          meter_id: data?.id,
+          apartment_id: wohnung_id,
+          custom_id: custom_id || null,
+          source: 'api_route'
+        }
+      })
+      await posthog.flush()
+      await posthogLogger.flush()
+      logger.info(`[PostHog] Capturing event: water_meter_created for user: ${user.id}`)
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)))
+    }
+
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
     console.error('Unexpected error in POST /api/wasser-zaehler:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

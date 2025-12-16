@@ -1,5 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { getPostHogServer } from '@/app/posthog-server.mjs'
+import { logger } from '@/utils/logger'
+import { posthogLogger } from '@/lib/posthog-logger'
 
 export const runtime = 'edge'
 
@@ -23,7 +26,7 @@ export async function PATCH(
     // Verify the Wasser_Ablesung belongs to the user
     const { data: existing, error: fetchError } = await supabase
       .from('Wasser_Ablesungen')
-      .select('id')
+      .select('id, wasser_zaehler_id')
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
@@ -51,6 +54,27 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update Wasser_Ablesung' }, { status: 500 })
     }
 
+    // PostHog Event Tracking
+    try {
+      const posthog = getPostHogServer()
+      posthog.capture({
+        distinctId: user.id,
+        event: 'water_reading_updated',
+        properties: {
+          reading_id: id,
+          meter_id: existing.wasser_zaehler_id,
+          reading_value: zaehlerstand,
+          reading_date: ablese_datum,
+          source: 'api_route'
+        }
+      })
+      await posthog.flush()
+      await posthogLogger.flush()
+      logger.info(`[PostHog] Capturing event: water_reading_updated for user: ${user.id}`)
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)))
+    }
+
     return NextResponse.json(data)
   } catch (error) {
     console.error('Unexpected error in PATCH /api/wasser-ablesungen/[id]:', error)
@@ -76,7 +100,7 @@ export async function DELETE(
     // Verify the Wasser_Ablesung belongs to the user
     const { data: existing, error: fetchError } = await supabase
       .from('Wasser_Ablesungen')
-      .select('id')
+      .select('id, wasser_zaehler_id')
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
@@ -97,9 +121,29 @@ export async function DELETE(
       return NextResponse.json({ error: 'Failed to delete Wasser_Ablesung' }, { status: 500 })
     }
 
+    // PostHog Event Tracking
+    try {
+      const posthog = getPostHogServer()
+      posthog.capture({
+        distinctId: user.id,
+        event: 'water_reading_deleted',
+        properties: {
+          reading_id: id,
+          meter_id: existing.wasser_zaehler_id,
+          source: 'api_route'
+        }
+      })
+      await posthog.flush()
+      await posthogLogger.flush()
+      logger.info(`[PostHog] Capturing event: water_reading_deleted for user: ${user.id}`)
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)))
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Unexpected error in DELETE /api/wasser-ablesungen/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

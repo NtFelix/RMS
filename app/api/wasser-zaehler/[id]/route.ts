@@ -1,5 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { getPostHogServer } from '@/app/posthog-server.mjs'
+import { logger } from '@/utils/logger'
+import { posthogLogger } from '@/lib/posthog-logger'
 
 export const runtime = 'edge'
 
@@ -23,7 +26,7 @@ export async function PATCH(
     // Verify the Wasserzähler belongs to the user
     const { data: existing, error: fetchError } = await supabase
       .from('Wasser_Zaehler')
-      .select('id')
+      .select('id, wohnung_id')
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
@@ -35,7 +38,7 @@ export async function PATCH(
     // Update Wasserzähler
     const { data, error } = await supabase
       .from('Wasser_Zaehler')
-      .update({ 
+      .update({
         custom_id: custom_id || null,
         eichungsdatum: eichungsdatum || null,
       })
@@ -47,6 +50,26 @@ export async function PATCH(
     if (error) {
       console.error('Error updating Wasserzähler:', error)
       return NextResponse.json({ error: 'Failed to update Wasserzähler' }, { status: 500 })
+    }
+
+    // PostHog Event Tracking
+    try {
+      const posthog = getPostHogServer()
+      posthog.capture({
+        distinctId: user.id,
+        event: 'water_meter_updated',
+        properties: {
+          meter_id: id,
+          apartment_id: existing.wohnung_id,
+          custom_id: custom_id || null,
+          source: 'api_route'
+        }
+      })
+      await posthog.flush()
+      await posthogLogger.flush()
+      logger.info(`[PostHog] Capturing event: water_meter_updated for user: ${user.id}`)
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)))
     }
 
     return NextResponse.json(data)
@@ -74,7 +97,7 @@ export async function DELETE(
     // Verify the Wasserzähler belongs to the user
     const { data: existing, error: fetchError } = await supabase
       .from('Wasser_Zaehler')
-      .select('id')
+      .select('id, wohnung_id')
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
@@ -95,9 +118,29 @@ export async function DELETE(
       return NextResponse.json({ error: 'Failed to delete Wasserzähler' }, { status: 500 })
     }
 
+    // PostHog Event Tracking
+    try {
+      const posthog = getPostHogServer()
+      posthog.capture({
+        distinctId: user.id,
+        event: 'water_meter_deleted',
+        properties: {
+          meter_id: id,
+          apartment_id: existing.wohnung_id,
+          source: 'api_route'
+        }
+      })
+      await posthog.flush()
+      await posthogLogger.flush()
+      logger.info(`[PostHog] Capturing event: water_meter_deleted for user: ${user.id}`)
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)))
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Unexpected error in DELETE /api/wasser-zaehler/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
