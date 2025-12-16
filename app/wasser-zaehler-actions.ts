@@ -4,10 +4,13 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { WasserZaehler, WasserAblesung, Wohnung, Mieter } from "@/lib/data-fetching";
 import { logAction } from '@/lib/logging-middleware';
+import { capturePostHogEvent } from '@/lib/posthog-helpers';
 
+
+
+type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
 
 // Type for the Supabase client from our createClient utility
-type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * Fetch all water meter data for a house
@@ -394,6 +397,15 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
 
     revalidatePath("/betriebskosten");
     logAction(actionName, 'success', { meter_id: result?.id, apartment_id: data.wohnung_id });
+
+    // PostHog Event Tracking
+    await capturePostHogEvent(user.id, 'water_meter_created', {
+      meter_id: result?.id,
+      apartment_id: data.wohnung_id,
+      source: 'server_action'
+    });
+
+
     return { success: true, data: result };
   } catch (error: any) {
     logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: error.message });
@@ -444,6 +456,16 @@ export async function updateWasserZaehler(id: string, data: Partial<Omit<WasserZ
     }
 
     revalidatePath("/betriebskosten");
+
+    // PostHog Event Tracking
+    await capturePostHogEvent(user.id, 'water_meter_updated', {
+      meter_id: id,
+      apartment_id: result?.wohnung_id,
+      ...(data.custom_id !== undefined && { custom_id: data.custom_id }),
+      ...(data.eichungsdatum !== undefined && { eichungsdatum: data.eichungsdatum }),
+      source: 'server_action'
+    });
+
     return { success: true, data: result };
   } catch (error: any) {
     console.error("Unexpected error in updateWasserZaehler:", error);
@@ -523,6 +545,17 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
     }
 
     revalidatePath("/betriebskosten");
+
+    // PostHog Event Tracking
+    await capturePostHogEvent(user.id, 'water_reading_recorded', {
+      reading_id: result?.id,
+      meter_id: data.wasser_zaehler_id,
+      reading_value: data.zaehlerstand,
+      reading_date: data.ablese_datum,
+      source: 'server_action'
+    });
+
+
     return { success: true, data: result };
   } catch (error: any) {
     console.error("Unexpected error in createWasserAblesung:", error);
@@ -573,6 +606,16 @@ export async function updateWasserAblesung(id: string, data: Partial<Omit<Wasser
     }
 
     revalidatePath("/betriebskosten");
+
+    // PostHog Event Tracking
+    await capturePostHogEvent(user.id, 'water_reading_updated', {
+      reading_id: id,
+      meter_id: result?.wasser_zaehler_id,
+      reading_value: result?.zaehlerstand,
+      reading_date: result?.ablese_datum,
+      source: 'server_action'
+    });
+
     return { success: true, data: result };
   } catch (error: any) {
     console.error("Unexpected error in updateWasserAblesung:", error);
@@ -684,6 +727,15 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
     }
 
     revalidatePath("/betriebskosten");
+
+    // PostHog Event Tracking for Bulk Operation
+    await capturePostHogEvent(user.id, 'water_readings_bulk_created', {
+      reading_count: validReadings.length,
+      meter_ids: Array.from(new Set(validReadings.map(r => r.wasser_zaehler_id))),
+      source: 'server_action'
+    });
+
+
     return { success: true, data: result };
   } catch (error: any) {
     console.error("Unexpected error in bulkCreateWasserAblesungen:", error);

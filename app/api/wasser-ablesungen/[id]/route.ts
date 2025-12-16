@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
@@ -23,7 +24,7 @@ export async function PATCH(
     // Verify the Wasser_Ablesung belongs to the user
     const { data: existing, error: fetchError } = await supabase
       .from('Wasser_Ablesungen')
-      .select('id')
+      .select('id, wasser_zaehler_id')
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
@@ -51,6 +52,15 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update Wasser_Ablesung' }, { status: 500 })
     }
 
+    // PostHog Event Tracking
+    await capturePostHogEventWithContext(user.id, 'water_reading_updated', {
+      reading_id: id,
+      meter_id: existing.wasser_zaehler_id,
+      reading_value: zaehlerstand,
+      reading_date: ablese_datum,
+      source: 'api_route'
+    })
+
     return NextResponse.json(data)
   } catch (error) {
     console.error('Unexpected error in PATCH /api/wasser-ablesungen/[id]:', error)
@@ -76,7 +86,7 @@ export async function DELETE(
     // Verify the Wasser_Ablesung belongs to the user
     const { data: existing, error: fetchError } = await supabase
       .from('Wasser_Ablesungen')
-      .select('id')
+      .select('id, wasser_zaehler_id')
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
@@ -97,9 +107,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Failed to delete Wasser_Ablesung' }, { status: 500 })
     }
 
+    // PostHog Event Tracking
+    await capturePostHogEventWithContext(user.id, 'water_reading_deleted', {
+      reading_id: id,
+      meter_id: existing.wasser_zaehler_id,
+      source: 'api_route'
+    })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Unexpected error in DELETE /api/wasser-ablesungen/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+

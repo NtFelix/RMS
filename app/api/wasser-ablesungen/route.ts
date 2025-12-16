@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
@@ -100,9 +101,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create Wasser_Ablesung' }, { status: 500 })
     }
 
+    // PostHog Event Tracking
+    await capturePostHogEventWithContext(user.id, 'water_reading_recorded', {
+      reading_id: data?.id,
+      meter_id: wasser_zaehler_id,
+      reading_value: zaehlerstand,
+      reading_date: ablese_datum,
+      source: 'api_route'
+    })
+
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
     console.error('Unexpected error in POST /api/wasser-ablesungen:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

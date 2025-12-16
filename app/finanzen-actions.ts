@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
+import { posthogLogger } from '@/lib/posthog-logger';
 
 // Define a more specific type for the payload, excluding id and related entities
 interface FinanzInput {
@@ -74,9 +75,9 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
             source: 'server_action'
           }
         });
+        await posthog.flush();
+        await posthogLogger.flush();
         logger.info(`[PostHog] Capturing payment event for user: ${user.id}`);
-        await posthog.shutdown();
-        logger.info(`[PostHog] Payment event flushed.`);
       }
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
