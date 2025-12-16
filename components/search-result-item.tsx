@@ -238,7 +238,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
     <CommandItem
       key={result.id}
       onSelect={() => onSelect(result)}
-      className="group flex items-center justify-between !p-2 rounded-xl hover:bg-muted/50 focus:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 my-1 !opacity-100"
+      className="group flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 focus:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 my-1 opacity-100"
       tabIndex={0}
     >
       <div className="flex items-center gap-4 flex-1 min-w-0">
