@@ -84,6 +84,8 @@ export async function capturePostHogEvent(
         }
         if (requestContext?.referer) {
             fullProperties.$referrer = requestContext.referer
+            // $current_url is what PostHog uses for the URL column
+            fullProperties.$current_url = requestContext.referer
         }
         if (requestContext?.host) {
             fullProperties.$host = requestContext.host
