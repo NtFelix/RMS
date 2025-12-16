@@ -1,8 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { getPostHogServer } from '@/app/posthog-server.mjs'
-import { logger } from '@/utils/logger'
-import { posthogLogger } from '@/lib/posthog-logger'
+import { capturePostHogEvent } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
@@ -135,24 +133,13 @@ export async function POST(request: NextRequest) {
     }
 
     // PostHog Event Tracking
-    try {
-      const posthog = getPostHogServer()
-      posthog.capture({
-        distinctId: user.id,
-        event: 'water_meter_created',
-        properties: {
-          meter_id: data?.id,
-          apartment_id: wohnung_id,
-          custom_id: custom_id || null,
-          source: 'api_route'
-        }
-      })
-      await posthog.flush()
-      await posthogLogger.flush()
-      logger.info(`[PostHog] Capturing event: water_meter_created for user: ${user.id}`)
-    } catch (phError) {
-      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)))
-    }
+    await capturePostHogEvent(user.id, 'water_meter_created', {
+      meter_id: data?.id,
+      apartment_id: wohnung_id,
+      custom_id: custom_id || null,
+      eichungsdatum: eichungsdatum || null,
+      source: 'api_route'
+    })
 
     return NextResponse.json(data, { status: 201 })
   } catch (error) {

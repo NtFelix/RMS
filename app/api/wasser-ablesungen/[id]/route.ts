@@ -1,8 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { getPostHogServer } from '@/app/posthog-server.mjs'
-import { logger } from '@/utils/logger'
-import { posthogLogger } from '@/lib/posthog-logger'
+import { capturePostHogEvent } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
@@ -55,25 +53,13 @@ export async function PATCH(
     }
 
     // PostHog Event Tracking
-    try {
-      const posthog = getPostHogServer()
-      posthog.capture({
-        distinctId: user.id,
-        event: 'water_reading_updated',
-        properties: {
-          reading_id: id,
-          meter_id: existing.wasser_zaehler_id,
-          reading_value: zaehlerstand,
-          reading_date: ablese_datum,
-          source: 'api_route'
-        }
-      })
-      await posthog.flush()
-      await posthogLogger.flush()
-      logger.info(`[PostHog] Capturing event: water_reading_updated for user: ${user.id}`)
-    } catch (phError) {
-      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)))
-    }
+    await capturePostHogEvent(user.id, 'water_reading_updated', {
+      reading_id: id,
+      meter_id: existing.wasser_zaehler_id,
+      reading_value: zaehlerstand,
+      reading_date: ablese_datum,
+      source: 'api_route'
+    })
 
     return NextResponse.json(data)
   } catch (error) {
@@ -122,23 +108,11 @@ export async function DELETE(
     }
 
     // PostHog Event Tracking
-    try {
-      const posthog = getPostHogServer()
-      posthog.capture({
-        distinctId: user.id,
-        event: 'water_reading_deleted',
-        properties: {
-          reading_id: id,
-          meter_id: existing.wasser_zaehler_id,
-          source: 'api_route'
-        }
-      })
-      await posthog.flush()
-      await posthogLogger.flush()
-      logger.info(`[PostHog] Capturing event: water_reading_deleted for user: ${user.id}`)
-    } catch (phError) {
-      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)))
-    }
+    await capturePostHogEvent(user.id, 'water_reading_deleted', {
+      reading_id: id,
+      meter_id: existing.wasser_zaehler_id,
+      source: 'api_route'
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -146,4 +120,5 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
 

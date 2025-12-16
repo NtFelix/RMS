@@ -1,8 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { getPostHogServer } from '@/app/posthog-server.mjs'
-import { logger } from '@/utils/logger'
-import { posthogLogger } from '@/lib/posthog-logger'
+import { capturePostHogEvent } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
@@ -104,25 +102,13 @@ export async function POST(request: NextRequest) {
     }
 
     // PostHog Event Tracking
-    try {
-      const posthog = getPostHogServer()
-      posthog.capture({
-        distinctId: user.id,
-        event: 'water_reading_recorded',
-        properties: {
-          reading_id: data?.id,
-          meter_id: wasser_zaehler_id,
-          reading_value: zaehlerstand,
-          reading_date: ablese_datum,
-          source: 'api_route'
-        }
-      })
-      await posthog.flush()
-      await posthogLogger.flush()
-      logger.info(`[PostHog] Capturing event: water_reading_recorded for user: ${user.id}`)
-    } catch (phError) {
-      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)))
-    }
+    await capturePostHogEvent(user.id, 'water_reading_recorded', {
+      reading_id: data?.id,
+      meter_id: wasser_zaehler_id,
+      reading_value: zaehlerstand,
+      reading_date: ablese_datum,
+      source: 'api_route'
+    })
 
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
@@ -130,3 +116,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
