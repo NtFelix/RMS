@@ -7,7 +7,7 @@ import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, Layo
 
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { LOGO_URL } from "@/lib/constants"
 import { Button } from '@/components/ui/button'
 import { User } from "@supabase/supabase-js";
@@ -60,6 +60,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { userName } = useUserProfile();
@@ -142,7 +143,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
     if (onLogin) {
       onLogin();
     } else {
-      openAuthModal('login');
+      router.push('/auth/login');
     }
   };
 
@@ -301,7 +302,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             <div className="relative z-10 mt-2">
                               <DropdownMenuItem asChild>
                                 <Button
-                                  onClick={handleOpenLoginModal}
+                                  onClick={() => router.push('/auth/register')}
                                   size="sm"
                                   className="w-full group h-8 text-xs"
                                 >
@@ -450,7 +451,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         Anmelden
                       </Button>
                       <Button
-                        onClick={scrollToPricing}
+                        onClick={() => router.push('/auth/register')}
                         className="ml-2 px-4 py-2 h-9 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         Kostenlos testen
@@ -585,7 +586,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <Button onClick={handleOpenLoginModal} className="w-full">
                         Anmelden
                       </Button>
-                      <Button variant="outline" onClick={scrollToPricing} className="w-full">
+                      <Button variant="outline" onClick={() => router.push('/auth/register')} className="w-full">
                         Kostenlos testen
                       </Button>
                     </div>

@@ -42,6 +42,8 @@ export async function GET(request: Request) {
       // Pass user info as URL params for client-side PostHog tracking
       redirectUrl.searchParams.set('login_success', 'true')
       redirectUrl.searchParams.set('provider', provider)
+      // Redirect to subscription onboarding
+      redirectUrl.pathname = '/onboarding/subscription'
     }
 
     return NextResponse.redirect(redirectUrl.toString())

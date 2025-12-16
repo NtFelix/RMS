@@ -280,7 +280,8 @@ function LandingPageContent() {
         // In browsers without sessionStorage, the redirect intent will be lost
         console.warn('SessionStorage not available. The "get-started" redirect flow will not work as intended.');
       }
-      openAuthModal('login');
+      // Redirect to register page as per user request
+      router.push('/auth/register');
     }
   };
 
@@ -288,7 +289,7 @@ function LandingPageContent() {
     if (sessionUser) {
       await handleAuthFlow(priceId);
     } else {
-      openAuthModal('login');
+      router.push('/auth/register');
     }
   };
 
