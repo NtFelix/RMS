@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { capturePostHogEvent } from '@/lib/posthog-helpers'
+import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     // PostHog Event Tracking
-    await capturePostHogEvent(user.id, 'water_reading_recorded', {
+    await capturePostHogEventWithContext(user.id, 'water_reading_recorded', {
       reading_id: data?.id,
       meter_id: wasser_zaehler_id,
       reading_value: zaehlerstand,

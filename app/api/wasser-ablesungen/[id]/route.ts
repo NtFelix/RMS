@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { capturePostHogEvent } from '@/lib/posthog-helpers'
+import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
@@ -53,7 +53,7 @@ export async function PATCH(
     }
 
     // PostHog Event Tracking
-    await capturePostHogEvent(user.id, 'water_reading_updated', {
+    await capturePostHogEventWithContext(user.id, 'water_reading_updated', {
       reading_id: id,
       meter_id: existing.wasser_zaehler_id,
       reading_value: zaehlerstand,
@@ -108,7 +108,7 @@ export async function DELETE(
     }
 
     // PostHog Event Tracking
-    await capturePostHogEvent(user.id, 'water_reading_deleted', {
+    await capturePostHogEventWithContext(user.id, 'water_reading_deleted', {
       reading_id: id,
       meter_id: existing.wasser_zaehler_id,
       source: 'api_route'
