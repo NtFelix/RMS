@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { CommandMenu } from '@/components/command-menu'
 import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useSearch } from '@/hooks/use-search'
@@ -86,12 +86,19 @@ describe('CommandMenu Layout Consistency', () => {
     // Check that navigation sections are present
     expect(screen.getByText('Schnellsuche')).toBeInTheDocument()
     expect(screen.getByText('Mieter suchen')).toBeInTheDocument()
-    // Shortcuts might be split into multiple elements
-    expect(screen.getAllByText('⌘').length).toBeGreaterThan(0)
-    expect(screen.getByText('M')).toBeInTheDocument()
-    // Shortcuts might be split into multiple elements
-    expect(screen.getAllByText('⌘').length).toBeGreaterThan(0)
     expect(screen.getByText('Häuser suchen')).toBeInTheDocument()
+
+    // Verify shortcuts are correctly associated with their command items
+    const mieterSuchenItem = screen.getByText('Mieter suchen').closest('[cmdk-item]') as HTMLElement
+    expect(mieterSuchenItem).toBeTruthy()
+    expect(within(mieterSuchenItem).getByText('M')).toBeInTheDocument()
+
+    const haeuserSuchenItem = screen.getByText('Häuser suchen').closest('[cmdk-item]') as HTMLElement
+    expect(haeuserSuchenItem).toBeTruthy()
+    expect(within(haeuserSuchenItem).getByText('H')).toBeInTheDocument()
+
+    // Verify command symbol is present (appears multiple times for different shortcuts)
+    expect(screen.getAllByText('⌘').length).toBeGreaterThan(1)
   })
 
   it('should show info bar in loading state', () => {
