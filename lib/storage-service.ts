@@ -251,7 +251,19 @@ export async function uploadFile(
             }
           } catch (dbError) {
             console.error('Failed to update Dokumente_Metadaten:', dbError);
-            // Don't fail the upload if DB update fails, but log it
+
+            // Critical consistency fix: cleanup the orphaned file from storage
+            try {
+              await supabase.storage
+                .from(STORAGE_BUCKET)
+                .remove([sanitizedPath]);
+              console.log('Cleaned up orphaned file after DB failure:', sanitizedPath);
+            } catch (cleanupError) {
+              console.error('CRITICAL: Failed to cleanup orphaned file:', sanitizedPath, cleanupError);
+            }
+
+            // Re-throw to fail the upload operation
+            throw new Error('Failed to save file metadata');
           }
 
           // Invalidate cache for the directory
