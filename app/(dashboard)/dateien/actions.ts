@@ -515,12 +515,11 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
   }
 }
 
-// Helper function to count direct files only (not recursive)
+// Helper function to count direct files only (not recursive, excludes .keep files)
 async function countDirectFiles(supabase: any, path: string): Promise<number> {
   try {
     const pathSegments = path.split('/')
-    // Extract user ID from path if possible, otherwise rely on RLS or passed context if we had it
-    // But here we only have path. Assuming path starts with user_ID pattern used elsewhere
+    // Extract user ID from path if possible
     let userId = ''
     if (path.startsWith('user_')) {
       userId = pathSegments[0].replace('user_', '')
@@ -530,6 +529,7 @@ async function countDirectFiles(supabase: any, path: string): Promise<number> {
       .from('Dokumente_Metadaten')
       .select('*', { count: 'exact', head: true })
       .eq('dateipfad', path)
+      .neq('dateiname', '.keep') // Exclude .keep placeholder files
 
     if (userId) {
       query = query.eq('user_id', userId)
