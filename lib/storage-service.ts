@@ -731,29 +731,48 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     willOverwrite: targetFileExists
   });
 
+  // Store original path info for potential rollback
+  const oldPathSegmentsForDb = cleanOldPath.split('/');
+  const oldFileNameForDb = oldPathSegmentsForDb.pop()!;
+  const oldDirectoryPathForDb = oldPathSegmentsForDb.join('/');
+
+  const newPathSegmentsForDb = cleanNewPath.split('/');
+  const newFileNameForDb = newPathSegmentsForDb.pop()!;
+  const newDirectoryPathForDb = newPathSegmentsForDb.join('/');
+
+  // Helper function to rollback DB changes on storage failure
+  const rollbackDbChanges = async () => {
+    try {
+      console.log('🔄 Rolling back DB metadata to original state...');
+      await supabase
+        .from('Dokumente_Metadaten')
+        .update({
+          dateipfad: oldDirectoryPathForDb,
+          dateiname: oldFileNameForDb,
+          aktualisierungsdatum: new Date().toISOString()
+        })
+        .eq('dateipfad', newDirectoryPathForDb)
+        .eq('dateiname', newFileNameForDb)
+        .eq('user_id', userId);
+      console.log('✅ DB rollback completed successfully');
+    } catch (rollbackError) {
+      console.error('❌ CRITICAL: Failed to rollback DB changes:', rollbackError);
+    }
+  };
+
   // Update Dokumente_Metadaten BEFORE storage move
   // This prevents the delete trigger from deleting the metadata if the move is implemented as copy+delete
   try {
-    const oldPathSegments = cleanOldPath.split('/');
-    const oldFileName = oldPathSegments.pop();
-    const oldDirectoryPath = oldPathSegments.join('/');
-
-    const newPathSegments = cleanNewPath.split('/');
-    const newFileName = newPathSegments.pop();
-    const newDirectoryPath = newPathSegments.join('/');
-
-    const userId = await getCurrentUserId();
-
     console.log('📝 Updating DB metadata before storage move...');
     const { error: dbUpdateError } = await supabase
       .from('Dokumente_Metadaten')
       .update({
-        dateipfad: newDirectoryPath,
-        dateiname: newFileName,
+        dateipfad: newDirectoryPathForDb,
+        dateiname: newFileNameForDb,
         aktualisierungsdatum: new Date().toISOString()
       })
-      .eq('dateipfad', oldDirectoryPath)
-      .eq('dateiname', oldFileName)
+      .eq('dateipfad', oldDirectoryPathForDb)
+      .eq('dateiname', oldFileNameForDb)
       .eq('user_id', userId);
 
     if (dbUpdateError) {
@@ -882,6 +901,8 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
       // Don't throw an error here since the operation was successful
     } catch (alternativeError) {
       console.error('❌ Alternative move approach also failed:', alternativeError);
+      // Rollback DB changes since storage operation failed
+      await rollbackDbChanges();
       throw new Error(`Move operation failed. Direct move error: ${moveError?.message || 'Unknown error'}. Alternative approach error: ${alternativeError instanceof Error ? alternativeError.message : 'Unknown error'}`);
     }
   } else if (moveActuallyWorked) {
@@ -904,12 +925,16 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
 
     if (finalCheckError) {
       console.error('❌ Final verification failed - file not found at target:', finalCheckError);
+      // Rollback DB changes since file is not at target location
+      await rollbackDbChanges();
       throw new Error(`Move operation may have failed - file not found at target location: ${cleanNewPath}`);
     } else {
       console.log('✅ Final verification successful - file exists at target, size:', finalCheck?.size);
     }
   } catch (finalError) {
     console.error('❌ Exception during final verification:', finalError);
+    // Rollback DB changes on verification failure
+    await rollbackDbChanges();
     throw new Error(`Move operation verification failed: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`);
   }
 
