@@ -408,29 +408,31 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
       .like('dateipfad', `${targetPath}/%`)
       .eq('user_id', userId)
 
-    const processedFolders = new Set<string>()
+    const discoveredFolderNames = new Set<string>()
 
     if (subfolderPaths) {
-      subfolderPaths.forEach((item: any) => {
+      subfolderPaths.forEach((item: { dateipfad: string }) => {
         const fullPath = item.dateipfad
-        // relative path from targetPath
         const relativePath = fullPath.substring(targetPath.length + 1)
         const firstSegment = relativePath.split('/')[0]
-
-        if (firstSegment && !processedFolders.has(firstSegment)) {
-          processedFolders.add(firstSegment)
-
-          const folderPath = `${targetPath}/${firstSegment}`
-          folders.push({
-            name: firstSegment,
-            path: folderPath,
-            type: 'storage',
-            isEmpty: false, // We know it has files because we found them in DB
-            children: [],
-            fileCount: 0, // We could count them but let's skip for now
-            displayName: firstSegment
-          })
+        if (firstSegment) {
+          discoveredFolderNames.add(firstSegment)
         }
+      })
+    }
+
+    // Add discovered folders with proper file counts
+    for (const folderName of discoveredFolderNames) {
+      const folderPath = `${targetPath}/${folderName}`
+      const fileCount = await countDirectFiles(supabase, folderPath)
+      folders.push({
+        name: folderName,
+        path: folderPath,
+        type: 'storage',
+        isEmpty: fileCount === 0,
+        children: [],
+        fileCount: fileCount,
+        displayName: folderName
       })
     }
 
