@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     // Update Dokumente_Metadaten
     try {
-      await supabase
+      const { error: dbUpdateError } = await supabase
         .from('Dokumente_Metadaten')
         .update({
           dateigroesse: new Blob([content]).size,
@@ -102,8 +102,17 @@ export async function POST(request: NextRequest) {
         .eq('dateipfad', filePath)
         .eq('dateiname', fileName)
         .eq('user_id', user.id)
+
+      if (dbUpdateError) {
+        throw dbUpdateError
+      }
     } catch (dbError) {
       console.error('Failed to update Dokumente_Metadaten:', dbError)
+      // Notify client about the partial failure
+      return NextResponse.json(
+        { error: 'File content was updated, but metadata failed to save. Please try refreshing.' },
+        { status: 500 }
+      )
     }
 
     // Return with cache-busting headers
