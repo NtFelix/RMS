@@ -238,7 +238,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
     <CommandItem
       key={result.id}
       onSelect={() => onSelect(result)}
-      className="group flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 data-[selected=true]:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 data-[selected=true]:border-border/50 my-1 opacity-100"
+      className="group flex items-center justify-between p-2 rounded-xl hover:bg-primary data-[selected=true]:bg-primary hover:text-primary-foreground data-[selected=true]:text-primary-foreground cursor-pointer transition-all duration-200 border border-transparent hover:border-primary data-[selected=true]:border-primary my-1 opacity-100"
       tabIndex={0}
     >
       <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -263,7 +263,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
 
             {/* Context/Subtitle placed nicely next to title if short, or below */}
             {result.subtitle && result.type !== 'tenant' && result.type !== 'house' && (
-              <span className="text-xs text-muted-foreground group-data-[selected=true]:text-foreground transition-colors truncate hidden sm:inline-block">
+              <span className="text-xs text-muted-foreground group-data-[selected=true]:text-primary-foreground/80 group-hover:text-primary-foreground/80 transition-colors truncate hidden sm:inline-block">
                 • {result.subtitle}
               </span>
             )}
@@ -288,13 +288,13 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
 
           {/* Subtitle Mobile Only (if hidden above) or if Context needs showing */}
           {(result.context) && (
-            <div className="text-xs text-muted-foreground group-data-[selected=true]:text-foreground transition-colors line-clamp-1">
+            <div className="text-xs text-muted-foreground group-data-[selected=true]:text-primary-foreground/80 group-hover:text-primary-foreground/80 transition-colors line-clamp-1">
               {result.context}
             </div>
           )}
 
           {/* Metadata Grid */}
-          <div className="grid grid-cols-[auto_auto] sm:flex sm:flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground/80 group-data-[selected=true]:text-muted-foreground transition-colors mt-0.5">
+          <div className="grid grid-cols-[auto_auto] sm:flex sm:flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground/80 group-data-[selected=true]:text-primary-foreground/80 group-hover:text-primary-foreground/80 transition-colors mt-0.5">
             {renderMetadata(result)}
           </div>
         </div>
