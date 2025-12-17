@@ -29,6 +29,22 @@ export interface BreadcrumbItem {
   type: 'root' | 'house' | 'apartment' | 'tenant' | 'category'
 }
 
+/**
+ * Interface representing a record from the Dokumente_Metadaten database table.
+ * Used for type-safe handling of file metadata throughout the application.
+ */
+export interface DokumenteMetadaten {
+  id: string
+  dateiname: string
+  dateipfad: string
+  dateigroesse: number | null
+  mime_type: string | null
+  user_id: string
+  erstellungsdatum: string | null
+  aktualisierungsdatum: string | null
+  letzter_zugriff: string | null
+}
+
 // Cache for preventing concurrent requests to the same path
 const requestCache = new Map<string, Promise<any>>()
 
@@ -75,7 +91,7 @@ async function discoverSubdirectories(supabase: any, targetPath: string): Promis
  * Helper function to convert a database record from Dokumente_Metadaten to a StorageFile object.
  * Centralizes the mapping logic to ensure consistency and maintainability (DRY).
  */
-function mapDbFileToStorageFile(item: any): StorageFile {
+function mapDbFileToStorageFile(item: DokumenteMetadaten): StorageFile {
   return {
     name: item.dateiname,
     id: item.id,
@@ -227,7 +243,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
 
     const files: StorageFile[] = []
     if (dbRootFiles) {
-      dbRootFiles.forEach((item: any) => {
+      dbRootFiles.forEach((item: DokumenteMetadaten) => {
         if (item.dateiname !== '.keep') {
           files.push(mapDbFileToStorageFile(item))
         }
@@ -343,8 +359,8 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
     }
 
     const files: StorageFile[] = (dbFiles || [])
-      .filter((item: any) => item.dateiname !== '.keep')
-      .map((item: any) => mapDbFileToStorageFile(item))
+      .filter((item: DokumenteMetadaten) => item.dateiname !== '.keep')
+      .map((item: DokumenteMetadaten) => mapDbFileToStorageFile(item))
 
     // Check if this is a house or apartment folder - only if they exist in the database
     // Check if this could be a house folder (depth 2, not Miscellaneous)
@@ -687,7 +703,7 @@ export async function getApartmentFolderContents(userId: string, houseId: string
       }
     }
 
-    const files: StorageFile[] = (dbFiles || []).map((item: any) => mapDbFileToStorageFile(item))
+    const files: StorageFile[] = (dbFiles || []).map((item: DokumenteMetadaten) => mapDbFileToStorageFile(item))
 
     return await getApartmentFolderContentsInternal(supabase, userId, houseId, apartmentId, apartmentPath, files)
   } catch (error) {
