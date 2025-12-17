@@ -153,6 +153,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Helper function to rollback DB changes on storage failure
+    const rollbackDbChanges = async () => {
+      try {
+        console.log('Rolling back DB metadata to original state...')
+        await supabase
+          .from('Dokumente_Metadaten')
+          .update({
+            dateipfad: directory,
+            dateiname: actualFileName,
+            aktualisierungsdatum: new Date().toISOString()
+          })
+          .eq('dateipfad', directory)
+          .eq('dateiname', newName)
+          .eq('user_id', user.id)
+        console.log('DB rollback completed successfully')
+      } catch (rollbackError) {
+        console.error('CRITICAL: Failed to rollback DB changes:', rollbackError)
+      }
+    }
+
     // Try Supabase's move operation first
     console.log('Attempting move operation...')
     const { error: moveError } = await supabase.storage
@@ -171,7 +191,12 @@ export async function POST(request: NextRequest) {
           .download(actualFilePath)
 
         if (downloadError) {
-          throw new Error(`Originaldatei kann nicht gelesen werden: ${downloadError.message}`)
+          // Rollback DB changes since we can't proceed
+          await rollbackDbChanges()
+          return NextResponse.json(
+            { error: `Originaldatei kann nicht gelesen werden: ${downloadError.message}` },
+            { status: 404 }
+          )
         }
 
         const { error: uploadError } = await supabase.storage
@@ -182,6 +207,8 @@ export async function POST(request: NextRequest) {
 
         if (uploadError) {
           console.error('Copy operation failed:', uploadError)
+          // Rollback DB changes
+          await rollbackDbChanges()
           return NextResponse.json(
             { error: `Datei kann nicht kopiert werden: ${uploadError.message}` },
             { status: 500 }
@@ -199,6 +226,8 @@ export async function POST(request: NextRequest) {
           console.error('Delete operation failed:', deleteError)
           // Try to clean up the new file
           await supabase.storage.from('documents').remove([actualNewPath])
+          // Rollback DB changes
+          await rollbackDbChanges()
           return NextResponse.json(
             { error: `Originaldatei kann nicht gelöscht werden: ${deleteError.message}` },
             { status: 500 }
@@ -208,6 +237,8 @@ export async function POST(request: NextRequest) {
         console.log('Copy + delete approach completed successfully!')
       } catch (fallbackError) {
         console.error('Fallback approach failed:', fallbackError)
+        // Rollback DB changes
+        await rollbackDbChanges()
         return NextResponse.json(
           { error: `Umbenennung fehlgeschlagen: ${fallbackError instanceof Error ? fallbackError.message : 'Unbekannter Fehler'}` },
           { status: 500 }
