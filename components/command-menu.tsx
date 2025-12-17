@@ -31,7 +31,7 @@ import { SearchResult } from "@/types/search"
 
 const GLOBAL_SEARCH_RESULT_LIMIT = 15;
 
-const itemClassName = "group flex items-center p-2 rounded-xl hover:bg-primary data-[selected=true]:bg-primary hover:text-primary-foreground data-[selected=true]:text-primary-foreground cursor-pointer transition-all duration-200 border border-transparent hover:border-primary data-[selected=true]:border-primary my-1 opacity-100";
+const itemClassName = "group flex items-center p-2 rounded-xl hover:bg-primary data-[selected=true]:bg-primary hover:text-primary-foreground data-[selected=true]:text-primary-foreground cursor-pointer transition-all duration-200 ease-in-out hover:scale-[1.01] active:scale-[0.98] border border-transparent hover:border-primary data-[selected=true]:border-primary my-1 opacity-100";
 
 import {
   getUserSubscriptionContext,
