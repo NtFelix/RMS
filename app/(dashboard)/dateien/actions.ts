@@ -1047,12 +1047,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
     const { data: filesToDelete, error: listError } = await supabase
       .from('Dokumente_Metadaten')
       .select('dateipfad, dateiname')
-      .like('dateipfad', `${folderPath}%`) // Matches folderPath and subfolders (if dateipfad is directory)
-      // Wait, if dateipfad is directory:
-      // folderPath = user_123/folder
-      // file1: dateipfad = user_123/folder
-      // subfile: dateipfad = user_123/folder/sub
-      // So like 'folderPath%' works.
+      .like('dateipfad', `${folderPath}%`)
       .eq('user_id', userId)
 
     if (listError) {
