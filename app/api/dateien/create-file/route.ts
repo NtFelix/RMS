@@ -91,6 +91,20 @@ export async function POST(request: NextRequest) {
         })
     } catch (dbError) {
       console.error('Failed to insert into Dokumente_Metadaten:', dbError)
+
+      // Critical consistency fix: cleanup the orphaned file from storage
+      const { error: cleanupError } = await supabase.storage
+        .from('documents')
+        .remove([newFilePath])
+
+      if (cleanupError) {
+        console.error('CRITICAL: Failed to cleanup orphaned file:', newFilePath, cleanupError)
+      }
+
+      return NextResponse.json(
+        { error: 'Failed to save file metadata' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
