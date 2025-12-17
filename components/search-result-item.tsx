@@ -99,19 +99,19 @@ const renderMetadata = (result: SearchResult) => {
         <>
           {metadata?.email && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Mail className="!h-3 !w-3 opacity-70" />
+              <Mail className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.email}</span>
             </div>
           )}
           {metadata?.phone && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Phone className="!h-3 !w-3 opacity-70" />
+              <Phone className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.phone}</span>
             </div>
           )}
           {metadata?.address && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <MapPin className="!h-3 !w-3 opacity-70" />
+              <MapPin className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.address}</span>
             </div>
           )}
@@ -122,18 +122,18 @@ const renderMetadata = (result: SearchResult) => {
       return (
         <>
           <div className="flex items-center gap-1.5 min-w-0">
-            <Home className="!h-3 !w-3 opacity-70" />
+            <Home className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
             <span>{metadata?.apartment_count || 0} Wohnungen</span>
           </div>
           {metadata?.total_rent && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Euro className="!h-3 !w-3 opacity-70" />
+              <Euro className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span>{metadata.total_rent} / Monat</span>
             </div>
           )}
           {metadata?.address && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <MapPin className="!h-3 !w-3 opacity-70" />
+              <MapPin className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.address}</span>
             </div>
           )}
@@ -145,20 +145,20 @@ const renderMetadata = (result: SearchResult) => {
         <>
           {metadata?.house_name && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Building2 className="!h-3 !w-3 opacity-70" />
+              <Building2 className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.house_name}</span>
             </div>
           )}
           <div className="flex items-center gap-3">
             {metadata?.size && (
               <div className="flex items-center gap-1.5 min-w-0">
-                <Ruler className="!h-3 !w-3 opacity-70" />
+                <Ruler className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
                 <span>{metadata.size}m²</span>
               </div>
             )}
             {metadata?.rent && (
               <div className="flex items-center gap-1.5 min-w-0">
-                <Euro className="!h-3 !w-3 opacity-70" />
+                <Euro className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
                 <span>{metadata.rent}</span>
               </div>
             )}
@@ -187,16 +187,16 @@ const renderMetadata = (result: SearchResult) => {
           </div>
           {metadata?.date && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Calendar className="!h-3 !w-3 opacity-70" />
+              <Calendar className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span>{new Date(metadata.date).toLocaleDateString('de-DE')}</span>
             </div>
           )}
           {metadata?.apartment && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <Home className="!h-3 !w-3 opacity-70" />
+              <Home className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.apartment.name}</span>
               <span className="text-muted-foreground/40 mx-0.5">•</span>
-              <span className="truncate opacity-70">{metadata.apartment.house_name}</span>
+              <span className="truncate opacity-70 group-data-[selected=true]:opacity-100 transition-opacity">{metadata.apartment.house_name}</span>
             </div>
           )}
         </>
@@ -208,7 +208,7 @@ const renderMetadata = (result: SearchResult) => {
           <div className="flex items-center gap-1.5 min-w-0">
             {metadata?.due_date ? (
               <>
-                <Calendar className="!h-3 !w-3 opacity-70" />
+                <Calendar className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
                 <span>{new Date(metadata.due_date).toLocaleDateString('de-DE')}</span>
               </>
             ) : (
@@ -217,7 +217,7 @@ const renderMetadata = (result: SearchResult) => {
           </div>
           {metadata?.description && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <FileText className="!h-3 !w-3 opacity-70" />
+              <FileText className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.description}</span>
             </div>
           )}
@@ -238,7 +238,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
     <CommandItem
       key={result.id}
       onSelect={() => onSelect(result)}
-      className="group flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 focus:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 my-1 opacity-100"
+      className="group flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 data-[selected=true]:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 data-[selected=true]:border-border/50 my-1 opacity-100"
       tabIndex={0}
     >
       <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -248,7 +248,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
           "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg shadow-sm border border-transparent",
           theme.bg,
           theme.text,
-          "group-hover:shadow-md transition-shadow duration-200"
+          "group-data-[selected=true]:shadow-md transition-shadow duration-200"
         )}>
           <Icon className="!h-6 !w-6" />
         </div>
@@ -263,7 +263,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
 
             {/* Context/Subtitle placed nicely next to title if short, or below */}
             {result.subtitle && result.type !== 'tenant' && result.type !== 'house' && (
-              <span className="text-xs text-muted-foreground truncate hidden sm:inline-block">
+              <span className="text-xs text-muted-foreground group-data-[selected=true]:text-foreground transition-colors truncate hidden sm:inline-block">
                 • {result.subtitle}
               </span>
             )}
@@ -288,20 +288,20 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
 
           {/* Subtitle Mobile Only (if hidden above) or if Context needs showing */}
           {(result.context) && (
-            <div className="text-xs text-muted-foreground line-clamp-1">
+            <div className="text-xs text-muted-foreground group-data-[selected=true]:text-foreground transition-colors line-clamp-1">
               {result.context}
             </div>
           )}
 
           {/* Metadata Grid */}
-          <div className="grid grid-cols-[auto_auto] sm:flex sm:flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground/80 mt-0.5">
+          <div className="grid grid-cols-[auto_auto] sm:flex sm:flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground/80 group-data-[selected=true]:text-muted-foreground transition-colors mt-0.5">
             {renderMetadata(result)}
           </div>
         </div>
       </div>
 
       {/* Actions Section */}
-      <div className="flex items-center self-center pl-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+      <div className="flex items-center self-center pl-2 opacity-0 group-data-[selected=true]:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
 
         {result.actions && result.actions.length > 0 && (
           <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm p-1 rounded-lg border shadow-sm">

@@ -31,6 +31,8 @@ import { SearchResult } from "@/types/search"
 
 const GLOBAL_SEARCH_RESULT_LIMIT = 15;
 
+const itemClassName = "group flex items-center p-2 rounded-xl hover:bg-muted/50 data-[selected=true]:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border/50 data-[selected=true]:border-border/50 my-1 opacity-100";
+
 import {
   getUserSubscriptionContext,
   getPlanApartmentLimit,
@@ -1048,6 +1050,7 @@ export function CommandMenu() {
                     {recentSearches.slice(0, 3).map((recentQuery, index) => (
                       <CommandItem
                         key={`recent-${index}`}
+                        className={itemClassName}
                         onSelect={() => {
                           setQuery(recentQuery)
                         }}
@@ -1065,6 +1068,7 @@ export function CommandMenu() {
                     {suggestions.map((suggestion, index) => (
                       <CommandItem
                         key={`suggestion-${index}`}
+                        className={itemClassName}
                         onSelect={() => {
                           setQuery(suggestion)
                         }}
@@ -1088,6 +1092,7 @@ export function CommandMenu() {
                     {recentSearches.slice(0, 3).map((recentQuery, index) => (
                       <CommandItem
                         key={`recent-nav-${index}`}
+                        className={itemClassName}
                         onSelect={() => {
                           setQuery(recentQuery)
                         }}
@@ -1101,6 +1106,7 @@ export function CommandMenu() {
 
                 <CommandGroup heading="Schnellsuche">
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("M-")
                     }}
@@ -1110,6 +1116,7 @@ export function CommandMenu() {
                     <CommandShortcut><span>⌘</span><span>M</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("H-")
                     }}
@@ -1119,6 +1126,7 @@ export function CommandMenu() {
                     <CommandShortcut><span>⌘</span><span>H</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("W-")
                     }}
@@ -1128,6 +1136,7 @@ export function CommandMenu() {
                     <CommandShortcut><span>⌘</span><span>J</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("F-")
                     }}
@@ -1137,6 +1146,7 @@ export function CommandMenu() {
                     <CommandShortcut><span>⌘</span><span>F</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("T-")
                     }}
@@ -1151,6 +1161,7 @@ export function CommandMenu() {
                   {navigationItems.map((item) => (
                     <CommandItem
                       key={item.href}
+                      className={itemClassName}
                       onSelect={() => {
                         router.push(item.href)
                         setOpen(false)
@@ -1163,6 +1174,7 @@ export function CommandMenu() {
                 </CommandGroup>
                 <CommandGroup heading="Aktionen">
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setOpen(false)
                       useModalStore.getState().openTenantModal()
@@ -1172,6 +1184,7 @@ export function CommandMenu() {
                     Mieter hinzufügen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setOpen(false)
                       useModalStore.getState().openHouseModal()
@@ -1181,6 +1194,7 @@ export function CommandMenu() {
                     Haus hinzufügen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setOpen(false)
                       useModalStore.getState().openFinanceModal()
@@ -1190,6 +1204,7 @@ export function CommandMenu() {
                     Rechnung erstellen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     disabled={isLoadingWohnungContext}
                     onSelect={handleAddApartment}
                   >
@@ -1197,6 +1212,7 @@ export function CommandMenu() {
                     Wohnung hinzufügen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setOpen(false)
                       useModalStore.getState().openAufgabeModal()
@@ -1206,6 +1222,7 @@ export function CommandMenu() {
                     Aufgabe hinzufügen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={handleManageSubscription}
                     disabled={isLoadingSubscription}
                   >
