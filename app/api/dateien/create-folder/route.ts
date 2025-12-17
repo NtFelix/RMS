@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     // Insert .keep file into Dokumente_Metadaten to make folder visible
     try {
-      await supabase
+      const { error: dbInsertError } = await supabase
         .from('Dokumente_Metadaten')
         .insert({
           dateipfad: newFolderPath,
@@ -87,8 +87,26 @@ export async function POST(request: NextRequest) {
           mime_type: 'text/plain',
           user_id: user.id
         })
+
+      if (dbInsertError) {
+        throw dbInsertError
+      }
     } catch (dbError) {
       console.error('Failed to insert .keep into Dokumente_Metadaten:', dbError)
+
+      // Rollback: delete the orphaned .keep file from storage
+      const { error: cleanupError } = await supabase.storage
+        .from('documents')
+        .remove([keepFilePath])
+
+      if (cleanupError) {
+        console.error('CRITICAL: Failed to cleanup orphaned .keep file:', keepFilePath, cleanupError)
+      }
+
+      return NextResponse.json(
+        { error: 'Failed to save folder metadata' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
