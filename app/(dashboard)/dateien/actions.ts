@@ -71,6 +71,25 @@ async function discoverSubdirectories(supabase: any, targetPath: string): Promis
   return []
 }
 
+/**
+ * Helper function to convert a database record from Dokumente_Metadaten to a StorageFile object.
+ * Centralizes the mapping logic to ensure consistency and maintainability (DRY).
+ */
+function mapDbFileToStorageFile(item: any): StorageFile {
+  return {
+    name: item.dateiname,
+    id: item.id,
+    updated_at: item.aktualisierungsdatum || new Date().toISOString(),
+    created_at: item.erstellungsdatum || new Date().toISOString(),
+    last_accessed_at: item.letzter_zugriff || new Date().toISOString(),
+    metadata: {
+      mimetype: item.mime_type,
+      size: item.dateigroesse
+    },
+    size: Number(item.dateigroesse) || 0,
+  }
+}
+
 export async function getInitialFiles(userId: string, path?: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
@@ -210,18 +229,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
     if (dbRootFiles) {
       dbRootFiles.forEach((item: any) => {
         if (item.dateiname !== '.keep') {
-          files.push({
-            name: item.dateiname,
-            id: item.id,
-            updated_at: item.aktualisierungsdatum || new Date().toISOString(),
-            created_at: item.erstellungsdatum || new Date().toISOString(),
-            last_accessed_at: item.letzter_zugriff || new Date().toISOString(),
-            metadata: {
-              mimetype: item.mime_type,
-              size: item.dateigroesse
-            },
-            size: Number(item.dateigroesse) || 0,
-          })
+          files.push(mapDbFileToStorageFile(item))
         }
       })
     }
@@ -336,18 +344,7 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
 
     const files: StorageFile[] = (dbFiles || [])
       .filter((item: any) => item.dateiname !== '.keep')
-      .map((item: any) => ({
-        name: item.dateiname,
-        id: item.id,
-        updated_at: item.aktualisierungsdatum || new Date().toISOString(),
-        created_at: item.erstellungsdatum || new Date().toISOString(),
-        last_accessed_at: item.letzter_zugriff || new Date().toISOString(),
-        metadata: {
-          mimetype: item.mime_type,
-          size: item.dateigroesse
-        },
-        size: Number(item.dateigroesse) || 0,
-      }))
+      .map((item: any) => mapDbFileToStorageFile(item))
 
     // Check if this is a house or apartment folder - only if they exist in the database
     // Check if this could be a house folder (depth 2, not Miscellaneous)
@@ -690,18 +687,7 @@ export async function getApartmentFolderContents(userId: string, houseId: string
       }
     }
 
-    const files: StorageFile[] = (dbFiles || []).map((item: any) => ({
-      name: item.dateiname,
-      id: item.id,
-      updated_at: item.aktualisierungsdatum || new Date().toISOString(),
-      created_at: item.erstellungsdatum || new Date().toISOString(),
-      last_accessed_at: item.letzter_zugriff || new Date().toISOString(),
-      metadata: {
-        mimetype: item.mime_type,
-        size: item.dateigroesse
-      },
-      size: Number(item.dateigroesse) || 0,
-    }))
+    const files: StorageFile[] = (dbFiles || []).map((item: any) => mapDbFileToStorageFile(item))
 
     return await getApartmentFolderContentsInternal(supabase, userId, houseId, apartmentId, apartmentPath, files)
   } catch (error) {
