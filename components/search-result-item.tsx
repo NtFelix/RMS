@@ -257,7 +257,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
         <div className="flex-1 min-w-0 flex flex-col gap-1 py-0.5">
           {/* Header Row */}
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm truncate text-foreground">
+            <span className="font-semibold text-sm truncate text-foreground group-hover:text-primary-foreground group-data-[selected=true]:text-primary-foreground transition-colors">
               {result.title}
             </span>
 
@@ -275,7 +275,15 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
               </Badge>
             )}
             {result.type === 'apartment' && result.metadata?.status && (
-              <Badge variant={result.metadata.status === 'free' ? 'secondary' : 'outline'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.status === 'free' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
+              <Badge
+                variant="secondary"
+                className={cn(
+                  "text-[10px] h-5 px-1.5 font-normal",
+                  result.metadata.status === 'free'
+                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                    : "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                )}
+              >
                 {result.metadata.status === 'free' ? 'Frei' : 'Vermietet'}
               </Badge>
             )}
