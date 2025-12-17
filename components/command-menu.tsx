@@ -31,6 +31,8 @@ import { SearchResult } from "@/types/search"
 
 const GLOBAL_SEARCH_RESULT_LIMIT = 15;
 
+const itemClassName = "group flex items-center p-2 rounded-xl hover:bg-primary data-[selected=true]:bg-primary hover:text-primary-foreground data-[selected=true]:text-primary-foreground cursor-pointer transition-all duration-200 ease-in-out hover:scale-[1.01] active:scale-[0.98] border border-transparent hover:border-primary data-[selected=true]:border-primary my-1 opacity-100";
+
 import {
   getUserSubscriptionContext,
   getPlanApartmentLimit,
@@ -1048,11 +1050,12 @@ export function CommandMenu() {
                     {recentSearches.slice(0, 3).map((recentQuery, index) => (
                       <CommandItem
                         key={`recent-${index}`}
+                        className={itemClassName}
                         onSelect={() => {
                           setQuery(recentQuery)
                         }}
                       >
-                        <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <Search className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                         {recentQuery}
                       </CommandItem>
                     ))}
@@ -1065,11 +1068,12 @@ export function CommandMenu() {
                     {suggestions.map((suggestion, index) => (
                       <CommandItem
                         key={`suggestion-${index}`}
+                        className={itemClassName}
                         onSelect={() => {
                           setQuery(suggestion)
                         }}
                       >
-                        <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <Search className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                         {suggestion}
                       </CommandItem>
                     ))}
@@ -1088,11 +1092,12 @@ export function CommandMenu() {
                     {recentSearches.slice(0, 3).map((recentQuery, index) => (
                       <CommandItem
                         key={`recent-nav-${index}`}
+                        className={itemClassName}
                         onSelect={() => {
                           setQuery(recentQuery)
                         }}
                       >
-                        <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <Search className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                         {recentQuery}
                       </CommandItem>
                     ))}
@@ -1101,49 +1106,54 @@ export function CommandMenu() {
 
                 <CommandGroup heading="Schnellsuche">
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("M-")
                     }}
                   >
-                    <Users className="mr-2 h-4 w-4" />
+                    <Users className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     <span>Mieter suchen</span>
-                    <CommandShortcut><span>⌘</span><span>M</span></CommandShortcut>
+                    <CommandShortcut className="group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground"><span>⌘</span><span>M</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("H-")
                     }}
                   >
-                    <Building2 className="mr-2 h-4 w-4" />
+                    <Building2 className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     <span>Häuser suchen</span>
-                    <CommandShortcut><span>⌘</span><span>H</span></CommandShortcut>
+                    <CommandShortcut className="group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground"><span>⌘</span><span>H</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("W-")
                     }}
                   >
-                    <Home className="mr-2 h-4 w-4" />
+                    <Home className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     <span>Wohnungen suchen</span>
-                    <CommandShortcut><span>⌘</span><span>J</span></CommandShortcut>
+                    <CommandShortcut className="group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground"><span>⌘</span><span>J</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("F-")
                     }}
                   >
-                    <Wallet className="mr-2 h-4 w-4" />
+                    <Wallet className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     <span>Finanzen suchen</span>
-                    <CommandShortcut><span>⌘</span><span>F</span></CommandShortcut>
+                    <CommandShortcut className="group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground"><span>⌘</span><span>F</span></CommandShortcut>
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setQuery("T-")
                     }}
                   >
-                    <CheckSquare className="mr-2 h-4 w-4" />
+                    <CheckSquare className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     <span>Aufgaben suchen</span>
-                    <CommandShortcut><span>⌘</span><span>A</span></CommandShortcut>
+                    <CommandShortcut className="group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground"><span>⌘</span><span>A</span></CommandShortcut>
                   </CommandItem>
                 </CommandGroup>
 
@@ -1151,65 +1161,72 @@ export function CommandMenu() {
                   {navigationItems.map((item) => (
                     <CommandItem
                       key={item.href}
+                      className={itemClassName}
                       onSelect={() => {
                         router.push(item.href)
                         setOpen(false)
                       }}
                     >
-                      <item.icon className="mr-2 h-4 w-4" />
+                      <item.icon className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                       {item.title}
                     </CommandItem>
                   ))}
                 </CommandGroup>
                 <CommandGroup heading="Aktionen">
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setOpen(false)
                       useModalStore.getState().openTenantModal()
                     }}
                   >
-                    <Users className="mr-2 h-4 w-4" />
+                    <Users className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     Mieter hinzufügen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setOpen(false)
                       useModalStore.getState().openHouseModal()
                     }}
                   >
-                    <Building2 className="mr-2 h-4 w-4" />
+                    <Building2 className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     Haus hinzufügen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setOpen(false)
                       useModalStore.getState().openFinanceModal()
                     }}
                   >
-                    <Wallet className="mr-2 h-4 w-4" />
+                    <Wallet className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     Rechnung erstellen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     disabled={isLoadingWohnungContext}
                     onSelect={handleAddApartment}
                   >
-                    <Home className="mr-2 h-4 w-4" />
+                    <Home className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     Wohnung hinzufügen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={() => {
                       setOpen(false)
                       useModalStore.getState().openAufgabeModal()
                     }}
                   >
-                    <CheckSquare className="mr-2 h-4 w-4" />
+                    <CheckSquare className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     Aufgabe hinzufügen
                   </CommandItem>
                   <CommandItem
+                    className={itemClassName}
                     onSelect={handleManageSubscription}
                     disabled={isLoadingSubscription}
                   >
-                    <CreditCard className="mr-2 h-4 w-4" />
+                    <CreditCard className="mr-2 h-4 w-4 text-muted-foreground group-data-[selected=true]:text-primary-foreground group-hover:text-primary-foreground" />
                     {isLoadingSubscription ? 'Lade...' : 'Abonnement verwalten'}
                   </CommandItem>
                 </CommandGroup>

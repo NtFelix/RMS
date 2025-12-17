@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { CommandMenu } from '@/components/command-menu'
 import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useSearch } from '@/hooks/use-search'
@@ -85,10 +85,20 @@ describe('CommandMenu Layout Consistency', () => {
 
     // Check that navigation sections are present
     expect(screen.getByText('Schnellsuche')).toBeInTheDocument()
-    expect(screen.getByText('⌘M')).toBeInTheDocument()
     expect(screen.getByText('Mieter suchen')).toBeInTheDocument()
-    expect(screen.getByText('⌘H')).toBeInTheDocument()
     expect(screen.getByText('Häuser suchen')).toBeInTheDocument()
+
+    // Verify shortcuts are correctly associated with their command items
+    const mieterSuchenItem = screen.getByText('Mieter suchen').closest('[cmdk-item]') as HTMLElement
+    expect(mieterSuchenItem).toBeTruthy()
+    expect(within(mieterSuchenItem).getByText('M')).toBeInTheDocument()
+
+    const haeuserSuchenItem = screen.getByText('Häuser suchen').closest('[cmdk-item]') as HTMLElement
+    expect(haeuserSuchenItem).toBeTruthy()
+    expect(within(haeuserSuchenItem).getByText('H')).toBeInTheDocument()
+
+    // Verify command symbol is present (appears multiple times for different shortcuts)
+    expect(screen.getAllByText('⌘').length).toBeGreaterThan(1)
   })
 
   it('should show info bar in loading state', () => {
@@ -148,7 +158,7 @@ describe('CommandMenu Layout Consistency', () => {
       setQuery: jest.fn(),
       results: [],
       isLoading: false,
-      error: new Error('Search failed'),
+      error: 'Search failed',
       totalCount: 0,
       executionTime: 0,
       clearSearch: jest.fn(),
@@ -178,7 +188,6 @@ describe('CommandMenu Layout Consistency', () => {
           type: 'tenant',
           title: 'Test Tenant',
           subtitle: 'test@example.com',
-          description: 'Test description',
           metadata: {},
           actions: [],
         },
@@ -201,11 +210,11 @@ describe('CommandMenu Layout Consistency', () => {
 
     // Check that search results are present
     expect(screen.getByText('Test Tenant')).toBeInTheDocument()
-    
+
     // Check that search status bar is present
     expect(screen.getByText('1 Ergebnis für "test"')).toBeInTheDocument()
-    // Use getAllByText since "Mieter" appears multiple times
-    expect(screen.getAllByText('Mieter')).toHaveLength(2)
+    // Use getAllByText with regex to match both "Mieter" title and "Mieter: 1" in status bar
+    expect(screen.getAllByText(/Mieter/)).toHaveLength(2)
   })
 
   it('should show info bar in search suggestions state', () => {

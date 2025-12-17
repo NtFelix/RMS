@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { SearchResultGroup } from './search-result-group';
+import { SearchResultGroup } from '../search-result-group';
 import { SearchResult } from '@/types/search';
 import { Edit, Eye } from 'lucide-react';
 
@@ -13,15 +13,15 @@ jest.mock('@/components/ui/command', () => ({
 }));
 
 // Mock the SearchResultItem component
-jest.mock('./search-result-item', () => ({
+jest.mock('../search-result-item', () => ({
   SearchResultItem: ({ result, onSelect, onAction }: any) => (
-    <div 
+    <div
       data-testid={`search-result-item-${result.id}`}
       onClick={() => onSelect(result)}
     >
       <span>{result.title}</span>
       {result.actions?.map((action: any, index: number) => (
-        <button 
+        <button
           key={index}
           onClick={(e) => {
             e.stopPropagation();
@@ -58,13 +58,13 @@ describe('SearchResultGroup', () => {
         {
           label: 'Edit',
           icon: Edit,
-          action: () => {},
+          action: () => { },
           variant: 'default' as const
         },
         {
           label: 'View',
           icon: Eye,
-          action: () => {},
+          action: () => { },
           variant: 'default' as const
         }
       ]
@@ -171,7 +171,7 @@ describe('SearchResultGroup', () => {
 
       // Check if the header has the correct styling for tenant type
       const header = screen.getByText('Mieter').parentElement;
-      expect(header).toHaveClass('text-muted-foreground');
+      expect(header).toHaveClass('text-muted-foreground/70');
     });
 
     it('should display correct icon for house type', () => {
@@ -188,7 +188,7 @@ describe('SearchResultGroup', () => {
       );
 
       const header = screen.getByText('Häuser').parentElement;
-      expect(header).toHaveClass('text-muted-foreground');
+      expect(header).toHaveClass('text-muted-foreground/70');
     });
 
     it('should display correct icon for apartment type', () => {
@@ -205,7 +205,7 @@ describe('SearchResultGroup', () => {
       );
 
       const header = screen.getByText('Wohnungen').parentElement;
-      expect(header).toHaveClass('text-muted-foreground');
+      expect(header).toHaveClass('text-muted-foreground/70');
     });
 
     it('should display correct icon for finance type', () => {
@@ -222,7 +222,7 @@ describe('SearchResultGroup', () => {
       );
 
       const header = screen.getByText('Finanzen').parentElement;
-      expect(header).toHaveClass('text-muted-foreground');
+      expect(header).toHaveClass('text-muted-foreground/70');
     });
 
     it('should display correct icon for task type', () => {
@@ -239,7 +239,7 @@ describe('SearchResultGroup', () => {
       );
 
       const header = screen.getByText('Aufgaben').parentElement;
-      expect(header).toHaveClass('text-muted-foreground');
+      expect(header).toHaveClass('text-muted-foreground/70');
     });
 
     it('should use provided title over generated title', () => {
@@ -444,7 +444,7 @@ describe('SearchResultGroup', () => {
       );
 
       expect(screen.getByText('20')).toBeInTheDocument();
-      
+
       // All results should be rendered
       for (let i = 1; i <= 20; i++) {
         expect(screen.getByTestId(`search-result-item-tenant-${i}`)).toBeInTheDocument();
@@ -484,7 +484,7 @@ describe('SearchResultGroup', () => {
       );
 
       const header = screen.getByText('Mieter').parentElement;
-      expect(header).toHaveClass('text-xs', 'font-medium');
+      expect(header).toHaveClass('text-xs', 'font-semibold');
     });
   });
 
@@ -525,7 +525,7 @@ describe('SearchResultGroup', () => {
       render(
         <SearchResultGroup
           title="Unknown"
-          type="unknown" as any
+          type={"unknown" as any}
           results={unknownTypeResults}
           onSelect={mockOnSelect}
           onAction={mockOnAction}
