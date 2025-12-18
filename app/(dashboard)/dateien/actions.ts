@@ -29,6 +29,22 @@ export interface BreadcrumbItem {
   type: 'root' | 'house' | 'apartment' | 'tenant' | 'category'
 }
 
+/**
+ * Interface representing a record from the Dokumente_Metadaten database table.
+ * Used for type-safe handling of file metadata throughout the application.
+ */
+export interface DokumenteMetadaten {
+  id: string
+  dateiname: string
+  dateipfad: string
+  dateigroesse: number | null
+  mime_type: string | null
+  user_id: string
+  erstellungsdatum: string | null
+  aktualisierungsdatum: string | null
+  letzter_zugriff: string | null
+}
+
 // Cache for preventing concurrent requests to the same path
 const requestCache = new Map<string, Promise<any>>()
 
@@ -41,7 +57,7 @@ async function isValidHouseId(supabase: any, userId: string, houseId: string): P
       .eq('id', houseId)
       .eq('user_id', userId)
       .single()
-    
+
     return !error && data
   } catch {
     return false
@@ -56,7 +72,7 @@ async function isValidApartmentId(supabase: any, userId: string, apartmentId: st
       .eq('id', apartmentId)
       .eq('user_id', userId)
       .single()
-    
+
     return !error && data
   } catch {
     return false
@@ -71,6 +87,27 @@ async function discoverSubdirectories(supabase: any, targetPath: string): Promis
   return []
 }
 
+/**
+ * Helper function to convert a database record from Dokumente_Metadaten to a StorageFile object.
+ * Centralizes the mapping logic to ensure consistency and maintainability (DRY).
+ */
+function mapDbFileToStorageFile(item: DokumenteMetadaten): StorageFile {
+  return {
+    name: item.dateiname,
+    id: item.id,
+    // Use cascading fallbacks: updated_at falls back to erstellungsdatum then Unix epoch
+    updated_at: item.aktualisierungsdatum || item.erstellungsdatum || new Date(0).toISOString(),
+    created_at: item.erstellungsdatum || new Date(0).toISOString(),
+    // last_accessed_at falls back to updated_at then erstellungsdatum then Unix epoch
+    last_accessed_at: item.letzter_zugriff || item.aktualisierungsdatum || item.erstellungsdatum || new Date(0).toISOString(),
+    metadata: {
+      mimetype: item.mime_type,
+      size: item.dateigroesse
+    },
+    size: Number(item.dateigroesse) || 0,
+  }
+}
+
 export async function getInitialFiles(userId: string, path?: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
@@ -78,7 +115,7 @@ export async function getInitialFiles(userId: string, path?: string): Promise<{
 }> {
   const targetPath = path || `user_${userId}`
   const cacheKey = `${userId}:${targetPath}`
-  
+
   // Check if there's already a request in progress for this path
   if (requestCache.has(cacheKey)) {
     try {
@@ -88,24 +125,24 @@ export async function getInitialFiles(userId: string, path?: string): Promise<{
       throw error
     }
   }
-  
+
   // Create new request
   const request = (async () => {
     try {
       const supabase = await createClient()
-      
+
       // Verify user authentication
       const { data: { user }, error: authError } = await supabase.auth.getUser()
-      
+
       if (authError || !user || user.id !== userId) {
         redirect('/auth/login')
       }
-      
+
       // If we're at the root level, create virtual folders based on database data
       if (targetPath === `user_${userId}`) {
         return await getRootLevelFolders(supabase, userId, targetPath)
       }
-      
+
       // For other paths, list actual storage contents
       return await getStorageContents(supabase, targetPath)
     } catch (error) {
@@ -125,10 +162,10 @@ export async function getInitialFiles(userId: string, path?: string): Promise<{
       }, 1000)
     }
   })()
-  
+
   // Cache the request
   requestCache.set(cacheKey, request)
-  
+
   return request
 }
 
@@ -138,57 +175,56 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
   error?: string
 }> {
   try {
-    // Get houses from database with timeout
-    const housesPromise = supabase
-      .from('Haeuser')
-      .select('id, name')
-      .eq('user_id', userId)
-    
-    // Add timeout to prevent hanging requests
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database query timeout')), 10000)
-    })
-    
-    const { data: houses, error: housesError } = await Promise.race([
-      housesPromise,
-      timeoutPromise
-    ]) as any
-    
+    // Get houses and their file counts from RPC
+    const { data: houses, error: housesError } = await supabase
+      .rpc('get_virtual_folders', {
+        p_user_id: userId,
+        p_current_path: targetPath
+      })
+
     if (housesError) {
-      // Log error only in development
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Could not load houses:', housesError)
+        console.warn('Could not load houses via RPC:', housesError)
       }
-      // Continue with empty houses array instead of failing completely
     }
 
     const folders: VirtualFolder[] = []
-    
+
     // Add house folders
     if (houses && houses.length > 0) {
       for (const house of houses) {
-        // Check if house folder has any files (direct files only)
-        const housePath = `${targetPath}/${house.id}`
-        const fileCount = await countDirectFiles(supabase, housePath)
-        const hasFiles = fileCount > 0
-        
         folders.push({
           name: house.id,
-          path: housePath,
+          path: house.path,
           type: 'house',
-          isEmpty: !hasFiles,
+          isEmpty: house.file_count === 0,
           children: [],
-          fileCount: fileCount,
+          fileCount: Number(house.file_count),
           displayName: house.name
         })
       }
     }
-    
+
+    // Add house documents folder
+    const houseDocsPath = `${targetPath}/house_documents`
+    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath, userId)
+    const houseDocsHasFiles = houseDocsFileCount > 0
+
+    folders.push({
+      name: 'house_documents',
+      path: houseDocsPath,
+      type: 'category',
+      isEmpty: !houseDocsHasFiles,
+      children: [],
+      fileCount: houseDocsFileCount,
+      displayName: 'Hausdokumente'
+    })
+
     // Add miscellaneous folder
     const miscPath = `${targetPath}/Miscellaneous`
-    const miscFileCount = await countDirectFiles(supabase, miscPath)
+    const miscFileCount = await countDirectFiles(supabase, miscPath, userId)
     const miscHasFiles = miscFileCount > 0
-    
+
     folders.push({
       name: 'Miscellaneous',
       path: miscPath,
@@ -199,74 +235,59 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
       displayName: 'Sonstiges'
     })
 
-    // Check for any files directly in the root
-    const { data: rootFiles } = await supabase.storage
-      .from('documents')
-      .list(targetPath, { limit: 100 })
-    
+    // Check for any files directly in the root from DB
+    const { data: dbRootFiles } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('*')
+      .eq('dateipfad', targetPath)
+      .eq('user_id', userId)
+      .order('dateiname', { ascending: true })
+
     const files: StorageFile[] = []
-    if (rootFiles) {
-      rootFiles.forEach((item: any) => {
-        if (item.name !== '.keep' && item.metadata?.size) {
-          files.push({
-            name: item.name,
-            id: item.id || item.name,
-            updated_at: item.updated_at || new Date().toISOString(),
-            created_at: item.created_at || new Date().toISOString(),
-            last_accessed_at: item.last_accessed_at || new Date().toISOString(),
-            metadata: item.metadata || {},
-            size: item.metadata?.size || 0,
-          })
+    if (dbRootFiles) {
+      dbRootFiles.forEach((item: DokumenteMetadaten) => {
+        if (item.dateiname !== '.keep') {
+          files.push(mapDbFileToStorageFile(item))
         }
       })
     }
 
-    // Try to discover custom folders by listing all files under the user directory
+    // Try to discover custom folders by querying the database
     try {
-      // Get all files under the user directory (recursive)
-      const { data: userFiles, error: userFilesError } = await supabase.storage
-        .from('documents')
-        .list(targetPath, {
-          limit: 10000 // High limit to get all files
-        })
+      // Get all distinct paths that start with targetPath/
+      const { data: subfolderPaths } = await supabase
+        .from('Dokumente_Metadaten')
+        .select('dateipfad')
+        .like('dateipfad', `${targetPath}/%`)
+        .eq('user_id', userId)
 
-      if (!userFilesError && userFiles) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Debug - Discovered custom folders:', {
-            totalFiles: userFiles.length,
-            targetPath
-          })
-        }
-
+      if (subfolderPaths) {
         const discoveredFolders = new Set<string>()
 
-        // Look through all files to find directory indicators
-        for (const file of userFiles) {
-          if (file.name && file.name.includes('/')) {
-            // This file is in a subdirectory
-            const folderName = file.name.split('/')[0]
-            discoveredFolders.add(folderName)
-            
+        // Look through all paths to find direct subdirectories
+        for (const item of subfolderPaths) {
+          const fullPath = item.dateipfad
+          // relative path from targetPath
+          const relativePath = fullPath.substring(targetPath.length + 1)
+          const firstSegment = relativePath.split('/')[0]
 
-          } else if (file.name && !file.metadata && !file.name.includes('.')) {
-            // This might be a directory itself
-            discoveredFolders.add(file.name)
-            
-
+          if (firstSegment) {
+            discoveredFolders.add(firstSegment)
           }
         }
 
         // Add discovered folders to the list
         for (const folderName of discoveredFolders) {
+          // Skip if already added (e.g. houses or Miscellaneous)
           const exists = folders.some(f => f.name === folderName)
           if (!exists) {
             const folderPath = `${targetPath}/${folderName}`
-            
+
             // Try to get more info about the folder (count direct files only)
             try {
-              const fileCount = await countDirectFiles(supabase, folderPath)
+              const fileCount = await countDirectFiles(supabase, folderPath, userId)
               const isEmpty = fileCount === 0
-              
+
               folders.push({
                 name: folderName,
                 path: folderPath,
@@ -276,10 +297,8 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
                 fileCount: fileCount,
                 displayName: folderName
               })
-
-
             } catch (error) {
-              // If we can't list the folder contents, still add it
+              // If we can't count files, still add it
               folders.push({
                 name: folderName,
                 path: folderPath,
@@ -319,18 +338,20 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
   error?: string
 }> {
   try {
-    // List files from Supabase Storage for the specific directory
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .list(targetPath, {
-        limit: 100,
-        sortBy: { column: 'name', order: 'asc' }
-      })
+    const pathSegments = targetPath.split('/')
+    const userId = pathSegments[0].replace('user_', '')
 
-    if (error) {
-      // Log error only in development
+    // 1. Get files from DB
+    const { data: dbFiles, error: dbError } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('*')
+      .eq('dateipfad', targetPath)
+      .eq('user_id', userId)
+      .order('dateiname', { ascending: true })
+
+    if (dbError) {
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Could not load storage contents for path:', targetPath, error)
+        console.warn('Error querying Dokumente_Metadaten:', dbError)
       }
       return {
         files: [],
@@ -339,24 +360,23 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
       }
     }
 
-
+    const files: StorageFile[] = (dbFiles || [])
+      .filter((item: DokumenteMetadaten) => item.dateiname !== '.keep')
+      .map((item: DokumenteMetadaten) => mapDbFileToStorageFile(item))
 
     // Check if this is a house or apartment folder - only if they exist in the database
-    const pathSegments = targetPath.split('/')
-    const userId = pathSegments[0].replace('user_', '')
-    
     // Check if this could be a house folder (depth 2, not Miscellaneous)
     const couldBeHouseFolder = pathSegments.length === 2 && pathSegments[1] !== 'Miscellaneous'
     const couldBeApartmentFolder = pathSegments.length === 3 && pathSegments[1] !== 'Miscellaneous'
-    
+
     let isActualHouseFolder = false
     let isActualApartmentFolder = false
-    
+
     if (couldBeHouseFolder) {
       const houseId = pathSegments[1]
       isActualHouseFolder = await isValidHouseId(supabase, userId, houseId)
     }
-    
+
     if (couldBeApartmentFolder) {
       const houseId = pathSegments[1]
       const apartmentId = pathSegments[2]
@@ -366,144 +386,56 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
         isActualApartmentFolder = await isValidApartmentId(supabase, userId, apartmentId)
       }
     }
-    
-    // Debug logging in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Debug - Path analysis:', {
-        targetPath,
-        pathSegments,
-        userId,
-        couldBeHouseFolder,
-        couldBeApartmentFolder,
-        isActualHouseFolder,
-        isActualApartmentFolder,
-        segmentCount: pathSegments.length
-      })
-    }
-    
+
     if (isActualHouseFolder) {
       const houseId = pathSegments[1]
-      return await getHouseFolderContents(supabase, userId, houseId, targetPath, data || [])
+      return await getHouseFolderContents(supabase, userId, houseId, targetPath, files)
     }
-    
+
     if (isActualApartmentFolder) {
       const houseId = pathSegments[1]
       const apartmentId = pathSegments[2]
-      return await getApartmentFolderContentsInternal(supabase, userId, houseId, apartmentId, targetPath, data || [])
+      return await getApartmentFolderContentsInternal(supabase, userId, houseId, apartmentId, targetPath, files)
     }
 
     // For other folders, process normally
-    const files: StorageFile[] = []
     const folders: VirtualFolder[] = []
 
-    // First, process the items returned by Supabase
-    ;(data || []).forEach((item: any) => {
-      // Skip placeholder files
-      if (item.name === '.keep') return
-      
-      // Check if it's a folder - Supabase returns folders as items with null metadata or no size
-      // The key indicator is that folders have null metadata, not just size 0
-      const isFolder = (item.metadata === null || item.metadata === undefined) && 
-                      item.name !== '.keep'
-      
-      if (isFolder) {
-        folders.push({
-          name: item.name,
-          path: `${targetPath}/${item.name}`,
-          type: 'storage',
-          isEmpty: true, // Default to true, will be updated by the client
-          children: [], // Add children property
-          fileCount: 0   // Default to 0, will be updated by the client
-        })
-      } else if (item.metadata?.size > 0) {
-        // It's a file with actual content
-        files.push({
-          name: item.name,
-          id: item.id || item.name,
-          updated_at: item.updated_at || new Date().toISOString(),
-          created_at: item.created_at || new Date().toISOString(),
-          last_accessed_at: item.last_accessed_at || new Date().toISOString(),
-          metadata: item.metadata || {},
-          size: item.metadata?.size || 0,
-        })
-      }
-    })
+    // 2. Get subfolders
+    // Query all dateipfad that start with targetPath + '/'
+    // We fetch distinct paths to identify subfolders
+    const { data: subfolderPaths } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('dateipfad')
+      .like('dateipfad', `${targetPath}/%`)
+      .eq('user_id', userId)
 
-    // Try to discover folders using search functionality
-    try {
-      const { data: searchResults, error: searchError } = await supabase.storage
-        .from('documents')
-        .list('', {
-          limit: 1000,
-          search: targetPath
-        })
+    const discoveredFolderNames = new Set<string>()
 
-      if (!searchError && searchResults) {
-
-
-        const targetPrefix = `${targetPath}/`
-        const discoveredFolders = new Set<string>()
-
-        for (const result of searchResults) {
-          if (result.name && result.name.startsWith(targetPrefix)) {
-            const relativePath = result.name.substring(targetPrefix.length)
-            const pathParts = relativePath.split('/')
-            
-            if (pathParts.length >= 2) {
-              const folderName = pathParts[0]
-              discoveredFolders.add(folderName)
-            }
-          }
+    if (subfolderPaths) {
+      subfolderPaths.forEach((item: { dateipfad: string }) => {
+        const fullPath = item.dateipfad
+        const relativePath = fullPath.substring(targetPath.length + 1)
+        const firstSegment = relativePath.split('/')[0]
+        if (firstSegment) {
+          discoveredFolderNames.add(firstSegment)
         }
+      })
+    }
 
-        // Add discovered folders to the list
-        for (const folderName of discoveredFolders) {
-          const exists = folders.some(f => f.name === folderName)
-          if (!exists) {
-            const folderPath = `${targetPath}/${folderName}`
-            
-            // Try to get more info about the folder
-            try {
-              const { data: folderContents } = await supabase.storage
-                .from('documents')
-                .list(folderPath, { limit: 100 })
-              
-              folders.push({
-                name: folderName,
-                path: folderPath,
-                type: 'storage',
-                isEmpty: !folderContents || folderContents.filter((item: any) => item.name !== '.keep').length === 0,
-                children: [],
-                fileCount: folderContents ? folderContents.filter((item: any) => item.name !== '.keep').length : 0,
-                displayName: folderName
-              })
-
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Debug - Added discovered folder:', {
-                  folderName,
-                  folderPath,
-                  fileCount: folderContents ? folderContents.length : 0
-                })
-              }
-            } catch (error) {
-              // If we can't list the folder contents, still add it
-              folders.push({
-                name: folderName,
-                path: folderPath,
-                type: 'storage',
-                isEmpty: true,
-                children: [],
-                fileCount: 0,
-                displayName: folderName
-              })
-            }
-          }
-        }
-      }
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Debug - Error in folder discovery:', error)
-      }
+    // Add discovered folders with proper file counts
+    for (const folderName of discoveredFolderNames) {
+      const folderPath = `${targetPath}/${folderName}`
+      const fileCount = await countDirectFiles(supabase, folderPath, userId)
+      folders.push({
+        name: folderName,
+        path: folderPath,
+        type: 'storage',
+        isEmpty: fileCount === 0,
+        children: [],
+        fileCount: fileCount,
+        displayName: folderName
+      })
     }
 
     return { files, folders }
@@ -520,54 +452,32 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
   }
 }
 
-async function getHouseFolderContents(supabase: any, userId: string, houseId: string, targetPath: string, storageItems: any[]): Promise<{
+async function getHouseFolderContents(supabase: any, userId: string, houseId: string, targetPath: string, files: StorageFile[]): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
   error?: string
 }> {
   try {
-    // Get apartments for this house from database with timeout
-    const apartmentsPromise = supabase
-      .from('Wohnungen')
-      .select('id, name')
-      .eq('haus_id', houseId)
-      .eq('user_id', userId)
-    
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database query timeout')), 8000)
-    })
-    
-    const { data: apartments, error: apartmentsError } = await Promise.race([
-      apartmentsPromise,
-      timeoutPromise
-    ]) as any
-    
-    if (apartmentsError) {
-      // Log error only in development
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Could not load apartments for house:', houseId, apartmentsError)
-      }
-      // Continue with empty apartments array
-    }
-
-    // Debug logging in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Debug - House apartment loading:', {
-        houseId,
-        userId,
-        apartmentsFound: apartments?.length || 0,
-        apartments: apartments?.map((a: any) => ({ id: a.id, name: a.name })) || [],
-        error: apartmentsError
+    // Get apartments and their file counts from RPC
+    const { data: apartments, error: apartmentsError } = await supabase
+      .rpc('get_virtual_folders', {
+        p_user_id: userId,
+        p_current_path: targetPath
       })
+
+    if (apartmentsError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Could not load apartments via RPC:', apartmentsError)
+      }
     }
 
     const folders: VirtualFolder[] = []
-    
+
     // Add house documents folder
     const houseDocsPath = `${targetPath}/house_documents`
-    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath)
+    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath, userId)
     const houseDocsHasFiles = houseDocsFileCount > 0
-    
+
     folders.push({
       name: 'house_documents',
       path: houseDocsPath,
@@ -577,41 +487,21 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
       fileCount: houseDocsFileCount,
       displayName: 'Hausdokumente'
     })
-    
+
     // Add apartment folders
     if (apartments && apartments.length > 0) {
       for (const apartment of apartments) {
-        // Count direct files in apartment folder
-        const apartmentPath = `${targetPath}/${apartment.id}`
-        const fileCount = await countDirectFiles(supabase, apartmentPath)
-        
         folders.push({
           name: apartment.id,
-          path: apartmentPath,
+          path: apartment.path,
           type: 'apartment',
-          isEmpty: fileCount === 0,
+          isEmpty: apartment.file_count === 0,
           children: [],
-          fileCount: fileCount,
+          fileCount: Number(apartment.file_count),
           displayName: apartment.name
         })
       }
     }
-
-    // Process any files directly in the house folder
-    const files: StorageFile[] = []
-    storageItems.forEach((item: any) => {
-      if (item.name !== '.keep' && item.metadata?.size) {
-        files.push({
-          name: item.name,
-          id: item.id || item.name,
-          updated_at: item.updated_at || new Date().toISOString(),
-          created_at: item.created_at || new Date().toISOString(),
-          last_accessed_at: item.last_accessed_at || new Date().toISOString(),
-          metadata: item.metadata || {},
-          size: item.metadata?.size || 0,
-        })
-      }
-    })
 
     return { files, folders }
   } catch (error) {
@@ -627,35 +517,19 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
   }
 }
 
-// Helper function to count direct files only (not recursive)
-async function countDirectFiles(supabase: any, path: string): Promise<number> {
+// Helper function to count direct files only (not recursive, excludes .keep files)
+async function countDirectFiles(supabase: any, path: string, userId: string): Promise<number> {
   try {
-    const { data: contents, error } = await supabase.storage
-      .from('documents')
-      .list(path, { limit: 100 })
-    
-    if (error || !contents) return 0
-    
-    let fileCount = 0
-    
-    for (const item of contents) {
-      if (item.name === '.keep') continue
-      
-      try {
-        if (item.metadata?.size) {
-          // It's a file - count it
-          fileCount++
-        }
-        // Don't count folders or recurse into them
-      } catch (itemError) {
-        // Skip problematic items instead of failing
-        continue
-      }
-    }
-    
-    return fileCount
+    const { count, error } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('*', { count: 'exact', head: true })
+      .eq('dateipfad', path)
+      .neq('dateiname', '.keep')
+      .eq('user_id', userId)
+
+    if (error) return 0
+    return count || 0
   } catch (error) {
-    // Silently return 0 instead of logging errors
     return 0
   }
 }
@@ -675,10 +549,10 @@ export async function loadFilesForPath(userId: string, path: string): Promise<{
 }> {
   try {
     const supabase = await createClient()
-    
+
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user || user.id !== userId) {
       return {
         files: [],
@@ -695,7 +569,7 @@ export async function loadFilesForPath(userId: string, path: string): Promise<{
         error: 'Ungültiger Pfad'
       }
     }
-    
+
     return await getInitialFiles(userId, path)
   } catch (error) {
     // Log error only in development
@@ -711,60 +585,32 @@ export async function loadFilesForPath(userId: string, path: string): Promise<{
 }
 
 // Internal function to handle apartment folder contents (used by getStorageContents)
-async function getApartmentFolderContentsInternal(supabase: any, userId: string, houseId: string, apartmentId: string, targetPath: string, storageItems: any[]): Promise<{
+async function getApartmentFolderContentsInternal(supabase: any, userId: string, houseId: string, apartmentId: string, targetPath: string, files: StorageFile[]): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
   error?: string
 }> {
   try {
-    // Get tenants for this apartment from database - simplified approach
-    let tenants = []
-    let tenantsError = null
-    
-    try {
-      const { data: tenantsData, error } = await supabase
-        .from('Mieter')
-        .select('id, name, wohnung_id, user_id')
-        .eq('wohnung_id', apartmentId)
-        .eq('user_id', userId)
-      
-      tenants = tenantsData || []
-      tenantsError = error
-      
-      // Debug logging in development
+    // Get tenants and their file counts from RPC
+    const { data: tenants, error: tenantsError } = await supabase
+      .rpc('get_virtual_folders', {
+        p_user_id: userId,
+        p_current_path: targetPath
+      })
+
+    if (tenantsError) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('Debug - Apartment tenant loading:', {
-          apartmentId,
-          houseId,
-          userId,
-          query: `wohnung_id=${apartmentId}, user_id=${userId}`,
-          tenantsFound: tenants.length,
-          tenants: tenants.map((t: any) => ({ 
-            id: t.id, 
-            name: t.name,
-            wohnung_id: t.wohnung_id,
-            user_id: t.user_id
-          })),
-          error: tenantsError
-        })
-      }
-      
-    } catch (error) {
-      tenantsError = error
-      tenants = []
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Could not load tenants for apartment:', apartmentId, error)
+        console.warn('Could not load tenants via RPC:', tenantsError)
       }
     }
 
     const folders: VirtualFolder[] = []
-    
+
     // Add apartment documents folder
     const apartmentDocsPath = `${targetPath}/apartment_documents`
-    const apartmentDocsFileCount = await countDirectFiles(supabase, apartmentDocsPath)
+    const apartmentDocsFileCount = await countDirectFiles(supabase, apartmentDocsPath, userId)
     const apartmentDocsHasFiles = apartmentDocsFileCount > 0
-    
+
     folders.push({
       name: 'apartment_documents',
       path: apartmentDocsPath,
@@ -774,82 +620,25 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
       fileCount: apartmentDocsFileCount,
       displayName: 'Wohnungsdokumente'
     })
-    
+
     // Add tenant folders
     if (tenants && tenants.length > 0) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Debug - Processing tenants for folders:', tenants.length)
-      }
-      
       for (const tenant of tenants) {
-        try {
-          // Count files recursively in tenant folder
-          const tenantPath = `${targetPath}/${tenant.id}`
-          let fileCount = 0
-          
-          try {
-            fileCount = await countDirectFiles(supabase, tenantPath)
-          } catch (countError) {
-            // If file counting fails, still create the folder
-            if (process.env.NODE_ENV === 'development') {
-              console.warn(`Could not count files for tenant ${tenant.id}:`, countError)
-            }
-            fileCount = 0
-          }
-          
-          // Create display name from name field
-          const displayName = tenant.name || tenant.id
-          
-          const tenantFolder = {
-            name: tenant.id,
-            path: tenantPath,
-            type: 'tenant' as const,
-            isEmpty: fileCount === 0,
-            children: [],
-            fileCount: fileCount,
-            displayName: displayName
-          }
-          
-          folders.push(tenantFolder)
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Debug - Added tenant folder:', {
-              tenantId: tenant.id,
-              displayName,
-              path: tenantPath,
-              fileCount,
-              isEmpty: fileCount === 0
-            })
-          }
-          
-        } catch (error) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error(`Error processing tenant ${tenant.id}:`, error)
-          }
-          // Continue with other tenants
-        }
-      }
-    } else {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Debug - No tenants found for apartment:', apartmentId)
+        folders.push({
+          name: tenant.id,
+          path: tenant.path,
+          type: 'tenant',
+          isEmpty: tenant.file_count === 0,
+          children: [],
+          fileCount: Number(tenant.file_count),
+          displayName: tenant.name || tenant.id
+        })
       }
     }
 
     // Process any files directly in the apartment folder
-    const files: StorageFile[] = []
-    storageItems.forEach((item: any) => {
-      if (item.name !== '.keep' && item.metadata?.size) {
-        files.push({
-          name: item.name,
-          id: item.id || item.name,
-          updated_at: item.updated_at || new Date().toISOString(),
-          created_at: item.created_at || new Date().toISOString(),
-          last_accessed_at: item.last_accessed_at || new Date().toISOString(),
-          metadata: item.metadata || {},
-          size: item.metadata?.size || 0,
-        })
-      }
-    })
+    // files argument already contains the StorageFile objects from the DB
+    // No need to map or filter storageItems anymore
 
     return { files, folders }
   } catch (error) {
@@ -873,10 +662,10 @@ export async function getApartmentFolderContents(userId: string, houseId: string
 }> {
   try {
     const supabase = await createClient()
-    
+
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user || user.id !== userId) {
       return {
         files: [],
@@ -886,13 +675,29 @@ export async function getApartmentFolderContents(userId: string, houseId: string
     }
 
     const apartmentPath = `user_${userId}/${houseId}/${apartmentId}`
-    
-    // Get storage contents for the apartment folder
-    const { data: storageItems } = await supabase.storage
-      .from('documents')
-      .list(apartmentPath, { limit: 100 })
-    
-    return await getApartmentFolderContentsInternal(supabase, userId, houseId, apartmentId, apartmentPath, storageItems || [])
+
+    // Get files from DB
+    const { data: dbFiles, error: dbError } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('*')
+      .eq('dateipfad', apartmentPath)
+      .eq('user_id', userId)
+      .order('dateiname', { ascending: true })
+
+    if (dbError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Error querying Dokumente_Metadaten:', dbError)
+      }
+      return {
+        files: [],
+        folders: [],
+        error: 'Fehler beim Laden der Dateien'
+      }
+    }
+
+    const files: StorageFile[] = (dbFiles || []).map((item: DokumenteMetadaten) => mapDbFileToStorageFile(item))
+
+    return await getApartmentFolderContentsInternal(supabase, userId, houseId, apartmentId, apartmentPath, files)
   } catch (error) {
     // Log error only in development
     if (process.env.NODE_ENV === 'development') {
@@ -975,7 +780,7 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
           // Check if the parent is a valid house and this is a valid apartment
           const parentSegment = pathSegments[i - 1]
           const isParentValidHouse = await isValidHouseId(supabase, userId, parentSegment)
-          
+
           if (isParentValidHouse) {
             const isValidApartment = await isValidApartmentId(supabase, userId, segment)
             if (isValidApartment) {
@@ -1011,7 +816,7 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
           const parentSegment = pathSegments[i - 1]
           const isGrandParentValidHouse = await isValidHouseId(supabase, userId, grandParentSegment)
           const isParentValidApartment = isGrandParentValidHouse && await isValidApartmentId(supabase, userId, parentSegment)
-          
+
           if (isParentValidApartment) {
             try {
               const { data: tenant } = await supabase
@@ -1055,7 +860,7 @@ export async function debugTenantData(userId: string, apartmentId: string): Prom
 }> {
   try {
     const supabase = await createClient()
-    
+
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user || user.id !== userId) {
@@ -1122,10 +927,10 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
 }> {
   try {
     const supabase = await createClient()
-    
+
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user || user.id !== userId) {
       return {
         success: false,
@@ -1143,7 +948,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
 
     // Check if it's a protected system folder (house, apartment, tenant, or category folders)
     const pathSegments = folderPath.split('/')
-    
+
     // Protect system folders and category folders
     if (pathSegments.length === 2) {
       // Root level folders - could be house folders or Miscellaneous
@@ -1173,7 +978,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
 
     // Check if it's a system folder that exists in the database
     const isSystemFolder = pathSegments.length <= 4 && pathSegments[1] !== 'Miscellaneous'
-    
+
     if (isSystemFolder) {
       // For system folders (house/apartment/tenant), we need to check if they exist in the database
       if (pathSegments.length === 2) {
@@ -1185,7 +990,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
           .eq('id', houseId)
           .eq('user_id', userId)
           .single()
-        
+
         if (house) {
           return {
             success: false,
@@ -1201,7 +1006,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
           .eq('id', apartmentId)
           .eq('user_id', userId)
           .single()
-        
+
         if (apartment) {
           return {
             success: false,
@@ -1217,7 +1022,7 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
           .eq('id', tenantId)
           .eq('user_id', userId)
           .single()
-        
+
         if (tenant) {
           return {
             success: false,
@@ -1227,12 +1032,15 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
       }
     }
 
-    // List all files in the folder recursively
-    const { data: allFiles, error: listError } = await supabase.storage
-      .from('documents')
-      .list(folderPath, {
-        limit: 1000
-      })
+    // List all files in the folder recursively from DB to delete them
+    // We need to delete from Storage AND DB.
+
+    // 1. Get all files in this folder and subfolders from DB
+    const { data: filesToDelete, error: listError } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('dateipfad, dateiname')
+      .like('dateipfad', `${folderPath}%`)
+      .eq('user_id', userId)
 
     if (listError) {
       return {
@@ -1241,50 +1049,41 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
       }
     }
 
-    // Collect all file paths to delete
-    const filesToDelete: string[] = []
-    
-    if (allFiles && allFiles.length > 0) {
-      // Get all files in the folder
-      for (const item of allFiles) {
-        if (item.name !== '.keep') {
-          filesToDelete.push(`${folderPath}/${item.name}`)
-        }
-      }
+    // 2. Delete from Storage
+    const storagePaths: string[] = []
+    if (filesToDelete && filesToDelete.length > 0) {
+      filesToDelete.forEach((file: any) => {
+        storagePaths.push(`${file.dateipfad}/${file.dateiname}`)
+      })
 
-      // Also check for nested folders by searching for files with the folder prefix
-      const { data: nestedFiles, error: nestedError } = await supabase.storage
-        .from('documents')
-        .list('', {
-          limit: 10000,
-          search: folderPath
-        })
-
-      if (!nestedError && nestedFiles) {
-        const folderPrefix = `${folderPath}/`
-        for (const file of nestedFiles) {
-          if (file.name && file.name.startsWith(folderPrefix) && file.name !== `${folderPath}/.keep`) {
-            filesToDelete.push(file.name)
-          }
-        }
-      }
-    }
-
-    // Delete all files in the folder
-    if (filesToDelete.length > 0) {
       const { error: deleteError } = await supabase.storage
         .from('documents')
-        .remove(filesToDelete)
+        .remove(storagePaths)
 
       if (deleteError) {
         return {
           success: false,
-          error: `Fehler beim Löschen der Dateien: ${deleteError.message}`
+          error: `Fehler beim Löschen der Dateien aus dem Speicher: ${deleteError.message}`
         }
       }
     }
 
-    // Also remove the .keep file if it exists
+    // 3. Delete from DB
+    // This is now handled by the database trigger on storage.objects
+    // We keep the code comment to indicate this change
+    /*
+    const { error: dbDeleteError } = await supabase
+      .from('Dokumente_Metadaten')
+      .delete()
+      .like('dateipfad', `${folderPath}%`)
+      .eq('user_id', userId)
+
+    if (dbDeleteError) {
+      console.error('Failed to delete files from Dokumente_Metadaten:', dbDeleteError)
+    }
+    */
+
+    // Also remove the .keep file if it exists (not in DB)
     const { error: keepError } = await supabase.storage
       .from('documents')
       .remove([`${folderPath}/.keep`])
@@ -1303,6 +1102,32 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
       success: false,
       error: error instanceof Error ? error.message : 'Unerwarteter Fehler beim Löschen des Ordners'
     }
+  }
+}
+
+export async function getTotalStorageUsage(userId: string): Promise<number> {
+  try {
+    const supabase = await createClient()
+
+    // Verify user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user || user.id !== userId) {
+      return 0
+    }
+
+    const { data, error } = await supabase
+      .rpc('calculate_storage_usage', { target_user_id: userId })
+
+    if (error) {
+      console.error('Error calculating storage usage:', error)
+      return 0
+    }
+
+    return Number(data) || 0
+  } catch (error) {
+    console.error('Unexpected error calculating storage usage:', error)
+    return 0
   }
 }
 
