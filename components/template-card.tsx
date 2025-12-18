@@ -5,11 +5,18 @@ import { Template } from '@/types/template';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, FileText } from 'lucide-react';
+import { Edit, Trash2, FileText, Mail, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ARIA_LABELS } from '@/lib/accessibility-constants';
 import { TemplatePreview } from '@/components/template-preview';
+import { TEMPLATE_TYPE_CONFIGS } from '@/lib/template-constants';
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  Mail,
+  FileText,
+  MoreHorizontal,
+};
 
 interface TemplateCardProps {
   template: Template;
@@ -42,8 +49,11 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
     }
   }, [handleEdit]);
 
+  const categoryConfig = TEMPLATE_TYPE_CONFIGS[template.kategorie];
+  const Icon = categoryConfig ? ICON_MAP[categoryConfig.icon] : FileText;
+
   return (
-    <Card 
+    <Card
       className="group relative h-full transition-all duration-200 hover:shadow-md hover:border-primary/20 bg-card focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2"
       data-template-card
       data-template-id={template.id}
@@ -56,17 +66,17 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
       <CardHeader className="pb-3 p-4 sm:p-6">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-            <h3 
+            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+            <h3
               id={`template-title-${template.id}`}
-              className="font-medium text-sm sm:text-base leading-tight truncate" 
+              className="font-medium text-sm sm:text-base leading-tight truncate"
               title={template.titel}
             >
               {template.titel}
             </h3>
           </div>
-          <Badge 
-            variant="secondary" 
+          <Badge
+            variant="secondary"
             className="text-xs px-2 py-1 flex-shrink-0 whitespace-nowrap"
             aria-label={`Kategorie: ${template.kategorie}`}
           >
@@ -76,12 +86,12 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
       </CardHeader>
 
       <CardContent className="py-0 px-4 sm:px-6">
-        <div 
+        <div
           id={`template-description-${template.id}`}
           className="text-sm text-muted-foreground leading-relaxed min-h-[3rem] sm:min-h-[4rem] overflow-hidden"
         >
           <div className="line-clamp-3">
-            <TemplatePreview 
+            <TemplatePreview
               content={template.inhalt}
               maxLength={120}
               fallbackText="Keine Vorschau verfügbar"
@@ -92,16 +102,16 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
 
       <CardFooter className="pt-4 pb-3 px-4 sm:px-6">
         <div className="flex items-center justify-between w-full">
-          <time 
+          <time
             className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-none"
             dateTime={template.aktualisiert_am}
             aria-label={`Zuletzt geändert: ${lastModified}`}
           >
             {lastModified}
           </time>
-          
+
           {/* Desktop hover actions */}
-          <div 
+          <div
             className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200"
             role="group"
             aria-label="Aktionen für Vorlage"
@@ -129,7 +139,7 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
           </div>
 
           {/* Mobile always-visible actions */}
-          <div 
+          <div
             className="flex sm:hidden items-center gap-1"
             role="group"
             aria-label="Aktionen für Vorlage"
