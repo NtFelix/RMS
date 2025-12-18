@@ -95,11 +95,11 @@ function mapDbFileToStorageFile(item: DokumenteMetadaten): StorageFile {
   return {
     name: item.dateiname,
     id: item.id,
-    // Use cascading fallbacks: updated_at falls back to erstellungsdatum before new Date()
-    updated_at: item.aktualisierungsdatum || item.erstellungsdatum || new Date().toISOString(),
-    created_at: item.erstellungsdatum || new Date().toISOString(),
-    // last_accessed_at falls back to updated_at then erstellungsdatum
-    last_accessed_at: item.letzter_zugriff || item.aktualisierungsdatum || item.erstellungsdatum || new Date().toISOString(),
+    // Use cascading fallbacks: updated_at falls back to erstellungsdatum then Unix epoch
+    updated_at: item.aktualisierungsdatum || item.erstellungsdatum || new Date(0).toISOString(),
+    created_at: item.erstellungsdatum || new Date(0).toISOString(),
+    // last_accessed_at falls back to updated_at then erstellungsdatum then Unix epoch
+    last_accessed_at: item.letzter_zugriff || item.aktualisierungsdatum || item.erstellungsdatum || new Date(0).toISOString(),
     metadata: {
       mimetype: item.mime_type,
       size: item.dateigroesse
