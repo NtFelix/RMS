@@ -841,32 +841,19 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
 
     console.warn('⚠️ Direct move operation failed, trying alternative approach:', errorDetails);
 
-    // Try alternative approach: copy then delete
-    console.log('🔄 Attempting alternative approach: copy + delete...');
+    // Try alternative approach: copy then delete using storage.copy()
+    console.log('🔄 Attempting alternative approach: storage.copy() + delete...');
     try {
-      // First, download the source file
-      const { data: sourceFileData, error: downloadError } = await supabase.storage
+      // Use storage.copy() for efficient server-side copy
+      const { error: copyError } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .download(cleanOldPath);
+        .copy(cleanOldPath, cleanNewPath);
 
-      if (downloadError) {
-        throw new Error(`Failed to download source file: ${downloadError.message}`);
+      if (copyError) {
+        throw new Error(`Failed to copy file to target location: ${copyError.message}`);
       }
 
-      console.log('✅ Source file downloaded successfully, size:', sourceFileData?.size);
-
-      // Upload to new location
-      const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(cleanNewPath, sourceFileData, {
-          upsert: true
-        });
-
-      if (uploadError) {
-        throw new Error(`Failed to upload to target location: ${uploadError.message}`);
-      }
-
-      console.log('✅ File uploaded to target location successfully');
+      console.log('✅ File copied to target location successfully');
 
       // Delete original file
       const { error: deleteError } = await supabase.storage
