@@ -425,7 +425,7 @@ export function TemplateEditorModal({
                               handleTitleChange(e.target.value);
                             }}
                             placeholder="Titel der Vorlage eingeben"
-                            className="text-lg font-semibold tracking-tight border-0 px-0 h-auto bg-transparent focus-visible:ring-0 placeholder:text-muted-foreground/50 w-full"
+                            className="text-lg font-semibold tracking-tight border-0 pl-2 pr-0 h-auto bg-transparent focus-visible:ring-0 placeholder:text-muted-foreground/50 w-full"
                             aria-label="Titel der Vorlage"
                           />
                           {templateForm.formState.errors.titel && (
@@ -526,14 +526,14 @@ export function TemplateEditorModal({
                                       type="button"
                                       onClick={() => handleCategorySelect(category)}
                                       className={cn(
-                                        "w-full text-left relative overflow-hidden rounded-xl border-2 p-6 transition-all duration-200 h-full flex flex-col gap-4",
+                                        "w-full text-left relative overflow-hidden rounded-[2.5rem] border-2 p-6 transition-all duration-200 h-full flex flex-col gap-4",
                                         isSelected
                                           ? "border-primary bg-primary/5 shadow-md"
                                           : "border-muted bg-card hover:border-primary/50 hover:shadow-sm"
                                       )}
                                     >
                                       <div className={cn(
-                                        "h-12 w-12 rounded-lg flex items-center justify-center transition-colors",
+                                        "h-12 w-12 rounded-2xl flex items-center justify-center transition-colors",
                                         meta.color
                                       )}>
                                         <Icon className="h-6 w-6" />
