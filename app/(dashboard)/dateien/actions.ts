@@ -207,7 +207,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
 
     // Add house documents folder
     const houseDocsPath = `${targetPath}/house_documents`
-    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath)
+    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath, userId)
     const houseDocsHasFiles = houseDocsFileCount > 0
 
     folders.push({
@@ -222,7 +222,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
 
     // Add miscellaneous folder
     const miscPath = `${targetPath}/Miscellaneous`
-    const miscFileCount = await countDirectFiles(supabase, miscPath)
+    const miscFileCount = await countDirectFiles(supabase, miscPath, userId)
     const miscHasFiles = miscFileCount > 0
 
     folders.push({
@@ -285,7 +285,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
 
             // Try to get more info about the folder (count direct files only)
             try {
-              const fileCount = await countDirectFiles(supabase, folderPath)
+              const fileCount = await countDirectFiles(supabase, folderPath, userId)
               const isEmpty = fileCount === 0
 
               folders.push({
@@ -426,7 +426,7 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
     // Add discovered folders with proper file counts
     for (const folderName of discoveredFolderNames) {
       const folderPath = `${targetPath}/${folderName}`
-      const fileCount = await countDirectFiles(supabase, folderPath)
+      const fileCount = await countDirectFiles(supabase, folderPath, userId)
       folders.push({
         name: folderName,
         path: folderPath,
@@ -475,7 +475,7 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
 
     // Add house documents folder
     const houseDocsPath = `${targetPath}/house_documents`
-    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath)
+    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath, userId)
     const houseDocsHasFiles = houseDocsFileCount > 0
 
     folders.push({
@@ -518,26 +518,14 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
 }
 
 // Helper function to count direct files only (not recursive, excludes .keep files)
-async function countDirectFiles(supabase: any, path: string): Promise<number> {
+async function countDirectFiles(supabase: any, path: string, userId: string): Promise<number> {
   try {
-    const pathSegments = path.split('/')
-    // Extract user ID from path if possible
-    let userId = ''
-    if (path.startsWith('user_')) {
-      userId = pathSegments[0].replace('user_', '')
-    }
-
-    let query = supabase
+    const { count, error } = await supabase
       .from('Dokumente_Metadaten')
       .select('*', { count: 'exact', head: true })
       .eq('dateipfad', path)
-      .neq('dateiname', '.keep') // Exclude .keep placeholder files
-
-    if (userId) {
-      query = query.eq('user_id', userId)
-    }
-
-    const { count, error } = await query
+      .neq('dateiname', '.keep')
+      .eq('user_id', userId)
 
     if (error) return 0
     return count || 0
@@ -620,7 +608,7 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
 
     // Add apartment documents folder
     const apartmentDocsPath = `${targetPath}/apartment_documents`
-    const apartmentDocsFileCount = await countDirectFiles(supabase, apartmentDocsPath)
+    const apartmentDocsFileCount = await countDirectFiles(supabase, apartmentDocsPath, userId)
     const apartmentDocsHasFiles = apartmentDocsFileCount > 0
 
     folders.push({
