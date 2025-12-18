@@ -182,35 +182,18 @@ export async function POST(request: NextRequest) {
     if (moveError) {
       console.warn('Move operation failed, trying copy + delete approach:', moveError)
 
-      // Fallback: Use copy + delete approach
+      // Fallback: Use storage.copy() + delete approach (more efficient than download+upload)
       try {
-        // Upload the file with the new name
-        // We need to download the file content first for the copy
-        const { data: fileData, error: downloadError } = await supabase.storage
+        const { error: copyError } = await supabase.storage
           .from('documents')
-          .download(actualFilePath)
+          .copy(actualFilePath, actualNewPath)
 
-        if (downloadError) {
-          // Rollback DB changes since we can't proceed
-          await rollbackDbChanges()
-          return NextResponse.json(
-            { error: `Originaldatei kann nicht gelesen werden: ${downloadError.message}` },
-            { status: 404 }
-          )
-        }
-
-        const { error: uploadError } = await supabase.storage
-          .from('documents')
-          .upload(actualNewPath, fileData, {
-            upsert: false // Don't overwrite if exists
-          })
-
-        if (uploadError) {
-          console.error('Copy operation failed:', uploadError)
+        if (copyError) {
+          console.error('Copy operation failed:', copyError)
           // Rollback DB changes
           await rollbackDbChanges()
           return NextResponse.json(
-            { error: `Datei kann nicht kopiert werden: ${uploadError.message}` },
+            { error: `Datei kann nicht kopiert werden: ${copyError.message}` },
             { status: 500 }
           )
         }
