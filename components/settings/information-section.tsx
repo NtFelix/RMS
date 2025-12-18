@@ -24,7 +24,7 @@ const InformationSection = () => {
                 <Info className="h-4 w-4 text-primary" />
               </div>
               <div className="flex-1">
-                <h4 className="text-sm font-medium">Mietfluss</h4>
+                <h4 className="text-sm font-medium">Mietevo</h4>
                 <p className="text-sm text-muted-foreground">
                   Version: <span id="app-version" className="font-mono">{packageJsonVersion}</span>
                 </p>

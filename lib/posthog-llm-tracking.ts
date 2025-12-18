@@ -49,9 +49,9 @@ export interface LLMTrace {
  */
 export class PostHogLLMTracker {
   private static instance: PostHogLLMTracker;
-  
-  private constructor() {}
-  
+
+  private constructor() { }
+
   static getInstance(): PostHogLLMTracker {
     if (!PostHogLLMTracker.instance) {
       PostHogLLMTracker.instance = new PostHogLLMTracker();
@@ -79,9 +79,9 @@ export class PostHogLLMTracker {
         $ai_base_url: generation.base_url,
         $ai_is_error: generation.is_error || false,
         $ai_error: generation.error,
-        
-        // Additional Mietfluss-specific properties
-        application: 'mietfluss',
+
+        // Additional Mietevo-specific properties
+        application: 'mietevo',
         feature: 'ai_assistant',
         timestamp: new Date().toISOString()
       });
@@ -108,9 +108,9 @@ export class PostHogLLMTracker {
         $ai_span_id: trace.span_id || trace.id,
         $ai_error: trace.error,
         $ai_is_error: trace.is_error || false,
-        
-        // Additional Mietfluss-specific properties
-        application: 'mietfluss',
+
+        // Additional Mietevo-specific properties
+        application: 'mietevo',
         feature: 'ai_assistant',
         timestamp: new Date().toISOString()
       });
@@ -146,7 +146,7 @@ export class PostHogLLMTracker {
 
     // Track the start
     this.trackGeneration(generation);
-    
+
     return generation;
   }
 
@@ -199,7 +199,7 @@ export class PostHogLLMTracker {
     };
 
     this.trackTrace(trace);
-    
+
     return trace;
   }
 
@@ -244,9 +244,9 @@ export class PostHogLLMTracker {
         $ai_chunk_content: params.chunkContent,
         $ai_chunk_index: params.chunkIndex,
         $ai_session_id: params.sessionId,
-        
+
         // Additional properties
-        application: 'mietfluss',
+        application: 'mietevo',
         feature: 'ai_assistant_streaming',
         timestamp: new Date().toISOString()
       });
@@ -262,7 +262,7 @@ export class PostHogLLMTracker {
     if (typeof window === 'undefined') return false;
     if (!posthog) return false;
     if (!posthog.has_opted_in_capturing?.()) return false;
-    
+
     return true;
   }
 }

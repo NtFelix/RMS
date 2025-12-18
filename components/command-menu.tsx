@@ -1251,7 +1251,7 @@ export function CommandMenu() {
                 <span className="font-medium">Schließen</span>
               </div>
             </div>
-            <div className="font-medium opacity-50">Mietfluss</div>
+            <div className="font-medium opacity-50">Mietevo</div>
           </div>
         </Command>
       </CommandDialog>

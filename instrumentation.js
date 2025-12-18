@@ -6,7 +6,7 @@ export async function register() {
 
     // Log application startup
     posthogLogger.info('Application started', {
-      'app.name': 'mietfluss',
+      'app.name': 'mietevo',
       'app.version': process.env.npm_package_version || '1.0.0',
       'runtime': 'nodejs',
       'node.version': process.version,

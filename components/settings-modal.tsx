@@ -66,7 +66,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     },
     {
       value: "information",
-      label: "Mietfluss",
+      label: "Mietevo",
       icon: Info,
       content: <InformationSection />,
     }

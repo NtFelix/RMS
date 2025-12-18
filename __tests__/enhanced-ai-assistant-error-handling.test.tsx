@@ -22,7 +22,7 @@ describe('Enhanced AI Assistant Error Handling', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetch.mockClear();
-    
+
     // Default network status mock
     mockUseNetworkStatus.mockReturnValue({
       isOnline: true,
@@ -156,7 +156,7 @@ describe('Enhanced AI Assistant Error Handling', () => {
   describe('Retry Mechanism', () => {
     it('should retry failed requests with exponential backoff', async () => {
       jest.useFakeTimers();
-      
+
       // First two calls fail, third succeeds
       mockFetch
         .mockRejectedValueOnce(new Error('Network error'))
@@ -182,7 +182,7 @@ describe('Enhanced AI Assistant Error Handling', () => {
 
       // Should have made 3 attempts
       expect(mockFetch).toHaveBeenCalledTimes(3);
-      
+
       jest.useRealTimers();
     });
 
@@ -285,7 +285,7 @@ describe('Enhanced AI Assistant Error Handling', () => {
 
         // Error should be categorized and translated to German
         expect(result.current.state.error).toBeTruthy();
-        
+
         // Reset for next test
         act(() => {
           result.current.actions.clearMessages();
@@ -306,7 +306,7 @@ describe('Input Validation Functions', () => {
     it('should detect spam patterns', () => {
       expect(validateAIInput('aaaaaaaaaaaaa').isValid).toBe(false); // Repeated characters
       expect(validateAIInput('CLICK HERE FOR FREE MONEY!!!').isValid).toBe(false); // Spam keywords
-      expect(validateAIInput('Wie funktioniert Mietfluss?').isValid).toBe(true); // Normal question
+      expect(validateAIInput('Wie funktioniert Mietevo?').isValid).toBe(true); // Normal question
     });
 
     it('should sanitize input', () => {
@@ -333,7 +333,7 @@ describe('Input Validation Functions', () => {
     it('should allow normal questions', () => {
       const normalQuestions = [
         'How do I create a new tenant?',
-        'What are the features of Mietfluss?',
+        'What are the features of Mietevo?',
         'Can you help me with operating costs?'
       ];
 

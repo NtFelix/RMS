@@ -52,13 +52,13 @@ const mockDocumentationContext = {
       id: '1',
       titel: 'Mieter verwalten',
       kategorie: 'Mieterverwaltung',
-      seiteninhalt: 'Hier erfahren Sie, wie Sie Mieter in Mietfluss verwalten können.',
+      seiteninhalt: 'Hier erfahren Sie, wie Sie Mieter in Mietevo verwalten können.',
     },
     {
       id: '2',
       titel: 'Betriebskosten abrechnen',
       kategorie: 'Finanzen',
-      seiteninhalt: 'Anleitung zur Betriebskostenabrechnung in Mietfluss.',
+      seiteninhalt: 'Anleitung zur Betriebskostenabrechnung in Mietevo.',
     },
   ],
   categories: [
@@ -72,7 +72,7 @@ describe('AI Search Assistant - E2E Validation', () => {
     jest.clearAllMocks();
     mockFetch.mockClear();
     mockPostHogCapture.mockClear();
-    
+
     // Reset Zustand store
     useAIAssistantStore.getState().closeAI();
     useAIAssistantStore.getState().clearMessages();
@@ -85,11 +85,11 @@ describe('AI Search Assistant - E2E Validation', () => {
         ok: true,
         status: 200,
         json: async () => ({
-          response: 'Hallo! Ich bin Ihr Mietfluss AI-Assistent.',
+          response: 'Hallo! Ich bin Ihr Mietevo AI-Assistent.',
           sessionId: 'test-session',
         })
       };
-      
+
       mockFetch.mockResolvedValueOnce(mockResponse);
 
       render(
@@ -120,7 +120,7 @@ describe('AI Search Assistant - E2E Validation', () => {
       // Verify request body structure
       const callArgs = mockFetch.mock.calls[0];
       const requestBody = JSON.parse(callArgs[1].body);
-      
+
       expect(requestBody).toMatchObject({
         message: 'Wie kann ich einen neuen Mieter hinzufügen?',
         context: mockDocumentationContext,
@@ -131,7 +131,7 @@ describe('AI Search Assistant - E2E Validation', () => {
     it('should validate environment configuration', () => {
       // Verify GEMINI_API_KEY is configured
       expect(process.env.GEMINI_API_KEY).toBe('test-api-key');
-      
+
       // Verify PostHog configuration
       expect(process.env.POSTHOG_API_KEY).toBe('test-posthog-key');
       expect(process.env.POSTHOG_HOST).toBe('https://eu.i.posthog.com');
@@ -141,7 +141,7 @@ describe('AI Search Assistant - E2E Validation', () => {
   describe('2. PostHog Analytics Validation', () => {
     it('should track AI assistant opened event', async () => {
       const { openAI } = useAIAssistantStore.getState();
-      
+
       act(() => {
         openAI();
       });
@@ -157,7 +157,7 @@ describe('AI Search Assistant - E2E Validation', () => {
 
     it('should track AI assistant closed event with metrics', async () => {
       const { openAI, closeAI, addMessage } = useAIAssistantStore.getState();
-      
+
       // Open AI and simulate usage
       act(() => {
         openAI();
@@ -263,7 +263,7 @@ describe('AI Search Assistant - E2E Validation', () => {
           retryable: true,
         })
       };
-      
+
       mockFetch.mockResolvedValueOnce(rateLimitResponse);
 
       render(
@@ -331,19 +331,19 @@ describe('AI Search Assistant - E2E Validation', () => {
       );
 
       // Verify German UI elements
-      expect(screen.getByText('Mietfluss AI Assistent')).toBeInTheDocument();
-      expect(screen.getByText('Fragen Sie mich alles über Mietfluss')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/Stellen Sie eine Frage über Mietfluss/i)).toBeInTheDocument();
-      expect(screen.getByText(/Willkommen beim Mietfluss AI Assistenten/i)).toBeInTheDocument();
-      
+      expect(screen.getByText('Mietevo AI Assistent')).toBeInTheDocument();
+      expect(screen.getByText('Fragen Sie mich alles über Mietevo')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Stellen Sie eine Frage über Mietevo/i)).toBeInTheDocument();
+      expect(screen.getByText(/Willkommen beim Mietevo AI Assistenten/i)).toBeInTheDocument();
+
       // Verify German welcome message
-      expect(screen.getByText(/Stellen Sie mir Fragen über Mietfluss-Funktionen/i)).toBeInTheDocument();
+      expect(screen.getByText(/Stellen Sie mir Fragen über Mietevo-Funktionen/i)).toBeInTheDocument();
     });
 
     it('should handle German input and display correctly', async () => {
       const user = userEvent.setup();
       const germanResponse = 'Um Betriebskosten zu verwalten, navigieren Sie zum Betriebskosten-Bereich.';
-      
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -362,7 +362,7 @@ describe('AI Search Assistant - E2E Validation', () => {
       );
 
       const input = screen.getByPlaceholderText(/Stellen Sie eine Frage/i);
-      const germanQuestion = 'Wie verwalte ich Betriebskosten in Mietfluss?';
+      const germanQuestion = 'Wie verwalte ich Betriebskosten in Mietevo?';
       await user.type(input, germanQuestion);
 
       const sendButton = screen.getByRole('button', { name: /Nachricht senden/i });
@@ -504,7 +504,7 @@ describe('AI Search Assistant - E2E Validation', () => {
 
     it('should maintain session state across interactions', async () => {
       const user = userEvent.setup();
-      
+
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
@@ -558,7 +558,7 @@ describe('AI Search Assistant - E2E Validation', () => {
       const { rerender } = render(
         <DocumentationSearch onSearch={mockOnSearch} />
       );
-      
+
       // Verify atom icon is present
       expect(screen.getByRole('button', { name: /AI Assistent öffnen/i })).toBeInTheDocument();
 
@@ -570,10 +570,10 @@ describe('AI Search Assistant - E2E Validation', () => {
           documentationContext={mockDocumentationContext}
         />
       );
-      
+
       // Verify German interface
-      expect(screen.getByText('Mietfluss AI Assistent')).toBeInTheDocument();
-      expect(screen.getByText('Fragen Sie mich alles über Mietfluss')).toBeInTheDocument();
+      expect(screen.getByText('Mietevo AI Assistent')).toBeInTheDocument();
+      expect(screen.getByText('Fragen Sie mich alles über Mietevo')).toBeInTheDocument();
 
       // Requirement 3: PostHog analytics (verified in previous tests)
       // Requirement 4: Documentation context integration (verified in API tests)
@@ -585,11 +585,11 @@ describe('AI Search Assistant - E2E Validation', () => {
     it('should handle complete user workflow', async () => {
       const user = userEvent.setup();
       const mockOnSearch = jest.fn();
-      
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          response: 'Hier ist eine detaillierte Antwort über Mietfluss-Funktionen.',
+          response: 'Hier ist eine detaillierte Antwort über Mietevo-Funktionen.',
           sessionId: 'test-session'
         })
       });
@@ -617,11 +617,11 @@ describe('AI Search Assistant - E2E Validation', () => {
 
       // AI interface should be open
       await waitFor(() => {
-        expect(screen.getByText('Mietfluss AI Assistent')).toBeInTheDocument();
+        expect(screen.getByText('Mietevo AI Assistent')).toBeInTheDocument();
       });
 
       // Ask a question
-      const aiInput = screen.getByPlaceholderText(/Stellen Sie eine Frage über Mietfluss/i);
+      const aiInput = screen.getByPlaceholderText(/Stellen Sie eine Frage über Mietevo/i);
       await user.type(aiInput, 'Wie funktioniert die Mieterverwaltung?');
 
       const sendButton = screen.getByRole('button', { name: /Nachricht senden/i });
@@ -629,7 +629,7 @@ describe('AI Search Assistant - E2E Validation', () => {
 
       // Verify response
       await waitFor(() => {
-        expect(screen.getByText(/Hier ist eine detaillierte Antwort über Mietfluss-Funktionen/i)).toBeInTheDocument();
+        expect(screen.getByText(/Hier ist eine detaillierte Antwort über Mietevo-Funktionen/i)).toBeInTheDocument();
       });
 
       // Close AI
@@ -638,7 +638,7 @@ describe('AI Search Assistant - E2E Validation', () => {
 
       // Verify closed
       await waitFor(() => {
-        expect(screen.queryByText('Mietfluss AI Assistent')).not.toBeInTheDocument();
+        expect(screen.queryByText('Mietevo AI Assistent')).not.toBeInTheDocument();
       });
     });
   });

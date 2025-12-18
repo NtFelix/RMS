@@ -441,7 +441,7 @@ export default function Pricing({
                   Exklusiver Zugang
                 </h2>
                 <p className="text-xl text-muted-foreground leading-relaxed">
-                  Wir rollen Mietfluss schrittweise aus, um die beste Erfahrung für alle zu gewährleisten.
+                  Wir rollen Mietevo schrittweise aus, um die beste Erfahrung für alle zu gewährleisten.
                   Sichern Sie sich Ihren Platz auf der Warteliste.
                 </p>
               </div>

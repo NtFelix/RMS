@@ -97,7 +97,7 @@ export function WaitlistButton() {
                 // 3. Send the single "survey sent" event with the rich payload
                 posthog.capture("survey sent", {
                     $survey_id: surveyID,
-                    $survey_name: "Warteliste Mietfluss",
+                    $survey_name: "Warteliste Mietevo",
                     $survey_response: "submitted", // Main status
                     $survey_questions: surveyQuestions, // Full detail array
                     ...responseProperties // Individual response properties
@@ -205,7 +205,7 @@ export function WaitlistButton() {
             <Dialog open={isOpen} onOpenChange={handleClose}>
                 <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Warteliste Mietfluss</DialogTitle>
+                        <DialogTitle>Warteliste Mietevo</DialogTitle>
                         <DialogDescription>
                             Melden Sie sich jetzt an, um als Erster Zugang zu erhalten.
                         </DialogDescription>

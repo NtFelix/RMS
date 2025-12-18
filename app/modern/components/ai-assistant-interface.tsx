@@ -32,11 +32,11 @@ export default function AIAssistantInterface({
   const dialogRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const { 
-    state, 
-    actions, 
-    networkStatus, 
-    retryState 
+  const {
+    state,
+    actions,
+    networkStatus,
+    retryState
   } = useEnhancedAIAssistant(documentationContext);
 
   // Handle close with cleanup
@@ -157,7 +157,7 @@ export default function AIAssistantInterface({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const message = state.inputValue.trim();
     if (!message || state.isLoading) return;
 
@@ -167,9 +167,9 @@ export default function AIAssistantInterface({
 
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('de-DE', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -191,9 +191,9 @@ export default function AIAssistantInterface({
         }
       }}
     >
-      <div 
+      <div
         ref={dialogRef}
-        role="dialog" 
+        role="dialog"
         aria-labelledby="ai-assistant-title"
         aria-describedby="ai-assistant-description"
         aria-modal="true"
@@ -207,7 +207,7 @@ export default function AIAssistantInterface({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 id="ai-assistant-title" className="font-semibold text-foreground">Mietfluss AI Assistent</h2>
+                <h2 id="ai-assistant-title" className="font-semibold text-foreground">Mietevo AI Assistent</h2>
                 {/* Network Status Indicator */}
                 {networkStatus.isOffline && (
                   <Badge variant="destructive" className="text-xs">
@@ -223,9 +223,9 @@ export default function AIAssistantInterface({
                 )}
               </div>
               <p id="ai-assistant-description" className="text-xs text-muted-foreground">
-                {networkStatus.isOffline 
+                {networkStatus.isOffline
                   ? 'Keine Internetverbindung - Funktionen eingeschränkt'
-                  : 'Fragen Sie mich alles über Mietfluss'
+                  : 'Fragen Sie mich alles über Mietevo'
                 }
               </p>
             </div>
@@ -265,7 +265,7 @@ export default function AIAssistantInterface({
         </div>
 
         {/* Messages Area */}
-        <ScrollArea 
+        <ScrollArea
           ref={scrollAreaRef}
           className="flex-1 p-4"
           aria-label="Unterhaltungsverlauf (Alt+Pfeiltasten zum Scrollen)"
@@ -275,10 +275,10 @@ export default function AIAssistantInterface({
               <div className="text-center py-8">
                 <Bot className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-medium text-foreground mb-2">
-                  Willkommen beim Mietfluss AI Assistenten
+                  Willkommen beim Mietevo AI Assistenten
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Stellen Sie mir Fragen über Mietfluss-Funktionen, Immobilienverwaltung, 
+                  Stellen Sie mir Fragen über Mietevo-Funktionen, Immobilienverwaltung,
                   Betriebskosten oder alles andere rund um die Anwendung.
                 </p>
               </div>
@@ -300,12 +300,12 @@ export default function AIAssistantInterface({
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
-                
-                <div 
+
+                <div
                   className={cn(
                     "max-w-[80%] rounded-2xl px-4 py-3",
-                    message.role === 'user' 
-                      ? "bg-primary text-primary-foreground" 
+                    message.role === 'user'
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted border border-border"
                   )}
                   role="article"
@@ -328,8 +328,8 @@ export default function AIAssistantInterface({
                         {/* Show streaming indicator for assistant messages that are being updated */}
                         {message.role === 'assistant' && state.streamingMessageId === message.id && (
                           <div className="flex-shrink-0 mt-1">
-                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" 
-                                 title="Nachricht wird empfangen..." />
+                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"
+                              title="Nachricht wird empfangen..." />
                           </div>
                         )}
                       </div>
@@ -487,9 +487,9 @@ export default function AIAssistantInterface({
                 value={state.inputValue}
                 onChange={handleInputChange}
                 placeholder={
-                  networkStatus.isOffline 
+                  networkStatus.isOffline
                     ? "Offline - Keine AI-Anfragen möglich"
-                    : "Stellen Sie eine Frage über Mietfluss..."
+                    : "Stellen Sie eine Frage über Mietevo..."
                 }
                 disabled={state.isLoading || networkStatus.isOffline}
                 className={cn(
@@ -507,8 +507,8 @@ export default function AIAssistantInterface({
             <Button
               type="submit"
               disabled={
-                !state.inputValue.trim() || 
-                state.isLoading || 
+                !state.inputValue.trim() ||
+                state.isLoading ||
                 networkStatus.isOffline ||
                 !!state.validationError ||
                 retryState.isRetrying

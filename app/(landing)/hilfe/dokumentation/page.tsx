@@ -31,11 +31,11 @@ function DocumentationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  
+
   // AI Assistant store
-  const { 
+  const {
     switchToSearch,
-    currentMode 
+    currentMode
   } = useAIAssistantStore();
 
   // Modal store
@@ -84,13 +84,13 @@ function DocumentationContent() {
     }
   }, [state.selectedCategory, state.searchQuery]);
 
-  const updateURL = useCallback((params: { 
-    category?: string | null; 
-    article?: string | null; 
+  const updateURL = useCallback((params: {
+    category?: string | null;
+    article?: string | null;
     search?: string | null;
   }) => {
     const newParams = new URLSearchParams();
-    
+
     if (params.category) {
       newParams.set('category', params.category);
     }
@@ -108,20 +108,20 @@ function DocumentationContent() {
   const loadCategories = async () => {
     try {
       setState(prev => ({ ...prev, isLoadingCategories: true, error: null }));
-      
+
       const response = await fetch('/api/dokumentation/categories');
       if (!response.ok) {
         throw new Error(`Failed to load categories: ${response.statusText}`);
       }
-      
+
       const categories = await response.json();
       setState(prev => ({ ...prev, categories, isLoadingCategories: false }));
     } catch (error) {
       console.error('Error loading categories:', error);
-      setState(prev => ({ 
-        ...prev, 
-        isLoadingCategories: false, 
-        error: 'Fehler beim Laden der Kategorien' 
+      setState(prev => ({
+        ...prev,
+        isLoadingCategories: false,
+        error: 'Fehler beim Laden der Kategorien'
       }));
       toast({
         title: 'Fehler',
@@ -134,24 +134,24 @@ function DocumentationContent() {
   const loadArticles = async (category: string | null) => {
     try {
       setState(prev => ({ ...prev, isLoadingArticles: true, error: null }));
-      
-      const url = category 
+
+      const url = category
         ? `/api/dokumentation?kategorie=${encodeURIComponent(category)}`
         : '/api/dokumentation';
-      
+
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to load articles: ${response.statusText}`);
       }
-      
+
       const articles = await response.json();
       setState(prev => ({ ...prev, articles, isLoadingArticles: false }));
     } catch (error) {
       console.error('Error loading articles:', error);
-      setState(prev => ({ 
-        ...prev, 
-        isLoadingArticles: false, 
-        error: 'Fehler beim Laden der Artikel' 
+      setState(prev => ({
+        ...prev,
+        isLoadingArticles: false,
+        error: 'Fehler beim Laden der Artikel'
       }));
       toast({
         title: 'Fehler',
@@ -169,20 +169,20 @@ function DocumentationContent() {
 
     try {
       setState(prev => ({ ...prev, isLoadingArticles: true, error: null }));
-      
+
       const response = await fetch(`/api/dokumentation/search?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         throw new Error(`Search failed: ${response.statusText}`);
       }
-      
+
       const articles = await response.json();
       setState(prev => ({ ...prev, articles, isLoadingArticles: false }));
     } catch (error) {
       console.error('Error searching articles:', error);
-      setState(prev => ({ 
-        ...prev, 
-        isLoadingArticles: false, 
-        error: 'Fehler bei der Suche' 
+      setState(prev => ({
+        ...prev,
+        isLoadingArticles: false,
+        error: 'Fehler bei der Suche'
       }));
       toast({
         title: 'Fehler',
@@ -198,7 +198,7 @@ function DocumentationContent() {
       if (!response.ok) {
         throw new Error(`Failed to load article: ${response.statusText}`);
       }
-      
+
       const article = await response.json();
       setState(prev => ({ ...prev, selectedArticle: article }));
     } catch (error) {
@@ -213,38 +213,38 @@ function DocumentationContent() {
 
   const handleSearch = useCallback((query: string) => {
     setState(prev => ({ ...prev, searchQuery: query, selectedArticle: null }));
-    updateURL({ 
-      search: query || null, 
+    updateURL({
+      search: query || null,
       category: query ? null : state.selectedCategory,
-      article: null 
+      article: null
     });
   }, [updateURL, state.selectedCategory]);
 
   const handleCategorySelect = useCallback((category: string | null) => {
-    setState(prev => ({ 
-      ...prev, 
-      selectedCategory: category, 
+    setState(prev => ({
+      ...prev,
+      selectedCategory: category,
       selectedArticle: null,
-      searchQuery: '' 
+      searchQuery: ''
     }));
     updateURL({ category, article: null, search: null });
   }, [updateURL]);
 
   const handleArticleSelect = useCallback((article: Article) => {
     setState(prev => ({ ...prev, selectedArticle: article }));
-    updateURL({ 
-      category: state.selectedCategory, 
-      article: article.id, 
-      search: state.searchQuery || null 
+    updateURL({
+      category: state.selectedCategory,
+      article: article.id,
+      search: state.searchQuery || null
     });
   }, [updateURL, state.selectedCategory, state.searchQuery]);
 
   const handleBackToList = useCallback(() => {
     setState(prev => ({ ...prev, selectedArticle: null }));
-    updateURL({ 
-      category: state.selectedCategory, 
-      article: null, 
-      search: state.searchQuery || null 
+    updateURL({
+      category: state.selectedCategory,
+      article: null,
+      search: state.searchQuery || null
     });
   }, [updateURL, state.selectedCategory, state.searchQuery]);
 
@@ -282,9 +282,9 @@ function DocumentationContent() {
             </h1>
           </div>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-12 leading-relaxed">
-            Finden Sie Antworten auf Ihre Fragen und lernen Sie, wie Sie Mietfluss optimal nutzen können.
+            Finden Sie Antworten auf Ihre Fragen und lernen Sie, wie Sie Mietevo optimal nutzen können.
           </p>
-          
+
           {/* Large Prominent Search Bar */}
           <div className="max-w-4xl mx-auto mb-8">
             <div className="relative">
@@ -397,7 +397,7 @@ function DocumentationLoading() {
             <Skeleton className="h-12 w-64" />
           </div>
           <Skeleton className="h-6 w-96 mx-auto mb-12" />
-          
+
           {/* Large Search Bar Loading */}
           <div className="max-w-4xl mx-auto mb-8">
             <Skeleton className="h-16 w-full rounded-2xl" />
@@ -418,16 +418,16 @@ function DocumentationLoading() {
               articles={[]}
               selectedCategory={null}
               selectedArticle={null}
-              onCategorySelect={() => {}}
-              onArticleSelect={() => {}}
+              onCategorySelect={() => { }}
+              onArticleSelect={() => { }}
               isLoading={true}
             />
           </div>
-          
+
           <div className="lg:col-span-9">
             <DocumentationCategoryCards
               categories={[]}
-              onCategorySelect={() => {}}
+              onCategorySelect={() => { }}
               isLoading={true}
             />
           </div>

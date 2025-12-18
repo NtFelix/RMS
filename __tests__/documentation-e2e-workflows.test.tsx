@@ -49,9 +49,9 @@ const mockCategories = [
 const mockArticles = [
   {
     id: '1',
-    titel: 'Willkommen bei Mietfluss',
+    titel: 'Willkommen bei Mietevo',
     kategorie: 'Erste Schritte',
-    seiteninhalt: 'Dies ist eine Einführung in Mietfluss...',
+    seiteninhalt: 'Dies ist eine Einführung in Mietevo...',
     meta: {
       created_time: '2024-01-01T00:00:00Z',
       last_edited_time: '2024-01-02T00:00:00Z',
@@ -83,10 +83,10 @@ describe('Documentation E2E User Workflows', () => {
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams);
     (useToast as jest.Mock).mockReturnValue({ toast: mockToast });
-    
+
     // Reset search params
     mockSearchParams.get.mockReturnValue(null);
-    
+
     // Setup default fetch responses
     (fetch as jest.Mock).mockImplementation((url: string) => {
       if (url.includes('/api/documentation/categories')) {
@@ -114,7 +114,7 @@ describe('Documentation E2E User Workflows', () => {
   describe('Complete User Journey: Browse → Search → Read Article', () => {
     test('user can browse categories, search, and read articles', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       // 1. Initial page load - should show categories and all articles
@@ -152,11 +152,11 @@ describe('Documentation E2E User Workflows', () => {
 
       // 4. User clicks on an article
       await waitFor(() => {
-        const articleCard = screen.getByText('Willkommen bei Mietfluss');
+        const articleCard = screen.getByText('Willkommen bei Mietevo');
         expect(articleCard).toBeInTheDocument();
       });
 
-      const articleCard = screen.getByText('Willkommen bei Mietfluss').closest('[role="button"]');
+      const articleCard = screen.getByText('Willkommen bei Mietevo').closest('[role="button"]');
       if (articleCard) {
         await user.click(articleCard);
       }
@@ -172,7 +172,7 @@ describe('Documentation E2E User Workflows', () => {
   describe('Navigation and Browser History', () => {
     test('user can navigate back and forward through documentation', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -213,7 +213,7 @@ describe('Documentation E2E User Workflows', () => {
   describe('Error Handling and Recovery', () => {
     test('user can recover from API errors', async () => {
       const user = userEvent.setup();
-      
+
       // Mock API failure
       (fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
@@ -234,7 +234,7 @@ describe('Documentation E2E User Workflows', () => {
 
     test('user can retry failed operations', async () => {
       const user = userEvent.setup();
-      
+
       // Mock initial failure, then success
       (fetch as jest.Mock)
         .mockRejectedValueOnce(new Error('Network error'))
@@ -254,7 +254,7 @@ describe('Documentation E2E User Workflows', () => {
       const retryButton = screen.queryByText(/Erneut versuchen/);
       if (retryButton) {
         await user.click(retryButton);
-        
+
         // Should retry and succeed
         await waitFor(() => {
           expect(screen.getByText('Erste Schritte')).toBeInTheDocument();
@@ -266,7 +266,7 @@ describe('Documentation E2E User Workflows', () => {
   describe('Search Functionality', () => {
     test('search debouncing works correctly', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -274,10 +274,10 @@ describe('Documentation E2E User Workflows', () => {
       });
 
       const searchInput = screen.getByPlaceholderText('Dokumentation durchsuchen...');
-      
+
       // Type quickly (should be debounced)
       await user.type(searchInput, 'test');
-      
+
       // Should not immediately trigger search
       expect(fetch).not.toHaveBeenCalledWith(
         expect.stringContaining('/api/documentation/search')
@@ -293,7 +293,7 @@ describe('Documentation E2E User Workflows', () => {
 
     test('search results are highlighted correctly', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -305,7 +305,7 @@ describe('Documentation E2E User Workflows', () => {
 
       await waitFor(() => {
         // Should show search results with highlighting
-        const articleTitle = screen.getByText('Willkommen bei Mietfluss');
+        const articleTitle = screen.getByText('Willkommen bei Mietevo');
         expect(articleTitle).toBeInTheDocument();
       });
     });
@@ -335,7 +335,7 @@ describe('Documentation E2E User Workflows', () => {
   describe('Accessibility', () => {
     test('keyboard navigation works correctly', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -379,7 +379,7 @@ describe('Article Viewer Component E2E', () => {
 
   test('article sharing functionality works', async () => {
     const user = userEvent.setup();
-    
+
     // Mock navigator.share
     Object.defineProperty(navigator, 'share', {
       writable: true,
@@ -403,15 +403,15 @@ describe('Article Viewer Component E2E', () => {
     await user.click(shareButton);
 
     expect(navigator.share).toHaveBeenCalledWith({
-      title: 'Willkommen bei Mietfluss - Mietfluss Dokumentation',
-      text: 'Lesen Sie mehr über "Willkommen bei Mietfluss" in der Mietfluss Dokumentation.',
+      title: 'Willkommen bei Mietevo - Mietevo Dokumentation',
+      text: 'Lesen Sie mehr über "Willkommen bei Mietevo" in der Mietevo Dokumentation.',
       url: expect.stringContaining('/documentation/1'),
     });
   });
 
   test('article sharing fallback to clipboard works', async () => {
     const user = userEvent.setup();
-    
+
     // Mock clipboard API
     Object.defineProperty(navigator, 'clipboard', {
       writable: true,
@@ -461,7 +461,7 @@ describe('Article Viewer Component E2E', () => {
 
     // Should show breadcrumb with category
     expect(screen.getByText('Erste Schritte')).toBeInTheDocument();
-    expect(screen.getByText('Willkommen bei Mietfluss')).toBeInTheDocument();
+    expect(screen.getByText('Willkommen bei Mietevo')).toBeInTheDocument();
 
     // Click on category breadcrumb
     const categoryBreadcrumb = screen.getByText('Erste Schritte');

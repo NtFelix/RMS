@@ -195,14 +195,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
               <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
                 <Image
                   src={LOGO_URL}
-                  alt="Mietfluss Logo"
+                  alt="Mietevo Logo"
                   fill
                   className="object-cover"
                   unoptimized // Supabase images are stored as pre-optimized .avif
                 />
               </div>
               <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-                <span className="text-primary">Miet</span>fluss
+                <span className="text-primary">Miet</span>evo
               </span>
             </Link>
           </div>
@@ -218,14 +218,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
                     <Image
                       src={LOGO_URL}
-                      alt="Mietfluss Logo"
+                      alt="Mietevo Logo"
                       fill
                       className="object-cover"
                       unoptimized // Supabase images are stored as pre-optimized .avif
                     />
                   </div>
                   <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">
-                    <span className="text-primary">Miet</span>fluss
+                    <span className="text-primary">Miet</span>evo
                   </span>
                 </Link>
 
@@ -293,7 +293,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             </div>
 
                             <div className="relative z-10">
-                              <div className="font-semibold text-sm mb-1">Mietfluss erleben</div>
+                              <div className="font-semibold text-sm mb-1">Mietevo erleben</div>
                               <p className="text-xs text-muted-foreground">
                                 Starten Sie jetzt und entdecken Sie alle Funktionen in der kostenlosen Testphase.
                               </p>

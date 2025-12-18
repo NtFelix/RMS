@@ -11,7 +11,7 @@ interface ArticlePageProps {
 // Generate dynamic metadata for SEO and social sharing
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
   const { articleId } = await params;
-  
+
   try {
     const supabase = await createClient();
     const { data: article } = await supabase
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 
     if (!article) {
       return {
-        title: 'Artikel nicht gefunden | Mietfluss Dokumentation',
+        title: 'Artikel nicht gefunden | Mietevo Dokumentation',
         description: 'Der angeforderte Artikel konnte nicht gefunden werden.',
       };
     }
@@ -34,14 +34,14 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
       if (plainText.length <= maxLength) return plainText;
       const truncated = plainText.substring(0, maxLength);
       const lastSpaceIndex = truncated.lastIndexOf(' ');
-      return lastSpaceIndex > 0 
+      return lastSpaceIndex > 0
         ? truncated.substring(0, lastSpaceIndex) + '...'
         : truncated + '...';
     };
 
-    const title = `${article.titel} | Mietfluss Dokumentation`;
-    const description = getPreviewText(article.seiteninhalt) || `Erfahren Sie mehr über ${article.titel} in der Mietfluss Dokumentation.`;
-    const canonicalUrl = `https://mietfluss.de/dokumentation/${article.id}`;
+    const title = `${article.titel} | Mietevo Dokumentation`;
+    const description = getPreviewText(article.seiteninhalt) || `Erfahren Sie mehr über ${article.titel} in der Mietevo Dokumentation.`;
+    const canonicalUrl = `https://mietevo.de/dokumentation/${article.id}`;
 
     return {
       title,
@@ -51,12 +51,12 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
         description,
         url: canonicalUrl,
         type: 'article',
-        siteName: 'Mietfluss',
+        siteName: 'Mietevo',
         locale: 'de_DE',
         publishedTime: article.meta?.created_time,
         modifiedTime: article.meta?.last_edited_time,
         section: article.kategorie || undefined,
-        authors: ['Mietfluss'],
+        authors: ['Mietevo'],
       },
       twitter: {
         card: 'summary',
@@ -74,8 +74,8 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   } catch (error) {
     console.error('Error generating metadata:', error);
     return {
-      title: 'Dokumentation | Mietfluss',
-      description: 'Mietfluss Dokumentation',
+      title: 'Dokumentation | Mietevo',
+      description: 'Mietevo Dokumentation',
     };
   }
 }

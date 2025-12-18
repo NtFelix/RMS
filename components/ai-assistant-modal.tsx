@@ -74,7 +74,7 @@ export function AIAssistantModal() {
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
           <div className="flex items-center justify-between mt-3">
             <DialogTitle className="text-lg font-semibold leading-none tracking-tight">
-              Mietfluss AI Assistent
+              Mietevo AI Assistent
             </DialogTitle>
             <div className="flex items-center gap-2">
               {messages.length > 0 && (
@@ -92,7 +92,7 @@ export function AIAssistantModal() {
             </div>
           </div>
           <DialogDescription className="sr-only">
-            AI-Assistent für Fragen zu Mietfluss-Funktionen und Immobilienverwaltung
+            AI-Assistent für Fragen zu Mietevo-Funktionen und Immobilienverwaltung
           </DialogDescription>
         </DialogHeader>
 
@@ -101,16 +101,16 @@ export function AIAssistantModal() {
           <div className="space-y-4">
             {messages.length === 0 && (
               <div className="text-center py-8">
-                <img 
-                  src="/mascot/normal.png" 
-                  alt="Mietfluss AI Assistent Maskottchen" 
+                <img
+                  src="/mascot/normal.png"
+                  alt="Mietevo AI Assistent Maskottchen"
                   className="w-24 h-24 mx-auto mb-4 object-contain"
                 />
                 <h3 className="font-medium text-foreground mb-2">
-                  Willkommen beim Mietfluss AI Assistenten
+                  Willkommen beim Mietevo AI Assistenten
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Stellen Sie mir Fragen über Mietfluss-Funktionen, Immobilienverwaltung, 
+                  Stellen Sie mir Fragen über Mietevo-Funktionen, Immobilienverwaltung,
                   Betriebskosten oder alles andere rund um die Anwendung.
                 </p>
               </div>
@@ -129,19 +129,19 @@ export function AIAssistantModal() {
               >
                 {message.role === 'assistant' && (
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
-                    <img 
-                      src="/mascot/normal.png" 
-                      alt="Mietfluss Maskottchen" 
+                    <img
+                      src="/mascot/normal.png"
+                      alt="Mietevo Maskottchen"
                       className="w-full h-full object-contain"
                     />
                   </div>
                 )}
-                
-                <div 
+
+                <div
                   className={cn(
                     "max-w-[80%] rounded-2xl px-4 py-3",
-                    message.role === 'user' 
-                      ? "bg-primary text-primary-foreground" 
+                    message.role === 'user'
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted border border-border"
                   )}
                 >
@@ -172,9 +172,9 @@ export function AIAssistantModal() {
                 className="flex gap-3 justify-start"
               >
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
-                  <img 
-                    src="/mascot/normal.png" 
-                    alt="Mietfluss Maskottchen" 
+                  <img
+                    src="/mascot/normal.png"
+                    alt="Mietevo Maskottchen"
                     className="w-full h-full object-contain"
                   />
                 </div>
@@ -221,7 +221,7 @@ export function AIAssistantModal() {
                 ref={inputRef}
                 value={inputValue}
                 onChange={handleInputChange}
-                placeholder="Stellen Sie eine Frage über Mietfluss..."
+                placeholder="Stellen Sie eine Frage über Mietevo..."
                 disabled={isLoading}
                 className="border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
                 maxLength={2000}

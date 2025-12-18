@@ -21,7 +21,7 @@ describe('AI Documentation Context', () => {
       id: '1',
       titel: 'Betriebskosten verwalten',
       kategorie: 'Verwaltung',
-      seiteninhalt: 'Hier erfahren Sie, wie Sie Betriebskosten in Mietfluss verwalten können. Das System bietet umfangreiche Funktionen für die Abrechnung und Verwaltung von Nebenkosten.',
+      seiteninhalt: 'Hier erfahren Sie, wie Sie Betriebskosten in Mietevo verwalten können. Das System bietet umfangreiche Funktionen für die Abrechnung und Verwaltung von Nebenkosten.',
       meta: {}
     },
     {
@@ -35,7 +35,7 @@ describe('AI Documentation Context', () => {
       id: '3',
       titel: 'Wasserzähler ablesen',
       kategorie: 'Verwaltung',
-      seiteninhalt: 'Anleitung zum Ablesen und Verwalten von Wasserzählern in Mietfluss.',
+      seiteninhalt: 'Anleitung zum Ablesen und Verwalten von Wasserzählern in Mietevo.',
       meta: {}
     }
   ];
@@ -56,7 +56,7 @@ describe('AI Documentation Context', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCreateDocumentationService.mockReturnValue(mockDocumentationService as any);
-    
+
     // Default mock implementations
     mockDocumentationService.getAllArticles.mockResolvedValue(mockArticles);
     mockDocumentationService.searchArticles.mockResolvedValue(mockArticles.slice(0, 2));
@@ -90,7 +90,7 @@ describe('AI Documentation Context', () => {
     });
 
     it('includes current article when currentArticleId is provided', async () => {
-      const result = await fetchDocumentationContext({ 
+      const result = await fetchDocumentationContext({
         currentArticleId: '1',
         maxArticles: 2
       });
@@ -180,7 +180,7 @@ describe('AI Documentation Context', () => {
       ];
 
       const result = extractDocumentationContext(articleWithLongContent, [], { maxContentLength: 50 });
-      
+
       expect(result.articles[0].seiteninhalt).toMatch(/\.\.\.$|[^a-zA-Z]\.\.\.$/);
       expect(result.articles[0].seiteninhalt?.length).toBeLessThanOrEqual(53);
     });
@@ -228,7 +228,7 @@ describe('AI Documentation Context', () => {
       // Create more articles than the default limit
       const manyArticles = Array.from({ length: 15 }, (_, i) => ({
         id: `${i + 1}`,
-        titel: `Article ${i + 1} about Mietfluss`,
+        titel: `Article ${i + 1} about Mietevo`,
         kategorie: 'Test',
         seiteninhalt: 'Test content'
       }));
@@ -239,7 +239,7 @@ describe('AI Documentation Context', () => {
         totalArticles: 15
       };
 
-      const result = processContextForAI(largeContextData, 'Mietfluss');
+      const result = processContextForAI(largeContextData, 'Mietevo');
 
       expect(result.articles.length).toBeLessThanOrEqual(10);
     });
@@ -256,11 +256,11 @@ describe('AI Documentation Context', () => {
         ...contextData,
         articles: [
           ...contextData.articles,
-          { 
-            id: '4', 
-            titel: 'Betriebskosten Verwaltung Guide', 
-            kategorie: 'Guide', 
-            seiteninhalt: 'Complete guide for Betriebskosten Verwaltung' 
+          {
+            id: '4',
+            titel: 'Betriebskosten Verwaltung Guide',
+            kategorie: 'Guide',
+            seiteninhalt: 'Complete guide for Betriebskosten Verwaltung'
           }
         ]
       };
@@ -488,7 +488,7 @@ describe('AI Documentation Context', () => {
     it('includes additional context when provided', () => {
       const error = new Error('Test error');
       const context = { sessionId: 'test-session', failureStage: 'custom_stage' };
-      
+
       const result = categorizeAIError(error, context);
 
       expect(result.sessionId).toBe('test-session');
@@ -626,7 +626,7 @@ describe('AI Documentation Context', () => {
       ];
 
       const result = extractDocumentationContext(articleWithLongContent, [], { maxContentLength: 100 });
-      
+
       expect(result.articles[0].seiteninhalt?.length).toBeLessThanOrEqual(103); // 100 + "..."
     });
 
@@ -637,7 +637,7 @@ describe('AI Documentation Context', () => {
       ];
 
       const result = extractDocumentationContext(articlesWithNulls, mockCategories);
-      
+
       expect(result.articles).toHaveLength(2);
       expect(result.articles[0].kategorie).toBe(null);
       expect(result.articles[0].seiteninhalt).toBe(null);

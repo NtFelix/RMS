@@ -33,7 +33,7 @@ export function FAQ() {
                 <div className="text-center mb-12">
                     <h2 className="text-3xl font-bold mb-4">Häufig gestellte Fragen</h2>
                     <p className="text-muted-foreground text-lg">
-                        Hier finden Sie Antworten auf die wichtigsten Fragen zu Mietfluss.
+                        Hier finden Sie Antworten auf die wichtigsten Fragen zu Mietevo.
                     </p>
                 </div>
 

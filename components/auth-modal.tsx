@@ -176,7 +176,7 @@ export default function AuthModal({
         {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN. 
             next/image adds unnecessary overhead for small, pre-optimized images. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={LOGO_URL} alt="Mietfluss Logo" className="h-12 w-12 object-contain" />
+        <img src={LOGO_URL} alt="Mietevo Logo" className="h-12 w-12 object-contain" />
       </Link>
       <CardTitle className="text-2xl font-bold">{title}</CardTitle>
       <CardDescription>{description}</CardDescription>

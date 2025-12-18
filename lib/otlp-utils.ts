@@ -11,7 +11,7 @@ export interface LogAttributes {
 }
 
 // Configuration constants
-export const SERVICE_NAME = 'mietfluss';
+export const SERVICE_NAME = 'mietevo';
 export const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY;
 export const POSTHOG_HOST = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com';
 

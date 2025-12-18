@@ -55,9 +55,9 @@ const mockCategories = [
 const mockArticles = [
   {
     id: '1',
-    titel: 'Willkommen bei Mietfluss - Eine umfassende Einführung',
+    titel: 'Willkommen bei Mietevo - Eine umfassende Einführung',
     kategorie: 'Erste Schritte',
-    seiteninhalt: 'Dies ist eine sehr lange Einführung in Mietfluss mit vielen Details...',
+    seiteninhalt: 'Dies ist eine sehr lange Einführung in Mietevo mit vielen Details...',
     meta: { created_time: '2024-01-01T00:00:00Z' },
   },
   {
@@ -81,7 +81,7 @@ const setViewportSize = (width: number, height: number) => {
     configurable: true,
     value: height,
   });
-  
+
   // Trigger resize event
   fireEvent(window, new Event('resize'));
 };
@@ -99,7 +99,7 @@ describe('Documentation Mobile Responsiveness', () => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams);
-    
+
     // Setup default fetch responses
     (fetch as jest.Mock).mockImplementation((url: string) => {
       if (url.includes('/api/documentation/categories')) {
@@ -121,7 +121,7 @@ describe('Documentation Mobile Responsiveness', () => {
   describe('Layout Responsiveness', () => {
     test('adapts layout for mobile viewport', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -139,7 +139,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('shows proper layout for tablet viewport', async () => {
       setViewportSize(VIEWPORT_SIZES.tablet.width, VIEWPORT_SIZES.tablet.height);
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -153,7 +153,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('shows desktop layout for large screens', async () => {
       setViewportSize(VIEWPORT_SIZES.desktop.width, VIEWPORT_SIZES.desktop.height);
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -169,7 +169,7 @@ describe('Documentation Mobile Responsiveness', () => {
   describe('Touch Interactions', () => {
     test('handles touch events on mobile category buttons', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       const user = userEvent.setup();
       render(<DocumentationPage />);
 
@@ -179,7 +179,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
       // Simulate touch interaction
       const categoryButton = screen.getByRole('button', { name: /Erste Schritte/i });
-      
+
       // Touch events
       fireEvent.touchStart(categoryButton);
       fireEvent.touchEnd(categoryButton);
@@ -193,7 +193,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('handles swipe gestures for navigation', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(
         <DocumentationArticleViewer
           article={mockArticles[0]}
@@ -202,8 +202,8 @@ describe('Documentation Mobile Responsiveness', () => {
         />
       );
 
-      const articleContainer = screen.getByText('Willkommen bei Mietfluss').closest('.container');
-      
+      const articleContainer = screen.getByText('Willkommen bei Mietevo').closest('.container');
+
       // Simulate swipe right gesture (back navigation)
       if (articleContainer) {
         fireEvent.touchStart(articleContainer, {
@@ -224,7 +224,7 @@ describe('Documentation Mobile Responsiveness', () => {
   describe('Text and Content Readability', () => {
     test('text remains readable on small screens', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(
         <DocumentationArticleViewer
           article={mockArticles[0]}
@@ -233,7 +233,7 @@ describe('Documentation Mobile Responsiveness', () => {
       );
 
       // Check that text content is properly sized
-      const articleTitle = screen.getByText('Willkommen bei Mietfluss - Eine umfassende Einführung');
+      const articleTitle = screen.getByText('Willkommen bei Mietevo - Eine umfassende Einführung');
       expect(articleTitle).toHaveClass('text-2xl', 'font-bold', 'leading-tight');
 
       // Content should be in a readable container
@@ -243,7 +243,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('long titles are properly truncated on mobile', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(
         <DocumentationCategories
           categories={mockCategories}
@@ -265,7 +265,7 @@ describe('Documentation Mobile Responsiveness', () => {
   describe('Search Functionality on Mobile', () => {
     test('search input is properly sized on mobile', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -279,7 +279,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('search results are properly displayed on mobile', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       const user = userEvent.setup();
       render(<DocumentationPage />);
 
@@ -302,7 +302,7 @@ describe('Documentation Mobile Responsiveness', () => {
   describe('Navigation and Breadcrumbs on Mobile', () => {
     test('breadcrumbs are responsive on mobile', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(
         <DocumentationArticleViewer
           article={mockArticles[0]}
@@ -318,7 +318,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('back navigation is easily accessible on mobile', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       const mockOnBack = jest.fn();
       render(
         <DocumentationArticleViewer
@@ -329,7 +329,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
       const backButton = screen.getByRole('button', { name: /Zurück zur Übersicht/i });
       expect(backButton).toBeInTheDocument();
-      
+
       // Button should be easily tappable (minimum 44px touch target)
       const buttonStyles = window.getComputedStyle(backButton);
       expect(backButton).toHaveClass('gap-2');
@@ -339,7 +339,7 @@ describe('Documentation Mobile Responsiveness', () => {
   describe('Article List Responsiveness', () => {
     test('article cards stack properly on mobile', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(
         <DocumentationArticleList
           articles={mockArticles}
@@ -358,7 +358,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('article content is readable on mobile', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(
         <DocumentationArticleList
           articles={mockArticles}
@@ -367,7 +367,7 @@ describe('Documentation Mobile Responsiveness', () => {
       );
 
       // Check that article titles are properly sized
-      const articleTitle = screen.getByText('Willkommen bei Mietfluss - Eine umfassende Einführung');
+      const articleTitle = screen.getByText('Willkommen bei Mietevo - Eine umfassende Einführung');
       expect(articleTitle).toHaveClass('text-lg', 'font-semibold', 'leading-tight');
     });
   });
@@ -375,7 +375,7 @@ describe('Documentation Mobile Responsiveness', () => {
   describe('Performance on Mobile Devices', () => {
     test('virtual scrolling works on mobile with many articles', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       // Create many articles to test virtual scrolling
       const manyArticles = Array.from({ length: 100 }, (_, i) => ({
         id: `article-${i}`,
@@ -399,7 +399,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('images and media are responsive', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       const articleWithMedia = {
         ...mockArticles[0],
         seiteninhalt: '<img src="test.jpg" alt="Test image" /> Some content with an image'
@@ -421,7 +421,7 @@ describe('Documentation Mobile Responsiveness', () => {
   describe('Accessibility on Mobile', () => {
     test('touch targets meet minimum size requirements', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -439,7 +439,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('focus management works with touch navigation', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       const user = userEvent.setup();
       render(<DocumentationPage />);
 
@@ -462,7 +462,7 @@ describe('Documentation Mobile Responsiveness', () => {
     test('handles portrait to landscape orientation change', async () => {
       // Start in portrait
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -479,7 +479,7 @@ describe('Documentation Mobile Responsiveness', () => {
 
     test('maintains scroll position during orientation change', async () => {
       setViewportSize(VIEWPORT_SIZES.mobile.width, VIEWPORT_SIZES.mobile.height);
-      
+
       render(
         <DocumentationArticleViewer
           article={mockArticles[0]}
@@ -494,7 +494,7 @@ describe('Documentation Mobile Responsiveness', () => {
       setViewportSize(VIEWPORT_SIZES.mobile.height, VIEWPORT_SIZES.mobile.width);
 
       // Content should still be accessible
-      expect(screen.getByText('Willkommen bei Mietfluss - Eine umfassende Einführung')).toBeInTheDocument();
+      expect(screen.getByText('Willkommen bei Mietevo - Eine umfassende Einführung')).toBeInTheDocument();
     });
   });
 });
