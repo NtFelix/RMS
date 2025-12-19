@@ -28,9 +28,9 @@ import { useTemplateAccessibility } from '@/hooks/use-template-accessibility';
 import { TEMPLATE_CATEGORIES } from '@/lib/template-constants';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { Template, TemplatePayload } from '@/types/template';
-import { 
-  FileText, 
-  Plus, 
+import {
+  FileText,
+  Plus,
   Filter,
   AlertCircle,
   Loader2
@@ -48,7 +48,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
   const [isCreating, setIsCreating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { 
+  const {
     openConfirmationModal,
     closeConfirmationModal,
     openTemplateEditorModal,
@@ -58,7 +58,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
     setTemplatesModalDirty,
     isTemplatesModalDirty,
   } = useModalStore();
-  
+
   const {
     templates,
     loading,
@@ -154,7 +154,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
             title: 'Erfolg',
             description: 'Vorlage wurde erfolgreich gelöscht.',
           });
-          
+
           // Close the confirmation modal after a brief delay to show success
           setTimeout(() => {
             closeConfirmationModal();
@@ -166,7 +166,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
             description: 'Fehler beim Löschen der Vorlage.',
             variant: 'destructive',
           });
-          
+
           // Close the confirmation modal even on error
           closeConfirmationModal();
         } finally {
@@ -180,7 +180,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
   const handleSaveTemplate = async (templateData: Partial<Template>) => {
     const currentTemplate = templateEditorData?.template;
     const templateId = (templateData as any).id || currentTemplate?.id;
-    
+
     try {
       if (!templateId) {
         setIsCreating(true);
@@ -212,15 +212,15 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
       closeTemplateEditorModal({ force: true });
     } catch (error) {
       console.error('Error saving template:', error);
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      
+
       toast({
         title: 'Fehler',
         description: errorMessage,
         variant: 'destructive',
       });
-      
+
       // Re-throw to let the modal handle it
       throw error;
     } finally {
@@ -301,7 +301,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
   // Render loading skeleton
   const renderLoadingSkeleton = () => (
     <div className="px-1">
-      <div 
+      <div
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
         role="status"
         aria-label={ARIA_LABELS.loadingTemplates}
@@ -326,7 +326,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
 
   // Render error state
   const renderError = () => (
-    <div 
+    <div
       className="flex flex-col items-center justify-center py-12 text-center"
       role="alert"
       aria-labelledby={`${modalId}-error-title`}
@@ -339,8 +339,8 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
       <p id={`${modalId}-error-description`} className="text-muted-foreground mb-4">
         {error}
       </p>
-      <Button 
-        onClick={refreshTemplates} 
+      <Button
+        onClick={refreshTemplates}
         variant="outline"
         aria-label="Vorlagen erneut laden"
       >
@@ -367,7 +367,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
           Filter zurücksetzen
         </Button>
       ) : (
-        <Button 
+        <Button
           onClick={handleCreateTemplate}
           disabled={isCreating}
           className="min-w-[180px]"
@@ -392,7 +392,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
   // Render template groups
   const renderTemplateGroups = () => {
     const categories = Object.keys(groupedTemplates).sort();
-    
+
     if (categories.length === 0) {
       return renderEmptyState();
     }
@@ -402,28 +402,28 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
         {categories.map((category) => (
           <div key={category} className="space-y-4">
             <div className="flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur-sm py-2 -mx-1 px-1 z-10">
-              <h3 
+              <h3
                 className="text-lg font-medium"
                 id={`${modalId}-category-${category}`}
               >
                 {category}
               </h3>
-              <Badge 
-                variant="secondary" 
+              <Badge
+                variant="secondary"
                 className="text-xs"
                 aria-label={`${groupedTemplates[category].length} Vorlagen in Kategorie ${category}`}
               >
                 {groupedTemplates[category].length}
               </Badge>
             </div>
-            <div 
+            <div
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
               role="grid"
               aria-labelledby={`${modalId}-category-${category}`}
             >
               {groupedTemplates[category].map((template, index) => (
-                <div 
-                  key={template.id} 
+                <div
+                  key={template.id}
                   className="relative min-h-0"
                   role="gridcell"
                   aria-rowindex={Math.floor(index / 4) + 1}
@@ -435,7 +435,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
                     onDelete={handleDeleteTemplate}
                   />
                   {isDeleting === template.id && (
-                    <div 
+                    <div
                       className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-20"
                       role="status"
                       aria-label={ARIA_LABELS.deletingTemplate}
@@ -456,7 +456,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent 
+        <DialogContent
           id={modalId}
           className="max-w-[98vw] sm:max-w-6xl lg:max-w-7xl h-[95vh] min-h-[95vh] max-h-[95vh] overflow-hidden flex flex-col"
           isDirty={isTemplatesModalDirty}
@@ -466,7 +466,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
           aria-describedby={`${modalId}-description`}
         >
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle 
+            <DialogTitle
               id={`${modalId}-title`}
               className="flex items-center gap-2"
             >
@@ -501,22 +501,24 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
                 </div>
 
                 {/* Category Filter - Medium width */}
-                <div className="flex items-center gap-1 min-w-0">
-                  <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0 hidden sm:block" aria-hidden="true" />
+                <div className="min-w-0">
                   <div className="relative w-[140px] sm:w-[180px] min-w-0">
-                    <Select 
-                      value={selectedCategory || 'all'} 
+                    <Select
+                      value={selectedCategory || 'all'}
                       onValueChange={(value) => {
                         setSelectedCategory(value);
                         announceFilterApplied(value === 'all' ? templates.length : filteredTemplates.length);
                       }}
                     >
-                      <SelectTrigger 
+                      <SelectTrigger
                         className="w-full focus-visible:scale-100 focus:ring-2 focus:ring-offset-1 focus:ring-offset-background text-sm"
                         aria-label={ARIA_LABELS.categoryFilter}
                         aria-expanded={false}
                       >
-                        <SelectValue placeholder="Alle Kategorien" />
+                        <div className="flex items-center gap-2">
+                          <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                          <SelectValue placeholder="Alle Kategorien" />
+                        </div>
                       </SelectTrigger>
                       <SelectContent className="z-50 min-w-[200px]">
                         <SelectItem value="all">Alle Kategorien</SelectItem>
@@ -531,9 +533,9 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
                 </div>
 
                 {/* Create Button - Fixed width */}
-                <Button 
+                <Button
                   data-create-template-button
-                  onClick={handleCreateTemplate} 
+                  onClick={handleCreateTemplate}
                   className="flex-shrink-0 min-w-[100px] sm:min-w-[120px]"
                   disabled={isCreating || loading}
                   aria-label={ARIA_LABELS.createTemplateButton}
@@ -593,7 +595,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
 
               {/* Results Count */}
               {!loading && !error && (
-                <div 
+                <div
                   className="text-sm text-muted-foreground pt-2"
                   role="status"
                   aria-live="polite"
@@ -605,7 +607,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
             </div>
 
             {/* Content */}
-            <div 
+            <div
               className="flex-1 overflow-y-auto pt-6 pb-4"
               role="region"
               aria-label={ARIA_LABELS.templatesList}
