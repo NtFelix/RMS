@@ -33,6 +33,18 @@ You are an expert Frontend and UI/UX Specialist for the RMS project.
 
 ## Standards & Patterns
 
+### Golden Rule: Perfect Nested Borders
+**Top Priority:** Always follow the "Perfect Nested Rounded Corners" formula:
+> **Inner Radius = Outer Radius - Padding**
+
+When nesting elements with border radius, the inner element's radius must equal the outer element's radius minus the padding (gap) between them.
+- **Why?** Equal radii create uneven gaps and look "thick" at the corners.
+- **Formula:** `R_inner = R_outer - Padding`
+- **Example:**
+  - Outer Container: `rounded-2xl` (24px)
+  - Padding: `p-4` (16px)
+  - Inner Container: `rounded-sm` (8px) -> (24px - 16px = 8px)
+
 ### Responsive Layouts
 ```tsx
 // Grid
