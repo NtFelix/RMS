@@ -50,9 +50,9 @@ const mockCategories = [
 const mockArticles = [
   {
     id: '1',
-    titel: 'Willkommen bei Mietfluss',
+    titel: 'Willkommen bei Mietevo',
     kategorie: 'Erste Schritte',
-    seiteninhalt: 'Dies ist eine Einführung in Mietfluss...',
+    seiteninhalt: 'Dies ist eine Einführung in Mietevo...',
     meta: { created_time: '2024-01-01T00:00:00Z' },
   },
   {
@@ -70,11 +70,11 @@ describe('Documentation Navigation Integration', () => {
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams);
     (useParams as jest.Mock).mockReturnValue({ articleId: '1' });
-    
+
     // Reset search params
     mockSearchParams.get.mockReturnValue(null);
     mockSearchParams.toString.mockReturnValue('');
-    
+
     // Setup default fetch responses
     (fetch as jest.Mock).mockImplementation((url: string) => {
       if (url.includes('/api/documentation/categories')) {
@@ -128,7 +128,7 @@ describe('Documentation Navigation Integration', () => {
 
     test('updates URL when category is selected', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -146,7 +146,7 @@ describe('Documentation Navigation Integration', () => {
 
     test('updates URL when search is performed', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -166,14 +166,14 @@ describe('Documentation Navigation Integration', () => {
 
     test('updates URL when article is selected', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Willkommen bei Mietfluss')).toBeInTheDocument();
+        expect(screen.getByText('Willkommen bei Mietevo')).toBeInTheDocument();
       });
 
-      const articleCard = screen.getByText('Willkommen bei Mietfluss').closest('[role="button"]');
+      const articleCard = screen.getByText('Willkommen bei Mietevo').closest('[role="button"]');
       if (articleCard) {
         await user.click(articleCard);
       }
@@ -186,7 +186,7 @@ describe('Documentation Navigation Integration', () => {
 
     test('clears conflicting URL parameters correctly', async () => {
       const user = userEvent.setup();
-      
+
       // Start with search query
       mockSearchParams.get.mockImplementation((param: string) => {
         if (param === 'search') return 'existing search';
@@ -213,7 +213,7 @@ describe('Documentation Navigation Integration', () => {
   describe('Browser History Integration', () => {
     test('handles browser back button correctly', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -246,7 +246,7 @@ describe('Documentation Navigation Integration', () => {
 
     test('maintains scroll position during navigation', async () => {
       const user = userEvent.setup();
-      
+
       // Mock scroll position
       Object.defineProperty(window, 'scrollY', {
         value: 200,
@@ -276,7 +276,7 @@ describe('Documentation Navigation Integration', () => {
 
       await waitFor(() => {
         expect(fetch).toHaveBeenCalledWith('/api/documentation/1');
-        expect(screen.getByText('Willkommen bei Mietfluss')).toBeInTheDocument();
+        expect(screen.getByText('Willkommen bei Mietevo')).toBeInTheDocument();
       });
     });
 
@@ -334,19 +334,19 @@ describe('Documentation Navigation Integration', () => {
     test('renders correct breadcrumbs for category navigation', () => {
       const breadcrumbItems = [
         { label: 'Erste Schritte', onClick: jest.fn() },
-        { label: 'Willkommen bei Mietfluss' },
+        { label: 'Willkommen bei Mietevo' },
       ];
 
       render(<DocumentationBreadcrumb items={breadcrumbItems} />);
 
       expect(screen.getByText('Erste Schritte')).toBeInTheDocument();
-      expect(screen.getByText('Willkommen bei Mietfluss')).toBeInTheDocument();
+      expect(screen.getByText('Willkommen bei Mietevo')).toBeInTheDocument();
     });
 
     test('renders correct breadcrumbs for search navigation', () => {
       const breadcrumbItems = [
         { label: 'Suchergebnisse für "test"', onClick: jest.fn() },
-        { label: 'Willkommen bei Mietfluss' },
+        { label: 'Willkommen bei Mietevo' },
       ];
 
       render(<DocumentationBreadcrumb items={breadcrumbItems} />);
@@ -357,7 +357,7 @@ describe('Documentation Navigation Integration', () => {
     test('breadcrumb clicks trigger correct navigation', async () => {
       const user = userEvent.setup();
       const mockOnClick = jest.fn();
-      
+
       const breadcrumbItems = [
         { label: 'Erste Schritte', onClick: mockOnClick },
         { label: 'Current Article' },
@@ -373,7 +373,7 @@ describe('Documentation Navigation Integration', () => {
 
     test('home breadcrumb navigates to documentation root', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationBreadcrumb items={[{ label: 'Test Article' }]} />);
 
       const homeButton = screen.getByRole('button', { name: /Zur Dokumentation Startseite/i });
@@ -413,7 +413,7 @@ describe('Documentation Navigation Integration', () => {
 
     test('handles rapid navigation changes correctly', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -438,7 +438,7 @@ describe('Documentation Navigation Integration', () => {
   describe('Error Handling in Navigation', () => {
     test('handles navigation errors gracefully', async () => {
       const user = userEvent.setup();
-      
+
       // Mock router error
       mockRouter.replace.mockRejectedValue(new Error('Navigation failed'));
 
@@ -480,7 +480,7 @@ describe('Documentation Navigation Integration', () => {
     test('supports keyboard navigation through breadcrumbs', async () => {
       const user = userEvent.setup();
       const mockOnClick = jest.fn();
-      
+
       const breadcrumbItems = [
         { label: 'Category', onClick: mockOnClick },
         { label: 'Article' },
@@ -504,7 +504,7 @@ describe('Documentation Navigation Integration', () => {
 
     test('supports keyboard navigation in main documentation page', async () => {
       const user = userEvent.setup();
-      
+
       render(<DocumentationPage />);
 
       await waitFor(() => {
@@ -541,7 +541,7 @@ describe('Documentation Navigation Integration', () => {
       });
 
       const categoryButton = screen.getByRole('button', { name: /Erste Schritte/i });
-      
+
       // Simulate touch events
       fireEvent.touchStart(categoryButton);
       fireEvent.touchEnd(categoryButton);

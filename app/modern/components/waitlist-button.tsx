@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
+import { BRAND_NAME } from '@/lib/constants';
 
 export function WaitlistButton() {
     const posthog = usePostHog();
@@ -97,7 +98,7 @@ export function WaitlistButton() {
                 // 3. Send the single "survey sent" event with the rich payload
                 posthog.capture("survey sent", {
                     $survey_id: surveyID,
-                    $survey_name: "Warteliste Mietfluss",
+                    $survey_name: `Warteliste ${BRAND_NAME}`,
                     $survey_response: "submitted", // Main status
                     $survey_questions: surveyQuestions, // Full detail array
                     ...responseProperties // Individual response properties
@@ -205,7 +206,7 @@ export function WaitlistButton() {
             <Dialog open={isOpen} onOpenChange={handleClose}>
                 <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Warteliste Mietfluss</DialogTitle>
+                        <DialogTitle>Warteliste {BRAND_NAME}</DialogTitle>
                         <DialogDescription>
                             Melden Sie sich jetzt an, um als Erster Zugang zu erhalten.
                         </DialogDescription>

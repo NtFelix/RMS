@@ -32,9 +32,9 @@ global.ReadableStream = class ReadableStream {
   constructor(underlyingSource: any) {
     this.underlyingSource = underlyingSource;
   }
-  
+
   underlyingSource: any;
-  
+
   getReader() {
     return {
       read: async () => {
@@ -59,18 +59,18 @@ global.Response = class Response {
     this.statusText = init?.statusText || 'OK';
     this.headers = new Map(Object.entries(init?.headers || {}));
   }
-  
+
   body: any;
   status: number;
   statusText: string;
   headers: Map<string, string>;
-  
+
   ok = this.status >= 200 && this.status < 300;
-  
+
   async json() {
     return JSON.parse(this.body);
   }
-  
+
   async text() {
     return this.body;
   }
@@ -98,13 +98,13 @@ const mockDocumentationContext = {
       id: '1',
       titel: 'Mieter verwalten',
       kategorie: 'Mieterverwaltung',
-      seiteninhalt: 'Hier erfahren Sie, wie Sie Mieter in Mietfluss verwalten können.',
+      seiteninhalt: 'Hier erfahren Sie, wie Sie Mieter in Mietevo verwalten können.',
     },
     {
       id: '2',
       titel: 'Betriebskosten abrechnen',
       kategorie: 'Finanzen',
-      seiteninhalt: 'Anleitung zur Betriebskostenabrechnung in Mietfluss.',
+      seiteninhalt: 'Anleitung zur Betriebskostenabrechnung in Mietevo.',
     },
   ],
   categories: [
@@ -117,7 +117,7 @@ const createMockStreamingResponse = (content: string, shouldError = false) => {
   if (shouldError) {
     return Promise.reject(new Error('Streaming error'));
   }
-  
+
   return Promise.resolve({
     ok: true,
     status: 200,
@@ -134,7 +134,7 @@ describe('AI Search Assistant - End-to-End Tests', () => {
     jest.clearAllMocks();
     mockFetch.mockClear();
     mockPostHogCapture.mockClear();
-    
+
     // Reset Zustand store
     useAIAssistantStore.getState().closeAI();
     useAIAssistantStore.getState().clearMessages();
@@ -143,8 +143,8 @@ describe('AI Search Assistant - End-to-End Tests', () => {
   describe('1. Real Gemini API Integration Tests', () => {
     it('should successfully send request to Gemini API with proper configuration', async () => {
       const user = userEvent.setup();
-      const mockResponse = 'Hallo! Ich bin Ihr Mietfluss AI-Assistent. Wie kann ich Ihnen helfen?';
-      
+      const mockResponse = 'Hallo! Ich bin Ihr Mietevo AI-Assistent. Wie kann ich Ihnen helfen?';
+
       mockFetch.mockResolvedValueOnce(createMockStreamingResponse(mockResponse));
 
       const mockOnClose = jest.fn();
@@ -186,7 +186,7 @@ describe('AI Search Assistant - End-to-End Tests', () => {
     it('should handle streaming responses correctly', async () => {
       const user = userEvent.setup();
       const mockResponse = 'Um einen neuen Mieter hinzuzufügen, gehen Sie zu Mieter > Neuer Mieter.';
-      
+
       mockFetch.mockResolvedValueOnce(createMockStreamingResponse(mockResponse));
 
       const mockOnClose = jest.fn();
@@ -250,7 +250,7 @@ describe('AI Search Assistant - End-to-End Tests', () => {
   describe('2. PostHog Analytics Event Tracking', () => {
     it('should track ai_assistant_opened event when opening AI interface', async () => {
       const { openAI } = useAIAssistantStore.getState();
-      
+
       act(() => {
         openAI();
       });
@@ -266,7 +266,7 @@ describe('AI Search Assistant - End-to-End Tests', () => {
 
     it('should track ai_assistant_closed event with session metrics', async () => {
       const { openAI, closeAI, addMessage } = useAIAssistantStore.getState();
-      
+
       // Open AI and add some messages
       act(() => {
         openAI();
@@ -500,15 +500,15 @@ describe('AI Search Assistant - End-to-End Tests', () => {
       );
 
       // Verify German UI elements
-      expect(screen.getByText('Mietfluss AI Assistent')).toBeInTheDocument();
-      expect(screen.getByText('Fragen Sie mich alles über Mietfluss')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/Stellen Sie eine Frage über Mietfluss/i)).toBeInTheDocument();
-      expect(screen.getByText(/Willkommen beim Mietfluss AI Assistenten/i)).toBeInTheDocument();
+      expect(screen.getByText('Mietevo AI Assistent')).toBeInTheDocument();
+      expect(screen.getByText('Fragen Sie mich alles über Mietevo')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Stellen Sie eine Frage über Mietevo/i)).toBeInTheDocument();
+      expect(screen.getByText(/Willkommen beim Mietevo AI Assistenten/i)).toBeInTheDocument();
     });
 
     it('should handle German input correctly', async () => {
       const user = userEvent.setup();
-      const germanResponse = 'Um Betriebskosten zu verwalten, navigieren Sie zum Betriebskosten-Bereich in Mietfluss.';
+      const germanResponse = 'Um Betriebskosten zu verwalten, navigieren Sie zum Betriebskosten-Bereich in Mietevo.';
       mockFetch.mockResolvedValueOnce(createMockStreamingResponse(germanResponse));
 
       render(
@@ -520,7 +520,7 @@ describe('AI Search Assistant - End-to-End Tests', () => {
       );
 
       const input = screen.getByPlaceholderText(/Stellen Sie eine Frage/i);
-      const germanQuestion = 'Wie verwalte ich Betriebskosten in Mietfluss?';
+      const germanQuestion = 'Wie verwalte ich Betriebskosten in Mietevo?';
       await user.type(input, germanQuestion);
 
       const sendButton = screen.getByRole('button', { name: /Nachricht senden/i });
@@ -628,8 +628,8 @@ describe('AI Search Assistant - End-to-End Tests', () => {
     it('should handle complete user journey from search to AI and back', async () => {
       const user = userEvent.setup();
       const mockOnSearch = jest.fn();
-      const germanResponse = 'Hier ist eine detaillierte Antwort über Mietfluss-Funktionen.';
-      
+      const germanResponse = 'Hier ist eine detaillierte Antwort über Mietevo-Funktionen.';
+
       mockFetch.mockResolvedValueOnce(createMockStreamingResponse(germanResponse));
 
       // Render both components
@@ -667,11 +667,11 @@ describe('AI Search Assistant - End-to-End Tests', () => {
 
       // 3. AI interface should be open
       await waitFor(() => {
-        expect(screen.getByText('Mietfluss AI Assistent')).toBeInTheDocument();
+        expect(screen.getByText('Mietevo AI Assistent')).toBeInTheDocument();
       });
 
       // 4. Ask a question in AI
-      const aiInput = screen.getByPlaceholderText(/Stellen Sie eine Frage über Mietfluss/i);
+      const aiInput = screen.getByPlaceholderText(/Stellen Sie eine Frage über Mietevo/i);
       await user.type(aiInput, 'Wie funktioniert die Mieterverwaltung?');
 
       const sendButton = screen.getByRole('button', { name: /Nachricht senden/i });
@@ -688,7 +688,7 @@ describe('AI Search Assistant - End-to-End Tests', () => {
 
       // 7. Verify back to search mode
       await waitFor(() => {
-        expect(screen.queryByText('Mietfluss AI Assistent')).not.toBeInTheDocument();
+        expect(screen.queryByText('Mietevo AI Assistent')).not.toBeInTheDocument();
       });
     });
 
@@ -774,7 +774,7 @@ describe('AI Search Assistant - End-to-End Tests', () => {
     it('should handle long responses without performance issues', async () => {
       const user = userEvent.setup();
       const longResponse = 'Dies ist eine sehr lange Antwort. '.repeat(100);
-      
+
       mockFetch.mockResolvedValueOnce(createMockStreamingResponse(longResponse));
 
       render(

@@ -53,13 +53,13 @@ export default function NotFound() {
           <div className="relative w-8 h-8 rounded-full overflow-hidden">
             <Image
               src={LOGO_URL}
-              alt="Mietfluss Logo"
+              alt="Mietevo Logo"
               fill
               className="object-cover"
               unoptimized // Supabase images are stored as pre-optimized .avif
             />
           </div>
-          <span className="text-lg">Mietfluss</span>
+          <span className="text-lg">Mietevo</span>
         </Link>
       </header>
 

@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import { Github, Twitter, Linkedin, Mail } from "lucide-react"
 import Link from "next/link"
 import { CONTACT_EMAIL } from "@/constants"
+import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME } from "@/lib/constants"
 
 const footerLinks = {
   Unternehmen: [
@@ -44,7 +45,7 @@ const specialLinks: Record<string, { href: string; text: string }> = {
 
 const socialLinks = [
   { icon: Github, href: "#", label: "GitHub" },
-  { icon: Twitter, href: "https://x.com/Mietfluss", label: "X (formerly Twitter)" },
+  { icon: Twitter, href: "https://x.com/Mietevo", label: "X (formerly Twitter)" },
   { icon: Linkedin, href: "#", label: "LinkedIn" },
   { icon: Mail, href: `mailto:${CONTACT_EMAIL}`, label: "Email" },
 ]
@@ -75,7 +76,7 @@ export default function Footer() {
               viewport={{ once: true }}
             >
               <h3 className="text-2xl font-bold text-foreground mb-4">
-                <span className="text-primary">Miet</span>fluss
+                <span className="text-primary">{BRAND_NAME_PART_1}</span>{BRAND_NAME_PART_2}
               </h3>
               <p className="text-muted-foreground leading-relaxed mb-6">
                 Die moderne Lösung für Ihre Mietverwaltung und Nebenkostenabrechnung.
@@ -141,7 +142,7 @@ export default function Footer() {
           viewport={{ once: true }}
           className="pt-8 border-t border-border flex flex-col justify-center items-center text-center gap-3"
         >
-          <p className="text-muted-foreground text-sm">© 2025 Mietfluss. Alle Rechte vorbehalten.</p>
+          <p className="text-muted-foreground text-sm">© 2025 {BRAND_NAME}. Alle Rechte vorbehalten.</p>
           <p className="text-muted-foreground/70 text-sm">Entwickelt, um die Mietverwaltung für alle zu vereinfachen.</p>
         </motion.div>
       </div>

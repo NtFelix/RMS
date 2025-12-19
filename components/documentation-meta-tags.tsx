@@ -11,43 +11,43 @@ interface DocumentationMetaTagsProps {
 
 function getPreviewText(content: string | null, maxLength: number = 160): string {
   if (!content) return '';
-  
+
   // Remove HTML tags and normalize whitespace
   const plainText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  
+
   if (plainText.length <= maxLength) return plainText;
-  
+
   // Find the last complete word within the limit
   const truncated = plainText.substring(0, maxLength);
   const lastSpaceIndex = truncated.lastIndexOf(' ');
-  
-  return lastSpaceIndex > 0 
+
+  return lastSpaceIndex > 0
     ? truncated.substring(0, lastSpaceIndex) + '...'
     : truncated + '...';
 }
 
-export function DocumentationMetaTags({ 
-  article, 
-  category, 
-  searchQuery 
+export function DocumentationMetaTags({
+  article,
+  category,
+  searchQuery
 }: DocumentationMetaTagsProps) {
   // Generate dynamic meta content based on context
-  let title = 'Dokumentation | Mietfluss';
-  let description = 'Umfassende Dokumentation und Hilfe für die Mietfluss Plattform';
-  let canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/hilfe/dokumentation`;
+  let title = 'Dokumentation | Mietevo';
+  let description = 'Umfassende Dokumentation und Hilfe für die Mietevo Plattform';
+  let canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietevo.de'}/hilfe/dokumentation`;
 
   if (article) {
-    title = `${article.titel} | Mietfluss Dokumentation`;
-    description = getPreviewText(article.seiteninhalt) || `Erfahren Sie mehr über ${article.titel} in der Mietfluss Dokumentation.`;
-    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/hilfe/dokumentation/${article.id}`;
+    title = `${article.titel} | Mietevo Dokumentation`;
+    description = getPreviewText(article.seiteninhalt) || `Erfahren Sie mehr über ${article.titel} in der Mietevo Dokumentation.`;
+    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietevo.de'}/hilfe/dokumentation/${article.id}`;
   } else if (searchQuery) {
-    title = `Suchergebnisse für "${searchQuery}" | Mietfluss Dokumentation`;
-    description = `Finden Sie Antworten zu "${searchQuery}" in der Mietfluss Dokumentation.`;
-    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/hilfe/dokumentation?search=${encodeURIComponent(searchQuery)}`;
+    title = `Suchergebnisse für "${searchQuery}" | Mietevo Dokumentation`;
+    description = `Finden Sie Antworten zu "${searchQuery}" in der Mietevo Dokumentation.`;
+    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietevo.de'}/hilfe/dokumentation?search=${encodeURIComponent(searchQuery)}`;
   } else if (category) {
-    title = `${category} | Mietfluss Dokumentation`;
-    description = `Alle Artikel in der Kategorie "${category}" der Mietfluss Dokumentation.`;
-    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietfluss.de'}/hilfe/dokumentation?category=${encodeURIComponent(category)}`;
+    title = `${category} | Mietevo Dokumentation`;
+    description = `Alle Artikel in der Kategorie "${category}" der Mietevo Dokumentation.`;
+    canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mietevo.de'}/hilfe/dokumentation?category=${encodeURIComponent(category)}`;
   }
 
   return (
@@ -62,7 +62,7 @@ export function DocumentationMetaTags({
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:type" content={article ? 'article' : 'website'} />
-      <meta property="og:site_name" content="Mietfluss" />
+      <meta property="og:site_name" content="Mietevo" />
       <meta property="og:locale" content="de_DE" />
 
       {/* Twitter Card Tags */}
@@ -74,7 +74,7 @@ export function DocumentationMetaTags({
       {/* Article-specific meta tags */}
       {article && (
         <>
-          <meta property="article:author" content="Mietfluss" />
+          <meta property="article:author" content="Mietevo" />
           {article.kategorie && (
             <meta property="article:section" content={article.kategorie} />
           )}
@@ -89,7 +89,7 @@ export function DocumentationMetaTags({
 
       {/* Additional SEO tags */}
       <meta name="robots" content="index, follow" />
-      <meta name="author" content="Mietfluss" />
+      <meta name="author" content="Mietevo" />
       <meta name="language" content="de" />
     </Head>
   );

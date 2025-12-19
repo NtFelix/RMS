@@ -96,9 +96,9 @@ export default function ResetPasswordPage() {
               {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN. 
                   next/image adds unnecessary overhead for small, pre-optimized images. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={LOGO_URL} alt="Mietfluss Logo" className="h-8 w-8 object-contain" />
+              <img src={LOGO_URL} alt="Mietevo Logo" className="h-8 w-8 object-contain" />
             </div>
-            <span className="text-white font-semibold text-lg">Mietfluss</span>
+            <span className="text-white font-semibold text-lg">Mietevo</span>
           </Link>
 
           {/* Hero content */}

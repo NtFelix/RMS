@@ -292,10 +292,10 @@ function SidebarContent({
               variants={textVariants}
               className="text-lg whitespace-nowrap"
             >
-              Mietfluss
+              Mietevo
             </motion.span>
           )}
-          {isMobile && <span className="text-lg">Mietfluss</span>}
+          {isMobile && <span className="text-lg">Mietevo</span>}
         </Link>
       </div>
 

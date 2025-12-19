@@ -47,14 +47,14 @@ export function invalidateDocumentationCaches(options: CacheInvalidationOptions 
  */
 export function invalidateArticleCaches(articleId: string): void {
   const aiCache = getAICache();
-  
+
   // Invalidate context caches that might include this article
   aiCache.invalidateContext(`article:${articleId}`);
-  
+
   // Invalidate responses that might be related to this article
   // This is a broad invalidation - in production you might want more granular control
   aiCache.invalidateResponses();
-  
+
   console.log(`Invalidated AI caches for article: ${articleId}`);
 }
 
@@ -63,13 +63,13 @@ export function invalidateArticleCaches(articleId: string): void {
  */
 export function invalidateCategoryCaches(categoryName: string): void {
   const aiCache = getAICache();
-  
+
   // Invalidate context caches for this category
   aiCache.invalidateContext(categoryName);
-  
+
   // Invalidate responses that might mention this category
   aiCache.invalidateResponses(categoryName);
-  
+
   console.log(`Invalidated AI caches for category: ${categoryName}`);
 }
 
@@ -79,14 +79,14 @@ export function invalidateCategoryCaches(categoryName: string): void {
 export function performScheduledCacheCleanup(): void {
   const aiCache = getAICache();
   const stats = aiCache.getStats();
-  
+
   console.log('Performing scheduled AI cache cleanup', {
     responseCacheSize: stats.responseCache.size,
     contextCacheSize: stats.contextCache.size,
     totalMemoryUsage: Math.round(stats.totalMemoryUsage / 1024) + 'KB',
     cacheEfficiency: Math.round(stats.cacheEfficiency) + '%'
   });
-  
+
   // The cache manager handles cleanup automatically through its periodic cleanup
   // This function mainly provides logging and monitoring
 }
@@ -99,8 +99,8 @@ export async function warmDocumentationCaches(
   fetchAIResponse: (query: string) => Promise<string>
 ): Promise<void> {
   const aiCache = getAICache();
-  
-  // Common German queries about Mietfluss
+
+  // Common German queries about Mietevo
   const commonQueries = [
     'Wie erstelle ich eine Betriebskostenabrechnung?',
     'Wie füge ich einen neuen Mieter hinzu?',
@@ -120,7 +120,7 @@ export async function warmDocumentationCaches(
   });
 
   console.log('Warming AI cache with common queries...');
-  
+
   let warmedCount = 0;
   const warmingPromises = commonQueries
     .filter(query => !aiCache.getCachedResponse(query, contextHash))
@@ -146,7 +146,7 @@ export async function warmDocumentationCaches(
 export function getCacheHealthMetrics() {
   const aiCache = getAICache();
   const stats = aiCache.getStats();
-  
+
   return {
     responseCache: {
       size: stats.responseCache.size,
@@ -180,7 +180,7 @@ export const cacheInvalidationStrategies = {
     if (categoryName) {
       invalidateCategoryCaches(categoryName);
     }
-    
+
     // Invalidate general documentation context
     invalidateDocumentationCaches({
       invalidateContext: true,
@@ -193,7 +193,7 @@ export const cacheInvalidationStrategies = {
    */
   onArticleUpdated: (articleId: string, categoryName?: string) => {
     invalidateArticleCaches(articleId);
-    
+
     if (categoryName) {
       invalidateCategoryCaches(categoryName);
     }
@@ -204,11 +204,11 @@ export const cacheInvalidationStrategies = {
    */
   onArticleDeleted: (articleId: string, categoryName?: string) => {
     invalidateArticleCaches(articleId);
-    
+
     if (categoryName) {
       invalidateCategoryCaches(categoryName);
     }
-    
+
     // Also invalidate responses as they might reference the deleted article
     invalidateDocumentationCaches({
       invalidateResponses: true,
@@ -243,7 +243,7 @@ export const cacheInvalidationStrategies = {
    */
   dailyMaintenance: () => {
     performScheduledCacheCleanup();
-    
+
     // Log cache health metrics
     const metrics = getCacheHealthMetrics();
     console.log('Daily AI cache metrics:', metrics);

@@ -12,30 +12,30 @@ const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 if (typeof ReadableStream === 'undefined') {
   global.ReadableStream = class MockReadableStream {
     private controller: any;
-    
+
     constructor(options: { start: (controller: any) => void }) {
       this.controller = {
         enqueue: jest.fn(),
         close: jest.fn()
       };
-      
+
       // Execute start function asynchronously
       setTimeout(() => {
         options.start(this.controller);
       }, 0);
     }
-    
+
     getReader() {
       const chunks: Uint8Array[] = [];
       let closed = false;
-      
+
       // Collect all enqueued chunks
       this.controller.enqueue.mock.calls.forEach((call: any) => {
         chunks.push(call[0]);
       });
-      
+
       let index = 0;
-      
+
       return {
         read: async () => {
           if (index < chunks.length) {
@@ -62,7 +62,7 @@ if (typeof TextEncoder === 'undefined') {
 const createMockStreamingResponse = (chunks: string[], finalResponse?: string) => {
   const encoder = new TextEncoder();
   const allChunks: Uint8Array[] = [];
-  
+
   // Create all chunks upfront
   chunks.forEach(chunk => {
     const data = JSON.stringify({
@@ -72,7 +72,7 @@ const createMockStreamingResponse = (chunks: string[], finalResponse?: string) =
     });
     allChunks.push(encoder.encode(`data: ${data}\n\n`));
   });
-  
+
   // Add final complete message
   const finalData = JSON.stringify({
     type: 'complete',
@@ -82,7 +82,7 @@ const createMockStreamingResponse = (chunks: string[], finalResponse?: string) =
   allChunks.push(encoder.encode(`data: ${finalData}\n\n`));
 
   let chunkIndex = 0;
-  
+
   const mockStream = {
     getReader: () => ({
       read: async () => {
@@ -126,7 +126,7 @@ describe('AIAssistantInterface', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Suppress console.error for tests
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => { });
   });
 
   afterEach(() => {
@@ -135,35 +135,35 @@ describe('AIAssistantInterface', () => {
 
   it('renders when open', () => {
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    expect(screen.getByText('Mietfluss AI Assistent')).toBeInTheDocument();
-    expect(screen.getByText('Fragen Sie mich alles über Mietfluss')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...')).toBeInTheDocument();
+
+    expect(screen.getByText('Mietevo AI Assistent')).toBeInTheDocument();
+    expect(screen.getByText('Fragen Sie mich alles über Mietevo')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...')).toBeInTheDocument();
   });
 
   it('does not render when closed', () => {
     render(<AIAssistantInterface {...defaultProps} isOpen={false} />);
-    
-    expect(screen.queryByText('Mietfluss AI Assistent')).not.toBeInTheDocument();
+
+    expect(screen.queryByText('Mietevo AI Assistent')).not.toBeInTheDocument();
   });
 
   it('displays welcome message when no messages', () => {
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    expect(screen.getByText('Willkommen beim Mietfluss AI Assistenten')).toBeInTheDocument();
-    expect(screen.getByText(/Stellen Sie mir Fragen über Mietfluss-Funktionen/)).toBeInTheDocument();
+
+    expect(screen.getByText('Willkommen beim Mietevo AI Assistenten')).toBeInTheDocument();
+    expect(screen.getByText(/Stellen Sie mir Fragen über Mietevo-Funktionen/)).toBeInTheDocument();
   });
 
   it('handles message submission', async () => {
     const user = userEvent.setup();
-    
+
     mockFetch.mockResolvedValueOnce(
       createMockStreamingResponse(['Test ', 'AI ', 'response'], 'Test AI response')
     );
 
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
+
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
     const submitButton = screen.getByRole('button', { name: /Nachricht senden/i });
 
     await user.type(input, 'Test question');
@@ -189,13 +189,13 @@ describe('AIAssistantInterface', () => {
 
   it('handles API errors gracefully', async () => {
     const user = userEvent.setup();
-    
+
     mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-    
+
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
     await user.type(input, 'Test question');
     await user.keyboard('{Enter}');
 
@@ -206,13 +206,13 @@ describe('AIAssistantInterface', () => {
 
   it('handles retry functionality', async () => {
     const user = userEvent.setup();
-    
+
     mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-    
+
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
     await user.type(input, 'Test question');
     await user.keyboard('{Enter}');
 
@@ -230,15 +230,15 @@ describe('AIAssistantInterface', () => {
 
   it('clears messages when clear button is clicked', async () => {
     const user = userEvent.setup();
-    
+
     mockFetch.mockResolvedValueOnce(
       createMockStreamingResponse(['Test response'])
     );
 
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-    
+
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
     // Send a message first
     await user.type(input, 'Test question');
     await user.keyboard('{Enter}');
@@ -254,15 +254,15 @@ describe('AIAssistantInterface', () => {
     // Check that messages are cleared
     expect(screen.queryByText('Test question')).not.toBeInTheDocument();
     expect(screen.queryByText('Test response')).not.toBeInTheDocument();
-    expect(screen.getByText('Willkommen beim Mietfluss AI Assistenten')).toBeInTheDocument();
+    expect(screen.getByText('Willkommen beim Mietevo AI Assistenten')).toBeInTheDocument();
   });
 
   it('calls onClose when close button is clicked', async () => {
     const user = userEvent.setup();
     const onClose = jest.fn();
-    
+
     render(<AIAssistantInterface {...defaultProps} onClose={onClose} />);
-    
+
     const closeButton = screen.getByRole('button', { name: /AI Assistent schließen/i });
     await user.click(closeButton);
 
@@ -272,9 +272,9 @@ describe('AIAssistantInterface', () => {
   it('calls onClose when clicking outside modal', async () => {
     const user = userEvent.setup();
     const onClose = jest.fn();
-    
+
     render(<AIAssistantInterface {...defaultProps} onClose={onClose} />);
-    
+
     // Click on the backdrop
     const dialog = screen.getByRole('dialog');
     const backdrop = dialog.parentElement;
@@ -286,17 +286,17 @@ describe('AIAssistantInterface', () => {
 
   it('disables input and submit button when loading', async () => {
     const user = userEvent.setup();
-    
+
     // Mock a slow streaming response
-    mockFetch.mockImplementationOnce(() => 
+    mockFetch.mockImplementationOnce(() =>
       new Promise(resolve => setTimeout(() => resolve(
         createMockStreamingResponse(['Delayed response'])
       ), 100))
     );
 
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
+
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
     const submitButton = screen.getByRole('button', { name: /Nachricht senden/i });
 
     await user.type(input, 'Test question');
@@ -309,15 +309,15 @@ describe('AIAssistantInterface', () => {
 
   it('formats timestamps correctly', async () => {
     const user = userEvent.setup();
-    
+
     mockFetch.mockResolvedValueOnce(
       createMockStreamingResponse(['Test response'])
     );
 
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-    
+
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
     await user.type(input, 'Test question');
     await user.keyboard('{Enter}');
 
@@ -330,15 +330,15 @@ describe('AIAssistantInterface', () => {
 
   it('handles streaming responses correctly', async () => {
     const user = userEvent.setup();
-    
+
     mockFetch.mockResolvedValueOnce(
       createMockStreamingResponse(['Hello ', 'from ', 'AI!'], 'Hello from AI!')
     );
 
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-    
+
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
     await user.type(input, 'Test question');
     await user.keyboard('{Enter}');
 
@@ -353,15 +353,15 @@ describe('AIAssistantInterface', () => {
 
   it('falls back to JSON response when streaming is not available', async () => {
     const user = userEvent.setup();
-    
+
     mockFetch.mockResolvedValueOnce(
       createMockJsonResponse('Fallback JSON response')
     );
 
     render(<AIAssistantInterface {...defaultProps} />);
-    
-    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-    
+
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
     await user.type(input, 'Test question');
     await user.keyboard('{Enter}');
 
@@ -375,25 +375,25 @@ describe('AIAssistantInterface', () => {
     it('closes modal when Escape key is pressed', async () => {
       const user = userEvent.setup();
       const onClose = jest.fn();
-      
+
       render(<AIAssistantInterface {...defaultProps} onClose={onClose} />);
-      
+
       await user.keyboard('{Escape}');
-      
+
       expect(onClose).toHaveBeenCalled();
     });
 
     it('clears conversation when Ctrl+K is pressed', async () => {
       const user = userEvent.setup();
-      
+
       mockFetch.mockResolvedValueOnce(
         createMockStreamingResponse(['Test response'])
       );
 
       render(<AIAssistantInterface {...defaultProps} />);
-      
-      const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-      
+
+      const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
       // Send a message first
       await user.type(input, 'Test question');
       await user.keyboard('{Enter}');
@@ -408,18 +408,18 @@ describe('AIAssistantInterface', () => {
       // Check that messages are cleared
       expect(screen.queryByText('Test question')).not.toBeInTheDocument();
       expect(screen.queryByText('Test response')).not.toBeInTheDocument();
-      expect(screen.getByText('Willkommen beim Mietfluss AI Assistenten')).toBeInTheDocument();
+      expect(screen.getByText('Willkommen beim Mietevo AI Assistenten')).toBeInTheDocument();
     });
 
     it('retries last message when Ctrl+R is pressed and there is an error', async () => {
       const user = userEvent.setup();
-      
+
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       render(<AIAssistantInterface {...defaultProps} />);
-      
-      const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-      
+
+      const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
       await user.type(input, 'Test question');
       await user.keyboard('{Enter}');
 
@@ -436,7 +436,7 @@ describe('AIAssistantInterface', () => {
 
     it('has proper ARIA labels and roles', () => {
       render(<AIAssistantInterface {...defaultProps} />);
-      
+
       // Check dialog has proper ARIA attributes
       const dialog = screen.getByRole('dialog');
       expect(dialog).toHaveAttribute('aria-labelledby', 'ai-assistant-title');
@@ -454,32 +454,32 @@ describe('AIAssistantInterface', () => {
 
     it('shows keyboard shortcuts in help text', () => {
       render(<AIAssistantInterface {...defaultProps} />);
-      
+
       expect(screen.getByText(/Tastenkürzel: Escape.*Strg\+K.*Alt\+↑↓/)).toBeInTheDocument();
     });
 
     it('focuses input when modal opens', async () => {
       const { rerender } = render(<AIAssistantInterface {...defaultProps} isOpen={false} />);
-      
+
       rerender(<AIAssistantInterface {...defaultProps} isOpen={true} />);
-      
+
       await waitFor(() => {
-        const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
+        const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
         expect(input).toHaveFocus();
       });
     });
 
     it('has proper message accessibility labels', async () => {
       const user = userEvent.setup();
-      
+
       mockFetch.mockResolvedValueOnce(
         createMockStreamingResponse(['Test AI response'])
       );
 
       render(<AIAssistantInterface {...defaultProps} />);
-      
-      const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-      
+
+      const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
       await user.type(input, 'Test question');
       await user.keyboard('{Enter}');
 
@@ -492,15 +492,15 @@ describe('AIAssistantInterface', () => {
 
     it('shows tooltip hints for action buttons', async () => {
       const user = userEvent.setup();
-      
+
       mockFetch.mockResolvedValueOnce(
         createMockStreamingResponse(['Test response'])
       );
 
       render(<AIAssistantInterface {...defaultProps} />);
-      
-      const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
-      
+
+      const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietevo...');
+
       // Send a message to show clear button
       await user.type(input, 'Test question');
       await user.keyboard('{Enter}');
@@ -509,7 +509,7 @@ describe('AIAssistantInterface', () => {
         // Check that buttons have title attributes for tooltips
         const clearButton = screen.getByLabelText(/Unterhaltung löschen.*Strg\+K/);
         expect(clearButton).toHaveAttribute('title', 'Unterhaltung löschen (Strg+K)');
-        
+
         const closeButton = screen.getByLabelText(/AI Assistent schließen.*Escape/);
         expect(closeButton).toHaveAttribute('title', 'AI Assistent schließen (Escape)');
       }, { timeout: 3000 });

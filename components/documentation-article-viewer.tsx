@@ -47,9 +47,9 @@ function formatContent(content: string | null): React.ReactNode {
   try {
     // Parse markdown content to HTML synchronously
     const htmlContent = marked.parse(content, { async: false }) as string;
-    
+
     // Add hook to ensure external links open safely
-    DOMPurify.addHook('afterSanitizeAttributes', function(node) {
+    DOMPurify.addHook('afterSanitizeAttributes', function (node) {
       // Ensure external links open in new tab with security attributes
       if (node.tagName === 'A' && node.hasAttribute('href')) {
         const href = node.getAttribute('href');
@@ -60,7 +60,7 @@ function formatContent(content: string | null): React.ReactNode {
         }
       }
     });
-    
+
     // Sanitize the HTML to prevent XSS attacks
     const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
       // Allow common HTML elements for documentation
@@ -79,21 +79,21 @@ function formatContent(content: string | null): React.ReactNode {
       ],
       FORBID_ATTR: ['style', 'onclick', 'onerror', 'onload']
     });
-    
+
     // Remove the hook after sanitization to avoid affecting other calls
     DOMPurify.removeHook('afterSanitizeAttributes');
 
     return (
-      <div 
+      <div
         className="prose prose-sm max-w-none dark:prose-invert prose-headings:scroll-mt-20 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs"
-        dangerouslySetInnerHTML={{ 
-          __html: sanitizedHtml 
+        dangerouslySetInnerHTML={{
+          __html: sanitizedHtml
         }}
       />
     );
   } catch (error) {
     console.error('Error parsing markdown content:', error);
-    
+
     // Fallback to basic text rendering if markdown parsing fails
     const fallbackContent = content
       .replace(/\n\n/g, '</p><p>')
@@ -103,10 +103,10 @@ function formatContent(content: string | null): React.ReactNode {
     const sanitizedFallback = DOMPurify.sanitize(`<p>${fallbackContent}</p>`);
 
     return (
-      <div 
+      <div
         className="prose prose-sm max-w-none dark:prose-invert"
-        dangerouslySetInnerHTML={{ 
-          __html: sanitizedFallback 
+        dangerouslySetInnerHTML={{
+          __html: sanitizedFallback
         }}
       />
     );
@@ -128,7 +128,7 @@ export function DocumentationArticleViewer({
 
   // Build breadcrumb items
   const breadcrumbItems = [];
-  
+
   if (searchQuery) {
     breadcrumbItems.push({
       label: `Suchergebnisse für "${searchQuery}"`,
@@ -145,7 +145,7 @@ export function DocumentationArticleViewer({
       onClick: onBack
     });
   }
-  
+
   breadcrumbItems.push({
     label: article.titel
   });
@@ -153,8 +153,8 @@ export function DocumentationArticleViewer({
   // Share functionality
   const handleShare = async () => {
     const shareData = {
-      title: `${article.titel} - Mietfluss Dokumentation`,
-      text: `Lesen Sie mehr über "${article.titel}" in der Mietfluss Dokumentation.`,
+      title: `${article.titel} - Mietevo Dokumentation`,
+      text: `Lesen Sie mehr über "${article.titel}" in der Mietevo Dokumentation.`,
       url: `${window.location.origin}/hilfe/dokumentation/${article.id}`
     };
 
@@ -192,8 +192,8 @@ export function DocumentationArticleViewer({
 
       {/* Back Navigation and Actions */}
       <div className="mb-6 flex items-center justify-between">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           onClick={onBack}
           className="gap-2 px-0 hover:bg-transparent"
         >
@@ -230,7 +230,7 @@ export function DocumentationArticleViewer({
             <h1 className="text-2xl font-bold leading-tight">
               {article.titel}
             </h1>
-            
+
             {article.kategorie && (
               <Badge variant="outline" className="w-fit">
                 {article.kategorie}
@@ -254,7 +254,7 @@ export function DocumentationArticleViewer({
                       )}
                     </div>
                   )}
-                  
+
                   {lastEditedDate && lastEditedDate !== createdDate && (
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />

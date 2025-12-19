@@ -13,6 +13,11 @@ export const BERECHNUNGSART_VALUES = BERECHNUNGSART_OPTIONS.map(opt => opt.value
 // Logo URL
 export const LOGO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/mascot/normal.avif';
 
+// Brand Name
+export const BRAND_NAME_PART_1 = 'Miet';
+export const BRAND_NAME_PART_2 = 'evo';
+export const BRAND_NAME = `${BRAND_NAME_PART_1}${BRAND_NAME_PART_2}`;
+
 // Feature flags for gradual rollout
 export const FEATURE_FLAGS = {
   // Cloud storage navigation improvements

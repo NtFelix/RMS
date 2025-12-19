@@ -112,7 +112,7 @@ class ClientAICache {
     }, 0);
 
     const timestamps = entries.map(e => e.timestamp);
-    
+
     return {
       size: this.cache.size,
       memoryUsage,
@@ -148,7 +148,7 @@ class ClientAICache {
 
         // Filter out expired entries
         const validEntries = data.filter((entry: ClientAICacheEntry) => now <= entry.expiresAt);
-        
+
         validEntries.forEach((entry: ClientAICacheEntry) => {
           const key = this.generateKey(entry.query, entry.contextHash);
           this.cache.set(key, entry);
@@ -286,7 +286,7 @@ export function useAICacheWarming() {
     contextHash: string,
     fetchFn: (query: string) => Promise<string>
   ) => {
-    // Common Mietfluss-related queries that users frequently ask
+    // Common Mietevo-related queries that users frequently ask
     const frequentQueries = [
       'Wie erstelle ich eine Betriebskostenabrechnung?',
       'Wie füge ich einen neuen Mieter hinzu?',

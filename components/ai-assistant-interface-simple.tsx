@@ -116,9 +116,9 @@ export default function AIAssistantInterfaceSimple({
         }
       }}
     >
-      <div 
+      <div
         ref={dialogRef}
-        role="dialog" 
+        role="dialog"
         aria-labelledby="ai-assistant-title"
         aria-describedby="ai-assistant-description"
         aria-modal="true"
@@ -132,7 +132,7 @@ export default function AIAssistantInterfaceSimple({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 id="ai-assistant-title" className="font-semibold text-foreground">Mietfluss AI Assistent</h2>
+                <h2 id="ai-assistant-title" className="font-semibold text-foreground">Mietevo AI Assistent</h2>
               </div>
             </div>
           </div>
@@ -169,10 +169,10 @@ export default function AIAssistantInterfaceSimple({
               <div className="text-center py-8">
                 <Bot className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-medium text-foreground mb-2">
-                  Willkommen beim Mietfluss AI Assistenten
+                  Willkommen beim Mietevo AI Assistenten
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Stellen Sie mir Fragen über Mietfluss-Funktionen, Immobilienverwaltung, 
+                  Stellen Sie mir Fragen über Mietevo-Funktionen, Immobilienverwaltung,
                   Betriebskosten oder alles andere rund um die Anwendung.
                 </p>
               </div>
@@ -194,12 +194,12 @@ export default function AIAssistantInterfaceSimple({
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
-                
-                <div 
+
+                <div
                   className={cn(
                     "max-w-[80%] rounded-2xl px-4 py-3",
-                    message.role === 'user' 
-                      ? "bg-primary text-primary-foreground" 
+                    message.role === 'user'
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted border border-border"
                   )}
                 >
@@ -275,7 +275,7 @@ export default function AIAssistantInterfaceSimple({
                 ref={inputRef}
                 value={inputValue}
                 onChange={handleInputChange}
-                placeholder="Stellen Sie eine Frage über Mietfluss..."
+                placeholder="Stellen Sie eine Frage über Mietevo..."
                 disabled={isLoading}
                 className="pr-12"
                 maxLength={2000}

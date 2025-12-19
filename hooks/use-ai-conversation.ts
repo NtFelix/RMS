@@ -1,13 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAIAssistantStore, type ChatMessage } from '@/hooks/use-ai-assistant-store';
-import { 
-  startAIGeneration, 
-  completeAIGeneration, 
-  startAITrace, 
-  completeAITrace, 
-  trackStreamingUpdate, 
-  type LLMGeneration, 
-  type LLMTrace 
+import {
+  startAIGeneration,
+  completeAIGeneration,
+  startAITrace,
+  completeAITrace,
+  trackStreamingUpdate,
+  type LLMGeneration,
+  type LLMTrace
 } from '@/lib/posthog-llm-tracking';
 
 interface AIConversationOptions {
@@ -33,16 +33,16 @@ interface AIConversationReturn {
  */
 export function useAIConversation(options: AIConversationOptions = {}): AIConversationReturn {
   const { documentationContext, onFallbackToSearch, interface: interfaceType = 'modal' } = options;
-  
+
   // Local state for the interface
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // AI Assistant store
-  const { 
-    messages, 
-    addMessage, 
+  const {
+    messages,
+    addMessage,
     updateMessage,
     clearMessages: storeClearMessages,
     setLoading: setStoreLoading,
@@ -64,7 +64,7 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
   // Send message to AI
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const message = inputValue.trim();
     if (!message || isLoading) return;
 
@@ -106,7 +106,7 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
       // Start trace for the conversation
       trace = startAITrace({
         id: traceId,
-        span_name: 'mietfluss_ai_conversation',
+        span_name: 'mietevo_ai_conversation',
         input_state: {
           user_message: message,
           context_articles: documentationContext?.articles?.length || 0,
@@ -163,14 +163,14 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
               try {
                 const jsonStr = line.slice(6); // Remove 'data: ' prefix
                 if (jsonStr.trim() === '') continue;
-                
+
                 const data = JSON.parse(jsonStr);
-                
+
                 if (data.type === 'chunk' && data.content) {
                   fullResponse += data.content;
                   // Update the assistant message with accumulated content
                   updateMessage(assistantMessageId, fullResponse);
-                  
+
                   // Track streaming update
                   if (generation) {
                     trackStreamingUpdate({
@@ -184,7 +184,7 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
                   fullResponse = data.content || fullResponse;
                   // Final update
                   updateMessage(assistantMessageId, fullResponse || 'Entschuldigung, ich konnte keine Antwort generieren.');
-                  
+
                   // Complete LLM tracking
                   if (generation) {
                     const responseTime = Date.now() - Date.parse(generation.start_time);
@@ -200,7 +200,7 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
                       httpStatus: 200
                     });
                   }
-                  
+
                   if (trace) {
                     const traceTime = Date.now() - Date.parse(trace.start_time);
                     completeAITrace(trace, {
@@ -214,7 +214,7 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
                       status: 'success'
                     });
                   }
-                  
+
                   break;
                 } else if (data.type === 'error') {
                   throw new Error(data.error || 'Unbekannter Fehler beim Streaming');
@@ -231,15 +231,15 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
 
     } catch (error) {
       console.error('AI Assistant Error:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Anfrage. Bitte versuchen Sie es erneut.';
       setError(errorMessage);
       setStoreError(errorMessage);
-      
+
       // Update the assistant message with error
       updateMessage(assistantMessageId, 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Anfrage. Bitte versuchen Sie es erneut.');
-      
+
       // Complete LLM tracking with error
       if (generation) {
         const responseTime = Date.now() - Date.parse(generation.start_time);
@@ -251,7 +251,7 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
           httpStatus: 500
         });
       }
-      
+
       if (trace) {
         const traceTime = Date.now() - Date.parse(trace.start_time);
         completeAITrace(trace, {
@@ -282,9 +282,9 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
 
   // Format time helper
   const formatTime = useCallback((date: Date) => {
-    return date.toLocaleTimeString('de-DE', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   }, []);
 

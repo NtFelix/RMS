@@ -11,7 +11,7 @@ describe('AI Input Validation', () => {
     it('validates empty input correctly', () => {
       expect(validateAIInput('').isValid).toBe(false);
       expect(validateAIInput('').error).toContain('Bitte geben Sie eine Frage');
-      
+
       expect(validateAIInput('   ').isValid).toBe(false);
       expect(validateAIInput('   ').error).toContain('Bitte geben Sie eine Frage');
     });
@@ -101,7 +101,7 @@ describe('AI Input Validation', () => {
     it('allows valid German questions', () => {
       const validQuestions = [
         'Wie erstelle ich eine neue Betriebskostenabrechnung?',
-        'Was sind die wichtigsten Features von Mietfluss?',
+        'Was sind die wichtigsten Features von Mietevo?',
         'Können Sie mir bei der Mieterverwaltung helfen?',
         'Wo finde ich die Einstellungen für Wasserzähler?'
       ];
@@ -173,15 +173,15 @@ describe('AI Input Validation', () => {
         const result = validateAIContext(attempt);
         expect(result.isValid).toBe(true); // Valid but with warning
         if (result.warning) {
-          expect(result.warning).toContain('nur Fragen zu Mietfluss');
+          expect(result.warning).toContain('nur Fragen zu Mietevo');
         }
       });
     });
 
-    it('allows normal questions about Mietfluss', () => {
+    it('allows normal questions about Mietevo', () => {
       const normalQuestions = [
         'How do I create a new tenant?',
-        'What are the features of Mietfluss?',
+        'What are the features of Mietevo?',
         'Can you help me with operating costs?',
         'Where can I find the water meter settings?',
         'How do I generate a report?'
@@ -244,7 +244,7 @@ describe('AI Input Validation', () => {
   describe('isQuestion', () => {
     it('detects German question words', () => {
       const questions = [
-        'Was ist Mietfluss?',
+        'Was ist Mietevo?',
         'Wie funktioniert das?',
         'Wo finde ich die Einstellungen?',
         'Wann wird die Abrechnung erstellt?',
@@ -299,7 +299,7 @@ describe('AI Input Validation', () => {
     it('does not detect statements as questions', () => {
       const statements = [
         'Das ist eine Aussage.',
-        'Mietfluss ist ein tolles System.',
+        'Mietevo ist ein tolles System.',
         'Ich verwende die Software täglich.',
         'Die Abrechnung wurde erstellt.',
         'Danke für die Hilfe.'
@@ -311,7 +311,7 @@ describe('AI Input Validation', () => {
     });
 
     it('handles case insensitivity', () => {
-      expect(isQuestion('WAS IST MIETFLUSS?')).toBe(true);
+      expect(isQuestion('WAS IST MIETEVO?')).toBe(true);
       expect(isQuestion('wie funktioniert das?')).toBe(true);
     });
 
@@ -325,7 +325,7 @@ describe('AI Input Validation', () => {
     it('provides default suggestions for empty input', () => {
       const suggestions = getInputSuggestions('');
       expect(suggestions.length).toBeGreaterThan(0);
-      expect(suggestions[0]).toContain('Fragen Sie nach Mietfluss-Funktionen');
+      expect(suggestions[0]).toContain('Fragen Sie nach Mietevo-Funktionen');
       expect(suggestions.some(s => s.includes('Betriebskostenabrechnung'))).toBe(true);
       expect(suggestions.some(s => s.includes('neuen Mieter'))).toBe(true);
     });
@@ -333,7 +333,7 @@ describe('AI Input Validation', () => {
     it('provides default suggestions for whitespace-only input', () => {
       const suggestions = getInputSuggestions('   ');
       expect(suggestions.length).toBeGreaterThan(0);
-      expect(suggestions[0]).toContain('Fragen Sie nach Mietfluss-Funktionen');
+      expect(suggestions[0]).toContain('Fragen Sie nach Mietevo-Funktionen');
     });
 
     it('suggests making input longer for very short input', () => {
@@ -346,19 +346,19 @@ describe('AI Input Validation', () => {
       expect(suggestions.some(s => s.includes('Formulieren Sie Ihre Eingabe als Frage'))).toBe(true);
     });
 
-    it('suggests Mietfluss-specific topics for generic input', () => {
+    it('suggests Mietevo-specific topics for generic input', () => {
       const suggestions = getInputSuggestions('How do I do something?');
-      expect(suggestions.some(s => s.includes('Mietfluss-spezifische Themen'))).toBe(true);
+      expect(suggestions.some(s => s.includes('Mietevo-spezifische Themen'))).toBe(true);
     });
 
-    it('does not suggest Mietfluss topics for relevant input', () => {
-      const suggestions = getInputSuggestions('Wie erstelle ich eine Betriebskostenabrechnung in Mietfluss?');
-      expect(suggestions.some(s => s.includes('Mietfluss-spezifische Themen'))).toBe(false);
+    it('does not suggest Mietevo topics for relevant input', () => {
+      const suggestions = getInputSuggestions('Wie erstelle ich eine Betriebskostenabrechnung in Mietevo?');
+      expect(suggestions.some(s => s.includes('Mietevo-spezifische Themen'))).toBe(false);
     });
 
-    it('handles various Mietfluss-related keywords', () => {
+    it('handles various Mietevo-related keywords', () => {
       const keywords = [
-        'mietfluss',
+        'mietevo',
         'immobilie',
         'mieter',
         'wohnung',
@@ -369,19 +369,19 @@ describe('AI Input Validation', () => {
 
       keywords.forEach(keyword => {
         const suggestions = getInputSuggestions(`Wie funktioniert ${keyword}?`);
-        expect(suggestions.some(s => s.includes('Mietfluss-spezifische Themen'))).toBe(false);
+        expect(suggestions.some(s => s.includes('Mietevo-spezifische Themen'))).toBe(false);
       });
     });
 
     it('returns empty suggestions for good input', () => {
-      const goodInput = 'Wie erstelle ich eine neue Betriebskostenabrechnung in Mietfluss?';
+      const goodInput = 'Wie erstelle ich eine neue Betriebskostenabrechnung in Mietevo?';
       const suggestions = getInputSuggestions(goodInput);
       expect(suggestions.length).toBe(0);
     });
 
     it('handles case insensitive keyword matching', () => {
-      const suggestions = getInputSuggestions('Wie funktioniert MIETFLUSS?');
-      expect(suggestions.some(s => s.includes('Mietfluss-spezifische Themen'))).toBe(false);
+      const suggestions = getInputSuggestions('Wie funktioniert MIETEVO?');
+      expect(suggestions.some(s => s.includes('Mietevo-spezifische Themen'))).toBe(false);
     });
   });
 
@@ -389,10 +389,10 @@ describe('AI Input Validation', () => {
     it('handles null and undefined input gracefully', () => {
       expect(validateAIInput(null as any).isValid).toBe(false);
       expect(validateAIInput(undefined as any).isValid).toBe(false);
-      
+
       expect(sanitizeInput(null as any)).toBe('');
       expect(sanitizeInput(undefined as any)).toBe('');
-      
+
       // isQuestion currently doesn't handle null/undefined - this is expected behavior
       expect(() => isQuestion(null as any)).toThrow();
       expect(() => isQuestion(undefined as any)).toThrow();
@@ -413,7 +413,7 @@ describe('AI Input Validation', () => {
 
     it('handles unicode characters correctly', () => {
       const unicode = '🏠🔑💰📊📋';
-      const result = validateAIInput(`Mietfluss ${unicode} Funktionen?`);
+      const result = validateAIInput(`Mietevo ${unicode} Funktionen?`);
       expect(result.isValid).toBe(true);
     });
 
