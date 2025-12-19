@@ -33,9 +33,19 @@ import {
   Plus,
   Filter,
   AlertCircle,
-  Loader2
+  Loader2,
+  Mail,
+  MoreHorizontal
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { TEMPLATE_TYPE_CONFIGS, TemplateCategory } from '@/lib/template-constants';
+import { cn } from '@/lib/utils';
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  Mail,
+  FileText,
+  MoreHorizontal,
+};
 
 interface TemplatesModalProps {
   isOpen: boolean;
@@ -399,56 +409,70 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
 
     return (
       <div className="space-y-8 px-1">
-        {categories.map((category) => (
-          <div key={category} className="space-y-4">
-            <div className="flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur-sm py-2 -mx-1 px-1 z-10">
-              <h3
-                className="text-lg font-medium"
-                id={`${modalId}-category-${category}`}
-              >
-                {category}
-              </h3>
-              <Badge
-                variant="secondary"
-                className="text-xs"
-                aria-label={`${groupedTemplates[category].length} Vorlagen in Kategorie ${category}`}
-              >
-                {groupedTemplates[category].length}
-              </Badge>
-            </div>
-            <div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
-              role="grid"
-              aria-labelledby={`${modalId}-category-${category}`}
-            >
-              {groupedTemplates[category].map((template, index) => (
-                <div
-                  key={template.id}
-                  className="relative min-h-0"
-                  role="gridcell"
-                  aria-rowindex={Math.floor(index / 4) + 1}
-                  aria-colindex={(index % 4) + 1}
-                >
-                  <TemplateCard
-                    template={template}
-                    onEdit={handleEditTemplate}
-                    onDelete={handleDeleteTemplate}
-                  />
-                  {isDeleting === template.id && (
-                    <div
-                      className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-20"
-                      role="status"
-                      aria-label={ARIA_LABELS.deletingTemplate}
+        {categories.map((category) => {
+          const config = TEMPLATE_TYPE_CONFIGS[category as TemplateCategory];
+          const Icon = config ? ICON_MAP[config.icon] : FileText;
+
+          return (
+            <div key={category} className="space-y-4">
+              <div className="py-6 first:pt-2">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "flex items-center gap-2.5 px-3 py-1.5 rounded-full border bg-background/50 backdrop-blur-sm shadow-sm transition-all hover:bg-background/80",
+                    config ? "border-current/20" : "border-border",
+                    config?.color.split(' ').filter(c => c.startsWith('text-') || c.startsWith('dark:text-')).join(' ')
+                  )}>
+                    <Icon className="h-3.5 w-3.5" />
+                    <h3
+                      className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground/90"
+                      id={`${modalId}-category-${category}`}
                     >
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
-                      <span className="sr-only">Vorlage wird gelöscht...</span>
-                    </div>
-                  )}
+                      {category}
+                    </h3>
+                    <span
+                      className="text-[11px] font-semibold text-muted-foreground/40 tabular-nums"
+                      aria-label={`${groupedTemplates[category].length} Vorlagen in Kategorie ${category}`}
+                    >
+                      {groupedTemplates[category].length}
+                    </span>
+                  </div>
+                  <div className="flex-1 h-px bg-gradient-to-r from-border/60 to-transparent" />
                 </div>
-              ))}
+              </div>
+              <div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                role="grid"
+                aria-labelledby={`${modalId}-category-${category}`}
+              >
+                {groupedTemplates[category].map((template, index) => (
+                  <div
+                    key={template.id}
+                    className="relative min-h-0"
+                    role="gridcell"
+                    aria-rowindex={Math.floor(index / 4) + 1}
+                    aria-colindex={(index % 4) + 1}
+                  >
+                    <TemplateCard
+                      template={template}
+                      onEdit={handleEditTemplate}
+                      onDelete={handleDeleteTemplate}
+                    />
+                    {isDeleting === template.id && (
+                      <div
+                        className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-20"
+                        role="status"
+                        aria-label={ARIA_LABELS.deletingTemplate}
+                      >
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+                        <span className="sr-only">Vorlage wird gelöscht...</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
