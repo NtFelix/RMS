@@ -41,9 +41,9 @@ When nesting elements with border radius, the inner element's radius must equal 
 - **Why?** Equal radii create uneven gaps and look "thick" at the corners.
 - **Formula:** `R_inner = R_outer - Padding`
 - **Example:**
-  - Outer Container: `rounded-3xl` (24px)
+  - Outer Container: `rounded-2xl` (24px)
   - Padding: `p-4` (16px)
-  - Inner Container: `rounded-lg` (8px) -> (24px - 16px = 8px)
+  - Inner Container: `rounded-sm` (8px) -> (24px - 16px = 8px)
 
 ### Responsive Layouts
 ```tsx
