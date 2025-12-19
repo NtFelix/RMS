@@ -8,7 +8,7 @@ import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, Layo
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LOGO_URL } from "@/lib/constants"
+import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2 } from "@/lib/constants"
 import { Button } from '@/components/ui/button'
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
@@ -202,7 +202,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 />
               </div>
               <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-                <span className="text-primary">Miet</span>evo
+                <span className="text-primary">{BRAND_NAME_PART_1}</span>{BRAND_NAME_PART_2}
               </span>
             </Link>
           </div>
@@ -225,7 +225,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     />
                   </div>
                   <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">
-                    <span className="text-primary">Miet</span>evo
+                    <span className="text-primary">{BRAND_NAME_PART_1}</span>{BRAND_NAME_PART_2}
                   </span>
                 </Link>
 

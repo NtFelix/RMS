@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useEnhancedAIAssistant } from "@/hooks/use-enhanced-ai-assistant";
+import { BRAND_NAME } from "@/lib/constants";
 
 interface AIAssistantInterfaceProps {
   isOpen: boolean;
@@ -207,7 +208,7 @@ export default function AIAssistantInterface({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 id="ai-assistant-title" className="font-semibold text-foreground">Mietevo AI Assistent</h2>
+                <h2 id="ai-assistant-title" className="font-semibold text-foreground">{BRAND_NAME} AI Assistent</h2>
                 {/* Network Status Indicator */}
                 {networkStatus.isOffline && (
                   <Badge variant="destructive" className="text-xs">
@@ -225,7 +226,7 @@ export default function AIAssistantInterface({
               <p id="ai-assistant-description" className="text-xs text-muted-foreground">
                 {networkStatus.isOffline
                   ? 'Keine Internetverbindung - Funktionen eingeschränkt'
-                  : 'Fragen Sie mich alles über Mietevo'
+                  : `Fragen Sie mich alles über ${BRAND_NAME}`
                 }
               </p>
             </div>
@@ -275,10 +276,10 @@ export default function AIAssistantInterface({
               <div className="text-center py-8">
                 <Bot className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-medium text-foreground mb-2">
-                  Willkommen beim Mietevo AI Assistenten
+                  Willkommen beim {BRAND_NAME} AI Assistenten
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Stellen Sie mir Fragen über Mietevo-Funktionen, Immobilienverwaltung,
+                  Stellen Sie mir Fragen über {BRAND_NAME}-Funktionen, Immobilienverwaltung,
                   Betriebskosten oder alles andere rund um die Anwendung.
                 </p>
               </div>
@@ -489,7 +490,7 @@ export default function AIAssistantInterface({
                 placeholder={
                   networkStatus.isOffline
                     ? "Offline - Keine AI-Anfragen möglich"
-                    : "Stellen Sie eine Frage über Mietevo..."
+                    : `Stellen Sie eine Frage über ${BRAND_NAME}...`
                 }
                 disabled={state.isLoading || networkStatus.isOffline}
                 className={cn(

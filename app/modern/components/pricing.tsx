@@ -19,7 +19,7 @@ import { WaitlistButton } from './waitlist-button';
 import { FAQ } from './faq';
 import { PreviewLimitNoticeBanner } from './preview-limit-notice-banner';
 import { Profile } from '@/types/supabase';
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
+import { POSTHOG_FEATURE_FLAGS, BRAND_NAME } from '@/lib/constants';
 
 // Updated Plan interface to match the API response structure
 interface Plan {
@@ -441,7 +441,7 @@ export default function Pricing({
                   Exklusiver Zugang
                 </h2>
                 <p className="text-xl text-muted-foreground leading-relaxed">
-                  Wir rollen Mietevo schrittweise aus, um die beste Erfahrung für alle zu gewährleisten.
+                  Wir rollen {BRAND_NAME} schrittweise aus, um die beste Erfahrung für alle zu gewährleisten.
                   Sichern Sie sich Ihren Platz auf der Warteliste.
                 </p>
               </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BRAND_NAME } from '@/lib/constants';
 
 const faqItems = [
     {
@@ -33,7 +34,7 @@ export function FAQ() {
                 <div className="text-center mb-12">
                     <h2 className="text-3xl font-bold mb-4">Häufig gestellte Fragen</h2>
                     <p className="text-muted-foreground text-lg">
-                        Hier finden Sie Antworten auf die wichtigsten Fragen zu Mietevo.
+                        Hier finden Sie Antworten auf die wichtigsten Fragen zu {BRAND_NAME}.
                     </p>
                 </div>
 
