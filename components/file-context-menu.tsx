@@ -1,12 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { 
-  Download, 
-  Trash2, 
-  Edit3, 
-  Move, 
-  Eye, 
+import {
+  Download,
+  Trash2,
+  Edit3,
+  Move,
+  Eye,
   FileText,
   Image as ImageIcon,
   File,
@@ -34,17 +34,17 @@ interface FileContextMenuProps {
   userId?: string
 }
 
-export function FileContextMenu({ 
-  file, 
-  children, 
-  showArchiveOption = true, 
-  currentPath, 
-  userId 
+export function FileContextMenu({
+  file,
+  children,
+  showArchiveOption = true,
+  currentPath,
+  userId
 }: FileContextMenuProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showRenameModal, setShowRenameModal] = useState(false)
   const { toast } = useToast()
-  
+
   const {
     downloadFile,
     deleteFile,
@@ -52,7 +52,7 @@ export function FileContextMenu({
     moveFile,
     isOperationInProgress,
   } = useCloudStorageOperations()
-  
+
   const { openPreview } = useCloudStoragePreview()
   const { archiveFile, openArchiveView } = useCloudStorageArchive()
   const { openFileMoveModal, openMarkdownEditorModal } = useModalStore()
@@ -60,15 +60,15 @@ export function FileContextMenu({
   // Get file type for icon display
   const getFileIcon = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase()
-    
+
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) {
       return <ImageIcon className="h-4 w-4" />
     }
-    
+
     if (['pdf', 'doc', 'docx'].includes(extension || '')) {
       return <FileText className="h-4 w-4" />
     }
-    
+
     return <File className="h-4 w-4" />
   }
 
@@ -113,7 +113,7 @@ export function FileContextMenu({
   const handlePreview = () => {
     if (canPreview(file.name)) {
       const fileExtension = file.name.split('.').pop()?.toLowerCase()
-      
+
       // Open markdown editor for .md files
       if (fileExtension === 'md' && currentPath) {
         openMarkdownEditorModal({
@@ -151,11 +151,11 @@ export function FileContextMenu({
       onMove: async (targetPath: string) => {
         // Import moveFile function
         const { moveFile } = await import('@/lib/storage-service')
-        
+
         // Construct source and target paths properly
         const sourcePath = `${currentPath}/${file.name}`
         const targetFilePath = `${targetPath}/${file.name}`
-        
+
         console.log('🎬 Context Menu: Starting move operation:', {
           fileName: file.name,
           fileId: file.id,
@@ -167,7 +167,7 @@ export function FileContextMenu({
           targetPath,
           fullFileObject: file
         })
-        
+
         try {
           await moveFile(sourcePath, targetFilePath)
           console.log('🎉 Context Menu: Move completed successfully')
@@ -188,25 +188,26 @@ export function FileContextMenu({
         <ContextMenuContent className="w-56">
           {canPreview(file.name) && (
             <>
-              <ContextMenuItem onClick={handlePreview}>
-                <Eye className="mr-2 h-4 w-4" />
-                Vorschau anzeigen
+              <ContextMenuItem onClick={handlePreview} className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                <span>Vorschau anzeigen</span>
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>
           )}
-          
-          <ContextMenuItem 
+
+          <ContextMenuItem
             onClick={handleDownload}
             disabled={isOperationInProgress}
+            className="flex items-center gap-2"
           >
-            <Download className="mr-2 h-4 w-4" />
-            Herunterladen
+            <Download className="h-4 w-4" />
+            <span>Herunterladen</span>
           </ContextMenuItem>
-          
+
           <ContextMenuSeparator />
-          
-          <ContextMenuItem 
+
+          <ContextMenuItem
             onSelect={(e) => {
               e.preventDefault()
               // Close the context menu by focusing outside of it
@@ -216,35 +217,37 @@ export function FileContextMenu({
                 setShowRenameModal(true)
               }, 0)
             }}
+            className="flex items-center gap-2"
           >
-            <Edit3 className="mr-2 h-4 w-4" />
-            Umbenennen
+            <Edit3 className="h-4 w-4" />
+            <span>Umbenennen</span>
           </ContextMenuItem>
-          
-          <ContextMenuItem 
+
+          <ContextMenuItem
             onClick={handleMove}
             disabled={isOperationInProgress || !currentPath || !userId}
+            className="flex items-center gap-2"
           >
-            <Move className="mr-2 h-4 w-4" />
-            Verschieben
+            <Move className="h-4 w-4" />
+            <span>Verschieben</span>
           </ContextMenuItem>
-          
+
           <ContextMenuSeparator />
-          
+
           {showArchiveOption && (
-            <ContextMenuItem onClick={openArchiveView}>
-              <Archive className="mr-2 h-4 w-4" />
-              Archiv öffnen
+            <ContextMenuItem onClick={openArchiveView} className="flex items-center gap-2">
+              <Archive className="h-4 w-4" />
+              <span>Archiv öffnen</span>
             </ContextMenuItem>
           )}
-          
-          <ContextMenuItem 
+
+          <ContextMenuItem
             onClick={() => setShowDeleteDialog(true)}
             disabled={isOperationInProgress}
-            className="text-destructive focus:text-destructive"
+            className="text-destructive focus:text-destructive flex items-center gap-2"
           >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Endgültig löschen
+            <Trash2 className="h-4 w-4" />
+            <span>Endgültig löschen</span>
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
