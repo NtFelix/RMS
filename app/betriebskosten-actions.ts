@@ -181,7 +181,7 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
     return {
       success: false,
       count: 0,
-      message: error instanceof Error ? error.message : "Fehler beim Löschen der Betriebskostenabrechnungen"
+      message: error instanceof Error ? error.message : (error as any)?.message || "Fehler beim Löschen der Betriebskostenabrechnungen"
     };
   }
 }
