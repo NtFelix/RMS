@@ -205,6 +205,11 @@ export function formatPeriodDuration(startdatum: string, enddatum: string): stri
     
     const startDate = new Date(startIso);
     const endDate = new Date(endIso);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return 'Ungültiger Zeitraum';
+    }
+
     const days = calculateDaysBetween(startDate, endDate);
     
     if (days === 1) {
