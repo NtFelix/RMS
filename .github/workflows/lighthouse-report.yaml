@@ -63,6 +63,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Generate build cache key
         id: build-cache-key
@@ -94,8 +95,15 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Install dependencies
-        if: steps.restore-build-cache.outputs.cache-hit != 'true' && steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
+        run: |
+          # Only run npm ci if node_modules doesn't exist or is incomplete
+          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+            echo "Installing dependencies..."
+            npm ci --prefer-offline
+          else
+            echo "✓ node_modules exists and appears complete - skipping npm ci"
+          fi
 
       - name: Build application
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
@@ -151,6 +159,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Cache node_modules
         id: cache-node-modules
@@ -171,8 +180,14 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Install dependencies (if not cached)
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline
+        run: |
+          # Only run npm ci if node_modules doesn't exist or is incomplete
+          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+            echo "Installing dependencies..."
+            npm ci --prefer-offline
+          else
+            echo "✓ node_modules exists and appears complete - skipping npm ci"
+          fi
 
       - name: Install Lighthouse CI tools
         run: npm install --no-save @lhci/cli@0.12.x wait-on
