@@ -312,7 +312,68 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # =========================================================================
-      # Step 13: Output Summary
+      # Step 13: Send Discord Notification
+      # =========================================================================
+      # Send release notification to Discord webhook
+      - name: Send Discord Notification
+        run: |
+          echo "📢 Sending Discord notification..."
+          
+          NEW_TAG="${{ steps.version.outputs.new_tag }}"
+          BUMP_LEVEL="${{ steps.bump.outputs.bump_level }}"
+          RELEASE_URL="${{ steps.release.outputs.url }}"
+          
+          # Read changelog content
+          CHANGELOG=$(cat changelog.txt)
+          
+          # Escape special characters for JSON (newlines, quotes, backslashes)
+          CHANGELOG_ESCAPED=$(echo "$CHANGELOG" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+          
+          # Determine emoji based on bump type
+          case "$BUMP_LEVEL" in
+            major)
+              EMOJI="🚀"
+              TYPE_TEXT="Major Release"
+              ;;
+            minor)
+              EMOJI="✨"
+              TYPE_TEXT="Minor Release"
+              ;;
+            patch)
+              EMOJI="🐛"
+              TYPE_TEXT="Patch Release"
+              ;;
+          esac
+          
+          # Build Discord message payload
+          PAYLOAD=$(cat <<EOF
+          {
+            "embeds": [
+              {
+                "title": "$EMOJI Release $NEW_TAG",
+                "description": "**$TYPE_TEXT**\n\n**Changelog:**\n$CHANGELOG_ESCAPED",
+                "color": 5814783,
+                "url": "$RELEASE_URL",
+                "footer": {
+                  "text": "Mietevo Release Bot"
+                },
+                "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              }
+            ]
+          }
+          EOF
+          )
+          
+          # Send to Discord webhook
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "${{ secrets.DISCORD_RELEASE_WEBHOOK }}"
+          
+          echo "✅ Discord notification sent"
+
+      # =========================================================================
+      # Step 14: Output Summary
       # =========================================================================
       # Display summary with release details and URL
       - name: Output Summary
