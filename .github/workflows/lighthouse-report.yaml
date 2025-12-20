@@ -3,7 +3,7 @@ name: Lighthouse CI
 on:
   pull_request:
     branches: [main, develop]
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, closed]
   push:
     branches: [main]
   workflow_dispatch:  # Allows manual triggering from the Actions tab
@@ -16,27 +16,44 @@ jobs:
     outputs:
       build-cache-key: ${{ steps.build-cache-key.outputs.cache-key }}
       should-run-lighthouse: ${{ steps.check-trigger.outputs.should-run }}
+      device-matrix: ${{ steps.check-trigger.outputs.device-matrix }}
     
     steps:
       - name: Check if Lighthouse should run
         id: check-trigger
         run: |
-          # Run Lighthouse on:
-          # 1. PR opened/reopened (not on every push to PR)
-          # 2. Push to main (merge)
-          # 3. Manual workflow dispatch
+          # Determine which devices to audit and whether to run
+          # Full audit (all devices): PR merged/closed, push to main, manual dispatch, PR opened/reopened
+          # Desktop only: PR synchronize (regular updates)
+          # Skip: Other events
+          
+          FULL_MATRIX='["mobile", "desktop", "tablet"]'
+          DESKTOP_ONLY='["desktop"]'
+          
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "should-run=true" >> $GITHUB_OUTPUT
-            echo "Reason: Manual trigger"
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+            echo "Reason: Manual trigger - running all devices"
           elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "should-run=true" >> $GITHUB_OUTPUT
-            echo "Reason: Push to main"
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+            echo "Reason: Push to main - running all devices"
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.action }}" == "closed" && "${{ github.event.pull_request.merged }}" == "true" ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+            echo "Reason: PR merged - running all devices"
           elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
             echo "should-run=true" >> $GITHUB_OUTPUT
-            echo "Reason: PR opened/reopened"
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+            echo "Reason: PR opened/reopened - running all devices"
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.action }}" == "synchronize" ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT
+            echo "Reason: PR synchronize - running desktop only for speed"
           else
             echo "should-run=false" >> $GITHUB_OUTPUT
-            echo "Reason: Regular PR update - skipping Lighthouse"
+            echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT
+            echo "Reason: Unhandled event - skipping Lighthouse"
           fi
     
       - name: Checkout Repository
@@ -109,7 +126,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [mobile, desktop, tablet]
+        device: ${{ fromJson(needs.build.outputs.device-matrix) }}
         include:
           - device: mobile
             form-factor: mobile
@@ -136,6 +153,7 @@ jobs:
           node-version: '20'
 
       - name: Cache node_modules
+        id: cache-node-modules
         uses: actions/cache@v4
         with:
           path: node_modules
@@ -202,9 +220,10 @@ jobs:
             SETTINGS="$SETTINGS --settings.screenEmulation.width=$VIEWPORT_WIDTH --settings.screenEmulation.height=$VIEWPORT_HEIGHT"
           fi
           
-          # Run Lighthouse
+          # Run Lighthouse (single run for speed)
           npx lhci collect \
             --url=http://localhost:$PORT \
+            --numberOfRuns=1 \
             $SETTINGS \
             --settings.maxWaitForLoad=60000 \
             --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage" \
@@ -233,7 +252,7 @@ jobs:
           fi
 
       - name: Debug - Check files before upload
-        if: always()
+        if: failure()
         run: |
           echo "Current directory:"
           pwd
@@ -528,22 +547,15 @@ jobs:
             await fs.writeFile('discord-payload.json', JSON.stringify({ embeds: [embed] }));
             console.log('Discord payload prepared');
 
-      - name: Send Discord notification
+      - name: Create device zip files and send to Discord
         if: always()
         run: |
-          # Send the embed
-          curl -H "Content-Type: application/json" \
-            -d @discord-payload.json \
-            https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
+          WEBHOOK_URL="https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy"
           
-          echo "Discord notification sent successfully"
-
-      - name: Create individual device zip files
-        if: always()
-        run: |
+          # Create zip files for each available device
+          echo "Creating zip files for available device reports..."
+          
           cd lighthouse-results
-          
-          # Create separate zip files for each device
           for device in mobile desktop tablet; do
             if [ -d "lighthouse-${device}" ]; then
               echo "Creating zip for ${device}..."
@@ -557,49 +569,52 @@ jobs:
                 echo "⚠ Warning: Failed to create zip for ${device}"
               fi
             else
-              echo "⚠ Warning: No reports found for ${device}"
+              echo "ℹ No reports found for ${device} (may not have been audited)"
             fi
           done
-          
           cd ..
-          echo "Listing created zip files:"
+          
+          echo ""
+          echo "Available zip files:"
           ls -lh lighthouse-*-report.zip 2>/dev/null || echo "No zip files created"
-
-      - name: Upload Mobile reports to Discord
-        if: always()
-        run: |
+          
+          # Build the curl command dynamically based on available files
+          # Discord webhooks support up to 10 files per message
+          echo ""
+          echo "Sending Discord notification with embed and attachments..."
+          
+          # Start building curl command with the payload_json for the embed
+          CURL_CMD="curl -s"
+          FILE_COUNT=0
+          
+          # Add each available zip file
           if [ -f lighthouse-mobile-report.zip ] && [ -s lighthouse-mobile-report.zip ]; then
-            echo "Uploading Mobile Lighthouse reports to Discord..."
-            curl -F "file=@lighthouse-mobile-report.zip" \
-              -F "content=📱 **Mobile Lighthouse Report** - Detailed analysis for mobile devices" \
-              https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
-            echo "✓ Mobile reports uploaded"
-          else
-            echo "⚠ No mobile reports to upload"
+            CURL_CMD="$CURL_CMD -F 'files[$FILE_COUNT]=@lighthouse-mobile-report.zip;filename=lighthouse-mobile-report.zip'"
+            FILE_COUNT=$((FILE_COUNT + 1))
+            echo "  📱 Adding mobile report"
           fi
-
-      - name: Upload Desktop reports to Discord
-        if: always()
-        run: |
+          
           if [ -f lighthouse-desktop-report.zip ] && [ -s lighthouse-desktop-report.zip ]; then
-            echo "Uploading Desktop Lighthouse reports to Discord..."
-            curl -F "file=@lighthouse-desktop-report.zip" \
-              -F "content=🖥️ **Desktop Lighthouse Report** - Detailed analysis for desktop devices" \
-              https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
-            echo "✓ Desktop reports uploaded"
-          else
-            echo "⚠ No desktop reports to upload"
+            CURL_CMD="$CURL_CMD -F 'files[$FILE_COUNT]=@lighthouse-desktop-report.zip;filename=lighthouse-desktop-report.zip'"
+            FILE_COUNT=$((FILE_COUNT + 1))
+            echo "  🖥️ Adding desktop report"
           fi
-
-      - name: Upload Tablet reports to Discord
-        if: always()
-        run: |
+          
           if [ -f lighthouse-tablet-report.zip ] && [ -s lighthouse-tablet-report.zip ]; then
-            echo "Uploading Tablet Lighthouse reports to Discord..."
-            curl -F "file=@lighthouse-tablet-report.zip" \
-              -F "content=📱 **Tablet Lighthouse Report** - Detailed analysis for tablet devices" \
-              https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy
-            echo "✓ Tablet reports uploaded"
-          else
-            echo "⚠ No tablet reports to upload"
+            CURL_CMD="$CURL_CMD -F 'files[$FILE_COUNT]=@lighthouse-tablet-report.zip;filename=lighthouse-tablet-report.zip'"
+            FILE_COUNT=$((FILE_COUNT + 1))
+            echo "  📱 Adding tablet report"
           fi
+          
+          # Add the JSON payload with the embed
+          CURL_CMD="$CURL_CMD -F 'payload_json=<discord-payload.json'"
+          CURL_CMD="$CURL_CMD $WEBHOOK_URL"
+          
+          echo ""
+          echo "Sending $FILE_COUNT file(s) with embed to Discord..."
+          
+          # Execute the curl command
+          eval $CURL_CMD
+          
+          echo ""
+          echo "✓ Discord notification sent successfully with $FILE_COUNT attachment(s)"
