@@ -607,7 +607,7 @@ export function WasserAblesenModal() {
                         onSelect={setNewAbleseDatum}
                         locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
                         fromYear={1990}
-                        toYear={new Date().getFullYear() + 10}
+                        toYear={2100}
                         initialFocus
                       />
                       {newAbleseDatum && (
@@ -778,7 +778,7 @@ export function WasserAblesenModal() {
                                           onSelect={(date) => currentAblesung && handleEditDateChange(date, currentAblesung)}
                                           locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
                                           fromYear={1990}
-                                          toYear={new Date().getFullYear() + 10}
+                                          toYear={2100}
                                           initialFocus
                                         />
                                         {editAbleseDatum && (
