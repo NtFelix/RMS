@@ -1,15 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Info } from "lucide-react";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 
 const InformationSection = () => {
-  const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0");
-
-  useEffect(() => {
-    setPackageJsonVersion("v2.0.0");
-  }, []);
+  // Read version from environment variable at build time
+  const appVersion = `v${process.env.NEXT_PUBLIC_APP_VERSION}`;
 
   return (
     <div className="space-y-6">
@@ -26,7 +22,7 @@ const InformationSection = () => {
               <div className="flex-1">
                 <h4 className="text-sm font-medium">Mietevo</h4>
                 <p className="text-sm text-muted-foreground">
-                  Version: <span id="app-version" className="font-mono">{packageJsonVersion}</span>
+                  Version: <span id="app-version" className="font-mono">{appVersion}</span>
                 </p>
               </div>
             </div>
