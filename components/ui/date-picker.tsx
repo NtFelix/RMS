@@ -179,7 +179,7 @@ export function DatePicker({
           </div>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto p-0"
+          className="w-auto p-0 rounded-2xl overflow-hidden"
           align="start"
         >
           <Calendar
@@ -193,11 +193,11 @@ export function DatePicker({
             initialFocus
           />
           {showClearButton && selectedDate && (
-            <div className="p-3 border-t">
+            <div className="px-4 py-3 border-t bg-muted/30">
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full text-xs"
+                className="w-full text-xs rounded-xl"
                 onClick={() => {
                   handleSelect(undefined);
                 }}
