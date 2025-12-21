@@ -25,10 +25,6 @@ export async function GET(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        if (!data) {
-            return NextResponse.json({ error: 'Mieter nicht gefunden.' }, { status: 404 });
-        }
-
         return NextResponse.json(data, { status: 200 });
     } catch (e) {
         console.error('Server error GET /api/mieter/[id]:', e);
@@ -69,36 +65,7 @@ export async function PATCH(
 }
 
 // PUT to update tenant
-export async function PUT(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-): Promise<NextResponse> {
-    try {
-        const { id } = params;
-        const body = await request.json();
-
-        const supabase = await createClient();
-        const { data, error } = await supabase
-            .from('Mieter')
-            .update(body)
-            .eq('id', id)
-            .select();
-
-        if (error) {
-            console.error(`PUT /api/mieter/${id} error:`, error);
-            return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-
-        if (!data || data.length === 0) {
-            return NextResponse.json({ error: 'Mieter nicht gefunden.' }, { status: 404 });
-        }
-
-        return NextResponse.json(data[0], { status: 200 });
-    } catch (e) {
-        console.error('Server error PUT /api/mieter/[id]:', e);
-        return NextResponse.json({ error: 'Serverfehler beim Aktualisieren des Mieters.' }, { status: 500 });
-    }
-}
+export const PUT = PATCH;
 
 // DELETE to remove tenant
 export async function DELETE(
