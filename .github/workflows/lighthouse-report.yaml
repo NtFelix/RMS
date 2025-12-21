@@ -3,7 +3,7 @@ name: Lighthouse CI
 on:
   pull_request:
     branches: [main, develop]
-    types: [opened, reopened, synchronize, closed]
+    types: [opened, reopened, synchronize]
   push:
     branches: [main]
   workflow_dispatch:  # Allows manual triggering from the Actions tab
@@ -16,52 +16,54 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     outputs:
-      should-run-lighthouse: ${{ steps.check.outputs.should-run }}
+      should-run-lighthouse: ${{ steps.check.outputs.should-run-lighthouse }}
+      should-run-build: ${{ steps.check.outputs.should-run-build }}
       device-matrix: ${{ steps.check.outputs.device-matrix }}
     
     steps:
       - name: Determine audit scope
         id: check
         run: |
-          # Determine which devices to audit and whether to run
-          # Full audit (all devices): PR merged/closed, push to main, manual dispatch, PR opened/reopened
-          # Desktop only: PR synchronize (regular updates)
-          # Skip: Other events
+          # Determine which jobs to run:
+          # - Build: Always runs on valid events (validates code compiles)
+          # - Lighthouse (all devices): push to main, manual dispatch, PR opened/reopened
+          # - Lighthouse skip: PR synchronize (only build, no lighthouse)
           
           FULL_MATRIX='["mobile", "desktop", "tablet"]'
           DESKTOP_ONLY='["desktop"]'
           
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "should-run-build=true" >> $GITHUB_OUTPUT
+            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-            echo "Reason: Manual trigger - running all devices"
+            echo "Reason: Manual trigger - running build + all devices"
           elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "should-run-build=true" >> $GITHUB_OUTPUT
+            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-            echo "Reason: Push to main - running all devices"
-          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.action }}" == "closed" && "${{ github.event.pull_request.merged }}" == "true" ]]; then
-            echo "should-run=true" >> $GITHUB_OUTPUT
-            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-            echo "Reason: PR merged - running all devices"
+            echo "Reason: Push to main - running build + all devices"
           elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
-            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "should-run-build=true" >> $GITHUB_OUTPUT
+            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-            echo "Reason: PR opened/reopened - running all devices"
+            echo "Reason: PR opened/reopened - running build + all devices"
           elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.action }}" == "synchronize" ]]; then
-            echo "should-run=true" >> $GITHUB_OUTPUT
+            echo "should-run-build=true" >> $GITHUB_OUTPUT
+            echo "should-run-lighthouse=false" >> $GITHUB_OUTPUT
             echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT
-            echo "Reason: PR synchronize - running desktop only for speed"
+            echo "Reason: PR synchronize - running build only (Lighthouse already ran on PR open)"
           else
-            echo "should-run=false" >> $GITHUB_OUTPUT
+            echo "should-run-build=false" >> $GITHUB_OUTPUT
+            echo "should-run-lighthouse=false" >> $GITHUB_OUTPUT
             echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT
-            echo "Reason: Unhandled event - skipping Lighthouse"
+            echo "Reason: Unhandled event - skipping all jobs"
           fi
 
   build:
     name: Build Application
     runs-on: ubuntu-latest
     needs: determine-platforms
-    if: needs.determine-platforms.outputs.should-run-lighthouse == 'true'
+    if: needs.determine-platforms.outputs.should-run-build == 'true'
     timeout-minutes: 10
     outputs:
       build-cache-key: ${{ steps.build-cache-key.outputs.cache-key }}
