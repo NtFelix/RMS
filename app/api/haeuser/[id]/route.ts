@@ -5,10 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 // GET specific house by ID
 export async function GET(
     _request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    { params }: { params: { id: string } }
 ): Promise<NextResponse> {
     try {
-        const { id } = await params;
+        const { id } = params;
 
         const supabase = await createClient();
         const { data, error } = await supabase
@@ -39,10 +39,10 @@ export async function GET(
 // PATCH to update house
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    { params }: { params: { id: string } }
 ): Promise<NextResponse> {
     try {
-        const { id } = await params;
+        const { id } = params;
         const body = await request.json();
 
         const supabase = await createClient();
@@ -71,10 +71,10 @@ export async function PATCH(
 // PUT to update house
 export async function PUT(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    { params }: { params: { id: string } }
 ): Promise<NextResponse> {
     try {
-        const { id } = await params;
+        const { id } = params;
         const body = await request.json();
 
         const supabase = await createClient();
@@ -103,10 +103,10 @@ export async function PUT(
 // DELETE to remove house
 export async function DELETE(
     _request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    { params }: { params: { id: string } }
 ): Promise<NextResponse> {
     try {
-        const { id } = await params;
+        const { id } = params;
 
         const supabase = await createClient();
         const { error } = await supabase
