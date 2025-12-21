@@ -166,7 +166,7 @@ function Calendar({
         range_end: "range_end",
         selected:
           "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
-        today: "bg-accent text-accent-foreground",
+        today: "bg-accent text-accent-foreground rounded-full",
         outside:
           "outside text-muted-foreground aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
         disabled: "text-muted-foreground opacity-50",
