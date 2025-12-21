@@ -124,10 +124,37 @@ jobs:
             echo "✓ Build completed and cached"
           fi
 
+  # Prepare LHCI tools in parallel with build for faster execution
+  prepare-lhci:
+    name: Prepare LHCI Tools
+    runs-on: ubuntu-latest
+    needs: build  # Only needs should-run-lighthouse output, runs ~parallel
+    if: needs.build.outputs.should-run-lighthouse == 'true'
+    timeout-minutes: 3
+    
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Create minimal package.json
+        run: echo '{"name":"lhci-tools","private":true}' > package.json
+          
+      - name: Install Lighthouse CI tools
+        run: npm install @lhci/cli@0.12.x wait-on
+        
+      - name: Upload LHCI tools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lhci-tools
+          path: node_modules/
+          retention-days: 1
+
   lighthouse:
     name: Lighthouse Audit (${{ matrix.device }})
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, prepare-lhci]
     if: needs.build.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 10
     
@@ -189,14 +216,24 @@ jobs:
             echo "✓ node_modules exists and appears complete - skipping npm ci"
           fi
 
-      - name: Install Lighthouse CI tools
-        run: npm install --no-save @lhci/cli@0.12.x wait-on
+      - name: Download LHCI tools
+        uses: actions/download-artifact@v4
+        with:
+          name: lhci-tools
+          path: lhci-tools/
 
-      - name: Verify Lighthouse CI tools
+      - name: Setup LHCI in PATH
         run: |
-          echo "✓ Lighthouse CI tools installed"
-          npx lhci --version
-          npx wait-on --version
+          # Add LHCI binaries to PATH for this job
+          echo "${{ github.workspace }}/lhci-tools/.bin" >> $GITHUB_PATH
+          # Also set NODE_PATH so Node can find the modules
+          echo "NODE_PATH=${{ github.workspace }}/lhci-tools" >> $GITHUB_ENV
+          echo "✓ LHCI tools downloaded from prepare-lhci job"
+          
+      - name: Verify LHCI tools
+        run: |
+          lhci --version
+          wait-on --version
 
       - name: Run Lighthouse audit
         id: lighthouse
