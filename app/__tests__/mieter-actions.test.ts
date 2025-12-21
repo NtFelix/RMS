@@ -12,7 +12,7 @@ import {
   getMieterByHausIdAction,
   updateKautionAction,
   getSuggestedKautionAmount,
-} from './mieter-actions';
+} from '../mieter-actions';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
@@ -33,7 +33,12 @@ describe('Mieter Actions', () => {
         const mockEq = jest.fn().mockReturnValue({ single: mockSingle });
 
         self.select = jest.fn().mockReturnValue({ eq: mockEq, single: mockSingle });
-        self.insert = jest.fn().mockResolvedValue({ error: null });
+        // insert needs to chain: insert().select().single()
+        self.insert = jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({ data: { id: 'new-id' }, error: null })
+          })
+        });
         self.update = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
         self.delete = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
         self.in = jest.fn().mockReturnThis();
@@ -77,7 +82,7 @@ describe('Mieter Actions', () => {
 
       const mockUpdateEq = jest.fn().mockResolvedValue({ error: null });
       mockSupabase.from.mockReturnValue({
-          update: jest.fn().mockReturnValue({ eq: mockUpdateEq }),
+        update: jest.fn().mockReturnValue({ eq: mockUpdateEq }),
       });
 
       const result = await handleSubmit(formData);
@@ -102,7 +107,11 @@ describe('Mieter Actions', () => {
       const formData = new FormData();
       formData.append('name', 'John Doe');
       mockSupabase.from.mockReturnValue({
-        insert: jest.fn().mockResolvedValue({ error: { message: 'Insert failed' } }),
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({ data: null, error: { message: 'Insert failed' } })
+          })
+        }),
       });
 
       const result = await handleSubmit(formData);
@@ -118,7 +127,7 @@ describe('Mieter Actions', () => {
 
       const mockUpdateEq = jest.fn().mockResolvedValue({ error: { message: 'Update failed' } });
       mockSupabase.from.mockReturnValue({
-          update: jest.fn().mockReturnValue({ eq: mockUpdateEq }),
+        update: jest.fn().mockReturnValue({ eq: mockUpdateEq }),
       });
 
       const result = await handleSubmit(formData);
@@ -128,14 +137,14 @@ describe('Mieter Actions', () => {
     });
 
     it('handles invalid JSON for nebenkosten and returns an error', async () => {
-        const formData = new FormData();
-        formData.append('name', 'Test Tenant');
-        formData.append('nebenkosten', 'this-is-not-json');
+      const formData = new FormData();
+      formData.append('name', 'Test Tenant');
+      formData.append('nebenkosten', 'this-is-not-json');
 
-        const result = await handleSubmit(formData);
+      const result = await handleSubmit(formData);
 
-        expect(result.success).toBe(false);
-        expect(result.error?.message).toContain('Ungültiges JSON-Format für Nebenkosten');
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain('Ungültiges JSON-Format für Nebenkosten');
     });
   });
 
@@ -144,7 +153,7 @@ describe('Mieter Actions', () => {
       const tenantId = 'tenant-123';
       const mockDeleteEq = jest.fn().mockResolvedValue({ error: null });
       mockSupabase.from.mockReturnValue({
-          delete: jest.fn().mockReturnValue({ eq: mockDeleteEq }),
+        delete: jest.fn().mockReturnValue({ eq: mockDeleteEq }),
       });
 
       const result = await deleteTenantAction(tenantId);
@@ -161,7 +170,7 @@ describe('Mieter Actions', () => {
       const tenantId = 'tenant-123';
       const mockDeleteEq = jest.fn().mockResolvedValue({ error: { message: 'Delete failed' } });
       mockSupabase.from.mockReturnValue({
-          delete: jest.fn().mockReturnValue({ eq: mockDeleteEq }),
+        delete: jest.fn().mockReturnValue({ eq: mockDeleteEq }),
       });
 
       const result = await deleteTenantAction(tenantId);
@@ -173,152 +182,153 @@ describe('Mieter Actions', () => {
 
   describe('getMieterByHausIdAction', () => {
     it('successfully fetches tenants for a given house ID', async () => {
-        const mockWohnungen = [{ id: 'w1' }];
-        const mockMieter = [{ id: 'm1', name: 'Tenant 1' }];
+      const mockWohnungen = [{ id: 'w1' }];
+      const mockMieter = [{ id: 'm1', name: 'Tenant 1' }];
 
-        const mockWohnungenEq = jest.fn().mockResolvedValue({ data: mockWohnungen, error: null });
-        const mockMieterIn = jest.fn().mockResolvedValue({ data: mockMieter, error: null });
+      const mockWohnungenEq = jest.fn().mockResolvedValue({ data: mockWohnungen, error: null });
+      const mockMieterIn = jest.fn().mockResolvedValue({ data: mockMieter, error: null });
 
-        mockSupabase.from.mockImplementation((table: string) => {
-            if (table === 'Wohnungen') {
-                return { select: jest.fn().mockReturnValue({ eq: mockWohnungenEq }) };
-            }
-            if (table === 'Mieter') {
-                return { select: jest.fn().mockReturnValue({ in: mockMieterIn }) };
-            }
-            return {};
-        });
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'Wohnungen') {
+          return { select: jest.fn().mockReturnValue({ eq: mockWohnungenEq }) };
+        }
+        if (table === 'Mieter') {
+          return { select: jest.fn().mockReturnValue({ in: mockMieterIn }) };
+        }
+        return {};
+      });
 
-        const result = await getMieterByHausIdAction('h1');
+      const result = await getMieterByHausIdAction('h1');
 
-        expect(mockWohnungenEq).toHaveBeenCalledWith('haus_id', 'h1');
-        expect(mockMieterIn).toHaveBeenCalledWith('wohnung_id', ['w1']);
-        expect(result).toEqual({ success: true, data: mockMieter });
+      expect(mockWohnungenEq).toHaveBeenCalledWith('haus_id', 'h1');
+      expect(mockMieterIn).toHaveBeenCalledWith('wohnung_id', ['w1']);
+      expect(result).toEqual({ success: true, data: mockMieter });
     });
 
     it('returns an empty array if a house has no apartments', async () => {
-        const mockWohnungenEq = jest.fn().mockResolvedValue({ data: [], error: null });
-        mockSupabase.from.mockReturnValue({ select: jest.fn().mockReturnValue({ eq: mockWohnungenEq }) });
+      const mockWohnungenEq = jest.fn().mockResolvedValue({ data: [], error: null });
+      mockSupabase.from.mockReturnValue({ select: jest.fn().mockReturnValue({ eq: mockWohnungenEq }) });
 
-        const result = await getMieterByHausIdAction('h1');
+      const result = await getMieterByHausIdAction('h1');
 
-        expect(mockSupabase.from).toHaveBeenCalledWith('Wohnungen');
-        expect(result).toEqual({ success: true, data: [] });
+      expect(mockSupabase.from).toHaveBeenCalledWith('Wohnungen');
+      expect(result).toEqual({ success: true, data: [] });
     });
 
-    it('correctly filters tenants by year', async () => {
-        const mockWohnungen = [{ id: 'w1' }];
-        const mockMieter = [{ id: 'm1', name: 'Tenant 1' }];
-        const mockOr = jest.fn().mockResolvedValue({ data: mockMieter, error: null });
-        const mockIn = jest.fn().mockReturnValue({ or: mockOr });
-        const mockWohnungenEq = jest.fn().mockResolvedValue({ data: mockWohnungen, error: null });
+    it('correctly filters tenants by date range', async () => {
+      const mockWohnungen = [{ id: 'w1' }];
+      const mockMieter = [{ id: 'm1', name: 'Tenant 1' }];
+      const mockOr = jest.fn().mockResolvedValue({ data: mockMieter, error: null });
+      const mockIn = jest.fn().mockReturnValue({ or: mockOr });
+      const mockWohnungenEq = jest.fn().mockResolvedValue({ data: mockWohnungen, error: null });
 
-        mockSupabase.from.mockImplementation((table: string) => {
-            if (table === 'Wohnungen') {
-                return { select: jest.fn().mockReturnValue({ eq: mockWohnungenEq }) };
-            }
-            if (table === 'Mieter') {
-                return { select: jest.fn().mockReturnValue({ in: mockIn }) };
-            }
-            return {};
-        });
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'Wohnungen') {
+          return { select: jest.fn().mockReturnValue({ eq: mockWohnungenEq }) };
+        }
+        if (table === 'Mieter') {
+          return { select: jest.fn().mockReturnValue({ in: mockIn }) };
+        }
+        return {};
+      });
 
-        const result = await getMieterByHausIdAction('h1', '2023');
+      // The function requires both start and end dates for filtering
+      const result = await getMieterByHausIdAction('h1', '2023-01-01', '2023-12-31');
 
-        expect(mockOr).toHaveBeenCalled();
-        expect(result).toEqual({ success: true, data: mockMieter });
+      expect(mockOr).toHaveBeenCalled();
+      expect(result).toEqual({ success: true, data: mockMieter });
     });
   });
 
   describe('updateKautionAction', () => {
     it('successfully updates kaution data for a tenant', async () => {
-        const formData = new FormData();
-        formData.append('tenantId', 'tenant-123');
-        formData.append('amount', '500');
-        formData.append('status', 'Erhalten');
+      const formData = new FormData();
+      formData.append('tenantId', 'tenant-123');
+      formData.append('amount', '500');
+      formData.append('status', 'Erhalten');
 
-        const mockSingle = jest.fn().mockResolvedValue({ data: { kaution: null }, error: null });
-        const mockUpdateEq = jest.fn().mockResolvedValue({ error: null });
+      const mockSingle = jest.fn().mockResolvedValue({ data: { kaution: null }, error: null });
+      const mockUpdateEq = jest.fn().mockResolvedValue({ error: null });
 
-        mockSupabase.from.mockReturnValue({
-            select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) }),
-            update: jest.fn().mockReturnValue({ eq: mockUpdateEq }),
-        });
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) }),
+        update: jest.fn().mockReturnValue({ eq: mockUpdateEq }),
+      });
 
-        const result = await updateKautionAction(formData);
+      const result = await updateKautionAction(formData);
 
-        expect(mockSingle).toHaveBeenCalled();
-        expect(mockUpdateEq).toHaveBeenCalledWith('id', 'tenant-123');
-        expect(result).toEqual({ success: true });
+      expect(mockSingle).toHaveBeenCalled();
+      expect(mockUpdateEq).toHaveBeenCalledWith('id', 'tenant-123');
+      expect(result).toEqual({ success: true });
     });
 
     it('preserves the createdAt timestamp on subsequent updates', async () => {
-        const existingKaution = { createdAt: new Date().toISOString() };
-        const mockSingle = jest.fn().mockResolvedValue({ data: { kaution: existingKaution }, error: null });
-        const mockUpdate = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
+      const existingKaution = { createdAt: new Date().toISOString() };
+      const mockSingle = jest.fn().mockResolvedValue({ data: { kaution: existingKaution }, error: null });
+      const mockUpdate = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
 
-        mockSupabase.from.mockReturnValue({
-            select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) }),
-            update: mockUpdate,
-        });
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) }),
+        update: mockUpdate,
+      });
 
-        const formData = new FormData();
-        formData.append('tenantId', 'tenant-123');
-        formData.append('amount', '550');
-        formData.append('status', 'Zurückgezahlt');
+      const formData = new FormData();
+      formData.append('tenantId', 'tenant-123');
+      formData.append('amount', '550');
+      formData.append('status', 'Zurückgezahlt');
 
-        await updateKautionAction(formData);
+      await updateKautionAction(formData);
 
-        expect(mockUpdate.mock.calls[0][0].kaution.createdAt).toBe(existingKaution.createdAt);
+      expect(mockUpdate.mock.calls[0][0].kaution.createdAt).toBe(existingKaution.createdAt);
     });
 
     it('returns a validation error for an invalid amount', async () => {
-        const formData = new FormData();
-        formData.append('tenantId', 'tenant-123');
-        formData.append('amount', '-100');
-        formData.append('status', 'Erhalten');
+      const formData = new FormData();
+      formData.append('tenantId', 'tenant-123');
+      formData.append('amount', '-100');
+      formData.append('status', 'Erhalten');
 
-        const result = await updateKautionAction(formData);
+      const result = await updateKautionAction(formData);
 
-        expect(result).toEqual({ success: false, error: { message: 'Betrag muss eine positive Zahl sein' } });
+      expect(result).toEqual({ success: false, error: { message: 'Betrag muss eine positive Zahl sein' } });
     });
   });
 
   describe('getSuggestedKautionAmount', () => {
     it('calculates the correct suggested amount based on rent', async () => {
-        const tenantData = { wohnung_id: 'w1', Wohnungen: [{ miete: 500 }] };
-        const mockSingle = jest.fn().mockResolvedValue({ data: tenantData, error: null });
-        mockSupabase.from.mockReturnValue({
-            select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) })
-        });
+      const tenantData = { wohnung_id: 'w1', Wohnungen: [{ miete: 500 }] };
+      const mockSingle = jest.fn().mockResolvedValue({ data: tenantData, error: null });
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) })
+      });
 
-        const result = await getSuggestedKautionAmount('t1');
+      const result = await getSuggestedKautionAmount('t1');
 
-        expect(result).toEqual({ success: true, suggestedAmount: 1500 });
+      expect(result).toEqual({ success: true, suggestedAmount: 1500 });
     });
 
     it('returns undefined if apartment has no rent', async () => {
-        const tenantData = { Wohnungen: [{ miete: null }] };
-        const mockSingle = jest.fn().mockResolvedValue({ data: tenantData, error: null });
-        mockSupabase.from.mockReturnValue({
-            select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) })
-        });
+      const tenantData = { Wohnungen: [{ miete: null }] };
+      const mockSingle = jest.fn().mockResolvedValue({ data: tenantData, error: null });
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) })
+      });
 
-        const result = await getSuggestedKautionAmount('t1');
+      const result = await getSuggestedKautionAmount('t1');
 
-        expect(result).toEqual({ success: true, suggestedAmount: undefined });
+      expect(result).toEqual({ success: true, suggestedAmount: undefined });
     });
 
     it('returns an error if fetching tenant data fails', async () => {
-        const mockSingle = jest.fn().mockResolvedValue({ data: null, error: { message: 'Fetch failed' } });
-        mockSupabase.from.mockReturnValue({
-            select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) })
-        });
+      const mockSingle = jest.fn().mockResolvedValue({ data: null, error: { message: 'Fetch failed' } });
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle }) })
+      });
 
-        const result = await getSuggestedKautionAmount('t1');
+      const result = await getSuggestedKautionAmount('t1');
 
-        expect(result.success).toBe(false);
-        expect(result.error?.message).toContain('Fehler beim Laden der Mieterdaten');
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain('Fehler beim Laden der Mieterdaten');
     });
   });
 });
