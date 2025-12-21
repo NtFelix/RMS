@@ -9,10 +9,10 @@ on:
   workflow_dispatch:  # Allows manual triggering from the Actions tab
 
 jobs:
-  # Lightweight job to determine if lighthouse should run
+  # Lightweight job to determine if lighthouse should run and which devices to test
   # This allows build and prepare-lhci to run truly in parallel
-  check-trigger:
-    name: Check Trigger
+  determine-platforms:
+    name: Determine Lighthouse Platforms
     runs-on: ubuntu-latest
     timeout-minutes: 1
     outputs:
@@ -60,8 +60,8 @@ jobs:
   build:
     name: Build Application
     runs-on: ubuntu-latest
-    needs: check-trigger
-    if: needs.check-trigger.outputs.should-run-lighthouse == 'true'
+    needs: determine-platforms
+    if: needs.determine-platforms.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 10
     outputs:
       build-cache-key: ${{ steps.build-cache-key.outputs.cache-key }}
@@ -139,8 +139,8 @@ jobs:
   prepare-lhci:
     name: Prepare LHCI Tools
     runs-on: ubuntu-latest
-    needs: check-trigger  # Runs truly in parallel with build
-    if: needs.check-trigger.outputs.should-run-lighthouse == 'true'
+    needs: determine-platforms  # Runs truly in parallel with build
+    if: needs.determine-platforms.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 3
     
     steps:
@@ -149,30 +149,36 @@ jobs:
         with:
           node-version: '20'
           
-      - name: Create minimal package.json
-        run: echo '{"name":"lhci-tools","private":true}' > package.json
-          
-      - name: Install Lighthouse CI tools
-        run: npm install @lhci/cli@0.12.x wait-on
-        
-      - name: Upload LHCI tools artifact
-        uses: actions/upload-artifact@v4
+      - name: Restore LHCI tools cache
+        id: lhci-cache
+        uses: actions/cache@v4
         with:
-          name: lhci-tools
-          path: node_modules/
-          retention-days: 1
+          path: |
+            lhci-tools/node_modules
+            lhci-tools/package.json
+            lhci-tools/package-lock.json
+          key: lhci-tools-${{ runner.os }}-0.12.x
+          
+      - name: Create package.json and install LHCI tools
+        if: steps.lhci-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p lhci-tools
+          cd lhci-tools
+          echo '{"name":"lhci-tools","private":true}' > package.json
+          npm install @lhci/cli@0.12.x wait-on
+          echo "✓ LHCI tools installed and cached"
 
   lighthouse:
     name: Lighthouse Audit (${{ matrix.device }})
     runs-on: ubuntu-latest
-    needs: [check-trigger, build, prepare-lhci]
-    if: needs.check-trigger.outputs.should-run-lighthouse == 'true'
+    needs: [determine-platforms, build, prepare-lhci]
+    if: needs.determine-platforms.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 10
     
     strategy:
       fail-fast: false
       matrix:
-        device: ${{ fromJson(needs.check-trigger.outputs.device-matrix) }}
+        device: ${{ fromJson(needs.determine-platforms.outputs.device-matrix) }}
         include:
           - device: mobile
             form-factor: mobile
@@ -227,44 +233,21 @@ jobs:
             echo "✓ node_modules exists and appears complete - skipping npm ci"
           fi
 
-      - name: Download LHCI tools
-        uses: actions/download-artifact@v4
+      - name: Restore LHCI tools cache
+        uses: actions/cache@v4
         with:
-          name: lhci-tools
-          path: lhci-tools/
+          path: |
+            lhci-tools/node_modules
+            lhci-tools/package.json
+            lhci-tools/package-lock.json
+          key: lhci-tools-${{ runner.os }}-0.12.x
+          fail-on-cache-miss: true
 
-      - name: Setup LHCI tools
-        run: |
-          # Make binaries executable
-          chmod +x lhci-tools/.bin/* 2>/dev/null || true
-          
-          # Create wrapper scripts in a directory we'll add to PATH
-          mkdir -p $HOME/.local/bin
-          
-          # Create lhci wrapper
-          cat > $HOME/.local/bin/lhci << 'EOF'
-          #!/bin/bash
-          exec node "$GITHUB_WORKSPACE/lhci-tools/@lhci/cli/src/cli.js" "$@"
-          EOF
-          chmod +x $HOME/.local/bin/lhci
-          
-          # Create wait-on wrapper
-          cat > $HOME/.local/bin/wait-on << 'EOF'
-          #!/bin/bash
-          exec node "$GITHUB_WORKSPACE/lhci-tools/wait-on/bin/wait-on" "$@"
-          EOF
-          chmod +x $HOME/.local/bin/wait-on
-          
-          # Add to PATH
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          
-          echo "✓ LHCI tools setup complete"
-          
       - name: Verify LHCI tools
         run: |
           echo "Verifying LHCI tools..."
-          $HOME/.local/bin/lhci --version
-          $HOME/.local/bin/wait-on --version
+          npx --prefix lhci-tools lhci --version
+          npx --prefix lhci-tools wait-on --version
           echo "✓ LHCI tools verified"
 
       - name: Run Lighthouse audit
@@ -294,9 +277,9 @@ jobs:
           }
           trap cleanup EXIT
           
-          # Wait for server
+          # Wait for server using cached wait-on
           echo "Waiting for server on http://localhost:$PORT..."
-          wait-on --timeout 60000 http://localhost:$PORT
+          npx --prefix lhci-tools wait-on --timeout 60000 http://localhost:$PORT
           
           # Build Lighthouse settings
           SETTINGS="--settings.emulatedFormFactor=$FORM_FACTOR"
@@ -304,8 +287,8 @@ jobs:
             SETTINGS="$SETTINGS --settings.screenEmulation.width=$VIEWPORT_WIDTH --settings.screenEmulation.height=$VIEWPORT_HEIGHT"
           fi
           
-          # Run Lighthouse (single run for speed)
-          lhci collect \
+          # Run Lighthouse (single run for speed) using cached lhci
+          npx --prefix lhci-tools lhci collect \
             --url=http://localhost:$PORT \
             --numberOfRuns=1 \
             $SETTINGS \
@@ -357,8 +340,8 @@ jobs:
   report:
     name: Generate Report
     runs-on: ubuntu-latest
-    needs: [check-trigger, build, lighthouse]
-    if: always() && needs.check-trigger.outputs.should-run-lighthouse == 'true'
+    needs: [determine-platforms, build, lighthouse]
+    if: always() && needs.determine-platforms.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 5
     
     permissions:
