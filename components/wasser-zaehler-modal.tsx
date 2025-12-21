@@ -380,8 +380,7 @@ export function WasserZaehlerModal() {
                         mode="single"
                         selected={newEichungsdatum}
                         onSelect={setNewEichungsdatum}
-                        locale={de}
-                        captionLayout="dropdown"
+                        locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
                         fromYear={1990}
                         toYear={new Date().getFullYear() + 10}
                         initialFocus
@@ -546,8 +545,7 @@ export function WasserZaehlerModal() {
                                           mode="single"
                                           selected={editEichungsdatum}
                                           onSelect={setEditEichungsdatum}
-                                          locale={de}
-                                          captionLayout="dropdown"
+                                          locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
                                           fromYear={1990}
                                           toYear={new Date().getFullYear() + 10}
                                           initialFocus
@@ -843,8 +841,7 @@ export function WasserZaehlerModal() {
                                             mode="single"
                                             selected={editEichungsdatum}
                                             onSelect={setEditEichungsdatum}
-                                            locale={de}
-                                            captionLayout="dropdown"
+                                            locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
                                             fromYear={1990}
                                             toYear={new Date().getFullYear() + 10}
                                             initialFocus

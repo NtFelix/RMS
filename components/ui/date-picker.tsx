@@ -50,10 +50,10 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
         }
       } catch (e) {
         // If parsing fails, try ISO
-         const isoDate = new Date(value);
-          if (!isNaN(isoDate.getTime())) {
-            initialDate = isoDate;
-          }
+        const isoDate = new Date(value);
+        if (!isNaN(isoDate.getTime())) {
+          initialDate = isoDate;
+        }
       }
     }
 
@@ -76,15 +76,15 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
     try {
       const parsedDate = parse(rawValue, "dd.MM.yyyy", new Date());
       if (!isNaN(parsedDate.getTime()) && rawValue.length >= 8) { // Basic check for valid format length
-         // Check if the formatted date matches the input to avoid partial matches like "01.01.2"
-         if (format(parsedDate, "dd.MM.yyyy", { locale: de }) === rawValue) {
-            setSelectedDate(parsedDate);
-            onChange?.(parsedDate);
-         } else {
-             // If format doesn't match exactly, maybe it's incomplete, clear selection
-             setSelectedDate(undefined);
-             onChange?.(undefined);
-         }
+        // Check if the formatted date matches the input to avoid partial matches like "01.01.2"
+        if (format(parsedDate, "dd.MM.yyyy", { locale: de }) === rawValue) {
+          setSelectedDate(parsedDate);
+          onChange?.(parsedDate);
+        } else {
+          // If format doesn't match exactly, maybe it's incomplete, clear selection
+          setSelectedDate(undefined);
+          onChange?.(undefined);
+        }
       } else {
         setSelectedDate(undefined);
         onChange?.(undefined);
@@ -137,8 +137,8 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
             </Button>
           </div>
         </PopoverTrigger>
-        <PopoverContent 
-          className="w-auto p-0" 
+        <PopoverContent
+          className="w-auto p-0"
           align="start"
         >
           <Calendar
@@ -146,10 +146,9 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
             selected={selectedDate}
             onSelect={handleSelect}
             disabled={disabled}
-            locale={de}
+            locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
             fromYear={1900}
             toYear={2100}
-            captionLayout="dropdown"
             initialFocus
           />
         </PopoverContent>
