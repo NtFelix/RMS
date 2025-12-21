@@ -2,11 +2,10 @@
 
 import { Info } from "lucide-react";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
-import packageJson from "@/package.json";
 
 const InformationSection = () => {
-  // Read version directly from package.json at build time
-  const appVersion = `v${packageJson.version}`;
+  // Read version from environment variable at build time
+  const appVersion = `v${process.env.NEXT_PUBLIC_APP_VERSION}`;
 
   return (
     <div className="space-y-6">

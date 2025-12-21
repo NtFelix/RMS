@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
+const { version } = require('./package.json');
 
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: version,
+  },
   reactStrictMode: true,
   images: {
     domains: ['ocubnwzybybcbrhsnqqs.supabase.co'],
