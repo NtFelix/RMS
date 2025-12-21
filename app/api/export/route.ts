@@ -64,9 +64,10 @@ export async function GET() {
       });
     }
 
-    const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
+    const zipContent = await zip.generateAsync({ type: 'arraybuffer' });
+    const blob = new Blob([zipContent], { type: 'application/zip' });
 
-    return new NextResponse(zipContent, {
+    return new NextResponse(blob, {
       status: 200,
       headers: {
         'Content-Disposition': `attachment; filename="datenexport.zip"`,
