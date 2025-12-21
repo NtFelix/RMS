@@ -37,6 +37,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -582,48 +583,15 @@ export function WasserAblesenModal() {
               <Label className="text-sm font-medium">Neue Ablesung hinzufügen</Label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="space-y-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !newAbleseDatum && "text-muted-foreground"
-                        )}
-                        disabled={isSaving}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newAbleseDatum ? (
-                          format(newAbleseDatum, "dd.MM.yyyy", { locale: de })
-                        ) : (
-                          <span>Datum</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={newAbleseDatum}
-                        onSelect={setNewAbleseDatum}
-                        locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
-                        fromYear={1990}
-                        toYear={2100}
-                        initialFocus
-                      />
-                      {newAbleseDatum && (
-                        <div className="p-3 border-t">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => setNewAbleseDatum(undefined)}
-                          >
-                            Datum löschen
-                          </Button>
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
+                  <DatePicker
+                    value={newAbleseDatum}
+                    onChange={setNewAbleseDatum}
+                    placeholder="Datum"
+                    disabled={isSaving}
+                    variant="button"
+                    fromYear={1990}
+                    toYear={2100}
+                  />
                 </div>
                 <div className="space-y-2">
                   <NumberInput
@@ -753,48 +721,16 @@ export function WasserAblesenModal() {
                                       <CalendarIcon className="h-3 w-3" />
                                       Datum
                                     </Label>
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          className={cn(
-                                            "w-full justify-start text-left font-normal mt-1.5",
-                                            !editAbleseDatum && "text-muted-foreground"
-                                          )}
-                                          disabled={isSaving}
-                                        >
-                                          <CalendarIcon className="mr-2 h-4 w-4" />
-                                          {editAbleseDatum ? (
-                                            format(editAbleseDatum, "dd.MM.yyyy", { locale: de })
-                                          ) : (
-                                            <span>Datum wählen</span>
-                                          )}
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                          mode="single"
-                                          selected={editAbleseDatum}
-                                          onSelect={(date) => currentAblesung && handleEditDateChange(date, currentAblesung)}
-                                          locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
-                                          fromYear={1990}
-                                          toYear={2100}
-                                          initialFocus
-                                        />
-                                        {editAbleseDatum && (
-                                          <div className="p-3 border-t">
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="w-full"
-                                              onClick={() => setEditAbleseDatum(undefined)}
-                                            >
-                                              Datum löschen
-                                            </Button>
-                                          </div>
-                                        )}
-                                      </PopoverContent>
-                                    </Popover>
+                                    <DatePicker
+                                      value={editAbleseDatum}
+                                      onChange={(date) => currentAblesung && handleEditDateChange(date, currentAblesung)}
+                                      placeholder="Datum wählen"
+                                      disabled={isSaving}
+                                      variant="button"
+                                      fromYear={1990}
+                                      toYear={2100}
+                                      className="mt-1.5"
+                                    />
                                   </div>
                                   <div>
                                     <Label className="text-xs text-muted-foreground flex items-center gap-1">

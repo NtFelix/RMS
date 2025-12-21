@@ -139,7 +139,7 @@ function Calendar({
   classNames,
   showOutsideDays = true,
   fromYear = new Date().getFullYear() - 100, // Default fromYear
-  toYear = new Date().getFullYear(), // Default toYear
+  toYear = 2100, // Default toYear
   ...props
 }: CalendarProps) {
   return (

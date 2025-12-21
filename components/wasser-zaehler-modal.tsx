@@ -35,6 +35,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -357,48 +358,15 @@ export function WasserZaehlerModal() {
                   />
                 </div>
                 <div className="flex-1 space-y-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !newEichungsdatum && "text-muted-foreground"
-                        )}
-                        disabled={isSaving}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newEichungsdatum ? (
-                          format(newEichungsdatum, "dd.MM.yyyy", { locale: de })
-                        ) : (
-                          <span>Eichungsdatum (optional)</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={newEichungsdatum}
-                        onSelect={setNewEichungsdatum}
-                        locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
-                        fromYear={1990}
-                        toYear={2100}
-                        initialFocus
-                      />
-                      {newEichungsdatum && (
-                        <div className="p-3 border-t">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => setNewEichungsdatum(undefined)}
-                          >
-                            Datum löschen
-                          </Button>
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
+                  <DatePicker
+                    value={newEichungsdatum}
+                    onChange={setNewEichungsdatum}
+                    placeholder="Eichungsdatum (optional)"
+                    disabled={isSaving}
+                    variant="button"
+                    fromYear={1990}
+                    toYear={2100}
+                  />
                 </div>
                 <Button
                   onClick={handleAddZaehler}
@@ -522,48 +490,17 @@ export function WasserZaehlerModal() {
                                       <CalendarIcon className="h-3 w-3" />
                                       Eichungsdatum
                                     </Label>
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          className={cn(
-                                            "w-full justify-start text-left font-normal mt-1.5",
-                                            !editEichungsdatum && "text-muted-foreground"
-                                          )}
-                                          disabled={isSaving}
-                                        >
-                                          <CalendarIcon className="mr-2 h-4 w-4" />
-                                          {editEichungsdatum ? (
-                                            format(editEichungsdatum, "dd.MM.yyyy", { locale: de })
-                                          ) : (
-                                            <span>Datum wählen</span>
-                                          )}
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                          mode="single"
-                                          selected={editEichungsdatum}
-                                          onSelect={setEditEichungsdatum}
-                                          locale={de as unknown as Parameters<typeof Calendar>[0]['locale']}
-                                          fromYear={1990}
-                                          toYear={2100}
-                                          initialFocus
-                                        />
-                                        {editEichungsdatum && (
-                                          <div className="p-3 border-t">
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="w-full"
-                                              onClick={() => setEditEichungsdatum(undefined)}
-                                            >
-                                              Datum löschen
-                                            </Button>
-                                          </div>
-                                        )}
-                                      </PopoverContent>
-                                    </Popover>
+                                    <DatePicker
+                                      id={`edit-eichungsdatum-${zaehler.id}`}
+                                      value={editEichungsdatum}
+                                      onChange={setEditEichungsdatum}
+                                      placeholder="Datum wählen"
+                                      disabled={isSaving}
+                                      variant="button"
+                                      fromYear={1990}
+                                      toYear={2100}
+                                      className="mt-1.5"
+                                    />
                                   </motion.div>
                                 </div>
                               </motion.div>
