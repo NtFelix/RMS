@@ -9,18 +9,19 @@ on:
   workflow_dispatch:  # Allows manual triggering from the Actions tab
 
 jobs:
-  build:
-    name: Build Application
+  # Lightweight job to determine if lighthouse should run
+  # This allows build and prepare-lhci to run truly in parallel
+  check-trigger:
+    name: Check Trigger
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 1
     outputs:
-      build-cache-key: ${{ steps.build-cache-key.outputs.cache-key }}
-      should-run-lighthouse: ${{ steps.check-trigger.outputs.should-run }}
-      device-matrix: ${{ steps.check-trigger.outputs.device-matrix }}
+      should-run-lighthouse: ${{ steps.check.outputs.should-run }}
+      device-matrix: ${{ steps.check.outputs.device-matrix }}
     
     steps:
-      - name: Check if Lighthouse should run
-        id: check-trigger
+      - name: Determine audit scope
+        id: check
         run: |
           # Determine which devices to audit and whether to run
           # Full audit (all devices): PR merged/closed, push to main, manual dispatch, PR opened/reopened
@@ -55,7 +56,17 @@ jobs:
             echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT
             echo "Reason: Unhandled event - skipping Lighthouse"
           fi
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should-run-lighthouse == 'true'
+    timeout-minutes: 10
+    outputs:
+      build-cache-key: ${{ steps.build-cache-key.outputs.cache-key }}
     
+    steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -128,8 +139,8 @@ jobs:
   prepare-lhci:
     name: Prepare LHCI Tools
     runs-on: ubuntu-latest
-    needs: build  # Only needs should-run-lighthouse output, runs ~parallel
-    if: needs.build.outputs.should-run-lighthouse == 'true'
+    needs: check-trigger  # Runs truly in parallel with build
+    if: needs.check-trigger.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 3
     
     steps:
@@ -154,14 +165,14 @@ jobs:
   lighthouse:
     name: Lighthouse Audit (${{ matrix.device }})
     runs-on: ubuntu-latest
-    needs: [build, prepare-lhci]
-    if: needs.build.outputs.should-run-lighthouse == 'true'
+    needs: [check-trigger, build, prepare-lhci]
+    if: needs.check-trigger.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 10
     
     strategy:
       fail-fast: false
       matrix:
-        device: ${{ fromJson(needs.build.outputs.device-matrix) }}
+        device: ${{ fromJson(needs.check-trigger.outputs.device-matrix) }}
         include:
           - device: mobile
             form-factor: mobile
@@ -222,18 +233,39 @@ jobs:
           name: lhci-tools
           path: lhci-tools/
 
-      - name: Setup LHCI in PATH
+      - name: Setup LHCI tools
         run: |
-          # Add LHCI binaries to PATH for this job
-          echo "${{ github.workspace }}/lhci-tools/.bin" >> $GITHUB_PATH
-          # Also set NODE_PATH so Node can find the modules
-          echo "NODE_PATH=${{ github.workspace }}/lhci-tools" >> $GITHUB_ENV
-          echo "✓ LHCI tools downloaded from prepare-lhci job"
+          # Make binaries executable
+          chmod +x lhci-tools/.bin/* 2>/dev/null || true
+          
+          # Create wrapper scripts in a directory we'll add to PATH
+          mkdir -p $HOME/.local/bin
+          
+          # Create lhci wrapper
+          cat > $HOME/.local/bin/lhci << 'EOF'
+          #!/bin/bash
+          exec node "$GITHUB_WORKSPACE/lhci-tools/@lhci/cli/src/cli.js" "$@"
+          EOF
+          chmod +x $HOME/.local/bin/lhci
+          
+          # Create wait-on wrapper
+          cat > $HOME/.local/bin/wait-on << 'EOF'
+          #!/bin/bash
+          exec node "$GITHUB_WORKSPACE/lhci-tools/wait-on/bin/wait-on" "$@"
+          EOF
+          chmod +x $HOME/.local/bin/wait-on
+          
+          # Add to PATH
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          
+          echo "✓ LHCI tools setup complete"
           
       - name: Verify LHCI tools
         run: |
-          lhci --version
-          wait-on --version
+          echo "Verifying LHCI tools..."
+          $HOME/.local/bin/lhci --version
+          $HOME/.local/bin/wait-on --version
+          echo "✓ LHCI tools verified"
 
       - name: Run Lighthouse audit
         id: lighthouse
@@ -264,7 +296,7 @@ jobs:
           
           # Wait for server
           echo "Waiting for server on http://localhost:$PORT..."
-          npx wait-on --timeout 60000 http://localhost:$PORT
+          wait-on --timeout 60000 http://localhost:$PORT
           
           # Build Lighthouse settings
           SETTINGS="--settings.emulatedFormFactor=$FORM_FACTOR"
@@ -273,7 +305,7 @@ jobs:
           fi
           
           # Run Lighthouse (single run for speed)
-          npx lhci collect \
+          lhci collect \
             --url=http://localhost:$PORT \
             --numberOfRuns=1 \
             $SETTINGS \
@@ -325,8 +357,8 @@ jobs:
   report:
     name: Generate Report
     runs-on: ubuntu-latest
-    needs: [build, lighthouse]
-    if: always() && needs.build.outputs.should-run-lighthouse == 'true'
+    needs: [check-trigger, build, lighthouse]
+    if: always() && needs.check-trigger.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 5
     
     permissions:
