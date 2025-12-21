@@ -81,7 +81,7 @@ function CustomMonthCaption({
       <Button
         variant="outline"
         size="icon"
-        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0"
+        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0 rounded-lg"
         onClick={handlePreviousMonth}
         disabled={!canGoPrevious()}
         type="button"
@@ -93,7 +93,7 @@ function CustomMonthCaption({
       {/* Center dropdowns - dynamically sized */}
       <div className="flex items-center gap-2 flex-1 justify-center px-2 min-w-0">
         <Select value={currentMonth.toString()} onValueChange={handleMonthChange}>
-          <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs">
+          <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs rounded-lg">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -105,7 +105,7 @@ function CustomMonthCaption({
           </SelectContent>
         </Select>
         <Select value={currentYear.toString()} onValueChange={handleYearChange}>
-          <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs">
+          <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs rounded-lg">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -122,7 +122,7 @@ function CustomMonthCaption({
       <Button
         variant="outline"
         size="icon"
-        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0"
+        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0 rounded-lg"
         onClick={handleNextMonth}
         disabled={!canGoNext()}
         type="button"

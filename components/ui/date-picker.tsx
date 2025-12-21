@@ -179,7 +179,7 @@ export function DatePicker({
           </div>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto p-0 rounded-2xl overflow-hidden"
+          className="w-auto p-0 rounded-3xl overflow-hidden"
           align="start"
         >
           <Calendar
@@ -197,7 +197,7 @@ export function DatePicker({
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full text-xs rounded-xl"
+                className="w-full text-xs rounded-lg"
                 onClick={() => {
                   handleSelect(undefined);
                 }}
