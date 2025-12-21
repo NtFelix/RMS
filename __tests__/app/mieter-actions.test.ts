@@ -53,7 +53,7 @@ describe('Mieter Actions', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     (createClient as jest.Mock).mockResolvedValue(mockSupabase);
     jest.spyOn(console, 'error').mockImplementation(() => { });
   });
