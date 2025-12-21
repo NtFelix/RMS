@@ -81,7 +81,7 @@
     "papaparse": "^5.4.1",
     "posthog-js": "^1.301.2",
     "posthog-node": "^5.17.2",
-    "react": "^18.3.1",
+    "react": "^19.2.3",
     "react-day-picker": "8.10.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.68.0",
