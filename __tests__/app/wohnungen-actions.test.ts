@@ -58,7 +58,7 @@ describe('Wohnungen Actions', () => {
       from: jest.fn(),
     };
     (createClient as jest.Mock).mockResolvedValue(mockSupabase);
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => { });
   });
 
   afterEach(() => {
@@ -101,33 +101,19 @@ describe('Wohnungen Actions', () => {
       // .from('Wohnungen').select(...).eq('user_id', user.id) -> returns count
       // .from('Wohnungen').insert(...).select().single() -> returns data
 
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'Wohnungen') {
-           const chain: any = {};
-
-           // Mock select
-           chain.select = jest.fn((cols, opts) => {
-               if (opts?.count) {
-                   return { eq: jest.fn().mockResolvedValue({ count: 2, error: null }) };
-               }
-               // Assume select after insert/update
-               return { single: jest.fn().mockResolvedValue({ data: { id: 'new-apt', ...validData }, error: null }) };
-           });
-
-           // Mock insert
-           chain.insert = jest.fn().mockReturnValue({
-               select: jest.fn().mockReturnValue({
-                   single: jest.fn().mockResolvedValue({ data: { id: 'new-apt', ...validData }, error: null })
-               })
-           });
-
-           // Mock update
-           chain.update = jest.fn();
-
-           return chain;
-        }
-        return {};
-      });
+      mockSupabase.from
+        .mockReturnValueOnce({ // For the count query
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({ count: 2, error: null }),
+          }),
+        })
+        .mockReturnValueOnce({ // For the insert query
+          insert: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({ data: { id: 'new-apt', ...validData }, error: null }),
+            }),
+          }),
+        });
 
       const result = await wohnungServerAction(null, validData);
 
@@ -138,9 +124,9 @@ describe('Wohnungen Actions', () => {
     it('updates apartment successfully', async () => {
       const updateMock = jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
-            select: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({ data: { id: 'apt-1', ...validData }, error: null })
-            })
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({ data: { id: 'apt-1', ...validData }, error: null })
+          })
         })
       });
 
@@ -171,7 +157,7 @@ describe('Wohnungen Actions', () => {
     });
 
     it('prevents creation if no active subscription', async () => {
-       (fetchUserProfile as jest.Mock).mockResolvedValue({
+      (fetchUserProfile as jest.Mock).mockResolvedValue({
         stripe_subscription_status: 'canceled',
         stripe_price_id: null
       });
