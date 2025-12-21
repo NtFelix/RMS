@@ -76,12 +76,12 @@ function CustomMonthCaption({
   }));
 
   return (
-    <div className="flex items-center justify-between pt-1 relative w-full">
+    <div className="flex items-center justify-between relative w-full">
       {/* Left arrow button */}
       <Button
         variant="outline"
         size="icon"
-        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0"
+        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0 rounded-lg"
         onClick={handlePreviousMonth}
         disabled={!canGoPrevious()}
         type="button"
@@ -93,7 +93,7 @@ function CustomMonthCaption({
       {/* Center dropdowns - dynamically sized */}
       <div className="flex items-center gap-2 flex-1 justify-center px-2 min-w-0">
         <Select value={currentMonth.toString()} onValueChange={handleMonthChange}>
-          <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs">
+          <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs rounded-lg">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -105,7 +105,7 @@ function CustomMonthCaption({
           </SelectContent>
         </Select>
         <Select value={currentYear.toString()} onValueChange={handleYearChange}>
-          <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs">
+          <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs rounded-lg">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -122,7 +122,7 @@ function CustomMonthCaption({
       <Button
         variant="outline"
         size="icon"
-        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0"
+        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0 rounded-lg"
         onClick={handleNextMonth}
         disabled={!canGoNext()}
         type="button"
@@ -139,37 +139,37 @@ function Calendar({
   classNames,
   showOutsideDays = true,
   fromYear = new Date().getFullYear() - 100, // Default fromYear
-  toYear = new Date().getFullYear(), // Default toYear
+  toYear = 2100, // Default toYear
   ...props
 }: CalendarProps) {
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
+      className={cn("p-4", className)}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        month_caption: "flex justify-center pt-1 relative items-center",
+        months: "flex flex-col sm:flex-row gap-4",
+        month: "space-y-4 w-full",
+        month_caption: "flex justify-center pt-1 relative items-center w-full",
         caption_label: "text-sm font-medium hidden",
-        nav: "hidden", // Hide default navigation since we have custom navigation in MonthCaption
+        nav: "hidden",
         button_previous: "hidden",
         button_next: "hidden",
-        month_grid: "w-full border-collapse space-y-1",
-        weekdays: "flex",
-        weekday: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-        week: "flex w-full mt-2",
-        day: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].range_end)]:rounded-r-md [&:has([aria-selected].outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+        month_grid: "w-full border-collapse",
+        weekdays: "flex justify-between w-full",
+        weekday: "text-muted-foreground w-9 font-normal text-[0.8rem] text-center",
+        week: "flex justify-between w-full mt-1",
+        day: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
         day_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+          "h-9 w-9 p-0 font-normal aria-selected:opacity-100 rounded-full hover:bg-accent hover:text-accent-foreground"
         ),
         range_end: "range_end",
         selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        today: "bg-accent text-accent-foreground",
+          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
+        today: "bg-red-500 text-white rounded-full hover:bg-red-600",
         outside:
-          "outside text-muted-foreground aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
-        disabled: "text-muted-foreground opacity-50",
+          "text-muted-foreground/50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
+        disabled: "text-muted-foreground opacity-50 cursor-not-allowed",
         range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
         hidden: "invisible",
