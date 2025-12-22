@@ -88,15 +88,8 @@ describe('wasser-zaehler-actions', () => {
     it('falls back to manual queries if RPC not found (42883)', async () => {
       mockSupabase.rpc.mockResolvedValue({ data: null, error: { code: '42883' } });
 
-      // Setup fallback mocks
-      mockSupabase.select.mockResolvedValueOnce({ data: [{ id: 'w1', haus_id: 'house1' }], error: null }) // Wohnungen
-                         .mockResolvedValueOnce({ data: [{ id: 'm1', wohnung_id: 'w1' }], error: null }); // Meters
-
-      // Promise.all queries (Readings, Tenants)
-      // Note: In the implementation, Promise.all runs simultaneous queries.
-      // We need to ensure the mocks return what's expected in order or based on previous chains.
-      // Since `supabase.from` returns `this`, we have to be careful about mocking sequential calls on the same object.
-      // The implementation creates new chains.
+      // Setup fallback mocks using mockImplementation for `from` to return table-specific chains.
+      // Each chain is "thenable" to act like a Promise for the fallback query logic.
 
       // Let's rely on the fact that different chains are initiated.
       // But `mockReturnThis()` means they share the state.
@@ -110,18 +103,18 @@ describe('wasser-zaehler-actions', () => {
       // We can mock `from` to return different objects based on table name?
       mockSupabase.from.mockImplementation((table: string) => {
         const chain = {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            in: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-            then: (resolve: any) => { // Make it thenable to act like a promise
-                let data = [];
-                if (table === 'Wohnungen') data = [{ id: 'w1', haus_id: 'house1' }];
-                if (table === 'Wasser_Zaehler') data = [{ id: 'm1', wohnung_id: 'w1' }];
-                if (table === 'Wasser_Ablesungen') data = [{ id: 'r1', wasser_zaehler_id: 'm1' }];
-                if (table === 'Mieter') data = [{ id: 't1', wohnung_id: 'w1' }];
-                resolve({ data, error: null });
-            }
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          then: (resolve: any) => { // Make it thenable to act like a promise
+            let data: any[] = [];
+            if (table === 'Wohnungen') data = [{ id: 'w1', haus_id: 'house1' }];
+            if (table === 'Wasser_Zaehler') data = [{ id: 'm1', wohnung_id: 'w1' }];
+            if (table === 'Wasser_Ablesungen') data = [{ id: 'r1', wasser_zaehler_id: 'm1' }];
+            if (table === 'Mieter') data = [{ id: 't1', wohnung_id: 'w1' }];
+            resolve({ data, error: null });
+          }
         };
         return chain;
       });
@@ -157,17 +150,6 @@ describe('wasser-zaehler-actions', () => {
 
   describe('updateWasserZaehler', () => {
     it('updates a meter successfully', async () => {
-      // Mock existing meter check
-      mockSupabase.from.mockImplementation((table: string) => {
-          if (table === 'Wasser_Zaehler') {
-              return {
-                  select: jest.fn().mockReturnThis(),
-                  eq: jest.fn().mockReturnThis(),
-                  update: jest.fn().mockReturnThis(),
-                  single: jest.fn().mockResolvedValue({ data: { id: 'm1', user_id: 'user1' }, error: null })
-              }
-          }
-      });
 
       // Just reset the single mock to return success for both check and update
       // Actually the implementation calls single() twice.
@@ -175,12 +157,12 @@ describe('wasser-zaehler-actions', () => {
       // 2. update result
 
       const chain = {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          update: jest.fn().mockReturnThis(),
-          single: jest.fn()
-            .mockResolvedValueOnce({ data: { id: 'm1', user_id: 'user1' }, error: null }) // check
-            .mockResolvedValueOnce({ data: { id: 'm1', custom_id: 'New' }, error: null }) // update
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+        single: jest.fn()
+          .mockResolvedValueOnce({ data: { id: 'm1', user_id: 'user1' }, error: null }) // check
+          .mockResolvedValueOnce({ data: { id: 'm1', custom_id: 'New' }, error: null }) // update
       };
       mockSupabase.from.mockReturnValue(chain);
 
@@ -191,34 +173,34 @@ describe('wasser-zaehler-actions', () => {
     });
 
     it('prevents update of others meters', async () => {
-        const chain = {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: { id: 'm1', user_id: 'other' }, error: null })
-        };
-        mockSupabase.from.mockReturnValue(chain);
+      const chain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: 'm1', user_id: 'other' }, error: null })
+      };
+      mockSupabase.from.mockReturnValue(chain);
 
-        const result = await updateWasserZaehler('m1', { custom_id: 'New' });
+      const result = await updateWasserZaehler('m1', { custom_id: 'New' });
 
-        expect(result.success).toBe(false);
-        expect(result.message).toContain('Keine Berechtigung');
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Keine Berechtigung');
     });
   });
 
   describe('deleteWasserZaehler', () => {
     it('deletes a meter successfully', async () => {
-        const chain = {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            delete: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: { id: 'm1', user_id: 'user1' }, error: null })
-        };
-        mockSupabase.from.mockReturnValue(chain);
+      const chain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        delete: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: 'm1', user_id: 'user1' }, error: null })
+      };
+      mockSupabase.from.mockReturnValue(chain);
 
-        const result = await deleteWasserZaehler('m1');
+      const result = await deleteWasserZaehler('m1');
 
-        expect(result.success).toBe(true);
-        expect(chain.delete).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(chain.delete).toHaveBeenCalled();
     });
   });
 });
