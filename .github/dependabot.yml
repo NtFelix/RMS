@@ -14,7 +14,7 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "automated"
+      - "patch"
     commit-message:
       prefix: "chore"
       include: "scope"
