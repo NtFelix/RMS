@@ -158,6 +158,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
           toast({
             title: 'Erfolg',
             description: 'Vorlage wurde erfolgreich gelöscht.',
+            variant: 'success',
           });
 
           // Close the confirmation modal after a brief delay to show success
@@ -204,6 +205,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
         toast({
           title: 'Erfolg',
           description: 'Vorlage wurde erfolgreich aktualisiert.',
+          variant: 'success',
         });
       } else {
         await createTemplate(payload);
@@ -211,6 +213,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
         toast({
           title: 'Erfolg',
           description: 'Vorlage wurde erfolgreich erstellt.',
+          variant: 'success',
         });
       }
 
