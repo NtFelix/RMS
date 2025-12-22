@@ -762,13 +762,6 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
             const fullPath = `${targetPath}/${fileName}`
 
-            console.log('Uploading file:', {
-              fileName,
-              targetPath,
-              fullPath,
-              originalTargetPath: item.targetPath
-            })
-
             // Simulate progress updates (since Supabase doesn't provide real progress)
             progressInterval = setInterval(() => {
               set((state) => {
