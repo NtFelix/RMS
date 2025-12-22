@@ -202,9 +202,6 @@ export function TemplateEditorModal({
     setStep('editor');
   };
 
-  const handleNextStep = () => {
-    categoryForm.handleSubmit(handleCategorySubmit)();
-  };
 
   // Handle template save
   const handleTemplateSave = async (data: TemplateFormData) => {
@@ -555,20 +552,20 @@ export function TemplateEditorModal({
                           </FormItem>
                         )}
                       />
+
+                      <div className="flex justify-end border-t pt-6">
+                        <Button
+                          type="submit"
+                          size="lg"
+                          disabled={!selectedCategory}
+                          className="min-w-[140px]"
+                        >
+                          Weiter
+                          <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
                     </form>
                   </Form>
-                </div>
-
-                <div className="flex justify-end mt-8 border-t pt-6">
-                  <Button
-                    onClick={handleNextStep}
-                    size="lg"
-                    disabled={!selectedCategory}
-                    className="min-w-[140px]"
-                  >
-                    Weiter
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
                 </div>
               </motion.div>
             )}
