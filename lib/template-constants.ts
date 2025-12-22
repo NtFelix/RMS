@@ -1,3 +1,6 @@
+import { Mail, FileText, MoreHorizontal } from 'lucide-react';
+import React from 'react';
+
 // Template categories for German property management
 export const TEMPLATE_CATEGORIES = [
   'Mail',
@@ -6,6 +9,12 @@ export const TEMPLATE_CATEGORIES = [
 ] as const;
 
 export type TemplateCategory = typeof TEMPLATE_CATEGORIES[number];
+
+export const TEMPLATE_ICON_MAP: Record<string, React.ElementType> = {
+  Mail,
+  FileText,
+  MoreHorizontal,
+};
 
 export const TEMPLATE_TYPE_CONFIGS: Record<TemplateCategory, { icon: string; label: string; description: string; color: string }> = {
   'Mail': {

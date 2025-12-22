@@ -10,15 +10,10 @@ import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ARIA_LABELS } from '@/lib/accessibility-constants';
 import { TemplatePreview } from '@/components/template-preview';
-import { TEMPLATE_TYPE_CONFIGS } from '@/lib/template-constants';
+import { TEMPLATE_TYPE_CONFIGS, TEMPLATE_ICON_MAP } from '@/lib/template-constants';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  Mail,
-  FileText,
-  MoreHorizontal,
-};
 
 interface TemplateCardProps {
   template: Template;
@@ -52,7 +47,7 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
   }, [handleEdit]);
 
   const categoryConfig = TEMPLATE_TYPE_CONFIGS[template.kategorie];
-  const Icon = categoryConfig ? ICON_MAP[categoryConfig.icon] : FileText;
+  const Icon = categoryConfig ? TEMPLATE_ICON_MAP[categoryConfig.icon] : FileText;
 
   return (
     <motion.div

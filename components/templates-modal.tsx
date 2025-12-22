@@ -38,14 +38,9 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { TEMPLATE_TYPE_CONFIGS, TemplateCategory } from '@/lib/template-constants';
+import { TEMPLATE_TYPE_CONFIGS, TemplateCategory, TEMPLATE_ICON_MAP } from '@/lib/template-constants';
 import { cn } from '@/lib/utils';
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  Mail,
-  FileText,
-  MoreHorizontal,
-};
 
 interface TemplatesModalProps {
   isOpen: boolean;
@@ -411,7 +406,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
       <div className="space-y-8 px-1">
         {categories.map((category) => {
           const config = TEMPLATE_TYPE_CONFIGS[category as TemplateCategory];
-          const Icon = config ? ICON_MAP[config.icon] : FileText;
+          const Icon = config ? TEMPLATE_ICON_MAP[config.icon] : FileText;
 
           return (
             <div key={category} className="space-y-4">

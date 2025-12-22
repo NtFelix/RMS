@@ -35,7 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { TemplateEditor } from '@/components/template-editor';
-import { TEMPLATE_CATEGORIES, TemplateCategory, TEMPLATE_TYPE_CONFIGS } from '@/lib/template-constants';
+import { TEMPLATE_CATEGORIES, TemplateCategory, TEMPLATE_TYPE_CONFIGS, TEMPLATE_ICON_MAP } from '@/lib/template-constants';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorModalProps } from '@/types/template';
 import { validateTemplate, validateMentionVariables, isEmptyTipTapContent } from '@/lib/template-validation';
@@ -55,12 +55,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-// Map icon strings to components
-const ICON_MAP: Record<string, React.ElementType> = {
-  Mail,
-  FileText,
-  MoreHorizontal,
-};
 
 // Enhanced form validation schemas
 const categorySchema = z.object({
@@ -453,7 +447,7 @@ export function TemplateEditorModal({
                           <SelectContent>
                             {TEMPLATE_CATEGORIES.map((cat) => {
                               const meta = TEMPLATE_TYPE_CONFIGS[cat];
-                              const Icon = ICON_MAP[meta.icon];
+                              const Icon = TEMPLATE_ICON_MAP[meta.icon];
                               return (
                                 <SelectItem key={cat} value={cat}>
                                   <div className="flex items-center gap-2">
@@ -513,7 +507,7 @@ export function TemplateEditorModal({
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                               {TEMPLATE_CATEGORIES.map((category) => {
                                 const meta = TEMPLATE_TYPE_CONFIGS[category];
-                                const Icon = ICON_MAP[meta.icon];
+                                const Icon = TEMPLATE_ICON_MAP[meta.icon];
                                 const isSelected = field.value === category;
 
                                 return (
