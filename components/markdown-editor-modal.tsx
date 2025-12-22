@@ -227,12 +227,25 @@ export function MarkdownEditorModal({
 
   // Secure markdown to HTML converter using marked and DOMPurify
   const markdownToHtml = useMemo(() => {
+    const renderer = new marked.Renderer()
+
+    // Override link renderer to open in new tab
+    // Note: marked v5+ passes token object instead of arguments
+    renderer.link = function (this: any, token: any) {
+      const html = marked.Renderer.prototype.link.call(this, token)
+      return html.replace('<a', '<a target="_blank" rel="noopener noreferrer"')
+    }
+
     return (markdown: string): string => {
       if (!markdown.trim()) return ''
 
       // Use marked to parse and DOMPurify to sanitize for XSS protection
-      const rawHtml = marked.parse(markdown, { async: false }) as string
-      const cleanHtml = DOMPurify.sanitize(rawHtml)
+      const rawHtml = marked.parse(markdown, { async: false, renderer }) as string
+
+      // Allow target and rel attributes for links (securely)
+      const cleanHtml = DOMPurify.sanitize(rawHtml, {
+        ADD_ATTR: ['target', 'rel']
+      })
 
       return cleanHtml
     }
