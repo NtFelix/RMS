@@ -246,9 +246,11 @@ export function MarkdownEditorModal({
       const rawHtml = marked.parse(markdown, { async: false, renderer }) as string
 
       // Allow target and rel attributes for links (securely)
-      const cleanHtml = DOMPurify.sanitize(rawHtml, {
-        ADD_ATTR: ['target', 'rel']
-      })
+      const cleanHtml = typeof window !== 'undefined'
+        ? DOMPurify.sanitize(rawHtml, {
+          ADD_ATTR: ['target', 'rel']
+        })
+        : ''
 
       return cleanHtml
     }
