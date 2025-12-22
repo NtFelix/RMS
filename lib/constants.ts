@@ -19,7 +19,6 @@ export const BRAND_NAME_PART_2 = 'evo';
 export const BRAND_NAME = `${BRAND_NAME_PART_1}${BRAND_NAME_PART_2}`;
 
 // Feature flags removed as functionality is now standard
-
 // PostHog feature flag keys - centralized to prevent magic strings
 export const POSTHOG_FEATURE_FLAGS = {
   // Pricing page
