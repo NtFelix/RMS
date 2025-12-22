@@ -251,6 +251,16 @@ export function MarkdownEditorModal({
     }
   }, [])
 
+  // Safe HTML generation for preview (client-side only to prevent SSR crash)
+  const [sanitizedHtml, setSanitizedHtml] = useState("")
+
+  useEffect(() => {
+    // Only generate HTML when in preview mode for performance
+    if (activeTab === "preview") {
+      setSanitizedHtml(markdownToHtml(content))
+    }
+  }, [content, activeTab, markdownToHtml])
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
@@ -350,7 +360,7 @@ export function MarkdownEditorModal({
                     <div
                       className="prose prose-sm max-w-none dark:prose-invert"
                       dangerouslySetInnerHTML={{
-                        __html: markdownToHtml(content)
+                        __html: sanitizedHtml
                       }}
                     />
                   ) : (
