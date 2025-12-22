@@ -415,7 +415,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
                   <div className={cn(
                     "flex items-center gap-2.5 px-3 py-1.5 rounded-full border bg-background/50 backdrop-blur-sm shadow-sm transition-all hover:bg-background/80",
                     config ? "border-current/20" : "border-border",
-                    config?.color.split(' ').filter(c => c.startsWith('text-') || c.startsWith('dark:text-')).join(' ')
+                    config?.color.text
                   )}>
                     <Icon className="h-3.5 w-3.5" />
                     <h3

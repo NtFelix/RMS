@@ -71,7 +71,7 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
             <div className="flex items-center gap-3 min-w-0 pr-16">
               <div className={cn(
                 "h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110",
-                categoryConfig?.color || "bg-muted"
+                categoryConfig?.color.full || "bg-muted"
               )}>
                 <Icon className="h-5 w-5" aria-hidden="true" />
               </div>

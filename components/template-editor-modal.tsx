@@ -528,7 +528,7 @@ export function TemplateEditorModal({
                                     >
                                       <div className={cn(
                                         "h-12 w-12 rounded-2xl flex items-center justify-center transition-colors",
-                                        meta.color
+                                        meta.color.full
                                       )}>
                                         <Icon className="h-6 w-6" />
                                       </div>

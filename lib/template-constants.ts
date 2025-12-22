@@ -16,24 +16,33 @@ export const TEMPLATE_ICON_MAP: Record<string, React.ElementType> = {
   MoreHorizontal,
 };
 
-export const TEMPLATE_TYPE_CONFIGS: Record<TemplateCategory, { icon: string; label: string; description: string; color: string }> = {
+export const TEMPLATE_TYPE_CONFIGS: Record<TemplateCategory, { icon: string; label: string; description: string; color: { text: string; full: string } }> = {
   'Mail': {
     icon: 'Mail',
     label: 'E-Mail Vorlage',
     description: 'Für automatisierte E-Mails an Mieter oder Dienstleister.',
-    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 dark:bg-blue-500/20',
+    color: {
+      text: 'text-blue-600 dark:text-blue-400',
+      full: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 dark:bg-blue-500/20'
+    },
   },
   'Dokumente': {
     icon: 'FileText',
     label: 'Dokument',
     description: 'Für offizielle Schreiben, Verträge und Aushänge.',
-    color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 dark:bg-orange-500/20',
+    color: {
+      text: 'text-orange-600 dark:text-orange-400',
+      full: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 dark:bg-orange-500/20'
+    },
   },
   'Sonstiges': {
     icon: 'MoreHorizontal',
     label: 'Sonstiges',
     description: 'Für Notizen, Protokolle und andere Textbausteine.',
-    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 dark:bg-slate-500/20',
+    color: {
+      text: 'text-slate-600 dark:text-slate-400',
+      full: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 dark:bg-slate-500/20'
+    },
   },
 };
 
