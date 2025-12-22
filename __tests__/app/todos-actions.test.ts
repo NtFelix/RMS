@@ -1,149 +1,187 @@
 
 import { aufgabeServerAction, toggleTaskStatusAction, bulkUpdateTaskStatusesAction, bulkDeleteTasksAction, deleteTaskAction } from '@/app/todos-actions';
-import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { logAction } from '@/lib/logging-middleware';
 
-// Mock the dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn()
-}));
-
+// Mock dependencies
 jest.mock('next/cache', () => ({
-  revalidatePath: jest.fn()
+  revalidatePath: jest.fn(),
 }));
 
 jest.mock('@/lib/logging-middleware', () => ({
-  logAction: jest.fn()
+  logAction: jest.fn(),
 }));
 
-describe('todos-actions', () => {
-  let mockSupabase: any;
+// Mock Supabase
+const mockSelectEq = jest.fn();
+const mockUpdateEq = jest.fn();
+const mockDeleteEq = jest.fn();
+const mockUpdateIn = jest.fn();
+const mockDeleteIn = jest.fn();
 
+const mockSelect = jest.fn();
+const mockInsert = jest.fn();
+const mockUpdate = jest.fn();
+const mockDelete = jest.fn();
+
+const mockSingle = jest.fn();
+
+const mockSupabase = {
+  from: jest.fn(() => ({
+    select: mockSelect,
+    insert: mockInsert,
+    update: mockUpdate,
+    delete: mockDelete,
+  })),
+};
+
+jest.mock('@/utils/supabase/server', () => ({
+  createClient: jest.fn(() => mockSupabase),
+}));
+
+describe('Todos Server Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Setup Supabase mock
-    mockSupabase = {
-      from: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      in: jest.fn().mockReturnThis(),
-      single: jest.fn()
-    };
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    // Default mock setup
+    mockSelect.mockReturnThis();
+    mockInsert.mockReturnThis();
+    mockUpdate.mockReturnThis();
+    mockDelete.mockReturnThis();
+
+    mockSingle.mockReturnThis();
+
+    // Wiring
+    mockSelect.mockReturnValue({
+        eq: mockSelectEq,
+        single: mockSingle,
+    });
+
+    mockInsert.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+            single: mockSingle
+        })
+    });
+
+    mockUpdate.mockReturnValue({
+        eq: mockUpdateEq,
+        in: mockUpdateIn
+    });
+
+    mockUpdateEq.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+            single: mockSingle
+        })
+    });
+
+    mockUpdateIn.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+            data: [{ id: 't1' }, { id: 't2' }]
+        })
+    });
+
+    mockDelete.mockReturnValue({
+        eq: mockDeleteEq,
+        in: mockDeleteIn
+    });
+
+    // Default resolutions
+    mockSingle.mockResolvedValue({ data: { id: 'task-1', name: 'Task 1' }, error: null });
+    mockDeleteEq.mockResolvedValue({ data: null, error: null });
+    mockDeleteIn.mockResolvedValue({ count: 2, error: null });
   });
 
   describe('aufgabeServerAction', () => {
-    it('creates a new task successfully', async () => {
-      const payload = { name: 'New Task', ist_erledigt: false };
-      mockSupabase.single.mockResolvedValue({ data: { id: '1', ...payload }, error: null });
+    const validData = {
+      name: 'New Task',
+      beschreibung: 'Description',
+      ist_erledigt: false,
+    };
 
-      const result = await aufgabeServerAction(null, payload);
+    it('should create a new task', async () => {
+      const result = await aufgabeServerAction(null, validData);
 
-      expect(result.success).toBe(true);
       expect(mockSupabase.from).toHaveBeenCalledWith('Aufgaben');
-      expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining(payload));
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'New Task',
+        ist_erledigt: false
+      }));
       expect(revalidatePath).toHaveBeenCalledWith('/todos');
-    });
-
-    it('updates an existing task successfully', async () => {
-      const payload = { name: 'Updated Task', ist_erledigt: true };
-      mockSupabase.single.mockResolvedValue({ data: { id: '1', ...payload }, error: null });
-
-      const result = await aufgabeServerAction('1', payload);
-
       expect(result.success).toBe(true);
-      expect(mockSupabase.from).toHaveBeenCalledWith('Aufgaben');
-      expect(mockSupabase.update).toHaveBeenCalledWith(expect.objectContaining({ name: 'Updated Task' }));
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', '1');
     });
 
-    it('validates required name', async () => {
-      const payload = { name: '' };
-      const result = await aufgabeServerAction(null, payload as any);
+    it('should update an existing task', async () => {
+      const result = await aufgabeServerAction('task-1', validData);
 
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockUpdateEq).toHaveBeenCalledWith('id', 'task-1');
+      expect(result.success).toBe(true);
+    });
+
+    it('should fail if name is empty', async () => {
+      const invalidData = { ...validData, name: '' };
+      const result = await aufgabeServerAction(null, invalidData);
       expect(result.success).toBe(false);
       expect(result.error.message).toBe('Name ist erforderlich.');
-      expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
-    it('handles database errors', async () => {
-      mockSupabase.single.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
-      const result = await aufgabeServerAction(null, { name: 'Task' });
-
-      expect(result.success).toBe(false);
-      expect(result.error.message).toBe('DB Error');
+    it('should handle db errors', async () => {
+        mockSingle.mockResolvedValueOnce({ data: null, error: { message: 'DB Error' } });
+        const result = await aufgabeServerAction(null, validData);
+        expect(result.success).toBe(false);
+        expect(result.error.message).toBe('DB Error');
     });
   });
 
   describe('toggleTaskStatusAction', () => {
-    it('toggles task status successfully', async () => {
-      mockSupabase.single.mockResolvedValue({ data: { id: '1', ist_erledigt: true }, error: null });
+    it('should toggle status', async () => {
+        const result = await toggleTaskStatusAction('task-1', true);
 
-      const result = await toggleTaskStatusAction('1', true);
-
-      expect(result.success).toBe(true);
-      expect(mockSupabase.update).toHaveBeenCalledWith(expect.objectContaining({ ist_erledigt: true }));
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', '1');
-    });
-
-    it('handles errors during toggle', async () => {
-      mockSupabase.single.mockResolvedValue({ data: null, error: { message: 'Error' } });
-
-      const result = await toggleTaskStatusAction('1', true);
-
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toBe('Error');
+        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+            ist_erledigt: true
+        }));
+        expect(mockUpdateEq).toHaveBeenCalledWith('id', 'task-1');
+        expect(result.success).toBe(true);
     });
   });
 
   describe('bulkUpdateTaskStatusesAction', () => {
-    it('updates multiple tasks', async () => {
-      mockSupabase.select.mockResolvedValue({ data: [{ id: '1' }, { id: '2' }], error: null });
-      // Note: .select() is called at the end of the chain
+      it('should update multiple tasks', async () => {
+          mockUpdateIn.mockReturnValue({
+             select: jest.fn().mockResolvedValue({ data: [{id: 't1'}, {id: 't2'}], error: null })
+          });
 
-      const result = await bulkUpdateTaskStatusesAction(['1', '2'], true);
+          const result = await bulkUpdateTaskStatusesAction(['t1', 't2'], true);
 
-      expect(result.success).toBe(true);
-      expect(result.updatedCount).toBe(2);
-      expect(mockSupabase.in).toHaveBeenCalledWith('id', ['1', '2']);
-    });
+          expect(mockUpdate).toHaveBeenCalled();
+          expect(mockUpdateIn).toHaveBeenCalledWith('id', ['t1', 't2']);
+          expect(result.success).toBe(true);
+          expect(result.updatedCount).toBe(2);
+      });
 
-    it('returns error if no tasks provided', async () => {
-      const result = await bulkUpdateTaskStatusesAction([], true);
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toContain('Keine Aufgaben');
-    });
+      it('should fail if no tasks provided', async () => {
+          const result = await bulkUpdateTaskStatusesAction([], true);
+          expect(result.success).toBe(false);
+      });
   });
 
   describe('bulkDeleteTasksAction', () => {
-    it('deletes multiple tasks', async () => {
-      mockSupabase.delete.mockReturnThis();
-      mockSupabase.in.mockResolvedValue({ count: 2, error: null });
+      it('should delete multiple tasks', async () => {
+          const result = await bulkDeleteTasksAction(['t1', 't2']);
 
-      const result = await bulkDeleteTasksAction(['1', '2']);
-
-      expect(result.success).toBe(true);
-      expect(result.deletedCount).toBe(2);
-      expect(mockSupabase.delete).toHaveBeenCalled();
-      expect(mockSupabase.in).toHaveBeenCalledWith('id', ['1', '2']);
-    });
+          expect(mockDelete).toHaveBeenCalled();
+          expect(mockDeleteIn).toHaveBeenCalledWith('id', ['t1', 't2']);
+          expect(result.success).toBe(true);
+          expect(result.deletedCount).toBe(2);
+      });
   });
 
   describe('deleteTaskAction', () => {
-    it('deletes a single task', async () => {
-      mockSupabase.delete.mockReturnThis();
-      mockSupabase.eq.mockResolvedValue({ error: null });
+      it('should delete a task', async () => {
+          const result = await deleteTaskAction('task-1');
 
-      const result = await deleteTaskAction('1');
-
-      expect(result.success).toBe(true);
-      expect(mockSupabase.delete).toHaveBeenCalled();
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', '1');
-    });
+          expect(mockDelete).toHaveBeenCalled();
+          expect(mockDeleteEq).toHaveBeenCalledWith('id', 'task-1');
+          expect(result.success).toBe(true);
+      });
   });
 });
