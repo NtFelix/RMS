@@ -1,6 +1,7 @@
 
 import { handleSubmit, deleteTenantAction, getMieterByHausIdAction, updateKautionAction } from '@/app/mieter-actions';
 import { revalidatePath } from 'next/cache';
+import { logAction } from '@/lib/logging-middleware';
 
 // Mock dependencies
 jest.mock('next/cache', () => ({
@@ -81,31 +82,31 @@ describe('Mieter Server Actions', () => {
 
     // Default return values for chains
     mockSelect.mockReturnValue({
-        eq: mockSelectEq,
-        in: mockIn,
-        or: mockOr,
-        single: mockSingle,
+      eq: mockSelectEq,
+      in: mockIn,
+      or: mockOr,
+      single: mockSingle,
     });
 
     mockInsert.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-            single: mockSingle
-        })
+      select: jest.fn().mockReturnValue({
+        single: mockSingle
+      })
     });
 
     mockUpdate.mockReturnValue({
-        eq: mockUpdateEq
+      eq: mockUpdateEq
     });
 
     mockDelete.mockReturnValue({
-        eq: mockDeleteEq
+      eq: mockDeleteEq
     });
 
     // Select chain
     mockSelectEq.mockReturnValue({
-        single: mockSingle,
-        data: [],
-        error: null
+      single: mockSingle,
+      data: [],
+      error: null
     });
 
     // Default leaf resolutions
@@ -130,6 +131,7 @@ describe('Mieter Server Actions', () => {
         email: 'john@example.com',
       }));
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+      expect(logAction).toHaveBeenCalledWith('createTenant', 'success', expect.anything());
       expect(result).toEqual({ success: true });
     });
 
@@ -148,6 +150,7 @@ describe('Mieter Server Actions', () => {
       }));
       expect(mockUpdateEq).toHaveBeenCalledWith('id', 'tenant-123');
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+      expect(logAction).toHaveBeenCalledWith('updateTenant', 'success', expect.anything());
       expect(result).toEqual({ success: true });
     });
 
@@ -165,78 +168,78 @@ describe('Mieter Server Actions', () => {
 
   describe('deleteTenantAction', () => {
     it('should delete a tenant successfully', async () => {
-        mockDeleteEq.mockResolvedValueOnce({ error: null });
+      mockDeleteEq.mockResolvedValueOnce({ error: null });
 
-        const result = await deleteTenantAction('tenant-123');
+      const result = await deleteTenantAction('tenant-123');
 
-        expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
-        expect(mockDelete).toHaveBeenCalled();
-        expect(mockDeleteEq).toHaveBeenCalledWith('id', 'tenant-123');
-        expect(revalidatePath).toHaveBeenCalledWith('/mieter');
-        expect(result).toEqual({ success: true });
+      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
+      expect(mockDelete).toHaveBeenCalled();
+      expect(mockDeleteEq).toHaveBeenCalledWith('id', 'tenant-123');
+      expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+      expect(result).toEqual({ success: true });
     });
 
     it('should return error if delete fails', async () => {
-        mockDeleteEq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
+      mockDeleteEq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
-        const result = await deleteTenantAction('tenant-123');
+      const result = await deleteTenantAction('tenant-123');
 
-        expect(result).toEqual({ success: false, error: { message: 'Delete failed' } });
+      expect(result).toEqual({ success: false, error: { message: 'Delete failed' } });
     });
   });
 
   describe('getMieterByHausIdAction', () => {
     it('should fetch tenants by house id', async () => {
-        // Mock step 1: fetch wohnungen
-        mockSelectEq.mockResolvedValueOnce({ data: [{ id: 'w1' }, { id: 'w2' }], error: null });
+      // Mock step 1: fetch wohnungen
+      mockSelectEq.mockResolvedValueOnce({ data: [{ id: 'w1' }, { id: 'w2' }], error: null });
 
-        // Mock step 2: fetch mieter
-        mockIn.mockResolvedValueOnce({ data: [{ id: 't1', name: 'Tenant 1' }], error: null });
+      // Mock step 2: fetch mieter
+      mockIn.mockResolvedValueOnce({ data: [{ id: 't1', name: 'Tenant 1' }], error: null });
 
-        const result = await getMieterByHausIdAction('haus-1');
+      const result = await getMieterByHausIdAction('haus-1');
 
-        expect(result.success).toBe(true);
-        expect(result.data).toHaveLength(1);
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1);
     });
 
     it('should return error if fetching wohnungen fails', async () => {
-        mockSelectEq.mockResolvedValueOnce({ data: null, error: { message: 'Fetch failed' } });
+      mockSelectEq.mockResolvedValueOnce({ data: null, error: { message: 'Fetch failed' } });
 
-        const result = await getMieterByHausIdAction('haus-1');
+      const result = await getMieterByHausIdAction('haus-1');
 
-        expect(result.success).toBe(false);
-        expect(result.error).toBe('Fetch failed');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Fetch failed');
     });
   });
 
   describe('updateKautionAction', () => {
-      it('should update kaution successfully', async () => {
-          const formData = new FormData();
-          formData.append('tenantId', 't1');
-          formData.append('amount', '1000');
-          formData.append('status', 'Erhalten');
+    it('should update kaution successfully', async () => {
+      const formData = new FormData();
+      formData.append('tenantId', 't1');
+      formData.append('amount', '1000');
+      formData.append('status', 'Erhalten');
 
-          // Mock fetch existing tenant (select chain)
-          mockSingle.mockResolvedValueOnce({ data: { kaution: { createdAt: 'old-date' } }, error: null });
+      // Mock fetch existing tenant (select chain)
+      mockSingle.mockResolvedValueOnce({ data: { kaution: { createdAt: 'old-date' } }, error: null });
 
-          // Mock update (update chain)
-          mockUpdateEq.mockResolvedValueOnce({ error: null });
+      // Mock update (update chain)
+      mockUpdateEq.mockResolvedValueOnce({ error: null });
 
-          const result = await updateKautionAction(formData);
+      const result = await updateKautionAction(formData);
 
-          expect(mockUpdate).toHaveBeenCalled();
-          expect(result.success).toBe(true);
-      });
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+    });
 
-      it('should fail with invalid amount', async () => {
-          const formData = new FormData();
-          formData.append('tenantId', 't1');
-          formData.append('amount', 'invalid');
+    it('should fail with invalid amount', async () => {
+      const formData = new FormData();
+      formData.append('tenantId', 't1');
+      formData.append('amount', 'invalid');
 
-          const result = await updateKautionAction(formData);
+      const result = await updateKautionAction(formData);
 
-          expect(result.success).toBe(false);
-          expect(result.error?.message).toContain('Betrag muss eine positive Zahl sein');
-      });
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain('Betrag muss eine positive Zahl sein');
+    });
   });
 });
