@@ -44,7 +44,6 @@ import {
   ArrowLeft,
   FileText,
   Save,
-  X,
   AlertCircle,
   Mail,
   MoreHorizontal,
