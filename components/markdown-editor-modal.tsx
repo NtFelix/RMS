@@ -233,7 +233,10 @@ export function MarkdownEditorModal({
     // Note: marked v5+ passes token object instead of arguments
     renderer.link = function (this: any, token: any) {
       const html = marked.Renderer.prototype.link.call(this, token)
-      return html.replace('<a', '<a target="_blank" rel="noopener noreferrer"')
+      if (typeof html !== 'string') {
+        return html
+      }
+      return html.replace(/^<a/, '<a target="_blank" rel="noopener noreferrer"')
     }
 
     return (markdown: string): string => {
