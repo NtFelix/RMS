@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { marked } from "marked"
+import DOMPurify from "dompurify"
 import { FileText, Save, Eye, Edit3, Loader2, Download, Copy, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -110,13 +112,13 @@ export function MarkdownEditorModal({
     }
 
     setIsSaving(true)
-    
+
     // Show initial save toast
     toast({
       title: "Speichern...",
       description: "Die Datei wird gespeichert. Dies kann einen Moment dauern."
     })
-    
+
     try {
       const response = await fetch(`/api/dateien/update-file?t=${Date.now()}`, {
         method: 'POST',
@@ -168,7 +170,7 @@ export function MarkdownEditorModal({
       )
       if (!confirmClose) return
     }
-    
+
     setContent("")
     setIsDirty(false)
     setActiveTab("edit")
@@ -223,98 +225,18 @@ export function MarkdownEditorModal({
     }
   }
 
-  // Improved markdown to HTML converter for preview
-  const markdownToHtml = (markdown: string) => {
-    if (!markdown.trim()) return ''
-    
-    // Split into lines for proper processing
-    const lines = markdown.split('\n')
-    const result: string[] = []
-    let inUnorderedList = false
-    let inOrderedList = false
-    let listItems: string[] = []
-    
-    const flushList = () => {
-      if (listItems.length > 0) {
-        if (inUnorderedList) {
-          result.push(`<ul>${listItems.join('')}</ul>`)
-        } else if (inOrderedList) {
-          result.push(`<ol>${listItems.join('')}</ol>`)
-        }
-        listItems = []
-        inUnorderedList = false
-        inOrderedList = false
-      }
+  // Secure markdown to HTML converter using marked and DOMPurify
+  const markdownToHtml = useMemo(() => {
+    return (markdown: string): string => {
+      if (!markdown.trim()) return ''
+
+      // Use marked to parse and DOMPurify to sanitize for XSS protection
+      const rawHtml = marked.parse(markdown, { async: false }) as string
+      const cleanHtml = DOMPurify.sanitize(rawHtml)
+
+      return cleanHtml
     }
-    
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i]
-      
-      // Handle unordered lists
-      if (line.match(/^- (.+)/)) {
-        if (!inUnorderedList) {
-          flushList()
-          inUnorderedList = true
-        }
-        const content = line.replace(/^- (.+)/, '$1')
-        listItems.push(`<li>${processInlineMarkdown(content)}</li>`)
-        continue
-      }
-      
-      // Handle ordered lists
-      if (line.match(/^\d+\. (.+)/)) {
-        if (!inOrderedList) {
-          flushList()
-          inOrderedList = true
-        }
-        const content = line.replace(/^\d+\. (.+)/, '$1')
-        listItems.push(`<li>${processInlineMarkdown(content)}</li>`)
-        continue
-      }
-      
-      // If we were in a list but this line isn't a list item, flush the list
-      if (inUnorderedList || inOrderedList) {
-        flushList()
-      }
-      
-      // Handle headers
-      if (line.match(/^#{1,6} /)) {
-        const level = line.match(/^(#{1,6})/)?.[1].length || 1
-        const content = line.replace(/^#{1,6} (.+)/, '$1')
-        result.push(`<h${level}>${processInlineMarkdown(content)}</h${level}>`)
-        continue
-      }
-      
-      // Handle empty lines
-      if (line.trim() === '') {
-        result.push('<br>')
-        continue
-      }
-      
-      // Handle regular paragraphs
-      result.push(`<p>${processInlineMarkdown(line)}</p>`)
-    }
-    
-    // Flush any remaining list
-    flushList()
-    
-    return result.join('')
-  }
-  
-  // Process inline markdown (bold, italic, links, code, images)
-  const processInlineMarkdown = (text: string): string => {
-    return text
-      // Images (must come before links)
-      .replace(/!\[([^\]]*)\]\(([^\)]*)\)/g, '<img alt="$1" src="$2" style="max-width: 100%; height: auto;" />')
-      // Links
-      .replace(/\[([^\]]*)\]\(([^\)]*)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-      // Bold
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      // Italic
-      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-      // Inline code
-      .replace(/`([^`]+)`/g, '<code style="background-color: #f1f5f9; padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
-  }
+  }, [])
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -412,10 +334,10 @@ export function MarkdownEditorModal({
               <TabsContent value="preview" className="flex-1 m-0 p-6 pt-4">
                 <div className="w-full h-full overflow-auto">
                   {content ? (
-                    <div 
+                    <div
                       className="prose prose-sm max-w-none dark:prose-invert"
-                      dangerouslySetInnerHTML={{ 
-                        __html: markdownToHtml(content) 
+                      dangerouslySetInnerHTML={{
+                        __html: markdownToHtml(content)
                       }}
                     />
                   ) : (
