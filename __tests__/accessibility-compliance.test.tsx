@@ -160,7 +160,7 @@ jest.mock('@/components/finance/finance-visualization', () => ({
 
 // Mock the toaster to prevent toast-related errors
 jest.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({ 
+  useToast: () => ({
     toast: jest.fn(),
     toasts: []
   }),
@@ -180,7 +180,7 @@ jest.mock('@/components/houses/house-filters', () => ({
   HouseFilters: () => <div>House Filters</div>
 }));
 
-jest.mock('@/components/tenant-filters', () => ({
+jest.mock('@/components/tenants/tenant-filters', () => ({
   TenantFilters: () => <div>Tenant Filters</div>
 }));
 
@@ -204,7 +204,7 @@ describe('Accessibility Compliance Tests', () => {
   describe('Keyboard Navigation', () => {
     it('Wohnungen page has proper keyboard navigation flow', async () => {
       const WohnungenClientView = (await import('@/app/(dashboard)/wohnungen/client')).default;
-      
+
       const props = {
         initialWohnungenData: [],
         housesData: [],
@@ -229,7 +229,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('Häuser page has proper keyboard navigation flow', async () => {
       const HaeuserClientView = (await import('@/app/(dashboard)/haeuser/client-wrapper')).default;
-      
+
       const props = { enrichedHaeuser: [] };
       const user = userEvent.setup();
       render(<HaeuserClientView {...props} />);
@@ -241,7 +241,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('Mieter page has proper keyboard navigation flow', async () => {
       const MieterClientView = (await import('@/app/(dashboard)/mieter/client-wrapper')).default;
-      
+
       const props = {
         initialTenants: [],
         initialWohnungen: [],
@@ -258,7 +258,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('Betriebskosten page has proper keyboard navigation flow', async () => {
       const BetriebskostenClientView = (await import('@/app/(dashboard)/betriebskosten/client-wrapper')).default;
-      
+
       const props = {
         initialNebenkosten: [],
         initialHaeuser: [],
@@ -275,7 +275,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('Todos page has proper keyboard navigation flow', async () => {
       const TodosClientWrapper = (await import('@/app/(dashboard)/todos/client-wrapper')).default;
-      
+
       const props = { tasks: [] };
       const user = userEvent.setup();
       render(<TodosClientWrapper {...props} />);
@@ -289,7 +289,7 @@ describe('Accessibility Compliance Tests', () => {
   describe('Screen Reader Compatibility', () => {
     it('buttons have proper accessible names', async () => {
       const WohnungenClientView = (await import('@/app/(dashboard)/wohnungen/client')).default;
-      
+
       const props = {
         initialWohnungenData: [],
         housesData: [],
@@ -307,14 +307,14 @@ describe('Accessibility Compliance Tests', () => {
 
     it('headers have proper hierarchy', async () => {
       const HaeuserClientView = (await import('@/app/(dashboard)/haeuser/client-wrapper')).default;
-      
+
       const props = { enrichedHaeuser: [] };
       render(<HaeuserClientView {...props} />);
 
       // CardTitle should be rendered as a heading
       const title = screen.getByText('Hausliste');
       expect(title).toBeInTheDocument();
-      
+
       // CardTitle actually renders as a div by default in shadcn/ui, not h3
       // The important thing is that it's semantically structured
       expect(title.tagName).toBe('DIV');
@@ -323,7 +323,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('tables have proper labels', async () => {
       const MieterClientView = (await import('@/app/(dashboard)/mieter/client-wrapper')).default;
-      
+
       const props = {
         initialTenants: [],
         initialWohnungen: [],
@@ -334,7 +334,7 @@ describe('Accessibility Compliance Tests', () => {
 
       const table = screen.getByRole('table');
       expect(table).toHaveAttribute('aria-label', 'Tenant Table');
-      
+
       // Check table structure
       const rowgroups = screen.getAllByRole('rowgroup');
       expect(rowgroups).toHaveLength(2); // thead and tbody
@@ -343,7 +343,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('disabled buttons have proper aria attributes', async () => {
       const WohnungenClientView = (await import('@/app/(dashboard)/wohnungen/client')).default;
-      
+
       const props = {
         initialWohnungenData: [],
         housesData: [],
@@ -364,17 +364,17 @@ describe('Accessibility Compliance Tests', () => {
   describe('Focus Management', () => {
     it('focus states are visible and properly managed', async () => {
       const TodosClientWrapper = (await import('@/app/(dashboard)/todos/client-wrapper')).default;
-      
+
       const props = { tasks: [] };
       const user = userEvent.setup();
       render(<TodosClientWrapper {...props} />);
 
       const addButton = screen.getByRole('button', { name: /Aufgabe hinzufügen/i });
-      
+
       // Focus the button
       await user.tab();
       expect(addButton).toHaveFocus();
-      
+
       // Button should have focus-visible styles (this would be tested in e2e)
       expect(addButton).toHaveClass('focus-visible:ring-2');
     });
@@ -383,7 +383,7 @@ describe('Accessibility Compliance Tests', () => {
       // This would typically be tested with actual modal opening
       // For now, we test that the button is focusable
       const BetriebskostenClientView = (await import('@/app/(dashboard)/betriebskosten/client-wrapper')).default;
-      
+
       const props = {
         initialNebenkosten: [],
         initialHaeuser: [],
@@ -394,7 +394,7 @@ describe('Accessibility Compliance Tests', () => {
       render(<BetriebskostenClientView {...props} />);
 
       const addButton = screen.getByRole('button', { name: /Betriebskostenabrechnung erstellen/i });
-      
+
       // Should be focusable
       await user.tab();
       expect(addButton).toHaveFocus();
@@ -404,7 +404,7 @@ describe('Accessibility Compliance Tests', () => {
   describe('ARIA Compliance', () => {
     it('Wohnungen page has no accessibility violations', async () => {
       const WohnungenClientView = (await import('@/app/(dashboard)/wohnungen/client')).default;
-      
+
       const props = {
         initialWohnungenData: [],
         housesData: [],
@@ -421,7 +421,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('Häuser page has no accessibility violations', async () => {
       const HaeuserClientView = (await import('@/app/(dashboard)/haeuser/client-wrapper')).default;
-      
+
       const props = { enrichedHaeuser: [] };
       const { container } = render(<HaeuserClientView {...props} />);
       const results = await axe(container);
@@ -430,7 +430,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('Mieter page has no accessibility violations', async () => {
       const MieterClientView = (await import('@/app/(dashboard)/mieter/client-wrapper')).default;
-      
+
       const props = {
         initialTenants: [],
         initialWohnungen: [],
@@ -444,7 +444,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('Betriebskosten page has no accessibility violations', async () => {
       const BetriebskostenClientView = (await import('@/app/(dashboard)/betriebskosten/client-wrapper')).default;
-      
+
       const props = {
         initialNebenkosten: [],
         initialHaeuser: [],
@@ -458,7 +458,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('Todos page has no accessibility violations', async () => {
       const TodosClientWrapper = (await import('@/app/(dashboard)/todos/client-wrapper')).default;
-      
+
       const props = { tasks: [] };
       const { container } = render(<TodosClientWrapper {...props} />);
       const results = await axe(container);
@@ -467,7 +467,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('Finanzen page has no accessibility violations', async () => {
       const FinanzenClientWrapper = (await import('@/app/(dashboard)/finanzen/client-wrapper')).default;
-      
+
       const props = {
         finances: [],
         wohnungen: [],
@@ -483,7 +483,7 @@ describe('Accessibility Compliance Tests', () => {
   describe('Color Contrast and Visual Accessibility', () => {
     it('buttons maintain proper contrast ratios', async () => {
       const WohnungenClientView = (await import('@/app/(dashboard)/wohnungen/client')).default;
-      
+
       const props = {
         initialWohnungenData: [],
         housesData: [],
@@ -496,19 +496,19 @@ describe('Accessibility Compliance Tests', () => {
       render(<WohnungenClientView {...props} />);
 
       const addButton = screen.getByRole('button', { name: /Wohnung hinzufügen/i });
-      
+
       // Button should have proper styling classes for contrast
       expect(addButton).toHaveClass('bg-primary', 'text-primary-foreground');
     });
 
     it('disabled buttons have proper visual indicators', async () => {
       const HaeuserClientView = (await import('@/app/(dashboard)/haeuser/client-wrapper')).default;
-      
+
       const props = { enrichedHaeuser: [] };
       render(<HaeuserClientView {...props} />);
 
       const addButton = screen.getByRole('button', { name: /Haus hinzufügen/i });
-      
+
       // Should have proper disabled styling when disabled
       if (addButton.hasAttribute('disabled')) {
         expect(addButton).toHaveClass('disabled:opacity-50');
@@ -519,7 +519,7 @@ describe('Accessibility Compliance Tests', () => {
   describe('Semantic HTML Structure', () => {
     it('uses proper semantic elements', async () => {
       const MieterClientView = (await import('@/app/(dashboard)/mieter/client-wrapper')).default;
-      
+
       const props = {
         initialTenants: [],
         initialWohnungen: [],
@@ -531,7 +531,7 @@ describe('Accessibility Compliance Tests', () => {
       // Should use proper semantic structure
       const main = container.querySelector('div.flex.flex-col.gap-8.p-8');
       expect(main).toBeInTheDocument();
-      
+
       // Should have proper button elements - get the add button specifically
       const addButton = screen.getByRole('button', { name: /Mieter hinzufügen/i });
       expect(addButton.tagName).toBe('BUTTON');
@@ -539,7 +539,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('maintains logical heading hierarchy', async () => {
       const BetriebskostenClientView = (await import('@/app/(dashboard)/betriebskosten/client-wrapper')).default;
-      
+
       const props = {
         initialNebenkosten: [],
         initialHaeuser: [],
@@ -551,7 +551,7 @@ describe('Accessibility Compliance Tests', () => {
       // CardTitle should be a heading element
       const title = screen.getByText('Betriebskostenübersicht');
       expect(title).toBeInTheDocument();
-      
+
       // CardTitle renders as DIV with heading-like styling in shadcn/ui
       expect(title.tagName).toBe('DIV');
       expect(title).toHaveClass('text-2xl', 'font-semibold');
@@ -575,7 +575,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('maintains accessibility on mobile viewports', async () => {
       const TodosClientWrapper = (await import('@/app/(dashboard)/todos/client-wrapper')).default;
-      
+
       const props = { tasks: [] };
       const { container } = render(<TodosClientWrapper {...props} />);
 
@@ -591,7 +591,7 @@ describe('Accessibility Compliance Tests', () => {
 
     it('touch targets are appropriately sized', async () => {
       const WohnungenClientView = (await import('@/app/(dashboard)/wohnungen/client')).default;
-      
+
       const props = {
         initialWohnungenData: [],
         housesData: [],
@@ -604,7 +604,7 @@ describe('Accessibility Compliance Tests', () => {
       render(<WohnungenClientView {...props} />);
 
       const addButton = screen.getByRole('button', { name: /Wohnung hinzufügen/i });
-      
+
       // Button should have minimum touch target size classes
       expect(addButton).toHaveClass('h-10'); // Minimum 40px height
     });

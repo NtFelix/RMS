@@ -21,7 +21,6 @@ export function OperatingCostsOverviewModal({
   nebenkosten: OptimizedNebenkosten
 }) {
   const [isExporting, setIsExporting] = useState(false)
-
   if (!nebenkosten) return null
 
   // Helper function to format currency
@@ -32,11 +31,7 @@ export function OperatingCostsOverviewModal({
 
   // Calculate total costs from all cost items
   const totalCosts = nebenkosten.betrag?.reduce((sum, betrag) => sum + (betrag || 0), 0) || 0
-
-  // Get total area from the data (in square meters)
   const totalArea = nebenkosten.gesamtFlaeche || 1 // Default to 1 to avoid division by zero
-
-  // Calculate cost per square meter (rounded to 2 decimal places)
   const costPerSqm = totalArea > 0 ? totalCosts / totalArea : 0
 
   // PDF export function

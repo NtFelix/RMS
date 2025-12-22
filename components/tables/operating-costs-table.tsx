@@ -44,7 +44,6 @@ import { toast } from "@/hooks/use-toast" // For notifications
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useRouter } from "next/navigation"
 
-
 // Define sortable fields for operating costs table
 type OperatingCostsSortKey = "zeitraum" | "haus" | "wasserkosten" | ""
 type SortDirection = "asc" | "desc"
@@ -69,6 +68,7 @@ export function OperatingCostsTable({
   onSelectionChange
 }: OperatingCostsTableProps) {
   const router = useRouter()
+
   // Old openWasserzaehlerModalOptimized removed - now using new WasserZaehlerAblesenModal
   const [overviewItem, setOverviewItem] = useState<OptimizedNebenkosten | null>(null);
   // Old wasserzähler modal state removed - now using new WasserZaehlerAblesenModal
@@ -90,7 +90,6 @@ export function OperatingCostsTable({
   // Use external selection state if provided, otherwise use internal
   const selectedItems = externalSelectedItems ?? internalSelectedItems
   const setSelectedItems = onSelectionChange ?? setInternalSelectedItems
-
   // Sorting and filtering logic
   const sortedData = useMemo(() => {
     let result = [...nebenkosten]
@@ -463,8 +462,8 @@ export function OperatingCostsTable({
                             }
                           }}
                           className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
-                              ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                            ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                             }`}
                           onClick={() => onEdit?.(item)}
                         >
