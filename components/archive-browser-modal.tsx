@@ -19,7 +19,7 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react"
-import { useCloudStorageStore, useCloudStorageArchive, StorageObject } from "@/hooks/use-cloud-storage-store"
+import { useCloudStorageArchive, StorageObject } from "@/hooks/use-cloud-storage-store"
 import { extractArchiveTimestamp, reconstructOriginalPath } from "@/lib/path-utils"
 import { formatDistanceToNow } from "date-fns"
 import { de } from "date-fns/locale"

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { posthogLogger } from "@/lib/posthog-logger"
 import {
     Upload,
     RefreshCw,
@@ -724,22 +725,16 @@ export function CloudStorage({
                                                     const sourceFolderPath = folder.path
                                                     const targetFolderPath = `${targetPath}/${folder.name}`
 
-                                                    console.log('🎬 Component: Starting folder move operation:', {
-                                                        folderName: folder.name,
-                                                        folderDisplayName: folder.displayName,
-                                                        sourceFolderPath,
-                                                        targetFolderPath,
-                                                        currentNavPath,
-                                                        targetPath,
-                                                        fullFolderObject: folder
-                                                    })
-
                                                     try {
                                                         await moveFolder(sourceFolderPath, targetFolderPath)
-                                                        console.log('🎉 Component: Folder move completed successfully')
                                                         handleRefresh()
                                                     } catch (error) {
-                                                        console.error('❌ Component: Folder move failed:', error)
+                                                        posthogLogger.error('Folder move failed', {
+                                                            folder_name: folder.name,
+                                                            source_path: sourceFolderPath,
+                                                            target_path: targetFolderPath,
+                                                            error_message: error instanceof Error ? error.message : 'Unknown error'
+                                                        })
                                                         throw error
                                                     }
                                                 }
@@ -773,28 +768,17 @@ export function CloudStorage({
                                                     const sourcePath = `${currentNavPath}/${file.name}`
                                                     const targetFilePath = `${targetPath}/${file.name}`
 
-                                                    console.log('🎬 Component: Starting move operation:', {
-                                                        fileName: file.name,
-                                                        fileId: file.id,
-                                                        fileSize: file.size,
-                                                        fileMetadata: file.metadata,
-                                                        sourcePath,
-                                                        targetFilePath,
-                                                        currentNavPath,
-                                                        targetPath,
-                                                        fullFileObject: file
-                                                    })
-
                                                     try {
-                                                        // Debug: List source directory before move
-                                                        const { debugListDirectory } = await import('@/lib/storage-service')
-                                                        await debugListDirectory(currentNavPath)
-
                                                         await moveFile(sourcePath, targetFilePath)
-                                                        console.log('🎉 Component: Move completed successfully')
                                                         handleRefresh()
                                                     } catch (error) {
-                                                        console.error('❌ Component: Move failed:', error)
+                                                        posthogLogger.error('File move failed', {
+                                                            file_name: file.name,
+                                                            file_id: file.id,
+                                                            source_path: sourcePath,
+                                                            target_path: targetFilePath,
+                                                            error_message: error instanceof Error ? error.message : 'Unknown error'
+                                                        })
                                                         throw error
                                                     }
                                                 }

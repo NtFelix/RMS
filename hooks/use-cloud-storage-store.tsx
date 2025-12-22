@@ -218,7 +218,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           state.folders = folders.map(folder => ({
             name: folder.name,
             path: folder.path,
-            type: folder.type as any,
+            type: folder.type as VirtualFolder['type'],
             isEmpty: folder.isEmpty,
             children: [],
             fileCount: folder.fileCount,
@@ -762,13 +762,6 @@ export const useCloudStorageStore = create<CloudStorageState>()(
 
             const fullPath = `${targetPath}/${fileName}`
 
-            console.log('Uploading file:', {
-              fileName,
-              targetPath,
-              fullPath,
-              originalTargetPath: item.targetPath
-            })
-
             // Simulate progress updates (since Supabase doesn't provide real progress)
             progressInterval = setInterval(() => {
               set((state) => {
@@ -881,7 +874,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           state.folders = folders.map(folder => ({
             name: folder.name,
             path: folder.path,
-            type: folder.type as any,
+            type: folder.type as VirtualFolder['type'],
             isEmpty: folder.isEmpty,
             children: [],
             fileCount: folder.fileCount,
