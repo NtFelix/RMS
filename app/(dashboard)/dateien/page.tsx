@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { CloudStorageSimple } from "@/components/cloud-storage-simple"
+import { CloudStorage } from "@/components/cloud-storage"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { getPathContents, getTotalStorageUsage } from "./actions"
@@ -22,7 +22,7 @@ async function CloudStorageContent({ userId }: { userId: string }) {
   }
 
   return (
-    <CloudStorageSimple
+    <CloudStorage
       userId={userId}
       initialPath={initialPath}
       initialFiles={files}

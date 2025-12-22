@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { 
-  Archive, 
-  RotateCcw, 
-  Trash2, 
-  Download, 
-  Search, 
+import {
+  Archive,
+  RotateCcw,
+  Trash2,
+  Download,
+  Search,
   Calendar,
   FolderOpen,
   File,
@@ -43,7 +43,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'originalPath'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  
+
   const {
     archivedFiles,
     isArchiveLoading,
@@ -53,7 +53,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
     permanentlyDeleteFile,
     setArchiveError
   } = useCloudStorageArchive()
-  
+
   const { toast } = useToast()
 
   // Load archived files when modal opens
@@ -68,7 +68,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
     const timestamp = extractArchiveTimestamp(file.name) || ''
     const originalPath = reconstructOriginalPath(file.name)
     const archiveDate = timestamp ? new Date(timestamp.replace(/-/g, ':')) : new Date(file.created_at)
-    
+
     return {
       ...file,
       timestamp,
@@ -89,7 +89,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
     })
     .sort((a, b) => {
       let comparison = 0
-      
+
       switch (sortBy) {
         case 'name':
           comparison = a.name.localeCompare(b.name)
@@ -103,7 +103,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
           comparison = pathA.localeCompare(pathB)
           break
       }
-      
+
       return sortOrder === 'asc' ? comparison : -comparison
     })
 
@@ -127,7 +127,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
     if (!confirm(`Sind Sie sicher, dass Sie "${file.name}" dauerhaft löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       return
     }
-    
+
     try {
       await permanentlyDeleteFile(file)
       toast({
@@ -145,7 +145,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
 
   const handleBulkRestore = async () => {
     const filesToRestore = filteredAndSortedFiles.filter(file => selectedFiles.has(file.id))
-    
+
     for (const file of filesToRestore) {
       try {
         await restoreFile(file, file.originalPath || undefined)
@@ -153,7 +153,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
         console.error(`Failed to restore ${file.name}:`, error)
       }
     }
-    
+
     setSelectedFiles(new Set())
     toast({
       title: "Dateien wiederhergestellt",
@@ -163,11 +163,11 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
 
   const handleBulkDelete = async () => {
     const filesToDelete = filteredAndSortedFiles.filter(file => selectedFiles.has(file.id))
-    
+
     if (!confirm(`Sind Sie sicher, dass Sie ${filesToDelete.length} Dateien dauerhaft löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
       return
     }
-    
+
     for (const file of filesToDelete) {
       try {
         await permanentlyDeleteFile(file)
@@ -175,7 +175,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
         console.error(`Failed to delete ${file.name}:`, error)
       }
     }
-    
+
     setSelectedFiles(new Set())
     toast({
       title: "Dateien gelöscht",
@@ -225,7 +225,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
                 className="pl-10"
               />
             </div>
-            
+
             <select
               value={`${sortBy}-${sortOrder}`}
               onChange={(e) => {
@@ -311,7 +311,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
                     {filteredAndSortedFiles.length} Dateien gefunden
                   </span>
                 </div>
-                
+
                 {filteredAndSortedFiles.map((file) => (
                   <div
                     key={file.id}
@@ -326,9 +326,9 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
                       onChange={() => toggleFileSelection(file.id)}
                       className="rounded"
                     />
-                    
+
                     <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium truncate">
@@ -338,25 +338,25 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
                           {(file.size / 1024).toFixed(1)} KB
                         </Badge>
                       </div>
-                      
+
                       {file.originalPath && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                           <FolderOpen className="h-3 w-3" />
                           <span className="truncate">{file.originalPath}</span>
                         </div>
                       )}
-                      
+
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
                         <span>
-                          Archiviert {formatDistanceToNow(file.archiveDate, { 
-                            addSuffix: true, 
-                            locale: de 
+                          Archiviert {formatDistanceToNow(file.archiveDate, {
+                            addSuffix: true,
+                            locale: de
                           })}
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-1">
                       <Button
                         size="sm"
@@ -367,7 +367,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
                         <RotateCcw className="h-3 w-3" />
                         Wiederherstellen
                       </Button>
-                      
+
                       <Button
                         size="sm"
                         variant="destructive"

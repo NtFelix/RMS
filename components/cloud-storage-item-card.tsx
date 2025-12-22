@@ -3,16 +3,16 @@
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useToast } from "@/hooks/use-toast"
-import { 
-  File, 
-  FileText, 
-  Image as ImageIcon, 
-  FolderOpen, 
-  Building, 
-  Home, 
-  Download, 
-  Eye, 
-  Trash2, 
+import {
+  File,
+  FileText,
+  Image as ImageIcon,
+  FolderOpen,
+  Building,
+  Home,
+  Download,
+  Eye,
+  Trash2,
   MoreHorizontal,
   Share2,
   Edit3,
@@ -23,14 +23,14 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { 
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -38,9 +38,9 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { cn } from "@/lib/utils"
-import { StorageObject, VirtualFolder } from "@/hooks/use-simple-cloud-storage-store"
+import { StorageObject, VirtualFolder } from "@/hooks/use-cloud-storage-store"
 import { useModalStore } from "@/hooks/use-modal-store"
-import { useSimpleCloudStorageStore } from "@/hooks/use-simple-cloud-storage-store"
+import { useCloudStorageStore } from "@/hooks/use-cloud-storage-store"
 import { DeleteConfirmationDialog } from "./delete-confirmation-dialog"
 
 // Global dropdown manager to ensure only one dropdown is open at a time
@@ -104,13 +104,13 @@ export function CloudStorageItemCard({
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const { openMarkdownEditorModal, openFileRenameModal } = useModalStore()
-  const { currentPath, renameFile } = useSimpleCloudStorageStore()
+  const { currentPath, renameFile } = useCloudStorageStore()
   const supabase = createClient()
 
   // Constants for configuration
   const STORAGE_BUCKET = 'documents'
   const URL_EXPIRY_SECONDS = 3600 // 1 hour
-  
+
   // Helper function to join path segments and normalize the result
   const getFullPath = (path: string, name: string): string => {
     // Remove any leading/trailing slashes and join with a single slash
@@ -148,9 +148,9 @@ export function CloudStorageItemCard({
   // Handle preview action - opens file in new tab
   const handlePreview = async () => {
     if (type !== 'file' || isLoading) return
-    
+
     const file = item as StorageObject
-    
+
     // Handle markdown files with the markdown editor
     if (file.name.endsWith('.md')) {
       openMarkdownEditorModal({
@@ -160,19 +160,19 @@ export function CloudStorageItemCard({
       })
       return
     }
-    
+
     // For other file types, get a signed URL and open in new tab
     try {
       setIsLoading(true)
-      
+
       // Get signed URL for the file
       const filePath = getFullPath(currentPath, file.name)
       const { data, error } = await supabase.storage
         .from(STORAGE_BUCKET)
         .createSignedUrl(filePath, URL_EXPIRY_SECONDS)
-      
+
       if (error) throw error
-      
+
       // Open the file in a new tab
       window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
     } catch (error) {
@@ -221,7 +221,7 @@ export function CloudStorageItemCard({
     } else {
       const file = item as StorageObject
       const extension = file.name.split('.').pop()?.toLowerCase()
-      
+
       if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension || '')) {
         return { icon: ImageIcon, color: 'text-green-500', bgColor: 'bg-green-50' }
       }
@@ -323,7 +323,7 @@ export function CloudStorageItemCard({
           )}
         </>
       )}
-      
+
       {type === 'file' && onDownload && (
         <ContextMenuItem onSelect={() => {
           onDownload()
@@ -332,9 +332,9 @@ export function CloudStorageItemCard({
           Herunterladen
         </ContextMenuItem>
       )}
-      
+
       <ContextMenuSeparator />
-      
+
       {type === 'file' && (
         <ContextMenuItem onSelect={() => {
           if (onRename) {
@@ -347,12 +347,12 @@ export function CloudStorageItemCard({
           Umbenennen
         </ContextMenuItem>
       )}
-      
+
       <ContextMenuItem onSelect={onMove || (() => console.log('Move placeholder'))}>
         <Move className="h-4 w-4 mr-2" />
         Verschieben
       </ContextMenuItem>
-      
+
       {type === 'file' && (
         <>
           <ContextMenuSeparator />
@@ -373,11 +373,11 @@ export function CloudStorageItemCard({
           </ContextMenuItem>
         </>
       )}
-      
+
       {onDelete && (
         <>
           <ContextMenuSeparator />
-          <ContextMenuItem 
+          <ContextMenuItem
             onSelect={(event) => {
               event.preventDefault()
               setIsDropdownOpen(false)
@@ -408,233 +408,233 @@ export function CloudStorageItemCard({
     return (
       <>
         <ContextMenu>
-        <ContextMenuTrigger>
-          <Card
-            className={cn(
-              "relative cursor-pointer transition-all duration-200 hover:shadow-md group",
-              isSelected && "ring-2 ring-primary",
-              className
-            )}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onClick={(e) => {
-              // Don't trigger card click if dropdown is open or was just closed
-              if (isDropdownOpen) {
-                e.preventDefault()
-                e.stopPropagation()
-                return
-              }
-              
-              // Normal card click behavior
-              if (type === 'file' && canPreview()) {
-                if (onPreview) {
-                  onPreview()
-                } else {
-                  handlePreview()
-                }
-              } else if (onOpen) {
-                onOpen()
-              }
-            }}
-          >
-            <div className="p-4">
-              {/* Selection checkbox */}
-              {onSelect && (
-                <div className={cn(
-                  "absolute top-2 left-2 transition-opacity",
-                  isSelected || isHovered ? "opacity-100" : "opacity-0"
-                )}>
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={onSelect}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
+          <ContextMenuTrigger>
+            <Card
+              className={cn(
+                "relative cursor-pointer transition-all duration-200 hover:shadow-md group",
+                isSelected && "ring-2 ring-primary",
+                className
               )}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onClick={(e) => {
+                // Don't trigger card click if dropdown is open or was just closed
+                if (isDropdownOpen) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  return
+                }
 
-              {/* Actions dropdown */}
-              <div className={cn(
-                "absolute top-2 right-2 transition-opacity",
-                isHovered ? "opacity-100" : "opacity-0"
-              )}>
-                <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 w-8 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                      }}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {type === 'folder' ? (
-                      <DropdownMenuItem onSelect={(e) => {
-                        e.preventDefault()
-                        setIsDropdownOpen(false)
-                        if (onOpen) onOpen()
-                      }}>
-                        <FolderOpen className="h-4 w-4 mr-2" />
-                        Öffnen
-                      </DropdownMenuItem>
-                    ) : (
-                      <>
-                        {canPreview() ? (
-                          <DropdownMenuItem 
-                            onSelect={(e) => {
-                              e.preventDefault()
-                              if (isLoading) return
-                              setIsDropdownOpen(false)
-                              if (onPreview) {
-                                onPreview()
-                              } else {
-                                handlePreview()
-                              }
-                            }}
-                            className="flex items-center"
-                            disabled={isLoading}
-                          >
-                            {isLoading ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <Eye className="h-4 w-4 mr-2" />
-                            )}
-                            {isLoading ? 'Wird geladen...' : 'Vorschau'}
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onSelect={(e) => {
-                            e.preventDefault()
-                            setIsDropdownOpen(false)
-                            if (onOpen) onOpen()
-                          }}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Öffnen
-                          </DropdownMenuItem>
-                        )}
-                      </>
-                    )}
-                    
-                    {type === 'file' && onDownload && (
-                      <DropdownMenuItem onSelect={(e) => {
-                        e.preventDefault()
-                        setIsDropdownOpen(false)
-                        onDownload()
-                      }}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Herunterladen
-                      </DropdownMenuItem>
-                    )}
-                    
-                    <DropdownMenuSeparator />
-                    
-                    {type === 'file' && (
-                      <DropdownMenuItem onSelect={(e) => {
-                        e.preventDefault()
-                        setIsDropdownOpen(false)
-                        if (onRename) {
-                          onRename()
-                        } else {
-                          handleRename()
-                        }
-                      }}>
-                        <Edit3 className="h-4 w-4 mr-2" />
-                        Umbenennen
-                      </DropdownMenuItem>
-                    )}
-                    
-                    <DropdownMenuItem onSelect={(e) => {
-                      e.preventDefault()
-                      setIsDropdownOpen(false)
-                      if (onMove) {
-                        onMove()
-                      } else {
-                        console.log('Move placeholder')
-                      }
-                    }}>
-                      <Move className="h-4 w-4 mr-2" />
-                      Verschieben
-                    </DropdownMenuItem>
-                    
-                    {type === 'file' && (
-                      <>
-                        <DropdownMenuSeparator />
+                // Normal card click behavior
+                if (type === 'file' && canPreview()) {
+                  if (onPreview) {
+                    onPreview()
+                  } else {
+                    handlePreview()
+                  }
+                } else if (onOpen) {
+                  onOpen()
+                }
+              }}
+            >
+              <div className="p-4">
+                {/* Selection checkbox */}
+                {onSelect && (
+                  <div className={cn(
+                    "absolute top-2 left-2 transition-opacity",
+                    isSelected || isHovered ? "opacity-100" : "opacity-0"
+                  )}>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={onSelect}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                )}
+
+                {/* Actions dropdown */}
+                <div className={cn(
+                  "absolute top-2 right-2 transition-opacity",
+                  isHovered ? "opacity-100" : "opacity-0"
+                )}>
+                  <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                        }}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      {type === 'folder' ? (
                         <DropdownMenuItem onSelect={(e) => {
                           e.preventDefault()
                           setIsDropdownOpen(false)
-                          if (onShare) {
-                            onShare()
+                          if (onOpen) onOpen()
+                        }}>
+                          <FolderOpen className="h-4 w-4 mr-2" />
+                          Öffnen
+                        </DropdownMenuItem>
+                      ) : (
+                        <>
+                          {canPreview() ? (
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault()
+                                if (isLoading) return
+                                setIsDropdownOpen(false)
+                                if (onPreview) {
+                                  onPreview()
+                                } else {
+                                  handlePreview()
+                                }
+                              }}
+                              className="flex items-center"
+                              disabled={isLoading}
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Eye className="h-4 w-4 mr-2" />
+                              )}
+                              {isLoading ? 'Wird geladen...' : 'Vorschau'}
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onSelect={(e) => {
+                              e.preventDefault()
+                              setIsDropdownOpen(false)
+                              if (onOpen) onOpen()
+                            }}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Öffnen
+                            </DropdownMenuItem>
+                          )}
+                        </>
+                      )}
+
+                      {type === 'file' && onDownload && (
+                        <DropdownMenuItem onSelect={(e) => {
+                          e.preventDefault()
+                          setIsDropdownOpen(false)
+                          onDownload()
+                        }}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Herunterladen
+                        </DropdownMenuItem>
+                      )}
+
+                      <DropdownMenuSeparator />
+
+                      {type === 'file' && (
+                        <DropdownMenuItem onSelect={(e) => {
+                          e.preventDefault()
+                          setIsDropdownOpen(false)
+                          if (onRename) {
+                            onRename()
                           } else {
-                            const { openShareDocumentModal } = useModalStore.getState()
-                            const file = item as StorageObject
-                            openShareDocumentModal({
-                              fileName: file.name,
-                              filePath: `${currentPath}/${file.name}`
-                            })
+                            handleRename()
                           }
                         }}>
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Teilen
+                          <Edit3 className="h-4 w-4 mr-2" />
+                          Umbenennen
                         </DropdownMenuItem>
-                      </>
-                    )}
-                    
-                    {onDelete && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={(event) => {
-                          event.preventDefault()
-                          setIsDropdownOpen(false)
-                          setIsDeleteDialogOpen(true)
-                        }} className="text-destructive">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          {type === 'folder' ? 'Ordner löschen' : 'Löschen'}
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                      )}
 
-              <div className="flex flex-col items-center text-center space-y-3">
-                {/* Icon */}
-                <div className={cn(
-                  "p-3 rounded-xl transition-colors",
-                  bgColor,
-                  "group-hover:scale-105 transition-transform"
-                )}>
-                  {isLoading ? (
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  ) : (
-                    <Icon className={cn("h-8 w-8", color)} />
-                  )}
+                      <DropdownMenuItem onSelect={(e) => {
+                        e.preventDefault()
+                        setIsDropdownOpen(false)
+                        if (onMove) {
+                          onMove()
+                        } else {
+                          console.log('Move placeholder')
+                        }
+                      }}>
+                        <Move className="h-4 w-4 mr-2" />
+                        Verschieben
+                      </DropdownMenuItem>
+
+                      {type === 'file' && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={(e) => {
+                            e.preventDefault()
+                            setIsDropdownOpen(false)
+                            if (onShare) {
+                              onShare()
+                            } else {
+                              const { openShareDocumentModal } = useModalStore.getState()
+                              const file = item as StorageObject
+                              openShareDocumentModal({
+                                fileName: file.name,
+                                filePath: `${currentPath}/${file.name}`
+                              })
+                            }
+                          }}>
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Teilen
+                          </DropdownMenuItem>
+                        </>
+                      )}
+
+                      {onDelete && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={(event) => {
+                            event.preventDefault()
+                            setIsDropdownOpen(false)
+                            setIsDeleteDialogOpen(true)
+                          }} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {type === 'folder' ? 'Ordner löschen' : 'Löschen'}
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
-                {/* Content */}
-                <div className="w-full space-y-1">
-                  <p 
-                    className="font-medium text-sm truncate leading-tight" 
-                    title={displayName}
-                  >
-                    {displayName}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {subtitle}
-                  </p>
-                  <Badge variant={typeBadge.variant} className="text-xs">
-                    {typeBadge.label}
-                  </Badge>
+                <div className="flex flex-col items-center text-center space-y-3">
+                  {/* Icon */}
+                  <div className={cn(
+                    "p-3 rounded-xl transition-colors",
+                    bgColor,
+                    "group-hover:scale-105 transition-transform"
+                  )}>
+                    {isLoading ? (
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Icon className={cn("h-8 w-8", color)} />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="w-full space-y-1">
+                    <p
+                      className="font-medium text-sm truncate leading-tight"
+                      title={displayName}
+                    >
+                      {displayName}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {subtitle}
+                    </p>
+                    <Badge variant={typeBadge.variant} className="text-xs">
+                      {typeBadge.label}
+                    </Badge>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
-        </ContextMenuTrigger>
-        <ContextMenuContent className="w-48">
-          {contextMenuItems}
-        </ContextMenuContent>
+            </Card>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-48">
+            {contextMenuItems}
+          </ContextMenuContent>
         </ContextMenu>
         {deleteConfirmationDialog}
       </>
@@ -645,103 +645,103 @@ export function CloudStorageItemCard({
   return (
     <>
       <ContextMenu>
-      <ContextMenuTrigger>
-        <div
-          className={cn(
-            "flex items-center p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group",
-            isSelected && "bg-muted",
-            className
-          )}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onClick={onOpen}
-        >
-          {/* Selection checkbox */}
-          {onSelect && (
-            <div className="mr-3">
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={onSelect}
-                onClick={(e) => e.stopPropagation()}
-              />
+        <ContextMenuTrigger>
+          <div
+            className={cn(
+              "flex items-center p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group",
+              isSelected && "bg-muted",
+              className
+            )}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={onOpen}
+          >
+            {/* Selection checkbox */}
+            {onSelect && (
+              <div className="mr-3">
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={onSelect}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
+
+            {/* Icon */}
+            <div className={cn("mr-3 p-2 rounded-lg", bgColor)}>
+              <Icon className={cn("h-5 w-5", color)} />
             </div>
-          )}
 
-          {/* Icon */}
-          <div className={cn("mr-3 p-2 rounded-lg", bgColor)}>
-            <Icon className={cn("h-5 w-5", color)} />
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2">
-              <p className="font-medium truncate">{displayName}</p>
-              <Badge variant={typeBadge.variant} className="text-xs">
-                {typeBadge.label}
-              </Badge>
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <p className="font-medium truncate">{displayName}</p>
+                <Badge variant={typeBadge.variant} className="text-xs">
+                  {typeBadge.label}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground truncate">
+                {subtitle}
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground truncate">
-              {subtitle}
-            </p>
-          </div>
 
-          {/* Actions */}
-          <div className={cn(
-            "flex items-center space-x-1 transition-opacity",
-            isHovered ? "opacity-100" : "opacity-0"
-          )}>
-            {type === 'file' && onDownload && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDownload()
-                }}
-                className="h-8 w-8 p-0"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            )}
-            
-            {(onPreview || (type === 'file' && canPreview())) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (onPreview) {
-                    onPreview()
-                  } else {
-                    handlePreview()
-                  }
-                }}
-                className="h-8 w-8 p-0"
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            )}
-            
-            {onDelete && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setIsDeleteDialogOpen(true)
-                }}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                title={type === 'folder' ? 'Ordner löschen' : 'Datei löschen'}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+            {/* Actions */}
+            <div className={cn(
+              "flex items-center space-x-1 transition-opacity",
+              isHovered ? "opacity-100" : "opacity-0"
+            )}>
+              {type === 'file' && onDownload && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDownload()
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              )}
+
+              {(onPreview || (type === 'file' && canPreview())) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (onPreview) {
+                      onPreview()
+                    } else {
+                      handlePreview()
+                    }
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              )}
+
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setIsDeleteDialogOpen(true)
+                  }}
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                  title={type === 'folder' ? 'Ordner löschen' : 'Datei löschen'}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-48">
-        {contextMenuItems}
-      </ContextMenuContent>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          {contextMenuItems}
+        </ContextMenuContent>
       </ContextMenu>
       {deleteConfirmationDialog}
     </>
