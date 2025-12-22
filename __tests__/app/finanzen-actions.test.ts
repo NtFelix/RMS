@@ -1,14 +1,8 @@
-import {
-  financeServerAction,
-  toggleFinanceStatusAction,
-  deleteFinanceAction,
-} from '../../app/finanzen-actions';
+
+import { financeServerAction, toggleFinanceStatusAction, deleteFinanceAction } from '@/app/finanzen-actions';
+import { revalidatePath } from 'next/cache';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
-}));
-
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
@@ -37,137 +31,157 @@ jest.mock('@/utils/logger', () => ({
   },
 }));
 
-import { createClient } from '@/utils/supabase/server';
-import { revalidatePath } from 'next/cache';
+// Mock Supabase
+const mockSelectEq = jest.fn();
+const mockUpdateEq = jest.fn();
+const mockDeleteEq = jest.fn();
 
-describe('Finanzen Actions', () => {
-  let mockSupabase: any;
+const mockSelect = jest.fn();
+const mockInsert = jest.fn();
+const mockUpdate = jest.fn();
+const mockDelete = jest.fn();
 
+const mockSingle = jest.fn();
+
+const mockSupabase = {
+  from: jest.fn(() => ({
+    select: mockSelect,
+    insert: mockInsert,
+    update: mockUpdate,
+    delete: mockDelete,
+  })),
+  auth: {
+    getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } }, error: null }),
+  },
+};
+
+jest.mock('@/utils/supabase/server', () => ({
+  createClient: jest.fn(() => mockSupabase),
+}));
+
+describe('Finanzen Server Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSupabase = {
-      auth: {
-        getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user' } }, error: null }),
-      },
-      from: jest.fn(),
-    };
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-  });
 
-  afterEach(() => {
-    (console.error as jest.Mock).mockRestore();
-  });
+    // Default chain setups
+    mockSelect.mockReturnThis();
+    mockInsert.mockReturnThis();
+    mockUpdate.mockReturnThis();
+    mockDelete.mockReturnThis();
 
-  describe('financeServerAction (Create/Update)', () => {
-    const validData = {
-      name: 'Miete',
-      betrag: 1000,
-      ist_einnahmen: true,
-      datum: '2024-01-01',
-    };
+    mockSelectEq.mockReturnThis();
+    mockUpdateEq.mockReturnThis();
+    mockDeleteEq.mockReturnThis();
+    mockSingle.mockReturnThis();
 
-    it('creates finance entry successfully', async () => {
-      const insertMock = jest.fn().mockReturnValue({
+    // Wiring
+    mockSelect.mockReturnValue({
+        eq: mockSelectEq,
+        single: mockSingle,
+    });
+
+    mockInsert.mockReturnValue({
         select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({ data: { id: 'fin-1', ...validData }, error: null })
+            single: mockSingle
         })
-      });
+    });
 
-      mockSupabase.from.mockReturnValue({ insert: insertMock });
+    mockUpdate.mockReturnValue({
+        eq: mockUpdateEq,
+    });
 
+    mockUpdateEq.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+            single: mockSingle
+        })
+    });
+
+    mockDelete.mockReturnValue({
+        eq: mockDeleteEq
+    });
+
+    // Default resolutions
+    mockSingle.mockResolvedValue({ data: { id: 'fin-1', betrag: 100 }, error: null });
+    mockDeleteEq.mockResolvedValue({ data: null, error: null });
+  });
+
+  describe('financeServerAction', () => {
+    const validData = {
+      name: 'Miete Jan',
+      betrag: 500,
+      ist_einnahmen: true,
+      datum: '2023-01-01',
+    };
+
+    it('should create a new finance record', async () => {
       const result = await financeServerAction(null, validData);
-      expect(result.success).toBe(true);
-      expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'Miete',
-        betrag: 1000
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('Finanzen');
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'Miete Jan',
+        betrag: 500,
+        ist_einnahmen: true
       }));
       expect(revalidatePath).toHaveBeenCalledWith('/finanzen');
-    });
-
-    it('updates finance entry successfully', async () => {
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({ data: { id: 'fin-1', ...validData }, error: null })
-          })
-        })
-      });
-
-      mockSupabase.from.mockReturnValue({ update: updateMock });
-
-      const result = await financeServerAction('fin-1', validData);
       expect(result.success).toBe(true);
-      expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'Miete'
-      }));
     });
 
-    it('validates required fields', async () => {
-      const invalidData = { ...validData, name: '' };
-      const result = await financeServerAction(null, invalidData);
-      expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Name ist erforderlich');
+    it('should update an existing finance record', async () => {
+      const result = await financeServerAction('fin-123', validData);
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockUpdateEq).toHaveBeenCalledWith('id', 'fin-123');
+      expect(revalidatePath).toHaveBeenCalledWith('/finanzen');
+      expect(result.success).toBe(true);
     });
 
-    it('handles database errors', async () => {
-      const insertMock = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({ data: null, error: { message: 'DB Error' } })
-        })
-      });
-      mockSupabase.from.mockReturnValue({ insert: insertMock });
+    it('should fail with validation errors', async () => {
+      const invalidName = { ...validData, name: '' };
+      const res1 = await financeServerAction(null, invalidName);
+      expect(res1.success).toBe(false);
+      expect(res1.error.message).toContain('Name ist erforderlich');
 
-      const result = await financeServerAction(null, validData);
-      expect(result.success).toBe(false);
-      expect(result.error.message).toBe('DB Error');
+      const invalidAmount = { ...validData, betrag: 'invalid' as any };
+      const res2 = await financeServerAction(null, invalidAmount);
+      expect(res2.success).toBe(false);
+      expect(res2.error.message).toContain('Betrag muss eine Zahl sein');
+    });
+
+    it('should handle database errors', async () => {
+        mockSingle.mockResolvedValueOnce({ data: null, error: { message: 'DB Error' } });
+
+        const result = await financeServerAction(null, validData);
+        expect(result.success).toBe(false);
+        expect(result.error.message).toBe('DB Error');
     });
   });
 
   describe('toggleFinanceStatusAction', () => {
-    it('toggles status successfully', async () => {
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-            select: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({ data: { id: 'fin-1', ist_einnahmen: false }, error: null })
-            })
-        })
-      });
+    it('should toggle status', async () => {
+        const result = await toggleFinanceStatusAction('fin-123', true);
 
-      mockSupabase.from.mockReturnValue({ update: updateMock });
-
-      const result = await toggleFinanceStatusAction('fin-1', true);
-      expect(result.success).toBe(true);
-      expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({
-        ist_einnahmen: false
-      }));
-      expect(revalidatePath).toHaveBeenCalledWith('/finanzen');
+        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+            ist_einnahmen: false
+        }));
+        expect(mockUpdateEq).toHaveBeenCalledWith('id', 'fin-123');
+        expect(result.success).toBe(true);
     });
   });
 
   describe('deleteFinanceAction', () => {
-    it('deletes finance entry successfully', async () => {
-      mockSupabase.from.mockReturnValue({
-        delete: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null })
-        })
-      });
+    it('should delete a record', async () => {
+        const result = await deleteFinanceAction('fin-123');
 
-      const result = await deleteFinanceAction('fin-1');
-      expect(result.success).toBe(true);
-      expect(revalidatePath).toHaveBeenCalledWith('/finanzen');
+        expect(mockDelete).toHaveBeenCalled();
+        expect(mockDeleteEq).toHaveBeenCalledWith('id', 'fin-123');
+        expect(result.success).toBe(true);
     });
 
-    it('handles delete errors', async () => {
-      mockSupabase.from.mockReturnValue({
-        delete: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: { message: 'Delete Failed' } })
-        })
-      });
+    it('should return error if delete fails', async () => {
+        mockDeleteEq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
-      const result = await deleteFinanceAction('fin-1');
-      expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Delete Failed');
+        const result = await deleteFinanceAction('fin-123');
+        expect(result.success).toBe(false);
     });
   });
 });

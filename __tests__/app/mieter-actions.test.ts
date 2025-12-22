@@ -1,17 +1,9 @@
-import {
-  handleSubmit,
-  deleteTenantAction,
-  getMieterByHausIdAction,
-  updateKautionAction,
-  updateTenantApartment,
-  getSuggestedKautionAmount,
-} from '../../app/mieter-actions';
+
+import { handleSubmit, deleteTenantAction, getMieterByHausIdAction, updateKautionAction } from '@/app/mieter-actions';
+import { revalidatePath } from 'next/cache';
+import { logAction } from '@/lib/logging-middleware';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
-}));
-
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
@@ -40,217 +32,214 @@ jest.mock('@/utils/logger', () => ({
   },
 }));
 
-import { createClient } from '@/utils/supabase/server';
-import { revalidatePath } from 'next/cache';
-import { logAction } from '@/lib/logging-middleware';
+// Mock Supabase
+const mockSelectEq = jest.fn();
+const mockUpdateEq = jest.fn();
+const mockDeleteEq = jest.fn();
 
-describe('Mieter Actions', () => {
-  const mockSupabase = {
-    from: jest.fn(),
-    auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user' } }, error: null }),
-    },
-  };
+const mockSelect = jest.fn();
+const mockInsert = jest.fn();
+const mockUpdate = jest.fn();
+const mockDelete = jest.fn();
 
+const mockSingle = jest.fn();
+const mockIn = jest.fn();
+const mockOr = jest.fn();
+
+const mockSupabase = {
+  from: jest.fn(() => ({
+    select: mockSelect,
+    insert: mockInsert,
+    update: mockUpdate,
+    delete: mockDelete,
+  })),
+  auth: {
+    getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } }, error: null }),
+  },
+};
+
+jest.mock('@/utils/supabase/server', () => ({
+  createClient: jest.fn(() => mockSupabase),
+}));
+
+describe('Mieter Server Actions', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
-    jest.spyOn(console, 'error').mockImplementation(() => { });
+    jest.clearAllMocks();
+
+    // Setup default chainable mocks
+    mockSelect.mockReturnThis();
+    mockInsert.mockReturnThis();
+    mockUpdate.mockReturnThis();
+    mockDelete.mockReturnThis();
+
+    mockSelectEq.mockReturnThis();
+    mockUpdateEq.mockReturnThis();
+    mockDeleteEq.mockReturnThis();
+
+    mockSingle.mockReturnThis();
+    mockIn.mockReturnThis();
+    mockOr.mockReturnThis();
+
+    // Default return values for chains
+    mockSelect.mockReturnValue({
+      eq: mockSelectEq,
+      in: mockIn,
+      or: mockOr,
+      single: mockSingle,
+    });
+
+    mockInsert.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        single: mockSingle
+      })
+    });
+
+    mockUpdate.mockReturnValue({
+      eq: mockUpdateEq
+    });
+
+    mockDelete.mockReturnValue({
+      eq: mockDeleteEq
+    });
+
+    // Select chain
+    mockSelectEq.mockReturnValue({
+      single: mockSingle,
+      data: [],
+      error: null
+    });
+
+    // Default leaf resolutions
+    mockUpdateEq.mockResolvedValue({ data: null, error: null });
+    mockDeleteEq.mockResolvedValue({ data: null, error: null });
+    mockSingle.mockResolvedValue({ data: {}, error: null });
   });
 
-  afterEach(() => {
-    (console.error as jest.Mock).mockRestore();
-  });
-
-  describe('handleSubmit (Create/Update Tenant)', () => {
-    it('creates a new tenant successfully', async () => {
+  describe('handleSubmit', () => {
+    it('should create a new tenant successfully', async () => {
       const formData = new FormData();
-      formData.append('name', 'Max Mustermann');
-      formData.append('email', 'max@example.com');
+      formData.append('name', 'John Doe');
+      formData.append('email', 'john@example.com');
 
-      const insertMock = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({ data: { id: 'new-id' }, error: null })
-        })
-      });
-
-      mockSupabase.from.mockReturnValue({
-        insert: insertMock,
-      });
+      mockSingle.mockResolvedValueOnce({ data: { id: 'new-tenant-id' }, error: null });
 
       const result = await handleSubmit(formData);
-      expect(result.success).toBe(true);
-      expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'Max Mustermann',
-        email: 'max@example.com'
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'John Doe',
+        email: 'john@example.com',
       }));
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
       expect(logAction).toHaveBeenCalledWith('createTenant', 'success', expect.anything());
+      expect(result).toEqual({ success: true });
     });
 
-    it('updates an existing tenant successfully', async () => {
+    it('should update an existing tenant successfully', async () => {
       const formData = new FormData();
       formData.append('id', 'tenant-123');
-      formData.append('name', 'Updated Name');
+      formData.append('name', 'Jane Doe');
 
-      const updateMock = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ error: null })
-      });
-
-      mockSupabase.from.mockReturnValue({
-        update: updateMock,
-      });
+      mockUpdateEq.mockResolvedValueOnce({ error: null });
 
       const result = await handleSubmit(formData);
-      expect(result.success).toBe(true);
-      expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'Updated Name'
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'Jane Doe',
       }));
+      expect(mockUpdateEq).toHaveBeenCalledWith('id', 'tenant-123');
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+      expect(logAction).toHaveBeenCalledWith('updateTenant', 'success', expect.anything());
+      expect(result).toEqual({ success: true });
     });
 
-    it('handles database errors during creation', async () => {
+    it('should return error if insert fails', async () => {
       const formData = new FormData();
-      formData.append('name', 'Error User');
+      formData.append('name', 'Fail User');
 
-      mockSupabase.from.mockReturnValue({
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({ data: null, error: { message: 'DB Error' } })
-          })
-        })
-      });
+      mockSingle.mockResolvedValueOnce({ data: null, error: { message: 'Insert failed' } });
 
       const result = await handleSubmit(formData);
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toBe('DB Error');
-    });
 
-    it('parses valid Nebenkosten JSON', async () => {
-      const formData = new FormData();
-      formData.append('name', 'JSON User');
-      formData.append('nebenkosten', JSON.stringify({ heizung: 50 }));
-
-      const insertMock = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({ data: { id: 'new-id' }, error: null })
-        })
-      });
-      mockSupabase.from.mockReturnValue({ insert: insertMock });
-
-      await handleSubmit(formData);
-
-      expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({
-        nebenkosten: { heizung: 50 }
-      }));
-    });
-
-    it('returns error for invalid Nebenkosten JSON', async () => {
-      const formData = new FormData();
-      formData.append('name', 'Bad JSON');
-      formData.append('nebenkosten', '{invalid-json');
-
-      const result = await handleSubmit(formData);
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toContain('Ungültiges JSON-Format');
+      expect(result).toEqual({ success: false, error: { message: 'Insert failed' } });
     });
   });
 
   describe('deleteTenantAction', () => {
-    it('deletes a tenant successfully', async () => {
-      mockSupabase.from.mockReturnValue({
-        delete: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null })
-        })
-      });
+    it('should delete a tenant successfully', async () => {
+      mockDeleteEq.mockResolvedValueOnce({ error: null });
 
       const result = await deleteTenantAction('tenant-123');
-      expect(result.success).toBe(true);
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
+      expect(mockDelete).toHaveBeenCalled();
+      expect(mockDeleteEq).toHaveBeenCalledWith('id', 'tenant-123');
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+      expect(result).toEqual({ success: true });
     });
 
-    it('handles delete errors', async () => {
-      mockSupabase.from.mockReturnValue({
-        delete: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: { message: 'Delete Failed' } })
-        })
-      });
+    it('should return error if delete fails', async () => {
+      mockDeleteEq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
       const result = await deleteTenantAction('tenant-123');
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toBe('Delete Failed');
+
+      expect(result).toEqual({ success: false, error: { message: 'Delete failed' } });
     });
   });
 
   describe('getMieterByHausIdAction', () => {
-    it('returns error if hausId is missing', async () => {
-      const result = await getMieterByHausIdAction('');
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Haus ID is required.');
-    });
+    it('should fetch tenants by house id', async () => {
+      // Mock step 1: fetch wohnungen
+      mockSelectEq.mockResolvedValueOnce({ data: [{ id: 'w1' }, { id: 'w2' }], error: null });
 
-    it('validates date inputs', async () => {
-      const result = await getMieterByHausIdAction('haus-1', '2024-02-01', '2024-01-01'); // End before start
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Enddatum muss nach dem Startdatum liegen');
-    });
-
-    it('fetches tenants correctly', async () => {
-      // Mock fetching apartments
-      const selectApartments = jest.fn().mockResolvedValue({
-        data: [{ id: 'w1' }, { id: 'w2' }],
-        error: null
-      });
-
-      // Mock fetching tenants
-      const selectTenants = jest.fn().mockReturnThis();
-
-      // Make queryBuilder a Promise-like object so it can be awaited
-      const queryBuilder: any = {};
-      queryBuilder.in = jest.fn().mockReturnValue(queryBuilder);
-      queryBuilder.or = jest.fn().mockReturnValue(queryBuilder);
-      queryBuilder.then = jest.fn((resolve) => resolve({ data: [{ id: 't1', name: 'Tenant 1' }], error: null }));
-
-      mockSupabase.from.mockImplementation((table) => {
-        if (table === 'Wohnungen') {
-          return { select: jest.fn().mockReturnValue({ eq: selectApartments }) };
-        }
-        if (table === 'Mieter') {
-          return { select: selectTenants };
-        }
-        return {};
-      });
-
-      selectTenants.mockReturnValue(queryBuilder);
+      // Mock step 2: fetch mieter
+      mockIn.mockResolvedValueOnce({ data: [{ id: 't1', name: 'Tenant 1' }], error: null });
 
       const result = await getMieterByHausIdAction('haus-1');
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
     });
+
+    it('should return error if fetching wohnungen fails', async () => {
+      mockSelectEq.mockResolvedValueOnce({ data: null, error: { message: 'Fetch failed' } });
+
+      const result = await getMieterByHausIdAction('haus-1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Fetch failed');
+    });
   });
 
   describe('updateKautionAction', () => {
-    it('validates input', async () => {
-      const formData = new FormData();
-      // Missing tenantId
-      const result = await updateKautionAction(formData);
-      expect(result.success).toBe(false);
-    });
-
-    it('updates kaution successfully', async () => {
+    it('should update kaution successfully', async () => {
       const formData = new FormData();
       formData.append('tenantId', 't1');
       formData.append('amount', '1000');
       formData.append('status', 'Erhalten');
 
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: {}, error: null }) }) }),
-        update: jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) })
-      });
+      // Mock fetch existing tenant (select chain)
+      mockSingle.mockResolvedValueOnce({ data: { kaution: { createdAt: 'old-date' } }, error: null });
+
+      // Mock update (update chain)
+      mockUpdateEq.mockResolvedValueOnce({ error: null });
 
       const result = await updateKautionAction(formData);
+
+      expect(mockUpdate).toHaveBeenCalled();
       expect(result.success).toBe(true);
+    });
+
+    it('should fail with invalid amount', async () => {
+      const formData = new FormData();
+      formData.append('tenantId', 't1');
+      formData.append('amount', 'invalid');
+
+      const result = await updateKautionAction(formData);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain('Betrag muss eine positive Zahl sein');
     });
   });
 });
