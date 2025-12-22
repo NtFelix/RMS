@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+
 import { z } from 'zod';
 import { JSONContent } from '@tiptap/react';
 import { useModalStore } from '@/hooks/use-modal-store';
@@ -34,12 +35,25 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { TemplateEditor } from '@/components/template-editor';
-import { TEMPLATE_CATEGORIES, TemplateCategory } from '@/lib/template-constants';
+import { TEMPLATE_CATEGORIES, TemplateCategory, TEMPLATE_TYPE_CONFIGS, TEMPLATE_ICON_MAP } from '@/lib/template-constants';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorModalProps } from '@/types/template';
 import { validateTemplate, validateMentionVariables, isEmptyTipTapContent } from '@/lib/template-validation';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, FileText, Save, X, AlertCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  FileText,
+  Save,
+  AlertCircle,
+  Mail,
+  MoreHorizontal,
+  Check,
+  ChevronRight
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+
 
 // Enhanced form validation schemas
 const categorySchema = z.object({
@@ -99,10 +113,10 @@ export function TemplateEditorModal({
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  const { 
-    setTemplateEditorModalDirty, 
+  const {
+    setTemplateEditorModalDirty,
     isTemplateEditorModalDirty,
-    closeTemplateEditorModal 
+    closeTemplateEditorModal
   } = useModalStore();
 
   // Accessibility hook
@@ -149,7 +163,7 @@ export function TemplateEditorModal({
     if (isOpen) {
       setIsLoading(false);
       setValidationErrors([]);
-      
+
       if (template) {
         // Editing existing template - skip category selection
         setSelectedCategory(template.kategorie);
@@ -177,11 +191,17 @@ export function TemplateEditorModal({
   }, [isOpen, template, categoryForm, templateForm, setTemplateEditorModalDirty]);
 
   // Handle category selection
+  const handleCategorySelect = (category: TemplateCategory) => {
+    setSelectedCategory(category);
+    categoryForm.setValue('kategorie', category);
+  };
+
   const handleCategorySubmit = (data: CategoryFormData) => {
     setSelectedCategory(data.kategorie);
     templateForm.setValue('kategorie', data.kategorie);
     setStep('editor');
   };
+
 
   // Handle template save
   const handleTemplateSave = async (data: TemplateFormData) => {
@@ -210,7 +230,7 @@ export function TemplateEditorModal({
       if (!validation.isValid) {
         const errors = validation.errors.map(error => error.message);
         setValidationErrors(errors);
-        
+
         // Set form errors
         validation.errors.forEach(error => {
           if (error.field === 'titel') {
@@ -235,7 +255,7 @@ export function TemplateEditorModal({
       if (!mentionValidation.isValid) {
         const mentionErrors = mentionValidation.errors.map(error => error.message);
         setValidationErrors(mentionErrors);
-        
+
         templateForm.setError('inhalt', {
           message: 'Der Inhalt enthält ungültige Variablen.',
         });
@@ -254,10 +274,10 @@ export function TemplateEditorModal({
       setTemplateEditorModalDirty(false);
     } catch (error) {
       console.error('Error saving template:', error);
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler beim Speichern';
       setValidationErrors([errorMessage]);
-      
+
       toast({
         title: 'Speicherfehler',
         description: errorMessage,
@@ -273,12 +293,12 @@ export function TemplateEditorModal({
     setEditorContent(json);
     templateForm.setValue('inhalt', json);
     setTemplateEditorModalDirty(true);
-    
+
     // Clear validation errors when user starts typing
     if (validationErrors.length > 0) {
       setValidationErrors([]);
     }
-    
+
     // Clear form errors for content
     if (templateForm.formState.errors.inhalt) {
       templateForm.clearErrors('inhalt');
@@ -289,12 +309,12 @@ export function TemplateEditorModal({
   const handleTitleChange = (value: string) => {
     templateForm.setValue('titel', value);
     setTemplateEditorModalDirty(true);
-    
+
     // Clear validation errors when user starts typing
     if (validationErrors.length > 0) {
       setValidationErrors([]);
     }
-    
+
     // Clear form errors for title
     if (templateForm.formState.errors.titel) {
       templateForm.clearErrors('titel');
@@ -342,288 +362,283 @@ export function TemplateEditorModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleAttemptClose()}>
       <DialogContent
         id={editorId}
-        className="max-w-[95vw] sm:max-w-5xl lg:max-w-6xl h-[83vh] min-h-[83vh] max-h-[83vh] overflow-hidden flex flex-col"
+        className="max-w-[95vw] sm:max-w-5xl lg:max-w-6xl h-[90vh] sm:h-[83vh] overflow-hidden flex flex-col p-0 gap-0 border-0 bg-background/95 backdrop-blur-xl shadow-2xl"
         isDirty={isTemplateEditorModalDirty}
         onAttemptClose={handleAttemptClose}
         role="dialog"
         aria-labelledby={`${editorId}-title`}
         aria-describedby={`${editorId}-description`}
       >
-        {/* Always render DialogTitle first to ensure accessibility */}
-        <DialogTitle 
-          id={`${editorId}-title`}
-          className="sr-only"
-        >
+        {/* Invisible Titles for Screen Readers */}
+        <DialogTitle id={`${editorId}-title`} className="sr-only">
           {template ? 'Vorlage bearbeiten' : 'Neue Vorlage erstellen'}
         </DialogTitle>
-        <DialogDescription 
-          id={`${editorId}-description`}
-          className="sr-only"
-        >
-          {template 
+        <DialogDescription id={`${editorId}-description`} className="sr-only">
+          {template
             ? 'Bearbeiten Sie Ihre bestehende Vorlage'
             : 'Erstellen Sie eine neue Dokumentvorlage mit dynamischen Variablen'
           }
         </DialogDescription>
-        
-        <DialogHeader className="flex-shrink-0 px-4 sm:px-6">
-          <DialogTitle 
-            className="flex items-center gap-2 text-lg sm:text-xl"
-            aria-hidden="true"
-          >
-            <FileText className="h-5 w-5" aria-hidden="true" />
-            <span className="hidden sm:inline">
-              {template ? 'Vorlage bearbeiten' : 'Neue Vorlage erstellen'}
-            </span>
-            <span className="sm:hidden">
-              {template ? 'Bearbeiten' : 'Erstellen'}
-            </span>
-          </DialogTitle>
-          <DialogDescription 
-            className="text-sm"
-            aria-hidden="true"
-          >
-            {template 
-              ? 'Bearbeiten Sie Ihre bestehende Vorlage'
-              : 'Erstellen Sie eine neue Dokumentvorlage mit dynamischen Variablen'
-            }
-          </DialogDescription>
-        </DialogHeader>
 
-        <div className="flex-1 overflow-hidden px-4 sm:px-6">
-          {step === 'category' && (
-            <div className="space-y-4 sm:space-y-6">
-              <div 
-                className="text-sm text-muted-foreground"
-                role="status"
-                aria-live="polite"
+        {/* Header Section */}
+        <div className="flex-shrink-0 px-6 py-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-3 w-full">
+            {!template && step === 'editor' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={handleBackToCategory}
+                aria-label="Zurück zur Kategorieauswahl"
               >
-                <span className="hidden sm:inline">Schritt 1 von 2: Wählen Sie eine Kategorie für Ihre Vorlage</span>
-                <span className="sm:hidden">Schritt 1/2: Kategorie wählen</span>
-              </div>
-
-              <Form {...categoryForm}>
-                <form
-                  onSubmit={categoryForm.handleSubmit(handleCategorySubmit)}
-                  className="space-y-6"
-                  role="form"
-                  aria-labelledby={`${editorId}-category-form-title`}
-                >
-                  <h3 id={`${editorId}-category-form-title`} className="sr-only">
-                    Kategorie für neue Vorlage auswählen
-                  </h3>
-                  
-                  <FormField
-                    control={categoryForm.control}
-                    name="kategorie"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Kategorie</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger aria-label={ARIA_LABELS.categorySelection}>
-                              <SelectValue placeholder="Kategorie auswählen..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {TEMPLATE_CATEGORIES.map((category) => (
-                              <SelectItem key={category} value={category}>
-                                {category}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleCancelClick} 
-                      className="w-full sm:w-auto"
-                      aria-label={ARIA_LABELS.cancelButton}
-                    >
-                      <X className="h-4 w-4 mr-2" aria-hidden="true" />
-                      Abbrechen
-                    </Button>
-                    <Button type="submit" className="w-full sm:w-auto">
-                      Weiter
-                    </Button>
-                  </div>
-                </form>
-              </Form>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <div className="p-2 rounded-lg bg-primary/5 text-primary">
+              <FileText className="h-5 w-5" />
             </div>
-          )}
 
-          {step === 'editor' && (
-            <div className="space-y-4 sm:space-y-6 h-full flex flex-col">
-              <div className="flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  {!template && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleBackToCategory}
-                      className="p-2"
-                      aria-label="Zurück zur Kategorieauswahl"
-                      disabled={isLoading}
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <div className="text-sm text-muted-foreground">
-                    <span className="hidden sm:inline">
-                      {template ? 'Bearbeitung der Vorlage' : 'Schritt 2 von 2: Vorlage erstellen'}
-                    </span>
-                    <span className="sm:hidden">
-                      {template ? 'Bearbeiten' : 'Schritt 2/2'}
-                    </span>
-                    {selectedCategory && (
-                      <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded text-xs">
-                        {selectedCategory}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Validation Errors Display */}
-              {validationErrors.length > 0 && (
-                <div 
-                  className="flex-shrink-0 p-3 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-lg"
-                  role="alert"
-                  aria-labelledby={`${editorId}-validation-title`}
-                  aria-describedby={`${editorId}-validation-list`}
-                >
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive flex-shrink-0 mt-0.5" aria-hidden="true" />
-                    <div className="space-y-1">
-                      <h4 
-                        id={`${editorId}-validation-title`}
-                        className="text-sm font-medium text-destructive"
-                      >
-                        Validierungsfehler
-                      </h4>
-                      <ul 
-                        id={`${editorId}-validation-list`}
-                        className="text-sm text-destructive/80 space-y-1"
-                      >
-                        {validationErrors.map((error, index) => (
-                          <li key={index} className="flex items-start gap-1">
-                            <span className="text-xs" aria-hidden="true">•</span>
-                            <span className="break-words">{error}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <Form {...templateForm}>
-                <form
-                  onSubmit={templateForm.handleSubmit(handleTemplateSave)}
-                  className="space-y-4 h-full flex flex-col"
-                >
-                  <FormField
-                    control={templateForm.control}
-                    name="titel"
-                    render={({ field }) => (
-                      <FormItem className="flex-shrink-0">
-                        <FormLabel>Titel der Vorlage</FormLabel>
-                        <FormControl>
+            <div className="flex-1 min-w-0">
+              {step === 'editor' ? (
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <Controller
+                      control={templateForm.control}
+                      name="titel"
+                      render={({ field }) => (
+                        <div className="flex flex-col">
                           <Input
-                            placeholder="z.B. Mietvertrag Standard, Mahnung..."
                             {...field}
+                            value={field.value || ''}
                             onChange={(e) => {
                               field.onChange(e);
                               handleTitleChange(e.target.value);
                             }}
-                            className="text-sm sm:text-base"
-                            aria-label={ARIA_LABELS.templateNameInput}
-                            aria-describedby={`${editorId}-title-help`}
+                            placeholder="Titel der Vorlage eingeben"
+                            className="text-lg font-semibold tracking-tight border-0 pl-2 pr-0 h-auto bg-transparent focus-visible:ring-0 placeholder:text-muted-foreground/50 w-full"
+                            aria-label="Titel der Vorlage"
                           />
-                        </FormControl>
-                        <div id={`${editorId}-title-help`} className="sr-only">
-                          Geben Sie einen aussagekräftigen Namen für Ihre Vorlage ein
+                          {templateForm.formState.errors.titel && (
+                            <span className="text-xs text-destructive">{templateForm.formState.errors.titel.message}</span>
+                          )}
                         </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      )}
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-[160px]">
+                    <Controller
+                      control={templateForm.control}
+                      name="kategorie"
+                      render={({ field }) => (
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            setSelectedCategory(value as TemplateCategory);
+                          }}
+                          value={field.value}
+                        >
+                          <SelectTrigger className="h-9 text-xs bg-muted/30 border-muted-foreground/10 hover:bg-muted/50 transition-colors">
+                            <SelectValue placeholder="Kategorie" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TEMPLATE_CATEGORIES.map((cat) => {
+                              const meta = TEMPLATE_TYPE_CONFIGS[cat];
+                              const Icon = TEMPLATE_ICON_MAP[meta.icon];
+                              return (
+                                <SelectItem key={cat} value={cat}>
+                                  <div className="flex items-center gap-2">
+                                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-xs">{meta.label}</span>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight">
+                    {template ? 'Vorlage bearbeiten' : 'Neue Vorlage'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground hidden sm:block">
+                    {step === 'category'
+                      ? 'Wählen Sie einen Vorlagentyp'
+                      : (template ? 'Bearbeiten Sie die Details der Vorlage' : 'Füllen Sie die Details der neuen Vorlage aus')
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-                  <FormField
-                    control={templateForm.control}
-                    name="inhalt"
-                    render={() => (
-                      <FormItem className="flex-1 flex flex-col">
-                        <FormLabel>Inhalt</FormLabel>
-                        <FormControl>
-                          <div className="flex-1">
+        {/* Content Area */}
+        <div className="flex-1 overflow-hidden relative">
+          <AnimatePresence mode="wait">
+            {step === 'category' && (
+              <motion.div
+                key="category-step"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full flex flex-col p-6 sm:p-10 overflow-y-auto"
+              >
+                <div className="flex-1 max-w-4xl mx-auto w-full flex flex-col justify-center">
+                  <div className="text-center mb-10">
+                    <h3 className="text-2xl font-semibold mb-2">Was möchten Sie erstellen?</h3>
+                    <p className="text-muted-foreground">Wählen Sie eine Kategorie, um mit der passenden Struktur zu starten.</p>
+                  </div>
+
+                  <Form {...categoryForm}>
+                    <form onSubmit={categoryForm.handleSubmit(handleCategorySubmit)} className="space-y-8">
+                      <FormField
+                        control={categoryForm.control}
+                        name="kategorie"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                              {TEMPLATE_CATEGORIES.map((category) => {
+                                const meta = TEMPLATE_TYPE_CONFIGS[category];
+                                const Icon = TEMPLATE_ICON_MAP[meta.icon];
+                                const isSelected = field.value === category;
+
+                                return (
+                                  <motion.div
+                                    key={category}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCategorySelect(category)}
+                                      className={cn(
+                                        "w-full text-left relative overflow-hidden rounded-[2.5rem] border-2 p-6 transition-all duration-200 h-full flex flex-col gap-4",
+                                        isSelected
+                                          ? "border-primary bg-primary/5 shadow-md"
+                                          : "border-muted bg-card hover:border-primary/50 hover:shadow-sm"
+                                      )}
+                                    >
+                                      <div className={cn(
+                                        "h-12 w-12 rounded-2xl flex items-center justify-center transition-colors",
+                                        meta.color.full
+                                      )}>
+                                        <Icon className="h-6 w-6" />
+                                      </div>
+
+                                      <div className="space-y-1">
+                                        <h4 className="font-semibold text-lg">{meta.label}</h4>
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
+                                          {meta.description}
+                                        </p>
+                                      </div>
+
+                                      {isSelected && (
+                                        <div className="absolute top-4 right-4 text-primary">
+                                          <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                                            <Check className="h-3.5 w-3.5" />
+                                          </div>
+                                        </div>
+                                      )}
+                                    </button>
+                                  </motion.div>
+                                );
+                              })}
+                            </div>
+                            <FormMessage className="text-center mt-4" />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="flex justify-end border-t pt-6">
+                        <Button
+                          type="submit"
+                          size="lg"
+                          disabled={!selectedCategory}
+                          className="min-w-[140px]"
+                        >
+                          Weiter
+                          <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </div>
+              </motion.div>
+            )}
+
+            {step === 'editor' && (
+              <motion.div
+                key="editor-step"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="h-full flex flex-col"
+              >
+                <Form {...templateForm}>
+                  <form
+                    onSubmit={templateForm.handleSubmit(handleTemplateSave)}
+                    className="flex-1 flex flex-col overflow-hidden"
+                  >
+                    {/* Row 1: Editor Canvas */}
+                    <FormField
+                      control={templateForm.control}
+                      name="inhalt"
+                      render={() => (
+                        <div className="flex-1 overflow-auto p-6">
+                          <div className="h-full rounded-xl overflow-hidden border bg-background flex flex-col">
                             <TemplateEditor
                               content={editorContent}
                               onChange={handleEditorChange}
                               placeholder="Beginnen Sie mit der Eingabe... Verwenden Sie @ für Variablen wie @Mieter.Name oder @Wohnung.Adresse"
-                              className="h-full min-h-[250px] sm:min-h-[300px]"
-                              aria-label={ARIA_LABELS.templateContentEditor}
-                              aria-describedby={`${editorId}-content-help`}
+                              className="flex-1 border-0 focus-within:ring-0 rounded-none min-h-[400px]"
                             />
-                            <div id={`${editorId}-content-help`} className="sr-only">
-                              Rich-Text-Editor für Vorlageninhalt. Verwenden Sie @ um Variablen einzufügen. Nutzen Sie die Toolbar für Formatierungen.
-                            </div>
+                            {templateForm.formState.errors.inhalt && (
+                              <div className="px-4 py-2 border-t bg-destructive/5 text-destructive text-xs italic">
+                                {templateForm.formState.errors.inhalt.message as string}
+                              </div>
+                            )}
                           </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex flex-col sm:flex-row justify-end gap-2 flex-shrink-0 pt-4 border-t">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleCancelClick}
-                      disabled={isLoading}
-                      className="w-full sm:w-auto"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Abbrechen
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      disabled={!isTemplateEditorModalDirty || isLoading}
-                      className="w-full sm:w-auto sm:min-w-[140px]"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Spinner className="h-4 w-4 mr-2" />
-                          <span className="hidden sm:inline">Speichert...</span>
-                          <span className="sm:hidden">Wird gespeichert...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          <span className="hidden sm:inline">
-                            {template ? 'Änderungen speichern' : 'Vorlage erstellen'}
-                          </span>
-                          <span className="sm:hidden">
-                            {template ? 'Speichern' : 'Erstellen'}
-                          </span>
-                        </>
+                        </div>
                       )}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </div>
-          )}
+                    />
+
+                    {/* Row 2: Footer with Save & Abort */}
+                    <div className="flex-shrink-0 px-6 py-4 border-t bg-background flex items-center justify-end gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelClick}
+                        disabled={isLoading}
+                      >
+                        Abbrechen
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={!isTemplateEditorModalDirty || isLoading}
+                        className="min-w-[120px]"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Spinner className="h-4 w-4 mr-2" />
+                            Speichert...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            {template ? 'Speichern' : 'Erstellen'}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </DialogContent>
     </Dialog>
