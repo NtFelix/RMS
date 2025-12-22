@@ -6,13 +6,13 @@ import { PlusCircle, Home, Key, Euro, Ruler, X, Download, Trash2, Building2, Loa
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ApartmentTable } from "@/components/apartment-table";
+import { ApartmentTable } from "@/components/tables/apartment-table";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
-import { StatCard } from "@/components/stat-card";
+import type { Apartment as ApartmentTableType } from "@/components/tables/apartment-table";
+import { StatCard } from "@/components/common/stat-card";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";

@@ -9,7 +9,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/mention-suggestion-list';
+import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/ai/mention-suggestion-list';
 import { MentionVariable } from '@/lib/template-constants';
 import { Editor } from '@tiptap/react';
 
@@ -109,7 +109,7 @@ jest.mock('@/lib/mention-suggestion-error-handling', () => ({
   },
 }));
 
-jest.mock('@/components/mention-suggestion-error-boundary', () => ({
+jest.mock('@/components/ai/mention-suggestion-error-boundary', () => ({
   useMentionSuggestionErrorHandler: jest.fn(() => ({
     error: null,
     hasError: false,
@@ -558,7 +558,7 @@ describe('MentionSuggestionList - Accessibility Tests', () => {
 
   describe('Error State Accessibility', () => {
     it('should have proper ARIA attributes for error states', () => {
-      const { useMentionSuggestionErrorHandler } = require('@/components/mention-suggestion-error-boundary');
+      const { useMentionSuggestionErrorHandler } = require('@/components/ai/mention-suggestion-error-boundary');
       
       useMentionSuggestionErrorHandler.mockReturnValueOnce({
         error: new Error('Test error'),
@@ -585,7 +585,7 @@ describe('MentionSuggestionList - Accessibility Tests', () => {
 
     it('should provide accessible error recovery options', () => {
       const mockRetry = jest.fn();
-      const { useMentionSuggestionErrorHandler } = require('@/components/mention-suggestion-error-boundary');
+      const { useMentionSuggestionErrorHandler } = require('@/components/ai/mention-suggestion-error-boundary');
       
       useMentionSuggestionErrorHandler.mockReturnValueOnce({
         error: new Error('Test error'),

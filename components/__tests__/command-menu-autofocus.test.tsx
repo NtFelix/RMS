@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { CommandMenu } from '@/components/command-menu'
+import { CommandMenu } from '@/components/search/command-menu'
 import { useCommandMenu } from '@/hooks/use-command-menu'
 
 // Mock the hooks and dependencies

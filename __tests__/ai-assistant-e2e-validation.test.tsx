@@ -12,8 +12,8 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { jest } from '@jest/globals';
-import AIAssistantInterfaceSimple from '@/components/ai-assistant-interface-simple';
-import { DocumentationSearch } from '@/components/documentation-search';
+import AIAssistantInterfaceSimple from '@/components/ai/ai-assistant-interface-simple';
+import { DocumentationSearch } from '@/components/documentation/documentation-search';
 import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
 
 // Mock PostHog for analytics testing

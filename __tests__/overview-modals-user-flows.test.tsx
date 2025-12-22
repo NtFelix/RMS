@@ -3,8 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useModalStore } from '@/hooks/use-modal-store'
 import type { ModalState } from '@/hooks/use-modal-store'
-import { HausOverviewModal } from '@/components/haus-overview-modal'
-import { ApartmentTenantDetailsModal } from '@/components/apartment-tenant-details-modal'
+import { HausOverviewModal } from '@/components/houses/haus-overview-modal'
+import { ApartmentTenantDetailsModal } from '@/components/apartments/apartment-tenant-details-modal'
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store')

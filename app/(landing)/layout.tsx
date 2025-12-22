@@ -1,4 +1,4 @@
-import AuthModalProvider from '@/components/auth-modal-provider';
+import AuthModalProvider from '@/components/auth/auth-modal-provider';
 import Navigation from '@/app/modern/components/navigation';
 import Footer from '@/app/modern/components/footer';
 import { Toaster } from '@/components/ui/toaster';

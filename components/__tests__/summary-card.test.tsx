@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SummaryCard, SummaryCardSkeleton } from '../summary-card';
+import { SummaryCard, SummaryCardSkeleton } from '@/components/common/summary-card';
 import { Home, Users, Euro, SquareIcon } from 'lucide-react';
 
 // Mock the format utility

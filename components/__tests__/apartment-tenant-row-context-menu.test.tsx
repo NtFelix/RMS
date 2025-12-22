@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { ApartmentTenantRowContextMenu } from '../apartment-tenant-row-context-menu'
+import { ApartmentTenantRowContextMenu } from '@/components/apartments/apartment-tenant-row-context-menu'
 import { useModalStore } from '@/hooks/use-modal-store'
 
 // Mock the modal store

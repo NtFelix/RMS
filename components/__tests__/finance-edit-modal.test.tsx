@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { FinanceEditModal } from '../finance-edit-modal';
+import { FinanceEditModal } from '@/components/finance/finance-edit-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { toast } from '@/hooks/use-toast';
 

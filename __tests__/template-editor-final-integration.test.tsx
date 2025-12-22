@@ -9,7 +9,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 // Mock the template editor components to prevent complex dependencies
-jest.mock('@/components/template-editor', () => ({
+jest.mock('@/components/templates/template-editor', () => ({
   TemplateEditor: ({ onChange, onSave }: any) => (
     <div data-testid="template-editor">
       <div>Template Editor</div>
@@ -19,7 +19,7 @@ jest.mock('@/components/template-editor', () => ({
   )
 }));
 
-jest.mock('@/components/template-editor-modal', () => ({
+jest.mock('@/components/templates/template-editor-modal', () => ({
   TemplateEditorModal: ({ isOpen, onClose }: any) => 
     isOpen ? (
       <div data-testid="template-editor-modal">
@@ -36,8 +36,8 @@ jest.mock('@/lib/template-constants', () => ({
   ]
 }));
 
-import { TemplateEditor } from '@/components/template-editor';
-import { TemplateEditorModal } from '@/components/template-editor-modal';
+import { TemplateEditor } from '@/components/templates/template-editor';
+import { TemplateEditorModal } from '@/components/templates/template-editor-modal';
 
 describe('Template Editor - Simplified Integration Tests', () => {
   const mockOnChange = jest.fn();

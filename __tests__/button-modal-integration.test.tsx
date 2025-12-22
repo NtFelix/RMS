@@ -54,23 +54,23 @@ jest.mock('@/utils/supabase/client', () => ({
 }));
 
 // Mock components that might cause issues
-jest.mock('@/components/apartment-table', () => ({
+jest.mock('@/components/tables/apartment-table', () => ({
   ApartmentTable: () => <div role="table">Apartment Table</div>
 }));
 
-jest.mock('@/components/house-table', () => ({
+jest.mock('@/components/tables/house-table', () => ({
   HouseTable: () => <div role="table">House Table</div>
 }));
 
-jest.mock('@/components/tenant-table', () => ({
+jest.mock('@/components/tables/tenant-table', () => ({
   TenantTable: () => <div role="table">Tenant Table</div>
 }));
 
-jest.mock('@/components/operating-costs-table', () => ({
+jest.mock('@/components/tables/operating-costs-table', () => ({
   OperatingCostsTable: () => <div role="table">Operating Costs Table</div>
 }));
 
-jest.mock('@/components/task-board', () => ({
+jest.mock('@/components/tasks/task-board', () => ({
   TaskBoard: () => <div role="table">Task Board</div>
 }));
 
@@ -78,7 +78,7 @@ jest.mock('@/components/finance-transactions', () => ({
   FinanceTransactions: () => <div role="table">Finance Transactions</div>
 }));
 
-jest.mock('@/components/finance-visualization', () => ({
+jest.mock('@/components/finance/finance-visualization', () => ({
   FinanceVisualization: () => <div>Finance Visualization</div>
 }));
 

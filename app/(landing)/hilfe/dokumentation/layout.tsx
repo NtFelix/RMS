@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { AIAssistantModal } from '@/components/ai-assistant-modal';
+import { AIAssistantModal } from '@/components/ai/ai-assistant-modal';
 
 export const metadata: Metadata = {
   title: 'Dokumentation | Mietevo',

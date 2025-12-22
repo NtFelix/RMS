@@ -10,7 +10,7 @@ import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import DocumentationPage from '@/app/documentation/page';
 import ArticlePageClient from '@/app/documentation/[articleId]/article-page-client';
-import { DocumentationBreadcrumb } from '@/components/documentation-breadcrumb';
+import { DocumentationBreadcrumb } from '@/components/documentation/documentation-breadcrumb';
 
 // Mock Next.js navigation
 jest.mock('next/navigation', () => ({

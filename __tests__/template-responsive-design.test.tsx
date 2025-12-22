@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { TemplateCard } from '@/components/template-card';
+import { TemplateCard } from '@/components/templates/template-card';
 import { Template } from '@/types/template';
 
 // Mock the hooks

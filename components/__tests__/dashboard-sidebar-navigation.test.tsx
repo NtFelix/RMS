@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { usePathname } from 'next/navigation'
-import { DashboardSidebar } from '@/components/dashboard-sidebar'
+import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar'
 
 // Mock Next.js navigation
 jest.mock('next/navigation', () => ({
@@ -8,7 +8,7 @@ jest.mock('next/navigation', () => ({
 }))
 
 // Mock the UserSettings component
-jest.mock('@/components/user-settings', () => ({
+jest.mock('@/components/common/user-settings', () => ({
   UserSettings: () => <div data-testid="user-settings">User Settings</div>,
 }))
 

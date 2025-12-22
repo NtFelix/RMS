@@ -40,7 +40,7 @@ jest.mock('@/utils/supabase/client', () => ({
 }));
 
 // Mock components that might cause issues with proper table structure
-jest.mock('@/components/apartment-table', () => ({
+jest.mock('@/components/tables/apartment-table', () => ({
   ApartmentTable: () => (
     <table role="table" aria-label="Apartment Table">
       <thead role="rowgroup">
@@ -59,7 +59,7 @@ jest.mock('@/components/apartment-table', () => ({
   )
 }));
 
-jest.mock('@/components/house-table', () => ({
+jest.mock('@/components/tables/house-table', () => ({
   HouseTable: () => (
     <table role="table" aria-label="House Table">
       <thead role="rowgroup">
@@ -78,7 +78,7 @@ jest.mock('@/components/house-table', () => ({
   )
 }));
 
-jest.mock('@/components/tenant-table', () => ({
+jest.mock('@/components/tables/tenant-table', () => ({
   TenantTable: () => (
     <table role="table" aria-label="Tenant Table">
       <thead role="rowgroup">
@@ -97,7 +97,7 @@ jest.mock('@/components/tenant-table', () => ({
   )
 }));
 
-jest.mock('@/components/operating-costs-table', () => ({
+jest.mock('@/components/tables/operating-costs-table', () => ({
   OperatingCostsTable: () => (
     <table role="table" aria-label="Operating Costs Table">
       <thead role="rowgroup">
@@ -116,7 +116,7 @@ jest.mock('@/components/operating-costs-table', () => ({
   )
 }));
 
-jest.mock('@/components/task-board', () => ({
+jest.mock('@/components/tasks/task-board', () => ({
   TaskBoard: () => (
     <table role="table" aria-label="Task Board">
       <thead role="rowgroup">
@@ -154,7 +154,7 @@ jest.mock('@/components/finance-transactions', () => ({
   )
 }));
 
-jest.mock('@/components/finance-visualization', () => ({
+jest.mock('@/components/finance/finance-visualization', () => ({
   FinanceVisualization: () => <div>Finance Visualization</div>
 }));
 
@@ -172,11 +172,11 @@ jest.mock('@/components/ui/toaster', () => ({
 }));
 
 // Mock filters to prevent complex component rendering
-jest.mock('@/components/apartment-filters', () => ({
+jest.mock('@/components/apartments/apartment-filters', () => ({
   ApartmentFilters: () => <div>Apartment Filters</div>
 }));
 
-jest.mock('@/components/house-filters', () => ({
+jest.mock('@/components/houses/house-filters', () => ({
   HouseFilters: () => <div>House Filters</div>
 }));
 
@@ -184,11 +184,11 @@ jest.mock('@/components/tenant-filters', () => ({
   TenantFilters: () => <div>Tenant Filters</div>
 }));
 
-jest.mock('@/components/operating-costs-filters', () => ({
+jest.mock('@/components/finance/operating-costs-filters', () => ({
   OperatingCostsFilters: () => <div>Operating Costs Filters</div>
 }));
 
-jest.mock('@/components/task-filters', () => ({
+jest.mock('@/components/tasks/task-filters', () => ({
   TaskFilters: () => <div>Task Filters</div>
 }));
 

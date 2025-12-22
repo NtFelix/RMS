@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Droplets, X } from "lucide-react";
 import { CreateAbrechnungDropdown } from "@/components/abrechnung/create-abrechnung-dropdown";
-import { OperatingCostsFilters } from "@/components/operating-costs-filters";
-import { OperatingCostsTable } from "@/components/operating-costs-table";
+import { OperatingCostsFilters } from "@/components/finance/operating-costs-filters";
+import { OperatingCostsTable } from "@/components/tables/operating-costs-table";
 
 import { Haus } from "../../../lib/data-fetching"; // Ensure correct path
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";

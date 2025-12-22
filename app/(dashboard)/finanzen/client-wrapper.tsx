@@ -4,15 +4,15 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 
 import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download } from "lucide-react";
-import { FinanceVisualization } from "@/components/finance-visualization";
-import { FinanceTable } from "@/components/finance-table";
-import { FinanceBulkActionBar } from "@/components/finance-bulk-action-bar";
-import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
-import { SummaryCard } from "@/components/summary-card";
+import { FinanceVisualization } from "@/components/finance/finance-visualization";
+import { FinanceTable } from "@/components/tables/finance-table";
+import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
+import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
+import { SummaryCard } from "@/components/common/summary-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
-import { StatCard } from "@/components/stat-card";
+import { StatCard } from "@/components/common/stat-card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { CustomCombobox } from "@/components/ui/custom-combobox";
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/mention-suggestion-list';
+import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/ai/mention-suggestion-list';
 import { MentionVariable } from '@/lib/template-constants';
 import { Editor } from '@tiptap/react';
 

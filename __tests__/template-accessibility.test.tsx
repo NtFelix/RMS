@@ -5,10 +5,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import { TemplatesModal } from '@/components/templates-modal';
-import { TemplateEditorModal } from '@/components/template-editor-modal';
-import { TemplateCard } from '@/components/template-card';
-import { TemplateEditor } from '@/components/template-editor';
+import { TemplatesModal } from '@/components/templates/templates-modal';
+import { TemplateEditorModal } from '@/components/templates/template-editor-modal';
+import { TemplateCard } from '@/components/templates/template-card';
+import { TemplateEditor } from '@/components/templates/template-editor';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { useTemplates } from '@/hooks/use-templates';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';

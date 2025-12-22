@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { HouseFilters } from '../house-filters';
+import { HouseFilters } from '@/components/houses/house-filters';
 
 describe('HouseFilters', () => {
   const mockOnFilterChange = jest.fn();

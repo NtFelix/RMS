@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useAuthModal } from "@/components/auth-modal-provider";
+import { useAuthModal } from "@/components/auth/auth-modal-provider";
 import { useIsOverflowing } from "@/hooks/use-responsive";
 
 // Navigation dropdown items

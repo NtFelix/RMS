@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { FileContextMenu } from '@/components/file-context-menu'
+import { FileContextMenu } from '@/components/cloud-storage/file-context-menu'
 import { useCloudStorageOperations, useCloudStoragePreview, useCloudStorageArchive } from '@/hooks/use-cloud-storage-store'
 import { useToast } from '@/hooks/use-toast'
 

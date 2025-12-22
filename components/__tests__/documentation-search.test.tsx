@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DocumentationSearch } from '../documentation-search';
+import { DocumentationSearch } from '@/components/documentation/documentation-search';
 
 // Mock the debounce hook
 jest.mock('@/hooks/use-debounce', () => ({

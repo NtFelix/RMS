@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { WasserAblesenModal } from '@/components/wasser-ablesungen-modal'
+import { WasserAblesenModal } from '@/components/water-meters/wasser-ablesungen-modal'
 import { useModalStore } from '@/hooks/use-modal-store'
 
 // Mock the modal store

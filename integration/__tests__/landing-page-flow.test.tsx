@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
+import AuthModalProvider, { useAuthModal } from '@/components/auth/auth-modal-provider';
 
 // Test component that uses the auth modal
 const TestAuthFlow = () => {

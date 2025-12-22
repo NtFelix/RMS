@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { CloudStorageItemCard } from '../cloud-storage-item-card'
+import { CloudStorageItemCard } from '@/components/cloud-storage/cloud-storage-item-card'
 import { useModalStore } from '@/hooks/use-modal-store'
 import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
 import { createClient } from '@/utils/supabase/client'

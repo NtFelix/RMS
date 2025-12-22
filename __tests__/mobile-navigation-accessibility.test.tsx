@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import MobileBottomNavigation from '@/components/mobile-bottom-navigation'
+import MobileBottomNavigation from '@/components/common/mobile-bottom-navigation'
 
 // Mock hooks
 jest.mock('@/hooks/use-active-state-manager', () => ({

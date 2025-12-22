@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { SearchInput } from "@/components/ui/search-input";
 import { PlusCircle } from "lucide-react";
-import { TaskBoard } from "@/components/task-board";
+import { TaskBoard } from "@/components/tasks/task-board";
 import { TaskBoardTask } from "@/types/Task";
 import { useModalStore } from "@/hooks/use-modal-store";
 

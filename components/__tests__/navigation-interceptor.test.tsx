@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useRouter } from 'next/navigation'
-import { NavigationInterceptor, useFolderNavigation } from '../navigation-interceptor'
+import { NavigationInterceptor, useFolderNavigation } from '@/components/common/navigation-interceptor'
 import { useCloudStorageNavigation } from '@/hooks/use-cloud-storage-navigation'
 import { getDirectoryCache } from '@/lib/directory-cache'
 import { useToast } from '@/hooks/use-toast'

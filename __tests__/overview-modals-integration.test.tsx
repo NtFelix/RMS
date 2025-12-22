@@ -8,63 +8,63 @@ jest.mock('@/hooks/use-modal-store');
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
 // Mock all the modal components
-jest.mock('@/components/haus-overview-modal', () => ({
+jest.mock('@/components/houses/haus-overview-modal', () => ({
   HausOverviewModal: () => <div data-testid="haus-overview-modal">Haus Overview Modal</div>
 }));
 
-jest.mock('@/components/wohnung-overview-modal', () => ({
+jest.mock('@/components/apartments/wohnung-overview-modal', () => ({
   WohnungOverviewModal: () => <div data-testid="wohnung-overview-modal">Wohnung Overview Modal</div>
 }));
 
-jest.mock('@/components/apartment-tenant-details-modal', () => ({
+jest.mock('@/components/apartments/apartment-tenant-details-modal', () => ({
   ApartmentTenantDetailsModal: () => <div data-testid="apartment-tenant-details-modal">Apartment Tenant Details Modal</div>
 }));
 
 // Mock other components
-jest.mock('@/components/auth-provider', () => ({
+jest.mock('@/components/auth/auth-provider', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>
 }));
 
-jest.mock('@/components/command-menu', () => ({
+jest.mock('@/components/search/command-menu', () => ({
   CommandMenu: () => <div data-testid="command-menu">Command Menu</div>
 }));
 
-jest.mock('@/components/dashboard-layout', () => ({
+jest.mock('@/components/dashboard/dashboard-layout', () => ({
   DashboardLayout: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dashboard-layout">{children}</div>
   )
 }));
 
 // Mock all other modal components
-jest.mock('@/components/tenant-edit-modal', () => ({
+jest.mock('@/components/tenants/tenant-edit-modal', () => ({
   TenantEditModal: () => <div data-testid="tenant-edit-modal">Tenant Edit Modal</div>
 }));
 
-jest.mock('@/components/house-edit-modal', () => ({
+jest.mock('@/components/houses/house-edit-modal', () => ({
   HouseEditModal: () => <div data-testid="house-edit-modal">House Edit Modal</div>
 }));
 
-jest.mock('@/components/finance-edit-modal', () => ({
+jest.mock('@/components/finance/finance-edit-modal', () => ({
   FinanceEditModal: () => <div data-testid="finance-edit-modal">Finance Edit Modal</div>
 }));
 
-jest.mock('@/components/wohnung-edit-modal', () => ({
+jest.mock('@/components/apartments/wohnung-edit-modal', () => ({
   WohnungEditModal: () => <div data-testid="wohnung-edit-modal">Wohnung Edit Modal</div>
 }));
 
-jest.mock('@/components/aufgabe-edit-modal', () => ({
+jest.mock('@/components/tasks/aufgabe-edit-modal', () => ({
   AufgabeEditModal: () => <div data-testid="aufgabe-edit-modal">Aufgabe Edit Modal</div>
 }));
 
-jest.mock('@/components/betriebskosten-edit-modal', () => ({
+jest.mock('@/components/finance/betriebskosten-edit-modal', () => ({
   BetriebskostenEditModal: () => <div data-testid="betriebskosten-edit-modal">Betriebskosten Edit Modal</div>
 }));
 
-jest.mock('@/components/wasserzaehler-modal', () => ({
+jest.mock('@/components/water-meters/wasserzaehler-modal', () => ({
   WasserzaehlerModal: () => <div data-testid="wasserzaehler-modal">Wasserzaehler Modal</div>
 }));
 
-jest.mock('@/components/kaution-modal', () => ({
+jest.mock('@/components/modals/kaution-modal', () => ({
   KautionModal: () => <div data-testid="kaution-modal">Kaution Modal</div>
 }));
 

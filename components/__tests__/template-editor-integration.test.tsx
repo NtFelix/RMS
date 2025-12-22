@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { TemplateEditorDemo } from '../template-editor-demo';
+import { TemplateEditorDemo } from '@/components/templates/template-editor-demo';
 
 // Mock TipTap dependencies for integration test
 jest.mock('@tiptap/react', () => ({

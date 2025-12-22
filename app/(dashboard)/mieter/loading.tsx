@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Users, BadgeCheck, Euro } from "lucide-react"
-import { PageSkeleton } from "@/components/page-skeleton"
+import { PageSkeleton } from "@/components/skeletons/page-skeleton"
 
 export default function Loading() {
   return (

@@ -8,7 +8,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TemplateEditor } from '@/components/template-editor';
+import { TemplateEditor } from '@/components/templates/template-editor';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
 
 // Mock TipTap dependencies
@@ -83,7 +83,7 @@ jest.mock('@tiptap/extension-mention', () => ({
 }));
 
 // Mock mention suggestion components
-jest.mock('@/components/mention-suggestion-list', () => ({
+jest.mock('@/components/ai/mention-suggestion-list', () => ({
   MentionSuggestionList: React.forwardRef(({ items, command, query }: any, ref: any) => (
     <div data-testid="mention-suggestion-list" role="listbox">
       <div data-testid="suggestion-query">{query}</div>
@@ -161,7 +161,7 @@ jest.mock('@/lib/mention-suggestion-error-handling', () => ({
   },
 }));
 
-jest.mock('@/components/mention-suggestion-error-boundary', () => ({
+jest.mock('@/components/ai/mention-suggestion-error-boundary', () => ({
   MentionSuggestionErrorBoundary: ({ children }: any) => children,
 }));
 

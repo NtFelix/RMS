@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DocumentationArticleList, Article } from '../documentation-article-list';
+import { DocumentationArticleList, Article } from '@/components/documentation/documentation-article-list';
 
 describe('DocumentationArticleList', () => {
   const mockArticles: Article[] = [
