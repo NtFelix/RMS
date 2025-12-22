@@ -599,13 +599,18 @@ export function TemplateEditorModal({
                       name="inhalt"
                       render={() => (
                         <div className="flex-1 overflow-auto p-6">
-                          <div className="h-full rounded-xl overflow-hidden border bg-background">
+                          <div className="h-full rounded-xl overflow-hidden border bg-background flex flex-col">
                             <TemplateEditor
                               content={editorContent}
                               onChange={handleEditorChange}
                               placeholder="Beginnen Sie mit der Eingabe... Verwenden Sie @ für Variablen wie @Mieter.Name oder @Wohnung.Adresse"
-                              className="h-full border-0 focus-within:ring-0 rounded-none min-h-[400px]"
+                              className="flex-1 border-0 focus-within:ring-0 rounded-none min-h-[400px]"
                             />
+                            {templateForm.formState.errors.inhalt && (
+                              <div className="px-4 py-2 border-t bg-destructive/5 text-destructive text-xs italic">
+                                {templateForm.formState.errors.inhalt.message as string}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
