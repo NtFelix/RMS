@@ -2,8 +2,6 @@
  * @jest-environment jsdom
  */
 
-
-
 describe('Route Configuration', () => {
   it('should support backward compatibility', () => {
     // Test that existing URL patterns are still supported
