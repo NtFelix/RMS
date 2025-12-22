@@ -18,15 +18,7 @@ export const BRAND_NAME_PART_1 = 'Miet';
 export const BRAND_NAME_PART_2 = 'evo';
 export const BRAND_NAME = `${BRAND_NAME_PART_1}${BRAND_NAME_PART_2}`;
 
-// Feature flags for gradual rollout
-export const FEATURE_FLAGS = {
-  // Cloud storage navigation improvements
-  ENABLE_CLIENT_NAVIGATION: process.env.NEXT_PUBLIC_ENABLE_CLIENT_NAVIGATION !== 'false', // Default enabled
-  ENABLE_HYBRID_NAVIGATION: process.env.NEXT_PUBLIC_ENABLE_HYBRID_NAVIGATION !== 'false', // Default enabled
-  ENABLE_NAVIGATION_CACHE: process.env.NEXT_PUBLIC_ENABLE_NAVIGATION_CACHE !== 'false', // Default enabled
-  ENABLE_OPTIMISTIC_UI: process.env.NEXT_PUBLIC_ENABLE_OPTIMISTIC_UI !== 'false', // Default enabled
-} as const;
-
+// Feature flags removed as functionality is now standard
 // PostHog feature flag keys - centralized to prevent magic strings
 export const POSTHOG_FEATURE_FLAGS = {
   // Pricing page
