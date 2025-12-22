@@ -1,16 +1,37 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CloudStorageItemCard } from '../cloud-storage-item-card'
 import { useModalStore } from '@/hooks/use-modal-store'
-import { useSimpleCloudStorageStore } from '@/hooks/use-simple-cloud-storage-store'
+import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
+import { createClient } from '@/utils/supabase/client'
 
 // Mock the hooks
 jest.mock('@/hooks/use-modal-store', () => ({
   useModalStore: jest.fn()
 }))
 
-jest.mock('@/hooks/use-simple-cloud-storage-store', () => ({
-  useSimpleCloudStorageStore: jest.fn()
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: jest.fn(() => ({
+    toast: jest.fn()
+  }))
+}))
+
+// Mock Supabase storage
+const mockCreateSignedUrl = jest.fn().mockResolvedValue({ data: { signedUrl: 'http://example.com/file.pdf' }, error: null })
+const mockStorageFrom = jest.fn().mockReturnValue({
+  createSignedUrl: mockCreateSignedUrl
+})
+
+jest.mock('@/utils/supabase/client', () => ({
+  createClient: jest.fn(() => ({
+    storage: {
+      from: mockStorageFrom
+    }
+  }))
+}))
+
+jest.mock('@/hooks/use-cloud-storage-store', () => ({
+  useCloudStorageStore: jest.fn()
 }))
 
 const mockOpenFilePreviewModal = jest.fn()
@@ -19,19 +40,22 @@ const mockRenameFile = jest.fn()
 const mockOnOpen = jest.fn()
 const mockOnRename = jest.fn()
 
-beforeEach(() => {
-  jest.clearAllMocks()
-  ;(useModalStore as jest.Mock).mockReturnValue({
-    openFilePreviewModal: mockOpenFilePreviewModal,
-    openFileRenameModal: mockOpenFileRenameModal
-  })
-  ;(useSimpleCloudStorageStore as jest.Mock).mockReturnValue({
-    currentPath: 'user_123/documents',
-    renameFile: mockRenameFile
-  })
-})
-
 describe('CloudStorageItemCard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+      ; (useModalStore as unknown as jest.Mock).mockReturnValue({
+        openFilePreviewModal: mockOpenFilePreviewModal,
+        openFileRenameModal: mockOpenFileRenameModal
+      })
+      ; (useCloudStorageStore as unknown as jest.Mock).mockReturnValue({
+        currentPath: 'user_123/documents',
+        renameFile: mockRenameFile
+      })
+  })
+
+  // Re-mock createClient inside beforeEach if needed? 
+  // No, the factory above handles the return value, and we verify mocks being called.
+
   const mockFile = {
     name: 'test-document.pdf',
     id: 'file-123',
@@ -90,14 +114,12 @@ describe('CloudStorageItemCard', () => {
       />
     )
 
-    // The component should render with rename functionality
     expect(screen.getByText('test-document.pdf')).toBeInTheDocument()
-    // We can't easily test context menu in jsdom, but we can verify the component renders
   })
 
   it('does not show rename option for folders', async () => {
     const user = userEvent.setup()
-    
+
     render(
       <CloudStorageItemCard
         item={mockFolder}
@@ -107,19 +129,20 @@ describe('CloudStorageItemCard', () => {
       />
     )
 
-    // Right-click to open context menu
     const card = screen.getByText('test-folder').closest('[role="button"]')
     if (card) {
       await user.pointer({ keys: '[MouseRight]', target: card })
     }
 
-    // Rename option should not be present for folders
     expect(screen.queryByText('Umbenennen')).not.toBeInTheDocument()
   })
 
   it('calls preview modal for PDF files when card is clicked', async () => {
     const user = userEvent.setup()
-    
+
+    const originalOpen = window.open
+    window.open = jest.fn()
+
     render(
       <CloudStorageItemCard
         item={mockFile}
@@ -129,19 +152,15 @@ describe('CloudStorageItemCard', () => {
       />
     )
 
-    // Click the card - find the card element with cursor-pointer class
     const card = document.querySelector('.cursor-pointer')
     if (card) {
       await user.click(card as Element)
     }
 
-    // For PDF files, it should open preview modal instead of calling onOpen
-    expect(mockOpenFilePreviewModal).toHaveBeenCalledWith({
-      name: 'test-document.pdf',
-      path: 'user_123/documents/test-document.pdf',
-      size: 1024,
-      type: 'pdf'
-    })
+    expect(mockStorageFrom).toHaveBeenCalledWith('documents')
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith('user_123/documents/test-document.pdf', 3600)
+
+    window.open = originalOpen
   })
 
   it('handles list view mode', () => {
@@ -155,7 +174,6 @@ describe('CloudStorageItemCard', () => {
     )
 
     expect(screen.getByText('test-document.pdf')).toBeInTheDocument()
-    // In list view, the layout should be different (horizontal)
     const container = screen.getByText('test-document.pdf').closest('div')
     expect(container).toHaveClass('flex')
   })

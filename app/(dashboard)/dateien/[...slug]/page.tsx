@@ -1,4 +1,4 @@
-import { CloudStorageSimple } from "@/components/cloud-storage-simple"
+import { CloudStorage } from "@/components/cloud-storage"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { getPathContents } from "../actions"
@@ -24,7 +24,7 @@ export default async function DateienPathPage({ params }: { params: Promise<{ sl
   }
 
   return (
-    <CloudStorageSimple
+    <CloudStorage
       userId={user.id}
       initialPath={initialPath}
       initialFiles={files}
