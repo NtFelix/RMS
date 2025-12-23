@@ -1,9 +1,7 @@
 import { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Allgemeine Geschäftsbedingungen',
-  description: 'Allgemeine Geschäftsbedingungen für die Nutzung von Mietevo',
-};
+export const metadata: Metadata = pageMetadata.agb;
 
 export default function AGBLayout({
   children,
