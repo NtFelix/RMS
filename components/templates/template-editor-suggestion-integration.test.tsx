@@ -170,7 +170,43 @@ const mockPopup = {
 };
 
 jest.mock('@/lib/mention-suggestion-popup', () => ({
-  createViewportAwarePopup: jest.fn(() => mockPopup),
+  createViewportAwarePopup: jest.fn((config) => {
+    const handleOrientationChange = () => {
+      mockPopup.setProps({
+        getReferenceClientRect: () => config.clientRect() || new DOMRect(),
+      });
+    };
+
+    const handleResize = () => {
+      mockPopup.setProps({
+        getReferenceClientRect: () => config.clientRect() || new DOMRect(),
+      });
+    };
+
+    const handleScroll = () => {
+      mockPopup.setProps({
+        getReferenceClientRect: () => config.clientRect() || new DOMRect(),
+      });
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('orientationchange', handleOrientationChange);
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('scroll', handleScroll, true);
+    }
+
+    const originalDestroy = mockPopup.destroy;
+    mockPopup.destroy = jest.fn(() => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('orientationchange', handleOrientationChange);
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('scroll', handleScroll, true);
+      }
+      originalDestroy();
+    });
+
+    return mockPopup;
+  }),
 }));
 
 // Mock error handling
@@ -341,12 +377,12 @@ describe('TemplateEditor - Suggestion Integration Tests', () => {
       // Verify that onKeyDown method exists and can be called
       expect(suggestionLifecycle.onKeyDown).toBeDefined();
 
-      // Simulate Enter key press - the actual behavior depends on the component implementation
+      // Simulate Enter key press
       const enterEvent = new KeyboardEvent('keydown', { key: 'Enter' });
-      suggestionLifecycle.onKeyDown({ event: enterEvent });
+      const handled = suggestionLifecycle.onKeyDown({ event: enterEvent });
 
-      // Verify lifecycle is still valid after key handling
-      expect(suggestionLifecycle).toBeTruthy();
+      // Verify that the event was handled
+      expect(handled).toBe(true);
     });
 
     it('should insert selected variable on Tab key', async () => {
@@ -366,12 +402,12 @@ describe('TemplateEditor - Suggestion Integration Tests', () => {
       // Verify that onKeyDown method exists and can be called
       expect(suggestionLifecycle.onKeyDown).toBeDefined();
 
-      // Simulate Tab key press - the actual behavior depends on the component implementation
+      // Simulate Tab key press
       const tabEvent = new KeyboardEvent('keydown', { key: 'Tab' });
-      suggestionLifecycle.onKeyDown({ event: tabEvent });
+      const handled = suggestionLifecycle.onKeyDown({ event: tabEvent });
 
-      // Verify lifecycle is still valid after key handling
-      expect(suggestionLifecycle).toBeTruthy();
+      // Verify that the event was handled
+      expect(handled).toBe(true);
     });
 
     it('should close suggestions on Escape key', async () => {
@@ -796,10 +832,12 @@ describe('TemplateEditor - Suggestion Integration Tests', () => {
       fireEvent.touchMove(document.body, {
         touches: [{ clientX: 100, clientY: 150 }],
       });
+      // Touch moving typically triggers scrolling in most environments
+      fireEvent.scroll(window);
       fireEvent.touchEnd(document.body);
 
-      // Verify suggestions are still active after touch events
-      expect(suggestionLifecycle).toBeTruthy();
+      // Should update popup position
+      expect(mockPopup.setProps).toHaveBeenCalled();
     });
 
     it('should provide adequate touch targets for mobile', async () => {
@@ -850,8 +888,8 @@ describe('TemplateEditor - Suggestion Integration Tests', () => {
       fireEvent(window, new Event('orientationchange'));
       fireEvent.resize(window);
 
-      // Verify suggestions are still active after orientation change
-      expect(suggestionLifecycle).toBeTruthy();
+      // Should update popup position on orientation change
+      expect(mockPopup.setProps).toHaveBeenCalled();
     });
   });
 

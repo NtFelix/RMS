@@ -51,7 +51,7 @@ const mockEditor = {
 const mockUseEditor = jest.fn(() => mockEditor);
 
 jest.mock('@tiptap/react', () => ({
-  useEditor: () => mockUseEditor(),
+  useEditor: (...args: any[]) => mockUseEditor(...args),
   EditorContent: ({ editor }: any) => (
     <div data-testid="editor-content">
       {editor ? 'Editor loaded' : 'Loading...'}
@@ -451,15 +451,28 @@ describe('TemplateEditor - Mention Integration Tests', () => {
       expect(mockEditor.commands.setContent).toHaveBeenCalledWith("Updated content with @mieter.name");
     });
 
-    it('should call onChange when editor content updates', async () => {
-      // Reset the mock to allow testing with the default mockEditor
-      mockUseEditor.mockReturnValue(mockEditor);
-
+    it('should call onChange when editor content updates', () => {
       render(<TemplateEditor onChange={mockOnChange} />);
 
-      // The mockEditor is already configured, and onChange would be called through onUpdate
-      // We just verify the editor rendered with the mock
-      expect(mockUseEditor).toHaveBeenCalled();
+      // The first argument to the first call to mockUseEditor is the config object.
+      const editorConfig = (mockUseEditor.mock.calls as any)[0]?.[0];
+
+      // Manually trigger the onUpdate callback if it exists.
+      if (editorConfig?.onUpdate) {
+        act(() => {
+          editorConfig.onUpdate({ editor: mockEditor });
+        });
+
+        // Assert that onChange was called with the expected content from the mock editor.
+        expect(mockOnChange).toHaveBeenCalledWith('<p>Test content</p>', { type: 'doc', content: [] });
+      } else {
+        // Fallback: verify useEditor was called with onUpdate configured
+        expect(mockUseEditor).toHaveBeenCalledWith(
+          expect.objectContaining({
+            onUpdate: expect.any(Function),
+          })
+        );
+      }
     });
 
     it('should handle JSON content input', () => {
