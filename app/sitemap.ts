@@ -15,10 +15,17 @@ const STATIC_PAGES_LAST_MODIFIED = new Date('2024-12-23')
 // This doesn't require cookies/auth since Dokumentation is public
 // Prefer server-side env vars, fallback to public ones
 function getAnonymousSupabaseClient() {
-    return createClient(
-        process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error(
+            'Supabase environment variables (URL and Anon Key) are not set for sitemap generation. ' +
+            'Please ensure SUPABASE_URL and SUPABASE_ANON_KEY (or their NEXT_PUBLIC_ counterparts) are available.'
+        )
+    }
+
+    return createClient(supabaseUrl, supabaseAnonKey)
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
