@@ -64,7 +64,7 @@ jest.mock('@/components/water-meters/wasserzaehler-modal', () => ({
   WasserzaehlerModal: () => <div data-testid="wasserzaehler-modal">Wasserzaehler Modal</div>
 }));
 
-jest.mock('@/components/modals/kaution-modal', () => ({
+jest.mock('@/components/tenants/kaution-modal', () => ({
   KautionModal: () => <div data-testid="kaution-modal">Kaution Modal</div>
 }));
 

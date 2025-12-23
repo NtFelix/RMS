@@ -30,8 +30,8 @@ import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
 
 // Lazy load modals to reduce bundle size
-const AbrechnungModal = dynamic(() => import('@/components/modals/abrechnung-modal').then(mod => mod.AbrechnungModal), { ssr: false })
-const OperatingCostsOverviewModal = dynamic(() => import('@/components/modals/operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
+const AbrechnungModal = dynamic(() => import('@/components/finance/abrechnung-modal').then(mod => mod.AbrechnungModal), { ssr: false })
+const OperatingCostsOverviewModal = dynamic(() => import('@/components/finance/operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
 const WasserZaehlerVerwaltungModal = dynamic(() => import('@/components/water-meters/wasser-zaehler-verwaltung-modal').then(mod => mod.WasserZaehlerVerwaltungModal), { ssr: false })
 const WasserZaehlerAblesenModal = dynamic(() => import('@/components/water-meters/wasser-zaehler-ablesungen-modal').then(mod => mod.WasserZaehlerAblesenModal), { ssr: false })
 

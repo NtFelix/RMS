@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { AbrechnungModal } from '@/components/modals/abrechnung-modal';
+import { AbrechnungModal } from '@/components/finance/abrechnung-modal';
 import { Nebenkosten, Mieter, Rechnung, Wasserzaehler } from '@/lib/data-fetching';
 
 // Mock the hooks and utilities

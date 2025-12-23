@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/context-menu"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"
 import { useCloudStorageOperations, useCloudStoragePreview, useCloudStorageArchive } from "@/hooks/use-cloud-storage-store"
-import { FileRenameModal } from "@/components/modals/file-rename-modal"
+import { FileRenameModal } from "@/components/cloud-storage/file-rename-modal"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import type { StorageObject } from "@/hooks/use-cloud-storage-store"
