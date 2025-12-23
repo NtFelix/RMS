@@ -5,7 +5,7 @@ import { getFeatureFlagsForSEO } from '@/lib/posthog-feature-flags'
 // Required for Cloudflare Pages deployment
 export const runtime = 'edge'
 
-const BASE_URL = 'https://mietevo.de'
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
 
 // Static last modified date for pages that don't change frequently
 // Update this when making significant content changes to static pages
