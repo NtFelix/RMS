@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Github, Twitter, Linkedin, Mail } from "lucide-react"
+import { /* Github, */ Twitter, /* Linkedin, */ Mail } from "lucide-react"
 import Link from "next/link"
 import { CONTACT_EMAIL } from "@/constants"
 import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME } from "@/lib/constants"
@@ -44,10 +44,10 @@ const specialLinks: Record<string, { href: string; text: string }> = {
 }
 
 const socialLinks = [
-  { icon: Github, href: "#", label: "GitHub" },
-  { icon: Twitter, href: "https://x.com/Mietevo", label: "X (formerly Twitter)" },
-  { icon: Linkedin, href: "#", label: "LinkedIn" },
   { icon: Mail, href: `mailto:${CONTACT_EMAIL}`, label: "Email" },
+  // { icon: Github, href: "#", label: "GitHub" },
+  { icon: Twitter, href: "https://x.com/Mietevo", label: "X (formerly Twitter)" },
+  // { icon: Linkedin, href: "#", label: "LinkedIn" },
 ]
 
 export default function Footer() {
@@ -90,7 +90,7 @@ export default function Footer() {
                     rel={social.href.startsWith("http") ? "noopener noreferrer" : undefined}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
-                    className="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border"
+                    className="group w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border hover:border-white dark:hover:border-primary/50"
                     aria-label={social.label}
                   >
                     <social.icon className="w-5 h-5 text-muted-foreground group-hover:text-accent-foreground" />
