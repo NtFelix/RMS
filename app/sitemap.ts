@@ -13,15 +13,15 @@ const STATIC_PAGES_LAST_MODIFIED = new Date('2024-12-23')
 
 // Create an anonymous Supabase client for sitemap generation
 // This doesn't require cookies/auth since Dokumentation is public
-// Prefer server-side env vars, fallback to public ones
+// Uses server-side env vars for explicit configuration
 function getAnonymousSupabaseClient() {
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !supabaseAnonKey) {
         throw new Error(
-            'Supabase environment variables (URL and Anon Key) are not set for sitemap generation. ' +
-            'Please ensure SUPABASE_URL and SUPABASE_ANON_KEY (or their NEXT_PUBLIC_ counterparts) are available.'
+            'Supabase environment variables (SUPABASE_URL and SUPABASE_ANON_KEY) are not set for sitemap generation. ' +
+            'Please ensure these server-side environment variables are available in the build environment.'
         )
     }
 

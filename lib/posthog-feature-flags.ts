@@ -8,8 +8,9 @@
 
 import { POSTHOG_FEATURE_FLAGS } from './constants'
 
-const POSTHOG_HOST = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
-const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY
+// The /decide endpoint is public and requires the public API key (phc_ prefix)
+const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
+const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
 
 interface FeatureFlagResult {
     showLoesungen: boolean
