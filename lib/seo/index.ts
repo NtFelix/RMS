@@ -2,7 +2,6 @@
 export {
     defaultMetadata,
     pageMetadata,
-    createPageMetadata
 } from './metadata'
 
 export {

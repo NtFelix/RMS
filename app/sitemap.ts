@@ -4,12 +4,17 @@ import { getFeatureFlagsForSEO } from '@/lib/posthog-feature-flags'
 
 const BASE_URL = 'https://mietevo.de'
 
+// Static last modified date for pages that don't change frequently
+// Update this when making significant content changes to static pages
+const STATIC_PAGES_LAST_MODIFIED = new Date('2024-12-23')
+
 // Create an anonymous Supabase client for sitemap generation
 // This doesn't require cookies/auth since Dokumentation is public
+// Prefer server-side env vars, fallback to public ones
 function getAnonymousSupabaseClient() {
     return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 }
 
@@ -22,32 +27,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const staticPages: MetadataRoute.Sitemap = [
         {
             url: BASE_URL,
-            lastModified: new Date(),
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
             changeFrequency: 'weekly',
             priority: 1.0,
         },
         {
             url: `${BASE_URL}/preise`,
-            lastModified: new Date(),
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
             changeFrequency: 'monthly',
             priority: 0.9,
         },
         // Funktionen (Features) - Always visible
         {
             url: `${BASE_URL}/funktionen/betriebskosten`,
-            lastModified: new Date(),
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
             changeFrequency: 'monthly',
             priority: 0.8,
         },
         {
             url: `${BASE_URL}/funktionen/wohnungsverwaltung`,
-            lastModified: new Date(),
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
             changeFrequency: 'monthly',
             priority: 0.8,
         },
         {
             url: `${BASE_URL}/funktionen/finanzverwaltung`,
-            lastModified: new Date(),
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
             changeFrequency: 'monthly',
             priority: 0.8,
         },
@@ -55,19 +60,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ...(featureFlags.showLoesungen ? [
             {
                 url: `${BASE_URL}/loesungen/privatvermieter`,
-                lastModified: new Date(),
+                lastModified: STATIC_PAGES_LAST_MODIFIED,
                 changeFrequency: 'monthly' as const,
                 priority: 0.8,
             },
             {
                 url: `${BASE_URL}/loesungen/kleine-mittlere-hausverwaltungen`,
-                lastModified: new Date(),
+                lastModified: STATIC_PAGES_LAST_MODIFIED,
                 changeFrequency: 'monthly' as const,
                 priority: 0.8,
             },
             {
                 url: `${BASE_URL}/loesungen/grosse-hausverwaltungen`,
-                lastModified: new Date(),
+                lastModified: STATIC_PAGES_LAST_MODIFIED,
                 changeFrequency: 'monthly' as const,
                 priority: 0.8,
             },
@@ -75,7 +80,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         // Hilfe & Dokumentation - Always visible
         {
             url: `${BASE_URL}/hilfe/dokumentation`,
-            lastModified: new Date(),
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
             changeFrequency: 'weekly',
             priority: 0.7,
         },
@@ -83,13 +88,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ...(featureFlags.showProdukte ? [
             {
                 url: `${BASE_URL}/warteliste/browser-erweiterung`,
-                lastModified: new Date(),
+                lastModified: STATIC_PAGES_LAST_MODIFIED,
                 changeFrequency: 'monthly' as const,
                 priority: 0.5,
             },
             {
                 url: `${BASE_URL}/warteliste/mobile-app`,
-                lastModified: new Date(),
+                lastModified: STATIC_PAGES_LAST_MODIFIED,
                 changeFrequency: 'monthly' as const,
                 priority: 0.5,
             },
@@ -97,13 +102,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         // Legal pages (always indexed)
         {
             url: `${BASE_URL}/datenschutz`,
-            lastModified: new Date(),
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
             changeFrequency: 'yearly',
             priority: 0.3,
         },
         {
             url: `${BASE_URL}/agb`,
-            lastModified: new Date(),
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
             changeFrequency: 'yearly',
             priority: 0.3,
         },
@@ -124,7 +129,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 url: `${BASE_URL}/hilfe/dokumentation/${article.id}`,
                 lastModified: article.meta?.last_edited_time
                     ? new Date(article.meta.last_edited_time)
-                    : new Date(),
+                    : STATIC_PAGES_LAST_MODIFIED,
                 changeFrequency: 'weekly' as const,
                 priority: 0.6,
             }))
@@ -135,5 +140,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [...staticPages, ...documentationPages]
 }
-
-

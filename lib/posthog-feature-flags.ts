@@ -36,11 +36,13 @@ export async function getFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
 
     try {
         // Use PostHog's /decide endpoint to evaluate feature flags
+        // Use cache: 'no-store' to ensure fresh flags on each build
         const response = await fetch(`${POSTHOG_HOST}/decide?v=3`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
+            cache: 'no-store',
             body: JSON.stringify({
                 api_key: POSTHOG_API_KEY,
                 // Use a fixed distinct_id for build-time evaluation

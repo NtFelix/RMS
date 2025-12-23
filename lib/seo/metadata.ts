@@ -330,13 +330,3 @@ export const pageMetadata = {
         },
     } satisfies Metadata,
 }
-
-/**
- * Helper function to create metadata for a specific page
- */
-export function createPageMetadata(pageKey: keyof typeof pageMetadata): Metadata {
-    return {
-        ...defaultMetadata,
-        ...pageMetadata[pageKey],
-    }
-}
