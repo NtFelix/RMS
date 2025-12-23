@@ -1,0 +1,18 @@
+# Mietevo Robots.txt
+# https://mietevo.de
+
+User-agent: *
+Allow: /
+
+# Verbiete Zugriff auf geschützte Bereiche
+Disallow: /api/
+Disallow: /auth/
+Disallow: /home/
+Disallow: /onboarding/
+Disallow: /subscription-locked/
+Disallow: /checkout/
+Disallow: /test-mobile-nav/
+Disallow: /test-responsive-nav/
+
+# Sitemap Location
+Sitemap: https://mietevo.de/sitemap.xml

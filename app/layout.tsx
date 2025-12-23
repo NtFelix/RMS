@@ -6,12 +6,12 @@ import { ThemeProvider } from "@/components/common/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { PostHogProvider } from "@/components/providers/posthog-provider"
 import { CookieConsentBanner } from "@/components/common/cookie-consent-banner"
+import { defaultMetadata } from "@/lib/seo"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Mietevo | Immobilienverwaltung",
-  description: "Moderne Plattform für die Immobilienverwaltung",
+  ...defaultMetadata,
   icons: {
     icon: '/favicon.png',
     apple: '/apple-icon.png',

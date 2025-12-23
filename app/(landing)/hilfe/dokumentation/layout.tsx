@@ -1,30 +1,8 @@
 import { Metadata } from 'next';
 import { AIAssistantModal } from '@/components/ai/ai-assistant-modal';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Dokumentation | Mietevo',
-  description: 'Umfassende Dokumentation und Hilfe für die Mietevo Plattform',
-  openGraph: {
-    title: 'Dokumentation | Mietevo',
-    description: 'Umfassende Dokumentation und Hilfe für die Mietevo Plattform',
-    type: 'website',
-    url: 'https://mietevo.de/dokumentation',
-    siteName: 'Mietevo',
-    locale: 'de_DE',
-  },
-  twitter: {
-    card: 'summary',
-    title: 'Dokumentation | Mietevo',
-    description: 'Umfassende Dokumentation und Hilfe für die Mietevo Plattform',
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  alternates: {
-    canonical: 'https://mietevo.de/dokumentation',
-  },
-};
+export const metadata: Metadata = pageMetadata.dokumentation;
 
 interface DocumentationLayoutProps {
   children: React.ReactNode;
