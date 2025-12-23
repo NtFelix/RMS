@@ -21,6 +21,8 @@ export async function middleware(request: NextRequest) {
   // Public routes that don't require authentication
   const publicRoutes = [
     '/', // Homepage
+    '/robots.txt', // Robots.txt for SEO
+    '/sitemap.xml', // Sitemap for SEO
     '/hilfe/dokumentation(.*)?', // All documentation routes under help
     '/dokumentation(.*)?', // Keep old path for backward compatibility
     '/auth(.*)?', // All auth routes
