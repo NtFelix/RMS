@@ -4,4 +4,4 @@ export const PAGINATION = {
   DEFAULT_PAGE_SIZE: 25,
 };
 
-export const CONTACT_EMAIL = "felix.plant@web.de";
+export const CONTACT_EMAIL = "support@mietevo.de";
