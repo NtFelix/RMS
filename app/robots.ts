@@ -4,6 +4,8 @@ import { MetadataRoute } from 'next'
 export const runtime = 'edge'
 
 export default function robots(): MetadataRoute.Robots {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
+
     return {
         rules: [
             {
@@ -16,11 +18,9 @@ export default function robots(): MetadataRoute.Robots {
                     '/onboarding/',
                     '/subscription-locked/',
                     '/checkout/',
-                    '/test-mobile-nav/',
-                    '/test-responsive-nav/',
                 ],
             },
         ],
-        sitemap: 'https://mietevo.de/sitemap.xml',
+        sitemap: new URL('/sitemap.xml', baseUrl).toString(),
     }
 }
