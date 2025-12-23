@@ -2,6 +2,9 @@ import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import { getFeatureFlagsForSEO } from '@/lib/posthog-feature-flags'
 
+// Required for Cloudflare Pages deployment
+export const runtime = 'edge'
+
 const BASE_URL = 'https://mietevo.de'
 
 // Static last modified date for pages that don't change frequently
