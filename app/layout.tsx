@@ -10,9 +10,8 @@ import { CookieConsentBanner } from "@/components/common/cookie-consent-banner"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Property Management Dashboard",
-  description: "Modern dashboard for property management",
-  generator: 'v0.dev',
+  title: "Mietevo | Immobilienverwaltung",
+  description: "Moderne Plattform für die Immobilienverwaltung",
   icons: {
     icon: '/favicon.png',
     apple: '/apple-icon.png',
