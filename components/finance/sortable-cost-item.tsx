@@ -7,12 +7,12 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { PlusCircle, Trash2, GripVertical } from "lucide-react";
 import { normalizeBerechnungsart } from "@/utils/betriebskosten";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { NumberInput } from "../ui/number-input";
-import { Label } from "../ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Skeleton } from "../ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Mieter } from "@/lib/data-fetching";
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 

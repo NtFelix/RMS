@@ -1,8 +1,8 @@
 "use client"
 import React, { ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "../ui/hover-card";
-import { Skeleton } from "../ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -120,7 +120,7 @@ export function SummaryCard({
         aria-labelledby={`summary-card-${title.replace(/\s+/g, '-').toLowerCase()}`}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle 
+          <CardTitle
             className="text-sm font-medium text-muted-foreground"
             id={`summary-card-${title.replace(/\s+/g, '-').toLowerCase()}`}
           >

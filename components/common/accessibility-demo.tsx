@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useState } from 'react'
-import { CustomCombobox, ComboboxOption } from '../ui/custom-combobox'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { CustomCombobox, ComboboxOption } from '@/components/ui/custom-combobox'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const demoOptions: ComboboxOption[] = [
   { value: 'option1', label: 'First Option' },
@@ -39,7 +39,7 @@ export function AccessibilityDemo() {
             width="w-full"
           />
         </div>
-        
+
         <div className="text-sm text-muted-foreground space-y-2">
           <p><strong>Keyboard shortcuts:</strong></p>
           <ul className="list-disc list-inside space-y-1 text-xs">
@@ -56,7 +56,7 @@ export function AccessibilityDemo() {
             💡 Try typing directly on the dropdown button - it will open and start searching automatically!
           </p>
         </div>
-        
+
         {selectedValue && (
           <div className="p-3 bg-muted rounded-md">
             <p className="text-sm">

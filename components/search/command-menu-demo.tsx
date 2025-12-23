@@ -1,9 +1,9 @@
 "use client"
 
 import React from 'react'
-import { Button } from '../ui/button'
+import { Button } from "@/components/ui/button"
 import { useCommandMenu } from '@/hooks/use-command-menu'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Search, Command } from 'lucide-react'
 
 export function CommandMenuDemo() {
@@ -22,7 +22,7 @@ export function CommandMenuDemo() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Button 
+          <Button
             onClick={() => setOpen(true)}
             className="w-full"
             variant="outline"
@@ -30,12 +30,12 @@ export function CommandMenuDemo() {
             <Search className="mr-2 h-4 w-4" />
             Open Command Menu
           </Button>
-          
+
           <p className="text-sm text-muted-foreground">
             Click the button above or press <kbd className="px-1 py-0.5 bg-muted rounded">⌘K</kbd> to open the command menu.
           </p>
         </div>
-        
+
         <div className="text-sm text-muted-foreground space-y-2">
           <p><strong>Auto-Focus Features:</strong></p>
           <ul className="list-disc list-inside space-y-1 text-xs">
@@ -46,7 +46,7 @@ export function CommandMenuDemo() {
             <li>Multiple focus attempts to handle race conditions</li>
           </ul>
         </div>
-        
+
         <div className="p-3 bg-muted rounded-md">
           <p className="text-sm">
             <strong>Try it:</strong> Open the command menu and notice how the input field is immediately ready for typing without needing to click it first!

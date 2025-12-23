@@ -1,6 +1,6 @@
 "use client"
 
-import { Button } from "../ui/button"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../ui/dialog"
+} from "@/components/ui/dialog"
 
 type DeleteConfirmationDialogProps = {
   isOpen: boolean
@@ -47,8 +47,8 @@ export function DeleteConfirmationDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {cancelText}
           </Button>
-          <Button 
-            variant="destructive" 
+          <Button
+            variant="destructive"
             onClick={() => {
               onConfirm()
               onOpenChange(false)
