@@ -52,12 +52,15 @@ export function ApartmentTenantRowDemo() {
   return (
     <div className="space-y-4 p-4">
       <h2 className="text-lg font-semibold">ApartmentTenantRow Demo</h2>
-      
+
       <div className="space-y-4">
         <div>
           <h3 className="text-md font-medium mb-2">Occupied Apartment (with context menu)</h3>
           <ApartmentTenantRowContextMenu
-            apartment={mockApartmentWithTenant}
+            apartmentId={mockApartmentWithTenant.id}
+            tenantId={mockApartmentWithTenant.currentTenant.id}
+            apartmentData={mockApartmentWithTenant}
+            tenantData={mockApartmentWithTenant.currentTenant}
             onEditApartment={handleEditApartment}
             onEditTenant={handleEditTenant}
             onViewDetails={handleViewDetails}
@@ -75,7 +78,8 @@ export function ApartmentTenantRowDemo() {
         <div>
           <h3 className="text-md font-medium mb-2">Vacant Apartment (with context menu)</h3>
           <ApartmentTenantRowContextMenu
-            apartment={mockVacantApartment}
+            apartmentId={mockVacantApartment.id}
+            apartmentData={mockVacantApartment}
             onEditApartment={handleEditApartment}
             onEditTenant={handleEditTenant}
             onViewDetails={handleViewDetails}
@@ -93,7 +97,10 @@ export function ApartmentTenantRowDemo() {
         <div>
           <h3 className="text-md font-medium mb-2">Expandable Row (with additional details)</h3>
           <ApartmentTenantRowContextMenu
-            apartment={mockApartmentWithTenant}
+            apartmentId={mockApartmentWithTenant.id}
+            tenantId={mockApartmentWithTenant.currentTenant.id}
+            apartmentData={mockApartmentWithTenant}
+            tenantData={mockApartmentWithTenant.currentTenant}
             onEditApartment={handleEditApartment}
             onEditTenant={handleEditTenant}
             onViewDetails={handleViewDetails}
