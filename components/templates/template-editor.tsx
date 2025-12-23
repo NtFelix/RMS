@@ -10,11 +10,11 @@ import { TemplateEditorProps } from '@/types/template';
 import { cn } from '@/lib/utils';
 import { filterMentionVariables } from '@/lib/mention-utils';
 import { createViewportAwarePopup } from '@/lib/mention-suggestion-popup';
-import { 
-  createDebouncedFunction, 
+import {
+  createDebouncedFunction,
   createResourceCleanupTracker,
   suggestionPerformanceMonitor,
-  useRenderPerformanceMonitor 
+  useRenderPerformanceMonitor
 } from '@/lib/mention-suggestion-performance';
 import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/ai/mention-suggestion-list';
 import { MentionSuggestionErrorBoundary } from '@/components/ai/mention-suggestion-error-boundary';
@@ -28,13 +28,13 @@ import {
   mentionSuggestionErrorRecovery,
 } from '@/lib/mention-suggestion-error-handling';
 import { Button } from '@/components/ui/button';
-import { 
-  Bold, 
-  Italic, 
-  List, 
-  ListOrdered, 
-  Quote, 
-  Undo, 
+import {
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Quote,
+  Undo,
   Redo,
   Type
 } from 'lucide-react';
@@ -42,9 +42,9 @@ import {
 
 
 
-export function TemplateEditor({ 
-  content, 
-  onChange, 
+export function TemplateEditor({
+  content,
+  onChange,
   placeholder = 'Beginnen Sie mit der Eingabe... Verwenden Sie @ für Variablen',
   className,
   readOnly = false,
@@ -109,39 +109,39 @@ export function TemplateEditor({
           items: ({ query }) => {
             // Use safe execution for filtering with error handling and performance monitoring
             const endTiming = suggestionPerformanceMonitor.startTiming('suggestion-items');
-            
+
             try {
               // For empty queries, return immediate results
               if (!query.trim()) {
                 endTiming();
                 return MENTION_VARIABLES.slice(0, 10);
               }
-              
+
               // Use synchronous filtering to avoid Promise handling issues
               const filteredItems = filterMentionVariables(MENTION_VARIABLES, query, {
                 prioritizeExactMatches: true,
               }).slice(0, 10);
-              
+
               endTiming();
               return filteredItems;
             } catch (error) {
               endTiming();
               console.error('Error in suggestion items:', error);
-              
+
               // Record error for fallback mode tracking
               const suggestionError = handleFilterError(
                 error instanceof Error ? error : new Error('Filter operation failed'),
                 query,
                 MENTION_VARIABLES.length
               );
-              
+
               setSuggestionError(suggestionError.originalError || new Error(suggestionError.message));
-              
+
               // Check if we should enter fallback mode
               if (mentionSuggestionErrorRecovery.recordError(suggestionError)) {
                 setFallbackMode(true);
               }
-              
+
               return fallback.fallbackFilter(MENTION_VARIABLES, query);
             }
           },
@@ -154,7 +154,7 @@ export function TemplateEditor({
                 try {
                   // Reset error state on successful start
                   setSuggestionError(null);
-                  
+
                   component = new ReactRenderer(MentionSuggestionList, {
                     props,
                     editor: props.editor,
@@ -173,7 +173,7 @@ export function TemplateEditor({
                     },
                   });
 
-                  // Add global keyboard event listener while popup is open
+                  // Add global event listeners while popup is open
                   const handleGlobalKeyDown = (event: KeyboardEvent) => {
                     if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(event.key)) {
                       const handled = component?.ref?.onKeyDown({ event });
@@ -184,14 +184,24 @@ export function TemplateEditor({
                     }
                   };
 
-                  // Add global event listener with capture
+                  const handleScroll = () => {
+                    if (popup && props.clientRect) {
+                      popup.setProps({
+                        getReferenceClientRect: () => props.clientRect?.() || new DOMRect(),
+                      });
+                    }
+                  };
+
+                  // Add event listeners with capture
                   document.addEventListener('keydown', handleGlobalKeyDown, true);
-                  
+                  window.addEventListener('scroll', handleScroll, true);
+
                   // Store the cleanup function
                   if (popup) {
                     const originalDestroy = popup.destroy;
                     popup.destroy = () => {
                       document.removeEventListener('keydown', handleGlobalKeyDown, true);
+                      window.removeEventListener('scroll', handleScroll, true);
                       originalDestroy();
                     };
                   }
@@ -200,9 +210,9 @@ export function TemplateEditor({
                     error instanceof Error ? error : new Error('Suggestion initialization failed'),
                     { query: props.query }
                   );
-                  
+
                   setSuggestionError(suggestionError.originalError || new Error(suggestionError.message));
-                  
+
                   // Check if we should enter fallback mode
                   if (mentionSuggestionErrorRecovery.recordError(suggestionError)) {
                     setFallbackMode(true);
@@ -225,17 +235,20 @@ export function TemplateEditor({
                     error instanceof Error ? error : new Error('Position update failed'),
                     props.clientRect?.()
                   );
-                  
+
                   console.warn('Suggestion position update failed:', positionError);
                   // Don't set error state for position errors as they're not critical
                 }
               },
               onKeyDown: (props) => {
-                // This is now handled by the direct popup event listener
-                // Keep this as fallback for any edge cases
                 if (props.event.key === 'Escape') {
                   popup?.hide();
                   return true;
+                }
+
+                // Delegate to the component if it exists
+                if (component?.ref) {
+                  return component.ref.onKeyDown(props);
                 }
 
                 return false;
@@ -247,7 +260,7 @@ export function TemplateEditor({
                 } catch (error) {
                   console.warn('Suggestion cleanup failed:', error);
                 }
-                
+
                 // Always reset references
                 popup = null;
                 component = null;
@@ -270,7 +283,7 @@ export function TemplateEditor({
     if (editor && content !== undefined) {
       const currentContent = editor.getJSON();
       const newContent = typeof content === 'string' ? content : content;
-      
+
       // Only update if content is different to avoid cursor jumping
       if (JSON.stringify(currentContent) !== JSON.stringify(newContent)) {
         editor.commands.setContent(newContent);
@@ -324,207 +337,207 @@ export function TemplateEditor({
         setSuggestionError(error);
       }}
     >
-      <div 
+      <div
         className={cn('border border-input rounded-md', className)}
         role="application"
         aria-label={ariaLabel || ARIA_LABELS.templateContentEditor}
         aria-describedby={ariaDescribedBy}
       >
-      {/* Toolbar */}
-      {!readOnly && (
-        <div 
-          className="border-b border-input p-2 flex items-center gap-1 flex-wrap"
-          role="toolbar"
-          aria-label={ARIA_LABELS.editorToolbar}
-        >
-          {/* Primary formatting buttons */}
-          <div className="flex items-center gap-1" role="group" aria-label="Textformatierung">
-            <Button
-              type="button"
-              variant={editor.isActive('bold') ? 'default' : 'ghost'}
-              size="sm"
-              onClick={toggleBold}
-              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-              aria-label={ARIA_LABELS.boldButton}
-              aria-pressed={editor.isActive('bold')}
-              title={`${ARIA_LABELS.boldButton} (${KEYBOARD_SHORTCUTS.bold})`}
-              data-editor-toolbar-button
-            >
-              <Bold className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-            </Button>
-            
-            <Button
-              type="button"
-              variant={editor.isActive('italic') ? 'default' : 'ghost'}
-              size="sm"
-              onClick={toggleItalic}
-              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-              aria-label={ARIA_LABELS.italicButton}
-              aria-pressed={editor.isActive('italic')}
-              title={`${ARIA_LABELS.italicButton} (${KEYBOARD_SHORTCUTS.italic})`}
-              data-editor-toolbar-button
-            >
-              <Italic className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-            </Button>
-          </div>
-
-          <div className="w-px h-5 sm:h-6 bg-border mx-1" role="separator" aria-hidden="true" />
-
-          {/* List buttons */}
-          <div className="flex items-center gap-1" role="group" aria-label="Listen und Zitate">
-            <Button
-              type="button"
-              variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
-              size="sm"
-              onClick={toggleBulletList}
-              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-              aria-label={ARIA_LABELS.bulletListButton}
-              aria-pressed={editor.isActive('bulletList')}
-              title={ARIA_LABELS.bulletListButton}
-              data-editor-toolbar-button
-            >
-              <List className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-            </Button>
-
-            <Button
-              type="button"
-              variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
-              size="sm"
-              onClick={toggleOrderedList}
-              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-              aria-label={ARIA_LABELS.orderedListButton}
-              aria-pressed={editor.isActive('orderedList')}
-              title={ARIA_LABELS.orderedListButton}
-              data-editor-toolbar-button
-            >
-              <ListOrdered className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-            </Button>
-
-            <Button
-              type="button"
-              variant={editor.isActive('blockquote') ? 'default' : 'ghost'}
-              size="sm"
-              onClick={toggleBlockquote}
-              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-              aria-label={ARIA_LABELS.blockquoteButton}
-              aria-pressed={editor.isActive('blockquote')}
-              title={ARIA_LABELS.blockquoteButton}
-              data-editor-toolbar-button
-            >
-              <Quote className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-            </Button>
-          </div>
-
-          <div className="w-px h-5 sm:h-6 bg-border mx-1" role="separator" aria-hidden="true" />
-
-          {/* History buttons */}
-          <div className="flex items-center gap-1" role="group" aria-label="Rückgängig und Wiederholen">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={undo}
-              disabled={!editor.can().undo()}
-              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-              aria-label={ARIA_LABELS.undoButton}
-              title={`${ARIA_LABELS.undoButton} (${KEYBOARD_SHORTCUTS.undo})`}
-              data-editor-toolbar-button
-            >
-              <Undo className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-            </Button>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={redo}
-              disabled={!editor.can().redo()}
-              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-              aria-label={ARIA_LABELS.redoButton}
-              title={`${ARIA_LABELS.redoButton} (${KEYBOARD_SHORTCUTS.redo})`}
-              data-editor-toolbar-button
-            >
-              <Redo className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-            </Button>
-          </div>
-
-          {/* Variable hint - hidden on very small screens */}
-          <div className="hidden sm:flex w-px h-5 sm:h-6 bg-border mx-1" role="separator" aria-hidden="true" />
-          <div className="hidden sm:flex items-center gap-2 text-xs sm:text-sm text-muted-foreground" role="note">
-            <Type className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-            <span className="hidden md:inline">@ für Variablen</span>
-            <span className="md:hidden">@</span>
-          </div>
-        </div>
-      )}
-
-      {/* Editor Content */}
-      <div 
-        className="min-h-[200px] p-3 sm:p-4 relative"
-        role="textbox"
-        aria-multiline="true"
-        aria-label={ariaLabel || "Rich-Text-Editor für Vorlageninhalt"}
-      >
-        <EditorContent 
-          editor={editor}
-          className={cn(
-            'prose prose-sm max-w-none focus:outline-none',
-            '[&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror]:text-sm [&_.ProseMirror]:sm:text-base',
-            '[&_.mention-variable]:bg-primary/10 [&_.mention-variable]:text-primary [&_.mention-variable]:px-1 [&_.mention-variable]:py-0.5 [&_.mention-variable]:rounded [&_.mention-variable]:font-medium [&_.mention-variable]:text-xs [&_.mention-variable]:sm:text-sm',
-            readOnly && 'cursor-default'
-          )}
-        />
-        
-        {editor.isEmpty && !readOnly && (
-          <div 
-            className="absolute top-3 sm:top-4 left-3 sm:left-4 text-muted-foreground pointer-events-none text-sm sm:text-base"
-            aria-hidden="true"
+        {/* Toolbar */}
+        {!readOnly && (
+          <div
+            className="border-b border-input p-2 flex items-center gap-1 flex-wrap"
+            role="toolbar"
+            aria-label={ARIA_LABELS.editorToolbar}
           >
-            <span className="hidden sm:inline">{placeholder}</span>
-            <span className="sm:hidden">Beginnen Sie mit der Eingabe... @ für Variablen</span>
+            {/* Primary formatting buttons */}
+            <div className="flex items-center gap-1" role="group" aria-label="Textformatierung">
+              <Button
+                type="button"
+                variant={editor.isActive('bold') ? 'default' : 'ghost'}
+                size="sm"
+                onClick={toggleBold}
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                aria-label={ARIA_LABELS.boldButton}
+                aria-pressed={editor.isActive('bold')}
+                title={`${ARIA_LABELS.boldButton} (${KEYBOARD_SHORTCUTS.bold})`}
+                data-editor-toolbar-button
+              >
+                <Bold className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+              </Button>
+
+              <Button
+                type="button"
+                variant={editor.isActive('italic') ? 'default' : 'ghost'}
+                size="sm"
+                onClick={toggleItalic}
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                aria-label={ARIA_LABELS.italicButton}
+                aria-pressed={editor.isActive('italic')}
+                title={`${ARIA_LABELS.italicButton} (${KEYBOARD_SHORTCUTS.italic})`}
+                data-editor-toolbar-button
+              >
+                <Italic className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+              </Button>
+            </div>
+
+            <div className="w-px h-5 sm:h-6 bg-border mx-1" role="separator" aria-hidden="true" />
+
+            {/* List buttons */}
+            <div className="flex items-center gap-1" role="group" aria-label="Listen und Zitate">
+              <Button
+                type="button"
+                variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
+                size="sm"
+                onClick={toggleBulletList}
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                aria-label={ARIA_LABELS.bulletListButton}
+                aria-pressed={editor.isActive('bulletList')}
+                title={ARIA_LABELS.bulletListButton}
+                data-editor-toolbar-button
+              >
+                <List className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+              </Button>
+
+              <Button
+                type="button"
+                variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
+                size="sm"
+                onClick={toggleOrderedList}
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                aria-label={ARIA_LABELS.orderedListButton}
+                aria-pressed={editor.isActive('orderedList')}
+                title={ARIA_LABELS.orderedListButton}
+                data-editor-toolbar-button
+              >
+                <ListOrdered className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+              </Button>
+
+              <Button
+                type="button"
+                variant={editor.isActive('blockquote') ? 'default' : 'ghost'}
+                size="sm"
+                onClick={toggleBlockquote}
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                aria-label={ARIA_LABELS.blockquoteButton}
+                aria-pressed={editor.isActive('blockquote')}
+                title={ARIA_LABELS.blockquoteButton}
+                data-editor-toolbar-button
+              >
+                <Quote className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+              </Button>
+            </div>
+
+            <div className="w-px h-5 sm:h-6 bg-border mx-1" role="separator" aria-hidden="true" />
+
+            {/* History buttons */}
+            <div className="flex items-center gap-1" role="group" aria-label="Rückgängig und Wiederholen">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={undo}
+                disabled={!editor.can().undo()}
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                aria-label={ARIA_LABELS.undoButton}
+                title={`${ARIA_LABELS.undoButton} (${KEYBOARD_SHORTCUTS.undo})`}
+                data-editor-toolbar-button
+              >
+                <Undo className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={redo}
+                disabled={!editor.can().redo()}
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                aria-label={ARIA_LABELS.redoButton}
+                title={`${ARIA_LABELS.redoButton} (${KEYBOARD_SHORTCUTS.redo})`}
+                data-editor-toolbar-button
+              >
+                <Redo className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+              </Button>
+            </div>
+
+            {/* Variable hint - hidden on very small screens */}
+            <div className="hidden sm:flex w-px h-5 sm:h-6 bg-border mx-1" role="separator" aria-hidden="true" />
+            <div className="hidden sm:flex items-center gap-2 text-xs sm:text-sm text-muted-foreground" role="note">
+              <Type className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+              <span className="hidden md:inline">@ für Variablen</span>
+              <span className="md:hidden">@</span>
+            </div>
+          </div>
+        )}
+
+        {/* Editor Content */}
+        <div
+          className="min-h-[200px] p-3 sm:p-4 relative"
+          role="textbox"
+          aria-multiline="true"
+          aria-label={ariaLabel || "Rich-Text-Editor für Vorlageninhalt"}
+        >
+          <EditorContent
+            editor={editor}
+            className={cn(
+              'prose prose-sm max-w-none focus:outline-none',
+              '[&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror]:text-sm [&_.ProseMirror]:sm:text-base',
+              '[&_.mention-variable]:bg-primary/10 [&_.mention-variable]:text-primary [&_.mention-variable]:px-1 [&_.mention-variable]:py-0.5 [&_.mention-variable]:rounded [&_.mention-variable]:font-medium [&_.mention-variable]:text-xs [&_.mention-variable]:sm:text-sm',
+              readOnly && 'cursor-default'
+            )}
+          />
+
+          {editor.isEmpty && !readOnly && (
+            <div
+              className="absolute top-3 sm:top-4 left-3 sm:left-4 text-muted-foreground pointer-events-none text-sm sm:text-base"
+              aria-hidden="true"
+            >
+              <span className="hidden sm:inline">{placeholder}</span>
+              <span className="sm:hidden">Beginnen Sie mit der Eingabe... @ für Variablen</span>
+            </div>
+          )}
+        </div>
+
+        {/* Error notification for suggestion failures */}
+        {suggestionError && !fallbackMode && (
+          <div className="border-t border-destructive/20 bg-destructive/5 p-2 text-xs text-destructive-foreground">
+            <div className="flex items-center justify-between">
+              <span>Variable suggestions temporarily unavailable</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSuggestionError(null);
+                  mentionSuggestionErrorRecovery.reset();
+                  setFallbackMode(false);
+                }}
+                className="text-xs underline hover:no-underline"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
+        {fallbackMode && (
+          <div className="border-t border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+            <div className="flex items-center justify-between">
+              <span>Running in basic mode - type @ followed by variable names manually</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFallbackMode(false);
+                  setSuggestionError(null);
+                  mentionSuggestionErrorRecovery.reset();
+                }}
+                className="text-xs underline hover:no-underline"
+              >
+                Try full mode
+              </button>
+            </div>
           </div>
         )}
       </div>
-      
-      {/* Error notification for suggestion failures */}
-      {suggestionError && !fallbackMode && (
-        <div className="border-t border-destructive/20 bg-destructive/5 p-2 text-xs text-destructive-foreground">
-          <div className="flex items-center justify-between">
-            <span>Variable suggestions temporarily unavailable</span>
-            <button
-              type="button"
-              onClick={() => {
-                setSuggestionError(null);
-                mentionSuggestionErrorRecovery.reset();
-                setFallbackMode(false);
-              }}
-              className="text-xs underline hover:no-underline"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {fallbackMode && (
-        <div className="border-t border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-          <div className="flex items-center justify-between">
-            <span>Running in basic mode - type @ followed by variable names manually</span>
-            <button
-              type="button"
-              onClick={() => {
-                setFallbackMode(false);
-                setSuggestionError(null);
-                mentionSuggestionErrorRecovery.reset();
-              }}
-              className="text-xs underline hover:no-underline"
-            >
-              Try full mode
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
     </MentionSuggestionErrorBoundary>
   );
 }
