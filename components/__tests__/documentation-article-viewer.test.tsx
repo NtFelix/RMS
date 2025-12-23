@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DocumentationArticleViewer } from '../documentation-article-viewer';
-import { Article } from '../documentation-article-list';
+import { DocumentationArticleViewer } from '@/components/documentation/documentation-article-viewer';
+import { Article } from '@/components/documentation/documentation-article-list';
 
 describe('DocumentationArticleViewer', () => {
   const mockArticle: Article = {

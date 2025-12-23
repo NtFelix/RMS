@@ -8,8 +8,8 @@
 import React, { useState } from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TemplateEditor } from '@/components/template-editor';
-import { MentionSuggestionList } from '@/components/mention-suggestion-list';
+import { TemplateEditor } from '@/components/templates/template-editor';
+import { MentionSuggestionList } from '@/components/ai/mention-suggestion-list';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
 
 // Mock dependencies
@@ -204,7 +204,7 @@ jest.mock('@/lib/mention-suggestion-error-handling', () => ({
   },
 }));
 
-jest.mock('@/components/mention-suggestion-error-boundary', () => ({
+jest.mock('@/components/ai/mention-suggestion-error-boundary', () => ({
   MentionSuggestionErrorBoundary: ({ children }: any) => children,
   MentionSuggestionErrorFallback: ({ onRetry, onDismiss }: any) => (
     <div data-testid="suggestion-error-fallback">

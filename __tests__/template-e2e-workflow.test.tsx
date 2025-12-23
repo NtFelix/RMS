@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TemplatesModal } from '@/components/templates-modal';
-import { TemplateEditorModal } from '@/components/template-editor-modal';
+import { TemplatesModal } from '@/components/templates/templates-modal';
+import { TemplateEditorModal } from '@/components/templates/template-editor-modal';
 import { useTemplates } from '@/hooks/use-templates';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { Template, TemplatePayload } from '@/types/template';
@@ -11,7 +11,7 @@ import { toast } from '@/hooks/use-toast';
 jest.mock('@/hooks/use-templates');
 jest.mock('@/hooks/use-modal-store');
 jest.mock('@/hooks/use-toast');
-jest.mock('@/components/template-editor', () => ({
+jest.mock('@/components/templates/template-editor', () => ({
   TemplateEditor: ({ onChange, content, placeholder }: any) => (
     <div data-testid="template-editor">
       <textarea

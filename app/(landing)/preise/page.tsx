@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import Pricing from '@/app/modern/components/pricing';
-import { useAuthModal } from '@/components/auth-modal-provider';
+import { useAuthModal } from '@/components/auth/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';

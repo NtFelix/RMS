@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DocumentationArticleViewer } from '@/components/documentation-article-viewer';
+import { DocumentationArticleViewer } from '@/components/documentation/documentation-article-viewer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';

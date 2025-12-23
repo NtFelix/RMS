@@ -162,7 +162,7 @@ describe('BetriebskostenClientView - Layout Changes', () => {
       const user = userEvent.setup();
       
       // Mock the OperatingCostsTable to trigger edit
-      jest.mock('@/components/operating-costs-table', () => ({
+      jest.mock('@/components/tables/operating-costs-table', () => ({
         OperatingCostsTable: ({ onEdit }: { onEdit: (item: any) => void }) => (
           <div data-testid="operating-costs-table">
             <button 
@@ -293,7 +293,7 @@ describe('BetriebskostenClientView - Layout Changes', () => {
       const user = userEvent.setup();
       
       // Mock the table to trigger delete
-      jest.mock('@/components/operating-costs-table', () => ({
+      jest.mock('@/components/tables/operating-costs-table', () => ({
         OperatingCostsTable: ({ onDeleteItem }: { onDeleteItem: (id: string) => void }) => (
           <div data-testid="operating-costs-table">
             <button 

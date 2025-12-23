@@ -9,7 +9,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/mention-suggestion-list';
+import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/ai/mention-suggestion-list';
 import { MentionVariable } from '@/lib/template-constants';
 import { Editor } from '@tiptap/react';
 
@@ -141,7 +141,7 @@ jest.mock('@/lib/mention-suggestion-error-handling', () => ({
   },
 }));
 
-jest.mock('@/components/mention-suggestion-error-boundary', () => ({
+jest.mock('@/components/ai/mention-suggestion-error-boundary', () => ({
   MentionSuggestionErrorFallback: ({ error, onRetry, onDismiss }: any) => (
     <div role="alert" data-testid="error-fallback">
       <div>Error occurred: {error?.message || 'Unknown error'}</div>
@@ -807,7 +807,7 @@ describe('MentionSuggestionList - Comprehensive Tests', () => {
 
   describe('Integration with Error Boundary', () => {
     it('should work with error boundary wrapper', () => {
-      const { useMentionSuggestionErrorHandler } = require('@/components/mention-suggestion-error-boundary');
+      const { useMentionSuggestionErrorHandler } = require('@/components/ai/mention-suggestion-error-boundary');
       
       // Mock error handler to simulate error state
       useMentionSuggestionErrorHandler.mockReturnValueOnce({
@@ -834,7 +834,7 @@ describe('MentionSuggestionList - Comprehensive Tests', () => {
 
     it('should handle error recovery', () => {
       const mockRetry = jest.fn();
-      const { useMentionSuggestionErrorHandler } = require('@/components/mention-suggestion-error-boundary');
+      const { useMentionSuggestionErrorHandler } = require('@/components/ai/mention-suggestion-error-boundary');
       
       useMentionSuggestionErrorHandler.mockReturnValueOnce({
         error: new Error('Test error'),

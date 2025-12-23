@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 
 // Mock dependencies
 jest.mock('@/hooks/use-toast');
-jest.mock('@/components/house-context-menu', () => ({
+jest.mock('@/components/houses/house-context-menu', () => ({
   HouseContextMenu: ({ children, house, onEdit, onRefresh }: any) => (
     <>
       {children}

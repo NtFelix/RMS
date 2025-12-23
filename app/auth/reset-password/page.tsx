@@ -13,7 +13,7 @@ import { LOGO_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
-import { Auth3DDecorations } from "@/components/auth-3d-decorations"
+import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState("")

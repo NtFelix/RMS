@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { SearchErrorBoundary } from '../search-error-boundary';
+import { SearchErrorBoundary } from '@/components/search/search-error-boundary';
 
 // Mock console.error to avoid noise in tests
 const originalConsoleError = console.error;

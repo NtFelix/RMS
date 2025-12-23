@@ -8,7 +8,7 @@ import {
   MentionSuggestionErrorBoundary,
   useMentionSuggestionErrorHandler,
   MentionSuggestionErrorFallback 
-} from '@/components/mention-suggestion-error-boundary';
+} from '@/components/ai/mention-suggestion-error-boundary';
 
 // Mock console methods to avoid noise in tests
 const originalConsoleError = console.error;

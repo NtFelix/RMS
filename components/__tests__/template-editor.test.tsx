@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TemplateEditor } from '../template-editor';
+import { TemplateEditor } from '@/components/templates/template-editor';
 
 // Mock TipTap dependencies
 jest.mock('@tiptap/react', () => ({

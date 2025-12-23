@@ -1,11 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TemplateEditorModal } from '@/components/template-editor-modal';
+import { TemplateEditorModal } from '@/components/templates/template-editor-modal';
 import { Template } from '@/types/template';
 import { TEMPLATE_CATEGORIES } from '@/lib/template-constants';
 
 // Mock dependencies
-jest.mock('@/components/template-editor', () => ({
+jest.mock('@/components/templates/template-editor', () => ({
   TemplateEditor: ({ onChange, placeholder, content }: any) => (
     <div data-testid="template-editor">
       <textarea

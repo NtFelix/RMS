@@ -54,11 +54,11 @@ global.fetch = jest.fn(() =>
 ) as jest.Mock;
 
 // Mock components that might cause issues in tests
-jest.mock('@/components/apartment-table', () => ({
+jest.mock('@/components/tables/apartment-table', () => ({
   ApartmentTable: () => <div role="table">Apartment Table</div>
 }));
 
-jest.mock('@/components/house-table', () => ({
+jest.mock('@/components/tables/house-table', () => ({
   HouseTable: () => <div role="table">House Table</div>
 }));
 
@@ -371,7 +371,7 @@ describe('Responsive Layout Tests', () => {
 
     it('renders the WohnungenClientView component with responsive layout', () => {
       // Mock the ApartmentTable component to simplify the test
-      jest.mock('@/components/apartment-table', () => ({
+      jest.mock('@/components/tables/apartment-table', () => ({
         __esModule: true,
         ApartmentTable: () => <div role="table">Apartment Table</div>,
       }));

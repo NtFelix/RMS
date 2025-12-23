@@ -1,12 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HaeuserClientView from './client-wrapper';
-import { House } from '@/components/house-table';
+import { House } from '@/components/tables/house-table';
 import { useModalStore } from '@/hooks/use-modal-store';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
-jest.mock('@/components/house-filters', () => ({
+jest.mock('@/components/houses/house-filters', () => ({
   HouseFilters: ({ onFilterChange, onSearchChange }: any) => (
     <div data-testid="house-filters">
       <button onClick={() => onFilterChange('all')} data-testid="filter-all">All</button>
@@ -21,7 +21,7 @@ jest.mock('@/components/house-filters', () => ({
   ),
 }));
 
-jest.mock('@/components/house-table', () => ({
+jest.mock('@/components/tables/house-table', () => ({
   HouseTable: ({ filter, searchQuery, onEdit, initialHouses, reloadRef }: any) => (
     <div data-testid="house-table">
       <div data-testid="filter-value">{filter}</div>

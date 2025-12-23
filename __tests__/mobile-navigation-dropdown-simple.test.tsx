@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import MobileBottomNavigation from '@/components/mobile-bottom-navigation'
+import MobileBottomNavigation from '@/components/common/mobile-bottom-navigation'
 import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useSidebarActiveState } from '@/hooks/use-active-state-manager'
 import { useFeatureFlagEnabled } from 'posthog-js/react'

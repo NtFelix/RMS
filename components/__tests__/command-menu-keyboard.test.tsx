@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CommandMenu } from '@/components/command-menu';
+import { CommandMenu } from '@/components/search/command-menu';
 
 // Mock the hooks
 jest.mock('@/hooks/use-command-menu')
@@ -128,7 +128,7 @@ jest.mock('@/components/ui/command', () => ({
 }));
 
 // Mock other components
-jest.mock('@/components/search-result-group', () => ({
+jest.mock('@/components/search/search-result-group', () => ({
   SearchResultGroup: ({ title, results, onSelect }: any) => (
     <div data-testid={`search-group-${title.toLowerCase()}`}>
       <div>{title}</div>
@@ -163,11 +163,11 @@ jest.mock('@/components/search-result-group', () => ({
   ),
 }));
 
-jest.mock('@/components/search-error-boundary', () => ({
+jest.mock('@/components/search/search-error-boundary', () => ({
   SearchErrorBoundary: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock('@/components/search-loading-states', () => ({
+jest.mock('@/components/search/search-loading-states', () => ({
   SearchLoadingIndicator: () => <div data-testid="search-loading" />,
   SearchEmptyState: () => <div data-testid="search-empty" />,
   SearchStatusBar: () => <div data-testid="search-status" />,

@@ -4,7 +4,7 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server"; // For server-side data fetching
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
 import { formatNumber } from "@/utils/format";
-import { House } from "@/components/house-table"; // Type for enrichedHaeuser
+import { House } from "@/components/tables/house-table"; // Type for enrichedHaeuser
 
 export default async function HaeuserPage() {
   const supabase = await createClient();

@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/mention-suggestion-list';
+import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/ai/mention-suggestion-list';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
 import { Editor } from '@tiptap/react';
 

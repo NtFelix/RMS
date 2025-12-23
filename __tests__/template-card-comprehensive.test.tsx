@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TemplateCard } from '@/components/template-card';
+import { TemplateCard } from '@/components/templates/template-card';
 import { Template } from '@/types/template';
 
 // Mock date-fns

@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { DocumentationSearch } from '@/components/documentation-search';
-import { DocumentationCategories, Category } from '@/components/documentation-categories';
-import { DocumentationArticleList, Article } from '@/components/documentation-article-list';
-import { DocumentationArticleViewer } from '@/components/documentation-article-viewer';
-import { DocumentationCategoryCards } from '@/components/documentation-category-cards';
-import { DocumentationTableOfContents } from '@/components/documentation-table-of-contents';
+import { DocumentationSearch } from '@/components/documentation/documentation-search';
+import { DocumentationCategories, Category } from '@/components/documentation/documentation-categories';
+import { DocumentationArticleList, Article } from '@/components/documentation/documentation-article-list';
+import { DocumentationArticleViewer } from '@/components/documentation/documentation-article-viewer';
+import { DocumentationCategoryCards } from '@/components/documentation/documentation-category-cards';
+import { DocumentationTableOfContents } from '@/components/documentation/documentation-table-of-contents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';

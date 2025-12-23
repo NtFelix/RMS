@@ -40,7 +40,7 @@ const customJestConfig = {
     '**/?(*.)+(spec|test).{ts,tsx}'
   ],
   transformIgnorePatterns: [
-    "node_modules/(?!(isows|@supabase/ssr|@supabase/realtime-js|@supabase/supabase-js)/)"
+    "node_modules/(?!(isows|@supabase/ssr|@supabase/realtime-js|@supabase/supabase-js|marked)/)"
   ],
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],

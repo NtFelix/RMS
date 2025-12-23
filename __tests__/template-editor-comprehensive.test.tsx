@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TemplateEditor } from '@/components/template-editor';
+import { TemplateEditor } from '@/components/templates/template-editor';
 import { JSONContent } from '@tiptap/react';
 
 // Mock TipTap dependencies

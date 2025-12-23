@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react';
-import { SummaryCard } from '../summary-card';
+import { SummaryCard } from '@/components/common/summary-card';
 import { Home, Users, Euro, SquareIcon } from 'lucide-react';
 
 // This is a demo component to visually test the SummaryCard

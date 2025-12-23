@@ -1,4 +1,4 @@
-import { CloudStorage } from "@/components/cloud-storage"
+import { CloudStorage } from "@/components/cloud-storage/cloud-storage"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { getPathContents } from "../actions"

@@ -1,11 +1,11 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DocumentationSearch } from '@/components/documentation-search';
-import { DocumentationCategories } from '@/components/documentation-categories';
-import { DocumentationArticleList } from '@/components/documentation-article-list';
-import { DocumentationErrorBoundary } from '@/components/documentation-error-boundary';
-import { VirtualArticleList } from '@/components/virtual-article-list';
+import { DocumentationSearch } from '@/components/documentation/documentation-search';
+import { DocumentationCategories } from '@/components/documentation/documentation-categories';
+import { DocumentationArticleList } from '@/components/documentation/documentation-article-list';
+import { DocumentationErrorBoundary } from '@/components/documentation/documentation-error-boundary';
+import { VirtualArticleList } from '@/components/documentation/virtual-article-list';
 import { useRetry, useApiRetry } from '@/hooks/use-retry';
 import { useDocumentationCache } from '@/hooks/use-documentation-cache';
 import type { Article, Category } from '@/types/documentation';

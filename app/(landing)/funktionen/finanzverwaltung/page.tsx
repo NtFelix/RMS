@@ -1,7 +1,7 @@
 'use client';
 
 import { TrendingUp, PieChart, BarChart3, Receipt, Calendar, Download, CheckCircle2, ArrowLeft, ArrowRight, DollarSign, TrendingUp as TrendingUpIcon, FileText, CreditCard, PiggyBank, Home, Search, Filter, Zap } from 'lucide-react';
-import { SummaryCard } from "@/components/summary-card";
+import { SummaryCard } from "@/components/common/summary-card";
 import { ArrowUpCircle, ArrowDownCircle, Wallet } from "lucide-react";
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';

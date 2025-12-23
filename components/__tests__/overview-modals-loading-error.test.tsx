@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
-import { HausOverviewModal } from '@/components/haus-overview-modal';
-import { WohnungOverviewModal } from '@/components/wohnung-overview-modal';
+import { HausOverviewModal } from '@/components/houses/haus-overview-modal';
+import { WohnungOverviewModal } from '@/components/apartments/wohnung-overview-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
 
 // Mock the modal store

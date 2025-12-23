@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { TemplatePreview } from '../template-preview';
+import { TemplatePreview } from '@/components/templates/template-preview';
 
 describe('TemplatePreview', () => {
   it('renders plain text content correctly', () => {

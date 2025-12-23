@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ApartmentContextMenu } from '../apartment-context-menu';
+import { ApartmentContextMenu } from '@/components/apartments/apartment-context-menu';
 
 // Mock the server action
 jest.mock('@/app/(dashboard)/wohnungen/actions', () => ({

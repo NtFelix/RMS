@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import MobileBottomNavigation from '@/components/mobile-bottom-navigation'
+import MobileBottomNavigation from '@/components/common/mobile-bottom-navigation'
 
 export default function TestMobileNavPage() {
   return (

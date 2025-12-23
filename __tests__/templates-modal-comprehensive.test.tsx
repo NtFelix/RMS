@@ -1,11 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TemplatesModal } from '@/components/templates-modal';
+import { TemplatesModal } from '@/components/templates/templates-modal';
 import { Template } from '@/types/template';
 import { TEMPLATE_CATEGORIES } from '@/lib/template-constants';
 
 // Mock dependencies
-jest.mock('@/components/template-card', () => ({
+jest.mock('@/components/templates/template-card', () => ({
   TemplateCard: ({ template, onEdit, onDelete }: any) => (
     <div data-testid={`template-card-${template.id}`}>
       <h3>{template.titel}</h3>
@@ -16,7 +16,7 @@ jest.mock('@/components/template-card', () => ({
   ),
 }));
 
-jest.mock('@/components/template-editor-modal', () => ({
+jest.mock('@/components/templates/template-editor-modal', () => ({
   TemplateEditorModal: ({ isOpen, onClose, template, onSave }: any) => (
     isOpen ? (
       <div data-testid="template-editor-modal">

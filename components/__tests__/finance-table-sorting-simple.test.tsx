@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { FinanceTransactions } from '@/components/finance-transactions'
 
 // Mock the context menu component
-jest.mock('@/components/finance-context-menu', () => ({
+jest.mock('@/components/finance/finance-context-menu', () => ({
   FinanceContextMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }))
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, act, waitFor } from '@testing-library/react'
-import MobileBottomNavigation from '@/components/mobile-bottom-navigation'
+import MobileBottomNavigation from '@/components/common/mobile-bottom-navigation'
 
 // Mock hooks
 jest.mock('@/hooks/use-command-menu', () => ({

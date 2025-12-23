@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MentionSuggestionList } from '@/components/mention-suggestion-list';
+import { MentionSuggestionList } from '@/components/ai/mention-suggestion-list';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
 import '@testing-library/jest-dom';
 

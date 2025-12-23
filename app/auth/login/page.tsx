@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
 import { getAuthErrorMessage, getUrlErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
-import { Auth3DDecorations } from "@/components/auth-3d-decorations"
+import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 
 export default function LoginPage() {
   const router = useRouter()

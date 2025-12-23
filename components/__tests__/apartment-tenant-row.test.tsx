@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { ApartmentTenantRow } from '../apartment-tenant-row'
+import { ApartmentTenantRow } from '@/components/apartments/apartment-tenant-row'
 
 // Mock data
 const mockApartmentWithTenant = {

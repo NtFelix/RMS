@@ -143,7 +143,7 @@ describe('MieterClientView - Layout Changes', () => {
       const user = userEvent.setup();
       
       // Mock the TenantTable component to trigger edit
-      jest.mock('@/components/tenant-table', () => ({
+      jest.mock('@/components/tables/tenant-table', () => ({
         TenantTable: ({ onEdit }: { onEdit: (tenant: Tenant) => void }) => (
           <div data-testid="tenant-table">
             <button 

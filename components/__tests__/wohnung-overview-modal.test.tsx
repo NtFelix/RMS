@@ -1,5 +1,5 @@
 import { render, screen, act } from '@testing-library/react';
-import { WohnungOverviewModal } from '../wohnung-overview-modal';
+import { WohnungOverviewModal } from '@/components/apartments/wohnung-overview-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
 
 // Mock timers

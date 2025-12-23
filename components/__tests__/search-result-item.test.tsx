@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { SearchResultItem } from '../search-result-item';
+import { SearchResultItem } from '@/components/search/search-result-item';
 import { SearchResult } from '@/types/search';
 import { Edit, Eye, Trash2 } from 'lucide-react';
 

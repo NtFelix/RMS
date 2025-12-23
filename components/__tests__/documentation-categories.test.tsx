@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DocumentationCategories, Category } from '../documentation-categories';
+import { DocumentationCategories, Category } from '@/components/documentation/documentation-categories';
 
 describe('DocumentationCategories', () => {
   const mockCategories: Category[] = [

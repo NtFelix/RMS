@@ -2,15 +2,15 @@ import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 // Mock the context menu components to avoid server dependencies
-jest.mock('@/components/apartment-context-menu', () => ({
+jest.mock('@/components/apartments/apartment-context-menu', () => ({
   ApartmentContextMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }))
 
-jest.mock('@/components/tenant-context-menu', () => ({
+jest.mock('@/components/tenants/tenant-context-menu', () => ({
   TenantContextMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }))
 
-jest.mock('@/components/finance-context-menu', () => ({
+jest.mock('@/components/finance/finance-context-menu', () => ({
   FinanceContextMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }))
 
@@ -19,10 +19,10 @@ jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn()
 }))
 
-import { ApartmentTable } from '@/components/apartment-table'
-import { TenantTable } from '@/components/tenant-table'
+import { ApartmentTable } from '@/components/tables/apartment-table'
+import { TenantTable } from '@/components/tables/tenant-table'
 import { FinanceTransactions } from '@/components/finance-transactions'
-import type { Apartment } from '@/components/apartment-table'
+import type { Apartment } from '@/components/tables/apartment-table'
 import type { Tenant } from '@/types/Tenant'
 
 // Mock data for testing

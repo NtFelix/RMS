@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, within } from '@testing-library/react'
-import { CommandMenu } from '@/components/command-menu'
+import { CommandMenu } from '@/components/search/command-menu'
 import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useSearch } from '@/hooks/use-search'
 import { useModalStore } from '@/hooks/use-modal-store'

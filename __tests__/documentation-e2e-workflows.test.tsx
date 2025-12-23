@@ -9,7 +9,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DocumentationPage from '@/app/documentation/page';
-import { DocumentationArticleViewer } from '@/components/documentation-article-viewer';
+import { DocumentationArticleViewer } from '@/components/documentation/documentation-article-viewer';
 import { useToast } from '@/hooks/use-toast';
 
 // Mock Next.js navigation

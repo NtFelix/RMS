@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useModalStore } from '@/hooks/use-modal-store';
-import { HausOverviewModal } from '@/components/haus-overview-modal';
-import { WohnungOverviewModal } from '@/components/wohnung-overview-modal';
-import { ApartmentTenantDetailsModal } from '@/components/apartment-tenant-details-modal';
+import { HausOverviewModal } from '@/components/houses/haus-overview-modal';
+import { WohnungOverviewModal } from '@/components/apartments/wohnung-overview-modal';
+import { ApartmentTenantDetailsModal } from '@/components/apartments/apartment-tenant-details-modal';
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store');
@@ -19,23 +19,23 @@ jest.mock('@/utils/format', () => ({
 }));
 
 // Mock components that are used within the modals
-jest.mock('@/components/summary-card', () => ({
+jest.mock('@/components/common/summary-card', () => ({
   SummaryCard: ({ title, value }: { title: string; value: string | number }) => (
     <div data-testid="summary-card">{title}: {value}</div>
   )
 }));
 
-jest.mock('@/components/apartment-tenant-row', () => ({
+jest.mock('@/components/apartments/apartment-tenant-row', () => ({
   ApartmentTenantRow: ({ apartment }: { apartment: any }) => (
     <div data-testid="apartment-tenant-row">{apartment.name}</div>
   )
 }));
 
-jest.mock('@/components/apartment-tenant-row-context-menu', () => ({
+jest.mock('@/components/apartments/apartment-tenant-row-context-menu', () => ({
   ApartmentTenantRowContextMenu: () => <div data-testid="context-menu" />
 }));
 
-jest.mock('@/components/apartment-tenant-row-skeleton', () => ({
+jest.mock('@/components/apartments/apartment-tenant-row-skeleton', () => ({
   ApartmentTenantRowSkeleton: () => <div data-testid="skeleton" />
 }));
 

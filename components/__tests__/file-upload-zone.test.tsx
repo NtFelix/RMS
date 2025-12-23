@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { FileUploadZone } from '@/components/file-upload-zone'
+import { FileUploadZone } from '@/components/cloud-storage/file-upload-zone'
 import { useCloudStorageUpload } from '@/hooks/use-cloud-storage-store'
 import { validateFile } from '@/lib/storage-service'
 

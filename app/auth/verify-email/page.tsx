@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Mail } from "lucide-react"
 import { motion } from "framer-motion"
-import { Auth3DDecorations } from "@/components/auth-3d-decorations"
+import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 
 export default function VerifyEmailPage() {
     return (

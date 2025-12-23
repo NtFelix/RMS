@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { TemplatesModal } from '@/components/templates-modal';
+import { TemplatesModal } from '@/components/templates/templates-modal';
 import { useTemplates, useTemplateFilters } from '@/hooks/use-templates';
 import { useModalStore } from '@/hooks/use-modal-store';
 

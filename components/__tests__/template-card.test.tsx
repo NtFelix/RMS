@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TemplateCard } from '../template-card';
+import { TemplateCard } from '@/components/templates/template-card';
 import { Template } from '@/types/template';
 
 // Mock date-fns

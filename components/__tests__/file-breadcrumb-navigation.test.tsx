@@ -1,11 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { FileBreadcrumbNavigation } from '@/components/file-breadcrumb-navigation'
+import { FileBreadcrumbNavigation } from '@/components/cloud-storage/file-breadcrumb-navigation'
 import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
-import { useFolderNavigation } from '@/components/navigation-interceptor'
+import { useFolderNavigation } from '@/components/common/navigation-interceptor'
 
 // Mock the hooks
 jest.mock('@/hooks/use-cloud-storage-store')
-jest.mock('@/components/navigation-interceptor')
+jest.mock('@/components/common/navigation-interceptor')
 
 const mockUseCloudStorageStore = useCloudStorageStore as jest.MockedFunction<typeof useCloudStorageStore>
 const mockUseFolderNavigation = useFolderNavigation as jest.MockedFunction<typeof useFolderNavigation>

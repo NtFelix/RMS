@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { TemplateEditorModal } from '@/components/template-editor-modal';
+import { TemplateEditorModal } from '@/components/templates/template-editor-modal';
 import { Button } from '@/components/ui/button';
 import { Template } from '@/types/template';
 

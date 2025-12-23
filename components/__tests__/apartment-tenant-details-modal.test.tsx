@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
-import { ApartmentTenantDetailsModal } from '@/components/apartment-tenant-details-modal'
+import { ApartmentTenantDetailsModal } from '@/components/apartments/apartment-tenant-details-modal'
 import { useModalStore } from '@/hooks/use-modal-store'
 
 // Mock the modal store

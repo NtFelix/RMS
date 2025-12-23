@@ -6,7 +6,7 @@ import { Info, Monitor } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
-import { ThemeSwitcherCards } from "@/components/theme-switcher-cards";
+import { ThemeSwitcherCards } from "@/components/common/theme-switcher-cards";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { Button } from "@/components/ui/button";

@@ -12,7 +12,7 @@ import BottomCTA from '@/components/ui/bottom-cta';
 
 import Pricing from '@/app/modern/components/pricing';
 import NebenkostenSection from '@/app/modern/components/nebenkosten-section';
-import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
+import AuthModalProvider, { useAuthModal } from '@/components/auth/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';

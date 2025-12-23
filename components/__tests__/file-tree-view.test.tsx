@@ -1,13 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { FileTreeView } from '@/components/file-tree-view'
+import { FileTreeView } from '@/components/cloud-storage/file-tree-view'
 import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
 import { usePropertyHierarchy } from '@/hooks/use-property-hierarchy'
-import { useFolderNavigation } from '@/components/navigation-interceptor'
+import { useFolderNavigation } from '@/components/common/navigation-interceptor'
 
 // Mock the hooks
 jest.mock('@/hooks/use-cloud-storage-store')
 jest.mock('@/hooks/use-property-hierarchy')
-jest.mock('@/components/navigation-interceptor')
+jest.mock('@/components/common/navigation-interceptor')
 
 const mockUseCloudStorageStore = useCloudStorageStore as jest.MockedFunction<typeof useCloudStorageStore>
 const mockUsePropertyHierarchy = usePropertyHierarchy as jest.MockedFunction<typeof usePropertyHierarchy>

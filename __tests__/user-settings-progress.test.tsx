@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { UserSettings } from '@/components/user-settings'
+import { UserSettings } from '@/components/common/user-settings'
 import { useApartmentUsage } from '@/hooks/use-apartment-usage'
 import { User } from '@supabase/supabase-js'
 

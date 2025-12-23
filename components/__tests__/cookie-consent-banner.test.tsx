@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { CookieConsentBanner } from '../cookie-consent-banner';
+import { CookieConsentBanner } from '@/components/common/cookie-consent-banner';
 
 // Mock localStorage
 const localStorageMock = (() => {

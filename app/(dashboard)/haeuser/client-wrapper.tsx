@@ -7,8 +7,8 @@ import { PlusCircle, Building, Home, Key, X, Download, Trash2, Loader2 } from "l
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { StatCard } from "@/components/stat-card";
-import { HouseTable, House } from "@/components/house-table";
+import { StatCard } from "@/components/common/stat-card";
+import { HouseTable, House } from "@/components/tables/house-table";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";

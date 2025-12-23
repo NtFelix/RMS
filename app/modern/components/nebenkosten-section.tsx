@@ -1,4 +1,4 @@
-import { NKCarousel } from "@/components/nk-carousel";
+import { NKCarousel } from "@/components/finance/nk-carousel";
 import { BRAND_NAME_PART_1, BRAND_NAME_PART_2 } from "@/lib/constants";
 
 export default function NebenkostenSection() {
