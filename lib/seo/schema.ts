@@ -5,23 +5,38 @@
  * potentially enabling rich snippets in search results.
  */
 
-const BASE_URL = 'https://mietevo.de'
-const BRAND_NAME = 'Mietevo'
+import { BASE_URL, BRAND_NAME, CONTACT_EMAIL } from '@/lib/constants'
+
 const LOGO_URL = `${BASE_URL}/favicon.png`
-const SUPPORT_EMAIL = 'support@mietevo.de'
+const SUPPORT_EMAIL = CONTACT_EMAIL
 
 /**
  * Organization Schema
  * Helps Google understand your brand/company
+ * Critical for sitelinks with logo display in search results
  */
 export function getOrganizationSchema() {
     return {
         '@context': 'https://schema.org',
         '@type': 'Organization',
+        '@id': `${BASE_URL}/#organization`,
         name: BRAND_NAME,
+        alternateName: 'Mietevo Hausverwaltungssoftware',
         url: BASE_URL,
-        logo: LOGO_URL,
+        // Logo in ImageObject format - required for rich sitelinks with logo
+        logo: {
+            '@type': 'ImageObject',
+            '@id': `${BASE_URL}/#logo`,
+            url: LOGO_URL,
+            contentUrl: LOGO_URL,
+            width: 512,
+            height: 512,
+            caption: `${BRAND_NAME} Logo`,
+        },
+        // Also provide simple logo reference for broader compatibility
+        image: LOGO_URL,
         description: 'Moderne Hausverwaltungssoftware für Vermieter und Hausverwaltungen in Deutschland.',
+        slogan: 'Die moderne Lösung für Ihre Mietverwaltung',
         foundingDate: '2024',
         founders: [
             {
@@ -33,16 +48,29 @@ export function getOrganizationSchema() {
             '@type': 'ContactPoint',
             email: SUPPORT_EMAIL,
             contactType: 'customer service',
-            availableLanguage: ['German'],
+            availableLanguage: ['de'],
+            areaServed: 'DE',
         },
         sameAs: [
             'https://x.com/Mietevo',
-            // Add other social media profiles here
+            // Add other social media profiles here (LinkedIn, Facebook, etc.)
         ],
         address: {
             '@type': 'PostalAddress',
             addressCountry: 'DE',
         },
+        // Geographic service area
+        areaServed: {
+            '@type': 'Country',
+            name: 'Germany',
+        },
+        // Known for property management in Germany
+        knowsAbout: [
+            'Hausverwaltung',
+            'Nebenkostenabrechnung',
+            'Mietverwaltung',
+            'Immobilienverwaltung',
+        ],
     }
 }
 

@@ -4,8 +4,18 @@
 import { Building2, Users, BarChart3, Zap, Shield, HeadphonesIcon, CheckCircle2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useFeatureFlagRedirect } from '@/hooks/use-feature-flag-redirect';
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
 
 export default function SmallMediumPropertyManagementPage() {
+  // Redirect to homepage if feature flag is disabled
+  const { isLoading, isAllowed } = useFeatureFlagRedirect(POSTHOG_FEATURE_FLAGS.SHOW_LOESUNGEN_DROPDOWN);
+
+  // Show nothing while checking feature flag to prevent flash of content
+  if (isLoading || !isAllowed) {
+    return null;
+  }
+
   const features = [
     {
       icon: Building2,
@@ -101,7 +111,7 @@ export default function SmallMediumPropertyManagementPage() {
           <div className="bg-primary/5 rounded-2xl p-8 mb-16">
             <h2 className="text-2xl font-bold mb-4">Skalierbare Lösung</h2>
             <p className="text-muted-foreground mb-4">
-              Unsere Plattform wächst mit Ihrem Unternehmen. Starten Sie klein und erweitern Sie bei Bedarf 
+              Unsere Plattform wächst mit Ihrem Unternehmen. Starten Sie klein und erweitern Sie bei Bedarf
               auf größere Pakete mit mehr Funktionen und Support.
             </p>
             <Button asChild variant="outline">

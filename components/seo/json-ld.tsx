@@ -10,6 +10,7 @@ import {
     getHowToSchema,
     getProductSchema,
 } from '@/lib/seo/schema'
+import { ROUTES, BASE_URL } from '@/lib/constants'
 
 /**
  * Component to inject JSON-LD structured data into the page
@@ -143,15 +144,114 @@ export function HomePageJsonLd() {
     )
 }
 
-/**
- * Combined Schema for Feature Pages
- * Includes Organization and SoftwareApplication schemas
- */
 export function FeaturePageJsonLd() {
     return (
         <>
             <OrganizationJsonLd />
             <SoftwareApplicationJsonLd />
+        </>
+    )
+}
+
+/**
+ * Combined Schema for Pricing Page
+ * Includes Organization, SoftwareApplication, FAQ, and Breadcrumb schemas
+ */
+interface PricingPageJsonLdProps {
+    faqs: Array<{ question: string; answer: string }>
+}
+
+export function PricingPageJsonLd({ faqs }: PricingPageJsonLdProps) {
+    const breadcrumbItems = [
+        { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
+        { name: 'Preise', url: `${BASE_URL}${ROUTES.PRICING}` },
+    ]
+
+    return (
+        <>
+            <OrganizationJsonLd />
+            <SoftwareApplicationJsonLd />
+            <FAQJsonLd faqs={faqs} />
+            <BreadcrumbJsonLd items={breadcrumbItems} />
+        </>
+    )
+}
+
+/**
+ * Schema for Feature sub-pages with breadcrumbs
+ * Use on /funktionen/* pages
+ */
+interface FeatureSubPageJsonLdProps {
+    pageName: string
+    pageUrl: string
+}
+
+export function FeatureSubPageJsonLd({ pageName, pageUrl }: FeatureSubPageJsonLdProps) {
+    // Note: 'Funktionen' points to homepage since there's no /funktionen index page
+    const breadcrumbItems = [
+        { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
+        { name: pageName, url: pageUrl },
+    ]
+
+    return (
+        <>
+            <OrganizationJsonLd />
+            <SoftwareApplicationJsonLd />
+            <BreadcrumbJsonLd items={breadcrumbItems} />
+        </>
+    )
+}
+
+/**
+ * Schema for Solutions sub-pages with breadcrumbs
+ * Use on /loesungen/* pages
+ */
+interface SolutionSubPageJsonLdProps {
+    pageName: string
+    pageUrl: string
+}
+
+export function SolutionSubPageJsonLd({ pageName, pageUrl }: SolutionSubPageJsonLdProps) {
+    // Note: No intermediate 'Lösungen' page exists, so we link directly from homepage
+    const breadcrumbItems = [
+        { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
+        { name: pageName, url: pageUrl },
+    ]
+
+    return (
+        <>
+            <OrganizationJsonLd />
+            <SoftwareApplicationJsonLd />
+            <BreadcrumbJsonLd items={breadcrumbItems} />
+        </>
+    )
+}
+
+/**
+ * Schema for Documentation pages with breadcrumbs
+ */
+interface DocsPageJsonLdProps {
+    articleTitle?: string
+    articleUrl?: string
+}
+
+export function DocsPageJsonLd({ articleTitle, articleUrl }: DocsPageJsonLdProps) {
+    // Note: No intermediate 'Hilfe' page exists, so we skip it in the breadcrumb
+    const breadcrumbItems = [
+        { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
+        { name: 'Dokumentation', url: `${BASE_URL}/hilfe/dokumentation` },
+    ]
+
+    // Add article to breadcrumb if viewing a specific article
+    if (articleTitle && articleUrl) {
+        breadcrumbItems.push({ name: articleTitle, url: articleUrl })
+    }
+
+    return (
+        <>
+            <OrganizationJsonLd />
+            <SoftwareApplicationJsonLd />
+            <BreadcrumbJsonLd items={breadcrumbItems} />
         </>
     )
 }

@@ -6,7 +6,8 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BRAND_NAME } from '@/lib/constants';
 
-const faqItems = [
+// Export FAQ items for SEO schema markup (FAQPage structured data)
+export const faqItems = [
     {
         question: "Kann ich meinen Plan jederzeit ändern?",
         answer: "Ja, Sie können Ihren Plan jederzeit anpassen. Upgrades werden sofort wirksam und erhöhen Ihre Limits direkt. Downgrades werden zum Ende des aktuellen Abrechnungszeitraums wirksam."
