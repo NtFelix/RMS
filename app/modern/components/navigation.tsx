@@ -8,8 +8,7 @@ import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, Layo
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2 } from "@/lib/constants"
-import { CONTACT_EMAIL } from "@/constants"
+import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2, CONTACT_EMAIL } from "@/lib/constants"
 import { Button } from '@/components/ui/button'
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";

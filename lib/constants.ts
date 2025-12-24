@@ -17,6 +17,8 @@ export const LOGO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/obj
 export const BRAND_NAME_PART_1 = 'Miet';
 export const BRAND_NAME_PART_2 = 'evo';
 export const BRAND_NAME = `${BRAND_NAME_PART_1}${BRAND_NAME_PART_2}`;
+export const CONTACT_EMAIL = "support@mietevo.de";
+
 
 // Feature flags removed as functionality is now standard
 // PostHog feature flag keys - centralized to prevent magic strings
