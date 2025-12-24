@@ -10,10 +10,7 @@ import {
     getHowToSchema,
     getProductSchema,
 } from '@/lib/seo/schema'
-import { ROUTES } from '@/lib/constants'
-
-// Base URL for constructing full URLs
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
+import { ROUTES, BASE_URL } from '@/lib/constants'
 
 /**
  * Component to inject JSON-LD structured data into the page

@@ -1,7 +1,5 @@
 import { Metadata } from 'next'
-
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
-const BRAND_NAME = 'Mietevo'
+import { BASE_URL, BRAND_NAME } from '@/lib/constants'
 
 /**
  * Default metadata for the entire application.

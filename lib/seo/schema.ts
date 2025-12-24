@@ -5,10 +5,10 @@
  * potentially enabling rich snippets in search results.
  */
 
-const BASE_URL = 'https://mietevo.de'
-const BRAND_NAME = 'Mietevo'
+import { BASE_URL, BRAND_NAME, CONTACT_EMAIL } from '@/lib/constants'
+
 const LOGO_URL = `${BASE_URL}/favicon.png`
-const SUPPORT_EMAIL = 'support@mietevo.de'
+const SUPPORT_EMAIL = CONTACT_EMAIL
 
 /**
  * Organization Schema
