@@ -107,6 +107,8 @@ function LandingPageContent() {
       'more-features': 'more_features',
       'pricing': 'pricing',
       'cta': 'bottom_cta',
+      'faq': 'faq',
+      'footer': 'footer',
     };
     const sectionIds = Object.keys(sectionIdMap);
 

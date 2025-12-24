@@ -35,6 +35,9 @@ export const LANDING_EVENTS = {
     BILLING_CYCLE_CHANGED: 'billing_cycle_changed',
     PRICING_VIEW_ALL_CLICKED: 'pricing_view_all_clicked',
 
+    // FAQ Events
+    FAQ_QUESTION_EXPANDED: 'faq_question_expanded',
+
     // Scroll/Section Events
     SECTION_VIEWED: 'section_viewed',
 } as const;
@@ -52,6 +55,7 @@ export type LandingSection =
     | 'more_features'
     | 'pricing'
     | 'bottom_cta'
+    | 'faq'
     | 'footer';
 
 export type NavDropdown = 'produkte' | 'funktionen' | 'loesungen' | 'hilfe';
@@ -67,13 +71,19 @@ export type SocialPlatform = 'twitter' | 'email' | 'github' | 'linkedin';
 // ============================================================================
 
 /**
- * Check if PostHog is available and user has opted in to tracking
+ * Check if PostHog is available for tracking
+ * Note: We check if PostHog is initialized and has not been explicitly opted out.
+ * This works with opt_out_capturing_by_default configurations.
  */
 function canTrack(): boolean {
-    return typeof window !== 'undefined' &&
-        posthog &&
-        typeof posthog.capture === 'function' &&
-        posthog.has_opted_in_capturing?.();
+    if (typeof window === 'undefined') return false;
+    if (!posthog || typeof posthog.capture !== 'function') return false;
+
+    // Check if PostHog has been explicitly opted out
+    // has_opted_out_capturing returns true if user explicitly opted out
+    if (posthog.has_opted_out_capturing?.()) return false;
+
+    return true;
 }
 
 /**
@@ -315,5 +325,22 @@ export function trackSectionViewed(
         section,
         time_on_page_ms: timeOnPageMs,
         scroll_depth_percent: scrollDepthPercent,
+    });
+}
+
+// ============================================================================
+// FAQ Tracking
+// ============================================================================
+
+/**
+ * Track FAQ question expanded
+ */
+export function trackFAQQuestionExpanded(questionText: string, questionIndex: number) {
+    if (!canTrack()) return;
+
+    posthog.capture(LANDING_EVENTS.FAQ_QUESTION_EXPANDED, {
+        ...getCommonProperties(),
+        question_text: questionText,
+        question_index: questionIndex,
     });
 }

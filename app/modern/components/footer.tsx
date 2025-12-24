@@ -60,7 +60,7 @@ const categoryMap: Record<string, FooterCategory> = {
 
 export default function Footer() {
   return (
-    <footer className="relative py-20 px-4 border-t border-border bg-background text-foreground">
+    <footer id="footer" className="relative py-20 px-4 border-t border-border bg-background text-foreground">
       {/* Footer Background Pattern - Adjusted for theme */}
       <div className="absolute inset-0 opacity-5 dark:opacity-3">
         <div

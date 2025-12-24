@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BRAND_NAME } from '@/lib/constants';
+import { trackFAQQuestionExpanded } from '@/lib/posthog-landing-events';
 
 const faqItems = [
     {
@@ -50,7 +51,13 @@ export function FAQ() {
                             )}
                         >
                             <button
-                                onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                                onClick={() => {
+                                    const isExpanding = openIndex !== index;
+                                    if (isExpanding) {
+                                        trackFAQQuestionExpanded(item.question, index);
+                                    }
+                                    setOpenIndex(isExpanding ? index : null);
+                                }}
                                 className="flex items-center justify-between w-full p-6 text-left"
                             >
                                 <span className="text-lg font-medium pr-8">
