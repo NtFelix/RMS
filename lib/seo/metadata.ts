@@ -381,10 +381,6 @@ export const pageMetadata = {
             index: false,
             follow: false,
             nocache: true,
-            googleBot: {
-                index: false,
-                follow: false,
-            },
         },
     } satisfies Metadata,
 
@@ -396,10 +392,6 @@ export const pageMetadata = {
             index: false,
             follow: false,
             nocache: true,
-            googleBot: {
-                index: false,
-                follow: false,
-            },
         },
     } satisfies Metadata,
 
@@ -411,10 +403,6 @@ export const pageMetadata = {
             index: false,
             follow: false,
             nocache: true,
-            googleBot: {
-                index: false,
-                follow: false,
-            },
         },
     } satisfies Metadata,
 }

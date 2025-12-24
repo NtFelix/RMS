@@ -10,8 +10,6 @@ export const metadata: Metadata = {
     follow: false,
     nocache: true,
     googleBot: {
-      index: false,
-      follow: false,
       noimageindex: true,
     },
   },
