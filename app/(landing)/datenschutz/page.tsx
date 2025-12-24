@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import Navigation from '@/app/modern/components/navigation';
 import Footer from '@/app/modern/components/footer';
 import AuthModalProvider, { useAuthModal } from '@/components/auth/auth-modal-provider';
-import { CONTACT_EMAIL } from '@/constants';
+import { CONTACT_EMAIL } from '@/lib/constants';
 
 // Note: Metadata export is not supported in client components
 // This would need to be handled by a parent server component or layout
