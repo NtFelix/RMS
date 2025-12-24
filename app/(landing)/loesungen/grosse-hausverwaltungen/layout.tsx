@@ -13,7 +13,7 @@ export default function GrosseHausverwaltungenLayout({
         <>
             <SolutionSubPageJsonLd
                 pageName="Große Hausverwaltungen"
-                pageUrl="https://mietevo.de/loesungen/grosse-hausverwaltungen"
+                pageUrl={pageMetadata.loesungenGrosse.alternates?.canonical as string}
             />
             {children}
         </>

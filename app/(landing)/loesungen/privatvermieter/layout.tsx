@@ -13,7 +13,7 @@ export default function PrivatvermieterLayout({
         <>
             <SolutionSubPageJsonLd
                 pageName="Privatvermieter"
-                pageUrl="https://mietevo.de/loesungen/privatvermieter"
+                pageUrl={pageMetadata.loesungenPrivatvermieter.alternates?.canonical as string}
             />
             {children}
         </>

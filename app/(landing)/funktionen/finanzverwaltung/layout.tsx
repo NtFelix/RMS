@@ -13,7 +13,7 @@ export default function FinanzverwaltungLayout({
         <>
             <FeatureSubPageJsonLd
                 pageName="Finanzverwaltung"
-                pageUrl="https://mietevo.de/funktionen/finanzverwaltung"
+                pageUrl={pageMetadata.funktionenFinanzverwaltung.alternates?.canonical as string}
             />
             {children}
         </>

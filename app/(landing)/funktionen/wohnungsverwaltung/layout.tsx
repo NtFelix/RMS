@@ -13,7 +13,7 @@ export default function WohnungsverwaltungLayout({
         <>
             <FeatureSubPageJsonLd
                 pageName="Wohnungsverwaltung"
-                pageUrl="https://mietevo.de/funktionen/wohnungsverwaltung"
+                pageUrl={pageMetadata.funktionenWohnungsverwaltung.alternates?.canonical as string}
             />
             {children}
         </>

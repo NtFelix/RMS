@@ -10,6 +10,10 @@ import {
     getHowToSchema,
     getProductSchema,
 } from '@/lib/seo/schema'
+import { ROUTES } from '@/lib/constants'
+
+// Base URL for constructing full URLs
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
 
 /**
  * Component to inject JSON-LD structured data into the page
@@ -162,8 +166,8 @@ interface PricingPageJsonLdProps {
 
 export function PricingPageJsonLd({ faqs }: PricingPageJsonLdProps) {
     const breadcrumbItems = [
-        { name: 'Startseite', url: 'https://mietevo.de' },
-        { name: 'Preise', url: 'https://mietevo.de/preise' },
+        { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
+        { name: 'Preise', url: `${BASE_URL}${ROUTES.PRICING}` },
     ]
 
     return (
@@ -187,8 +191,8 @@ interface FeatureSubPageJsonLdProps {
 
 export function FeatureSubPageJsonLd({ pageName, pageUrl }: FeatureSubPageJsonLdProps) {
     const breadcrumbItems = [
-        { name: 'Startseite', url: 'https://mietevo.de' },
-        { name: 'Funktionen', url: 'https://mietevo.de/funktionen' },
+        { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
+        { name: 'Funktionen', url: `${BASE_URL}${ROUTES.FEATURES}` },
         { name: pageName, url: pageUrl },
     ]
 
@@ -212,8 +216,8 @@ interface SolutionSubPageJsonLdProps {
 
 export function SolutionSubPageJsonLd({ pageName, pageUrl }: SolutionSubPageJsonLdProps) {
     const breadcrumbItems = [
-        { name: 'Startseite', url: 'https://mietevo.de' },
-        { name: 'Lösungen', url: 'https://mietevo.de/loesungen' },
+        { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
+        { name: 'Lösungen', url: `${BASE_URL}/loesungen` },
         { name: pageName, url: pageUrl },
     ]
 
@@ -236,9 +240,9 @@ interface DocsPageJsonLdProps {
 
 export function DocsPageJsonLd({ articleTitle, articleUrl }: DocsPageJsonLdProps) {
     const breadcrumbItems = [
-        { name: 'Startseite', url: 'https://mietevo.de' },
-        { name: 'Hilfe', url: 'https://mietevo.de/hilfe' },
-        { name: 'Dokumentation', url: 'https://mietevo.de/hilfe/dokumentation' },
+        { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
+        { name: 'Hilfe', url: `${BASE_URL}/hilfe` },
+        { name: 'Dokumentation', url: `${BASE_URL}/hilfe/dokumentation` },
     ]
 
     // Add article to breadcrumb if viewing a specific article
@@ -249,6 +253,7 @@ export function DocsPageJsonLd({ articleTitle, articleUrl }: DocsPageJsonLdProps
     return (
         <>
             <OrganizationJsonLd />
+            <SoftwareApplicationJsonLd />
             <BreadcrumbJsonLd items={breadcrumbItems} />
         </>
     )

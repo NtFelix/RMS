@@ -13,7 +13,7 @@ export default function KleineMittlereLayout({
         <>
             <SolutionSubPageJsonLd
                 pageName="Kleine & Mittlere Hausverwaltungen"
-                pageUrl="https://mietevo.de/loesungen/kleine-mittlere-hausverwaltungen"
+                pageUrl={pageMetadata.loesungenKleineMittlere.alternates?.canonical as string}
             />
             {children}
         </>

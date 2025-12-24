@@ -13,7 +13,7 @@ export default function BetriebskostenLayout({
         <>
             <FeatureSubPageJsonLd
                 pageName="Nebenkostenabrechnung"
-                pageUrl="https://mietevo.de/funktionen/betriebskosten"
+                pageUrl={pageMetadata.funktionenBetriebskosten.alternates?.canonical as string}
             />
             {children}
         </>
