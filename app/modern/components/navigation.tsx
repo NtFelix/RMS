@@ -167,6 +167,11 @@ export default function Navigation({ onLogin }: NavigationProps) {
     }
   };
 
+  const handleRegisterClick = () => {
+    trackNavRegisterClicked();
+    router.push('/auth/register');
+  };
+
   if (!hasMounted) {
     return <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4 h-16"></nav>;
   }
@@ -318,10 +323,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             <div className="relative z-10 mt-2">
                               <DropdownMenuItem asChild>
                                 <Button
-                                  onClick={() => {
-                                    trackNavRegisterClicked();
-                                    router.push('/auth/register');
-                                  }}
+                                  onClick={handleRegisterClick}
                                   size="sm"
                                   className="w-full group h-8 text-xs"
                                 >
@@ -474,10 +476,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         Anmelden
                       </Button>
                       <Button
-                        onClick={() => {
-                          trackNavRegisterClicked();
-                          router.push('/auth/register');
-                        }}
+                        onClick={handleRegisterClick}
                         className="ml-2 px-4 py-2 h-9 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         Kostenlos testen

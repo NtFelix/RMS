@@ -65,6 +65,9 @@ export const HERO_VIDEO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/
 // Document URLs
 export const EXAMPLE_BILL_PDF_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/Beispielabrechnung.pdf';
 
+// Demo calendar URL
+export const DEMO_CALENDAR_URL = 'https://calendar.notion.so/meet/felix-b0111/demo-anfordern';
+
 // Countries for billing address
 export const BILLING_COUNTRIES = {
   // DACH countries (prioritized)

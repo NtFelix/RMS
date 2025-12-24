@@ -4,7 +4,7 @@ import { useState } from "react"
 import { ArrowRight, Download, ExternalLink, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { EXAMPLE_BILL_PDF_URL } from "@/lib/constants"
+import { EXAMPLE_BILL_PDF_URL, DEMO_CALENDAR_URL } from "@/lib/constants"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,9 +47,8 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
   }
 
   const handleDemoConfirm = () => {
-    const calendarUrl = "https://calendar.notion.so/meet/felix-b0111/demo-anfordern"
-    trackDemoConfirmed(calendarUrl)
-    window.open(calendarUrl, "_blank")
+    trackDemoConfirmed(DEMO_CALENDAR_URL)
+    window.open(DEMO_CALENDAR_URL, "_blank")
   }
 
 

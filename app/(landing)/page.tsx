@@ -107,7 +107,9 @@ function LandingPageContent() {
         entries.forEach((entry) => {
           if (entry.isIntersecting && !trackedSectionsRef.current.has(entry.target.id)) {
             trackedSectionsRef.current.add(entry.target.id);
-            const section = entry.target.id.replace('-', '_') as LandingSection;
+            // Map section IDs to LandingSection type - 'cta' element maps to 'bottom_cta' event
+            const sectionId = entry.target.id;
+            const section = (sectionId === 'cta' ? 'bottom_cta' : sectionId.replace('-', '_')) as LandingSection;
             const timeOnPageMs = Date.now() - pageLoadTimeRef.current;
             const scrollPercent = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
             trackSectionViewed(section, timeOnPageMs, scrollPercent);
