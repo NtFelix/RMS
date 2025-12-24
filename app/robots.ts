@@ -10,11 +10,30 @@ export default function robots(): MetadataRoute.Robots {
         rules: [
             {
                 userAgent: '*',
-                allow: '/',
+                allow: [
+                    '/',
+                    '/auth/login',
+                    '/auth/register',
+                ],
                 disallow: [
                     '/api/',
-                    '/auth/',
+                    // Sensitive auth pages - keep out of search
+                    '/auth/reset-password/',
+                    '/auth/verify-email/',
+                    '/auth/update-password/',
+                    '/auth/callback/',
+                    // Private dashboard pages
                     '/home/',
+                    '/haeuser/',
+                    '/wohnungen/',
+                    '/mieter/',
+                    '/finanzen/',
+                    '/betriebskosten/',
+                    '/dateien/',
+                    '/todos/',
+                    '/mail/',
+                    '/vorlagen/',
+                    // Other private pages
                     '/onboarding/',
                     '/subscription-locked/',
                     '/checkout/',

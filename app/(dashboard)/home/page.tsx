@@ -1,5 +1,21 @@
+import type { Metadata } from 'next';
+
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
+
+// Prevent this private dashboard page from being indexed by search engines
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+};
 
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,9 +34,9 @@ export default async function Dashboard() {
     getDashboardSummary(),
     getNebenkostenChartData()
   ]);
-  
+
   const { data: nebenkostenChartData, year: nebenkostenYear } = nebenkostenData;
-  
+
   return (
     <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div>
@@ -118,7 +134,7 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        
+
         <Link href="/finanzen" className="col-span-1 row-span-1 md:hidden">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
@@ -138,7 +154,7 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        
+
         <Link href="/betriebskosten" className="col-span-1 row-span-1 md:hidden">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
@@ -183,7 +199,7 @@ export default async function Dashboard() {
                 </CardContent>
               </Card>
             </Link>
-            
+
             <Link href="/finanzen" className="flex-1">
               <Card className="h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
@@ -203,7 +219,7 @@ export default async function Dashboard() {
                 </CardContent>
               </Card>
             </Link>
-            
+
             <Link href="/betriebskosten" className="flex-1">
               <Card className="h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">

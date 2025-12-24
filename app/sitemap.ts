@@ -126,6 +126,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: 'yearly',
             priority: 0.3,
         },
+        // Auth pages (login/register - important for conversions)
+        {
+            url: `${BASE_URL}/auth/login`,
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
+            changeFrequency: 'monthly',
+            priority: 0.6,
+        },
+        {
+            url: `${BASE_URL}/auth/register`,
+            lastModified: STATIC_PAGES_LAST_MODIFIED,
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
     ]
 
     // Fetch dynamic documentation articles from Supabase
