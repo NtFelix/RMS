@@ -327,4 +327,82 @@ export const pageMetadata = {
             canonical: `${BASE_URL}/agb`,
         },
     } satisfies Metadata,
+
+    // =====================
+    // AUTH PAGES
+    // =====================
+
+    // Login page - indexed with optimized metadata
+    authLogin: {
+        title: 'Anmelden | Login zur Hausverwaltungssoftware',
+        description: 'Melden Sie sich bei Mietevo an und verwalten Sie Ihre Immobilien. Zugriff auf Nebenkostenabrechnungen, Mieterverwaltung und Finanzen.',
+        keywords: [
+            'Mietevo Login',
+            'Hausverwaltung anmelden',
+            'Mietverwaltung Login',
+            'Vermieter Software Login',
+        ],
+        openGraph: {
+            title: 'Anmelden | Mietevo Hausverwaltungssoftware',
+            description: 'Melden Sie sich an und verwalten Sie Ihre Immobilien professionell.',
+            url: `${BASE_URL}/auth/login`,
+        },
+        alternates: {
+            canonical: `${BASE_URL}/auth/login`,
+        },
+    } satisfies Metadata,
+
+    // Register page - indexed with optimized metadata
+    authRegister: {
+        title: 'Kostenlos registrieren | Account erstellen',
+        description: 'Erstellen Sie Ihr kostenloses Mietevo-Konto. 14 Tage kostenlos testen, keine Kreditkarte erforderlich. Starten Sie jetzt mit der professionellen Immobilienverwaltung.',
+        keywords: [
+            'Mietevo registrieren',
+            'Hausverwaltungssoftware kostenlos',
+            'Mietverwaltung testen',
+            'Vermieter Software kostenlos testen',
+            'Nebenkostenabrechnung kostenlos',
+        ],
+        openGraph: {
+            title: 'Kostenlos registrieren | Mietevo',
+            description: '14 Tage kostenlos testen. Keine Kreditkarte erforderlich. Jederzeit kündbar.',
+            url: `${BASE_URL}/auth/register`,
+        },
+        alternates: {
+            canonical: `${BASE_URL}/auth/register`,
+        },
+    } satisfies Metadata,
+
+    // Reset password page - noindex (sensitive)
+    authResetPassword: {
+        title: 'Passwort zurücksetzen',
+        description: 'Setzen Sie Ihr Mietevo-Passwort zurück. Wir senden Ihnen einen Link per E-Mail.',
+        robots: {
+            index: false,
+            follow: false,
+            nocache: true,
+        },
+    } satisfies Metadata,
+
+    // Verify email page - noindex (transient page)
+    authVerifyEmail: {
+        title: 'E-Mail bestätigen',
+        description: 'Bestätigen Sie Ihre E-Mail-Adresse, um Ihr Mietevo-Konto zu aktivieren.',
+        robots: {
+            index: false,
+            follow: false,
+            nocache: true,
+        },
+    } satisfies Metadata,
+
+    // Update password page - noindex (sensitive)
+    authUpdatePassword: {
+        title: 'Neues Passwort festlegen',
+        description: 'Legen Sie ein neues Passwort für Ihr Mietevo-Konto fest.',
+        robots: {
+            index: false,
+            follow: false,
+            nocache: true,
+        },
+    } satisfies Metadata,
 }
