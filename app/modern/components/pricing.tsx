@@ -14,12 +14,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Minus, HelpCircle, ArrowRight, SquareArrowOutUpRight, Sparkles } from "lucide-react";
-import { useEffect, useState, useMemo, Fragment } from 'react';
+import { useEffect, useState, useMemo, Fragment, useRef } from 'react';
 import { WaitlistButton } from './waitlist-button';
 import { FAQ } from './faq';
 import { PreviewLimitNoticeBanner } from './preview-limit-notice-banner';
 import { Profile } from '@/types/supabase';
 import { POSTHOG_FEATURE_FLAGS, BRAND_NAME } from '@/lib/constants';
+import { trackBillingCycleChanged, trackPricingPlanSelected, trackPricingViewAllClicked, type BillingCycle } from '@/lib/posthog-landing-events';
 
 // Updated Plan interface to match the API response structure
 interface Plan {
@@ -553,14 +554,24 @@ export default function Pricing({
             <div className="inline-flex items-center rounded-full bg-muted p-1">
               <Button
                 variant={billingCycle === "monthly" ? "default" : "ghost"}
-                onClick={() => setBillingCycle("monthly")}
+                onClick={() => {
+                  if (billingCycle !== "monthly") {
+                    trackBillingCycleChanged(billingCycle, "monthly")
+                    setBillingCycle("monthly")
+                  }
+                }}
                 className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
               >
                 Monatlich
               </Button>
               <Button
                 variant={billingCycle === "yearly" ? "default" : "ghost"}
-                onClick={() => setBillingCycle("yearly")}
+                onClick={() => {
+                  if (billingCycle !== "yearly") {
+                    trackBillingCycleChanged(billingCycle, "yearly")
+                    setBillingCycle("yearly")
+                  }
+                }}
                 className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
               >
                 Jährlich (20% Rabatt)
@@ -620,7 +631,16 @@ export default function Pricing({
 
                   <CardFooter className="mt-auto py-6">
                     <Button
-                      onClick={() => onSelectPlan(planToDisplay.priceId)}
+                      onClick={() => {
+                        trackPricingPlanSelected(
+                          group.productName,
+                          planToDisplay.priceId,
+                          billingCycle,
+                          planToDisplay.price / 100,
+                          planToDisplay.currency
+                        )
+                        onSelectPlan(planToDisplay.priceId)
+                      }}
                       className="w-full rounded-xl"
                       variant={group.popular ? "default" : "outline"}
                       size="lg"
@@ -653,7 +673,10 @@ export default function Pricing({
                 size="lg"
                 variant="outline"
                 className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg rounded-full"
-                onClick={() => window.location.href = '/preise'}
+                onClick={() => {
+                  trackPricingViewAllClicked()
+                  window.location.href = '/preise'
+                }}
               >
                 <span className="flex items-center gap-2">
                   Alle Preise und Pläne ansehen

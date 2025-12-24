@@ -24,6 +24,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuthModal } from "@/components/auth/auth-modal-provider";
 import { useIsOverflowing } from "@/hooks/use-responsive";
+import {
+  trackNavLinkClicked,
+  trackNavDropdownOpened,
+  trackNavLoginClicked,
+  trackNavRegisterClicked,
+  trackNavLogoutClicked,
+  trackNavMobileMenuOpened,
+  type NavDropdown,
+} from "@/lib/posthog-landing-events";
 
 // Navigation dropdown items
 const produkteItems = [
@@ -135,6 +144,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
   };
 
   const handleOpenLoginModal = () => {
+    trackNavLoginClicked();
     try {
       sessionStorage.removeItem('authIntent');
     } catch (e) {
@@ -148,6 +158,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
   };
 
   const handleLogout = async () => {
+    trackNavLogoutClicked();
     const supabase = createClient();
     try {
       await supabase.auth.signOut();
@@ -161,11 +172,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
     return <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4 h-16"></nav>;
   }
 
-  const renderNavItem = (item: { name: string; href: string; icon: any; description: string }, index: number) => (
+  const renderNavItem = (item: { name: string; href: string; icon: any; description: string }, index: number, dropdown?: NavDropdown) => (
     <Link
       key={index}
       href={item.href}
-      onClick={() => setIsOpen(false)}
+      onClick={() => {
+        trackNavLinkClicked(item.name, item.href, dropdown);
+        setIsOpen(false);
+      }}
       className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
     >
       <item.icon className="w-5 h-5 mr-3" />
@@ -184,7 +198,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
           <div className="flex items-center space-x-2">
             <PillContainer>
               <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                  if (!isOpen) trackNavMobileMenuOpened();
+                  setIsOpen(!isOpen);
+                }}
                 className="w-full px-4 py-2 text-left text-sm hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
               >
                 <Menu className="w-5 h-5" />
@@ -236,7 +253,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 <div className="flex items-center gap-1">
                   {/* Produkte Dropdown */}
                   {showProdukte && (
-                    <DropdownMenu>
+                    <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('produkte')}>
                       <DropdownMenuTrigger asChild>
                         <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
                           <Package className="w-4 h-4" />
@@ -247,7 +264,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <DropdownMenuContent align="start" className="w-72">
                         {produkteItems.map((item, index) => (
                           <DropdownMenuItem key={index} asChild>
-                            <Link href={item.href}>
+                            <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'produkte')}>
                               <item.icon className="w-4 h-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
                                 <span className="font-medium">{item.name}</span>
@@ -261,7 +278,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   )}
 
                   {/* Funktionen Dropdown */}
-                  <DropdownMenu>
+                  <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('funktionen')}>
                     <DropdownMenuTrigger asChild>
                       <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
                         <Wrench className="w-4 h-4" />
@@ -274,7 +291,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         <div className="p-2">
                           {funktionenItems.map((item, index) => (
                             <DropdownMenuItem key={index} asChild>
-                              <Link href={item.href}>
+                              <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'funktionen')}>
                                 <item.icon className="w-4 h-4 shrink-0" />
                                 <div className="flex flex-col items-start gap-0.5">
                                   <span className="font-medium">{item.name}</span>
@@ -302,7 +319,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             <div className="relative z-10 mt-2">
                               <DropdownMenuItem asChild>
                                 <Button
-                                  onClick={() => router.push('/auth/register')}
+                                  onClick={() => {
+                                    trackNavRegisterClicked();
+                                    router.push('/auth/register');
+                                  }}
                                   size="sm"
                                   className="w-full group h-8 text-xs"
                                 >
@@ -319,7 +339,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
                   {/* Lösungen Dropdown */}
                   {showLoesungen && (
-                    <DropdownMenu>
+                    <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('loesungen')}>
                       <DropdownMenuTrigger asChild>
                         <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
                           <Lightbulb className="w-4 h-4" />
@@ -330,7 +350,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <DropdownMenuContent align="start" className="w-72">
                         {loesungenItems.map((item, index) => (
                           <DropdownMenuItem key={index} asChild>
-                            <Link href={item.href}>
+                            <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'loesungen')}>
                               <item.icon className="w-4 h-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
                                 <span className="font-medium">{item.name}</span>
@@ -344,13 +364,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   )}
 
                   {/* Preise Link */}
-                  <Link href="/preise" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                  <Link
+                    href="/preise"
+                    onClick={() => trackNavLinkClicked('Preise', '/preise')}
+                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap"
+                  >
                     <DollarSign className="w-4 h-4" />
                     <span>Preise</span>
                   </Link>
 
                   {/* Hilfe Dropdown */}
-                  <DropdownMenu>
+                  <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('hilfe')}>
                     <DropdownMenuTrigger asChild>
                       <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
                         <HelpCircle className="w-4 h-4" />
@@ -361,7 +385,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <DropdownMenuContent align="start" className="w-72">
                       {hilfeItems.map((item, index) => (
                         <DropdownMenuItem key={index} asChild>
-                          <Link href={item.href}>
+                          <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'hilfe')}>
                             <item.icon className="w-4 h-4 shrink-0" />
                             <div className="flex flex-col items-start gap-0.5">
                               <span className="font-medium">{item.name}</span>
@@ -451,7 +475,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         Anmelden
                       </Button>
                       <Button
-                        onClick={() => router.push('/auth/register')}
+                        onClick={() => {
+                          trackNavRegisterClicked();
+                          router.push('/auth/register');
+                        }}
                         className="ml-2 px-4 py-2 h-9 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         Kostenlos testen
