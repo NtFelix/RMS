@@ -100,19 +100,27 @@ function LandingPageContent() {
 
   // Set up scroll-depth tracking
   useEffect(() => {
-    const sectionIds = ['hero', 'features', 'nebenkosten', 'more-features', 'pricing', 'cta'];
+    const sectionIdMap: Record<string, LandingSection> = {
+      'hero': 'hero',
+      'features': 'features',
+      'nebenkosten': 'nebenkosten',
+      'more-features': 'more_features',
+      'pricing': 'pricing',
+      'cta': 'bottom_cta',
+    };
+    const sectionIds = Object.keys(sectionIdMap);
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && !trackedSectionsRef.current.has(entry.target.id)) {
             trackedSectionsRef.current.add(entry.target.id);
-            // Map section IDs to LandingSection type - 'cta' element maps to 'bottom_cta' event
-            const sectionId = entry.target.id;
-            const section = (sectionId === 'cta' ? 'bottom_cta' : sectionId.replace('-', '_')) as LandingSection;
-            const timeOnPageMs = Date.now() - pageLoadTimeRef.current;
-            const scrollPercent = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
-            trackSectionViewed(section, timeOnPageMs, scrollPercent);
+            const section = sectionIdMap[entry.target.id];
+            if (section) {
+              const timeOnPageMs = Date.now() - pageLoadTimeRef.current;
+              const scrollPercent = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
+              trackSectionViewed(section, timeOnPageMs, scrollPercent);
+            }
           }
         });
       },

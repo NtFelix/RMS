@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { usePostHog, useFeatureFlagEnabled } from 'posthog-js/react';
 
 import { Button } from '@/components/ui/button';
@@ -309,6 +310,7 @@ export default function Pricing({
   const [error, setError] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const posthog = usePostHog();
+  const router = useRouter();
   const showWaitlistMode = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SHOW_WAITLIST_BUTTON);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -675,7 +677,7 @@ export default function Pricing({
                 className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg rounded-full"
                 onClick={() => {
                   trackPricingViewAllClicked()
-                  window.location.href = '/preise'
+                  router.push('/preise')
                 }}
               >
                 <span className="flex items-center gap-2">

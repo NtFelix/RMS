@@ -30,8 +30,16 @@ interface CallToActionProps {
 }
 
 export function CallToAction({ variant = 'default', onGetStarted }: CallToActionProps) {
-  const isHero = variant === 'hero'
-  const source: CTASource = isHero ? 'hero' : 'bottom_cta'
+  const isHero = variant === 'hero';
+  const source: CTASource = (() => {
+    switch (variant) {
+      case 'hero':
+        return 'hero';
+      case 'cta':
+      case 'default':
+        return 'bottom_cta';
+    }
+  })();
 
   const handleGetStarted = () => {
     trackCTAClicked(source, 'Jetzt loslegen')
