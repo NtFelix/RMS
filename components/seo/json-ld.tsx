@@ -190,9 +190,9 @@ interface FeatureSubPageJsonLdProps {
 }
 
 export function FeatureSubPageJsonLd({ pageName, pageUrl }: FeatureSubPageJsonLdProps) {
+    // Note: 'Funktionen' points to homepage since there's no /funktionen index page
     const breadcrumbItems = [
         { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
-        { name: 'Funktionen', url: `${BASE_URL}${ROUTES.FEATURES}` },
         { name: pageName, url: pageUrl },
     ]
 
@@ -215,9 +215,9 @@ interface SolutionSubPageJsonLdProps {
 }
 
 export function SolutionSubPageJsonLd({ pageName, pageUrl }: SolutionSubPageJsonLdProps) {
+    // Note: No intermediate 'Lösungen' page exists, so we link directly from homepage
     const breadcrumbItems = [
         { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
-        { name: 'Lösungen', url: `${BASE_URL}/loesungen` },
         { name: pageName, url: pageUrl },
     ]
 
@@ -239,9 +239,9 @@ interface DocsPageJsonLdProps {
 }
 
 export function DocsPageJsonLd({ articleTitle, articleUrl }: DocsPageJsonLdProps) {
+    // Note: No intermediate 'Hilfe' page exists, so we skip it in the breadcrumb
     const breadcrumbItems = [
         { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
-        { name: 'Hilfe', url: `${BASE_URL}/hilfe` },
         { name: 'Dokumentation', url: `${BASE_URL}/hilfe/dokumentation` },
     ]
 

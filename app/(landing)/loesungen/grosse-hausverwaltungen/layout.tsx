@@ -13,7 +13,7 @@ export default function GrosseHausverwaltungenLayout({
         <>
             <SolutionSubPageJsonLd
                 pageName="Große Hausverwaltungen"
-                pageUrl={pageMetadata.loesungenGrosse.alternates?.canonical as string}
+                pageUrl={pageMetadata.loesungenGrosse.alternates?.canonical?.toString() ?? ''}
             />
             {children}
         </>

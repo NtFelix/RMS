@@ -13,7 +13,7 @@ export default function BetriebskostenLayout({
         <>
             <FeatureSubPageJsonLd
                 pageName="Nebenkostenabrechnung"
-                pageUrl={pageMetadata.funktionenBetriebskosten.alternates?.canonical as string}
+                pageUrl={pageMetadata.funktionenBetriebskosten.alternates?.canonical?.toString() ?? ''}
             />
             {children}
         </>

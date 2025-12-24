@@ -13,7 +13,7 @@ export default function PrivatvermieterLayout({
         <>
             <SolutionSubPageJsonLd
                 pageName="Privatvermieter"
-                pageUrl={pageMetadata.loesungenPrivatvermieter.alternates?.canonical as string}
+                pageUrl={pageMetadata.loesungenPrivatvermieter.alternates?.canonical?.toString() ?? ''}
             />
             {children}
         </>

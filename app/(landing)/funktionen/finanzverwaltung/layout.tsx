@@ -13,7 +13,7 @@ export default function FinanzverwaltungLayout({
         <>
             <FeatureSubPageJsonLd
                 pageName="Finanzverwaltung"
-                pageUrl={pageMetadata.funktionenFinanzverwaltung.alternates?.canonical as string}
+                pageUrl={pageMetadata.funktionenFinanzverwaltung.alternates?.canonical?.toString() ?? ''}
             />
             {children}
         </>

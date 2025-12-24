@@ -48,7 +48,7 @@ export function getOrganizationSchema() {
             '@type': 'ContactPoint',
             email: SUPPORT_EMAIL,
             contactType: 'customer service',
-            availableLanguage: ['German', 'de'],
+            availableLanguage: ['de'],
             areaServed: 'DE',
         },
         sameAs: [

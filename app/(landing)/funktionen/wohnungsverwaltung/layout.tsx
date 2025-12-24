@@ -13,7 +13,7 @@ export default function WohnungsverwaltungLayout({
         <>
             <FeatureSubPageJsonLd
                 pageName="Wohnungsverwaltung"
-                pageUrl={pageMetadata.funktionenWohnungsverwaltung.alternates?.canonical as string}
+                pageUrl={pageMetadata.funktionenWohnungsverwaltung.alternates?.canonical?.toString() ?? ''}
             />
             {children}
         </>

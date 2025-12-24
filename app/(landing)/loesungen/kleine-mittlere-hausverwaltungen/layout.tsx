@@ -13,7 +13,7 @@ export default function KleineMittlereLayout({
         <>
             <SolutionSubPageJsonLd
                 pageName="Kleine & Mittlere Hausverwaltungen"
-                pageUrl={pageMetadata.loesungenKleineMittlere.alternates?.canonical as string}
+                pageUrl={pageMetadata.loesungenKleineMittlere.alternates?.canonical?.toString() ?? ''}
             />
             {children}
         </>
