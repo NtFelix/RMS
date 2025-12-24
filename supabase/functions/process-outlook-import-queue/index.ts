@@ -1,4 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8'
+import {
+  posthogLogger,
+  createRequestLogger,
+  logAction,
+  withLogging,
+  sanitizeAttributes,
+  type ActionResult
+} from './logger.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -8,49 +16,60 @@ const outlookClientSecret = Deno.env.get('OUTLOOK_CLIENT_SECRET')!
 const BATCH_SIZE = 100 // Number of emails to fetch per page
 const VISIBILITY_TIMEOUT = 300 // 5 minutes
 
-async function refreshToken(supabase: any, account: any, accountId: string) {
-  console.log('Refreshing token...')
+// Wrapped action for token refresh with automatic logging
+const refreshTokenAction = withLogging(
+  'refreshOAuthToken',
+  async (supabase: any, account: any, accountId: string): Promise<ActionResult<string>> => {
+    const tenantEndpoint = account.provider_tenant_id || 'common'
 
-  const tenantEndpoint = account.provider_tenant_id || 'common'
+    const tokenResponse = await fetch(
+      `https://login.microsoftonline.com/${tenantEndpoint}/oauth2/v2.0/token`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: outlookClientId,
+          client_secret: outlookClientSecret,
+          refresh_token: account.refresh_token_encrypted,
+          grant_type: 'refresh_token',
+          scope: 'openid profile email offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read',
+        }),
+      }
+    )
 
-  const tokenResponse = await fetch(
-    `https://login.microsoftonline.com/${tenantEndpoint}/oauth2/v2.0/token`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        client_id: outlookClientId,
-        client_secret: outlookClientSecret,
-        refresh_token: account.refresh_token_encrypted,
-        grant_type: 'refresh_token',
-        scope: 'openid profile email offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read',
-      }),
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text()
+      return {
+        success: false,
+        error: {
+          message: `Token refresh failed: ${errorText.substring(0, 200)}`,
+          status: tokenResponse.status,
+        },
+      }
     }
-  )
 
-  if (!tokenResponse.ok) {
-    const errorText = await tokenResponse.text()
-    console.error(`Token refresh failed (${tokenResponse.status}):`, errorText)
-    throw new Error(`Token refresh failed: ${errorText.substring(0, 200)}`)
-  }
+    const tokens = await tokenResponse.json()
 
-  const tokens = await tokenResponse.json()
+    await supabase
+      .from('Mail_Accounts')
+      .update({
+        access_token_encrypted: tokens.access_token,
+        refresh_token_encrypted: tokens.refresh_token || account.refresh_token_encrypted,
+        token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      })
+      .eq('id', accountId)
 
-  await supabase
-    .from('Mail_Accounts')
-    .update({
-      access_token_encrypted: tokens.access_token,
-      refresh_token_encrypted: tokens.refresh_token || account.refresh_token_encrypted,
-      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-    })
-    .eq('id', accountId)
+    return {
+      success: true,
+      data: tokens.access_token,
+    }
+  },
+  { logArgs: false } // Don't log args as they contain sensitive data
+)
 
-  return tokens.access_token
-}
-
-async function getAccessToken(supabase: any, account: any, accountId: string) {
+async function getAccessToken(supabase: any, account: any, accountId: string): Promise<string> {
   let accessToken = account.access_token_encrypted
   const tokenExpiresAt = account.token_expires_at ? new Date(account.token_expires_at) : null
   const now = new Date()
@@ -59,18 +78,46 @@ async function getAccessToken(supabase: any, account: any, accountId: string) {
   const refreshThreshold = new Date(now.getTime() + 5 * 60 * 1000)
 
   if (!tokenExpiresAt || tokenExpiresAt <= refreshThreshold) {
-    console.log('Token expired or expiring soon, refreshing...')
-    accessToken = await refreshToken(supabase, account, accountId)
+    logAction('getAccessToken', 'start', {
+      account_id: accountId,
+      reason: !tokenExpiresAt ? 'no_expiry_set' : 'token_expiring_soon',
+      expires_at: tokenExpiresAt?.toISOString() || 'not_set',
+    })
+
+    const result = await refreshTokenAction(supabase, account, accountId)
+
+    if (!result.success) {
+      throw new Error(result.error?.message || 'Token refresh failed')
+    }
+
+    accessToken = result.data
+
+    logAction('getAccessToken', 'success', {
+      account_id: accountId,
+    })
   }
 
   return accessToken
 }
 
 Deno.serve(async (req) => {
+  // Create request-scoped logger
+  const reqLogger = createRequestLogger(req)
+  const startTime = Date.now()
+
+  reqLogger.info('Edge function invoked', {
+    function: 'process-outlook-import-queue',
+  })
+
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
     // Read one message from PGMQ queue with visibility timeout
+    logAction('pgmq_read', 'start', {
+      queue_name: 'outlook_email_import',
+      visibility_timeout: VISIBILITY_TIMEOUT,
+    })
+
     const { data: messages, error: readError } = await supabase
       .rpc('pgmq_read', {
         queue_name: 'outlook_email_import',
@@ -79,7 +126,12 @@ Deno.serve(async (req) => {
       })
 
     if (readError) {
-      console.error('Error reading from queue:', readError)
+      logAction('pgmq_read', 'error', {
+        error_code: readError.code,
+        error_message: readError.message,
+      })
+
+      await reqLogger.flush()
       return new Response(
         JSON.stringify({ error: 'Failed to read from queue' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -87,28 +139,43 @@ Deno.serve(async (req) => {
     }
 
     if (!messages || messages.length === 0) {
-      console.log('No messages in queue')
+      logAction('pgmq_read', 'success', {
+        messages_found: 0,
+      })
+
+      reqLogger.debug('No messages in queue')
+      await reqLogger.flush()
       return new Response(
         JSON.stringify({ message: 'No messages in queue' }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
+    logAction('pgmq_read', 'success', {
+      messages_found: messages.length,
+    })
+
     const message = messages[0]
     const msgId = message.msg_id
     const task = message.message
 
-    console.log('='.repeat(60))
-    console.log(`Processing message ${msgId}`)
-    console.log(`Account: ${task.account_id}`)
-    console.log(`Page: ${task.page_number}`)
-    console.log(`Job ID: ${task.job_id}`)
-    console.log(`Sync Job ID: ${task.sync_job_id}`)
-    console.log(`Has next_link: ${!!task.next_link}`)
-    console.log('='.repeat(60))
+    reqLogger.info('Processing import queue message', {
+      userId: task.user_id,
+      msg_id: msgId,
+      account_id: task.account_id,
+      page_number: task.page_number,
+      job_id: task.job_id,
+      sync_job_id: task.sync_job_id,
+      has_next_link: !!task.next_link,
+    })
 
     // Update job status to processing
     if (task.job_id) {
+      logAction('updateJobStatus', 'start', {
+        job_id: task.job_id,
+        new_status: 'processing',
+      })
+
       await supabase
         .from('Mail_Import_Jobs')
         .update({
@@ -116,9 +183,17 @@ Deno.serve(async (req) => {
           started_at: new Date().toISOString(),
         })
         .eq('id', task.job_id)
+
+      logAction('updateJobStatus', 'success', {
+        job_id: task.job_id,
+      })
     }
 
     // Get account details (fetch fresh data to get latest tokens)
+    logAction('fetchAccount', 'start', {
+      account_id: task.account_id,
+    })
+
     const { data: account, error: accountError } = await supabase
       .from('Mail_Accounts')
       .select('*')
@@ -126,7 +201,11 @@ Deno.serve(async (req) => {
       .single()
 
     if (accountError || !account) {
-      console.error('Account not found:', accountError)
+      logAction('fetchAccount', 'error', {
+        account_id: task.account_id,
+        error_code: accountError?.code,
+        error_message: accountError?.message,
+      })
 
       // Delete message from queue
       await supabase.rpc('pgmq_delete', {
@@ -145,15 +224,25 @@ Deno.serve(async (req) => {
           .eq('id', task.job_id)
       }
 
+      await reqLogger.flush()
       return new Response(
         JSON.stringify({ error: 'Account not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
+    logAction('fetchAccount', 'success', {
+      account_id: task.account_id,
+      sync_enabled: account.sync_enabled,
+    })
+
     // Check if sync is still enabled
     if (!account.sync_enabled) {
-      console.log('Sync disabled for account, aborting')
+      reqLogger.warn('Sync disabled for account, aborting import', {
+        userId: task.user_id,
+        account_id: task.account_id,
+        job_id: task.job_id,
+      })
 
       // Delete message from queue
       await supabase.rpc('pgmq_delete', {
@@ -172,6 +261,7 @@ Deno.serve(async (req) => {
           .eq('id', task.job_id)
       }
 
+      await reqLogger.flush()
       return new Response(
         JSON.stringify({ error: 'Sync disabled' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -182,11 +272,10 @@ Deno.serve(async (req) => {
     let accessToken: string
     try {
       accessToken = await getAccessToken(supabase, account, task.account_id)
-      console.log('Access token obtained successfully')
+      reqLogger.debug('Access token obtained successfully', {
+        account_id: task.account_id,
+      })
     } catch (error) {
-      console.error('Failed to get access token:', error)
-
-      // Check if this is a permanent failure
       const errorMessage = error.message || ''
       const isPermanentFailure = errorMessage.includes('AADSTS70000') ||
         errorMessage.includes('AADSTS70008') ||
@@ -194,6 +283,13 @@ Deno.serve(async (req) => {
         errorMessage.includes('AADSTS50076') ||
         errorMessage.includes('AADSTS50079') ||
         errorMessage.includes('interaction_required')
+
+      reqLogger.error('Failed to get access token', error as Error, {
+        userId: task.user_id,
+        account_id: task.account_id,
+        is_permanent_failure: isPermanentFailure,
+        requires_reauth: isPermanentFailure,
+      })
 
       if (isPermanentFailure) {
         // Disable sync for permanent failures
@@ -205,7 +301,10 @@ Deno.serve(async (req) => {
           })
           .eq('id', task.account_id)
 
-        console.log('Permanent token failure, disabled sync')
+        reqLogger.warn('Permanent token failure - sync disabled for account', {
+          userId: task.user_id,
+          account_id: task.account_id,
+        })
       }
 
       // Delete message from queue
@@ -239,6 +338,7 @@ Deno.serve(async (req) => {
           .eq('id', task.sync_job_id)
       }
 
+      await reqLogger.flush()
       return new Response(
         JSON.stringify({
           error: 'Failed to get access token',
@@ -256,7 +356,11 @@ Deno.serve(async (req) => {
       fetchUrl = `https://graph.microsoft.com/v1.0/me/messages?$top=${BATCH_SIZE}&$orderby=receivedDateTime desc&$select=id,subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments,importance,categories`
     }
 
-    console.log('Fetching emails from:', fetchUrl.substring(0, 100) + '...')
+    logAction('fetchMsGraphEmails', 'start', {
+      account_id: task.account_id,
+      page_number: task.page_number,
+      is_first_page: !task.next_link,
+    })
 
     const messagesResponse = await fetch(fetchUrl, {
       headers: {
@@ -266,11 +370,19 @@ Deno.serve(async (req) => {
 
     if (!messagesResponse.ok) {
       const errorText = await messagesResponse.text()
-      console.error(`Failed to fetch messages (${messagesResponse.status}):`, errorText)
+
+      logAction('fetchMsGraphEmails', 'error', {
+        account_id: task.account_id,
+        http_status: messagesResponse.status,
+        error_preview: errorText.substring(0, 200),
+      })
 
       // If 401, the token might be invalid even after refresh
       if (messagesResponse.status === 401) {
-        console.error('Token appears to be invalid, disabling sync')
+        reqLogger.warn('Token invalid after refresh - disabling sync', {
+          userId: task.user_id,
+          account_id: task.account_id,
+        })
         await supabase
           .from('Mail_Accounts')
           .update({
@@ -309,6 +421,7 @@ Deno.serve(async (req) => {
           .eq('id', task.sync_job_id)
       }
 
+      await reqLogger.flush()
       return new Response(
         JSON.stringify({
           error: 'Failed to fetch emails',
@@ -323,11 +436,14 @@ Deno.serve(async (req) => {
     const emails = messagesData.value || []
     const nextLink = messagesData['@odata.nextLink']
 
-    console.log(`Fetched ${emails.length} emails, has next page: ${!!nextLink}`)
+    logAction('fetchMsGraphEmails', 'success', {
+      account_id: task.account_id,
+      page_number: task.page_number,
+      emails_count: emails.length,
+      has_next_page: !!nextLink,
+    })
 
     // Store emails in Mail_Metadaten table
-    // For now, just store metadata - body preview is enough for list view
-    // Full body can be fetched later if needed
     const emailsToInsert = emails.map((msg: any) => ({
       mail_account_id: task.account_id,
       user_id: task.user_id,
@@ -342,10 +458,15 @@ Deno.serve(async (req) => {
       ist_gelesen: msg.isRead || false,
       hat_anhang: msg.hasAttachments || false,
       ordner: 'inbox',
-      dateipfad: null, // For Outlook emails, we'll fetch body on-demand using quelle_id
+      dateipfad: null,
     }))
 
     // Insert emails one by one to handle duplicates gracefully
+    logAction('insertEmails', 'start', {
+      account_id: task.account_id,
+      emails_to_insert: emailsToInsert.length,
+    })
+
     let insertedCount = 0
     let duplicateCount = 0
     let errorCount = 0
@@ -361,22 +482,28 @@ Deno.serve(async (req) => {
         if (insertError.code === '23505') {
           // Duplicate key constraint violation
           duplicateCount++
-          if (duplicateCount <= 3) {
-            console.log(`Email ${email.quelle_id} already exists, skipping`)
-          }
         } else {
           errorCount++
-          console.error('Error inserting email:', insertError)
+          reqLogger.warn('Error inserting email', {
+            userId: task.user_id,
+            account_id: task.account_id,
+            email_id: email.quelle_id,
+            error_code: insertError.code,
+            error_message: insertError.message,
+          })
         }
       } else {
         insertedCount++
       }
     }
 
-    console.log(`Page ${task.page_number} results: ${insertedCount} new, ${duplicateCount} duplicates, ${errorCount} errors`)
-
-    // Continue to next page even if all emails were duplicates
-    // This is important because newer emails might exist on later pages
+    logAction('insertEmails', insertedCount > 0 || duplicateCount > 0 ? 'success' : 'failed', {
+      account_id: task.account_id,
+      page_number: task.page_number,
+      emails_inserted: insertedCount,
+      duplicates_skipped: duplicateCount,
+      errors: errorCount,
+    })
 
     // Update job tracking with current progress
     if (task.job_id) {
@@ -398,12 +525,19 @@ Deno.serve(async (req) => {
         })
         .eq('id', task.job_id)
 
-      console.log(`Job progress: ${task.page_number} pages, ${newTotal} total messages`)
+      reqLogger.debug('Job progress updated', {
+        job_id: task.job_id,
+        pages_processed: task.page_number,
+        total_messages: newTotal,
+      })
     }
 
     if (nextLink) {
       // Queue next page BEFORE deleting current message
-      console.log(`Queuing next page ${task.page_number + 1}`)
+      logAction('queueNextPage', 'start', {
+        account_id: task.account_id,
+        next_page_number: task.page_number + 1,
+      })
 
       const { error: queueError } = await supabase.rpc('queue_email_import', {
         p_account_id: task.account_id,
@@ -414,10 +548,17 @@ Deno.serve(async (req) => {
       })
 
       if (queueError) {
-        console.error('Failed to queue next page:', queueError)
-        // Don't fail the whole job, just log it
+        logAction('queueNextPage', 'error', {
+          account_id: task.account_id,
+          page_number: task.page_number + 1,
+          error_code: queueError.code,
+          error_message: queueError.message,
+        })
       } else {
-        console.log(`Successfully queued page ${task.page_number + 1}`)
+        logAction('queueNextPage', 'success', {
+          account_id: task.account_id,
+          next_page_number: task.page_number + 1,
+        })
       }
 
       // Delete processed message from queue
@@ -427,7 +568,12 @@ Deno.serve(async (req) => {
       })
     } else {
       // No more pages, mark job as completed
-      console.log('All pages processed, marking job as completed')
+      reqLogger.info('All pages processed - marking job as completed', {
+        userId: task.user_id,
+        account_id: task.account_id,
+        job_id: task.job_id,
+        sync_job_id: task.sync_job_id,
+      })
 
       // Delete processed message from queue
       await supabase.rpc('pgmq_delete', {
@@ -451,7 +597,10 @@ Deno.serve(async (req) => {
           })
           .eq('id', task.job_id)
 
-        console.log(`Import job completed: ${finalJob?.total_messages_imported || 0} total messages imported`)
+        logAction('completeImportJob', 'success', {
+          job_id: task.job_id,
+          total_messages_imported: finalJob?.total_messages_imported || 0,
+        })
       }
 
       // Update sync job
@@ -471,7 +620,10 @@ Deno.serve(async (req) => {
           })
           .eq('id', task.sync_job_id)
 
-        console.log(`Sync job completed: ${job?.total_messages_imported || 0} messages synced`)
+        logAction('completeSyncJob', 'success', {
+          sync_job_id: task.sync_job_id,
+          messages_synced: job?.total_messages_imported || 0,
+        })
       }
     }
 
@@ -489,14 +641,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('='.repeat(60))
-    console.log(`✓ Page ${task.page_number} completed`)
-    console.log(`  - Fetched: ${emails.length} emails`)
-    console.log(`  - Imported: ${insertedCount} new emails`)
-    console.log(`  - Duplicates: ${emails.length - insertedCount}`)
-    console.log(`  - Total imported so far: ${totalImported}`)
-    console.log(`  - Has next page: ${!!nextLink ? 'Yes' : 'No'}`)
-    console.log('='.repeat(60))
+    const duration = Date.now() - startTime
+
+    reqLogger.info('Page processing completed', {
+      userId: task.user_id,
+      account_id: task.account_id,
+      page_number: task.page_number,
+      emails_fetched: emails.length,
+      emails_imported: insertedCount,
+      duplicates: duplicateCount,
+      total_imported: totalImported,
+      has_next_page: !!nextLink,
+      duration_ms: duration,
+      status: nextLink ? 'processing' : 'completed',
+    })
+
+    // IMPORTANT: Flush logs before returning!
+    await reqLogger.flush()
 
     return new Response(
       JSON.stringify({
@@ -512,7 +673,14 @@ Deno.serve(async (req) => {
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Queue processing error:', error)
+    const duration = Date.now() - startTime
+
+    reqLogger.error('Queue processing error', error as Error, {
+      duration_ms: duration,
+    })
+
+    // IMPORTANT: Flush logs before returning!
+    await reqLogger.flush()
 
     return new Response(
       JSON.stringify({
