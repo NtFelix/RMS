@@ -10,8 +10,11 @@ export type BerechnungsartValue = typeof BERECHNUNGSART_OPTIONS[number]['value']
 // You can also export an array of the values if that's useful
 export const BERECHNUNGSART_VALUES = BERECHNUNGSART_OPTIONS.map(opt => opt.value);
 
+// Supabase PWA images storage URL
+export const PWA_IMAGES_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images';
+
 // Logo URL
-export const LOGO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/mascot/normal.avif';
+export const LOGO_URL = `${PWA_IMAGES_URL}/mascot/normal.avif`;
 
 // Brand Name
 export const BRAND_NAME_PART_1 = 'Miet';
