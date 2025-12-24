@@ -15,7 +15,9 @@ export const metadata: Metadata = {
   ...defaultMetadata,
   icons: {
     icon: [
-      { url: `${PWA_IMAGES_URL}/favicon.ico`, sizes: '48x48', type: 'image/x-icon' },
+      // Primary: Local favicon for Google crawlability (avoids Supabase x-robots-tag: none)
+      { url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
+      // Fallback: Supabase PNG
       { url: `${PWA_IMAGES_URL}/favicon.png`, type: 'image/png' },
     ],
     apple: `${PWA_IMAGES_URL}/apple-icon.png`,
