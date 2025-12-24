@@ -8,7 +8,7 @@ import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, Layo
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2 } from "@/lib/constants"
+import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2, CONTACT_EMAIL } from "@/lib/constants"
 import { Button } from '@/components/ui/button'
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
@@ -55,8 +55,7 @@ const loesungenItems = [
 
 const hilfeItems = [
   { name: "Dokumentation", href: "/hilfe/dokumentation", icon: BookOpen, description: "Ausführliche Anleitungen" },
-  { name: "Support", href: "#cta", icon: MessageSquare, description: "Kontaktieren Sie unser Team" },
-  { name: "Kontakt", href: "#cta", icon: Mail, description: "Schreiben Sie uns" },
+  { name: "Kontakt", href: `mailto:${CONTACT_EMAIL}`, icon: Mail, description: "Schreiben Sie uns" },
 ]
 
 interface NavigationProps {
@@ -255,7 +254,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {showProdukte && (
                     <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('produkte')}>
                       <DropdownMenuTrigger asChild>
-                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer">
                           <Package className="w-4 h-4" />
                           <span>Produkte</span>
                           <ChevronDown className="w-3 h-3" />
@@ -280,7 +279,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {/* Funktionen Dropdown */}
                   <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('funktionen')}>
                     <DropdownMenuTrigger asChild>
-                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer">
                         <Wrench className="w-4 h-4" />
                         <span>Funktionen</span>
                         <ChevronDown className="w-3 h-3" />
@@ -341,7 +340,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {showLoesungen && (
                     <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('loesungen')}>
                       <DropdownMenuTrigger asChild>
-                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer">
                           <Lightbulb className="w-4 h-4" />
                           <span>Lösungen</span>
                           <ChevronDown className="w-3 h-3" />
@@ -367,7 +366,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <Link
                     href="/preise"
                     onClick={() => trackNavLinkClicked('Preise', '/preise')}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap"
+                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer"
                   >
                     <DollarSign className="w-4 h-4" />
                     <span>Preise</span>
@@ -376,7 +375,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {/* Hilfe Dropdown */}
                   <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('hilfe')}>
                     <DropdownMenuTrigger asChild>
-                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap">
+                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer">
                         <HelpCircle className="w-4 h-4" />
                         <span>Hilfe</span>
                         <ChevronDown className="w-3 h-3" />
@@ -406,7 +405,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {currentUser ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="px-2 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2">
+                        <button className="px-2 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 cursor-pointer">
                           <Avatar className="h-6 w-6">
                             <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                             <AvatarFallback className="text-xs">

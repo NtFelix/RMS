@@ -3,8 +3,7 @@
 import { motion } from "framer-motion"
 import { /* Github, */ Twitter, /* Linkedin, */ Mail } from "lucide-react"
 import Link from "next/link"
-import { CONTACT_EMAIL } from "@/constants"
-import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME } from "@/lib/constants"
+import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, CONTACT_EMAIL } from "@/lib/constants"
 import { trackFooterLinkClicked, trackFooterSocialClicked, type FooterCategory } from "@/lib/posthog-landing-events"
 
 const footerLinks = {
