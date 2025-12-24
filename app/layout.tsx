@@ -13,8 +13,11 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   ...defaultMetadata,
   icons: {
-    icon: '/favicon.png',
-    apple: '/apple-icon.png',
+    icon: [
+      { url: 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
+      { url: 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png', type: 'image/png' },
+    ],
+    apple: 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/apple-icon.png',
   },
 }
 
