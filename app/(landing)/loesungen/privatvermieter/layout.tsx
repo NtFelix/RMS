@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
+import { SolutionSubPageJsonLd } from '@/components/seo/json-ld';
 
 export const metadata: Metadata = pageMetadata.loesungenPrivatvermieter;
 
@@ -8,5 +9,13 @@ export default function PrivatvermieterLayout({
 }: {
     children: React.ReactNode;
 }) {
-    return children;
+    return (
+        <>
+            <SolutionSubPageJsonLd
+                pageName="Privatvermieter"
+                pageUrl="https://mietevo.de/loesungen/privatvermieter"
+            />
+            {children}
+        </>
+    );
 }

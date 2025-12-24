@@ -7,13 +7,23 @@ import { Label } from '@/components/ui/label';
 import { Phone, CheckCircle2, ArrowLeft, Apple, Smartphone } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { useFeatureFlagRedirect } from '@/hooks/use-feature-flag-redirect';
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
 
 export default function MobileAppWaitlistPage() {
+  // Redirect to homepage if feature flag is disabled
+  const { isLoading, isAllowed } = useFeatureFlagRedirect(POSTHOG_FEATURE_FLAGS.SHOW_PRODUKTE_DROPDOWN);
+
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { toast } = useToast();
+
+  // Show nothing while checking feature flag to prevent flash of content
+  if (isLoading || !isAllowed) {
+    return null;
+  }
 
   const features = [
     'iOS und Android Support',
@@ -33,7 +43,7 @@ export default function MobileAppWaitlistPage() {
 
     setIsSubmitted(true);
     setIsSubmitting(false);
-    
+
     toast({
       title: 'Erfolgreich angemeldet!',
       description: 'Wir werden Sie benachrichtigen, sobald die Mobile App verfügbar ist.',
@@ -140,9 +150,9 @@ export default function MobileAppWaitlistPage() {
                   />
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full" 
+                <Button
+                  type="submit"
+                  className="w-full"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Wird hinzugefügt...' : 'Zur Warteliste hinzufügen'}

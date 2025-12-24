@@ -143,15 +143,113 @@ export function HomePageJsonLd() {
     )
 }
 
-/**
- * Combined Schema for Feature Pages
- * Includes Organization and SoftwareApplication schemas
- */
 export function FeaturePageJsonLd() {
     return (
         <>
             <OrganizationJsonLd />
             <SoftwareApplicationJsonLd />
+        </>
+    )
+}
+
+/**
+ * Combined Schema for Pricing Page
+ * Includes Organization, SoftwareApplication, FAQ, and Breadcrumb schemas
+ */
+interface PricingPageJsonLdProps {
+    faqs: Array<{ question: string; answer: string }>
+}
+
+export function PricingPageJsonLd({ faqs }: PricingPageJsonLdProps) {
+    const breadcrumbItems = [
+        { name: 'Startseite', url: 'https://mietevo.de' },
+        { name: 'Preise', url: 'https://mietevo.de/preise' },
+    ]
+
+    return (
+        <>
+            <OrganizationJsonLd />
+            <SoftwareApplicationJsonLd />
+            <FAQJsonLd faqs={faqs} />
+            <BreadcrumbJsonLd items={breadcrumbItems} />
+        </>
+    )
+}
+
+/**
+ * Schema for Feature sub-pages with breadcrumbs
+ * Use on /funktionen/* pages
+ */
+interface FeatureSubPageJsonLdProps {
+    pageName: string
+    pageUrl: string
+}
+
+export function FeatureSubPageJsonLd({ pageName, pageUrl }: FeatureSubPageJsonLdProps) {
+    const breadcrumbItems = [
+        { name: 'Startseite', url: 'https://mietevo.de' },
+        { name: 'Funktionen', url: 'https://mietevo.de/funktionen' },
+        { name: pageName, url: pageUrl },
+    ]
+
+    return (
+        <>
+            <OrganizationJsonLd />
+            <SoftwareApplicationJsonLd />
+            <BreadcrumbJsonLd items={breadcrumbItems} />
+        </>
+    )
+}
+
+/**
+ * Schema for Solutions sub-pages with breadcrumbs
+ * Use on /loesungen/* pages
+ */
+interface SolutionSubPageJsonLdProps {
+    pageName: string
+    pageUrl: string
+}
+
+export function SolutionSubPageJsonLd({ pageName, pageUrl }: SolutionSubPageJsonLdProps) {
+    const breadcrumbItems = [
+        { name: 'Startseite', url: 'https://mietevo.de' },
+        { name: 'Lösungen', url: 'https://mietevo.de/loesungen' },
+        { name: pageName, url: pageUrl },
+    ]
+
+    return (
+        <>
+            <OrganizationJsonLd />
+            <SoftwareApplicationJsonLd />
+            <BreadcrumbJsonLd items={breadcrumbItems} />
+        </>
+    )
+}
+
+/**
+ * Schema for Documentation pages with breadcrumbs
+ */
+interface DocsPageJsonLdProps {
+    articleTitle?: string
+    articleUrl?: string
+}
+
+export function DocsPageJsonLd({ articleTitle, articleUrl }: DocsPageJsonLdProps) {
+    const breadcrumbItems = [
+        { name: 'Startseite', url: 'https://mietevo.de' },
+        { name: 'Hilfe', url: 'https://mietevo.de/hilfe' },
+        { name: 'Dokumentation', url: 'https://mietevo.de/hilfe/dokumentation' },
+    ]
+
+    // Add article to breadcrumb if viewing a specific article
+    if (articleTitle && articleUrl) {
+        breadcrumbItems.push({ name: articleTitle, url: articleUrl })
+    }
+
+    return (
+        <>
+            <OrganizationJsonLd />
+            <BreadcrumbJsonLd items={breadcrumbItems} />
         </>
     )
 }

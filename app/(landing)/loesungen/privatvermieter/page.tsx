@@ -4,8 +4,18 @@
 import { Home, Users, TrendingUp, Clock, Shield, CheckCircle2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useFeatureFlagRedirect } from '@/hooks/use-feature-flag-redirect';
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
 
 export default function PrivateLandlordsPage() {
+  // Redirect to homepage if feature flag is disabled
+  const { isLoading, isAllowed } = useFeatureFlagRedirect(POSTHOG_FEATURE_FLAGS.SHOW_LOESUNGEN_DROPDOWN);
+
+  // Show nothing while checking feature flag to prevent flash of content
+  if (isLoading || !isAllowed) {
+    return null;
+  }
+
   const features = [
     {
       icon: Home,
@@ -94,7 +104,7 @@ export default function PrivateLandlordsPage() {
           <div className="bg-primary/5 rounded-2xl p-8 mb-16">
             <h2 className="text-2xl font-bold mb-4">Faire Preise für Privatvermieter</h2>
             <p className="text-muted-foreground mb-4">
-              Unsere Preismodelle sind speziell auf die Bedürfnisse von Privatvermietern zugeschnitten. 
+              Unsere Preismodelle sind speziell auf die Bedürfnisse von Privatvermietern zugeschnitten.
               Zahlen Sie nur für das, was Sie wirklich brauchen.
             </p>
             <Button asChild variant="outline">

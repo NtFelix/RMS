@@ -4,8 +4,18 @@
 import { TrendingUp, Database, Lock, Workflow, Globe, HeadphonesIcon, CheckCircle2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useFeatureFlagRedirect } from '@/hooks/use-feature-flag-redirect';
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
 
 export default function LargePropertyManagementPage() {
+  // Redirect to homepage if feature flag is disabled
+  const { isLoading, isAllowed } = useFeatureFlagRedirect(POSTHOG_FEATURE_FLAGS.SHOW_LOESUNGEN_DROPDOWN);
+
+  // Show nothing while checking feature flag to prevent flash of content
+  if (isLoading || !isAllowed) {
+    return null;
+  }
+
   const features = [
     {
       icon: Database,
@@ -103,7 +113,7 @@ export default function LargePropertyManagementPage() {
           <div className="bg-primary/5 rounded-2xl p-8 mb-16">
             <h2 className="text-2xl font-bold mb-4">Individuelle Enterprise-Lösungen</h2>
             <p className="text-muted-foreground mb-4">
-              Für große Hausverwaltungen bieten wir maßgeschneiderte Lösungen an. Kontaktieren Sie uns für 
+              Für große Hausverwaltungen bieten wir maßgeschneiderte Lösungen an. Kontaktieren Sie uns für
               ein individuelles Angebot, das perfekt auf Ihre Bedürfnisse zugeschnitten ist.
             </p>
             <ul className="space-y-2 text-muted-foreground mb-6">
@@ -126,7 +136,7 @@ export default function LargePropertyManagementPage() {
           <div className="text-center bg-primary/5 rounded-2xl p-12">
             <h2 className="text-3xl font-bold mb-4">Lassen Sie uns sprechen</h2>
             <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Vereinbaren Sie einen Termin mit unserem Enterprise-Team und erfahren Sie, wie wir Ihre 
+              Vereinbaren Sie einen Termin mit unserem Enterprise-Team und erfahren Sie, wie wir Ihre
               Hausverwaltung auf das nächste Level bringen können.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
