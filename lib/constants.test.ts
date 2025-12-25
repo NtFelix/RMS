@@ -1,17 +1,17 @@
-import { BERECHNUNGSART_OPTIONS, BERECHNUNGSART_VALUES } from '../constants';
+import { BERECHNUNGSART_OPTIONS, BERECHNUNGSART_VALUES } from './constants';
 
 describe('lib/constants', () => {
   describe('BERECHNUNGSART_OPTIONS', () => {
     it('should contain all expected calculation types', () => {
       expect(BERECHNUNGSART_OPTIONS).toHaveLength(4);
-      
+
       const expectedOptions = [
         { value: 'pro Flaeche', label: 'pro Fläche' },
         { value: 'pro Mieter', label: 'pro Mieter' },
         { value: 'pro Wohnung', label: 'pro Wohnung' },
         { value: 'nach Rechnung', label: 'nach Rechnung' }
       ];
-      
+
       expect(BERECHNUNGSART_OPTIONS).toEqual(expectedOptions);
     });
 
