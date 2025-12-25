@@ -7,7 +7,7 @@ export default function AGBPage() {
           <p className="text-muted-foreground italic mb-8">Letzte Aktualisierung: 16. September 2025</p>
 
           <h2 className="text-2xl font-semibold mb-4">1. Geltungsbereich</h2>
-          <p>Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Verträge zwischen der Mietevo GmbH (nachfolgend "Anbieter") und den Nutzern der Plattform Mietevo (nachfolgend "Nutzer") über die Bereitstellung und Nutzung der Software-as-a-Service-Lösung für Mietverwaltung.</p>
+          <p>Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Verträge zwischen Felix Plant (nachfolgend "Anbieter") und den Nutzern der Plattform Mietevo (nachfolgend "Nutzer") über die Bereitstellung und Nutzung der Software-as-a-Service-Lösung für Mietverwaltung.</p>
 
           <h2 className="text-2xl font-semibold mt-8 mb-4">2. Vertragsgegenstand</h2>
           <p>Der Anbieter stellt dem Nutzer eine webbasierte Software zur Verwaltung von Mietobjekten, Mietern, Finanzen und Betriebskosten zur Verfügung. Die Leistungen umfassen:</p>
@@ -53,11 +53,11 @@ export default function AGBPage() {
           <div className="mt-12 p-4 bg-muted rounded-lg">
             <p className="text-sm text-muted-foreground">
               <strong>Kontakt:</strong><br />
-              Mietevo GmbH<br />
-              Musterstraße 123<br />
-              12345 Musterstadt<br />
-              E-Mail: info@mietevo.de<br />
-              Telefon: +49 (0) 123 456789
+              Felix Plant<br />
+              Kirchbrändelring 21a<br />
+              76669 Bad Schönborn<br />
+              Deutschland<br />
+              E-Mail: support@mietevo.de
             </p>
           </div>
         </div>

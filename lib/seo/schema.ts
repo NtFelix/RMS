@@ -5,10 +5,9 @@
  * potentially enabling rich snippets in search results.
  */
 
-import { BASE_URL, BRAND_NAME, CONTACT_EMAIL } from '@/lib/constants'
+import { BASE_URL, BRAND_NAME, SUPPORT_EMAIL } from '@/lib/constants'
 
 const LOGO_URL = `${BASE_URL}/favicon.png`
-const SUPPORT_EMAIL = CONTACT_EMAIL
 
 /**
  * Organization Schema
@@ -57,6 +56,9 @@ export function getOrganizationSchema() {
         ],
         address: {
             '@type': 'PostalAddress',
+            streetAddress: 'Kirchbrändelring 21a',
+            addressLocality: 'Bad Schönborn',
+            postalCode: '76669',
             addressCountry: 'DE',
         },
         // Geographic service area
