@@ -63,6 +63,10 @@ export const ROUTES = {
   LANDING: '/',
   PRICING: '/preise',
   FEATURES: '/funktionen',
+  // Legal & Resources
+  DOCUMENTATION: '/hilfe/dokumentation',
+  PRIVACY: '/datenschutz',
+  TERMS: '/agb',
 } as const;
 
 // Video URLs
