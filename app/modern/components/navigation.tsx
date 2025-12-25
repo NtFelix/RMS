@@ -8,7 +8,7 @@ import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, Layo
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2, CONTACT_EMAIL } from "@/lib/constants"
+import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2, INFO_EMAIL } from "@/lib/constants"
 import { Button } from '@/components/ui/button'
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
@@ -55,7 +55,7 @@ const loesungenItems = [
 
 const hilfeItems = [
   { name: "Dokumentation", href: "/hilfe/dokumentation", icon: BookOpen, description: "Ausführliche Anleitungen" },
-  { name: "Kontakt", href: `mailto:${CONTACT_EMAIL}`, icon: Mail, description: "Schreiben Sie uns" },
+  { name: "Kontakt", href: `mailto:${INFO_EMAIL}`, icon: Mail, description: "Schreiben Sie uns" },
 ]
 
 interface NavigationProps {
