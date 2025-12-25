@@ -35,7 +35,7 @@ const footerLinks = {
 
 // Special links that require custom routing or display text
 const specialLinks: Record<string, { href: string; text: string }> = {
-  "Hilfezentrum": { href: "/dokumentation", text: "Dokumentation" },
+  "Hilfezentrum": { href: "/hilfe/dokumentation", text: "Dokumentation" },
   "Datenschutz": { href: "/datenschutz", text: "Datenschutz" },
   "AGB": { href: "/agb", text: "AGB" },
   "Funktionen": { href: "/funktionen", text: "Funktionen" },
