@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import { /* Github, */ Twitter, /* Linkedin, */ Mail } from "lucide-react"
 import Link from "next/link"
-import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, CONTACT_EMAIL } from "@/lib/constants"
+import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, CONTACT_EMAIL, ROUTES } from "@/lib/constants"
 import { trackFooterLinkClicked, trackFooterSocialClicked, type FooterCategory } from "@/lib/posthog-landing-events"
 
 const footerLinks = {
@@ -35,11 +35,11 @@ const footerLinks = {
 
 // Special links that require custom routing or display text
 const specialLinks: Record<string, { href: string; text: string }> = {
-  "Hilfezentrum": { href: "/hilfe/dokumentation", text: "Dokumentation" },
-  "Datenschutz": { href: "/datenschutz", text: "Datenschutz" },
-  "AGB": { href: "/agb", text: "AGB" },
-  "Funktionen": { href: "/funktionen", text: "Funktionen" },
-  "Preise": { href: "/preise", text: "Preise" },
+  "Hilfezentrum": { href: ROUTES.DOCUMENTATION, text: "Dokumentation" },
+  "Datenschutz": { href: ROUTES.PRIVACY, text: "Datenschutz" },
+  "AGB": { href: ROUTES.TERMS, text: "AGB" },
+  "Funktionen": { href: ROUTES.FEATURES, text: "Funktionen" },
+  "Preise": { href: ROUTES.PRICING, text: "Preise" },
   "Kontakt": { href: `mailto:${CONTACT_EMAIL}`, text: "Kontakt" },
 }
 
