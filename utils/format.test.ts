@@ -21,6 +21,17 @@ describe('format utils', () => {
     it('should handle negative numbers', () => {
       expect(formatNumber(-1234.56)).toBe('-1.234,56');
     });
+
+    it('should handle non-numeric string inputs', () => {
+      expect(formatNumber('not a number')).toBe('0,00');
+      expect(formatNumber('abc', 0)).toBe('0');
+    });
+
+    it('should handle NaN values', () => {
+      expect(formatNumber(NaN)).toBe('0,00');
+      expect(formatNumber(NaN, 0)).toBe('0');
+      expect(formatNumber(NaN, 3)).toBe('0,000');
+    });
   });
 
   describe('formatCurrency', () => {
