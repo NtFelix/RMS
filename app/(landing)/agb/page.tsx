@@ -57,7 +57,7 @@ export default function AGBPage() {
               Kirchbrändelring 21a<br />
               76669 Bad Schönborn<br />
               Deutschland<br />
-              E-Mail: support@mietevo.de
+              E-Mail: info@mietevo.de
             </p>
           </div>
         </div>

@@ -22,7 +22,8 @@ export const BRAND_NAME_PART_2 = 'evo';
 export const BRAND_NAME = `${BRAND_NAME_PART_1}${BRAND_NAME_PART_2}`;
 export const SUPPORT_EMAIL = "support@mietevo.de";
 export const INFO_EMAIL = "info@mietevo.de";
-// Keep CONTACT_EMAIL as an alias for backwards compatibility (defaults to info)
+// DEPRECATED: Use SUPPORT_EMAIL or INFO_EMAIL directly.
+// For backward compatibility, CONTACT_EMAIL now aliases INFO_EMAIL (it was previously SUPPORT_EMAIL).
 export const CONTACT_EMAIL = INFO_EMAIL;
 
 // Base URL - centralized to ensure consistency across all environments
