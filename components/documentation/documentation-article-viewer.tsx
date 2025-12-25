@@ -3,8 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Calendar, User, Share2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Share2, ExternalLink } from 'lucide-react';
 import { Article } from './documentation-article-list';
 import { DocumentationBreadcrumb } from './documentation-breadcrumb';
 import { useToast } from '@/hooks/use-toast';
@@ -23,22 +22,6 @@ interface ArticleViewerProps {
   selectedCategory?: string | null;
   searchQuery?: string | null;
   className?: string;
-}
-
-function formatDate(dateString: string): string {
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return dateString;
-    }
-    return date.toLocaleDateString('de-DE', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  } catch {
-    return dateString;
-  }
 }
 
 function formatContent(content: string | null): React.ReactNode {
@@ -121,10 +104,6 @@ export function DocumentationArticleViewer({
   className = ""
 }: ArticleViewerProps) {
   const { toast } = useToast();
-  const createdDate = article.meta?.created_time;
-  const lastEditedDate = article.meta?.last_edited_time;
-  const createdBy = article.meta?.created_by?.name || article.meta?.created_by?.object;
-  const lastEditedBy = article.meta?.last_edited_by?.name || article.meta?.last_edited_by?.object;
 
   // Build breadcrumb items
   const breadcrumbItems = [];
@@ -236,40 +215,6 @@ export function DocumentationArticleViewer({
                 {article.kategorie}
               </Badge>
             )}
-
-            {/* Metadata */}
-            {(createdDate || lastEditedDate) && (
-              <>
-                <Separator />
-                <div className="flex flex-col sm:flex-row gap-4 text-sm text-muted-foreground">
-                  {createdDate && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>Erstellt: {formatDate(createdDate)}</span>
-                      {createdBy && (
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {createdBy}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {lastEditedDate && lastEditedDate !== createdDate && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>Bearbeitet: {formatDate(lastEditedDate)}</span>
-                      {lastEditedBy && lastEditedBy !== createdBy && (
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {lastEditedBy}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         </CardHeader>
 
@@ -285,31 +230,6 @@ export function DocumentationArticleViewer({
           )}
         </CardContent>
       </Card>
-
-      {/* Additional Metadata */}
-      {article.meta && Object.keys(article.meta).length > 0 && (
-        <Card className="mt-6 shadow-lg border-0 bg-card/50 backdrop-blur-sm">
-          <CardHeader>
-            <h3 className="text-lg font-semibold">Zusätzliche Informationen</h3>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              {Object.entries(article.meta)
-                .filter(([key]) => !['created_time', 'last_edited_time', 'created_by', 'last_edited_by'].includes(key))
-                .map(([key, value]) => (
-                  <div key={key} className="space-y-1">
-                    <dt className="font-medium text-muted-foreground capitalize">
-                      {key.replace(/_/g, ' ')}
-                    </dt>
-                    <dd className="text-foreground">
-                      {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-                    </dd>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
