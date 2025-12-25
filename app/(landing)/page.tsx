@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Hero from '@/app/modern/components/hero';
@@ -18,6 +18,7 @@ import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
+import { trackSectionViewed, type LandingSection } from '@/lib/posthog-landing-events';
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -92,6 +93,52 @@ function LandingPageContent() {
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
+
+  // Scroll-depth tracking
+  const pageLoadTimeRef = useRef<number>(Date.now());
+  const trackedSectionsRef = useRef<Set<string>>(new Set());
+
+  // Set up scroll-depth tracking
+  useEffect(() => {
+    const sectionIdMap: Record<string, LandingSection> = {
+      'hero': 'hero',
+      'features': 'features',
+      'nebenkosten': 'nebenkosten',
+      'more-features': 'more_features',
+      'pricing': 'pricing',
+      'cta': 'bottom_cta',
+      'faq': 'faq',
+      'footer': 'footer',
+    };
+    const sectionIds = Object.keys(sectionIdMap);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !trackedSectionsRef.current.has(entry.target.id)) {
+            trackedSectionsRef.current.add(entry.target.id);
+            const section = sectionIdMap[entry.target.id];
+            if (section) {
+              const timeOnPageMs = Date.now() - pageLoadTimeRef.current;
+              const scrollPercent = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
+              trackSectionViewed(section, timeOnPageMs, scrollPercent);
+            }
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+
+    sectionIds.forEach((id) => {
+      const element = document.getElementById(id);
+      if (element) {
+        observer.observe(element);
+      }
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     const fetchInitialUserAndProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();

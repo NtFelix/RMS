@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import { /* Github, */ Twitter, /* Linkedin, */ Mail } from "lucide-react"
 import Link from "next/link"
 import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, CONTACT_EMAIL } from "@/lib/constants"
+import { trackFooterLinkClicked, trackFooterSocialClicked, type FooterCategory } from "@/lib/posthog-landing-events"
 
 const footerLinks = {
   Unternehmen: [
@@ -43,15 +44,23 @@ const specialLinks: Record<string, { href: string; text: string }> = {
 }
 
 const socialLinks = [
-  { icon: Mail, href: `mailto:${CONTACT_EMAIL}`, label: "Email" },
-  // { icon: Github, href: "#", label: "GitHub" },
-  { icon: Twitter, href: "https://x.com/Mietevo", label: "X (formerly Twitter)" },
-  // { icon: Linkedin, href: "#", label: "LinkedIn" },
+  { icon: Mail, href: `mailto:${CONTACT_EMAIL}`, label: "Email", platform: "email" as const },
+  // { icon: Github, href: "#", label: "GitHub", platform: "github" as const },
+  { icon: Twitter, href: "https://x.com/Mietevo", label: "X (formerly Twitter)", platform: "twitter" as const },
+  // { icon: Linkedin, href: "#", label: "LinkedIn", platform: "linkedin" as const },
 ]
+
+// Map category names to FooterCategory type
+const categoryMap: Record<string, FooterCategory> = {
+  "Unternehmen": "unternehmen",
+  "Plattform": "plattform",
+  "Ressourcen": "ressourcen",
+  "Rechtliches": "rechtliches",
+}
 
 export default function Footer() {
   return (
-    <footer className="relative py-20 px-4 border-t border-border bg-background text-foreground">
+    <footer id="footer" className="relative py-20 px-4 border-t border-border bg-background text-foreground">
       {/* Footer Background Pattern - Adjusted for theme */}
       <div className="absolute inset-0 opacity-5 dark:opacity-3">
         <div
@@ -91,6 +100,7 @@ export default function Footer() {
                     whileTap={{ scale: 0.95 }}
                     className="group w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border hover:border-white dark:hover:border-primary/50"
                     aria-label={social.label}
+                    onClick={() => trackFooterSocialClicked(social.platform, social.href)}
                   >
                     <social.icon className="w-5 h-5 text-muted-foreground group-hover:text-accent-foreground" />
                   </motion.a>
@@ -114,14 +124,23 @@ export default function Footer() {
                 <ul className="space-y-3">
                   {links.map((link, linkIndex) => {
                     const specialLink = specialLinks[link];
+                    const footerCategory = categoryMap[category];
                     return (
                       <li key={linkIndex}>
                         {specialLink ? (
-                          <Link href={specialLink.href} className="text-muted-foreground hover:text-foreground transition-colors">
+                          <Link
+                            href={specialLink.href}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
+                          >
                             {specialLink.text}
                           </Link>
                         ) : (
-                          <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                          <a
+                            href="#"
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => trackFooterLinkClicked(link, footerCategory, '#')}
+                          >
                             {link}
                           </a>
                         )}
