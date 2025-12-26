@@ -20,7 +20,11 @@ export const LOGO_URL = `${PWA_IMAGES_URL}/mascot/normal.avif`;
 export const BRAND_NAME_PART_1 = 'Miet';
 export const BRAND_NAME_PART_2 = 'evo';
 export const BRAND_NAME = `${BRAND_NAME_PART_1}${BRAND_NAME_PART_2}`;
-export const CONTACT_EMAIL = "support@mietevo.de";
+export const SUPPORT_EMAIL = "support@mietevo.de";
+export const INFO_EMAIL = "info@mietevo.de";
+// DEPRECATED: Use SUPPORT_EMAIL or INFO_EMAIL directly.
+// For backward compatibility, CONTACT_EMAIL now aliases INFO_EMAIL (it was previously SUPPORT_EMAIL).
+export const CONTACT_EMAIL = INFO_EMAIL;
 
 // Base URL - centralized to ensure consistency across all environments
 export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de';

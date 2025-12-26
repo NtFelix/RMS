@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import { /* Github, */ Twitter, /* Linkedin, */ Mail } from "lucide-react"
 import Link from "next/link"
-import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, CONTACT_EMAIL, ROUTES } from "@/lib/constants"
+import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, INFO_EMAIL, SUPPORT_EMAIL, ROUTES } from "@/lib/constants"
 import { trackFooterLinkClicked, trackFooterSocialClicked, type FooterCategory } from "@/lib/posthog-landing-events"
 
 const footerLinks = {
@@ -40,11 +40,11 @@ const specialLinks: Record<string, { href: string; text: string }> = {
   "AGB": { href: ROUTES.TERMS, text: "AGB" },
   "Funktionen": { href: ROUTES.FEATURES, text: "Funktionen" },
   "Preise": { href: ROUTES.PRICING, text: "Preise" },
-  "Kontakt": { href: `mailto:${CONTACT_EMAIL}`, text: "Kontakt" },
+  "Kontakt": { href: `mailto:${INFO_EMAIL}`, text: "Kontakt" },
 }
 
 const socialLinks = [
-  { icon: Mail, href: `mailto:${CONTACT_EMAIL}`, label: "Email", platform: "email" as const },
+  { icon: Mail, href: `mailto:${SUPPORT_EMAIL}`, label: "Email", platform: "email" as const },
   // { icon: Github, href: "#", label: "GitHub", platform: "github" as const },
   { icon: Twitter, href: "https://x.com/Mietevo", label: "X (formerly Twitter)", platform: "twitter" as const },
   // { icon: Linkedin, href: "#", label: "LinkedIn", platform: "linkedin" as const },
