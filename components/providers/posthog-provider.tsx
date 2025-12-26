@@ -90,6 +90,20 @@ if (typeof window !== 'undefined') {
 function PostHogTracking({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [consentGranted, setConsentGranted] = useState(false)
+
+  // Listen for consent-granted event to trigger tracking immediately
+  useEffect(() => {
+    const handleConsentGranted = () => {
+      console.log('Consent granted event received, triggering tracking...');
+      setConsentGranted(prev => !prev); // Toggle to trigger effect re-runs
+    };
+
+    window.addEventListener('posthog-consent-granted', handleConsentGranted);
+    return () => {
+      window.removeEventListener('posthog-consent-granted', handleConsentGranted);
+    };
+  }, []);
 
   // Handle user identification based on auth state - ONLY if user has consented
   useEffect(() => {
@@ -127,7 +141,7 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
     };
 
     handleUserIdentification();
-  }, [pathname]);
+  }, [pathname, consentGranted]); // Re-run when consent is granted
 
   // Track pageviews
   useEffect(() => {
@@ -162,7 +176,7 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
     };
 
     trackPageview();
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, consentGranted]); // Re-run when consent is granted
 
   // Handle login tracking from auth callback
   useEffect(() => {
