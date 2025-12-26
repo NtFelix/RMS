@@ -70,6 +70,9 @@ export const ROUTES = {
   LANDING: '/',
   PRICING: '/preise',
   FEATURES: '/funktionen',
+  FEATURES_WOHNUNGSVERWALTUNG: '/funktionen/wohnungsverwaltung',
+  FEATURES_FINANZVERWALTUNG: '/funktionen/finanzverwaltung',
+  FEATURES_BETRIEBSKOSTEN: '/funktionen/betriebskosten',
   // Legal & Resources
   DOCUMENTATION: '/hilfe/dokumentation',
   PRIVACY: '/datenschutz',

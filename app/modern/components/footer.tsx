@@ -7,38 +7,30 @@ import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, INFO_EMAIL, SUPPORT_E
 import { trackFooterLinkClicked, trackFooterSocialClicked, type FooterCategory } from "@/lib/posthog-landing-events"
 
 const footerLinks = {
-  Unternehmen: [
-    // "Über uns",
-    "Kontakt",
-    // "Karriere",
-    // "Blog",
-  ],
-  Plattform: [
-    "Funktionen",
-    "Preise",
-    // "Integrationen",
-    // "API",
+  Funktionen: [
+    "Wohnungsverwaltung",
+    "Finanzverwaltung",
+    "Betriebskosten",
   ],
   Ressourcen: [
+    "Preise",
     "Hilfezentrum",
-    // "Anleitungen",
-    // "Webinare",
-    // "Community",
+    "Kontakt",
   ],
   Rechtliches: [
     "Datenschutz",
     "AGB",
-    // "Sicherheit",
-    // "Lizenzen",
   ],
 }
 
 // Special links that require custom routing or display text
 const specialLinks: Record<string, { href: string; text: string }> = {
+  "Wohnungsverwaltung": { href: ROUTES.FEATURES_WOHNUNGSVERWALTUNG, text: "Wohnungsverwaltung" },
+  "Finanzverwaltung": { href: ROUTES.FEATURES_FINANZVERWALTUNG, text: "Finanzverwaltung" },
+  "Betriebskosten": { href: ROUTES.FEATURES_BETRIEBSKOSTEN, text: "Betriebskosten" },
   "Hilfezentrum": { href: ROUTES.DOCUMENTATION, text: "Dokumentation" },
   "Datenschutz": { href: ROUTES.PRIVACY, text: "Datenschutz" },
   "AGB": { href: ROUTES.TERMS, text: "AGB" },
-  "Funktionen": { href: ROUTES.FEATURES, text: "Funktionen" },
   "Preise": { href: ROUTES.PRICING, text: "Preise" },
   "Kontakt": { href: `mailto:${INFO_EMAIL}`, text: "Kontakt" },
 }
@@ -52,8 +44,7 @@ const socialLinks = [
 
 // Map category names to FooterCategory type
 const categoryMap: Record<string, FooterCategory> = {
-  "Unternehmen": "unternehmen",
-  "Plattform": "plattform",
+  "Funktionen": "funktionen",
   "Ressourcen": "ressourcen",
   "Rechtliches": "rechtliches",
 }
@@ -74,7 +65,7 @@ export default function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-12 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-12 mb-16">
           {/* Brand Section */}
           <div className="sm:col-span-2 lg:col-span-2">
             <motion.div
@@ -87,7 +78,7 @@ export default function Footer() {
                 <span className="text-primary">{BRAND_NAME_PART_1}</span>{BRAND_NAME_PART_2}
               </h3>
               <p className="text-muted-foreground leading-relaxed mb-6">
-                Die moderne Lösung für Ihre Mietverwaltung und Nebenkostenabrechnung.
+                Die moderne Lösung für Ihre Mietverwaltung und Betriebskostenabrechnung.
               </p>
               <div className="flex gap-4">
                 {socialLinks.map((social, index) => (
