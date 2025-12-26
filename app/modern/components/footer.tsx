@@ -25,9 +25,9 @@ const footerLinks = {
 
 // Special links that require custom routing or display text
 const specialLinks: Record<string, { href: string; text: string }> = {
-  "Wohnungsverwaltung": { href: "/funktionen/wohnungsverwaltung", text: "Wohnungsverwaltung" },
-  "Finanzverwaltung": { href: "/funktionen/finanzverwaltung", text: "Finanzverwaltung" },
-  "Betriebskosten": { href: "/funktionen/betriebskosten", text: "Betriebskosten" },
+  "Wohnungsverwaltung": { href: ROUTES.FEATURES_WOHNUNGSVERWALTUNG, text: "Wohnungsverwaltung" },
+  "Finanzverwaltung": { href: ROUTES.FEATURES_FINANZVERWALTUNG, text: "Finanzverwaltung" },
+  "Betriebskosten": { href: ROUTES.FEATURES_BETRIEBSKOSTEN, text: "Betriebskosten" },
   "Hilfezentrum": { href: ROUTES.DOCUMENTATION, text: "Dokumentation" },
   "Datenschutz": { href: ROUTES.PRIVACY, text: "Datenschutz" },
   "AGB": { href: ROUTES.TERMS, text: "AGB" },
