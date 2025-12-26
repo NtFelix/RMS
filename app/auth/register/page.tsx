@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, ArrowRight, Loader2, Check, Sparkles } from "lucide-react"
-import { LOGO_URL } from "@/lib/constants"
+import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
@@ -347,11 +347,11 @@ export default function RegisterPage() {
 
               <p className="text-xs text-center text-muted-foreground pt-2">
                 Mit der Registrierung stimmen Sie unseren{" "}
-                <Link href="/legal/nutzungsbedingungen" className="text-foreground hover:underline">
+                <Link href={ROUTES.TERMS} className="text-foreground hover:underline">
                   Nutzungsbedingungen
                 </Link>{" "}
                 und der{" "}
-                <Link href="/legal/datenschutz" className="text-foreground hover:underline">
+                <Link href={ROUTES.PRIVACY} className="text-foreground hover:underline">
                   Datenschutzerklärung
                 </Link>{" "}
                 zu.
