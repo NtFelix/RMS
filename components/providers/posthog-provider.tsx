@@ -131,24 +131,38 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
 
   // Track pageviews
   useEffect(() => {
-    if (pathname && posthog.has_opted_in_capturing?.()) {
-      let url = window.origin + pathname
+    const trackPageview = async () => {
+      if (!pathname || !posthog.has_opted_in_capturing?.()) return;
+
+      let url = window.origin + pathname;
       if (searchParams.toString()) {
-        url = url + `?${searchParams.toString()}`
+        url = url + `?${searchParams.toString()}`;
       }
 
-      // Check if this is an anonymous user on documentation
-      const isAnonymous = posthog.get_distinct_id()?.startsWith('anonymous_');
+      // Determine user type by checking actual auth state
+      let isAuthenticated = false;
+      try {
+        const { createClient } = await import('@/utils/supabase/client');
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        isAuthenticated = !!user;
+      } catch {
+        // If we can't check auth, assume anonymous
+        isAuthenticated = false;
+      }
+
       const isDocPage = pathname.startsWith('/dokumentation');
 
       posthog.capture('$pageview', {
         $current_url: url,
-        user_type: isAnonymous ? 'anonymous' : 'authenticated',
-        is_anonymous: isAnonymous,
+        user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+        is_anonymous: !isAuthenticated,
         page_type: isDocPage ? 'documentation' : 'other'
-      })
-    }
-  }, [pathname, searchParams])
+      });
+    };
+
+    trackPageview();
+  }, [pathname, searchParams]);
 
   // Handle login tracking from auth callback
   useEffect(() => {
@@ -162,9 +176,12 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
         supabase.auth.getUser().then(({ data: { user } }) => {
           if (user) {
             // Identify user and track login event
+            // Include user_type and is_anonymous for consistency with main identification
             posthog.identify(user.id, {
               email: user.email,
               name: user.user_metadata?.name || '',
+              user_type: 'authenticated',
+              is_anonymous: false,
             })
 
             posthog.capture('user_logged_in', {
