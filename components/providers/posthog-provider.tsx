@@ -53,7 +53,7 @@ async function initializePostHog() {
     api_host: config.host,
     capture_pageview: false, // We'll handle this manually
     persistence: 'localStorage',
-    enable_recording_console_log: true,
+    enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
     // GDPR: Always opt-out by default, require explicit consent
     opt_out_capturing_by_default: true,
     // Enable early access features
