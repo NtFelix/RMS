@@ -72,16 +72,16 @@ export type SocialPlatform = 'twitter' | 'email' | 'github' | 'linkedin';
 
 /**
  * Check if PostHog is available for tracking
- * Note: We check if PostHog is initialized and has not been explicitly opted out.
- * This works with opt_out_capturing_by_default configurations.
+ * GDPR: With opt_out_capturing_by_default: true, we must check if user has OPTED IN.
+ * Only track if user has explicitly consented by clicking "Alle akzeptieren".
  */
 function canTrack(): boolean {
     if (typeof window === 'undefined') return false;
     if (!posthog || typeof posthog.capture !== 'function') return false;
 
-    // Check if PostHog has been explicitly opted out
-    // has_opted_out_capturing returns true if user explicitly opted out
-    if (posthog.has_opted_out_capturing?.()) return false;
+    // GDPR: Must have explicitly opted in (clicked "Alle akzeptieren")
+    // has_opted_in_capturing() returns true only after user consents
+    if (!posthog.has_opted_in_capturing?.()) return false;
 
     return true;
 }
