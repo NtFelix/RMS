@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { CONTACT_EMAIL } from '@/lib/constants';
+import { CONTACT_EMAIL, WEBSITE_DOMAIN } from '@/lib/constants';
 
 // Essential cookies that should not be deleted (authentication, security)
 const ESSENTIAL_COOKIES = [
@@ -85,7 +85,7 @@ export default function DatenschutzPage() {
               Deutschland</p>
 
             <p className="mt-2">E-Mail: {CONTACT_EMAIL}<br />
-              Website: mietevo.de</p>
+              Website: {WEBSITE_DOMAIN}</p>
           </div>
 
           <h2 className="text-2xl font-semibold mt-10 mb-4">2. Allgemeine Hinweise zur Datenverarbeitung</h2>
