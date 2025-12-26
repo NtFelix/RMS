@@ -48,7 +48,8 @@ export function WaitlistButton() {
         setIsSubmitting(true);
 
         try {
-            if (posthog) {
+            // GDPR: Only track if user has consented
+            if (posthog && posthog.has_opted_in_capturing?.()) {
                 // Define question metadata for correct PostHog payload construction
                 const questions = [
                     { id: '4c7312ed-3520-4f53-a177-99848382b953', question: 'Vorname', key: 'vorname' },
@@ -110,8 +111,9 @@ export function WaitlistButton() {
                     survey_id: surveyID
                 });
 
-                // Person identifizieren
-                posthog.identify(formData.email, {
+                // Use anonymous ID instead of email as distinct_id for privacy
+                const anonymousId = `waitlist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                posthog.identify(anonymousId, {
                     email: formData.email,
                     vorname: formData.vorname,
                     unternehmen: formData.unternehmen,
@@ -131,14 +133,16 @@ export function WaitlistButton() {
 
     const handleOpen = () => {
         setIsOpen(true);
-        if (posthog) {
+        // GDPR: Only track if user has consented
+        if (posthog && posthog.has_opted_in_capturing?.()) {
             posthog.capture("survey shown", { $survey_id: surveyID });
         }
     };
 
     const handleClose = () => {
         setIsOpen(false);
-        if (!isSuccess && posthog) {
+        // GDPR: Only track if user has consented
+        if (!isSuccess && posthog && posthog.has_opted_in_capturing?.()) {
             posthog.capture("survey dismissed", { $survey_id: surveyID });
         }
         // Reset form after closing if successful

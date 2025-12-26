@@ -49,11 +49,13 @@ export default function LoginPage() {
     })
 
     if (error) {
-      posthog.capture('login_attempt', {
-        status: 'failed',
-        email,
-        error: error.message,
-      })
+      // GDPR: Only track if user has consented, don't include email in events
+      if (posthog.has_opted_in_capturing?.()) {
+        posthog.capture('login_attempt', {
+          status: 'failed',
+          error_type: error.code === 'invalid_credentials' ? 'invalid_credentials' : 'other',
+        })
+      }
 
       setError(getAuthErrorMessage(error))
       setIsLoading(false)
@@ -61,16 +63,21 @@ export default function LoginPage() {
     }
 
     if (data?.user) {
-      posthog.identify(data.user.id, {
-        email: data.user.email,
-        name: data.user.user_metadata?.name || '',
-        last_sign_in: data.user.last_sign_in_at,
-      })
+      // GDPR: Only identify and track if user has consented
+      if (posthog.has_opted_in_capturing?.()) {
+        posthog.identify(data.user.id, {
+          email: data.user.email,
+          name: data.user.user_metadata?.name || '',
+          last_sign_in: data.user.last_sign_in_at,
+          user_type: 'authenticated',
+          is_anonymous: false,
+        })
 
-      posthog.capture('login_success', {
-        email: data.user.email,
-        provider: 'email',
-      })
+        posthog.capture('login_success', {
+          provider: 'email',
+          // Note: email removed from event properties for privacy
+        })
+      }
     }
 
     window.location.assign(redirect)
