@@ -90,7 +90,7 @@ export default function LoginPage() {
 
       {/* Gradient orbs in background */}
       <motion.div
-        className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/20 blur-[100px]"
+        className="hidden md:block absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/20 blur-[100px]"
         animate={{
           x: [0, 50, 0],
           y: [0, 30, 0],
@@ -99,7 +99,7 @@ export default function LoginPage() {
         transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-secondary/20 blur-[100px]"
+        className="hidden md:block absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-secondary/20 blur-[100px]"
         animate={{
           x: [0, -40, 0],
           y: [0, -50, 0],
@@ -119,7 +119,7 @@ export default function LoginPage() {
         className="relative z-10 w-full max-w-5xl bg-card rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]"
       >
         {/* Left side - Hero/Branding */}
-        <div className="relative lg:w-1/2 bg-gradient-to-br from-primary via-secondary to-primary p-8 md:p-12 flex flex-col justify-between overflow-hidden perspective-[1000px]">
+        <div className="hidden lg:flex relative lg:w-1/2 bg-gradient-to-br from-primary via-secondary to-primary p-8 md:p-12 flex-col justify-between overflow-hidden perspective-[1000px]">
           {/* Gradient mesh overlay */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,hsl(var(--accent)/0.3)_0%,transparent_50%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(var(--primary)/0.4)_0%,transparent_50%)]" />
@@ -179,7 +179,16 @@ export default function LoginPage() {
         </div>
 
         {/* Right side - Form */}
-        <div className="lg:w-1/2 p-8 md:p-12 flex flex-col justify-center bg-card">
+        <div className="lg:w-1/2 p-6 md:p-12 flex flex-col justify-center bg-card">
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex justify-center mb-8">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="p-1 rounded-xl bg-primary/10">
+                <img src={LOGO_URL} alt="Mietevo Logo" className="h-8 w-8 object-contain" />
+              </div>
+              <span className="text-foreground font-semibold text-lg">Mietevo</span>
+            </Link>
+          </div>
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
