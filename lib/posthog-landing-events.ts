@@ -62,7 +62,7 @@ export type NavDropdown = 'produkte' | 'funktionen' | 'loesungen' | 'hilfe';
 
 export type BillingCycle = 'monthly' | 'yearly';
 
-export type FooterCategory = 'unternehmen' | 'plattform' | 'ressourcen' | 'rechtliches';
+export type FooterCategory = 'funktionen' | 'unternehmen' | 'plattform' | 'ressourcen' | 'rechtliches';
 
 export type SocialPlatform = 'twitter' | 'email' | 'github' | 'linkedin';
 
