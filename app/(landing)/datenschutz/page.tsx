@@ -85,7 +85,7 @@ export default function DatenschutzPage() {
               Deutschland</p>
 
             <p className="mt-2">E-Mail: {CONTACT_EMAIL}<br />
-              Website: rent-manager.pages.dev</p>
+              Website: mietevo.de</p>
           </div>
 
           <h2 className="text-2xl font-semibold mt-10 mb-4">2. Allgemeine Hinweise zur Datenverarbeitung</h2>
@@ -173,7 +173,7 @@ export default function DatenschutzPage() {
             <li>Erstellung von Nebenkostenabrechnungen</li>
             <li>Datenexport und -sicherung</li>
             <li>Produktentwicklung und -verbesserung</li>
-            <li>Abwicklung von Zahlungen (nur kostenpflichtige Version)</li>
+            <li>Abwicklung von Zahlungen</li>
           </ul>
 
           <h2 className="text-2xl font-semibold mt-10 mb-4">4. Unterschiede zwischen Demo-Version und kostenpflichtiger Version</h2>
@@ -207,7 +207,7 @@ export default function DatenschutzPage() {
           <p><strong>Serverstandort:</strong> EU und USA</p>
           <p><strong>Datenschutz:</strong> Stripe ist PCI-DSS Level 1 zertifiziert</p>
           <p><strong>Drittlandübertragung:</strong> Durch EU-USA Data Privacy Framework abgesichert</p>
-          <p><strong>Anwendung:</strong> Nur bei kostenpflichtiger Version</p>
+
 
           <h3 className="text-xl font-semibold mt-6 mb-2">5.3 PostHog (Produktanalyse)</h3>
           <p>Zur Verbesserung unserer Software nutzen wir PostHog Inc. für Produktanalysen.</p>
