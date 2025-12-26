@@ -225,6 +225,7 @@ export default function RegisterPage() {
           <div className="lg:hidden flex justify-center mb-8">
             <Link href="/" className="flex items-center gap-3">
               <div className="p-1 rounded-xl bg-primary/10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={LOGO_URL} alt="Mietevo Logo" className="h-8 w-8 object-contain" />
               </div>
               <span className="text-foreground font-semibold text-lg">Mietevo</span>
