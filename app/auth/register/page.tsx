@@ -69,7 +69,7 @@ export default function RegisterPage() {
       // GDPR: Only track if user has consented
       if (posthog.has_opted_in_capturing?.()) {
         posthog.capture('signup_failed', {
-          error_type: error.message.includes('already') ? 'email_exists' : 'other',
+          error_type: error.code === 'user_already_exists' ? 'email_exists' : 'other',
           // Note: email and full error removed for privacy
         })
       }

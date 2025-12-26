@@ -53,7 +53,7 @@ export default function LoginPage() {
       if (posthog.has_opted_in_capturing?.()) {
         posthog.capture('login_attempt', {
           status: 'failed',
-          error_type: error.message.includes('Invalid') ? 'invalid_credentials' : 'other',
+          error_type: error.code === 'invalid_credentials' ? 'invalid_credentials' : 'other',
         })
       }
 
