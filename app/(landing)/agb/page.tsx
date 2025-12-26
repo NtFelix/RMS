@@ -1,3 +1,5 @@
+import { INFO_EMAIL } from '@/lib/constants';
+
 export default function AGBPage() {
   return (
     <div className="w-full bg-background pt-24 pb-12">
@@ -57,7 +59,7 @@ export default function AGBPage() {
               Kirchbrändelring 21a<br />
               76669 Bad Schönborn<br />
               Deutschland<br />
-              E-Mail: info@mietevo.de
+              E-Mail: {INFO_EMAIL}
             </p>
           </div>
         </div>

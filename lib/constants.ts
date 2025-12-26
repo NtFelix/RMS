@@ -29,6 +29,9 @@ export const CONTACT_EMAIL = INFO_EMAIL;
 // Base URL - centralized to ensure consistency across all environments
 export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de';
 
+// Website domain (without protocol) - for display in legal pages
+export const WEBSITE_DOMAIN = 'mietevo.de';
+
 
 // Feature flags removed as functionality is now standard
 // PostHog feature flag keys - centralized to prevent magic strings
