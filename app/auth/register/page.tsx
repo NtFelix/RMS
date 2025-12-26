@@ -50,9 +50,12 @@ export default function RegisterPage() {
 
     const supabase = createClient()
 
-    posthog.capture('signup_attempt', {
-      email,
-    })
+    // GDPR: Only track if user has consented, don't include email in events
+    if (posthog.has_opted_in_capturing?.()) {
+      posthog.capture('signup_attempt', {
+        // Note: email removed from event properties for privacy
+      })
+    }
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -63,10 +66,13 @@ export default function RegisterPage() {
     })
 
     if (error) {
-      posthog.capture('signup_failed', {
-        email,
-        error: error.message,
-      })
+      // GDPR: Only track if user has consented
+      if (posthog.has_opted_in_capturing?.()) {
+        posthog.capture('signup_failed', {
+          error_type: error.message.includes('already') ? 'email_exists' : 'other',
+          // Note: email and full error removed for privacy
+        })
+      }
 
       setError(getAuthErrorMessage(error))
       setIsLoading(false)
@@ -74,15 +80,20 @@ export default function RegisterPage() {
     }
 
     if (data?.user) {
-      posthog.identify(data.user.id, {
-        email: data.user.email,
-        signup_date: new Date().toISOString(),
-      })
+      // GDPR: Only identify and track if user has consented
+      if (posthog.has_opted_in_capturing?.()) {
+        posthog.identify(data.user.id, {
+          email: data.user.email,
+          signup_date: new Date().toISOString(),
+          user_type: 'authenticated',
+          is_anonymous: false,
+        })
 
-      posthog.capture('user_signed_up', {
-        email: data.user.email,
-        provider: 'email',
-      })
+        posthog.capture('user_signed_up', {
+          provider: 'email',
+          // Note: email removed from event properties for privacy
+        })
+      }
     }
 
     router.push('/auth/verify-email')
