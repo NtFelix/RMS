@@ -59,9 +59,9 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Aufgaben</p>
             </div>
             <div className="mt-1">
-              <ButtonWithTooltip className="sm:w-auto" onClick={handleAddTask}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Aufgabe hinzufügen
+              <ButtonWithTooltip className="w-10 px-0 sm:w-auto sm:px-4" onClick={handleAddTask}>
+                <PlusCircle className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Aufgabe hinzufügen</span>
               </ButtonWithTooltip>
             </div>
           </div>

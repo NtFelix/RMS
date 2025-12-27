@@ -586,9 +586,9 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
             </div>
             <div className="mt-1">
-              <ButtonWithTooltip onClick={handleAddTransaction} className="sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Transaktion hinzufügen
+              <ButtonWithTooltip onClick={handleAddTransaction} className="w-10 px-0 sm:w-auto sm:px-4">
+                <PlusCircle className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Transaktion hinzufügen</span>
               </ButtonWithTooltip>
             </div>
           </div>

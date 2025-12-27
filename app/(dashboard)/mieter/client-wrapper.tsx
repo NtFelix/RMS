@@ -36,10 +36,10 @@ function AddTenantButton({ onAdd }: { onAdd: () => void }) {
         useOnboardingStore.getState().completeStep('assign-tenant-start');
         onAdd();
       }}
-      className="sm:w-auto"
+      className="w-10 px-0 sm:w-auto sm:px-4"
     >
-      <PlusCircle className="mr-2 h-4 w-4" />
-      Mieter hinzufügen
+      <PlusCircle className="h-4 w-4 sm:mr-2" />
+      <span className="hidden sm:inline">Mieter hinzufügen</span>
     </ButtonWithTooltip>
   );
 }
@@ -269,7 +269,7 @@ export default function MieterClientView({
         <CardContent className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 mt-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                 {[
                   { value: "current" as const, label: "Aktuelle Mieter" },
                   { value: "previous" as const, label: "Vorherige Mieter" },
