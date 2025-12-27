@@ -271,6 +271,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                   >
                     <Download className="h-4 w-4" />
                     <span className="hidden sm:inline">Exportieren</span>
+                    <span className="sm:hidden">Export</span>
                   </Button>
                   <Button
                     variant="outline"
