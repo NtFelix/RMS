@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
+import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
+import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { PlusCircle, Building, Home, Key, X, Download, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -195,18 +196,17 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
               <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Häuser</p>
             </div>
             <div className="mt-0 sm:mt-1">
-              <ButtonWithTooltip
+              <ResponsiveButtonWithTooltip
                 id="create-object-btn"
                 onClick={() => {
                   useOnboardingStore.getState().completeStep('create-house-start');
                   handleAdd();
                 }}
-                className="w-full sm:w-auto"
+                icon={<PlusCircle className="h-4 w-4" />}
+                shortText="Hinzufügen"
               >
-                <PlusCircle className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Haus hinzufügen</span>
-                <span className="sm:hidden">Hinzufügen</span>
-              </ButtonWithTooltip>
+                Haus hinzufügen
+              </ResponsiveButtonWithTooltip>
             </div>
           </div>
         </CardHeader>
@@ -218,19 +218,17 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {[
-                  { value: "all", label: "Alle", fullLabel: "Alle Häuser" },
-                  { value: "full", label: "Belegt", fullLabel: "Voll belegt" },
-                  { value: "vacant", label: "Frei", fullLabel: "Mit freien Wohnungen" },
-                ].map(({ value, label, fullLabel }) => (
-                  <Button
+                  { value: "all", shortLabel: "Alle", fullLabel: "Alle Häuser" },
+                  { value: "full", shortLabel: "Belegt", fullLabel: "Voll belegt" },
+                  { value: "vacant", shortLabel: "Frei", fullLabel: "Mit freien Wohnungen" },
+                ].map(({ value, shortLabel, fullLabel }) => (
+                  <ResponsiveFilterButton
                     key={value}
-                    variant={filter === value ? "default" : "ghost"}
+                    shortLabel={shortLabel}
+                    fullLabel={fullLabel}
+                    isActive={filter === value}
                     onClick={() => setFilter(value)}
-                    className="h-9 rounded-full justify-start sm:justify-center"
-                  >
-                    <span className="sm:hidden">{label}</span>
-                    <span className="hidden sm:inline">{fullLabel}</span>
-                  </Button>
+                  />
                 ))}
               </div>
               <SearchInput

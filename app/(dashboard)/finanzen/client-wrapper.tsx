@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/common/stat-card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
+import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { CustomCombobox } from "@/components/ui/custom-combobox";
 
 import { PAGINATION } from "@/constants";
@@ -586,11 +586,9 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
               <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
             </div>
             <div className="mt-0 sm:mt-1">
-              <ButtonWithTooltip onClick={handleAddTransaction} className="w-full sm:w-auto">
-                <PlusCircle className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Transaktion hinzufügen</span>
-                <span className="sm:hidden">Hinzufügen</span>
-              </ButtonWithTooltip>
+              <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="h-4 w-4" />} shortText="Hinzufügen">
+                Transaktion hinzufügen
+              </ResponsiveButtonWithTooltip>
             </div>
           </div>
         </CardHeader>
@@ -600,8 +598,8 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         <CardContent className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 mt-4 sm:mt-6">
             {/* Filter Controls */}
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full md:flex-1">
                 <CustomCombobox
                   options={apartmentOptions}
                   value={filters.selectedApartment}
@@ -635,18 +633,16 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
                 />
                 <SearchInput
                   placeholder="Transaktion suchen..."
-                  wrapperClassName="col-span-1 sm:col-span-2"
+                  wrapperClassName="col-span-1 sm:col-span-2 md:col-span-1"
                   value={filters.searchQuery}
                   onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
                   onClear={() => handleFilterChange('searchQuery', '')}
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
-                <ButtonWithTooltip variant="outline" onClick={handleExportCsv} className="w-full sm:w-auto">
-                  <Download className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Als CSV exportieren</span>
-                  <span className="sm:hidden">Exportieren</span>
-                </ButtonWithTooltip>
+              <div className="flex items-center gap-2 md:flex-shrink-0">
+                <ResponsiveButtonWithTooltip variant="outline" onClick={handleExportCsv} icon={<Download className="h-4 w-4" />} shortText="Exportieren">
+                  Als CSV exportieren
+                </ResponsiveButtonWithTooltip>
               </div>
             </div>
 

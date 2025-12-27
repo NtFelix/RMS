@@ -2,13 +2,13 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
+import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
+import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle, Users, BadgeCheck, Euro, Search } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
 import { TenantTable } from "@/components/tables/tenant-table";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { deleteTenantAction } from "@/app/mieter-actions";
@@ -30,18 +30,17 @@ interface MieterClientViewProps {
 // Internal AddTenantButton (could be kept from previous step if preferred)
 function AddTenantButton({ onAdd }: { onAdd: () => void }) {
   return (
-    <ButtonWithTooltip
+    <ResponsiveButtonWithTooltip
       id="add-tenant-btn"
       onClick={() => {
         useOnboardingStore.getState().completeStep('assign-tenant-start');
         onAdd();
       }}
-      className="w-full sm:w-auto"
+      icon={<PlusCircle className="h-4 w-4" />}
+      shortText="Hinzufügen"
     >
-      <PlusCircle className="h-4 w-4 sm:mr-2" />
-      <span className="hidden sm:inline">Mieter hinzufügen</span>
-      <span className="sm:hidden">Hinzufügen</span>
-    </ButtonWithTooltip>
+      Mieter hinzufügen
+    </ResponsiveButtonWithTooltip>
   );
 }
 
@@ -272,19 +271,17 @@ export default function MieterClientView({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {[
-                  { value: "current" as const, label: "Aktuelle", fullLabel: "Aktuelle Mieter" },
-                  { value: "previous" as const, label: "Vorherige", fullLabel: "Vorherige Mieter" },
-                  { value: "all" as const, label: "Alle", fullLabel: "Alle Mieter" },
-                ].map(({ value, label, fullLabel }) => (
-                  <Button
+                  { value: "current" as const, shortLabel: "Aktuelle", fullLabel: "Aktuelle Mieter" },
+                  { value: "previous" as const, shortLabel: "Vorherige", fullLabel: "Vorherige Mieter" },
+                  { value: "all" as const, shortLabel: "Alle", fullLabel: "Alle Mieter" },
+                ].map(({ value, shortLabel, fullLabel }) => (
+                  <ResponsiveFilterButton
                     key={value}
-                    variant={filter === value ? "default" : "ghost"}
+                    shortLabel={shortLabel}
+                    fullLabel={fullLabel}
+                    isActive={filter === value}
                     onClick={() => setFilter(value)}
-                    className="h-9 rounded-full justify-start sm:justify-center"
-                  >
-                    <span className="sm:hidden">{label}</span>
-                    <span className="hidden sm:inline">{fullLabel}</span>
-                  </Button>
+                  />
                 ))}
               </div>
               <SearchInput

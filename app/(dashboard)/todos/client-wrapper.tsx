@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
+import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { SearchInput } from "@/components/ui/search-input";
 import { PlusCircle } from "lucide-react";
 import { TaskBoard } from "@/components/tasks/task-board";
@@ -59,11 +59,9 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
               <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Aufgaben</p>
             </div>
             <div className="mt-0 sm:mt-1">
-              <ButtonWithTooltip className="w-full sm:w-auto" onClick={handleAddTask}>
-                <PlusCircle className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Aufgabe hinzufügen</span>
-                <span className="sm:hidden">Hinzufügen</span>
-              </ButtonWithTooltip>
+              <ResponsiveButtonWithTooltip onClick={handleAddTask} icon={<PlusCircle className="h-4 w-4" />} shortText="Hinzufügen">
+                Aufgabe hinzufügen
+              </ResponsiveButtonWithTooltip>
             </div>
           </div>
         </CardHeader>
