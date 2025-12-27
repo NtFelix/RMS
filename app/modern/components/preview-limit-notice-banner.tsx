@@ -1,20 +1,37 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { Gift, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { POSTHOG_FEATURE_FLAGS, ROUTES } from '@/lib/constants';
 
+interface PreviewLimitNoticeBannerProps {
+    /**
+     * Callback when user clicks "Get Started" and is signed in without active subscription.
+     * This should trigger the free plan checkout flow.
+     */
+    onGetStarted?: () => void;
+    /**
+     * Whether the user is currently signed in.
+     */
+    isSignedIn?: boolean;
+}
+
 /**
  * Banner component that displays a preview phase notice.
  * Shows when the 'pricing-page-preview-limit-notice' feature flag is enabled.
  * Informs users that the free plan includes up to 25 apartments during the preview phase.
+ * 
+ * When clicked:
+ * - If user is signed in: calls onGetStarted to trigger free plan checkout
+ * - If user is not signed in: redirects to register page
  */
-export function PreviewLimitNoticeBanner() {
+export function PreviewLimitNoticeBanner({ onGetStarted, isSignedIn = false }: PreviewLimitNoticeBannerProps) {
     const [isMounted, setIsMounted] = useState(false);
     const showPreviewLimitNotice = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.PRICING_PAGE_PREVIEW_LIMIT_NOTICE);
+    const router = useRouter();
 
     useEffect(() => {
         setIsMounted(true);
@@ -24,6 +41,16 @@ export function PreviewLimitNoticeBanner() {
     if (!isMounted || !showPreviewLimitNotice) {
         return null;
     }
+
+    const handleClick = () => {
+        if (isSignedIn) {
+            // For signed-in users, trigger checkout if available.
+            onGetStarted?.();
+        } else {
+            // For guests, redirect to register.
+            router.push(ROUTES.REGISTER);
+        }
+    };
 
     return (
         <div className="mb-12 max-w-3xl mx-auto">
@@ -49,11 +76,9 @@ export function PreviewLimitNoticeBanner() {
                         </div>
                     </div>
                     <div className="pt-2">
-                        <Button asChild className="w-full rounded-2xl">
-                            <Link href={ROUTES.REGISTER}>
-                                Jetzt starten
-                                <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />
-                            </Link>
+                        <Button onClick={handleClick} className="w-full rounded-2xl">
+                            Jetzt starten
+                            <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />
                         </Button>
                     </div>
                 </div>
