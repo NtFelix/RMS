@@ -167,7 +167,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
-      <div className="flex flex-wrap gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-wrap">
         <StatCard
           title="Häuser gesamt"
           value={summary.totalHouses}

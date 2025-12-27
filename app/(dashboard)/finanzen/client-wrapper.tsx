@@ -473,7 +473,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       />
       
       {/* Summary Cards for Current Year */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {isSummaryLoading && hasInitialData ? (
           <>
             <SummaryCardSkeleton 
