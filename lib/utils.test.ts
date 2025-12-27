@@ -1,4 +1,4 @@
-import { cn, calculateOverallSubscriptionActivity } from '../utils';
+import { cn, calculateOverallSubscriptionActivity } from './utils';
 
 describe('lib/utils', () => {
   describe('cn function', () => {

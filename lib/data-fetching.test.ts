@@ -1,13 +1,15 @@
 // lib/data-fetching.test.ts
-import { getCurrentWohnungenCount, fetchUserProfile } from '../data-fetching';
-import { createSupabaseServerClient } from '../supabase-server';
+// import { getCurrentWohnungenCount, fetchUserProfile } from '../data-fetching';
+import { createSupabaseServerClient } from './supabase-server';
 
-jest.mock('../supabase-server', () => ({
+jest.mock('./supabase-server', () => ({
   createSupabaseServerClient: jest.fn(),
 }));
 
 // Tests for fetchNebenkostenList and getHausGesamtFlaeche removed - functions replaced by optimized versions
 // fetchNebenkostenListOptimized in betriebskosten-actions.ts uses get_nebenkosten_with_metrics database function
+
+import { getCurrentWohnungenCount, fetchUserProfile } from './data-fetching';
 
 describe('getCurrentWohnungenCount', () => {
   const mockSupabaseClient = {

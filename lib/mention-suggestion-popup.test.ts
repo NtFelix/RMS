@@ -4,7 +4,7 @@ import {
   getMobileConfig, 
   getDesktopConfig,
   injectMentionSuggestionTheme 
-} from '../mention-suggestion-popup';
+} from './mention-suggestion-popup';
 
 // Mock window properties
 const mockWindow = (width: number, height: number, hasTouch = false) => {
