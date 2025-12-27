@@ -320,14 +320,14 @@ export default function WohnungenClientView({
   }, [handleEditWohnung]);
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
       <div
         className="absolute inset-0 z-[-1]"
         style={{
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
         <StatCard
           title="Wohnungen gesamt"
           value={summary.total}
@@ -360,25 +360,26 @@ export default function WohnungenClientView({
 
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-start justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Wohnungsverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Wohnungen</p>
+              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Wohnungen</p>
             </div>
-            <div className="mt-1">
+            <div className="mt-0 sm:mt-1">
               <ButtonWithHoverCard
                 id="create-unit-btn"
                 onClick={() => {
                   useOnboardingStore.getState().completeStep('create-apartment-start');
                   handleAddWohnung();
                 }}
-                className="sm:w-auto"
+                className="w-full sm:w-auto"
                 disabled={isAddButtonDisabled}
                 tooltip={buttonTooltipMessage}
                 showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}
               >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Wohnung hinzufügen
+                <PlusCircle className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Wohnung hinzufügen</span>
+                <span className="sm:hidden">Hinzufügen</span>
               </ButtonWithHoverCard>
             </div>
           </div>
@@ -387,26 +388,27 @@ export default function WohnungenClientView({
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {[
-                  { value: "all", label: "Alle Wohnungen" },
-                  { value: "free", label: "Freie Wohnungen" },
-                  { value: "rented", label: "Vermietete Wohnungen" },
-                ].map(({ value, label }) => (
+                  { value: "all", label: "Alle", fullLabel: "Alle Wohnungen" },
+                  { value: "free", label: "Frei", fullLabel: "Freie Wohnungen" },
+                  { value: "rented", label: "Vermietet", fullLabel: "Vermietete Wohnungen" },
+                ].map(({ value, label, fullLabel }) => (
                   <Button
                     key={value}
                     variant={filter === value ? "default" : "ghost"}
                     onClick={() => setFilter(value)}
-                    className="h-9 rounded-full"
+                    className="h-9 rounded-full justify-start sm:justify-center"
                   >
-                    {label}
+                    <span className="sm:hidden">{label}</span>
+                    <span className="hidden sm:inline">{fullLabel}</span>
                   </Button>
                 ))}
               </div>
               <SearchInput
-                placeholder="Wohnungen suchen..."
+                placeholder="Suchen..."
                 className="rounded-full"
                 mode="table"
                 value={searchQuery}
@@ -415,7 +417,7 @@ export default function WohnungenClientView({
               />
             </div>
             {selectedApartments.size > 0 && (
-              <div className="p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+              <div className="p-3 sm:p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between animate-in slide-in-from-top-2 duration-200">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -424,7 +426,7 @@ export default function WohnungenClientView({
                       className="data-[state=checked]:bg-primary"
                     />
                     <span className="font-medium text-sm">
-                      {selectedApartments.size} {selectedApartments.size === 1 ? 'Wohnung' : 'Wohnungen'} ausgewählt
+                      {selectedApartments.size} <span className="hidden sm:inline">{selectedApartments.size === 1 ? 'Wohnung' : 'Wohnungen'}</span> ausgewählt
                     </span>
                   </div>
                   <Button
@@ -436,41 +438,43 @@ export default function WohnungenClientView({
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setIsAssignDialogOpen(true)}
-                    className="h-8 gap-2"
+                    className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                   >
                     <Building2 className="h-4 w-4" />
-                    Haus zuweisen
+                    <span className="hidden sm:inline">Haus zuweisen</span>
+                    <span className="sm:hidden">Zuweisen</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleBulkExport}
-                    className="h-8 gap-2"
+                    className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                   >
                     <Download className="h-4 w-4" />
-                    Exportieren
+                    <span className="hidden sm:inline">Exportieren</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowBulkDeleteConfirm(true)}
                     disabled={isBulkDeleting}
-                    className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                    className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                   >
                     {isBulkDeleting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Wird gelöscht...
+                        <span className="hidden sm:inline">Löschen...</span>
                       </>
                     ) : (
                       <>
                         <Trash2 className="h-4 w-4" />
-                        Löschen ({selectedApartments.size})
+                        <span className="hidden sm:inline">Löschen ({selectedApartments.size})</span>
+                        <span className="sm:hidden">{selectedApartments.size}</span>
                       </>
                     )}
                   </Button>

@@ -36,10 +36,11 @@ function AddTenantButton({ onAdd }: { onAdd: () => void }) {
         useOnboardingStore.getState().completeStep('assign-tenant-start');
         onAdd();
       }}
-      className="sm:w-auto"
+      className="w-full sm:w-auto"
     >
-      <PlusCircle className="mr-2 h-4 w-4" />
-      Mieter hinzufügen
+      <PlusCircle className="h-4 w-4 sm:mr-2" />
+      <span className="hidden sm:inline">Mieter hinzufügen</span>
+      <span className="sm:hidden">Hinzufügen</span>
     </ButtonWithTooltip>
   );
 }
@@ -228,8 +229,8 @@ export default function MieterClientView({
   }, [selectedTenants, router]);
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
-      <div className="flex flex-wrap gap-4">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
         <StatCard
           title="Mieter gesamt"
           value={summary.total}
@@ -253,12 +254,12 @@ export default function MieterClientView({
       </div>
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-start justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Mieterverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Mieter</p>
+              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Mieter</p>
             </div>
-            <div className="mt-1">
+            <div className="mt-0 sm:mt-1">
               <AddTenantButton onAdd={handleAddTenant} />
             </div>
           </div>
@@ -267,26 +268,27 @@ export default function MieterClientView({
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {[
-                  { value: "current" as const, label: "Aktuelle Mieter" },
-                  { value: "previous" as const, label: "Vorherige Mieter" },
-                  { value: "all" as const, label: "Alle Mieter" },
-                ].map(({ value, label }) => (
+                  { value: "current" as const, label: "Aktuelle", fullLabel: "Aktuelle Mieter" },
+                  { value: "previous" as const, label: "Vorherige", fullLabel: "Vorherige Mieter" },
+                  { value: "all" as const, label: "Alle", fullLabel: "Alle Mieter" },
+                ].map(({ value, label, fullLabel }) => (
                   <Button
                     key={value}
                     variant={filter === value ? "default" : "ghost"}
                     onClick={() => setFilter(value)}
-                    className="h-9 rounded-full"
+                    className="h-9 rounded-full justify-start sm:justify-center"
                   >
-                    {label}
+                    <span className="sm:hidden">{label}</span>
+                    <span className="hidden sm:inline">{fullLabel}</span>
                   </Button>
                 ))}
               </div>
               <SearchInput
-                placeholder="Mieter suchen..."
+                placeholder="Suchen..."
                 className="rounded-full"
                 mode="table"
                 value={searchQuery}
