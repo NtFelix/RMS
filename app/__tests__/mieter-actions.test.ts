@@ -173,30 +173,8 @@ describe('mieter-actions', () => {
     });
 
     it('fetches tenants successfully', async () => {
-      // Step 1: Mock fetching apartments
-      mockSupabase.select.mockReturnThis(); // For both queries
+      mockSupabase.select.mockReturnThis();
 
-      // We need to differentiate the two select calls.
-      // Call 1: Fetch Wohnungen
-      // Call 2: Fetch Mieter
-
-      // Since jest mockReturnThis returns the same mock object, we control behavior via the chain end.
-      // But here the chain structure is different.
-      // Query 1: from('Wohnungen').select('id').eq(...)
-      // Query 2: from('Mieter').select(...).in(...)
-
-      // We can use mockImplementation to return specific promise for specific calls if needed,
-      // but simpler is to mock the resolution of the chain.
-
-      // Mocking the chain resolution is tricky because we reuse the same mock object.
-      // A better approach for sequential calls is mockResolvedValueOnce on the final method.
-
-      // Call 1: Fetch Wohnungen (eq is the last call before await in code logic, but wait... Supabase awaits the builder)
-      // Actually Supabase returns a Thenable.
-      // Our mock setup `eq: jest.fn().mockReturnThis()` implies we await the builder.
-      // We can add a `then` method to the mock object or use `mockResolvedValue` if the code awaits the chain result.
-
-      // Let's refine the mock structure for this test
       const mockChain = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -277,7 +255,7 @@ describe('mieter-actions', () => {
     });
 
     it('returns undefined if no apartment linked', async () => {
-       mockSupabase.single.mockResolvedValue({
+      mockSupabase.single.mockResolvedValue({
         data: { wohnung_id: null, Wohnungen: [] },
         error: null
       });
