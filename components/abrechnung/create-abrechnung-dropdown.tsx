@@ -35,12 +35,14 @@ export function CreateAbrechnungDropdown({
         <ButtonWithTooltip
           id="create-utility-bill-btn"
           onClick={() => useOnboardingStore.getState().completeStep('create-bill-start')}
-          className={className}
+          className={`${className} w-10 h-10 p-0 sm:w-auto sm:h-auto sm:px-4 sm:py-2`}
           variant={buttonVariant}
         >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          {buttonText}
-          <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+          <PlusCircle className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline-flex items-center gap-2">
+            {buttonText}
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </span>
         </ButtonWithTooltip>
       </DropdownMenuTrigger>
       <DropdownMenuContent id="utility-bill-dropdown-content" align={align} className="w-[280px]">

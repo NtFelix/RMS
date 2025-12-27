@@ -201,10 +201,10 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                   useOnboardingStore.getState().completeStep('create-house-start');
                   handleAdd();
                 }}
-                className="sm:w-auto"
+                className="w-10 h-10 p-0 sm:w-auto sm:h-auto sm:px-4 sm:py-2"
               >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Haus hinzufügen
+                <PlusCircle className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Haus hinzufügen</span>
               </ButtonWithTooltip>
             </div>
           </div>
@@ -215,7 +215,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
         <CardContent className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 mt-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                 {[
                   { value: "all", label: "Alle Häuser" },
                   { value: "full", label: "Voll belegt" },
