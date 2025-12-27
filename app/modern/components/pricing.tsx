@@ -376,6 +376,21 @@ export default function Pricing({
     return sortedGroups;
   }, [allPlans]);
 
+  // Find the free plan (position 0) for the PreviewLimitNoticeBanner
+  const freePlan = useMemo(() => {
+    const freePlanGroup = groupedPlans.find(group => group.position === 0);
+    if (!freePlanGroup) return null;
+    // Prefer monthly, but fall back to annually if not available
+    return freePlanGroup.monthly ?? freePlanGroup.annually;
+  }, [groupedPlans]);
+
+  // Handler for the PreviewLimitNoticeBanner "Get Started" button
+  const handleFreePlanGetStarted = () => {
+    if (freePlan) {
+      onSelectPlan(freePlan.priceId);
+    }
+  };
+
   // Determine trial eligibility and button text/state based on userProfile
   const isTrialEligible = useMemo(() => {
     if (!userProfile) return true; // Logged out users see trial message
@@ -550,7 +565,10 @@ export default function Pricing({
             </p>
           </div>
 
-          <PreviewLimitNoticeBanner />
+          <PreviewLimitNoticeBanner
+            onGetStarted={handleFreePlanGetStarted}
+            isSignedIn={!!userProfile}
+          />
 
           <div className="flex justify-center mb-12">
             <div className="inline-flex items-center rounded-full bg-muted p-1">
