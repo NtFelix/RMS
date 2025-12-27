@@ -229,7 +229,7 @@ export default function MieterClientView({
 
   return (
     <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
-      <div className="flex flex-wrap gap-4">
+      <div className="flex overflow-x-auto pb-4 gap-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:flex-wrap sm:overflow-visible">
         <StatCard
           title="Mieter gesamt"
           value={summary.total}
