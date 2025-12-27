@@ -5,7 +5,7 @@ import {
   searchMentionVariables,
   EnhancedMentionVariable,
   FilterOptions
-} from '../lib/mention-utils';
+} from '../../lib/mention-utils';
 import { MentionVariable } from '../lib/template-constants';
 
 // Test data

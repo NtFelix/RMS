@@ -7,7 +7,7 @@ import {
   validateDateRange,
   getDefaultDateRange,
   formatPeriodDuration,
-} from '../../utils/date-calculations';
+} from './date-calculations';
 
 describe('Date Calculations Utilities', () => {
   describe('germanToIsoDate', () => {

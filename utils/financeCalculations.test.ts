@@ -1,114 +1,184 @@
 import {
-  calculateFinancialSummary,
   processRpcFinancialSummary,
+  calculateFinancialSummary,
+  fetchAvailableFinanceYears,
   MonthlyData,
-  FinanceTransaction,
   FinancialSummary,
-} from '../../utils/financeCalculations';
+  FinanceTransaction,
+} from './financeCalculations';
 
 describe('Finance Calculations', () => {
   describe('calculateFinancialSummary', () => {
     it('calculates summary correctly for empty transactions', () => {
-      const year = 2024;
-      const transactions: FinanceTransaction[] = [];
-      const result = calculateFinancialSummary(transactions, year);
-
+      const result = calculateFinancialSummary([], 2024);
       expect(result.totalIncome).toBe(0);
       expect(result.totalExpenses).toBe(0);
       expect(result.totalCashflow).toBe(0);
-      expect(result.year).toBe(year);
     });
 
-    it('aggregates income and expenses correctly', () => {
-      const year = 2024;
+    it('calculates summary correctly for mixed transactions', () => {
       const transactions: FinanceTransaction[] = [
         { betrag: 1000, ist_einnahmen: true, datum: '2024-01-15' },
         { betrag: 500, ist_einnahmen: false, datum: '2024-01-20' },
-        { betrag: 200, ist_einnahmen: true, datum: '2024-02-10' },
+        { betrag: 2000, ist_einnahmen: true, datum: '2024-02-15' },
       ];
 
-      // Fix the currentDate to ensure monthsPassed calculation is consistent
-      const currentDate = new Date('2024-06-30');
-      const result = calculateFinancialSummary(transactions, year, currentDate);
-
-      // Total
-      expect(result.totalIncome).toBe(1200);
+      const result = calculateFinancialSummary(transactions, 2024, new Date('2024-12-31'));
+      expect(result.totalIncome).toBe(3000);
       expect(result.totalExpenses).toBe(500);
-      expect(result.totalCashflow).toBe(700);
-
-      // Monthly breakdown
-      expect(result.monthlyData[0].income).toBe(1000); // January (0)
+      expect(result.totalCashflow).toBe(2500);
+      expect(result.monthlyData[0].income).toBe(1000);
       expect(result.monthlyData[0].expenses).toBe(500);
-      expect(result.monthlyData[0].cashflow).toBe(500);
-
-      expect(result.monthlyData[1].income).toBe(200); // February (1)
-      expect(result.monthlyData[1].expenses).toBe(0);
-
-      // Averages (6 months passed: Jan-Jun)
-      // Income: (1000 + 200) / 6 = 200
-      expect(result.averageMonthlyIncome).toBe(1200 / 6);
-
-      // Expenses: 500 / 6
-      expect(result.averageMonthlyExpenses).toBe(500 / 6);
+      expect(result.monthlyData[1].income).toBe(2000);
     });
 
-    it('calculates averages based on full year for past years', () => {
-      const year = 2023;
-      const transactions: FinanceTransaction[] = [
-        { betrag: 1200, ist_einnahmen: true, datum: '2023-01-01' },
-      ];
-
-      const currentDate = new Date('2024-06-30');
-      const result = calculateFinancialSummary(transactions, year, currentDate);
-
+    it('handles different years correctly (past year)', () => {
+      // For a past year, monthsPassed should be 12
+      const result = calculateFinancialSummary([], 2023, new Date('2024-01-01'));
       expect(result.monthsPassed).toBe(12);
-      expect(result.averageMonthlyIncome).toBe(100); // 1200 / 12
+    });
+
+    it('handles current year correctly', () => {
+      // If today is March 1st 2024, and year is 2024, passed months is 3 (Jan, Feb, Mar)
+      const mockDate = new Date('2024-03-01');
+      const result = calculateFinancialSummary([], 2024, mockDate);
+      expect(result.monthsPassed).toBe(3);
+    });
+
+    it('calculates averages based on passed months', () => {
+      // 2 months passed, total income 2000 -> avg 1000
+      const transactions: FinanceTransaction[] = [
+        { betrag: 1000, ist_einnahmen: true, datum: '2024-01-15' },
+        { betrag: 1000, ist_einnahmen: true, datum: '2024-02-15' },
+      ];
+      const mockDate = new Date('2024-02-28'); // 2 months passed
+      const result = calculateFinancialSummary(transactions, 2024, mockDate);
+
+      expect(result.monthsPassed).toBe(2);
+      expect(result.averageMonthlyIncome).toBe(1000);
+      expect(result.yearlyProjection).toBe(1000 * 12); // Projected
     });
 
     it('ignores transactions without datum', () => {
-       const year = 2024;
        const transactions: any[] = [
-           { betrag: 100, ist_einnahmen: true, datum: null }
-       ];
-       const result = calculateFinancialSummary(transactions, year);
-       expect(result.totalIncome).toBe(0);
+        { betrag: 1000, ist_einnahmen: true, datum: null },
+      ];
+      const result = calculateFinancialSummary(transactions, 2024);
+      expect(result.totalIncome).toBe(0);
     });
   });
 
   describe('processRpcFinancialSummary', () => {
-    it('processes RPC response correctly', () => {
-      const year = 2024;
-      const rpcData = {
-        total_income: 12000,
-        total_expenses: 6000,
-        total_cashflow: 6000,
+    it('converts RPC response correctly', () => {
+      const mockRpcResponse = {
+        total_income: 5000,
+        total_expenses: 2000,
+        total_cashflow: 3000,
         monthly_data: {
-          '0': { income: 1000, expenses: 500, cashflow: 500 },
-          '1': { income: 1000, expenses: 500, cashflow: 500 },
+          '0': { income: 1000, expenses: 500, cashflow: 500 }, // Jan
+          '1': { income: 4000, expenses: 1500, cashflow: 2500 } // Feb
         }
       };
 
-      const result = processRpcFinancialSummary(rpcData, year);
+      const result = processRpcFinancialSummary(mockRpcResponse, 2024);
 
-      expect(result.year).toBe(year);
-      expect(result.totalIncome).toBe(12000);
-      expect(result.totalExpenses).toBe(6000);
+      expect(result.year).toBe(2024);
+      expect(result.totalIncome).toBe(5000);
+      expect(result.totalExpenses).toBe(2000);
       expect(result.monthlyData[0].income).toBe(1000);
-      expect(result.monthlyData[0].expenses).toBe(500);
+      expect(result.monthlyData[1].income).toBe(4000);
+      expect(result.monthlyData[2].income).toBe(0); // March empty
     });
 
-    it('handles missing monthly data gracefully', () => {
-      const year = 2024;
-      const rpcData = {
-        total_income: 0,
-        total_expenses: 0,
-        total_cashflow: 0,
-        monthly_data: null
-      };
-
-      const result = processRpcFinancialSummary(rpcData, year);
+    it('handles missing monthly_data safely', () => {
+      const result = processRpcFinancialSummary({}, 2024);
       expect(result.monthlyData[0]).toBeDefined();
       expect(result.monthlyData[0].income).toBe(0);
+    });
+  });
+
+  describe('fetchAvailableFinanceYears', () => {
+    let mockSupabase: any;
+
+    beforeEach(() => {
+        mockSupabase = {
+            rpc: jest.fn(),
+            from: jest.fn()
+        };
+    });
+
+    it('uses RPC function if successful', async () => {
+        mockSupabase.rpc.mockResolvedValue({
+            data: [{ year: 2024 }, { year: 2023 }],
+            error: null
+        });
+
+        const years = await fetchAvailableFinanceYears(mockSupabase);
+        expect(years).toEqual([2024, 2023]);
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('get_available_finance_years');
+    });
+
+    it('falls back to pagination if RPC fails', async () => {
+        mockSupabase.rpc.mockResolvedValue({ data: null, error: 'RPC Error' });
+
+        const mockSelect = jest.fn().mockReturnThis();
+        const mockNot = jest.fn().mockReturnThis();
+        const mockRange = jest.fn()
+            .mockResolvedValueOnce({
+                data: [{ datum: '2024-01-01' }, { datum: '2023-05-12' }],
+                error: null
+            })
+            .mockResolvedValueOnce({
+                data: [], // End of pagination
+                error: null
+            });
+
+        mockSupabase.from.mockReturnValue({
+            select: mockSelect,
+        });
+        mockSelect.mockReturnValue({ not: mockNot });
+        mockNot.mockReturnValue({ range: mockRange });
+
+        const years = await fetchAvailableFinanceYears(mockSupabase);
+
+        // Should contain current year (mocked by Date) + extracted years
+        const currentYear = new Date().getFullYear();
+        expect(years).toContain(currentYear);
+        expect(years).toContain(2024);
+        expect(years).toContain(2023);
+    });
+
+    it('handles pagination errors gracefully', async () => {
+         mockSupabase.rpc.mockResolvedValue({ data: null, error: 'RPC Error' });
+
+         const mockSelect = jest.fn().mockReturnThis();
+         const mockNot = jest.fn().mockReturnThis();
+         const mockRange = jest.fn().mockResolvedValue({ data: null, error: 'DB Error' });
+
+         mockSupabase.from.mockReturnValue({ select: mockSelect });
+         mockSelect.mockReturnValue({ not: mockNot });
+         mockNot.mockReturnValue({ range: mockRange });
+
+         await expect(fetchAvailableFinanceYears(mockSupabase)).rejects.toEqual('DB Error');
+    });
+
+    it('handles invalid dates gracefully in fallback', async () => {
+        mockSupabase.rpc.mockResolvedValue({ data: null, error: 'RPC Error' });
+
+        const mockSelect = jest.fn().mockReturnThis();
+        const mockNot = jest.fn().mockReturnThis();
+        const mockRange = jest.fn().mockResolvedValue({
+            data: [{ datum: 'invalid-date' }],
+            error: null
+        });
+
+        mockSupabase.from.mockReturnValue({ select: mockSelect });
+        mockSelect.mockReturnValue({ not: mockNot });
+        mockNot.mockReturnValue({ range: mockRange });
+
+        // Shouldn't crash
+        const years = await fetchAvailableFinanceYears(mockSupabase);
+        expect(years).toBeDefined();
     });
   });
 });

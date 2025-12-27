@@ -5,8 +5,8 @@
 // Mock Stripe before importing
 jest.mock('stripe');
 
-import { getPlanDetails } from '../stripe-server';
-import { STRIPE_API_VERSION } from '../constants/stripe';
+import { getPlanDetails } from './stripe-server';
+import { STRIPE_API_VERSION } from './constants/stripe';
 import Stripe from 'stripe';
 
 const mockStripe = Stripe as jest.MockedClass<typeof Stripe>;

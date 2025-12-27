@@ -12,7 +12,7 @@ jest.mock('next/headers', () => ({
   cookies: jest.fn(),
 }));
 
-import { createSupabaseServerClient } from '../supabase-server';
+import { createSupabaseServerClient } from './supabase-server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 

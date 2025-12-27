@@ -5,11 +5,11 @@ import {
   calculateProWohnungDistribution,
   calculateNachRechnungDistribution,
   calculateWaterCostDistribution
-} from '../../utils/cost-calculations';
-import { calculateTenantOccupancy } from '../../utils/date-calculations';
+} from './cost-calculations';
+import { calculateTenantOccupancy } from './date-calculations';
 
 // Mock the date calculation to control the output
-jest.mock('../../utils/date-calculations', () => ({
+jest.mock('./date-calculations', () => ({
   calculateTenantOccupancy: jest.fn()
 }));
 

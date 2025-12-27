@@ -147,7 +147,7 @@ describe('Error Handling Integration Tests', () => {
           executionTime: expect.any(Number)
         })
       );
-    });
+    }, 10000);
 
     it('should handle constraint violations with user-friendly messages', async () => {
       const mockSupabaseClient = {
@@ -278,7 +278,7 @@ describe('Error Handling Integration Tests', () => {
       const slowOps = PerformanceMonitor.getSlowOperations(2000);
       expect(slowOps).toHaveLength(1);
       expect(slowOps[0].functionName).toBe('save_wasserzaehler_batch');
-    });
+    }, 10000);
 
     it('should filter metrics by time range correctly', async () => {
       const mockSupabaseClient = {

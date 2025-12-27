@@ -12,7 +12,7 @@ import {
   searchMentionVariables,
   getVariableIcon,
   isValidMentionVariable
-} from '../template-constants';
+} from './template-constants';
 
 describe('Template Constants', () => {
   describe('TEMPLATE_CATEGORIES', () => {
