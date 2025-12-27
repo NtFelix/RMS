@@ -151,20 +151,21 @@
             <li>Zahlungsinformationen verwalten</li>
         </ul>
 
-        <p>Klicken Sie auf den folgenden Link, um sich erneut zu authentifizieren:</p>
+        <p>Bitte geben Sie den folgenden Code ein, um sich erneut zu authentifizieren:</p>
 
-        <div style="text-align: center; margin: 35px 0;">
-            <a href="{{ .ConfirmationURL }}"
-                style="display: block; width: 100%; background-color: var(--primary); color: white; text-decoration: none; padding: 18px 0; border-radius: 20px; font-weight: 600; font-size: 18px;">Identität
-                bestätigen</a>
+        <div
+            style="background-color: #f1f5f9; border: 2px solid #e2e8f0; border-radius: 20px; padding: 30px; margin: 35px 0; text-align: center;">
+            <div
+                style="font-size: 14px; color: #6b7280; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                Ihr Bestätigungscode</div>
+            <div
+                style="font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 32px; font-weight: 800; color: #1e293b; letter-spacing: 0.15em; padding: 15px 25px; background: white; border-radius: 15px; display: inline-block; border: 1px solid #e5e7eb;">
+                {{ .Token }}</div>
         </div>
-
-        <p>Falls der Button nicht funktioniert, können Sie auch diesen Link in Ihren Browser kopieren:</p>
-        <p style="word-break: break-all; color: var(--primary); font-size: 14px;">{{ .ConfirmationURL }}</p>
 
         <div
             style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 12px; padding: 20px; margin: 25px 0;">
-            <strong>Sicherheitshinweis:</strong> Dieser Link ist nur 15 Minuten gültig. Diese Maßnahme dient dem Schutz
+            <strong>Sicherheitshinweis:</strong> Dieser Code ist nur 15 Minuten gültig. Diese Maßnahme dient dem Schutz
             Ihres Kontos und Ihrer Daten.
         </div>
 
