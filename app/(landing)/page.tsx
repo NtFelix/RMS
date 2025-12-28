@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Hero from '@/app/modern/components/hero';
 import FeatureSections from '@/app/modern/components/feature-sections';
+import ProductShowcase from '@/app/modern/components/product-showcase';
 
 import MoreFeatures from '@/app/modern/components/more-features';
 import CTA from '@/app/modern/components/cta';
@@ -352,6 +353,9 @@ function LandingPageContent() {
       <div className="min-h-screen overflow-x-hidden">
         <div id="hero">
           <Hero onGetStarted={handleGetStarted} />
+        </div>
+        <div id="product-showcase">
+          <ProductShowcase />
         </div>
         <div id="features">
           <FeatureSections />
