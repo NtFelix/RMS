@@ -7,24 +7,24 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { useCloudStorageStore } from "@/hooks/use-cloud-storage-store"
 
 export function FileUploadModal() {
-  const { 
-    isUploadModalOpen, 
-    uploadModalTargetPath, 
+  const {
+    isUploadModalOpen,
+    uploadModalTargetPath,
     uploadModalOnComplete,
     uploadModalFiles,
-    closeUploadModal 
+    closeUploadModal
   } = useModalStore()
-  
+
   const { refreshCurrentPath, addToUploadQueue, processUploadQueue } = useCloudStorageStore()
 
   const handleUploadComplete = async () => {
     try {
       // Refresh the current path to show new files
       await refreshCurrentPath()
-      
+
       // Call the provided completion callback
       uploadModalOnComplete?.()
-      
+
       // Don't close the modal immediately - let user see the results
       // The modal will be closed manually or when user starts a new upload
     } catch (error) {
@@ -37,14 +37,14 @@ export function FileUploadModal() {
     if (uploadModalFiles && uploadModalFiles.length > 0 && uploadModalTargetPath && isUploadModalOpen) {
       // Clean up target path to ensure consistency
       const cleanTargetPath = uploadModalTargetPath.replace(/\/+/g, '/').replace(/\/$/, '')
-      
+
       console.log('Auto-adding files to upload queue from modal:', {
         fileCount: uploadModalFiles.length,
         originalTargetPath: uploadModalTargetPath,
         cleanTargetPath,
         files: uploadModalFiles.map(f => f.name)
       })
-      
+
       addToUploadQueue(uploadModalFiles, cleanTargetPath)
       // Start processing uploads automatically with a small delay
       setTimeout(() => {
@@ -75,16 +75,16 @@ export function FileUploadModal() {
 
   return (
     <Dialog open={isUploadModalOpen} onOpenChange={closeUploadModal}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-xl md:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>
-            {uploadModalFiles && uploadModalFiles.length > 0 
+            {uploadModalFiles && uploadModalFiles.length > 0
               ? `${uploadModalFiles.length} Datei${uploadModalFiles.length > 1 ? 'en' : ''} hochladen`
               : 'Dateien hochladen'
             }
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-hidden">
           <FileUploadZone
             targetPath={uploadModalTargetPath}

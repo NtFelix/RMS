@@ -78,7 +78,7 @@ export function HausOverviewModal() {
     if (hausOverviewData?.id) {
       setHausOverviewError(undefined)
       setHausOverviewLoading(true)
-      
+
       try {
         const response = await fetch(`/api/haeuser/${hausOverviewData.id}/overview`)
         if (!response.ok) {
@@ -173,7 +173,7 @@ export function HausOverviewModal() {
 
   return (
     <Dialog open={isHausOverviewModalOpen} onOpenChange={() => closeHausOverviewModal()}>
-      <DialogContent className="max-w-7xl max-h-[90vh] p-0">
+      <DialogContent className="sm:max-w-6xl md:max-w-7xl max-h-[90vh] p-0">
         <DialogHeader>
           <DialogTitle className="sr-only">
             {hausOverviewError ? (
@@ -196,14 +196,14 @@ export function HausOverviewModal() {
         </DialogHeader>
         <div className="p-6">
           {hausOverviewLoading ? (
-            <HausOverviewSkeleton 
-              isSlowLoading={isSlowLoading} 
-              loadingProgress={loadingProgress} 
+            <HausOverviewSkeleton
+              isSlowLoading={isSlowLoading}
+              loadingProgress={loadingProgress}
             />
           ) : hausOverviewError ? (
-            <ErrorState 
-              error={hausOverviewError} 
-              onRetry={handleRetry} 
+            <ErrorState
+              error={hausOverviewError}
+              onRetry={handleRetry}
               loadingStartTime={loadingStartTime}
             />
           ) : hausOverviewData ? (
@@ -285,43 +285,43 @@ export function HausOverviewModal() {
               <div className="w-2/3">
                 {/* Wohnungen Table with scrollable container */}
                 <div className="space-y-3 h-[calc(100vh-300px)] overflow-y-auto pr-2" data-apartment-list>
-                <h4 className="font-medium">Wohnungen</h4>
-                {hausOverviewData.wohnungen.length > 0 ? (
-                  <div className="space-y-2">
-                    {hausOverviewData.wohnungen.map((apartment) => (
-                      <ApartmentTenantRowContextMenu
-                        key={apartment.id}
-                        apartmentId={apartment.id}
-                        tenantId={apartment.currentTenant?.id}
-                        apartmentData={{
-                          id: apartment.id,
-                          name: apartment.name,
-                          groesse: apartment.groesse,
-                          miete: apartment.miete
-                        }}
-                        tenantData={apartment.currentTenant ? {
-                          id: apartment.currentTenant.id,
-                          name: apartment.currentTenant.name,
-                          einzug: apartment.currentTenant.einzug
-                        } : undefined}
-                        onEditApartment={() => handleEditApartment(apartment.id)}
-                        onEditTenant={() => apartment.currentTenant && handleEditTenant(apartment.currentTenant.id)}
-                        onViewDetails={() => handleViewDetails(apartment.id, apartment.currentTenant?.id)}
-                      >
-                        <ApartmentTenantRow
-                          apartment={apartment}
-                          hausName={hausOverviewData.name}
+                  <h4 className="font-medium">Wohnungen</h4>
+                  {hausOverviewData.wohnungen.length > 0 ? (
+                    <div className="space-y-2">
+                      {hausOverviewData.wohnungen.map((apartment) => (
+                        <ApartmentTenantRowContextMenu
+                          key={apartment.id}
+                          apartmentId={apartment.id}
+                          tenantId={apartment.currentTenant?.id}
+                          apartmentData={{
+                            id: apartment.id,
+                            name: apartment.name,
+                            groesse: apartment.groesse,
+                            miete: apartment.miete
+                          }}
+                          tenantData={apartment.currentTenant ? {
+                            id: apartment.currentTenant.id,
+                            name: apartment.currentTenant.name,
+                            einzug: apartment.currentTenant.einzug
+                          } : undefined}
                           onEditApartment={() => handleEditApartment(apartment.id)}
                           onEditTenant={() => apartment.currentTenant && handleEditTenant(apartment.currentTenant.id)}
                           onViewDetails={() => handleViewDetails(apartment.id, apartment.currentTenant?.id)}
-                        />
-                      </ApartmentTenantRowContextMenu>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState />
-                )}
-              </div>
+                        >
+                          <ApartmentTenantRow
+                            apartment={apartment}
+                            hausName={hausOverviewData.name}
+                            onEditApartment={() => handleEditApartment(apartment.id)}
+                            onEditTenant={() => apartment.currentTenant && handleEditTenant(apartment.currentTenant.id)}
+                            onViewDetails={() => handleViewDetails(apartment.id, apartment.currentTenant?.id)}
+                          />
+                        </ApartmentTenantRowContextMenu>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState />
+                  )}
+                </div>
               </div>
             </div>
           ) : null}
@@ -331,12 +331,12 @@ export function HausOverviewModal() {
   )
 }
 
-function HausOverviewSkeleton({ 
-  isSlowLoading, 
-  loadingProgress 
-}: { 
+function HausOverviewSkeleton({
+  isSlowLoading,
+  loadingProgress
+}: {
   isSlowLoading: boolean
-  loadingProgress: number 
+  loadingProgress: number
 }) {
   return (
     <div className="space-y-6">
@@ -372,14 +372,14 @@ function HausOverviewSkeleton({
 
 
 
-function ErrorState({ 
-  error, 
-  onRetry, 
-  loadingStartTime 
-}: { 
+function ErrorState({
+  error,
+  onRetry,
+  loadingStartTime
+}: {
   error: string
   onRetry: () => void
-  loadingStartTime: number | null 
+  loadingStartTime: number | null
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 space-y-6">
@@ -402,8 +402,8 @@ function ErrorState({
           <RefreshCw className="h-4 w-4" />
           Erneut versuchen
         </Button>
-        <Button 
-          onClick={() => {}} 
+        <Button
+          onClick={() => { }}
           variant="ghost"
           className="text-gray-600"
         >

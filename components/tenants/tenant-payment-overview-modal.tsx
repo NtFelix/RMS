@@ -85,7 +85,7 @@ export default function TenantPaymentOverviewModal() {
 
   return (
     <Dialog open={isTenantPaymentOverviewModalOpen} onOpenChange={() => closeTenantPaymentOverviewModal()}>
-      <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-3xl md:max-w-4xl h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Maximize2 className="h-5 w-5" />

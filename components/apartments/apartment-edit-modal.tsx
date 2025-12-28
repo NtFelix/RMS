@@ -97,11 +97,11 @@ export function ApartmentEditModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    
+
     // Determine if it's an update or create based on wohnungInitialData
     const currentApartmentId = wohnungInitialData?.id || null;
-    
-    
+
+
     try {
       // Assuming a generic serverAction prop for now, or replace with direct fetch
       if (!serverAction) {
@@ -109,7 +109,7 @@ export function ApartmentEditModal({
       }
       const payload = { ...formData };
       const result = await serverAction(currentApartmentId, payload);
-      
+
       if (result && result.success) {
         toast({
           title: currentApartmentId ? "Aktualisiert" : "Gespeichert",
@@ -129,10 +129,10 @@ export function ApartmentEditModal({
         });
       }
     } catch (error) {
-      toast({ 
-        title: "Fehler", 
+      toast({
+        title: "Fehler",
         description: "Netzwerkfehler oder unerwarteter Fehler.",
-        variant: "destructive" 
+        variant: "destructive"
       })
     } finally {
       setLoading(false)
@@ -154,7 +154,7 @@ export function ApartmentEditModal({
           <DialogTitle>{wohnungInitialData?.id ? "Wohnung bearbeiten" : "Wohnung hinzufügen"}</DialogTitle>
           <DialogDescription>Geben Sie die Wohnungsdaten ein.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit} className="grid gap-3 py-3 sm:gap-4 sm:py-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={loading} />
@@ -181,7 +181,7 @@ export function ApartmentEditModal({
             />
           </div>
           <DialogFooter>
-             <Button type="button" variant="outline" onClick={attemptClose} disabled={loading}>
+            <Button type="button" variant="outline" onClick={attemptClose} disabled={loading}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={loading}>

@@ -205,7 +205,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="sm:max-w-3xl md:max-w-4xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Archive className="h-5 w-5" />

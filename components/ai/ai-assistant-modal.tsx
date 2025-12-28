@@ -70,7 +70,7 @@ export function AIAssistantModal() {
 
   return (
     <Dialog open={isAIAssistantModalOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl h-[600px] max-h-[90vh] p-0 flex flex-col bg-background border-0 shadow-2xl rounded-lg overflow-hidden">
+      <DialogContent className="sm:max-w-xl md:max-w-2xl h-[600px] max-h-[90vh] p-0 flex flex-col bg-background border-0 shadow-2xl rounded-lg overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
           <div className="flex items-center justify-between mt-3">
             <DialogTitle className="text-lg font-semibold leading-none tracking-tight">
