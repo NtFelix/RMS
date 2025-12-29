@@ -25,20 +25,20 @@ const features: Feature[] = [
         imageDark: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/haus-page-darkmode.avif",
     },
     {
-        id: "nebenkosten",
-        title: "Abrechnung",
-        description: "Betriebskosten in Minuten erstellen",
-        icon: Receipt,
-        image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/nebenkosten-overview.avif",
-        imageDark: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/nebenkosten-overview-darkmode.avif",
-    },
-    {
         id: "finance",
         title: "Finanzen",
         description: "Einnahmen & Ausgaben tracken",
         icon: BarChart3,
         image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/finance-page.avif",
         imageDark: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/finance-page-darkmode.avif",
+    },
+    {
+        id: "nebenkosten",
+        title: "Abrechnung",
+        description: "Betriebskosten in Minuten erstellen",
+        icon: Receipt,
+        image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/nebenkosten-overview.avif",
+        imageDark: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/nebenkosten-overview-darkmode.avif",
     },
 ]
 
@@ -117,14 +117,8 @@ export default function ProductShowcase() {
                                                     : "hover:bg-primary/5"
                                             )}
                                         >
-                                            {/* Active State Marker */}
-                                            {isSelected && (
-                                                <motion.div
-                                                    layoutId="activeTab"
-                                                    className="absolute top-0 left-0 w-1 h-full bg-primary"
-                                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                                />
-                                            )}
+                                            {/* Active State Marker Removed */}
+
 
                                             <div className="flex items-start gap-4">
                                                 <div
