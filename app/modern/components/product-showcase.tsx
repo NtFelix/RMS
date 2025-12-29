@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Sparkles, Home, Receipt, BarChart3 } from "lucide-react"
+import { Sparkles, Home, Receipt, BarChart3, Maximize2, X } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 
@@ -44,6 +44,7 @@ const features: Feature[] = [
 
 export default function ProductShowcase() {
     const [selectedIndex, setSelectedIndex] = useState(0)
+    const [isFullscreen, setIsFullscreen] = useState(false)
     const selectedFeature = features[selectedIndex]
 
     return (
@@ -117,9 +118,6 @@ export default function ProductShowcase() {
                                                     : "hover:bg-primary/5"
                                             )}
                                         >
-                                            {/* Active State Marker Removed */}
-
-
                                             <div className="flex items-start gap-4">
                                                 <div
                                                     className={cn(
@@ -151,7 +149,7 @@ export default function ProductShowcase() {
                             </div>
 
                             {/* Screenshot Display Area */}
-                            <div className="relative aspect-[16/9] w-full bg-muted/20 overflow-hidden">
+                            <div className="relative aspect-[16/9] w-full bg-muted/20 overflow-hidden group/image">
                                 {/* Inner Texture */}
                                 <div
                                     className="absolute inset-0 opacity-[0.05] pointer-events-none z-10 mix-blend-overlay"
@@ -177,7 +175,7 @@ export default function ProductShowcase() {
                                                 alt={selectedFeature.title}
                                                 fill
                                                 className={cn(
-                                                    "object-contain", // Ensures full image is shown
+                                                    "object-contain",
                                                     selectedFeature.imageDark ? "dark:hidden" : ""
                                                 )}
                                                 priority
@@ -189,7 +187,7 @@ export default function ProductShowcase() {
                                                     src={selectedFeature.imageDark}
                                                     alt={selectedFeature.title}
                                                     fill
-                                                    className="object-contain hidden dark:block" // Ensures full image is shown
+                                                    className="object-contain hidden dark:block"
                                                     priority
                                                     unoptimized
                                                 />
@@ -197,11 +195,82 @@ export default function ProductShowcase() {
                                         </div>
                                     </motion.div>
                                 </AnimatePresence>
+
+                                {/* Maximize Button - appears on hover */}
+                                <button
+                                    onClick={() => setIsFullscreen(true)}
+                                    className="absolute bottom-6 right-6 md:bottom-10 md:right-10 z-20 p-3 rounded-xl bg-background/80 backdrop-blur-md border border-border/50 shadow-lg opacity-0 group-hover/image:opacity-100 transition-all duration-300 hover:scale-110 hover:bg-background"
+                                    aria-label="Bild vergrößern"
+                                >
+                                    <Maximize2 className="w-5 h-5 text-foreground" />
+                                </button>
                             </div>
                         </div>
                     </div>
                 </motion.div>
             </div>
+
+            {/* Fullscreen Lightbox Modal */}
+            <AnimatePresence>
+                {isFullscreen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 md:p-8"
+                        onClick={() => setIsFullscreen(false)}
+                    >
+                        {/* Close Button */}
+                        <button
+                            onClick={() => setIsFullscreen(false)}
+                            className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors z-10"
+                            aria-label="Schließen"
+                        >
+                            <X className="w-6 h-6 text-white" />
+                        </button>
+
+                        {/* Fullscreen Image */}
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="relative w-full h-full max-w-[95vw] max-h-[90vh]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Light Mode Image */}
+                            <Image
+                                src={selectedFeature.image}
+                                alt={selectedFeature.title}
+                                fill
+                                className={cn(
+                                    "object-contain rounded-xl",
+                                    selectedFeature.imageDark ? "dark:hidden" : ""
+                                )}
+                                priority
+                                unoptimized
+                            />
+                            {/* Dark Mode Image */}
+                            {selectedFeature.imageDark && (
+                                <Image
+                                    src={selectedFeature.imageDark}
+                                    alt={selectedFeature.title}
+                                    fill
+                                    className="object-contain rounded-xl hidden dark:block"
+                                    priority
+                                    unoptimized
+                                />
+                            )}
+                        </motion.div>
+
+                        {/* Feature Title Overlay */}
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
+                            <span className="text-white font-medium">{selectedFeature.title}</span>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </section>
     )
 }
