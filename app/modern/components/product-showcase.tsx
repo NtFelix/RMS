@@ -149,7 +149,7 @@ export default function ProductShowcase() {
                             </div>
 
                             {/* Screenshot Display Area */}
-                            <div className="relative aspect-[16/9] w-full bg-muted/20 overflow-hidden group/image">
+                            <div className="relative w-full bg-muted/20 overflow-hidden group/image">
                                 {/* Inner Texture */}
                                 <div
                                     className="absolute inset-0 opacity-[0.05] pointer-events-none z-10 mix-blend-overlay"
@@ -166,30 +166,24 @@ export default function ProductShowcase() {
                                         animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                                         exit={{ opacity: 0, scale: 0.98, filter: "blur(2px)" }}
                                         transition={{ duration: 0.4, ease: "easeOut" }}
-                                        className="absolute inset-0 flex items-center justify-center p-4 md:p-8"
+                                        className="flex items-center justify-center p-4 md:p-8"
                                     >
-                                        <div className="relative w-full h-full shadow-2xl rounded-lg overflow-hidden border border-black/5 dark:border-white/10 bg-background">
+                                        <div className="relative shadow-2xl rounded-3xl overflow-hidden border border-black/5 dark:border-white/10 bg-background max-h-[70vh]">
                                             {/* Light Mode Image */}
-                                            <Image
+                                            <img
                                                 src={selectedFeature.image}
                                                 alt={selectedFeature.title}
-                                                fill
                                                 className={cn(
-                                                    "object-contain",
+                                                    "w-auto h-auto max-w-full max-h-[70vh] object-cover",
                                                     selectedFeature.imageDark ? "dark:hidden" : ""
                                                 )}
-                                                priority
-                                                unoptimized
                                             />
                                             {/* Dark Mode Image */}
                                             {selectedFeature.imageDark && (
-                                                <Image
+                                                <img
                                                     src={selectedFeature.imageDark}
                                                     alt={selectedFeature.title}
-                                                    fill
-                                                    className="object-contain hidden dark:block"
-                                                    priority
-                                                    unoptimized
+                                                    className="w-auto h-auto max-w-full max-h-[70vh] object-cover hidden dark:block"
                                                 />
                                             )}
                                         </div>
@@ -199,12 +193,13 @@ export default function ProductShowcase() {
                                 {/* Maximize Button - appears on hover */}
                                 <button
                                     onClick={() => setIsFullscreen(true)}
-                                    className="absolute bottom-6 right-6 md:bottom-10 md:right-10 z-20 p-3 rounded-xl bg-background/80 backdrop-blur-md border border-border/50 shadow-lg opacity-0 group-hover/image:opacity-100 transition-all duration-300 hover:scale-110 hover:bg-background"
+                                    className="absolute bottom-6 right-6 md:bottom-10 md:right-10 z-20 p-3 rounded-2xl bg-background/80 backdrop-blur-md border border-border/50 shadow-lg opacity-0 group-hover/image:opacity-100 transition-all duration-300 hover:scale-110 hover:bg-background"
                                     aria-label="Bild vergrößern"
                                 >
                                     <Maximize2 className="w-5 h-5 text-foreground" />
                                 </button>
                             </div>
+
                         </div>
                     </div>
                 </motion.div>
