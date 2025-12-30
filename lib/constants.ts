@@ -77,6 +77,7 @@ export const ROUTES = {
   DOCUMENTATION: '/hilfe/dokumentation',
   PRIVACY: '/datenschutz',
   TERMS: '/agb',
+  IMPRESSUM: '/impressum',
 } as const;
 
 // Video URLs

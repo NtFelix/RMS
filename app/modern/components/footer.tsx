@@ -20,6 +20,7 @@ const footerLinks = {
   Rechtliches: [
     "Datenschutz",
     "AGB",
+    "Impressum",
   ],
 }
 
@@ -31,6 +32,7 @@ const specialLinks: Record<string, { href: string; text: string }> = {
   "Hilfezentrum": { href: ROUTES.DOCUMENTATION, text: "Dokumentation" },
   "Datenschutz": { href: ROUTES.PRIVACY, text: "Datenschutz" },
   "AGB": { href: ROUTES.TERMS, text: "AGB" },
+  "Impressum": { href: ROUTES.IMPRESSUM, text: "Impressum" },
   "Preise": { href: ROUTES.PRICING, text: "Preise" },
   "Kontakt": { href: `mailto:${INFO_EMAIL}`, text: "Kontakt" },
 }
