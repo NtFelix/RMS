@@ -82,7 +82,7 @@ const features: Feature[] = [
             { name: "Zählerstände_2023.xlsx", type: "XLS", size: "1.1 MB", color: "text-emerald-500", bg: "bg-emerald-500/10" },
             { name: "Übergabeprotokoll.pdf", type: "PDF", size: "3.2 MB", color: "text-red-500", bg: "bg-red-500/10" },
           ].map((file, i) => (
-            <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-background/40 border border-border/40 hover:bg-background/60 transition-colors group/file cursor-default">
+            <div key={file.name} className="flex items-center gap-4 p-3 rounded-xl bg-background/40 border border-border/40 hover:bg-background/60 transition-colors group/file cursor-default">
               <div className={`w-10 h-10 rounded-lg ${file.bg} flex items-center justify-center ${file.color} shrink-0`}>
                 <FileText size={18} />
               </div>
@@ -211,7 +211,7 @@ export default function FeatureSections() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
             {features.map((feature, index) => (
               <motion.div
-                key={index}
+                key={feature.title}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}

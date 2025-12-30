@@ -67,11 +67,11 @@ const features = [
 ]
 
 const colorMap: Record<string, string> = {
-  blue: 'rgb(59, 130, 246)',
-  violet: 'rgb(139, 92, 246)',
-  emerald: 'rgb(16, 185, 129)',
-  amber: 'rgb(245, 158, 11)',
-  rose: 'rgb(244, 63, 94)',
+  blue: '#3b82f6',
+  violet: '#8b5cf6',
+  emerald: '#10b981',
+  amber: '#f59e0b',
+  rose: '#f43f5e',
 }
 
 // 2D Ring Sizes (Radii)

@@ -34,7 +34,7 @@ const nkFeatures: NKFeature[] = [
             { label: "Sonstiges", value: "5%", icon: Sparkles, color: "text-violet-500", bg: "bg-violet-500/10" }
           ].map((item, i) => (
             <motion.div
-              key={i}
+              key={item.label}
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.1 }}
@@ -208,7 +208,7 @@ export default function NebenkostenBento() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
           {nkFeatures.map((feature, index) => (
             <motion.div
-              key={index}
+              key={feature.title}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
