@@ -4,7 +4,8 @@ const RESPONSIBLE_PERSON_ADDRESS = (
     <>
         Felix Plant<br />
         Kirchbrändelring 21a<br />
-        76669 Bad Schönborn
+        76669 Bad Schönborn<br />
+        Deutschland
     </>
 );
 
@@ -17,8 +18,7 @@ export default function ImpressumPage() {
 
                     <h2 className="text-xl font-semibold mb-4">Angaben gemäß § 5 TMG</h2>
                     <p>
-                        {RESPONSIBLE_PERSON_ADDRESS}<br />
-                        Deutschland
+                        {RESPONSIBLE_PERSON_ADDRESS}
                     </p>
 
                     <h2 className="text-xl font-semibold mt-8 mb-4">Kontakt</h2>
