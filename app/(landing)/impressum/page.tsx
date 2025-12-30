@@ -1,12 +1,15 @@
 import { Metadata } from 'next';
-import { CONTACT_EMAIL, WEBSITE_DOMAIN } from '@/lib/constants';
+import { CONTACT_EMAIL, WEBSITE_DOMAIN, BASE_URL, ROUTES } from '@/lib/constants';
 
 export const metadata: Metadata = {
-    title: 'Impressum | Mietevo',
+    title: 'Impressum',
     description: 'Impressum von Mietevo - Angaben gemäß § 5 TMG. Kontaktinformationen und rechtliche Hinweise.',
     robots: {
         index: true,
         follow: true,
+    },
+    alternates: {
+        canonical: `${BASE_URL}${ROUTES.IMPRESSUM}`,
     },
 };
 
