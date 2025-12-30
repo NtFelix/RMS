@@ -1,4 +1,14 @@
+import { Metadata } from 'next';
 import { CONTACT_EMAIL, WEBSITE_DOMAIN } from '@/lib/constants';
+
+export const metadata: Metadata = {
+    title: 'Impressum | Mietevo',
+    description: 'Impressum von Mietevo - Angaben gemäß § 5 TMG. Kontaktinformationen und rechtliche Hinweise.',
+    robots: {
+        index: true,
+        follow: true,
+    },
+};
 
 const RESPONSIBLE_PERSON_ADDRESS = (
     <>
