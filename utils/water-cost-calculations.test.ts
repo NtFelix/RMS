@@ -529,7 +529,7 @@ describe('Water Cost Calculations', () => {
       expect(result[0].costShare).toBe(0); // Cost share is 0
     });
 
-    it('should return empty array when readings are outside billing period', () => {
+    it('should return 0 consumption when readings are outside billing period', () => {
       // Common issue: Water reading date is outside the Nebenkosten period
       const oldReading: WasserAblesung = {
         ...reading3,
