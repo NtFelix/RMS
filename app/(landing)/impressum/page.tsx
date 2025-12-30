@@ -1,6 +1,12 @@
-'use client';
-
 import { CONTACT_EMAIL, WEBSITE_DOMAIN } from '@/lib/constants';
+
+const RESPONSIBLE_PERSON_ADDRESS = (
+    <>
+        Felix Plant<br />
+        Kirchbrändelring 21a<br />
+        76669 Bad Schönborn
+    </>
+);
 
 export default function ImpressumPage() {
     return (
@@ -11,9 +17,7 @@ export default function ImpressumPage() {
 
                     <h2 className="text-xl font-semibold mb-4">Angaben gemäß § 5 TMG</h2>
                     <p>
-                        Felix Plant<br />
-                        Kirchbrändelring 21a<br />
-                        76669 Bad Schönborn<br />
+                        {RESPONSIBLE_PERSON_ADDRESS}<br />
                         Deutschland
                     </p>
 
@@ -36,9 +40,7 @@ export default function ImpressumPage() {
 
                     <h2 className="text-xl font-semibold mt-8 mb-4">Redaktionell verantwortlich</h2>
                     <p>
-                        Felix Plant<br />
-                        Kirchbrändelring 21a<br />
-                        76669 Bad Schönborn
+                        {RESPONSIBLE_PERSON_ADDRESS}
                     </p>
 
                     <h2 className="text-xl font-semibold mt-8 mb-4">EU-Streitschlichtung</h2>
