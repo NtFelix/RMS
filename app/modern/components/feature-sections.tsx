@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import {
   Sparkles, ListTodo, FileText, Download, ShieldCheck,
-  FolderOpen, FileSpreadsheet, History, CheckCircle2, Lock, Server
+  FolderOpen, FileSpreadsheet, History, CheckCircle2, Server
 } from "lucide-react"
 import Image from "next/image"
 
@@ -12,7 +12,7 @@ interface Feature {
   subtitle?: string;
   description: string;
   colSpan: string;
-  icon: any;
+  icon: React.ElementType;
   mock: React.ReactNode;
 }
 

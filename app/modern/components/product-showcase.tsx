@@ -10,7 +10,7 @@ interface Feature {
     id: string
     title: string
     description: string
-    icon: any
+    icon: React.ElementType
     image: string
     imageDark?: string
 }
@@ -170,20 +170,28 @@ export default function ProductShowcase() {
                                     >
                                         <div className="relative shadow-2xl rounded-3xl overflow-hidden border border-black/5 dark:border-white/10 bg-background max-h-[70vh]">
                                             {/* Light Mode Image */}
-                                            <img
+                                            <Image
                                                 src={selectedFeature.image}
                                                 alt={selectedFeature.title}
+                                                width={1200}
+                                                height={800}
                                                 className={cn(
-                                                    "w-auto h-auto max-w-full max-h-[70vh] object-cover",
+                                                    "w-auto h-auto max-w-full max-h-[70vh] object-contain",
                                                     selectedFeature.imageDark ? "dark:hidden" : ""
                                                 )}
+                                                priority
+                                                unoptimized
                                             />
                                             {/* Dark Mode Image */}
                                             {selectedFeature.imageDark && (
-                                                <img
+                                                <Image
                                                     src={selectedFeature.imageDark}
                                                     alt={selectedFeature.title}
-                                                    className="w-auto h-auto max-w-full max-h-[70vh] object-cover hidden dark:block"
+                                                    width={1200}
+                                                    height={800}
+                                                    className="w-auto h-auto max-w-full max-h-[70vh] object-contain hidden dark:block"
+                                                    priority
+                                                    unoptimized
                                                 />
                                             )}
                                         </div>

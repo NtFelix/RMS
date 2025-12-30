@@ -21,7 +21,8 @@ const features = [
     longText: 'Soll/Ist‑Abgleich pro Mietverhältnis – offene Posten erkennen, Nachzahlungen minimieren.',
     color: "violet",
     ring: 1,
-    angle: 270, // Top
+    angle: 270,
+    offset: 30,
   },
   {
     id: 'keys',
@@ -30,7 +31,8 @@ const features = [
     longText: 'Wählen Sie je Kostenart passende Schlüssel (z. B. Wohnfläche, Einheiten & nach Rechnung)',
     color: "blue",
     ring: 2,
-    angle: 200, // Upper Left
+    angle: 200,
+    offset: 40,
   },
   {
     id: 'time',
@@ -39,7 +41,8 @@ const features = [
     longText: 'Definieren Sie individuelle Abrechnungszeiträume je Kostenart.',
     color: "emerald",
     ring: 2,
-    angle: 340, // Upper Right
+    angle: 340,
+    offset: -20,
   },
   {
     id: 'docs',
@@ -48,7 +51,8 @@ const features = [
     longText: 'Laden Sie Belege hoch und verknüpfen Sie diese mit den jeweiligen Kosten.',
     color: "amber",
     ring: 1,
-    angle: 150, // Moved further down (was 135)
+    angle: 150,
+    offset: 0,
   },
   {
     id: 'archive',
@@ -57,7 +61,8 @@ const features = [
     longText: 'Alle Unterlagen und Berechnungen an einem zentralen Ort.',
     color: "rose",
     ring: 2,
-    angle: 45, // Moved further down (was 45)
+    angle: 45,
+    offset: 40,
   },
 ]
 
@@ -166,7 +171,7 @@ export function NKCarousel() {
                 key={feature.id}
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                 style={{
-                  transform: `rotate(${feature.angle}deg) translate(calc(var(--ring-${feature.ring}) + ${feature.id === 'time' ? '-20px' : feature.id === 'pay' ? '30px' : feature.ring === 2 ? '40px' : '0px'})) rotate(-${feature.angle}deg)`,
+                  transform: `rotate(${feature.angle}deg) translate(calc(var(--ring-${feature.ring}) + ${feature.offset ?? 0}px)) rotate(-${feature.angle}deg)`,
                   zIndex: isActive ? 50 : 20,
                 }}
                 onMouseEnter={() => setActiveId(feature.id)}

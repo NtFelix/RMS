@@ -2,9 +2,9 @@
 
 import { motion } from "framer-motion"
 import {
-  Key, RefreshCw, Gauge, FileText, Folder, Sparkles,
-  PieChart, ArrowUpRight, CheckCircle2, FileJson,
-  CalendarDays, Calculator, Coins, Layers
+  Key, RefreshCw, FileText, Folder, Sparkles,
+  ArrowUpRight, CheckCircle2, FileJson,
+  CalendarDays, Calculator, Layers
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -13,7 +13,7 @@ interface NKFeature {
   subtitle?: string;
   description: string;
   colSpan: string;
-  icon: any;
+  icon: React.ElementType;
   mock: React.ReactNode;
 }
 
