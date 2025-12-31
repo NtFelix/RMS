@@ -6,7 +6,10 @@ import { StripePlan } from '@/types/stripe';
 
 export async function GET() {
   if (!process.env.STRIPE_SECRET_KEY) {
-    console.error('Stripe secret key not configured');
+    // Only log in non-CI environments to avoid cluttering test output
+    if (process.env.CI !== 'true') {
+      console.error('Stripe secret key not configured');
+    }
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
   }
 

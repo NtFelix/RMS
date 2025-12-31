@@ -27,12 +27,17 @@ export type { LogAttributes };
 
 // Configuration
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const IS_CI = process.env.CI === 'true';
+const IS_TEST = process.env.NODE_ENV === 'test';
 
 // Debug mode - set POSTHOG_LOGS_DEBUG=true to enable verbose logging
 const DEBUG_MODE = process.env.POSTHOG_LOGS_DEBUG === 'true';
 
 // Always send logs to PostHog when API key is configured (both dev and production)
 const SHOULD_SEND_TO_POSTHOG = !!POSTHOG_API_KEY;
+
+// Suppress noisy logs in CI/test environments
+const QUIET_MODE = IS_CI || IS_TEST;
 
 function debugLog(...args: unknown[]): void {
     if (DEBUG_MODE) {
@@ -151,20 +156,23 @@ export function initLogger(): void {
         return;
     }
 
-    console.log('[PostHog Logger] 🚀 Initializing...', {
-        environment: process.env.NODE_ENV,
-        hasApiKey: !!POSTHOG_API_KEY,
-        apiKeyPrefix: POSTHOG_API_KEY?.substring(0, 8) + '...',
-        host: POSTHOG_HOST,
-        endpoint: getLogsEndpoint(),
-        debugMode: DEBUG_MODE,
-        willSendToPostHog: SHOULD_SEND_TO_POSTHOG,
-    });
+    // In CI/test mode, skip noisy initialization logs
+    if (!QUIET_MODE) {
+        console.log('[PostHog Logger] 🚀 Initializing...', {
+            environment: process.env.NODE_ENV,
+            hasApiKey: !!POSTHOG_API_KEY,
+            apiKeyPrefix: POSTHOG_API_KEY?.substring(0, 8) + '...',
+            host: POSTHOG_HOST,
+            endpoint: getLogsEndpoint(),
+            debugMode: DEBUG_MODE,
+            willSendToPostHog: SHOULD_SEND_TO_POSTHOG,
+        });
 
-    if (!POSTHOG_API_KEY) {
-        console.warn('[PostHog Logger] ⚠️ POSTHOG_API_KEY not set - logs will only be printed to console');
-    } else {
-        console.log('[PostHog Logger] ✅ Configured to send logs to PostHog at', getLogsEndpoint());
+        if (!POSTHOG_API_KEY) {
+            console.warn('[PostHog Logger] ⚠️ POSTHOG_API_KEY not set - logs will only be printed to console');
+        } else {
+            console.log('[PostHog Logger] ✅ Configured to send logs to PostHog at', getLogsEndpoint());
+        }
     }
 
     isInitialized = true;
