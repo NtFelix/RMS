@@ -318,6 +318,7 @@ jobs:
         with:
           node-version: '20'
 
+      # Cache node_modules (shared with other jobs)
       - name: Cache node_modules
         uses: actions/cache@v4
         id: cache-node-modules
@@ -327,12 +328,41 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-modules-
 
+      # Cache Next.js build output for faster subsequent builds
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        id: cache-nextjs-build
+        with:
+          path: |
+            .next/cache
+          key: ${{ runner.os }}-nextjs-build-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.css', '!node_modules/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-build-${{ hashFiles('**/package-lock.json') }}-
+            ${{ runner.os }}-nextjs-build-
+
+      # Cache Playwright browsers to avoid re-downloading
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: cache-playwright
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline
 
+      # Only install browsers if not cached
       - name: Install Playwright Browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps
+
+      # Install system dependencies if browsers were cached (deps not included in cache)
+      - name: Install Playwright system dependencies
+        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        run: npx playwright install-deps
 
       - name: Build application
         run: npm run build
