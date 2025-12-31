@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { SearchResultItem } from '@/components/search/search-result-item';
 import { SearchResult } from '@/types/search';
-import { Edit, Eye, Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 
 // Mock the command components
 jest.mock('@/components/ui/command', () => ({
@@ -70,12 +70,6 @@ describe('SearchResultItem', () => {
         {
           label: 'Bearbeiten',
           icon: Edit,
-          action: () => { },
-          variant: 'default'
-        },
-        {
-          label: 'Anzeigen',
-          icon: Eye,
           action: () => { },
           variant: 'default'
         }
@@ -480,7 +474,8 @@ describe('SearchResultItem', () => {
       );
 
       const actionButtons = screen.getAllByRole('button');
-      expect(actionButtons).toHaveLength(2);
+      // Should show 3 buttons: Edit, Delete, and the 'Auswählen' navigation button
+      expect(actionButtons).toHaveLength(3);
     });
 
     it('should limit displayed actions to 3', () => {
@@ -488,8 +483,8 @@ describe('SearchResultItem', () => {
         ...basicResult,
         actions: [
           { label: 'Action 1', icon: Edit, action: () => { }, variant: 'default' as const },
-          { label: 'Action 2', icon: Eye, action: () => { }, variant: 'default' as const },
-          { label: 'Action 3', icon: Trash2, action: () => { }, variant: 'destructive' as const },
+          { label: 'Action 2', icon: Trash2, action: () => { }, variant: 'destructive' as const },
+          { label: 'Action 3', icon: Edit, action: () => { }, variant: 'default' as const },
           { label: 'Action 4', icon: Edit, action: () => { }, variant: 'default' as const },
         ]
       };
@@ -503,8 +498,8 @@ describe('SearchResultItem', () => {
       );
 
       const actionButtons = screen.getAllByRole('button');
-      // Should show exactly 3 action buttons
-      expect(actionButtons).toHaveLength(3);
+      // Should show exactly 4 action buttons (3 from actions limit + 1 'Auswählen' button)
+      expect(actionButtons).toHaveLength(4);
     });
   });
 
@@ -545,8 +540,8 @@ describe('SearchResultItem', () => {
         />
       );
 
-      const actionButton = screen.getByRole('button');
-      expect(actionButton).toBeInTheDocument();
+      const actionButtons = screen.getAllByRole('button');
+      expect(actionButtons[0]).toBeInTheDocument();
     });
   });
 
