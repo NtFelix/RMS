@@ -382,54 +382,73 @@ export default function Hero({ onGetStarted }: HeroProps) {
                     transition={{ duration: 0.8 }}
                     className="w-full h-full flex flex-col items-center justify-center relative p-8"
                   >
-                    <div className="absolute inset-0 bg-emerald-500/[0.03] backdrop-blur-[1px]" />
-
                     <motion.div
-                      initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                      initial="rest"
+                      whileHover="hover"
+                      animate={{ y: 0, opacity: 1 }}
+                      variants={{
+                        rest: { y: 0 },
+                        hover: { y: -8 }
+                      }}
                       transition={{ delay: 0.2, type: "spring", bounce: 0.4 }}
-                      className="relative z-10 w-[240px] aspect-[1/1.41] bg-white rounded-lg shadow-2xl border border-black/5 p-6 flex flex-col gap-3 group cursor-pointer hover:-translate-y-2 transition-transform duration-500"
+                      className="relative z-10 w-[240px] aspect-[1/1.41] group cursor-pointer"
                     >
-                      {/* Header */}
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="w-8 h-8 rounded bg-primary" />
-                        <div className="text-[6px] text-gray-400 font-mono">2024-001</div>
-                      </div>
-                      <div className="w-1/3 h-1.5 bg-gray-800 rounded-sm mb-4" />
+                      {/* Stacked Papers (Background) - Fan out on hover */}
+                      <motion.div
+                        variants={{
+                          rest: { opacity: 0, scale: 0.95, rotate: 0, x: 0 },
+                          hover: { opacity: 1, scale: 1, rotate: -6, x: -16 }
+                        }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                        className="absolute inset-0 bg-white rounded-lg shadow-sm border border-black/5 z-0 origin-bottom-left"
+                      />
+                      <motion.div
+                        variants={{
+                          rest: { opacity: 0, scale: 0.95, rotate: 0, x: 0 },
+                          hover: { opacity: 1, scale: 1, rotate: 6, x: 16 }
+                        }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                        className="absolute inset-0 bg-white rounded-lg shadow-sm border border-black/5 z-10 origin-bottom-right"
+                      />
 
-                      {/* Body Lines */}
-                      <div className="space-y-1.5">
-                        <div className="w-full h-1 bg-gray-100 rounded-sm" />
-                        <div className="w-full h-1 bg-gray-100 rounded-sm" />
-                        <div className="w-2/3 h-1 bg-gray-100 rounded-sm" />
-                      </div>
-
-                      {/* Table Mock */}
-                      <div className="mt-4 border border-gray-100 rounded-sm p-1 space-y-1">
-                        <div className="flex gap-1">
-                          <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
-                          <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
-                          <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
-                          <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
+                      {/* Main Document (Foreground) */}
+                      <div className="absolute inset-0 bg-white rounded-lg shadow-2xl border border-black/5 z-20 p-6 flex flex-col gap-3">
+                        {/* Header */}
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="w-8 h-8 rounded bg-primary transition-colors group-hover:bg-primary/90" />
+                          <div className="text-[6px] text-gray-400 font-mono">2024-001</div>
                         </div>
-                        <div className="w-full h-[1px] bg-gray-100" />
-                        <div className="flex gap-1">
-                          <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
-                          <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
-                          <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
-                          <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
+                        <div className="w-1/3 h-1.5 bg-gray-800 rounded-sm mb-4" />
+
+                        {/* Body Lines */}
+                        <div className="space-y-1.5">
+                          <div className="w-full h-1 bg-gray-100 rounded-sm" />
+                          <div className="w-full h-1 bg-gray-100 rounded-sm" />
+                          <div className="w-2/3 h-1 bg-gray-100 rounded-sm" />
                         </div>
-                      </div>
 
-                      {/* Bottom Result */}
-                      <div className="mt-auto border-t border-gray-200 pt-3 flex justify-between items-center">
-                        <div className="text-[6px] font-bold text-gray-400 uppercase">Nachzahlung</div>
-                        <div className="text-xs font-bold text-gray-900">250,00 €</div>
-                      </div>
+                        {/* Table Mock */}
+                        <div className="mt-4 border border-gray-100 rounded-sm p-1 space-y-1">
+                          <div className="flex gap-1">
+                            <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
+                            <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
+                            <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
+                            <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
+                          </div>
+                          <div className="w-full h-[1px] bg-gray-100" />
+                          <div className="flex gap-1">
+                            <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
+                            <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
+                            <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
+                            <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
+                          </div>
+                        </div>
 
-                      {/* Download Overlay */}
-                      <div className="absolute inset-0 bg-primary/95 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-2 rounded-lg backdrop-blur-sm">
-                        <Download className="text-white" size={24} />
-                        <span className="text-xs font-bold text-white uppercase tracking-widest">Download</span>
+                        {/* Bottom Result */}
+                        <div className="mt-auto border-t border-gray-200 pt-3 flex justify-between items-center">
+                          <div className="text-[6px] font-bold text-gray-400 uppercase">Nachzahlung</div>
+                          <div className="text-xs font-bold text-gray-900">250,00 €</div>
+                        </div>
                       </div>
                     </motion.div>
 
