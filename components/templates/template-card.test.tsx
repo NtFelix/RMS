@@ -136,7 +136,7 @@ describe('TemplateCard', () => {
     expect(mockOnDelete).toHaveBeenCalledWith('123');
   });
 
-  it('shows action buttons on hover', () => {
+  it('shows action buttons in ActionMenu', () => {
     render(
       <TemplateCard
         template={mockTemplate}
@@ -148,9 +148,9 @@ describe('TemplateCard', () => {
     const editButtons = screen.getAllByLabelText('Vorlage "Test Template" bearbeiten');
     const deleteButtons = screen.getAllByLabelText('Vorlage "Test Template" löschen');
 
-    // Both desktop and mobile buttons should be present
-    expect(editButtons).toHaveLength(2);
-    expect(deleteButtons).toHaveLength(2);
+    // ActionMenu renders a single set of buttons
+    expect(editButtons).toHaveLength(1);
+    expect(deleteButtons).toHaveLength(1);
   });
 
   it('displays category badge correctly', () => {
