@@ -4,19 +4,15 @@ test.describe('Landing Page', () => {
   test('should load the homepage successfully', async ({ page }) => {
     await page.goto('/');
 
-    // Wait for the page to be fully loaded
-    await page.waitForLoadState('networkidle');
-
-    // The page should load without errors
-    await expect(page).toHaveURL('/');
+    // Check for main heading to confirm page rendered correctly
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   });
 
   test('should have proper meta tags for SEO', async ({ page }) => {
     await page.goto('/');
 
-    // Check for title
-    const title = await page.title();
-    expect(title.length).toBeGreaterThan(0);
+    // Check for specific title pattern (Mietevo brand)
+    await expect(page).toHaveTitle(/Mietevo/);
   });
 
   test('should navigate to login page', async ({ page }) => {
@@ -27,7 +23,8 @@ test.describe('Landing Page', () => {
 
     if (await loginLink.isVisible()) {
       await loginLink.click();
-      await expect(page).toHaveURL(/.*login.*/);
+      // Verify login page rendered by checking for login heading
+      await expect(page.getByRole('heading', { name: /anmelden/i })).toBeVisible();
     }
   });
 });
@@ -36,18 +33,14 @@ test.describe('Authentication Flow', () => {
   test('login page should be accessible', async ({ page }) => {
     await page.goto('/login');
 
-    await page.waitForLoadState('networkidle');
-
-    // Should be on login page
-    await expect(page).toHaveURL(/.*login.*/);
+    // Check for login page heading to confirm page rendered
+    await expect(page.getByRole('heading', { name: /anmelden/i })).toBeVisible();
   });
 
   test('registration page should be accessible', async ({ page }) => {
     await page.goto('/register');
 
-    await page.waitForLoadState('networkidle');
-
-    // Should be on register page  
-    await expect(page).toHaveURL(/.*register.*/);
+    // Check for registration page heading to confirm page rendered
+    await expect(page.getByRole('heading', { name: /registrieren/i })).toBeVisible();
   });
 });
