@@ -318,6 +318,27 @@ jobs:
         with:
           node-version: '20'
 
+      # Generate build cache key (same strategy as Lighthouse workflow for cache sharing)
+      - name: Generate build cache key
+        id: build-cache-key
+        run: |
+          # Create a hash of all files that affect the build
+          BUILD_HASH=$(find app components lib hooks types utils public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" -o -name "*.json" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
+          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json', 'tailwind.config.ts') }}"
+          CACHE_KEY="build-${BUILD_HASH}-${PACKAGE_HASH}"
+          echo "cache-key=${CACHE_KEY}" >> $GITHUB_OUTPUT
+          echo "Build cache key: ${CACHE_KEY}"
+
+      # Restore full build cache (shared with Lighthouse workflow)
+      - name: Restore build cache
+        id: restore-build-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .next
+          key: ${{ steps.build-cache-key.outputs.cache-key }}
+          restore-keys: |
+            build-
+
       # Cache node_modules (shared with other jobs)
       - name: Cache node_modules
         uses: actions/cache@v4
@@ -327,18 +348,6 @@ jobs:
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-modules-
-
-      # Cache Next.js build output for faster subsequent builds
-      - name: Cache Next.js build
-        uses: actions/cache@v4
-        id: cache-nextjs-build
-        with:
-          path: |
-            .next/cache
-          key: ${{ runner.os }}-nextjs-build-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.css', '!node_modules/**') }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-build-${{ hashFiles('**/package-lock.json') }}-
-            ${{ runner.os }}-nextjs-build-
 
       # Cache Playwright browsers to avoid re-downloading
       - name: Cache Playwright browsers
@@ -355,14 +364,20 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📦 E2E Test Cache Status"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  Build cache: ${{ steps.restore-build-cache.outputs.cache-hit == 'true' && '✅ HIT (skipping build)' || '❌ MISS (will build)' }}"
           echo "  node_modules: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && '✅ HIT' || '❌ MISS' }}"
-          echo "  Next.js build: ${{ steps.cache-nextjs-build.outputs.cache-hit == 'true' && '✅ HIT' || '❌ MISS' }}"
           echo "  Playwright browsers: ${{ steps.cache-playwright.outputs.cache-hit == 'true' && '✅ HIT' || '❌ MISS' }}"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline
+        run: |
+          # Only run npm ci if node_modules doesn't exist or is incomplete
+          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+            echo "Installing dependencies..."
+            npm ci --prefer-offline
+          else
+            echo "✓ node_modules exists and appears complete - skipping npm ci"
+          fi
 
       # Only install browsers if not cached
       - name: Install Playwright Browsers
@@ -374,8 +389,10 @@ jobs:
         if: steps.cache-playwright.outputs.cache-hit == 'true'
         run: npx playwright install-deps
 
+      # Only build if cache miss
       - name: Build application
         id: build
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
         run: |
           echo "🏗️ Building Next.js application..."
           START_TIME=$(date +%s)
@@ -388,6 +405,26 @@ jobs:
           # Add any required build-time environment variables
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+
+      # Save build cache for future runs
+      - name: Save build cache
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .next
+          key: ${{ steps.build-cache-key.outputs.cache-key }}
+
+      - name: Build status
+        id: build-status
+        run: |
+          if [ "${{ steps.restore-build-cache.outputs.cache-hit }}" == "true" ]; then
+            echo "✓ Build restored from cache (0s)"
+            echo "build_time=0" >> $GITHUB_OUTPUT
+            echo "from_cache=true" >> $GITHUB_OUTPUT
+          else
+            echo "✓ Build completed and cached"
+            echo "from_cache=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Run Playwright tests
         id: playwright
@@ -451,14 +488,18 @@ jobs:
           echo "| ❌ Failed | ${{ steps.playwright.outputs.failed || '0' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ⏭️ Skipped | ${{ steps.playwright.outputs.skipped || '0' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ⏱️ Test Duration | ${{ steps.playwright.outputs.test_time || '0' }}s |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🏗️ Build Duration | ${{ steps.build.outputs.build_time || '0' }}s |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.restore-build-cache.outputs.cache-hit }}" == "true" ]; then
+            echo "| 🏗️ Build | ✅ Restored from cache |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🏗️ Build Duration | ${{ steps.build.outputs.build_time || '0' }}s |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Cache Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Cache | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build (.next) | ${{ steps.restore-build-cache.outputs.cache-hit == 'true' && '✅ Hit' || '❌ Miss' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| node_modules | ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && '✅ Hit' || '❌ Miss' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Next.js build | ${{ steps.cache-nextjs-build.outputs.cache-hit == 'true' && '✅ Hit' || '❌ Miss' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Playwright browsers | ${{ steps.cache-playwright.outputs.cache-hit == 'true' && '✅ Hit' || '❌ Miss' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📎 Download the [Playwright Report](../artifacts) for detailed results and traces." >> $GITHUB_STEP_SUMMARY
