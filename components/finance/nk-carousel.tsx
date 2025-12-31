@@ -235,7 +235,7 @@ export function NKCarousel() {
                     }}
                     transition={{ duration: 0.4, ease: "easeOut" }}
                     className={cn(
-                      "absolute left-1/2 -translate-x-1/2 mt-4 w-32 text-center px-4 py-1.5 rounded-xl text-[10px] leading-tight font-bold uppercase tracking-wider bg-background/90 border shadow-lg backdrop-blur-md pointer-events-none z-40"
+                      "absolute left-1/2 -translate-x-1/2 mt-4 w-max whitespace-nowrap text-center px-4 py-1.5 rounded-xl text-[10px] leading-tight font-bold uppercase tracking-wider bg-background/90 border shadow-lg backdrop-blur-md pointer-events-none z-40"
                     )}
                     style={{
                       borderColor: isActive ? `${colorMap[feature.color]}40` : 'transparent',
@@ -329,6 +329,6 @@ export function NKCarousel() {
           </div>
         )}
       </div>
-    </div>
+    </div >
   )
 }
