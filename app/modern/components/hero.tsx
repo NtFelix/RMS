@@ -176,7 +176,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                 </div>
                 <div>
                   <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Objekt</div>
-                  <div className="text-sm font-bold text-foreground">Hauptstraße 42, Berlin</div>
+                  <div className="text-sm font-bold text-foreground">Schlossallee 21, Berlin</div>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -339,14 +339,14 @@ export default function Hero({ onGetStarted }: HeroProps) {
                       <div className="bg-muted/10 p-6 rounded-2xl border border-border/50 space-y-4 shadow-sm">
                         <div className="flex items-center gap-3 mb-2">
                           <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700" />
-                          <div className="text-sm font-bold">Mieter: J. Sommer</div>
+                          <div className="text-sm font-bold">Mieter: M. Mustermann</div>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Anteilige Kosten</span>
                           <span className="font-bold text-foreground">1.450,00 €</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">./. Vorauszahlungen</span>
+                          <span className="text-muted-foreground">Abzüglich Vorauszahlungen</span>
                           <span className="font-bold text-emerald-600">- 1.200,00 €</span>
                         </div>
                         <div className="h-px w-full bg-border border-dashed" />
