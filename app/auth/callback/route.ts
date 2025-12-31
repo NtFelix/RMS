@@ -41,21 +41,12 @@ export async function GET(request: Request) {
     })
 
     // Track the successful OAuth completion in PostHog (server-side)
+    // Uses the unified 'auth' event schema with action, status, method properties
     if (data?.user?.id) {
-      // Determine if this was a login or signup based on whether user is new
-      const eventName = isNewUser
-        ? 'auth_google_signup_complete'
-        : 'auth_google_login_complete'
-
-      await capturePostHogEvent(data.user.id, eventName, {
-        provider,
-        is_new_user: isNewUser,
-        auth_method: 'oauth',
-      })
-
-      // Also track the general auth success event
-      await capturePostHogEvent(data.user.id, 'auth_oauth_success', {
-        provider,
+      await capturePostHogEvent(data.user.id, 'auth', {
+        action: isNewUser ? 'signup' : 'login',
+        status: 'success',
+        method: provider,
         is_new_user: isNewUser,
       })
     }

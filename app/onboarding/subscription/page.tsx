@@ -12,7 +12,6 @@ import posthog from 'posthog-js';
 import {
     trackOnboardingStarted,
     trackOnboardingPlanSelected,
-    trackGoogleAuthSuccess,
     AuthProvider,
     PlanSelectionDetails
 } from '@/lib/posthog-auth-events';
@@ -119,9 +118,9 @@ function SubscriptionPageContent() {
                 const provider = searchParams.get('provider') as AuthProvider | null;
                 const isNewUser = searchParams.get('is_new_user') === 'true';
 
-                // If coming from OAuth callback, track the success on client side and identify user
+                // If coming from OAuth callback, identify user (auth success is tracked server-side)
                 if (loginSuccess === 'true' && provider) {
-                    // GDPR: Only identify and track if user has consented
+                    // GDPR: Only identify if user has consented
                     if (posthog.has_opted_in_capturing?.()) {
                         posthog.identify(user.id, {
                             email: user.email,
@@ -133,12 +132,7 @@ function SubscriptionPageContent() {
                         });
                     }
 
-                    // Track Google auth success if provider is google
-                    if (provider === 'google') {
-                        trackGoogleAuthSuccess(isNewUser ? 'signup' : 'login', isNewUser);
-                    }
-
-                    // Clear URL params after tracking (clean URL)
+                    // Clear URL params after identification (clean URL)
                     const cleanUrl = new URL(window.location.href);
                     cleanUrl.searchParams.delete('login_success');
                     cleanUrl.searchParams.delete('provider');
@@ -179,7 +173,7 @@ function SubscriptionPageContent() {
             priceId: priceId,
             billingCycle: selectedPlan?.interval === 'year' ? 'yearly' : 'monthly',
             priceAmount: selectedPlan ? selectedPlan.price / 100 : undefined, // Convert cents to base currency
-            currency: selectedPlan?.currency || 'eur',
+            currency: selectedPlan?.currency,
             position: selectedPlan?.position,
         };
 

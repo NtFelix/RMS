@@ -256,8 +256,8 @@ export function trackSocialAuthSuccess(method: AuthMethod, flow: 'login' | 'sign
     trackAuth({ action: flow, status: 'success', method, is_new_user: isNewUser, flow });
 }
 
-export function trackSocialAuthFailed(method: AuthMethod, flow: 'login' | 'signup', errorType: AuthErrorType = 'oauth_error') {
-    trackAuth({ action: flow, status: 'failed', method, error_type: errorType, flow });
+export function trackSocialAuthFailed(method: AuthMethod, flow: 'login' | 'signup', errorType: AuthErrorType = 'oauth_error', errorMessage?: string) {
+    trackAuth({ action: flow, status: 'failed', method, error_type: errorType, error_message: errorMessage, flow });
 }
 
 export function trackSocialAuthCancelled(method: AuthMethod, flow: 'login' | 'signup') {
