@@ -14,6 +14,10 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+# Limit permissions of GITHUB_TOKEN for security
+permissions:
+  contents: read
+
 env:
   NODE_ENV: test
   CI: true
