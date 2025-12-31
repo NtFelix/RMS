@@ -33,6 +33,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const errorParam = searchParams.get("error")
@@ -286,7 +291,7 @@ export default function LoginPage() {
                 )}
               </Button>
 
-              {isGoogleLoginEnabled && (
+              {mounted && isGoogleLoginEnabled && (
                 <div className="pt-4 space-y-4">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
