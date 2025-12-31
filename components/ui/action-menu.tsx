@@ -137,7 +137,7 @@ export function ActionMenu({
                         title={action.label}
                         {...action.dataAttributes}
                     >
-                        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                        <Icon className="!h-3.5 !w-3.5" aria-hidden="true" />
                     </Button>
                 );
             })}
