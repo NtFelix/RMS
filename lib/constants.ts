@@ -50,6 +50,7 @@ export const POSTHOG_FEATURE_FLAGS = {
   // Landing page
   SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
   SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
+  GOOGLE_SOCIAL_LOGIN: 'google-social-login',
 } as const;
 
 // Application routes - centralized to prevent hardcoded paths

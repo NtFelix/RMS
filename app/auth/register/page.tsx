@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
@@ -10,12 +10,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, ArrowRight, Loader2, Check, Sparkles } from "lucide-react"
-import { LOGO_URL, ROUTES } from "@/lib/constants"
+import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, BASE_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
+import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
+import { handleGoogleSignIn } from "@/lib/auth-helpers"
+import { GoogleIcon } from "@/components/icons/google-icon"
 
 const benefits = [
   "14 Tage kostenlos testen",
@@ -35,6 +38,13 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,7 +71,7 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${BASE_URL}/auth/callback`,
       },
     })
 
@@ -178,11 +188,11 @@ export default function RegisterPage() {
               transition={{ delay: 0.3, duration: 0.5 }}
               className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight"
             >
-              STARTEN SIE
+              Starten Sie
               <br />
-              IHRE REISE
+              jetzt mit
               <br />
-              <span className="text-white/90">NOCH HEUTE</span>
+              <span className="text-white/90">Mietevo.</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -190,8 +200,7 @@ export default function RegisterPage() {
               transition={{ delay: 0.4, duration: 0.5 }}
               className="mt-6 text-white/80 text-base md:text-lg max-w-md leading-relaxed"
             >
-              Entdecken Sie eine neue Art, Ihre Immobilien zu verwalten.
-              Einfach, effizient und immer an Ihrer Seite.
+              Einfach Immobilien verwalten.
             </motion.p>
           </div>
 
@@ -238,10 +247,10 @@ export default function RegisterPage() {
             className="max-w-sm mx-auto w-full"
           >
             <h2 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-              KONTO ERSTELLEN
+              REGISTRIEREN
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Starten Sie Ihre kostenlose Testversion.
+              Erstellen Sie Ihr Konto, um loszulegen.
             </p>
 
             <form onSubmit={handleRegister} className="mt-6 space-y-4">
@@ -354,6 +363,44 @@ export default function RegisterPage() {
                   "Kostenlos starten"
                 )}
               </Button>
+
+              {mounted && isGoogleLoginEnabled && (
+                <div className="pt-4 space-y-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">ODER MIT GOOGLE</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 rounded-xl text-base font-medium border-border hover:bg-muted/50 transition-colors"
+                    onClick={async () => {
+                      setIsLoading(true)
+                      setError(null)
+
+                      const { error } = await handleGoogleSignIn('signup_attempt')
+
+                      if (error) {
+                        setError(error)
+                        setIsLoading(false)
+                      }
+                    }}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <GoogleIcon className="h-5 w-5 mr-2" />
+                    )}
+                    Mit Google anmelden
+                  </Button>
+                </div>
+              )}
 
               <p className="text-xs text-center text-muted-foreground pt-2">
                 Mit der Registrierung stimmen Sie unseren{" "}

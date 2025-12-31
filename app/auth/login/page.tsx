@@ -10,12 +10,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
-import { LOGO_URL } from "@/lib/constants"
+import { LOGO_URL, POSTHOG_FEATURE_FLAGS, BASE_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
+import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { getAuthErrorMessage, getUrlErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
+import { handleGoogleSignIn } from "@/lib/auth-helpers"
+import { GoogleIcon } from "@/components/icons/google-icon"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -23,11 +26,18 @@ export default function LoginPage() {
   const redirectParam = searchParams.get('redirect')
   const redirect = redirectParam || "/home"
 
+  const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const errorParam = searchParams.get("error")
@@ -149,11 +159,11 @@ export default function LoginPage() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight"
             >
-              IHR NÄCHSTER
+              Willkommen
               <br />
-              SCHRITT ZUR
+              zurück bei
               <br />
-              <span className="text-white/90">EFFIZIENZ</span>
+              <span className="text-white/90">Mietevo.</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -161,8 +171,7 @@ export default function LoginPage() {
               transition={{ delay: 0.3, duration: 0.5 }}
               className="mt-6 text-white/80 text-base md:text-lg max-w-md leading-relaxed"
             >
-              Verwalten Sie Ihre Immobilien mühelos. Nebenkostenabrechnungen,
-              Mieterverwaltung und Finanzen – alles an einem Ort.
+              Ihr Immobilien-Dashboard.
             </motion.p>
             <motion.p
               initial={{ opacity: 0 }}
@@ -170,7 +179,7 @@ export default function LoginPage() {
               transition={{ delay: 0.4, duration: 0.5 }}
               className="mt-4 text-white/60 text-sm font-medium"
             >
-              Ihre Reise beginnt hier.
+              Schön, dass Sie da sind.
             </motion.p>
           </div>
 
@@ -197,10 +206,10 @@ export default function LoginPage() {
             className="max-w-sm mx-auto w-full"
           >
             <h2 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-              WILLKOMMEN ZURÜCK!
+              ANMELDEN
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Bitte geben Sie Ihre Anmeldedaten ein.
+              Geben Sie Ihre Daten ein, um fortzufahren.
             </p>
 
             <form onSubmit={handleLogin} className="mt-8 space-y-5">
@@ -281,6 +290,44 @@ export default function LoginPage() {
                   "Anmelden"
                 )}
               </Button>
+
+              {mounted && isGoogleLoginEnabled && (
+                <div className="pt-4 space-y-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">ODER MIT GOOGLE</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 rounded-xl text-base font-medium border-border hover:bg-muted/50 transition-colors"
+                    onClick={async () => {
+                      setIsLoading(true)
+                      setError(null)
+
+                      const { error } = await handleGoogleSignIn('login_attempt')
+
+                      if (error) {
+                        setError(error)
+                        setIsLoading(false)
+                      }
+                    }}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <GoogleIcon className="h-5 w-5 mr-2" />
+                    )}
+                    Mit Google anmelden
+                  </Button>
+                </div>
+              )}
 
               <p className="text-center text-sm text-muted-foreground pt-4">
                 Noch kein Konto?{" "}
