@@ -36,10 +36,26 @@ export default function Hero({ onGetStarted }: HeroProps) {
   const spotlight = useMotionTemplate`radial-gradient(1000px circle at ${mouseX}px ${mouseY}px, rgba(59, 130, 246, 0.08), transparent 80%)`
 
   // 3D Parallax Calculation
+  const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 })
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setDimensions({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height
+        })
+      }
+    })
+    resizeObserver.observe(containerRef.current)
+    return () => resizeObserver.disconnect()
+  }, [])
+
   const springX = useSpring(mouseX, { stiffness: 50, damping: 20 })
   const springY = useSpring(mouseY, { stiffness: 50, damping: 20 })
-  const rotateX = useTransform(springY, [0, 1000], [2, -2])
-  const rotateY = useTransform(springX, [0, 1920], [-2, 2])
+  const rotateX = useTransform(springY, [0, dimensions.height], [2, -2])
+  const rotateY = useTransform(springX, [0, dimensions.width], [-2, 2])
 
   // Scroll Animations
   const { scrollY } = useScroll()
@@ -52,42 +68,56 @@ export default function Hero({ onGetStarted }: HeroProps) {
   const [clickedButton, setClickedButton] = useState<string | null>(null)
 
   useEffect(() => {
+    let isMounted = true
     const runSimulation = async () => {
-      while (true) {
+      while (isMounted) {
         // RESET & START
         setStage("input")
         setClickedButton(null)
         await delay(4000)
+        if (!isMounted) break
 
         // Click "Weiter" on Input
         setClickedButton("input-next")
         await delay(300)
+        if (!isMounted) break
         setClickedButton(null)
         await delay(200)
+        if (!isMounted) break
 
         setStage("keys")
         await delay(4000)
+        if (!isMounted) break
 
         // Click "Weiter" on Keys
         setClickedButton("keys-next")
         await delay(300)
+        if (!isMounted) break
         setClickedButton(null)
         await delay(200)
+        if (!isMounted) break
 
         setStage("calc")
         await delay(4000)
+        if (!isMounted) break
 
         // Click "Create" on Calc
         setClickedButton("calc-create")
         await delay(300)
+        if (!isMounted) break
         setClickedButton(null)
         await delay(200)
+        if (!isMounted) break
 
         setStage("pdf")
         await delay(6000)
+        if (!isMounted) break
       }
     }
     runSimulation()
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
@@ -230,7 +260,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                         { icon: Trash2, label: "BSR Müllabfuhr", date: "01.02.2024", amount: "840,00 €" },
                       ].map((item, i) => (
                         <motion.div
-                          key={i}
+                          key={item.label}
                           initial={{ x: -20, opacity: 0 }}
                           animate={{ x: 0, opacity: 1 }}
                           transition={{ delay: i * 0.2 + 0.5, duration: 0.5 }}
