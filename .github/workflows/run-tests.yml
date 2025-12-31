@@ -470,6 +470,7 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+          if-no-files-found: ignore
 
       - name: Upload Playwright test results
         uses: actions/upload-artifact@v4
@@ -478,6 +479,7 @@ jobs:
           name: playwright-test-results
           path: test-results/
           retention-days: 7
+          if-no-files-found: ignore
 
   test:
     name: Run Tests (Group ${{ matrix.test-group }})
@@ -810,6 +812,7 @@ jobs:
           pattern: test-summary-*
           path: test-summaries
           merge-multiple: true
+        continue-on-error: true
 
       # Download Playwright report
       - name: Download Playwright report
