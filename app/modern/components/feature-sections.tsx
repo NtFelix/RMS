@@ -102,7 +102,7 @@ const features: Feature[] = [
   {
     title: "Berichte & Exporte",
     subtitle: "CSV & PDF",
-    description: "Erstellen Sie professionelle Auswertungen für Banken, Steuerberater oder Ihre eigenen Unterlagen.",
+    description: "Erstellen Sie professionelle Auswertungen für Miteigentümer, Steuerberater oder Ihre eigenen Unterlagen.",
     colSpan: "col-span-1 lg:col-span-3",
     icon: FileSpreadsheet,
     mock: (
