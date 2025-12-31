@@ -125,7 +125,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
               Neu
             </span>
             <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-              Smart-Import für Zählerstände
+              Import für Zählerstände
             </span>
             <ArrowRight size={14} className="text-muted-foreground group-hover:translate-x-1 group-hover:text-primary transition-all" />
           </div>
