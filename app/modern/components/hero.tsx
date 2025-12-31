@@ -166,7 +166,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           className="relative w-full max-w-[1200px] group perspective-2000"
         >
           {/* Main Container */}
-          <div className="relative rounded-[2rem] bg-background/50 backdrop-blur-3xl border border-white/10 dark:border-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] p-4 sm:p-6 overflow-hidden">
+          <div className="relative rounded-[2rem] bg-background/50 backdrop-blur-3xl border border-white/10 dark:border-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] p-4 sm:p-6 overflow-hidden text-left">
 
             {/* App Header */}
             <div className="flex items-center justify-between mb-4 px-2">
@@ -232,15 +232,15 @@ export default function Hero({ onGetStarted }: HeroProps) {
                           initial={{ x: -20, opacity: 0 }}
                           animate={{ x: 0, opacity: 1 }}
                           transition={{ delay: i * 0.2 + 0.5, duration: 0.5 }}
-                          className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-muted/10 cursor-pointer"
+                          className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-muted/10 cursor-pointer h-[72px]"
                         >
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground">
                               <item.icon size={18} />
                             </div>
-                            <div>
-                              <div className="text-sm font-bold">{item.label}</div>
-                              <div className="text-xs text-muted-foreground">{item.date}</div>
+                            <div className="flex flex-col justify-center">
+                              <div className="text-sm font-bold leading-tight">{item.label}</div>
+                              <div className="text-[10px] text-muted-foreground leading-tight">{item.date}</div>
                             </div>
                           </div>
                           <div className="text-sm font-bold tabular-nums">{item.amount}</div>
