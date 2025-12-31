@@ -158,7 +158,7 @@ export function ActionMenu({
                                 onSelect();
                             }}
                             className={cn(
-                                'h-7 w-7 text-muted-foreground/50 hover:text-foreground transition-colors',
+                                'h-7 w-7 text-muted-foreground hover:text-foreground transition-colors',
                                 isRoundedPill ? 'rounded-full' : 'rounded-md'
                             )}
                             aria-label="Auswählen"
@@ -168,7 +168,7 @@ export function ActionMenu({
                         </Button>
                     ) : (
                         <div
-                            className="flex items-center justify-center h-7 w-7 text-muted-foreground/50"
+                            className="flex items-center justify-center h-7 w-7 text-muted-foreground"
                             aria-label="Press Enter to select"
                         >
                             <ArrowRight className="!h-3.5 !w-3.5" aria-hidden="true" />
