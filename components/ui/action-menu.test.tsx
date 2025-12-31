@@ -165,4 +165,22 @@ describe('ActionMenu', () => {
             expect(container).toHaveClass('custom-class', 'absolute', 'top-0');
         });
     });
+    describe('custom data attributes', () => {
+        it('applies data attributes to action buttons', () => {
+            const actionsWithData: ActionMenuItem[] = [
+                {
+                    icon: Edit,
+                    label: 'Edit',
+                    onClick: jest.fn(),
+                    dataAttributes: { 'data-testid': 'edit-action', 'data-custom': 'value' }
+                }
+            ];
+
+            render(<ActionMenu actions={actionsWithData} />);
+
+            const button = screen.getByLabelText('Edit');
+            expect(button).toHaveAttribute('data-testid', 'edit-action');
+            expect(button).toHaveAttribute('data-custom', 'value');
+        });
+    });
 });

@@ -9,6 +9,8 @@ import { ArrowRight, LucideIcon } from 'lucide-react';
 export type ActionMenuIcon = LucideIcon | React.ComponentType<{ className?: string }>;
 
 export interface ActionMenuItem {
+    /** Optional unique identifier for the action */
+    id?: string;
     /** The icon component to display (LucideIcon or any component accepting className) */
     icon: ActionMenuIcon;
     /** Accessible label for the action (shown as tooltip) */
@@ -17,6 +19,8 @@ export interface ActionMenuItem {
     onClick: () => void;
     /** Visual variant affecting hover colors */
     variant?: 'default' | 'primary' | 'destructive';
+    /** Optional custom data attributes (e.g., for accessibility or testing) */
+    dataAttributes?: Record<string, string>;
 }
 
 export interface ActionMenuProps {
@@ -120,7 +124,7 @@ export function ActionMenu({
 
                 return (
                     <Button
-                        key={`${action.label}-${index}`}
+                        key={action.id ?? `${action.label}-${index}`}
                         variant="ghost"
                         size="icon"
                         onClick={handleClick}
@@ -131,6 +135,7 @@ export function ActionMenu({
                         )}
                         aria-label={action.label}
                         title={action.label}
+                        {...action.dataAttributes}
                     >
                         <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                     </Button>

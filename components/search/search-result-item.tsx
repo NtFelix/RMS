@@ -310,10 +310,11 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
       {result.actions && result.actions.length > 0 && (
         <ActionMenu
           actions={result.actions.map((action, index) => ({
+            id: `action-${result.id}-${index}`,
             icon: action.icon,
             label: action.label,
             onClick: () => onAction?.(result, index),
-            variant: 'default' as const,
+            variant: action.variant || 'default',
           }))}
           shape="rounded"
           visibility="selected"

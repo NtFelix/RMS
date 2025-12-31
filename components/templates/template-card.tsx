@@ -94,16 +94,20 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
           <ActionMenu
             actions={[
               {
+                id: `edit-${template.id}`,
                 icon: Edit,
                 label: ARIA_LABELS.editTemplateButton(template.titel),
                 onClick: handleEdit,
                 variant: 'primary',
+                dataAttributes: { 'data-template-card-action': 'true' },
               },
               {
+                id: `delete-${template.id}`,
                 icon: Trash2,
                 label: ARIA_LABELS.deleteTemplateButton(template.titel),
                 onClick: handleDelete,
                 variant: 'destructive',
+                dataAttributes: { 'data-template-card-action': 'true' },
               },
             ]}
             shape="pill"
