@@ -318,6 +318,8 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
           }))}
           shape="pill"
           visibility="selected"
+          showEnterHint
+          onSelect={() => onSelect(result)}
           className="ml-2"
         />
       )}

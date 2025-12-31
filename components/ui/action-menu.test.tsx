@@ -155,6 +155,15 @@ describe('ActionMenu', () => {
 
             expect(screen.getByLabelText('Press Enter to select')).toBeInTheDocument();
         });
+
+        it('calls onSelect when enter hint button is clicked', () => {
+            const mockOnSelect = jest.fn();
+            render(<ActionMenu actions={defaultActions} showEnterHint onSelect={mockOnSelect} />);
+
+            const selectButton = screen.getByLabelText('Auswählen');
+            fireEvent.click(selectButton);
+            expect(mockOnSelect).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('custom className', () => {

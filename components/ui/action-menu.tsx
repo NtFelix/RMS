@@ -40,6 +40,8 @@ export interface ActionMenuProps {
     ariaLabel?: string;
     /** Stop event propagation on click (for nested clickable elements) */
     stopPropagation?: boolean;
+    /** Callback for the enter hint action (main selection) */
+    onSelect?: () => void;
 }
 
 const variantStyles: Record<NonNullable<ActionMenuItem['variant']>, string> = {
@@ -76,6 +78,7 @@ const visibilityStyles: Record<NonNullable<ActionMenuProps['visibility']>, strin
  *   shape="rounded"
  *   visibility="selected"
  *   showEnterHint
+ *   onSelect={handleSelect}
  * />
  */
 export function ActionMenu({
@@ -87,6 +90,7 @@ export function ActionMenu({
     className,
     ariaLabel = 'Actions',
     stopPropagation = true,
+    onSelect,
 }: ActionMenuProps) {
     if (!actions || actions.length === 0) return null;
 
@@ -145,12 +149,31 @@ export function ActionMenu({
             {showEnterHint && (
                 <>
                     <div className="w-px h-4 bg-border mx-1" aria-hidden="true" />
-                    <div
-                        className="flex items-center justify-center h-7 w-7 text-muted-foreground/50"
-                        aria-label="Press Enter to select"
-                    >
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </div>
+                    {onSelect ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                                if (stopPropagation) e.stopPropagation();
+                                onSelect();
+                            }}
+                            className={cn(
+                                'h-7 w-7 text-muted-foreground/50 hover:text-foreground transition-colors',
+                                isRoundedPill ? 'rounded-full' : 'rounded-md'
+                            )}
+                            aria-label="Auswählen"
+                            title="Auswählen"
+                        >
+                            <ArrowRight className="!h-3.5 !w-3.5" aria-hidden="true" />
+                        </Button>
+                    ) : (
+                        <div
+                            className="flex items-center justify-center h-7 w-7 text-muted-foreground/50"
+                            aria-label="Press Enter to select"
+                        >
+                            <ArrowRight className="!h-3.5 !w-3.5" aria-hidden="true" />
+                        </div>
+                    )}
                 </>
             )}
         </div>
