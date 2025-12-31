@@ -316,10 +316,9 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
             onClick: () => onAction?.(result, index),
             variant: action.variant || 'default',
           }))}
-          shape="rounded"
+          shape="pill"
           visibility="selected"
-          showEnterHint
-          className="self-center pl-2"
+          className="ml-2"
         />
       )}
     </CommandItem>
