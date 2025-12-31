@@ -1,11 +1,14 @@
 "use client"
 
 import { useRef, useState, useEffect } from "react"
-import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionTemplate } from "framer-motion"
-import { Sparkles, Shield, Zap, Check, ChevronRight, Play, Star, Calendar, FileCheck, ArrowRight } from "lucide-react"
+import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionTemplate, AnimatePresence } from "framer-motion"
+import {
+  Sparkles, Shield, Zap, Check, ChevronRight, Play, Star,
+  Calendar, FileCheck, ArrowRight,
+  Receipt, Scale, Calculator, User, Building2, Droplets, Flame, Trash2,
+  FileSignature, Download, ArrowRightCircle
+} from "lucide-react"
 import { CallToAction } from "./call-to-action"
-import { VideoPlayer } from "@/components/ui/video-player"
-import { HERO_VIDEO_URL } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 
 interface HeroProps {
@@ -44,6 +47,51 @@ export default function Hero({ onGetStarted }: HeroProps) {
   const opacity = useTransform(scrollY, [0, 400], [1, 0])
   const scale = useTransform(scrollY, [0, 400], [1, 0.98])
 
+  // --- REALISTIC PROCESS SIMULATION ---
+  const [stage, setStage] = useState<"input" | "keys" | "calc" | "pdf">("input")
+  const [clickedButton, setClickedButton] = useState<string | null>(null)
+
+  useEffect(() => {
+    const runSimulation = async () => {
+      while (true) {
+        // RESET & START
+        setStage("input")
+        setClickedButton(null)
+        await delay(4000)
+
+        // Click "Weiter" on Input
+        setClickedButton("input-next")
+        await delay(300)
+        setClickedButton(null)
+        await delay(200)
+
+        setStage("keys")
+        await delay(4000)
+
+        // Click "Weiter" on Keys
+        setClickedButton("keys-next")
+        await delay(300)
+        setClickedButton(null)
+        await delay(200)
+
+        setStage("calc")
+        await delay(4000)
+
+        // Click "Create" on Calc
+        setClickedButton("calc-create")
+        await delay(300)
+        setClickedButton(null)
+        await delay(200)
+
+        setStage("pdf")
+        await delay(6000)
+      }
+    }
+    runSimulation()
+  }, [])
+
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
+
   return (
     <section
       ref={containerRef}
@@ -65,7 +113,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
 
       <div className="relative z-10 w-full max-w-[1400px] mx-auto flex flex-col items-center text-center">
 
-        {/* Trust Pill */}
+        {/* Updated Trust Pill (Reverted Text) */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -83,7 +131,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           </div>
         </motion.div>
 
-        {/* Masterpiece Typography */}
+        {/* Updated Main Title (Reverted Text) */}
         <motion.div style={{ opacity, scale }} className="mb-14 max-w-5xl">
           <h1 className="text-6xl sm:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-foreground mb-8">
             Abrechnung. <br />
@@ -98,7 +146,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           </p>
         </motion.div>
 
-        {/* Simplified CTA Row */}
+        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -108,7 +156,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           <CallToAction variant="hero" onGetStarted={onGetStarted} />
         </motion.div>
 
-        {/* --- THE ARCHITECTURAL FRAME --- */}
+        {/* --- THE REALISTIC APP MOCKUP --- */}
         <motion.div
           style={{
             y,
@@ -117,104 +165,291 @@ export default function Hero({ onGetStarted }: HeroProps) {
           }}
           className="relative w-full max-w-[1200px] group perspective-2000"
         >
-          {/* The Floating Frame */}
-          <div className="relative rounded-[2rem] bg-background/50 backdrop-blur-3xl border border-white/10 dark:border-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] p-4 sm:p-6 overflow-hidden transition-all duration-700 hover:shadow-[0_60px_120px_-20px_rgba(59,130,246,0.15)]">
+          {/* Main Container */}
+          <div className="relative rounded-[2rem] bg-background/50 backdrop-blur-3xl border border-white/10 dark:border-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] p-4 sm:p-6 overflow-hidden">
 
-            {/* Minimal Browser Chrome */}
+            {/* App Header */}
             <div className="flex items-center justify-between mb-4 px-2">
-              <div className="flex gap-2 opacity-50">
-                <div className="w-3 h-3 rounded-full bg-foreground/20" />
-                <div className="w-3 h-3 rounded-full bg-foreground/20" />
-                <div className="w-3 h-3 rounded-full bg-foreground/20" />
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                  <Building2 size={16} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Objekt</div>
+                  <div className="text-sm font-bold text-foreground">Hauptstraße 42, Berlin</div>
+                </div>
               </div>
-              <div className="h-6 px-4 rounded-md bg-foreground/5 flex items-center justify-center text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                Mietevo Dashboard
+              <div className="flex gap-2">
+                {["Kosten", "Schlüssel", "Abschluss"].map((s, i) => {
+                  const isActive = (
+                    (stage === "input" && i === 0) ||
+                    (stage === "keys" && i === 1) ||
+                    (stage === "calc" && i === 2) ||
+                    (stage === "pdf" && i === 2)
+                  )
+                  return (
+                    <div key={s} className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors",
+                      isActive ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground"
+                    )}>
+                      {s}
+                    </div>
+                  )
+                })}
               </div>
-              <div className="w-16" /> {/* Balance spacer */}
             </div>
 
-            {/* Main Video Canvas */}
-            <div className="relative rounded-2xl overflow-hidden bg-black/5 aspect-[16/9] border border-border/5">
-              <VideoPlayer
-                src={HERO_VIDEO_URL}
-                className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-700"
-                autoplay={true}
-                muted={true}
-                loop={true}
-                playsInline={true}
-                showPosterFallback={true}
-              />
+            {/* --- WORKSPACE CONTENT --- */}
+            <div className="relative rounded-2xl overflow-hidden bg-background border border-border/50 aspect-[16/9] sm:aspect-[2/1] shadow-inner flex">
 
-              {/* Interactive 'Pulse' Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+              {/* STAGE 1: INPUT COST (Belege) */}
+              <AnimatePresence mode="wait">
+                {stage === "input" && (
+                  <motion.div
+                    key="input"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full h-full flex flex-col p-8 relative"
+                  >
+                    <div className="flex justify-between items-end mb-8">
+                      <div>
+                        <h3 className="text-2xl font-black mb-1">Ausgaben erfassen</h3>
+                        <p className="text-muted-foreground text-sm">Importieren Sie Ihre Rechnungen oder scannen Sie Belege.</p>
+                      </div>
+                      <button className="px-4 py-2 bg-primary/10 text-primary text-xs font-bold uppercase rounded-lg hover:bg-primary/20 transition-colors">
+                        + Ausgabe
+                      </button>
+                    </div>
 
-              {/* Hover Context Actions */}
-              <div className="absolute bottom-8 right-8 flex gap-3 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
-                <button className="h-10 px-5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-white hover:bg-white/20 transition-colors uppercase tracking-wider">
-                  Details ansehen
-                </button>
-              </div>
+                    <div className="space-y-3">
+                      {[
+                        { icon: Flame, label: "Stadtwerke - Gas", date: "12.01.2024", amount: "4.250,00 €" },
+                        { icon: Droplets, label: "Wasserbetriebe", date: "15.01.2024", amount: "1.820,00 €" },
+                        { icon: Trash2, label: "BSR Müllabfuhr", date: "01.02.2024", amount: "840,00 €" },
+                      ].map((item, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ x: -20, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ delay: i * 0.2 + 0.5, duration: 0.5 }}
+                          className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-muted/10 cursor-pointer"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground">
+                              <item.icon size={18} />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold">{item.label}</div>
+                              <div className="text-xs text-muted-foreground">{item.date}</div>
+                            </div>
+                          </div>
+                          <div className="text-sm font-bold tabular-nums">{item.amount}</div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {/* Continue Button */}
+                    <div className="absolute bottom-8 inset-x-0 flex justify-center">
+                      <motion.button
+                        animate={clickedButton === "input-next" ? { scale: 0.9, opacity: 0.9 } : { scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.1 }}
+                        className="px-6 py-3 bg-foreground text-background text-xs font-bold uppercase rounded-xl hover:bg-foreground/90 transition-colors flex items-center gap-2"
+                      >
+                        Weiter <ArrowRightCircle size={16} />
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STAGE 2: KEYS DISTRIBUTION */}
+                {stage === "keys" && (
+                  <motion.div
+                    key="keys"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full h-full flex flex-col p-8 relative"
+                  >
+                    <div className="flex justify-between items-end mb-8">
+                      <div>
+                        <h3 className="text-2xl font-black mb-1">Verteilerschlüssel</h3>
+                        <p className="text-muted-foreground text-sm">Legen Sie fest, wie die Kosten umgelegt werden.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-1 p-5 rounded-2xl border border-primary bg-primary/5 relative overflow-hidden transition-all">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Droplets className="text-primary" size={20} />
+                          <span className="font-bold">Wasser/Abwasser</span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between p-2 rounded-lg bg-background/50 border border-border/50 opacity-50">
+                            <span className="text-xs font-bold text-muted-foreground">Nach Wohnfläche</span>
+                            <div className="w-4 h-4 rounded-full border border-muted-foreground" />
+                          </div>
+                          <div className="flex justify-between p-2 rounded-lg bg-background border border-primary shadow-sm scale-[1.02]">
+                            <span className="text-xs font-bold text-foreground">Nach Personen</span>
+                            <div className="w-4 h-4 rounded-full border-4 border-primary" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-span-1 p-5 rounded-2xl border border-border bg-muted/5 opacity-60">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Trash2 className="text-muted-foreground" size={20} />
+                          <span className="font-bold text-muted-foreground">Müllabfuhr</span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between p-2 rounded-lg bg-background border border-muted-foreground/30">
+                            <span className="text-xs font-bold text-muted-foreground">Nach Wohnfläche</span>
+                            <div className="w-4 h-4 rounded-full border-4 border-muted-foreground" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Continue Button */}
+                    <div className="absolute bottom-8 inset-x-0 flex justify-center">
+                      <motion.button
+                        animate={clickedButton === "keys-next" ? { scale: 0.9, opacity: 0.9 } : { scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.1 }}
+                        className="px-6 py-3 bg-foreground text-background text-xs font-bold uppercase rounded-xl hover:bg-foreground/90 transition-colors flex items-center gap-2"
+                      >
+                        Weiter <ArrowRightCircle size={16} />
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STAGE 3: CALCULATION */}
+                {stage === "calc" && (
+                  <motion.div
+                    key="calc"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full h-full flex flex-col p-8 items-center justify-center"
+                  >
+                    <div className="w-full max-w-md space-y-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Gesamtkosten Objekt</span>
+                        <span className="font-bold">6.910,00 €</span>
+                      </div>
+                      <div className="h-px w-full bg-border" />
+
+                      <div className="bg-muted/10 p-6 rounded-2xl border border-border/50 space-y-4 shadow-sm">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700" />
+                          <div className="text-sm font-bold">Mieter: J. Sommer</div>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Anteilige Kosten</span>
+                          <span className="font-bold text-foreground">1.450,00 €</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">./. Vorauszahlungen</span>
+                          <span className="font-bold text-emerald-600">- 1.200,00 €</span>
+                        </div>
+                        <div className="h-px w-full bg-border border-dashed" />
+                        <div className="flex justify-between text-lg font-black">
+                          <span>Nachzahlung</span>
+                          <span className="text-primary">250,00 €</span>
+                        </div>
+                      </div>
+
+                      <motion.div
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 1 }}
+                        className="pt-4 flex justify-center"
+                      >
+                        <motion.button
+                          animate={clickedButton === "calc-create" ? { scale: 0.95, opacity: 0.9 } : { scale: 1, opacity: 1 }}
+                          transition={{ duration: 0.1 }}
+                          className="px-8 py-3 bg-foreground text-background font-bold rounded-xl shadow-xl hover:scale-105 hover:bg-foreground/90 transition-all flex items-center gap-2"
+                        >
+                          <FileCheck size={18} /> Abrechnung erstellen
+                        </motion.button>
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* STAGE 4: PDF RESULT - High Fidelity */}
+                {stage === "pdf" && (
+                  <motion.div
+                    key="pdf"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="w-full h-full flex flex-col items-center justify-center relative p-8"
+                  >
+                    <div className="absolute inset-0 bg-emerald-500/[0.03] backdrop-blur-[1px]" />
+
+                    <motion.div
+                      initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.2, type: "spring", bounce: 0.4 }}
+                      className="relative z-10 w-[240px] aspect-[1/1.41] bg-white rounded-lg shadow-2xl border border-black/5 p-6 flex flex-col gap-3 group cursor-pointer hover:-translate-y-2 transition-transform duration-500"
+                    >
+                      {/* Header */}
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="w-8 h-8 rounded bg-primary" />
+                        <div className="text-[6px] text-gray-400 font-mono">2024-001</div>
+                      </div>
+                      <div className="w-1/3 h-1.5 bg-gray-800 rounded-sm mb-4" />
+
+                      {/* Body Lines */}
+                      <div className="space-y-1.5">
+                        <div className="w-full h-1 bg-gray-100 rounded-sm" />
+                        <div className="w-full h-1 bg-gray-100 rounded-sm" />
+                        <div className="w-2/3 h-1 bg-gray-100 rounded-sm" />
+                      </div>
+
+                      {/* Table Mock */}
+                      <div className="mt-4 border border-gray-100 rounded-sm p-1 space-y-1">
+                        <div className="flex gap-1">
+                          <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
+                          <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
+                          <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
+                          <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
+                        </div>
+                        <div className="w-full h-[1px] bg-gray-100" />
+                        <div className="flex gap-1">
+                          <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
+                          <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
+                          <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
+                          <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
+                        </div>
+                      </div>
+
+                      {/* Bottom Result */}
+                      <div className="mt-auto border-t border-gray-200 pt-3 flex justify-between items-center">
+                        <div className="text-[6px] font-bold text-gray-400 uppercase">Nachzahlung</div>
+                        <div className="text-xs font-bold text-gray-900">250,00 €</div>
+                      </div>
+
+                      {/* Download Overlay */}
+                      <div className="absolute inset-0 bg-primary/95 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-2 rounded-lg backdrop-blur-sm">
+                        <Download className="text-white" size={24} />
+                        <span className="text-xs font-bold text-white uppercase tracking-widest">Download</span>
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1 }}
+                      className="mt-8 flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20"
+                    >
+                      <Check size={14} strokeWidth={3} />
+                      <span className="text-xs font-bold uppercase tracking-wide">PDF Generiert</span>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
             </div>
           </div>
 
-          {/* --- ANCHORED STAT SATELLITES --- */}
-
-          {/* Satellite 1: Calendar */}
-          <motion.div
-            animate={{ y: [0, -15, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[15%] -left-8 sm:-left-24 z-20 w-56 p-5 rounded-2xl bg-background border border-border shadow-xl hidden xl:flex flex-col gap-3 group/card hover:border-primary/40 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600">
-                <Calendar size={20} />
-              </div>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase">Jährlich</span>
-            </div>
-            <div>
-              <div className="text-2xl font-black text-foreground">30.12.</div>
-              <div className="text-xs font-medium text-muted-foreground">Stichtag erreichen</div>
-            </div>
-            <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
-              <div className="h-full w-3/4 bg-blue-500" />
-            </div>
-          </motion.div>
-
-          {/* Satellite 2: Verified */}
-          <motion.div
-            animate={{ y: [0, 15, 0] }}
-            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-            className="absolute bottom-[20%] -right-8 sm:-right-24 z-20 w-56 p-5 rounded-2xl bg-background border border-border shadow-xl hidden xl:flex flex-col gap-3 group/card hover:border-emerald-500/40 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                <FileCheck size={20} />
-              </div>
-              <div className="flex items-center gap-1 text-emerald-600">
-                <Check size={12} strokeWidth={4} />
-                <span className="text-[10px] font-bold uppercase">Valid</span>
-              </div>
-            </div>
-            <div>
-              <div className="text-2xl font-black text-foreground">100%</div>
-              <div className="text-xs font-medium text-muted-foreground">Rechtssicher</div>
-            </div>
-          </motion.div>
-
         </motion.div>
       </div>
-
-      {/* Scroll Indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-muted-foreground/50"
-      >
-        <div className="w-[1px] h-12 bg-gradient-to-b from-transparent via-current to-transparent" />
-        <span className="text-[10px] uppercase tracking-widest font-bold">Scroll</span>
-      </motion.div>
-
     </section>
   )
 }
