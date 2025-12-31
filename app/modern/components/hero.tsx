@@ -107,7 +107,9 @@ export default function Hero({ onGetStarted }: HeroProps) {
       <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]"
         style={{
           backgroundImage: 'linear-gradient(90deg, currentColor 1px, transparent 1px), linear-gradient(currentColor 1px, transparent 1px)',
-          backgroundSize: '100px 100px',
+          backgroundSize: '80px 80px',
+          maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)'
         }}
       />
 
@@ -163,7 +165,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
             rotateX,
             rotateY,
           }}
-          className="relative w-full max-w-[1200px] group perspective-2000"
+          className="relative w-full max-w-[1200px] group perspective-2000 mb-20"
         >
           {/* Main Container */}
           <div className="relative rounded-[2rem] bg-background/50 backdrop-blur-3xl border border-white/10 dark:border-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] p-4 sm:p-6 overflow-hidden text-left">
