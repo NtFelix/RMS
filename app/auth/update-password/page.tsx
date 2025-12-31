@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { LOGO_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
+import { trackPasswordUpdated } from "@/lib/posthog-auth-events"
 
 export default function UpdatePasswordPage() {
   const router = useRouter()
@@ -45,6 +46,8 @@ export default function UpdatePasswordPage() {
       return
     }
 
+    // Track password updated successfully (GDPR-compliant)
+    trackPasswordUpdated()
     router.push("/auth/login")
   }
 

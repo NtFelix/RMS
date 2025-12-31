@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
+import { trackRegisterStarted, trackRegisterSuccess, trackRegisterFailed } from '@/lib/posthog-auth-events'
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import { handleGoogleSignIn } from "@/lib/auth-helpers"
@@ -60,12 +61,8 @@ export default function RegisterPage() {
 
     const supabase = createClient()
 
-    // GDPR: Only track if user has consented, don't include email in events
-    if (posthog.has_opted_in_capturing?.()) {
-      posthog.capture('signup_attempt', {
-        // Note: email removed from event properties for privacy
-      })
-    }
+    // Track registration started (GDPR-compliant - checks consent internally)
+    trackRegisterStarted('email')
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -76,13 +73,8 @@ export default function RegisterPage() {
     })
 
     if (error) {
-      // GDPR: Only track if user has consented
-      if (posthog.has_opted_in_capturing?.()) {
-        posthog.capture('signup_failed', {
-          error_type: error.code === 'user_already_exists' ? 'email_exists' : 'other',
-          // Note: email and full error removed for privacy
-        })
-      }
+      // Track registration failure (GDPR-compliant - checks consent internally)
+      trackRegisterFailed('email', error.code === 'user_already_exists' ? 'user_already_exists' : 'unknown')
 
       setError(getAuthErrorMessage(error))
       setIsLoading(false)
@@ -98,12 +90,9 @@ export default function RegisterPage() {
           user_type: 'authenticated',
           is_anonymous: false,
         })
-
-        posthog.capture('user_signed_up', {
-          provider: 'email',
-          // Note: email removed from event properties for privacy
-        })
       }
+      // Track registration success (GDPR-compliant - checks consent internally)
+      trackRegisterSuccess('email')
     }
 
     router.push('/auth/verify-email')
@@ -383,7 +372,7 @@ export default function RegisterPage() {
                       setIsLoading(true)
                       setError(null)
 
-                      const { error } = await handleGoogleSignIn('signup_attempt')
+                      const { error } = await handleGoogleSignIn('signup')
 
                       if (error) {
                         setError(error)

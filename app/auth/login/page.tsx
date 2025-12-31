@@ -14,6 +14,7 @@ import { LOGO_URL, POSTHOG_FEATURE_FLAGS, BASE_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
+import { trackLoginStarted, trackLoginSuccess, trackLoginFailed } from '@/lib/posthog-auth-events'
 import { getAuthErrorMessage, getUrlErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
@@ -51,6 +52,9 @@ export default function LoginPage() {
     setIsLoading(true)
     setError(null)
 
+    // Track login started (GDPR-compliant - checks consent internally)
+    trackLoginStarted('email')
+
     const supabase = createClient()
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -59,13 +63,8 @@ export default function LoginPage() {
     })
 
     if (error) {
-      // GDPR: Only track if user has consented, don't include email in events
-      if (posthog.has_opted_in_capturing?.()) {
-        posthog.capture('login_attempt', {
-          status: 'failed',
-          error_type: error.code === 'invalid_credentials' ? 'invalid_credentials' : 'other',
-        })
-      }
+      // Track login failure (GDPR-compliant - checks consent internally)
+      trackLoginFailed('email', error.code === 'invalid_credentials' ? 'invalid_credentials' : 'unknown')
 
       setError(getAuthErrorMessage(error))
       setIsLoading(false)
@@ -82,12 +81,9 @@ export default function LoginPage() {
           user_type: 'authenticated',
           is_anonymous: false,
         })
-
-        posthog.capture('login_success', {
-          provider: 'email',
-          // Note: email removed from event properties for privacy
-        })
       }
+      // Track login success (GDPR-compliant - checks consent internally)
+      trackLoginSuccess('email')
     }
 
     window.location.assign(redirect)
@@ -310,7 +306,7 @@ export default function LoginPage() {
                       setIsLoading(true)
                       setError(null)
 
-                      const { error } = await handleGoogleSignIn('login_attempt')
+                      const { error } = await handleGoogleSignIn('login')
 
                       if (error) {
                         setError(error)
