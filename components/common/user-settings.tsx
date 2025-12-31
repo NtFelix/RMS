@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
+import { trackLogout } from "@/lib/posthog-auth-events"
 
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useApartmentUsage } from "@/hooks/use-apartment-usage"
@@ -49,6 +50,10 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
 
   const handleLogout = async () => {
     setIsLoadingLogout(true)
+
+    // Track logout (GDPR-compliant - checks consent internally)
+    trackLogout()
+
     try {
       // First sign out from Supabase
       const { error: signOutError } = await supabase.auth.signOut()

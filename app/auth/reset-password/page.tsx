@@ -14,6 +14,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
+import {
+  trackPasswordResetRequested,
+  trackPasswordResetEmailSent,
+  trackPasswordResetFailed
+} from "@/lib/posthog-auth-events"
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState("")
@@ -27,6 +32,9 @@ export default function ResetPasswordPage() {
     setError(null)
     setMessage(null)
 
+    // Track password reset requested (GDPR-compliant)
+    trackPasswordResetRequested()
+
     const supabase = createClient()
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -34,11 +42,15 @@ export default function ResetPasswordPage() {
     })
 
     if (error) {
+      // Track password reset failed (GDPR-compliant)
+      trackPasswordResetFailed('unknown')
       setError(getAuthErrorMessage(error))
       setIsLoading(false)
       return
     }
 
+    // Track password reset email sent (GDPR-compliant)
+    trackPasswordResetEmailSent()
     setMessage("Überprüfen Sie Ihre E-Mail für den Link zum Zurücksetzen des Passworts.")
     setIsLoading(false)
   }

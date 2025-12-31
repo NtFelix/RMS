@@ -1,20 +1,16 @@
 import { createClient } from "@/utils/supabase/client"
 import { BASE_URL } from "./constants"
-import posthog from 'posthog-js'
+import { trackGoogleAuthInitiated, trackGoogleAuthFailed, AuthFlow } from "./posthog-auth-events"
 
 /**
  * Initiates the Google OAuth sign-in flow.
  * 
- * @param eventName - The name of the PostHog event to track ('login_attempt' or 'signup_attempt')
+ * @param flow - The authentication flow type ('login' or 'signup')
  * @returns An error object if the sign-in failed, or null if successful
  */
-export async function handleGoogleSignIn(eventName: 'login_attempt' | 'signup_attempt'): Promise<{ error: string | null }> {
-    // GDPR: Only track if user has consented
-    if (posthog.has_opted_in_capturing?.()) {
-        posthog.capture(eventName, {
-            provider: 'google',
-        })
-    }
+export async function handleGoogleSignIn(flow: AuthFlow): Promise<{ error: string | null }> {
+    // Track Google auth initiation (GDPR-compliant - checks consent internally)
+    trackGoogleAuthInitiated(flow)
 
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithOAuth({
@@ -28,6 +24,8 @@ export async function handleGoogleSignIn(eventName: 'login_attempt' | 'signup_at
     })
 
     if (error) {
+        // Track the failure (GDPR-compliant)
+        trackGoogleAuthFailed(flow, 'oauth_error', error.message)
         return { error: error.message }
     }
 
