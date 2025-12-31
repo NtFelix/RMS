@@ -1,67 +1,73 @@
 /**
  * PostHog Authentication Event Tracking
  * 
- * Centralized utilities for tracking user authentication interactions.
- * All events are type-safe and GDPR-compliant.
+ * Unified, type-safe, and GDPR-compliant authentication tracking.
  * 
- * Events are only captured if the user has explicitly opted in to tracking.
+ * Uses a SINGLE event type "auth" with rich properties for:
+ * - Action: signup, login, logout, password_reset, etc.
+ * - Status: started, success, failed, cancelled
+ * - Method: email, google, apple, magic_link, etc.
+ * 
+ * This design allows for easy extension of new auth methods
+ * and flexible analytics queries in PostHog.
  */
 
 import posthog from 'posthog-js';
 
 // ============================================================================
-// Event Names
+// Event Names - Simplified to core events
 // ============================================================================
 
 export const AUTH_EVENTS = {
-    // Login Events
-    LOGIN_PAGE_VIEWED: 'auth_login_page_viewed',
-    LOGIN_STARTED: 'auth_login_started',
-    LOGIN_SUCCESS: 'auth_login_success',
-    LOGIN_FAILED: 'auth_login_failed',
+    // Core unified auth event
+    AUTH: 'auth',
 
-    // Registration Events
-    REGISTER_PAGE_VIEWED: 'auth_register_page_viewed',
-    REGISTER_STARTED: 'auth_register_started',
-    REGISTER_SUCCESS: 'auth_register_success',
-    REGISTER_FAILED: 'auth_register_failed',
-
-    // Google OAuth Events
-    GOOGLE_AUTH_INITIATED: 'auth_google_initiated',
-    GOOGLE_AUTH_SUCCESS: 'auth_google_success',
-    GOOGLE_AUTH_FAILED: 'auth_google_failed',
-    GOOGLE_AUTH_CANCELLED: 'auth_google_cancelled',
-
-    // Password Events
-    PASSWORD_RESET_REQUESTED: 'auth_password_reset_requested',
-    PASSWORD_RESET_EMAIL_SENT: 'auth_password_reset_email_sent',
-    PASSWORD_RESET_FAILED: 'auth_password_reset_failed',
-    PASSWORD_UPDATED: 'auth_password_updated',
-
-    // Session Events
-    SESSION_STARTED: 'auth_session_started',
-    SESSION_EXPIRED: 'auth_session_expired',
-    LOGOUT: 'auth_logout',
-
-    // Email Verification Events
-    EMAIL_VERIFICATION_SENT: 'auth_email_verification_sent',
-    EMAIL_VERIFIED: 'auth_email_verified',
-    EMAIL_VERIFICATION_FAILED: 'auth_email_verification_failed',
-
-    // Onboarding Events
-    ONBOARDING_STARTED: 'auth_onboarding_started',
-    ONBOARDING_PLAN_VIEWED: 'auth_onboarding_plan_viewed',
-    ONBOARDING_PLAN_SELECTED: 'auth_onboarding_plan_selected',
-    ONBOARDING_COMPLETED: 'auth_onboarding_completed',
-    ONBOARDING_SKIPPED: 'auth_onboarding_skipped',
+    // Onboarding events (separate as they have different context)
+    ONBOARDING: 'onboarding',
 } as const;
 
 // ============================================================================
 // Type Definitions
 // ============================================================================
 
-export type AuthProvider = 'email' | 'google' | 'magic_link';
-export type AuthFlow = 'login' | 'signup';
+/**
+ * Authentication method - extensible for future providers
+ */
+export type AuthMethod =
+    | 'email'           // Email/password
+    | 'google'          // Google OAuth
+    | 'apple'           // Apple Sign In (future)
+    | 'microsoft'       // Microsoft OAuth (future)
+    | 'github'          // GitHub OAuth (future)
+    | 'magic_link'      // Passwordless email link
+    | 'sso'             // Enterprise SSO (future)
+    | string;           // Allow custom methods
+
+/**
+ * Authentication action types
+ */
+export type AuthAction =
+    | 'signup'          // New user registration
+    | 'login'           // User login
+    | 'logout'          // User logout
+    | 'password_reset'  // Password reset flow
+    | 'password_update' // Password change
+    | 'email_verify'    // Email verification
+    | 'session_refresh' // Session refresh
+    | 'session_expire'; // Session expiration
+
+/**
+ * Authentication status
+ */
+export type AuthStatus =
+    | 'started'     // Action initiated
+    | 'success'     // Action completed successfully
+    | 'failed'      // Action failed
+    | 'cancelled';  // Action cancelled by user
+
+/**
+ * Detailed error types for failed auth attempts
+ */
 export type AuthErrorType =
     | 'invalid_credentials'
     | 'email_not_confirmed'
@@ -71,21 +77,62 @@ export type AuthErrorType =
     | 'network_error'
     | 'oauth_cancelled'
     | 'oauth_error'
+    | 'expired_token'
     | 'unknown';
 
-export type OnboardingPlan = 'free' | 'basic' | 'pro' | string;
+/**
+ * Onboarding actions
+ */
+export type OnboardingAction =
+    | 'started'         // User reached onboarding
+    | 'plan_viewed'     // User viewed a plan
+    | 'plan_selected'   // User selected a plan
+    | 'completed'       // Onboarding completed
+    | 'skipped';        // User skipped onboarding
 
 /**
- * Details for subscription plan selection tracking
+ * Auth event properties
+ */
+export interface AuthEventProperties {
+    action: AuthAction;
+    status: AuthStatus;
+    method: AuthMethod;
+    is_new_user?: boolean;
+    error_type?: AuthErrorType;
+    error_message?: string;
+    flow?: 'login' | 'signup';  // For OAuth, which page initiated it
+}
+
+/**
+ * Onboarding event properties
+ */
+export interface OnboardingEventProperties {
+    action: OnboardingAction;
+    auth_method?: AuthMethod;       // How user authenticated
+    plan_name?: string;             // Stripe product name
+    price_id?: string;              // Stripe price ID
+    billing_cycle?: 'monthly' | 'yearly';
+    price_amount?: number;          // Price in base currency
+    currency?: string;              // Currency code
+    position?: number;              // Plan position in list
+}
+
+/**
+ * Subscription plan details for tracking
  */
 export interface PlanSelectionDetails {
     planName: string;
     priceId: string;
     billingCycle: 'monthly' | 'yearly';
-    priceAmount?: number; // Price in base currency (e.g., euros, not cents)
+    priceAmount?: number;
     currency?: string;
-    position?: number; // Position in plan list (0 = free, 1 = basic, etc.)
+    position?: number;
 }
+
+// Legacy type for backwards compatibility
+export type AuthProvider = AuthMethod;
+export type AuthFlow = 'login' | 'signup';
+export type OnboardingPlan = string;
 
 // ============================================================================
 // Helper Functions
@@ -106,7 +153,7 @@ function canTrack(): boolean {
 }
 
 /**
- * Get common properties for all auth events
+ * Get common properties for all events
  */
 function getCommonProperties() {
     return {
@@ -117,374 +164,226 @@ function getCommonProperties() {
 }
 
 // ============================================================================
-// Login Tracking
+// Core Auth Tracking Function
 // ============================================================================
 
 /**
- * Track login page view
- */
-export function trackLoginPageViewed() {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.LOGIN_PAGE_VIEWED, {
-        ...getCommonProperties(),
-    });
-}
-
-/**
- * Track login started (form submission or OAuth initiated)
- */
-export function trackLoginStarted(provider: AuthProvider) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.LOGIN_STARTED, {
-        ...getCommonProperties(),
-        provider,
-    });
-}
-
-/**
- * Track successful login
- */
-export function trackLoginSuccess(provider: AuthProvider, isNewUser: boolean = false) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.LOGIN_SUCCESS, {
-        ...getCommonProperties(),
-        provider,
-        is_new_user: isNewUser,
-    });
-}
-
-/**
- * Track failed login attempt
- */
-export function trackLoginFailed(provider: AuthProvider, errorType: AuthErrorType) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.LOGIN_FAILED, {
-        ...getCommonProperties(),
-        provider,
-        error_type: errorType,
-    });
-}
-
-// ============================================================================
-// Registration Tracking
-// ============================================================================
-
-/**
- * Track registration page view
- */
-export function trackRegisterPageViewed() {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.REGISTER_PAGE_VIEWED, {
-        ...getCommonProperties(),
-    });
-}
-
-/**
- * Track registration started
- */
-export function trackRegisterStarted(provider: AuthProvider) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.REGISTER_STARTED, {
-        ...getCommonProperties(),
-        provider,
-    });
-}
-
-/**
- * Track successful registration
- */
-export function trackRegisterSuccess(provider: AuthProvider) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.REGISTER_SUCCESS, {
-        ...getCommonProperties(),
-        provider,
-    });
-}
-
-/**
- * Track failed registration
- */
-export function trackRegisterFailed(provider: AuthProvider, errorType: AuthErrorType) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.REGISTER_FAILED, {
-        ...getCommonProperties(),
-        provider,
-        error_type: errorType,
-    });
-}
-
-// ============================================================================
-// Google OAuth Tracking
-// ============================================================================
-
-/**
- * Track Google OAuth initiated (button clicked)
- */
-export function trackGoogleAuthInitiated(flow: AuthFlow) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.GOOGLE_AUTH_INITIATED, {
-        ...getCommonProperties(),
-        flow,
-    });
-}
-
-/**
- * Track successful Google OAuth completion
- */
-export function trackGoogleAuthSuccess(flow: AuthFlow, isNewUser: boolean = false) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.GOOGLE_AUTH_SUCCESS, {
-        ...getCommonProperties(),
-        flow,
-        is_new_user: isNewUser,
-    });
-}
-
-/**
- * Track failed Google OAuth
- */
-export function trackGoogleAuthFailed(flow: AuthFlow, errorType: AuthErrorType, errorMessage?: string) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.GOOGLE_AUTH_FAILED, {
-        ...getCommonProperties(),
-        flow,
-        error_type: errorType,
-        error_message: errorMessage,
-    });
-}
-
-/**
- * Track cancelled Google OAuth (user closed popup or cancelled)
- */
-export function trackGoogleAuthCancelled(flow: AuthFlow) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.GOOGLE_AUTH_CANCELLED, {
-        ...getCommonProperties(),
-        flow,
-    });
-}
-
-// ============================================================================
-// Password Reset Tracking
-// ============================================================================
-
-/**
- * Track password reset request started
- */
-export function trackPasswordResetRequested() {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.PASSWORD_RESET_REQUESTED, {
-        ...getCommonProperties(),
-    });
-}
-
-/**
- * Track password reset email sent successfully
- */
-export function trackPasswordResetEmailSent() {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.PASSWORD_RESET_EMAIL_SENT, {
-        ...getCommonProperties(),
-    });
-}
-
-/**
- * Track password reset failed
- */
-export function trackPasswordResetFailed(errorType: AuthErrorType) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.PASSWORD_RESET_FAILED, {
-        ...getCommonProperties(),
-        error_type: errorType,
-    });
-}
-
-/**
- * Track password updated successfully
- */
-export function trackPasswordUpdated() {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.PASSWORD_UPDATED, {
-        ...getCommonProperties(),
-    });
-}
-
-// ============================================================================
-// Session Tracking
-// ============================================================================
-
-/**
- * Track session started (user authenticated and session created)
- */
-export function trackSessionStarted(provider: AuthProvider) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.SESSION_STARTED, {
-        ...getCommonProperties(),
-        provider,
-    });
-}
-
-/**
- * Track session expired
- */
-export function trackSessionExpired() {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.SESSION_EXPIRED, {
-        ...getCommonProperties(),
-    });
-}
-
-/**
- * Track user logout
- */
-export function trackLogout() {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.LOGOUT, {
-        ...getCommonProperties(),
-    });
-}
-
-// ============================================================================
-// Email Verification Tracking
-// ============================================================================
-
-/**
- * Track email verification sent
- */
-export function trackEmailVerificationSent() {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.EMAIL_VERIFICATION_SENT, {
-        ...getCommonProperties(),
-    });
-}
-
-/**
- * Track email verified successfully
- */
-export function trackEmailVerified() {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.EMAIL_VERIFIED, {
-        ...getCommonProperties(),
-    });
-}
-
-/**
- * Track email verification failed
- */
-export function trackEmailVerificationFailed(errorType: AuthErrorType) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.EMAIL_VERIFICATION_FAILED, {
-        ...getCommonProperties(),
-        error_type: errorType,
-    });
-}
-
-// ============================================================================
-// Onboarding Tracking
-// ============================================================================
-
-/**
- * Track onboarding started
- */
-export function trackOnboardingStarted(provider: AuthProvider) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.ONBOARDING_STARTED, {
-        ...getCommonProperties(),
-        provider,
-    });
-}
-
-/**
- * Track onboarding plan viewed
- */
-export function trackOnboardingPlanViewed(planName: OnboardingPlan) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.ONBOARDING_PLAN_VIEWED, {
-        ...getCommonProperties(),
-        plan_name: planName,
-    });
-}
-
-/**
- * Track onboarding plan selected
+ * Track unified auth event
  * 
- * Can be called with either:
- * - A PlanSelectionDetails object for full details
- * - Individual parameters for backwards compatibility
+ * @example
+ * // Login started with email
+ * trackAuth({ action: 'login', status: 'started', method: 'email' })
+ * 
+ * // Google signup success
+ * trackAuth({ action: 'signup', status: 'success', method: 'google', is_new_user: true })
+ * 
+ * // Login failed
+ * trackAuth({ action: 'login', status: 'failed', method: 'email', error_type: 'invalid_credentials' })
+ */
+export function trackAuth(properties: AuthEventProperties) {
+    if (!canTrack()) return;
+
+    posthog.capture(AUTH_EVENTS.AUTH, {
+        ...getCommonProperties(),
+        ...properties,
+    });
+}
+
+/**
+ * Track onboarding event
+ * 
+ * @example
+ * // Onboarding started
+ * trackOnboarding({ action: 'started', auth_method: 'google' })
+ * 
+ * // Plan selected
+ * trackOnboarding({ 
+ *   action: 'plan_selected', 
+ *   plan_name: 'Pro', 
+ *   price_id: 'price_xxx',
+ *   billing_cycle: 'monthly',
+ *   price_amount: 19.99
+ * })
+ */
+export function trackOnboarding(properties: OnboardingEventProperties) {
+    if (!canTrack()) return;
+
+    posthog.capture(AUTH_EVENTS.ONBOARDING, {
+        ...getCommonProperties(),
+        ...properties,
+    });
+}
+
+// ============================================================================
+// Convenience Functions (Simple API)
+// ============================================================================
+
+// --- Login ---
+
+export function trackLoginStarted(method: AuthMethod = 'email') {
+    trackAuth({ action: 'login', status: 'started', method });
+}
+
+export function trackLoginSuccess(method: AuthMethod = 'email', isNewUser: boolean = false) {
+    trackAuth({ action: 'login', status: 'success', method, is_new_user: isNewUser });
+}
+
+export function trackLoginFailed(method: AuthMethod = 'email', errorType: AuthErrorType = 'unknown') {
+    trackAuth({ action: 'login', status: 'failed', method, error_type: errorType });
+}
+
+// --- Signup ---
+
+export function trackRegisterStarted(method: AuthMethod = 'email') {
+    trackAuth({ action: 'signup', status: 'started', method });
+}
+
+export function trackRegisterSuccess(method: AuthMethod = 'email') {
+    trackAuth({ action: 'signup', status: 'success', method, is_new_user: true });
+}
+
+export function trackRegisterFailed(method: AuthMethod = 'email', errorType: AuthErrorType = 'unknown') {
+    trackAuth({ action: 'signup', status: 'failed', method, error_type: errorType });
+}
+
+// --- Social/OAuth (works for any provider) ---
+
+export function trackSocialAuthInitiated(method: AuthMethod, flow: 'login' | 'signup') {
+    trackAuth({ action: flow, status: 'started', method, flow });
+}
+
+export function trackSocialAuthSuccess(method: AuthMethod, flow: 'login' | 'signup', isNewUser: boolean = false) {
+    trackAuth({ action: flow, status: 'success', method, is_new_user: isNewUser, flow });
+}
+
+export function trackSocialAuthFailed(method: AuthMethod, flow: 'login' | 'signup', errorType: AuthErrorType = 'oauth_error') {
+    trackAuth({ action: flow, status: 'failed', method, error_type: errorType, flow });
+}
+
+export function trackSocialAuthCancelled(method: AuthMethod, flow: 'login' | 'signup') {
+    trackAuth({ action: flow, status: 'cancelled', method, flow });
+}
+
+// --- Legacy Google-specific functions (for backwards compatibility) ---
+
+export function trackGoogleAuthInitiated(flow: 'login' | 'signup') {
+    trackSocialAuthInitiated('google', flow);
+}
+
+export function trackGoogleAuthSuccess(flow: 'login' | 'signup', isNewUser: boolean = false) {
+    trackSocialAuthSuccess('google', flow, isNewUser);
+}
+
+export function trackGoogleAuthFailed(flow: 'login' | 'signup', errorType: AuthErrorType = 'oauth_error', errorMessage?: string) {
+    if (!canTrack()) return;
+    trackAuth({ action: flow, status: 'failed', method: 'google', error_type: errorType, error_message: errorMessage, flow });
+}
+
+export function trackGoogleAuthCancelled(flow: 'login' | 'signup') {
+    trackSocialAuthCancelled('google', flow);
+}
+
+// --- Password Reset ---
+
+export function trackPasswordResetRequested() {
+    trackAuth({ action: 'password_reset', status: 'started', method: 'email' });
+}
+
+export function trackPasswordResetEmailSent() {
+    trackAuth({ action: 'password_reset', status: 'success', method: 'email' });
+}
+
+export function trackPasswordResetFailed(errorType: AuthErrorType = 'unknown') {
+    trackAuth({ action: 'password_reset', status: 'failed', method: 'email', error_type: errorType });
+}
+
+export function trackPasswordUpdated() {
+    trackAuth({ action: 'password_update', status: 'success', method: 'email' });
+}
+
+// --- Session ---
+
+export function trackSessionStarted(method: AuthMethod = 'email') {
+    trackAuth({ action: 'login', status: 'success', method });
+}
+
+export function trackSessionExpired() {
+    trackAuth({ action: 'session_expire', status: 'success', method: 'email' });
+}
+
+export function trackLogout() {
+    trackAuth({ action: 'logout', status: 'success', method: 'email' });
+}
+
+// --- Email Verification ---
+
+export function trackEmailVerificationSent() {
+    trackAuth({ action: 'email_verify', status: 'started', method: 'email' });
+}
+
+export function trackEmailVerified() {
+    trackAuth({ action: 'email_verify', status: 'success', method: 'email' });
+}
+
+export function trackEmailVerificationFailed(errorType: AuthErrorType = 'unknown') {
+    trackAuth({ action: 'email_verify', status: 'failed', method: 'email', error_type: errorType });
+}
+
+// --- Onboarding ---
+
+export function trackOnboardingStarted(authMethod: AuthMethod = 'email') {
+    trackOnboarding({ action: 'started', auth_method: authMethod });
+}
+
+export function trackOnboardingPlanViewed(planName: string) {
+    trackOnboarding({ action: 'plan_viewed', plan_name: planName });
+}
+
+/**
+ * Track plan selection with details
+ * Accepts either a PlanSelectionDetails object or individual params
  */
 export function trackOnboardingPlanSelected(
-    planNameOrDetails: OnboardingPlan | PlanSelectionDetails,
+    planNameOrDetails: string | PlanSelectionDetails,
     priceId?: string,
     billingCycle?: 'monthly' | 'yearly'
 ) {
-    if (!canTrack()) return;
-
-    // Determine if we received a details object or individual params
     const isDetailsObject = typeof planNameOrDetails === 'object' && planNameOrDetails !== null;
 
-    const properties = isDetailsObject
-        ? {
-            ...getCommonProperties(),
+    if (isDetailsObject) {
+        trackOnboarding({
+            action: 'plan_selected',
             plan_name: planNameOrDetails.planName,
             price_id: planNameOrDetails.priceId,
             billing_cycle: planNameOrDetails.billingCycle,
             price_amount: planNameOrDetails.priceAmount,
             currency: planNameOrDetails.currency,
             position: planNameOrDetails.position,
-        }
-        : {
-            ...getCommonProperties(),
+        });
+    } else {
+        trackOnboarding({
+            action: 'plan_selected',
             plan_name: planNameOrDetails,
             price_id: priceId,
             billing_cycle: billingCycle,
-        };
-
-    posthog.capture(AUTH_EVENTS.ONBOARDING_PLAN_SELECTED, properties);
+        });
+    }
 }
 
-/**
- * Track onboarding completed
- */
-export function trackOnboardingCompleted(planName: OnboardingPlan) {
-    if (!canTrack()) return;
-
-    posthog.capture(AUTH_EVENTS.ONBOARDING_COMPLETED, {
-        ...getCommonProperties(),
-        plan_name: planName,
-    });
+export function trackOnboardingCompleted(planName?: string) {
+    trackOnboarding({ action: 'completed', plan_name: planName });
 }
 
-/**
- * Track onboarding skipped
- */
 export function trackOnboardingSkipped() {
-    if (!canTrack()) return;
+    trackOnboarding({ action: 'skipped' });
+}
 
-    posthog.capture(AUTH_EVENTS.ONBOARDING_SKIPPED, {
-        ...getCommonProperties(),
-    });
+// --- Legacy page view functions (kept for backwards compatibility) ---
+
+export function trackLoginPageViewed() {
+    // Can be implemented with page view if needed
+}
+
+export function trackRegisterPageViewed() {
+    // Can be implemented with page view if needed
 }
