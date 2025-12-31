@@ -31,16 +31,18 @@ test.describe('Landing Page', () => {
 
 test.describe('Authentication Flow', () => {
   test('login page should be accessible', async ({ page }) => {
-    await page.goto('/login');
+    // Login page is at /auth/login (redirected from /login)
+    await page.goto('/auth/login');
 
     // Check for login page heading to confirm page rendered
     await expect(page.getByRole('heading', { name: /anmelden/i })).toBeVisible();
   });
 
   test('registration page should be accessible', async ({ page }) => {
-    await page.goto('/register');
+    // Registration page is at /auth/register
+    await page.goto('/auth/register');
 
-    // Check for registration page heading to confirm page rendered
+    // The page has an h2 with "REGISTRIEREN"
     await expect(page.getByRole('heading', { name: /registrieren/i })).toBeVisible();
   });
 });
