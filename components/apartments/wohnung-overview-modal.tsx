@@ -106,7 +106,7 @@ export function WohnungOverviewModal() {
 
   const handleRetry = async () => {
     if (!wohnungOverviewData?.id) return;
-    
+
     setWohnungOverviewLoading(true);
     setWohnungOverviewError(undefined);
 
@@ -171,7 +171,7 @@ export function WohnungOverviewModal() {
       const subject = encodeURIComponent(`Betreff: Wohnung ${wohnungOverviewData?.name || ''}`);
       const body = encodeURIComponent(`Hallo ${mieter.name},\n\n`);
       window.location.href = `mailto:${mieter.email}?subject=${subject}&body=${body}`;
-      
+
       toast({
         title: "E-Mail wird geöffnet",
         description: `E-Mail an ${mieter.name} wird in Ihrem Standard-E-Mail-Programm geöffnet.`,
@@ -180,7 +180,7 @@ export function WohnungOverviewModal() {
     } else if (mieter.telefon && mieter.telefon.trim() !== '') {
       // Open phone dialer
       window.location.href = `tel:${mieter.telefon}`;
-      
+
       toast({
         title: "Telefon wird gewählt",
         description: `Telefonnummer ${mieter.telefon} wird gewählt.`,
@@ -205,7 +205,7 @@ export function WohnungOverviewModal() {
 
     try {
       setIsDeleting(true);
-      
+
       // Use the server action to delete the tenant
       const { success, error } = await deleteTenantAction(mieterToDelete.id);
 
@@ -215,7 +215,7 @@ export function WohnungOverviewModal() {
           description: `Der Mieter "${mieterToDelete.name}" wurde erfolgreich gelöscht.`,
           variant: "default",
         });
-        
+
         // Refresh the overview data
         refreshWohnungOverviewData();
       } else {
@@ -266,7 +266,7 @@ export function WohnungOverviewModal() {
 
       {/* Skeleton content */}
       <div className="space-y-4">
-        
+
         {/* Table skeleton */}
         <div className="rounded-md border">
           <div className="p-4 border-b bg-gray-50">
@@ -324,8 +324,8 @@ export function WohnungOverviewModal() {
           <RefreshCw className="h-4 w-4" />
           Erneut versuchen
         </Button>
-        <Button 
-          onClick={() => closeWohnungOverviewModal()} 
+        <Button
+          onClick={() => closeWohnungOverviewModal()}
           variant="ghost"
           className="text-gray-600"
         >
@@ -342,10 +342,10 @@ export function WohnungOverviewModal() {
     const activeTenants = wohnungOverviewData.mieter?.filter(m => m.status === 'active').length || 0;
     const totalTenants = wohnungOverviewData.mieter?.length || 0;
     const pricePerSqm = wohnungOverviewData.groesse > 0 ? wohnungOverviewData.miete / wohnungOverviewData.groesse : 0;
-    
+
     // Find current tenant for occupancy info
     const currentTenant = wohnungOverviewData.mieter?.find(m => m.status === 'active');
-    const occupancyDays = currentTenant?.einzug 
+    const occupancyDays = currentTenant?.einzug
       ? Math.floor((Date.now() - new Date(currentTenant.einzug).getTime()) / (1000 * 60 * 60 * 24))
       : 0;
 
@@ -414,7 +414,7 @@ export function WohnungOverviewModal() {
 
   return (
     <Dialog open={isWohnungOverviewModalOpen} onOpenChange={(open) => !open && closeWohnungOverviewModal()}>
-      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-5xl md:max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-xl">
             {wohnungOverviewData ? `Wohnungs-Übersicht: ${wohnungOverviewData.name}` : 'Wohnungs-Übersicht'}
@@ -497,7 +497,7 @@ export function WohnungOverviewModal() {
                               </TableCell>
                               <TableCell>
                                 {mieter.email ? (
-                                  <a 
+                                  <a
                                     href={`mailto:${mieter.email}`}
                                     className="text-blue-600 hover:text-blue-800 hover:underline"
                                     onClick={(e) => e.stopPropagation()}
@@ -510,7 +510,7 @@ export function WohnungOverviewModal() {
                               </TableCell>
                               <TableCell>
                                 {mieter.telefon ? (
-                                  <a 
+                                  <a
                                     href={`tel:${mieter.telefon}`}
                                     className="text-blue-600 hover:text-blue-800 hover:underline"
                                     onClick={(e) => e.stopPropagation()}
@@ -556,11 +556,11 @@ export function WohnungOverviewModal() {
                                     }}
                                     className="h-8 w-8 p-0"
                                     title={
-                                      mieter.email && mieter.email.trim() !== '' 
-                                        ? `E-Mail an ${mieter.email}` 
+                                      mieter.email && mieter.email.trim() !== ''
+                                        ? `E-Mail an ${mieter.email}`
                                         : mieter.telefon && mieter.telefon.trim() !== ''
-                                        ? `Anrufen: ${mieter.telefon}`
-                                        : "Keine Kontaktdaten verfügbar"
+                                          ? `Anrufen: ${mieter.telefon}`
+                                          : "Keine Kontaktdaten verfügbar"
                                     }
                                     disabled={(!mieter.email || mieter.email.trim() === '') && (!mieter.telefon || mieter.telefon.trim() === '')}
                                   >
@@ -577,14 +577,14 @@ export function WohnungOverviewModal() {
                             </TableRow>
                           </ContextMenuTrigger>
                           <ContextMenuContent className="w-64">
-                            <ContextMenuItem 
+                            <ContextMenuItem
                               onClick={() => handleEditMieter(mieter)}
                               className="flex items-center gap-2 cursor-pointer"
                             >
                               <Edit className="h-4 w-4" />
                               <span>Bearbeiten</span>
                             </ContextMenuItem>
-                            <ContextMenuItem 
+                            <ContextMenuItem
                               onClick={() => handleContactMieter(mieter)}
                               className="flex items-center gap-2 cursor-pointer"
                               disabled={(!mieter.email || mieter.email.trim() === '') && (!mieter.telefon || mieter.telefon.trim() === '')}
@@ -597,7 +597,7 @@ export function WohnungOverviewModal() {
                               <span>Kontaktieren</span>
                             </ContextMenuItem>
                             <ContextMenuSeparator />
-                            <ContextMenuItem 
+                            <ContextMenuItem
                               onClick={() => handleDeleteMieter(mieter)}
                               className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
                             >
@@ -626,9 +626,9 @@ export function WohnungOverviewModal() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDeleteMieter} 
-              disabled={isDeleting} 
+            <AlertDialogAction
+              onClick={confirmDeleteMieter}
+              disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >
               {isDeleting ? "Löschen..." : "Löschen"}

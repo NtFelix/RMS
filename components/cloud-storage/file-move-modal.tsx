@@ -62,7 +62,7 @@ export function FileMoveModal({
       if (!response.ok) {
         throw new Error('Failed to load folder structure')
       }
-      
+
       const data = await response.json()
       setTreeData(data.tree || [])
     } catch (error) {
@@ -84,7 +84,7 @@ export function FileMoveModal({
       if (!response.ok) {
         throw new Error('Failed to load folder children')
       }
-      
+
       const data = await response.json()
       return data.children || []
     } catch (error) {
@@ -112,7 +112,7 @@ export function FileMoveModal({
               if (!node.children || node.children.length === 0) {
                 // Mark as loading
                 const updatedNode = { ...node, isExpanded: true, isLoading: true }
-                
+
                 // Load children asynchronously
                 loadFolderChildren(nodePath).then(children => {
                   setTreeData(currentTree => {
@@ -130,22 +130,22 @@ export function FileMoveModal({
                     return updateWithChildren(currentTree)
                   })
                 })
-                
+
                 return updatedNode
               } else {
                 return { ...node, isExpanded: true }
               }
             }
           }
-          
+
           if (node.children) {
             return { ...node, children: updateNode(node.children) }
           }
-          
+
           return node
         })
       }
-      
+
       return updateNode(prevTree)
     })
   }, [loadFolderChildren])
@@ -161,7 +161,7 @@ export function FileMoveModal({
       })
       return
     }
-    
+
     setSelectedPath(folderPath)
   }, [currentPath, toast])
 
@@ -181,7 +181,7 @@ export function FileMoveModal({
       await onMove(selectedPath)
       toast({
         title: "Erfolgreich verschoben",
-        description: itemType === 'file' 
+        description: itemType === 'file'
           ? `Datei "${itemName}" wurde erfolgreich verschoben.`
           : `Ordner "${itemName}" und alle enthaltenen Dateien wurden erfolgreich verschoben.`
       })
@@ -209,7 +209,7 @@ export function FileMoveModal({
   const renderTreeNode = useCallback((node: TreeNode, level: number = 0) => {
     const isSelected = selectedPath === node.path
     const canSelect = node.type === 'folder' && node.path !== currentPath && !currentPath.startsWith(node.path + '/')
-    
+
     return (
       <div key={node.path} className="select-none">
         <div
@@ -240,7 +240,7 @@ export function FileMoveModal({
               )}
             </div>
           )}
-          
+
           <div className="flex items-center flex-1 min-w-0">
             {node.type === 'folder' ? (
               node.isExpanded ? (
@@ -251,11 +251,11 @@ export function FileMoveModal({
             ) : (
               <File className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500" />
             )}
-            
+
             <span className="truncate text-sm">
               {node.displayName || node.name}
             </span>
-            
+
             {node.isEmpty ? (
               <span className="ml-2 text-xs text-muted-foreground">(leer)</span>
             ) : node.fileCount !== undefined && node.fileCount > 0 ? (
@@ -265,7 +265,7 @@ export function FileMoveModal({
             ) : null}
           </div>
         </div>
-        
+
         {node.isExpanded && node.children && (
           <div>
             {node.children.map(child => renderTreeNode(child, level + 1))}
@@ -279,20 +279,20 @@ export function FileMoveModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-xl md:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center">
             <Move className="h-5 w-5 mr-2" />
             {itemType === 'file' ? 'Datei' : 'Ordner'} verschieben
           </DialogTitle>
           <DialogDescription>
-            {itemType === 'file' 
+            {itemType === 'file'
               ? `Wählen Sie den Zielordner für die Datei "${itemName}" aus.`
               : `Wählen Sie den Zielordner für den Ordner "${itemName}" und alle enthaltenen Dateien aus.`
             }
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -319,8 +319,8 @@ export function FileMoveModal({
           <Button variant="outline" onClick={onClose} disabled={isMoving}>
             Abbrechen
           </Button>
-          <Button 
-            onClick={handleMove} 
+          <Button
+            onClick={handleMove}
             disabled={!selectedPath || isMoving}
           >
             {isMoving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
