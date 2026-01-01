@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { BASE_URL, BRAND_NAME } from '@/lib/constants'
+import { BASE_URL, BRAND_NAME, OG_IMAGE_URL } from '@/lib/constants'
 
 /**
  * Default metadata for the entire application.
@@ -46,7 +46,7 @@ export const defaultMetadata: Metadata = {
         description: 'Die moderne Lösung für Ihre Mietverwaltung und Nebenkostenabrechnung. Einfach, schnell und rechtssicher.',
         images: [
             {
-                url: `${BASE_URL}/og-image.png`,
+                url: OG_IMAGE_URL,
                 width: 1200,
                 height: 630,
                 alt: `${BRAND_NAME} - Hausverwaltungssoftware`,
@@ -59,7 +59,7 @@ export const defaultMetadata: Metadata = {
         description: 'Die moderne Lösung für Ihre Mietverwaltung und Nebenkostenabrechnung.',
         site: '@Mietevo',
         creator: '@Mietevo',
-        images: [`${BASE_URL}/og-image.png`],
+        images: [OG_IMAGE_URL],
     },
     alternates: {
         canonical: BASE_URL,
