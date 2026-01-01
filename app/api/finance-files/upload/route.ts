@@ -26,13 +26,13 @@ export async function POST(request: NextRequest) {
 
         // Parse form data
         const formData = await request.formData();
-        const file = formData.get("file") as File | null;
+        const file = formData.get("file");
         const wohnungId = formData.get("wohnung_id") as string | null;
         const financeId = formData.get("finance_id") as string | null;
 
-        if (!file) {
+        if (!(file instanceof File)) {
             return NextResponse.json(
-                { error: "Keine Datei hochgeladen" },
+                { error: "Keine gültige Datei hochgeladen" },
                 { status: 400 }
             );
         }
@@ -113,7 +113,11 @@ export async function POST(request: NextRequest) {
             logger.error("Metadata insert error", metadataError instanceof Error ? metadataError : new Error(String(metadataError)), { fullPath });
 
             // Cleanup: remove the uploaded file if metadata insert failed
-            await supabase.storage.from("documents").remove([fullPath]);
+            try {
+                await supabase.storage.from("documents").remove([fullPath]);
+            } catch (cleanupError) {
+                logger.error("Failed to cleanup orphaned file after metadata insert error", cleanupError instanceof Error ? cleanupError : new Error(String(cleanupError)), { fullPath });
+            }
 
             return NextResponse.json(
                 { error: "Metadaten konnten nicht gespeichert werden" },

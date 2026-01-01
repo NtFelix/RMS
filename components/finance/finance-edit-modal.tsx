@@ -137,20 +137,24 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
     setFinanceModalDirty(true);
   };
 
-  const attemptClose = () => {
+  const handleClose = (force = false) => {
     // If document was changed for existing entry, trigger refresh before closing
     if (documentWasChanged && financeInitialData?.id && financeModalOnSuccess) {
       financeModalOnSuccess({ ...financeInitialData, dokument_id: formData.dokument_id });
     }
-    closeFinanceModal(); // Store handles confirmation logic for outside clicks/X button
+    if (force) {
+      closeFinanceModal({ force: true });
+    } else {
+      closeFinanceModal();
+    }
+  };
+
+  const attemptClose = () => {
+    handleClose(); // Store handles confirmation logic for outside clicks/X button
   };
 
   const handleCancelClick = () => {
-    // If document was changed for existing entry, trigger refresh before closing
-    if (documentWasChanged && financeInitialData?.id && financeModalOnSuccess) {
-      financeModalOnSuccess({ ...financeInitialData, dokument_id: formData.dokument_id });
-    }
-    closeFinanceModal({ force: true }); // Force close for "Abbrechen" button
+    handleClose(true); // Force close for "Abbrechen" button
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
