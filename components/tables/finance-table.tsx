@@ -9,11 +9,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, FileText, Home, Calendar, Euro, TrendingUp, Pencil, Trash2, MoreVertical, X, Download, Loader2, CheckCircle2, Filter, Database, Search } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, FileText, Home, Calendar, Euro, TrendingUp, Pencil, Trash2, MoreVertical, X, Download, Loader2, CheckCircle2, Filter, Database, Search, ArrowUpDown } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { toast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/utils/format"
+import { toggleFinanceStatusAction } from "@/app/finanzen-actions"
 
 import { ActionMenu } from "@/components/ui/action-menu"
 
@@ -501,7 +502,7 @@ export function FinanceTable({
                           </Badge>
                         </TableCell>
                         <TableCell
-                          className={`py-2 pr-2 text-right w-[100px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <ActionMenu
@@ -512,6 +513,37 @@ export function FinanceTable({
                                 label: "Bearbeiten",
                                 onClick: () => onEdit?.(finance),
                                 variant: 'primary',
+                              },
+                              {
+                                id: `toggle-status-${finance.id}`,
+                                icon: ArrowUpDown,
+                                label: finance.ist_einnahmen ? "Als Ausgabe markieren" : "Als Einnahme markieren",
+                                onClick: async () => {
+                                  try {
+                                    const result = await toggleFinanceStatusAction(finance.id, finance.ist_einnahmen);
+                                    if (result.success) {
+                                      toast({
+                                        title: "Status aktualisiert",
+                                        description: `Die Transaktion wurde erfolgreich als ${!finance.ist_einnahmen ? "Einnahme" : "Ausgabe"} markiert.`,
+                                        variant: "success",
+                                      });
+                                      onRefresh?.();
+                                    } else {
+                                      toast({
+                                        title: "Fehler",
+                                        description: result.error?.message || "Der Status konnte nicht aktualisiert werden.",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  } catch (error) {
+                                    toast({
+                                      title: "Systemfehler",
+                                      description: "Ein unerwarteter Fehler ist aufgetreten.",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                },
+                                variant: 'default',
                               },
                               {
                                 id: `more-${finance.id}`,

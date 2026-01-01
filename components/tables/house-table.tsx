@@ -19,8 +19,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
-
+import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil, Eye } from "lucide-react"
+import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 
 export interface House {
@@ -482,7 +482,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                           )}
                         </TableCell>
                         <TableCell
-                          className={`py-2 pr-2 text-right w-[100px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <ActionMenu
@@ -493,6 +493,13 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                                 label: "Bearbeiten",
                                 onClick: () => onEdit(house),
                                 variant: 'primary',
+                              },
+                              {
+                                id: `overview-${house.id}`,
+                                icon: Eye,
+                                label: "Übersicht",
+                                onClick: () => useModalStore.getState().openHausOverviewModal(house.id),
+                                variant: 'default',
                               },
                               {
                                 id: `more-${house.id}`,

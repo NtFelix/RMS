@@ -515,7 +515,7 @@ export function OperatingCostsTable({
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(item.wasserkosten)}</TableCell>
                           <TableCell
-                            className={`py-2 pr-2 text-right w-[100px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                            className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                             onClick={(event) => event.stopPropagation()}
                           >
                             <ActionMenu
@@ -526,6 +526,13 @@ export function OperatingCostsTable({
                                   label: "Bearbeiten",
                                   onClick: () => onEdit?.(item),
                                   variant: 'primary',
+                                },
+                                {
+                                  id: `overview-${item.id}`,
+                                  icon: FileText,
+                                  label: "Übersicht",
+                                  onClick: () => handleOpenOverview(item),
+                                  variant: 'default',
                                 },
                                 {
                                   id: `more-${item.id}`,

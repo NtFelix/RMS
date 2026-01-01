@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, CheckSquare, FileText, Calendar, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, CheckSquare, FileText, Calendar, MoreVertical, X, Download, Trash2, Pencil, Check } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { bulkDeleteTasksAction, toggleTaskStatusAction } from "@/app/todos-actions"
 import { TaskContextMenu } from "@/components/tasks/task-context-menu"
@@ -430,7 +430,7 @@ export function TaskTable({
                           {format(new Date(task.aenderungsdatum), 'dd.MM.yyyy', { locale: de })}
                         </TableCell>
                         <TableCell
-                          className={`py-2 pr-2 text-right w-[100px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <ActionMenu
@@ -441,6 +441,13 @@ export function TaskTable({
                                 label: "Bearbeiten",
                                 onClick: () => onEdit?.(task),
                                 variant: 'primary',
+                              },
+                              {
+                                id: `toggle-task-${task.id}`,
+                                icon: Check,
+                                label: task.ist_erledigt ? "Als ausstehend markieren" : "Als erledigt markieren",
+                                onClick: handleToggleStatus,
+                                variant: 'default',
                               },
                               {
                                 id: `more-${task.id}`,

@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Home, Ruler, Euro, Building2, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Home, Ruler, Euro, Building2, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil, Droplet } from "lucide-react"
 import { formatNumber } from "@/utils/format"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
+import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 
 export interface Apartment {
@@ -417,7 +418,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                           )}
                         </TableCell>
                         <TableCell
-                          className={`py-2 pr-2 text-right w-[100px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <ActionMenu
@@ -430,6 +431,16 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                                 variant: 'primary',
                               },
                               {
+                                id: `meter-${apt.id}`,
+                                icon: Droplet,
+                                label: "Wasserzähler",
+                                onClick: () => {
+                                  useOnboardingStore.getState().completeStep('create-meter-select');
+                                  useModalStore.getState().openWasserZaehlerModal(apt.id, apt.name);
+                                },
+                                variant: 'default',
+                              },
+                              {
                                 id: index === 0 ? "apartment-menu-trigger-0" : `more-${apt.id}`,
                                 icon: MoreVertical,
                                 label: "Mehr Optionen",
@@ -439,7 +450,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                                   }
                                   if (!e) return;
                                   const rowElement = contextMenuRefs.current.get(apt.id)
-                                  if (rowElement) {
+                                  if (rowElement && e) {
                                     const contextMenuEvent = new MouseEvent('contextmenu', {
                                       bubbles: true,
                                       cancelable: true,

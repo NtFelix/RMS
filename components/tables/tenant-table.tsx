@@ -409,7 +409,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                             : '-'}
                         </TableCell>
                         <TableCell
-                          className={`py-2 pr-2 text-right w-[100px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <ActionMenu
@@ -420,6 +420,38 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                                 label: "Bearbeiten",
                                 onClick: () => onEdit?.(tenant),
                                 variant: 'primary',
+                              },
+                              {
+                                id: `kaution-${tenant.id}`,
+                                icon: Euro,
+                                label: "Kaution",
+                                onClick: () => {
+                                  // Clean tenant object for modal
+                                  const cleanTenant = {
+                                    id: tenant.id,
+                                    name: tenant.name,
+                                    wohnung_id: tenant.wohnung_id
+                                  };
+
+                                  let kautionData = undefined;
+                                  if (tenant.kaution) {
+                                    const amount = typeof tenant.kaution.amount === 'string'
+                                      ? parseFloat(tenant.kaution.amount)
+                                      : tenant.kaution.amount;
+
+                                    if (!isNaN(amount)) {
+                                      kautionData = {
+                                        amount,
+                                        paymentDate: tenant.kaution.paymentDate || '',
+                                        status: tenant.kaution.status || 'Ausstehend',
+                                        createdAt: tenant.kaution.createdAt,
+                                        updatedAt: tenant.kaution.updatedAt
+                                      };
+                                    }
+                                  }
+                                  useModalStore.getState().openKautionModal(cleanTenant, kautionData);
+                                },
+                                variant: 'default',
                               },
                               {
                                 id: `more-${tenant.id}`,
