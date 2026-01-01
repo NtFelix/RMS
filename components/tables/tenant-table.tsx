@@ -460,7 +460,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                                 onClick: (e) => {
                                   if (!e) return;
                                   const rowElement = contextMenuRefs.current.get(tenant.id)
-                                  if (rowElement && e) {
+                                  if (rowElement) {
                                     const contextMenuEvent = new MouseEvent('contextmenu', {
                                       bubbles: true,
                                       cancelable: true,

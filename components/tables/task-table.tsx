@@ -365,10 +365,7 @@ export function TaskTable({
                   return (
                     <TaskContextMenu
                       key={task.id}
-                      task={{
-                        ...task,
-                        beschreibung: task.beschreibung || ""
-                      }}
+                      task={task}
                       onEdit={() => onEdit?.(task)}
                       onStatusToggle={handleToggleStatus}
                       onTaskDeleted={() => router.refresh()}
@@ -456,7 +453,7 @@ export function TaskTable({
                                 onClick: (e) => {
                                   if (!e) return;
                                   const rowElement = contextMenuRefs.current.get(task.id)
-                                  if (rowElement && e) {
+                                  if (rowElement) {
                                     const contextMenuEvent = new MouseEvent('contextmenu', {
                                       bubbles: true,
                                       cancelable: true,

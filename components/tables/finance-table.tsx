@@ -552,7 +552,7 @@ export function FinanceTable({
                                 onClick: (e) => {
                                   if (!e) return;
                                   const rowElement = contextMenuRefs.current.get(finance.id)
-                                  if (rowElement && e) {
+                                  if (rowElement) {
                                     const contextMenuEvent = new MouseEvent('contextmenu', {
                                       bubbles: true,
                                       cancelable: true,

@@ -541,7 +541,7 @@ export function OperatingCostsTable({
                                   onClick: (e) => {
                                     if (!e) return;
                                     const rowElement = contextMenuRefs.current.get(item.id)
-                                    if (rowElement && e) {
+                                    if (rowElement) {
                                       const contextMenuEvent = new MouseEvent('contextmenu', {
                                         bubbles: true,
                                         cancelable: true,

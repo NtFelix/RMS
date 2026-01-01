@@ -508,7 +508,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                                 onClick: (e) => {
                                   if (!e) return;
                                   const rowElement = contextMenuRefs.current.get(house.id)
-                                  if (rowElement && e) {
+                                  if (rowElement) {
                                     const contextMenuEvent = new MouseEvent('contextmenu', {
                                       bubbles: true,
                                       cancelable: true,
