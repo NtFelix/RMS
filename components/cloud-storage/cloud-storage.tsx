@@ -21,6 +21,7 @@ import { CloudStorageItemCard } from "@/components/cloud-storage/cloud-storage-i
 import { DocumentsSummaryCards } from "@/components/common/documents-summary-cards"
 import { cn } from "@/lib/utils"
 import { loadFilesOptimized, cancelPendingLoad, cancelAllPendingLoads } from "@/lib/optimized-file-loader"
+import { FileGridSkeleton } from "@/components/cloud-storage/storage-loading-states"
 
 interface CloudStorageProps {
     userId: string
@@ -648,8 +649,8 @@ export function CloudStorage({
     }, [currentNavPath, initialPath, openCreateFileModal, handleRefresh, toast])
 
     // Determine loading and error states (include isPending for smoother transitions)
-    const showLoading = (isLoading || isNavigating) && !isPending
-    const showOptimisticLoading = isPending && !isNavigating
+    // Determine loading and error states (include isPending for smoother transitions)
+    const showLoading = isLoading || isNavigating || isPending
     const displayError = storeError || navigationError
 
     return (
@@ -767,29 +768,22 @@ export function CloudStorage({
                 {/* Content Area */}
                 <div className="flex-1 overflow-auto">
                     <div className="p-6">
-                        {/* Optimistic Loading Indicator - subtle overlay when transitioning */}
-                        {showOptimisticLoading && (
-                            <div className="absolute top-4 right-4 flex items-center gap-2 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50 shadow-sm z-10">
-                                <RefreshCw className="h-3 w-3 animate-spin text-primary" />
-                                <span className="text-xs text-muted-foreground">Aktualisiere...</span>
-                            </div>
-                        )}
 
-                        {/* Loading State */}
+                        {/* Loading State - Premium Skeleton Loading */}
                         {showLoading && (
-                            <div className="text-center py-16">
-                                <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin text-muted-foreground" />
-                                <p className="text-muted-foreground">
-                                    {retryCount > 0
-                                        ? `Erneuter Versuch (${retryCount}/${MAX_RETRIES})...`
-                                        : 'Lade Dateien...'
-                                    }
-                                </p>
+                            <div className="animate-in fade-in duration-300">
                                 {retryCount > 0 && (
-                                    <p className="text-xs text-muted-foreground/70 mt-2">
-                                        Verbindung wird wiederhergestellt...
-                                    </p>
+                                    <div className="flex items-center justify-center space-x-2 text-amber-600 mb-6 bg-amber-50 dark:bg-amber-900/10 py-3 rounded-xl border border-amber-100 dark:border-amber-900/20 animate-pulse">
+                                        <RefreshCw className="h-4 w-4 animate-spin" />
+                                        <span className="text-sm font-medium">
+                                            Verbindungsproblem. Erneuter Versuch ({retryCount}/{MAX_RETRIES})...
+                                        </span>
+                                    </div>
                                 )}
+                                <FileGridSkeleton
+                                    viewMode={viewMode}
+                                    count={files.length > 0 ? Math.max(files.length + folders.length, 8) : 12}
+                                />
                             </div>
                         )}
 
