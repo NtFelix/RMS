@@ -5,6 +5,7 @@ import { Upload, File, X, Download, Loader2, FileText, Image as ImageIcon } from
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FILE_INPUT_ACCEPT, MAX_FILE_SIZE_LABEL } from "@/lib/finance-file-constants";
 import {
     getFinanceDocumentUrl,
     deleteFinanceDocument,
@@ -269,7 +270,7 @@ export function FinanceFileUpload({
             <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp"
+                accept={FILE_INPUT_ACCEPT}
                 onChange={handleFileChange}
                 className="hidden"
                 disabled={disabled || isUploading}
@@ -299,7 +300,7 @@ export function FinanceFileUpload({
                             Datei hierher ziehen oder <span className="text-primary">klicken</span> zum Auswählen
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            PDF, Bilder, Word, Excel (max. 10MB)
+                            PDF, Bilder, Word, Excel (max. {MAX_FILE_SIZE_LABEL})
                         </p>
                     </>
                 )}

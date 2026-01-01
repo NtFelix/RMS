@@ -38,20 +38,13 @@ export async function getFinanceDocumentPath(
 
     if (wohnungError || !wohnung) {
         console.error("Error fetching Wohnung:", wohnungError);
-        return { success: true, path: `${basePath}/Allgemein` };
+        return { success: false, error: "Wohnung konnte nicht gefunden werden, um den Dateipfad zu erstellen." };
     }
 
     // Build path: Rechnungen/HouseName/ApartmentName
-    // Haeuser is joined - may be object or array depending on Supabase response
-    const haeuserData = wohnung.Haeuser as unknown;
-    let houseName = "Unbekannt";
-    if (haeuserData) {
-        if (Array.isArray(haeuserData) && haeuserData.length > 0) {
-            houseName = (haeuserData[0] as { name: string }).name || "Unbekannt";
-        } else if (typeof haeuserData === 'object' && 'name' in haeuserData) {
-            houseName = (haeuserData as { name: string }).name || "Unbekannt";
-        }
-    }
+    // Haeuser is a to-one relationship, returned as object
+    const house = wohnung.Haeuser as unknown as { name: string } | null;
+    const houseName = house?.name || "Unbekannt";
     const apartmentName = wohnung.name || "Unbekannt";
 
     // Sanitize folder names for Supabase Storage (no special chars, no spaces)

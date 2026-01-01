@@ -1,23 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { getFinanceDocumentPath } from "@/app/finance-file-actions";
-
-// Supported file types
-const SUPPORTED_MIME_TYPES = [
-    "application/pdf",
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "text/plain",
-    "text/csv",
-];
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+import { logger } from "@/utils/logger";
+import {
+    SUPPORTED_MIME_TYPES,
+    MAX_FILE_SIZE,
+    MAX_FILE_SIZE_LABEL,
+    isSupportedMimeType
+} from "@/lib/finance-file-constants";
 
 export async function POST(request: NextRequest) {
     try {
@@ -46,7 +36,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Validate file type
-        if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
+        if (!isSupportedMimeType(file.type)) {
             return NextResponse.json(
                 { error: `Dateityp ${file.type} wird nicht unterstützt` },
                 { status: 400 }
@@ -56,7 +46,7 @@ export async function POST(request: NextRequest) {
         // Validate file size
         if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json(
-                { error: "Datei ist zu groß (max. 10MB)" },
+                { error: `Datei ist zu groß (max. ${MAX_FILE_SIZE_LABEL})` },
                 { status: 400 }
             );
         }
@@ -78,7 +68,7 @@ export async function POST(request: NextRequest) {
         const uniqueFilename = `${timestamp}_${sanitizedFilename}`;
         const fullPath = `${pathResult.path}/${uniqueFilename}`;
 
-        console.log("Uploading finance file:", {
+        logger.info("Uploading finance file", {
             originalName: file.name,
             uniqueFilename,
             path: pathResult.path,
@@ -89,7 +79,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Upload to storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
             .from("documents")
             .upload(fullPath, file, {
                 contentType: file.type,
@@ -97,7 +87,7 @@ export async function POST(request: NextRequest) {
             });
 
         if (uploadError) {
-            console.error("Upload error:", uploadError);
+            logger.error("Upload error", uploadError instanceof Error ? uploadError : new Error(String(uploadError)), { fullPath });
             return NextResponse.json(
                 { error: "Datei konnte nicht hochgeladen werden" },
                 { status: 500 }
@@ -118,7 +108,7 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (metadataError || !metadataRecord) {
-            console.error("Metadata insert error:", metadataError);
+            logger.error("Metadata insert error", metadataError instanceof Error ? metadataError : new Error(String(metadataError)), { fullPath });
 
             // Cleanup: remove the uploaded file if metadata insert failed
             await supabase.storage.from("documents").remove([fullPath]);
@@ -129,6 +119,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Track whether linking was successful
+        let linkedToFinance = false;
+
         // If finance_id is provided, automatically link the document to the finance entry
         if (financeId) {
             const { error: linkError } = await supabase
@@ -138,18 +131,22 @@ export async function POST(request: NextRequest) {
                 .eq("user_id", user.id); // Security: ensure user owns the finance entry
 
             if (linkError) {
-                console.error("Error linking document to finance entry:", linkError);
+                logger.error("Error linking document to finance entry", linkError instanceof Error ? linkError : new Error(String(linkError)), {
+                    financeId,
+                    dokumentId: metadataRecord.id
+                });
                 // Don't fail the upload, just log the error
                 // The document is still uploaded and can be linked manually
             } else {
-                console.log("Document automatically linked to finance entry:", financeId);
+                logger.info("Document automatically linked to finance entry", { financeId });
+                linkedToFinance = true;
             }
         }
 
-        console.log("Finance file uploaded successfully:", {
+        logger.info("Finance file uploaded successfully", {
             dokument_id: metadataRecord.id,
             path: fullPath,
-            linkedToFinance: !!financeId,
+            linkedToFinance,
         });
 
         return NextResponse.json({
@@ -157,14 +154,13 @@ export async function POST(request: NextRequest) {
             dokument_id: metadataRecord.id,
             filename: uniqueFilename,
             path: fullPath,
-            linkedToFinance: !!financeId,
+            linkedToFinance,
         });
     } catch (error) {
-        console.error("Unexpected error in finance file upload:", error);
+        logger.error("Unexpected error in finance file upload", error instanceof Error ? error : new Error(String(error)));
         return NextResponse.json(
             { error: "Ein unerwarteter Fehler ist aufgetreten" },
             { status: 500 }
         );
     }
 }
-
