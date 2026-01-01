@@ -550,9 +550,8 @@ async function countDirectFilesForPaths(supabase: any, paths: string[], userId: 
   if (paths.length === 0) return counts
 
   try {
-    // Use a single query to get counts for all paths using GROUP BY
-    // We can't use head: true with group by, so we fetch all records and count client-side
-    // But this is still more efficient than N separate queries
+    // Use a single query to fetch all relevant paths, then count them on the client-side.
+    // This is more efficient than N separate DB queries for file counts.
     const { data, error } = await supabase
       .from('Dokumente_Metadaten')
       .select('dateipfad')

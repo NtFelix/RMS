@@ -72,6 +72,7 @@ export interface NavigationControllerState {
     prefetch: (path: string) => Promise<void>
     getNavigationStats: () => NavigationStats
     reset: () => void
+    clearError: () => void
 }
 
 export interface NavigationOptions {
@@ -251,6 +252,15 @@ export const useNavigationController = create<NavigationControllerState>()(
                 })
             })
         },
+
+        clearError: () => {
+            set((draft) => {
+                if (draft.navigationState === 'error') {
+                    draft.navigationState = 'idle'
+                    draft.lastError = null
+                }
+            })
+        },
     }))
 )
 
@@ -414,5 +424,6 @@ export function useNavigation() {
         cancelAll: store.cancelAllNavigations,
         prefetch: store.prefetch,
         stats: store.getNavigationStats(),
+        clearError: store.clearError,
     }
 }

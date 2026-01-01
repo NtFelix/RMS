@@ -64,7 +64,8 @@ export function CloudStorage({
         error: navigationError,
         navigate,
         cancelAll: cancelAllNavigations,
-        stats
+        stats,
+        clearError: clearNavigationError
     } = useNavigation()
 
     const MAX_RETRIES = 3
@@ -297,7 +298,7 @@ export function CloudStorage({
     /**
      * Sort items
      */
-    const sortItems = useCallback(<T extends { name: string; updated_at?: string; size?: number }>(items: T[]) => {
+    const sortItems = useCallback(<T extends { name: string; updated_at?: string; size?: number }>(items: T[]): T[] => {
         return [...items].sort((a, b) => {
             switch (sortBy) {
                 case 'name':
@@ -316,9 +317,9 @@ export function CloudStorage({
         })
     }, [sortBy])
 
-    const sortedFiles = useMemo(() => sortItems(filteredFiles) as StorageObject[], [sortItems, filteredFiles])
+    const sortedFiles = useMemo(() => sortItems(filteredFiles), [sortItems, filteredFiles])
     const sortedFolders = useMemo(() =>
-        sortItems(filteredFolders.map(f => ({ ...f, updated_at: '', size: 0 }))) as (VirtualFolder & { updated_at: string; size: number })[],
+        sortItems(filteredFolders.map(f => ({ ...f, updated_at: '', size: 0 }))),
         [sortItems, filteredFolders]
     )
 
@@ -666,7 +667,7 @@ export function CloudStorage({
                                         <RefreshCw className="h-4 w-4 mr-2" />
                                         Erneut versuchen
                                     </Button>
-                                    <Button variant="outline" onClick={() => navigate(currentNavPath)}>
+                                    <Button variant="outline" onClick={clearNavigationError}>
                                         Fehler ignorieren
                                     </Button>
                                 </div>
