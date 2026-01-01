@@ -2,26 +2,25 @@
  * Tests for navigation controller and optimized file loader
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-
-// Mock the server actions
-vi.mock('@/app/(dashboard)/dateien/actions', () => ({
-    loadFilesForPath: vi.fn(),
-    getPathContents: vi.fn(),
-    getTotalStorageUsage: vi.fn(),
+// Mock server actions before importing
+jest.mock('@/app/(dashboard)/dateien/actions', () => ({
+    loadFilesForPath: jest.fn(),
+    getPathContents: jest.fn(),
+    getTotalStorageUsage: jest.fn(),
 }))
 
 describe('loadFilesOptimized', () => {
     beforeEach(() => {
-        vi.clearAllMocks()
+        jest.clearAllMocks()
     })
 
     afterEach(() => {
-        vi.resetAllMocks()
+        jest.resetAllMocks()
+        jest.resetModules()
     })
 
     it('should deduplicate concurrent requests to the same path', async () => {
-        const { loadFilesOptimized, cancelPendingLoad } = await import('@/lib/optimized-file-loader')
+        const { loadFilesOptimized } = await import('@/lib/optimized-file-loader')
         const { getPathContents } = await import('@/app/(dashboard)/dateien/actions')
 
         const mockResult = {
@@ -30,7 +29,7 @@ describe('loadFilesOptimized', () => {
             breadcrumbs: [{ name: 'Root', path: 'user_123', type: 'root' as const }],
         }
 
-        vi.mocked(getPathContents).mockResolvedValue(mockResult)
+            ; (getPathContents as jest.Mock).mockResolvedValue(mockResult)
 
         // Make multiple concurrent requests
         const requests = [

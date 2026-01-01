@@ -175,12 +175,29 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
   error?: string
 }> {
   try {
-    // Get houses and their file counts from RPC
-    const { data: houses, error: housesError } = await supabase
-      .rpc('get_virtual_folders', {
+    // OPTIMIZATION: Fetch houses, system folder counts, and root files in parallel
+    const houseDocsPath = `${targetPath}/house_documents`
+    const miscPath = `${targetPath}/Miscellaneous`
+
+    const [housesResult, systemFolderCounts, dbRootFilesResult] = await Promise.all([
+      // Get houses and their file counts from RPC
+      supabase.rpc('get_virtual_folders', {
         p_user_id: userId,
         p_current_path: targetPath
-      })
+      }),
+      // Get counts for system folders in a single query
+      countDirectFilesForPaths(supabase, [houseDocsPath, miscPath], userId),
+      // Get root files
+      supabase
+        .from('Dokumente_Metadaten')
+        .select('*')
+        .eq('dateipfad', targetPath)
+        .eq('user_id', userId)
+        .order('dateiname', { ascending: true })
+    ])
+
+    const houses = housesResult.data
+    const housesError = housesResult.error
 
     if (housesError) {
       if (process.env.NODE_ENV === 'development') {
@@ -205,44 +222,32 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
       }
     }
 
-    // Add house documents folder
-    const houseDocsPath = `${targetPath}/house_documents`
-    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath, userId)
-    const houseDocsHasFiles = houseDocsFileCount > 0
-
+    // Add house documents folder (using batch count)
+    const houseDocsFileCount = systemFolderCounts.get(houseDocsPath) || 0
     folders.push({
       name: 'house_documents',
       path: houseDocsPath,
       type: 'category',
-      isEmpty: !houseDocsHasFiles,
+      isEmpty: houseDocsFileCount === 0,
       children: [],
       fileCount: houseDocsFileCount,
       displayName: 'Hausdokumente'
     })
 
-    // Add miscellaneous folder
-    const miscPath = `${targetPath}/Miscellaneous`
-    const miscFileCount = await countDirectFiles(supabase, miscPath, userId)
-    const miscHasFiles = miscFileCount > 0
-
+    // Add miscellaneous folder (using batch count)
+    const miscFileCount = systemFolderCounts.get(miscPath) || 0
     folders.push({
       name: 'Miscellaneous',
       path: miscPath,
       type: 'category',
-      isEmpty: !miscHasFiles,
+      isEmpty: miscFileCount === 0,
       children: [],
       fileCount: miscFileCount,
       displayName: 'Sonstiges'
     })
 
-    // Check for any files directly in the root from DB
-    const { data: dbRootFiles } = await supabase
-      .from('Dokumente_Metadaten')
-      .select('*')
-      .eq('dateipfad', targetPath)
-      .eq('user_id', userId)
-      .order('dateiname', { ascending: true })
-
+    // Process root files from parallel query result
+    const dbRootFiles = dbRootFilesResult.data
     const files: StorageFile[] = []
     if (dbRootFiles) {
       dbRootFiles.forEach((item: DokumenteMetadaten) => {
@@ -531,6 +536,48 @@ async function countDirectFiles(supabase: any, path: string, userId: string): Pr
     return count || 0
   } catch (error) {
     return 0
+  }
+}
+
+// OPTIMIZATION: Batch file count for multiple paths in a single query
+// This reduces N sequential DB calls to 1 query for folder file counts
+async function countDirectFilesForPaths(supabase: any, paths: string[], userId: string): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+
+  // Initialize all paths to 0
+  paths.forEach(path => counts.set(path, 0))
+
+  if (paths.length === 0) return counts
+
+  try {
+    // Use a single query to get counts for all paths using GROUP BY
+    // We can't use head: true with group by, so we fetch all records and count client-side
+    // But this is still more efficient than N separate queries
+    const { data, error } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('dateipfad')
+      .in('dateipfad', paths)
+      .neq('dateiname', '.keep')
+      .eq('user_id', userId)
+
+    if (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Error in batch file count:', error)
+      }
+      return counts
+    }
+
+    // Count occurrences of each path
+    if (data) {
+      data.forEach((item: { dateipfad: string }) => {
+        const current = counts.get(item.dateipfad) || 0
+        counts.set(item.dateipfad, current + 1)
+      })
+    }
+
+    return counts
+  } catch (error) {
+    return counts
   }
 }
 
