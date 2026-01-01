@@ -15,6 +15,7 @@ interface FinanzInput {
   betrag: number;
   ist_einnahmen: boolean;
   notiz?: string | null;
+  dokument_id?: string | null;
 }
 
 export async function financeServerAction(id: string | null, data: FinanzInput): Promise<{ success: boolean; error?: any; data?: any }> {
@@ -30,6 +31,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     wohnung_id: data.wohnung_id || null,
     datum: data.datum || null,
     notiz: data.notiz || null,
+    dokument_id: data.dokument_id || null,
   };
 
   if (typeof payload.name !== 'string' || payload.name.trim() === '') {

@@ -23,11 +23,12 @@ import {
 } from "@/components/ui/select";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker";
-import { toast } from "@/hooks/use-toast"; // Changed import path
+import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { createClient } from "@/utils/supabase/client"; // For fetching Wohnungen
+import { createClient } from "@/utils/supabase/client";
+import { FinanceFileUpload } from "@/components/finance/finance-file-upload";
 
-import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
+import { useModalStore } from "@/hooks/use-modal-store";
 
 // Interfaces (can be moved to a types file if not already covered by store types)
 interface Finanz {
@@ -38,6 +39,7 @@ interface Finanz {
   betrag: number;
   ist_einnahmen: boolean;
   notiz?: string | null;
+  dokument_id?: string | null;
   Wohnungen?: {
     name: string;
   };
@@ -76,6 +78,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
     betrag: financeInitialData?.betrag?.toString() || "",
     ist_einnahmen: financeInitialData?.ist_einnahmen || false,
     notiz: financeInitialData?.notiz || "",
+    dokument_id: financeInitialData?.dokument_id || null,
   });
 
   // internalWohnungen is now financeModalWohnungen from the store
@@ -94,6 +97,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
         betrag: financeInitialData?.betrag?.toString() || "",
         ist_einnahmen: financeInitialData?.ist_einnahmen || false,
         notiz: financeInitialData?.notiz || "",
+        dokument_id: financeInitialData?.dokument_id || null,
       });
       setFinanceModalDirty(false); // Reset dirty state when modal opens or data changes
     }
@@ -147,7 +151,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
       setIsSubmitting(false);
       return;
     }
-    
+
     const payload = {
       name: formData.name,
       betrag: parseFloat(formData.betrag),
@@ -155,6 +159,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
       wohnung_id: formData.wohnung_id || null,
       datum: formData.datum || null,
       notiz: formData.notiz || null,
+      dokument_id: formData.dokument_id || null,
     };
 
     try {
@@ -166,13 +171,13 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
           description: `Der Finanzeintrag "${payload.name}" wurde erfolgreich ${financeInitialData ? "aktualisiert" : "erstellt"}.`,
           variant: "success",
         });
-        
+
         setFinanceModalDirty(false); // Reset dirty state on success
         if (financeModalOnSuccess) {
           const successData = result.data || { ...payload, id: financeInitialData?.id || result.data?.id || '' };
           financeModalOnSuccess(successData);
         }
-        
+
         closeFinanceModal(); // Will close directly as dirty is false
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
@@ -266,13 +271,35 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
               </Select>
             </div>
             <div className="col-span-2 space-y-2">
-              <LabelWithTooltip 
-                htmlFor="notiz" 
+              <LabelWithTooltip
+                htmlFor="notiz"
                 infoText="Optionale interne Notiz. Hier können zusätzliche Details wie Rechnungsnummern, spezifische Leistungen oder weitere Informationen eingetragen werden. Der Inhalt ist durchsuchbar und erleichtert das spätere Auffinden spezifischer Transaktionen."
               >
                 Notiz
               </LabelWithTooltip>
               <Input id="notiz" name="notiz" value={formData.notiz || ""} onChange={handleChange} disabled={isSubmitting} />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <LabelWithTooltip
+                htmlFor="dokument"
+                infoText="Optionaler Dateianhang wie Rechnung, Beleg oder Vertrag. Die Datei wird automatisch im Ordner Rechnungen nach Haus und Wohnung organisiert."
+              >
+                Dokument
+              </LabelWithTooltip>
+              <FinanceFileUpload
+                dokumentId={formData.dokument_id}
+                wohnungId={formData.wohnung_id || null}
+                financeId={financeInitialData?.id || null}
+                onDocumentChange={(dokumentId) => {
+                  setFormData({ ...formData, dokument_id: dokumentId });
+                  // Only mark as dirty for new entries (no financeInitialData.id)
+                  // For existing entries, the document link is auto-saved by the upload API
+                  if (!financeInitialData?.id) {
+                    setFinanceModalDirty(true);
+                  }
+                }}
+                disabled={isSubmitting}
+              />
             </div>
           </div>
           <DialogFooter>
