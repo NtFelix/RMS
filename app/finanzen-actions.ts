@@ -99,8 +99,7 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
     const { data, error } = await supabase
       .from('Finanzen')
       .update({
-        ist_einnahmen: !currentStatus,
-        aenderungsdatum: new Date().toISOString()
+        ist_einnahmen: !currentStatus
       })
       .eq('id', id)
       .select()
