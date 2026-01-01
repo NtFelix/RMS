@@ -174,7 +174,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           </h1>
 
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed font-medium">
-            Verabschieden Sie sich von Excel. Erstellen Sie rechtssichere Nebenkostenabrechnungen in <span className="text-foreground border-b-2 border-primary/30">Rekordzeit.</span>
+            Verabschieden Sie sich von Excel. Erstellen Sie Ihre Nebenkostenabrechnungen in <span className="text-foreground border-b-2 border-primary/30">Rekordzeit.</span>
           </p>
         </motion.div>
 
