@@ -46,7 +46,7 @@ export interface ActionMenuProps {
 
 const variantStyles: Record<NonNullable<ActionMenuItem['variant']>, string> = {
     default: 'hover:bg-muted text-muted-foreground hover:text-foreground',
-    primary: 'hover:bg-muted hover:text-primary',
+    primary: 'text-muted-foreground hover:bg-muted hover:text-foreground',
     destructive: 'hover:bg-destructive/10 hover:text-destructive',
 };
 
