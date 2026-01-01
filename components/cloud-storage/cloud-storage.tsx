@@ -133,11 +133,12 @@ export function CloudStorage({
             if (initialFiles.length > 0) setFiles(initialFiles)
             if (initialFolders.length > 0) setFolders(initialFolders)
             if (initialBreadcrumbs.length > 0) setBreadcrumbs(initialBreadcrumbs)
+            if (initialTotalSize > 0) setTotalStorageSize(initialTotalSize)
 
             setError(null)
             setLoading(false)
         }
-    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading])
+    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, initialTotalSize, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading])
 
     /**
      * Handle efficient navigation using the navigation controller

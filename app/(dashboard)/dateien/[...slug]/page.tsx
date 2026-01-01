@@ -17,7 +17,7 @@ export default async function DateienPathPage({ params }: { params: Promise<{ sl
   const initialPath = [`user_${user.id}`, ...slug].join('/')
 
   // Load path contents on server for SSR
-  const { files, folders, breadcrumbs, error: loadError } = await getPathContents(user.id, initialPath)
+  const { files, folders, breadcrumbs, totalSize, error: loadError } = await getPathContents(user.id, initialPath)
 
   if (loadError) {
     console.error('Error loading path contents:', loadError)
@@ -30,6 +30,7 @@ export default async function DateienPathPage({ params }: { params: Promise<{ sl
       initialFiles={files}
       initialFolders={folders}
       initialBreadcrumbs={breadcrumbs}
+      initialTotalSize={totalSize}
     />
   )
 }
