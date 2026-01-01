@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TenantContextMenu } from "@/components/tenants/tenant-context-menu"
@@ -127,6 +127,33 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
 
     return result
   }, [tenants, filter, searchQuery, sortKey, sortDirection, wohnungsMap])
+
+  const handleOpenKaution = useCallback((tenant: Tenant) => {
+    // Clean tenant object for modal
+    const cleanTenant = {
+      id: tenant.id,
+      name: tenant.name,
+      wohnung_id: tenant.wohnung_id
+    };
+
+    let kautionData = undefined;
+    if (tenant.kaution) {
+      const amount = typeof tenant.kaution.amount === 'string'
+        ? parseFloat(tenant.kaution.amount)
+        : tenant.kaution.amount;
+
+      if (!isNaN(amount)) {
+        kautionData = {
+          amount,
+          paymentDate: tenant.kaution.paymentDate || '',
+          status: tenant.kaution.status || 'Ausstehend',
+          createdAt: tenant.kaution.createdAt,
+          updatedAt: tenant.kaution.updatedAt
+        };
+      }
+    }
+    useModalStore.getState().openKautionModal(cleanTenant, kautionData);
+  }, [])
 
   const visibleTenantIds = useMemo(() => sortedAndFilteredData.map((tenant) => tenant.id), [sortedAndFilteredData])
 
@@ -425,32 +452,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                                 id: `kaution-${tenant.id}`,
                                 icon: Euro,
                                 label: "Kaution",
-                                onClick: () => {
-                                  // Clean tenant object for modal
-                                  const cleanTenant = {
-                                    id: tenant.id,
-                                    name: tenant.name,
-                                    wohnung_id: tenant.wohnung_id
-                                  };
-
-                                  let kautionData = undefined;
-                                  if (tenant.kaution) {
-                                    const amount = typeof tenant.kaution.amount === 'string'
-                                      ? parseFloat(tenant.kaution.amount)
-                                      : tenant.kaution.amount;
-
-                                    if (!isNaN(amount)) {
-                                      kautionData = {
-                                        amount,
-                                        paymentDate: tenant.kaution.paymentDate || '',
-                                        status: tenant.kaution.status || 'Ausstehend',
-                                        createdAt: tenant.kaution.createdAt,
-                                        updatedAt: tenant.kaution.updatedAt
-                                      };
-                                    }
-                                  }
-                                  useModalStore.getState().openKautionModal(cleanTenant, kautionData);
-                                },
+                                onClick: () => handleOpenKaution(tenant),
                                 variant: 'default',
                               },
                               {

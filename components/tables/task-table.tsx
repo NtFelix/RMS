@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -57,6 +57,25 @@ export function TaskTable({
   // Use external selection state if provided, otherwise use internal
   const selectedTasks = externalSelectedTasks ?? internalSelectedTasks
   const setSelectedTasks = onSelectionChange ?? setInternalSelectedTasks
+
+  const handleToggleStatus = useCallback(async (task: Task) => {
+    const { success, error } = await toggleTaskStatusAction(task.id, !task.ist_erledigt)
+    if (success) {
+      toast({
+        title: "Erfolg",
+        description: `Aufgabe als ${!task.ist_erledigt ? 'erledigt' : 'ausstehend'} markiert.`,
+        variant: "success",
+      })
+      onTaskUpdated?.({ ...task, ist_erledigt: !task.ist_erledigt })
+      router.refresh()
+    } else {
+      toast({
+        title: "Fehler",
+        description: error?.message || "Status konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      })
+    }
+  }, [onTaskUpdated, router])
 
   // Sorting, filtering and search logic
   const sortedAndFilteredData = useMemo(() => {
@@ -343,31 +362,14 @@ export function TaskTable({
                   const isLastRow = index === sortedAndFilteredData.length - 1
                   const isSelected = selectedTasks.has(task.id)
 
-                  const handleToggleStatus = async () => {
-                    const { success, error } = await toggleTaskStatusAction(task.id, !task.ist_erledigt)
-                    if (success) {
-                      toast({
-                        title: "Erfolg",
-                        description: `Aufgabe als ${!task.ist_erledigt ? 'erledigt' : 'ausstehend'} markiert.`,
-                        variant: "success",
-                      })
-                      onTaskUpdated?.({ ...task, ist_erledigt: !task.ist_erledigt })
-                      router.refresh()
-                    } else {
-                      toast({
-                        title: "Fehler",
-                        description: error?.message || "Status konnte nicht aktualisiert werden.",
-                        variant: "destructive",
-                      })
-                    }
-                  }
+
 
                   return (
                     <TaskContextMenu
                       key={task.id}
                       task={task}
                       onEdit={() => onEdit?.(task)}
-                      onStatusToggle={handleToggleStatus}
+                      onStatusToggle={() => handleToggleStatus(task)}
                       onTaskDeleted={() => router.refresh()}
                     >
                       <TableRow
@@ -443,7 +445,7 @@ export function TaskTable({
                                 id: `toggle-task-${task.id}`,
                                 icon: Check,
                                 label: task.ist_erledigt ? "Als ausstehend markieren" : "Als erledigt markieren",
-                                onClick: handleToggleStatus,
+                                onClick: () => handleToggleStatus(task),
                                 variant: 'default',
                               },
                               {

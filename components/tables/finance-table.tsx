@@ -119,12 +119,37 @@ export function FinanceTable({
       .substring(0, 2);
   };
 
-  // Map wohnung_id to wohnung name
   const wohnungsMap = useMemo(() => {
     const map: Record<string, string> = {}
     wohnungen?.forEach(w => { map[w.id] = w.name })
     return map
   }, [wohnungen])
+
+  const handleToggleStatus = useCallback(async (finance: Finanz) => {
+    try {
+      const result = await toggleFinanceStatusAction(finance.id, finance.ist_einnahmen);
+      if (result.success) {
+        toast({
+          title: "Status aktualisiert",
+          description: `Die Transaktion wurde erfolgreich als ${!finance.ist_einnahmen ? "Einnahme" : "Ausgabe"} markiert.`,
+          variant: "success",
+        });
+        onRefresh?.();
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Der Status konnte nicht aktualisiert werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
+        variant: "destructive",
+      });
+    }
+  }, [onRefresh])
 
   // Sorting logic - filtering is handled by the server
   const sortedData = useMemo(() => {
@@ -518,31 +543,7 @@ export function FinanceTable({
                                 id: `toggle-status-${finance.id}`,
                                 icon: ArrowUpDown,
                                 label: finance.ist_einnahmen ? "Als Ausgabe markieren" : "Als Einnahme markieren",
-                                onClick: async () => {
-                                  try {
-                                    const result = await toggleFinanceStatusAction(finance.id, finance.ist_einnahmen);
-                                    if (result.success) {
-                                      toast({
-                                        title: "Status aktualisiert",
-                                        description: `Die Transaktion wurde erfolgreich als ${!finance.ist_einnahmen ? "Einnahme" : "Ausgabe"} markiert.`,
-                                        variant: "success",
-                                      });
-                                      onRefresh?.();
-                                    } else {
-                                      toast({
-                                        title: "Fehler",
-                                        description: result.error?.message || "Der Status konnte nicht aktualisiert werden.",
-                                        variant: "destructive",
-                                      });
-                                    }
-                                  } catch (error) {
-                                    toast({
-                                      title: "Systemfehler",
-                                      description: "Ein unerwarteter Fehler ist aufgetreten.",
-                                      variant: "destructive",
-                                    });
-                                  }
-                                },
+                                onClick: () => handleToggleStatus(finance),
                                 variant: 'default',
                               },
                               {

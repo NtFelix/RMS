@@ -450,7 +450,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                                   }
                                   if (!e) return;
                                   const rowElement = contextMenuRefs.current.get(apt.id)
-                                  if (rowElement && e) {
+                                  if (rowElement) {
                                     const contextMenuEvent = new MouseEvent('contextmenu', {
                                       bubbles: true,
                                       cancelable: true,
