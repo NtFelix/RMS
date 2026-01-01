@@ -928,15 +928,17 @@ export async function getPathContents(userId: string, path?: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
   breadcrumbs: BreadcrumbItem[]
+  totalSize: number
   error?: string
 }> {
   try {
     const targetPath = path || `user_${userId}`
-    const [{ files, folders, error }, breadcrumbs] = await Promise.all([
+    const [{ files, folders, error }, breadcrumbs, totalSize] = await Promise.all([
       getInitialFiles(userId, targetPath),
-      getBreadcrumbs(userId, targetPath)
+      getBreadcrumbs(userId, targetPath),
+      getTotalStorageUsage(userId)
     ])
-    return { files, folders, breadcrumbs, error }
+    return { files, folders, breadcrumbs, totalSize, error }
   } catch (e) {
     // Log error only in development
     if (process.env.NODE_ENV === 'development') {
@@ -946,6 +948,7 @@ export async function getPathContents(userId: string, path?: string): Promise<{
       files: [],
       folders: [],
       breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+      totalSize: 0,
       error: 'Unerwarteter Fehler beim Laden der Dateien'
     }
   }

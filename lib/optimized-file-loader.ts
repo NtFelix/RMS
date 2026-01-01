@@ -25,6 +25,7 @@ export interface LoadResult {
     files: StorageObject[]
     folders: VirtualFolder[]
     breadcrumbs: BreadcrumbItem[]
+    totalSize: number
     error?: string
     loadTime?: number
 }
@@ -122,6 +123,7 @@ async function executeFileLoad(
                 files: [],
                 folders: [],
                 breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                totalSize: 0,
                 error: 'Request cancelled',
             }
         }
@@ -138,6 +140,7 @@ async function executeFileLoad(
                 files: [],
                 folders: [],
                 breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                totalSize: 0,
                 error: 'Request cancelled',
             }
         }
@@ -148,6 +151,7 @@ async function executeFileLoad(
             files: result.files as unknown as StorageObject[],
             folders: result.folders as unknown as VirtualFolder[],
             breadcrumbs: result.breadcrumbs as unknown as BreadcrumbItem[],
+            totalSize: result.totalSize,
             error: result.error,
             loadTime,
         }
@@ -158,6 +162,7 @@ async function executeFileLoad(
             files: [],
             folders: [],
             breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+            totalSize: 0,
             error: error instanceof Error ? error.message : 'Failed to load files',
             loadTime,
         }

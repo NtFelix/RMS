@@ -163,6 +163,7 @@ export function CloudStorage({
                     setFiles(data.files)
                     setFolders(data.folders)
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
+                    setTotalStorageSize(data.totalSize)
                     setError(null)
                 })
             }
@@ -211,6 +212,7 @@ export function CloudStorage({
                     setFiles(data.files)
                     setFolders(data.folders)
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
+                    setTotalStorageSize(data.totalSize)
                 })
 
                 if (showToast) {
@@ -294,7 +296,7 @@ export function CloudStorage({
     /**
      * Sort items
      */
-    const sortItems = useCallback(<T extends { name: string; updated_at?: string; size?: number }>(items: T[]): T[] => {
+    const sortItems = useCallback(<T extends { name: string; updated_at?: string; size?: number }>(items: T[]) => {
         return [...items].sort((a, b) => {
             switch (sortBy) {
                 case 'name':
@@ -313,9 +315,9 @@ export function CloudStorage({
         })
     }, [sortBy])
 
-    const sortedFiles = useMemo(() => sortItems(filteredFiles), [sortItems, filteredFiles])
+    const sortedFiles = useMemo(() => sortItems(filteredFiles) as StorageObject[], [sortItems, filteredFiles])
     const sortedFolders = useMemo(() =>
-        sortItems(filteredFolders.map(f => ({ ...f, updated_at: '', size: 0 }))),
+        sortItems(filteredFolders.map(f => ({ ...f, updated_at: '', size: 0 }))) as (VirtualFolder & { updated_at: string; size: number })[],
         [sortItems, filteredFolders]
     )
 
@@ -367,6 +369,7 @@ export function CloudStorage({
 
         try {
             await Promise.all(selectedFiles.map(file => deleteFile(file)))
+            handleRefresh(false)
             toast({
                 description: `${selectedFiles.length} Dateien wurden dauerhaft gelöscht.`
             })
@@ -401,6 +404,7 @@ export function CloudStorage({
     const handleFileDelete = useCallback(async (file: StorageObject) => {
         try {
             await deleteFile(file)
+            handleRefresh(false)
             toast({
                 description: `${file.name} wurde dauerhaft gelöscht.`
             })
@@ -422,6 +426,7 @@ export function CloudStorage({
             onConfirm: async () => {
                 try {
                     await deleteFolder(folder)
+                    handleRefresh(false)
                     toast({
                         description: `Ordner "${folder.displayName || folder.name}" wurde dauerhaft gelöscht.`
                     })
@@ -443,12 +448,13 @@ export function CloudStorage({
         const targetPath = currentNavPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
+                handleRefresh(false)
                 toast({
                     description: "Dateien wurden erfolgreich hochgeladen."
                 })
             })
         }
-    }, [currentNavPath, initialPath, openUploadModal, toast])
+    }, [currentNavPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle upload with files (for drag & drop)
@@ -457,12 +463,13 @@ export function CloudStorage({
         const targetPath = currentNavPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
+                handleRefresh(false)
                 toast({
                     description: "Dateien wurden erfolgreich hochgeladen."
                 })
             }, files)
         }
-    }, [currentNavPath, initialPath, openUploadModal, toast])
+    }, [currentNavPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle create folder

@@ -10,12 +10,9 @@ export const runtime = 'edge'
 async function CloudStorageContent({ userId }: { userId: string }) {
   // Load initial files, folders and breadcrumbs on the server
   const initialPath = `user_${userId}`
-  const [pathContents, totalSize] = await Promise.all([
-    getPathContents(userId, initialPath),
-    getTotalStorageUsage(userId)
-  ])
+  const pathContents = await getPathContents(userId, initialPath)
 
-  const { files, folders, breadcrumbs, error: loadError } = pathContents
+  const { files, folders, breadcrumbs, totalSize, error: loadError } = pathContents
 
   if (loadError) {
     console.error('Error loading initial files:', loadError)
