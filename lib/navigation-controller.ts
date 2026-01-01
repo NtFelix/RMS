@@ -57,6 +57,7 @@ export interface NavigationControllerState {
     loadTimes: number[]
     errorCount: number
     successCount: number
+    lastError: string | null
 
     // Configuration
     maxPendingRequests: number
@@ -88,6 +89,7 @@ export interface NavigationStats {
     averageLoadTime: number
     successRate: number
     errorCount: number
+    retryCount: number
 }
 
 // Request ID generator
@@ -107,6 +109,7 @@ const INITIAL_STATE = {
     loadTimes: [] as number[],
     errorCount: 0,
     successCount: 0,
+    lastError: null as string | null,
     maxPendingRequests: 5,
     requestTimeout: 15000, // 15 seconds
     retryDelay: 1000, // 1 second base delay
@@ -226,6 +229,7 @@ export const useNavigationController = create<NavigationControllerState>()(
                 averageLoadTime: state.averageLoadTime,
                 successRate: totalRequests > 0 ? state.successCount / totalRequests : 1,
                 errorCount: state.errorCount,
+                retryCount: state.activeRequest?.retryCount || 0
             }
         },
 
@@ -263,6 +267,7 @@ async function processNavigationRequest(
         draft.activeRequest = request
         draft.navigationState = 'loading'
         draft.previousPath = draft.currentPath
+        draft.lastError = null // Clear last error on new navigation attempt
     })
 
     try {
@@ -278,18 +283,18 @@ async function processNavigationRequest(
             })
         })
 
-        // Import and call the server action
-        const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
+        // Import and call the optimized file loader
+        const { loadFilesOptimized } = await import('@/lib/optimized-file-loader')
 
-        // Extract userId from path
+        // Extract userId from path - handle both user_ID and user_ID/subpath formats
         const userIdMatch = request.path.match(/^user_([^/]+)/)
         if (!userIdMatch) {
-            throw new Error('Invalid path format')
+            throw new Error('Invalid path format: expected user_ID prefix')
         }
         const userId = userIdMatch[1]
 
         // Execute the request with timeout and abort handling
-        const dataPromise = loadFilesForPath(userId, request.path)
+        const dataPromise = loadFilesOptimized(userId, request.path, request.abortController.signal)
         const result = await Promise.race([dataPromise, timeoutPromise, abortPromise])
 
         const loadTime = performance.now() - startTime
@@ -316,6 +321,7 @@ async function processNavigationRequest(
                 result: navigationResult,
             })
             draft.successCount++
+            draft.lastError = null // Clear last error on success
 
             // Update load time tracking
             draft.loadTimes.push(loadTime)
@@ -376,6 +382,7 @@ async function processNavigationRequest(
             draft.activeRequest = null
             draft.pendingRequests.delete(request.path)
             draft.errorCount++
+            draft.lastError = errorMessage
         })
 
         // Reset to idle after showing error
@@ -401,6 +408,7 @@ export function useNavigation() {
         state: store.navigationState,
         isNavigating: store.navigationState === 'navigating' || store.navigationState === 'loading',
         isError: store.navigationState === 'error',
+        error: store.lastError,
         navigate: store.navigate,
         cancel: store.cancelNavigation,
         cancelAll: store.cancelAllNavigations,
