@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef, useTransition } from "react"
 import { posthogLogger } from "@/lib/posthog-logger"
 import {
     Upload,
@@ -8,7 +8,8 @@ import {
     FolderOpen,
     Zap,
     Plus,
-    ArrowUp
+    ArrowUp,
+    AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem, isFolderDeletable } from "@/hooks/use-cloud-storage-store"
@@ -19,6 +20,7 @@ import { CloudStorageQuickActions } from "@/components/cloud-storage/cloud-stora
 import { CloudStorageItemCard } from "@/components/cloud-storage/cloud-storage-item-card"
 import { DocumentsSummaryCards } from "@/components/common/documents-summary-cards"
 import { cn } from "@/lib/utils"
+import { loadFilesOptimized, cancelPendingLoad, cancelAllPendingLoads } from "@/lib/optimized-file-loader"
 
 interface CloudStorageProps {
     userId: string
@@ -53,10 +55,19 @@ export function CloudStorage({
     const { toast } = useToast()
     const { openUploadModal, openCreateFolderModal, openCreateFileModal } = useModalStore()
 
-    // Local navigation state
+    // Local navigation state with enhanced reliability
     const [currentNavPath, setCurrentNavPath] = useState(initialPath)
     const [isNavigating, setIsNavigating] = useState(false)
     const [navigationError, setNavigationError] = useState<string | null>(null)
+
+    // React 18 transition for optimistic UI updates
+    const [isPending, startTransition] = useTransition()
+
+    // Abort controller for request cancellation
+    const navigationAbortRef = useRef<AbortController | null>(null)
+    const navigationVersionRef = useRef(0) // Version counter to track stale requests
+    const lastNavigationTimeRef = useRef(0) // Debounce rapid navigations
+    const NAVIGATION_DEBOUNCE_MS = 50
 
     // Use the cloud storage store for data management
     const {
@@ -86,9 +97,22 @@ export function CloudStorage({
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
     const [activeFilter, setActiveFilter] = useState<FilterType>('all')
     const [totalStorageSize, setTotalStorageSize] = useState(initialTotalSize)
+    const [retryCount, setRetryCount] = useState(0)
+    const MAX_RETRIES = 3
 
     // Track initialization
     const isInitialized = useRef(false)
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            // Cancel any pending navigations when component unmounts
+            if (navigationAbortRef.current) {
+                navigationAbortRef.current.abort()
+            }
+            cancelAllPendingLoads(userId)
+        }
+    }, [userId])
 
     /**
      * Convert storage path to URL path
@@ -125,14 +149,40 @@ export function CloudStorage({
     }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading])
 
     /**
-     * Handle efficient navigation
+     * Handle efficient navigation with cancellation, debouncing, and retry logic
      */
     const handleNavigate = useCallback(async (path: string, useClientSide = true) => {
+        // Skip if navigating to same path
         if (path === currentNavPath) return
 
+        // Debounce rapid navigations
+        const now = Date.now()
+        if (now - lastNavigationTimeRef.current < NAVIGATION_DEBOUNCE_MS) {
+            return
+        }
+        lastNavigationTimeRef.current = now
+
+        // Cancel any previous navigation
+        if (navigationAbortRef.current) {
+            navigationAbortRef.current.abort()
+            cancelPendingLoad(userId, currentNavPath)
+        }
+
+        // Create new abort controller for this navigation
+        const abortController = new AbortController()
+        navigationAbortRef.current = abortController
+
+        // Increment version to detect stale responses
+        const navigationVersion = ++navigationVersionRef.current
+
+        // Optimistic update: immediately update the path and clear selections
+        startTransition(() => {
+            setCurrentNavPath(path)
+            setSelectedItems(new Set())
+            setNavigationError(null)
+        })
+
         setIsNavigating(true)
-        setNavigationError(null)
-        setSelectedItems(new Set()) // Clear selections
 
         try {
             if (useClientSide) {
@@ -144,39 +194,95 @@ export function CloudStorage({
                     window.history.pushState({ path, clientNavigation: true }, '', url)
                 }
 
-                // Update local navigation state
-                setCurrentNavPath(path)
+                // Use optimized file loader with abort support
+                const result = await loadFilesOptimized(userId, path, abortController.signal)
 
-                // Load new data
-                await navigateToPath(path)
+                // Check if this navigation is still current
+                if (navigationVersionRef.current !== navigationVersion) {
+                    console.log('Stale navigation response, ignoring:', path)
+                    return
+                }
 
-                console.log('Client-side navigation successful:', path, '→', url)
+                // Check if aborted
+                if (abortController.signal.aborted) {
+                    return
+                }
+
+                if (result.error && !result.error.includes('cancelled')) {
+                    throw new Error(result.error)
+                }
+
+                // Update store with new data
+                startTransition(() => {
+                    setCurrentPath(path)
+                    setFiles(result.files)
+                    setFolders(result.folders)
+                    if (result.breadcrumbs.length > 0) {
+                        setBreadcrumbs(result.breadcrumbs)
+                    }
+                    setError(null)
+                })
+
+                setRetryCount(0) // Reset retry count on success
+
             } else {
                 // Use Next.js router for server-side navigation
                 const url = pathToUrl(path)
                 router.push(url)
             }
         } catch (error) {
-            console.error('Navigation failed:', error)
-            setNavigationError(error instanceof Error ? error.message : 'Navigation failed')
+            // Check if this navigation is still current
+            if (navigationVersionRef.current !== navigationVersion) {
+                return
+            }
+
+            // Don't show error for cancelled requests
+            if (abortController.signal.aborted) {
+                return
+            }
+
+            const errorMessage = error instanceof Error ? error.message : 'Navigation failed'
+            console.error('Navigation failed:', errorMessage)
+
+            // Auto-retry logic with exponential backoff
+            if (retryCount < MAX_RETRIES && !errorMessage.includes('cancelled')) {
+                const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 8000)
+                setRetryCount(prev => prev + 1)
+
+                console.log(`Retrying navigation in ${retryDelay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`)
+
+                setTimeout(() => {
+                    if (navigationVersionRef.current === navigationVersion) {
+                        handleNavigate(path, useClientSide)
+                    }
+                }, retryDelay)
+
+                return
+            }
+
+            setNavigationError(errorMessage)
 
             // Fallback to server-side navigation
-            if (useClientSide) {
-                try {
+            if (useClientSide && retryCount >= MAX_RETRIES) {
+                toast({
+                    title: "Navigation Error",
+                    description: "Verbindungsproblem. Die Seite wird neu geladen...",
+                    variant: "destructive"
+                })
+
+                // Force server-side navigation as last resort
+                setTimeout(() => {
                     const url = pathToUrl(path)
                     router.push(url)
-                } catch (fallbackError) {
-                    toast({
-                        title: "Navigation Error",
-                        description: "Failed to navigate to directory. Please try again.",
-                        variant: "destructive"
-                    })
-                }
+                }, 1500)
             }
         } finally {
-            setIsNavigating(false)
+            // Only update navigating state if this is the current navigation
+            if (navigationVersionRef.current === navigationVersion) {
+                setIsNavigating(false)
+            }
         }
-    }, [currentNavPath, pathToUrl, navigateToPath, router, toast])
+    }, [currentNavPath, pathToUrl, router, toast, userId, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, retryCount, startTransition])
 
     /**
      * Handle folder navigation
@@ -206,21 +312,49 @@ export function CloudStorage({
     }, [currentNavPath, handleNavigate])
 
     /**
-     * Handle refresh
+     * Handle refresh with optimized parallel loading
+     * @param showToast - Whether to show a toast notification (default: true for manual refresh)
      */
-    const handleRefresh = useCallback(async () => {
+    const handleRefresh = useCallback(async (showToast = true) => {
         setSelectedItems(new Set())
-        refreshCurrentPath()
+        setIsNavigating(true)
+        setNavigationError(null)
 
-        // Refresh total storage size
         try {
-            const { getTotalStorageUsage } = await import('@/app/(dashboard)/dateien/actions')
-            const size = await getTotalStorageUsage(userId)
-            setTotalStorageSize(size)
+            // Load files and storage size in parallel
+            const [fileResult, size] = await Promise.all([
+                loadFilesOptimized(userId, currentNavPath),
+                import('@/app/(dashboard)/dateien/actions').then(mod =>
+                    mod.getTotalStorageUsage(userId)
+                )
+            ])
+
+            // Update UI with fresh data
+            startTransition(() => {
+                if (!fileResult.error) {
+                    setFiles(fileResult.files)
+                    setFolders(fileResult.folders)
+                    if (fileResult.breadcrumbs.length > 0) {
+                        setBreadcrumbs(fileResult.breadcrumbs)
+                    }
+                    setError(null)
+                }
+                setTotalStorageSize(size)
+            })
+
+            // Only show toast for manual refresh
+            if (showToast) {
+                toast({
+                    description: "Dateien wurden aktualisiert."
+                })
+            }
         } catch (error) {
-            console.error('Failed to refresh total storage size:', error)
+            console.error('Failed to refresh:', error)
+            // Silent fail for refresh, just log
+        } finally {
+            setIsNavigating(false)
         }
-    }, [refreshCurrentPath, userId])
+    }, [userId, currentNavPath, setFiles, setFolders, setBreadcrumbs, setError, toast, startTransition])
 
     /**
      * Handle browser back/forward navigation
@@ -442,13 +576,13 @@ export function CloudStorage({
         const targetPath = currentNavPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
-                handleRefresh()
+                // Note: Modal already refreshes, just show success toast
                 toast({
                     description: "Dateien wurden erfolgreich hochgeladen."
                 })
             })
         }
-    }, [currentNavPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [currentNavPath, initialPath, openUploadModal, toast])
 
     /**
      * Handle upload with files (for drag & drop)
@@ -457,13 +591,13 @@ export function CloudStorage({
         const targetPath = currentNavPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
-                handleRefresh()
+                // Note: Modal already refreshes, just show success toast
                 toast({
                     description: "Dateien wurden erfolgreich hochgeladen."
                 })
             }, files)
         }
-    }, [currentNavPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [currentNavPath, initialPath, openUploadModal, toast])
 
     /**
      * Handle create folder
@@ -486,8 +620,8 @@ export function CloudStorage({
                 // Update the folders list
                 setFolders([...folders, newFolder])
 
-                // Refresh to get the latest data from server
-                handleRefresh()
+                // Refresh to get the latest data from server (no toast - we show our own)
+                handleRefresh(false)
 
                 toast({
                     description: `Ordner "${folderName}" wurde erfolgreich erstellt.`
@@ -503,8 +637,8 @@ export function CloudStorage({
         const targetPath = currentNavPath || initialPath
         if (targetPath) {
             openCreateFileModal(targetPath, (fileName: string) => {
-                // Refresh to get the latest data from server
-                handleRefresh()
+                // Refresh to get the latest data from server (no toast - we show our own)
+                handleRefresh(false)
 
                 toast({
                     description: `Datei "${fileName}" wurde erfolgreich erstellt.`
@@ -513,8 +647,9 @@ export function CloudStorage({
         }
     }, [currentNavPath, initialPath, openCreateFileModal, handleRefresh, toast])
 
-    // Determine loading and error states
-    const showLoading = isLoading || isNavigating
+    // Determine loading and error states (include isPending for smoother transitions)
+    const showLoading = (isLoading || isNavigating) && !isPending
+    const showOptimisticLoading = isPending && !isNavigating
     const displayError = storeError || navigationError
 
     return (
@@ -632,11 +767,29 @@ export function CloudStorage({
                 {/* Content Area */}
                 <div className="flex-1 overflow-auto">
                     <div className="p-6">
+                        {/* Optimistic Loading Indicator - subtle overlay when transitioning */}
+                        {showOptimisticLoading && (
+                            <div className="absolute top-4 right-4 flex items-center gap-2 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50 shadow-sm z-10">
+                                <RefreshCw className="h-3 w-3 animate-spin text-primary" />
+                                <span className="text-xs text-muted-foreground">Aktualisiere...</span>
+                            </div>
+                        )}
+
                         {/* Loading State */}
                         {showLoading && (
                             <div className="text-center py-16">
                                 <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin text-muted-foreground" />
-                                <p className="text-muted-foreground">Lade Dateien...</p>
+                                <p className="text-muted-foreground">
+                                    {retryCount > 0
+                                        ? `Erneuter Versuch (${retryCount}/${MAX_RETRIES})...`
+                                        : 'Lade Dateien...'
+                                    }
+                                </p>
+                                {retryCount > 0 && (
+                                    <p className="text-xs text-muted-foreground/70 mt-2">
+                                        Verbindung wird wiederhergestellt...
+                                    </p>
+                                )}
                             </div>
                         )}
 
@@ -644,17 +797,29 @@ export function CloudStorage({
                         {displayError && !showLoading && (
                             <div className="text-center py-16">
                                 <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                                    <Zap className="h-8 w-8 text-destructive" />
+                                    <AlertCircle className="h-8 w-8 text-destructive" />
                                 </div>
                                 <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
-                                <p className="text-muted-foreground mb-6 max-w-md mx-auto">{displayError}</p>
+                                <p className="text-muted-foreground mb-2 max-w-md mx-auto">{displayError}</p>
+                                {retryCount >= MAX_RETRIES && (
+                                    <p className="text-xs text-muted-foreground/70 mb-4">
+                                        Alle automatischen Versuche fehlgeschlagen
+                                    </p>
+                                )}
                                 <div className="flex items-center justify-center space-x-3">
-                                    <Button onClick={handleRefresh}>
+                                    <Button onClick={() => {
+                                        setRetryCount(0)
+                                        setNavigationError(null)
+                                        handleRefresh()
+                                    }}>
                                         <RefreshCw className="h-4 w-4 mr-2" />
                                         Erneut versuchen
                                     </Button>
                                     {navigationError && (
-                                        <Button variant="outline" onClick={() => setNavigationError(null)}>
+                                        <Button variant="outline" onClick={() => {
+                                            setNavigationError(null)
+                                            setRetryCount(0)
+                                        }}>
                                             Fehler ignorieren
                                         </Button>
                                     )}
@@ -727,7 +892,7 @@ export function CloudStorage({
 
                                                     try {
                                                         await moveFolder(sourceFolderPath, targetFolderPath)
-                                                        handleRefresh()
+                                                        handleRefresh(false) // Silent refresh after move
                                                     } catch (error) {
                                                         posthogLogger.error('Folder move failed', {
                                                             folder_name: folder.name,
@@ -770,7 +935,7 @@ export function CloudStorage({
 
                                                     try {
                                                         await moveFile(sourcePath, targetFilePath)
-                                                        handleRefresh()
+                                                        handleRefresh(false) // Silent refresh after move
                                                     } catch (error) {
                                                         posthogLogger.error('File move failed', {
                                                             file_name: file.name,
