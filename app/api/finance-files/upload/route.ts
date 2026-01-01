@@ -9,6 +9,8 @@ import {
     isSupportedMimeType
 } from "@/lib/finance-file-constants";
 
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
