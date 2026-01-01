@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, FileText, Home, Calendar, Euro, TrendingUp, Pencil, Trash2, MoreVertical, X, Download, Loader2, CheckCircle2, Filter, Database, Search, ArrowUpDown } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, FileText, Home, Calendar, Euro, TrendingUp, Pencil, Trash2, MoreVertical, X, Download, Loader2, CheckCircle2, Filter, Database, Search, ArrowUpDown, Paperclip } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { toast } from "@/hooks/use-toast"
@@ -26,6 +26,7 @@ interface Finanz {
   betrag: number;
   ist_einnahmen: boolean;
   notiz?: string;
+  dokument_id?: string | null;
   Wohnungen?: { name: string };
 }
 
@@ -507,6 +508,11 @@ export function FinanceTable({
                             </AvatarFallback>
                           </Avatar>
                           <span>{finance.name}</span>
+                          {finance.dokument_id && (
+                            <span title="Dokument angehängt">
+                              <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{finance.Wohnungen?.name || '-'}</TableCell>
                         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatDate(finance.datum)}</TableCell>

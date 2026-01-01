@@ -149,6 +149,7 @@ export type Finanzen = {
   ist_einnahmen: boolean;
   notiz: string | null;
   user_id: string;
+  dokument_id: string | null;
 };
 
 export async function fetchHaeuser() {
