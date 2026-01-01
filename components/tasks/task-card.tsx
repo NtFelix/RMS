@@ -54,19 +54,21 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
   };
 
   return (
-    <TaskContextMenu 
+    <TaskContextMenu
       task={{
         id: task.id,
         name: task.name,
         beschreibung: task.beschreibung || task.description || '',
-        ist_erledigt: task.ist_erledigt
+        ist_erledigt: task.ist_erledigt,
+        erstellungsdatum: task.erstellungsdatum || task.createdAt,
+        aenderungsdatum: task.aenderungsdatum || task.updatedAt
       }}
       onEdit={handleEditClick}
       onStatusToggle={onToggleStatus}
       onTaskDeleted={onTaskDeleted}
     >
-      <Card 
-        className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer" 
+      <Card
+        className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
         onClick={handleEditClick}
       >
         <CardContent className="p-4">
@@ -96,8 +98,8 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
               </div>
             </div>
             <div className="flex-shrink-0">
-              <Badge 
-                variant="outline" 
+              <Badge
+                variant="outline"
                 className={`${statusColor}`}
               >
                 <span className="flex items-center">

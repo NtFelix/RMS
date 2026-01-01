@@ -19,9 +19,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Home, Ruler, Euro, Building2, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Home, Ruler, Euro, Building2, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil, Droplet } from "lucide-react"
 import { formatNumber } from "@/utils/format"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
+import { useModalStore } from "@/hooks/use-modal-store"
+import { ActionMenu } from "@/components/ui/action-menu"
 
 export interface Apartment {
   id: string
@@ -416,35 +418,56 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                           )}
                         </TableCell>
                         <TableCell
-                          className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <Button
-                            id={index === 0 ? "apartment-menu-trigger-0" : undefined}
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-                            onClick={(e) => {
-                              if (index === 0) {
-                                useOnboardingStore.getState().completeStep('create-meter-open-menu');
+                          <ActionMenu
+                            actions={[
+                              {
+                                id: `edit-${apt.id}`,
+                                icon: Pencil,
+                                label: "Bearbeiten",
+                                onClick: () => onEdit?.(apt),
+                                variant: 'primary',
+                              },
+                              {
+                                id: `meter-${apt.id}`,
+                                icon: Droplet,
+                                label: "Wasserzähler",
+                                onClick: () => {
+                                  useOnboardingStore.getState().completeStep('create-meter-select');
+                                  useModalStore.getState().openWasserZaehlerModal(apt.id, apt.name);
+                                },
+                                variant: 'default',
+                              },
+                              {
+                                id: index === 0 ? "apartment-menu-trigger-0" : `more-${apt.id}`,
+                                icon: MoreVertical,
+                                label: "Mehr Optionen",
+                                onClick: (e) => {
+                                  if (index === 0) {
+                                    useOnboardingStore.getState().completeStep('create-meter-open-menu');
+                                  }
+                                  if (!e) return;
+                                  const rowElement = contextMenuRefs.current.get(apt.id)
+                                  if (rowElement) {
+                                    const contextMenuEvent = new MouseEvent('contextmenu', {
+                                      bubbles: true,
+                                      cancelable: true,
+                                      view: window,
+                                      clientX: e.clientX,
+                                      clientY: e.clientY,
+                                    })
+                                    rowElement.dispatchEvent(contextMenuEvent)
+                                  }
+                                },
+                                variant: 'default',
                               }
-                              e.stopPropagation()
-                              const rowElement = contextMenuRefs.current.get(apt.id)
-                              if (rowElement) {
-                                const contextMenuEvent = new MouseEvent('contextmenu', {
-                                  bubbles: true,
-                                  cancelable: true,
-                                  view: window,
-                                  clientX: e.clientX,
-                                  clientY: e.clientY,
-                                })
-                                rowElement.dispatchEvent(contextMenuEvent)
-                              }
-                            }}
-                          >
-                            <span className="sr-only">Menü öffnen</span>
-                            <MoreVertical className="h-3.5 w-3.5" />
-                          </Button>
+                            ]}
+                            shape="pill"
+                            visibility="always"
+                            className="inline-flex"
+                          />
                         </TableCell>
                       </TableRow>
                     </ApartmentContextMenu>

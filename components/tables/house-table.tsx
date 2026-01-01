@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil, Eye } from "lucide-react"
+import { useModalStore } from "@/hooks/use-modal-store"
+import { ActionMenu } from "@/components/ui/action-menu"
 
 export interface House {
   id: string
@@ -222,17 +224,17 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
 
       const { successCount } = await response.json();
       const failedCount = selectedIds.length - successCount;
-      
+
       setShowBulkDeleteConfirm(false);
       setSelectedHouses(new Set());
-      
+
       if (successCount > 0) {
         toast({
           title: "Erfolg",
           description: `${successCount} Häuser erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`,
           variant: "success",
         });
-        
+
         await fetchHouses();
         router.refresh();
       } else {
@@ -265,10 +267,10 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
 
   const handleBulkExport = () => {
     const selectedHousesData = houses.filter(h => selectedHouses.has(h.id))
-    
+
     const headers = ['Haus', 'Ort', 'Größe (m²)', 'Miete (€)', '€/m²', 'Status']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     const csvRows = selectedHousesData.map(h => {
       const row = [
         h.name,
@@ -280,7 +282,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -299,12 +301,12 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   const handleDeleteConfirm = async () => {
     if (!houseToDelete) return
     setIsDeleting(true)
-    
+
     try {
       const response = await fetch(`/api/haeuser/${houseToDelete.id}`, {
         method: 'DELETE',
       })
-      
+
       if (response.ok) {
         toast({
           title: 'Haus gelöscht',
@@ -424,7 +426,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                 sortedAndFilteredData.map((house, index) => {
                   const isLastRow = index === sortedAndFilteredData.length - 1
                   const isSelected = selectedHouses.has(house.id)
-                  
+
                   return (
                     <HouseContextMenu
                       key={house.id}
@@ -432,7 +434,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                       onEdit={() => onEdit(house)}
                       onRefresh={fetchHouses}
                     >
-                      <TableRow 
+                      <TableRow
                         ref={(el) => {
                           if (el) {
                             contextMenuRefs.current.set(house.id, el)
@@ -440,15 +442,14 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                             contextMenuRefs.current.delete(house.id)
                           }
                         }}
-                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
-                          isSelected 
-                            ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                        }`}
+                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                          }`}
                         onClick={() => onEdit(house)}
                       >
-                        <TableCell 
-                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`} 
+                        <TableCell
+                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           <Checkbox
@@ -480,32 +481,51 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell 
-                          className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
+                        <TableCell
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const rowElement = contextMenuRefs.current.get(house.id)
-                              if (rowElement) {
-                                const contextMenuEvent = new MouseEvent('contextmenu', {
-                                  bubbles: true,
-                                  cancelable: true,
-                                  view: window,
-                                  clientX: e.clientX,
-                                  clientY: e.clientY,
-                                })
-                                rowElement.dispatchEvent(contextMenuEvent)
+                          <ActionMenu
+                            actions={[
+                              {
+                                id: `edit-${house.id}`,
+                                icon: Pencil,
+                                label: "Bearbeiten",
+                                onClick: () => onEdit(house),
+                                variant: 'primary',
+                              },
+                              {
+                                id: `overview-${house.id}`,
+                                icon: Eye,
+                                label: "Übersicht",
+                                onClick: () => useModalStore.getState().openHausOverviewModal(house.id),
+                                variant: 'default',
+                              },
+                              {
+                                id: `more-${house.id}`,
+                                icon: MoreVertical,
+                                label: "Mehr Optionen",
+                                onClick: (e) => {
+                                  if (!e) return;
+                                  const rowElement = contextMenuRefs.current.get(house.id)
+                                  if (rowElement) {
+                                    const contextMenuEvent = new MouseEvent('contextmenu', {
+                                      bubbles: true,
+                                      cancelable: true,
+                                      view: window,
+                                      clientX: e.clientX,
+                                      clientY: e.clientY,
+                                    })
+                                    rowElement.dispatchEvent(contextMenuEvent)
+                                  }
+                                },
+                                variant: 'default',
                               }
-                            }}
-                          >
-                            <span className="sr-only">Menü öffnen</span>
-                            <MoreVertical className="h-3.5 w-3.5" />
-                          </Button>
+                            ]}
+                            shape="pill"
+                            visibility="always"
+                            className="inline-flex"
+                          />
                         </TableCell>
                       </TableRow>
                     </HouseContextMenu>
