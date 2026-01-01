@@ -91,37 +91,44 @@ export function FileTreeSkeleton({ className }: { className?: string }) {
 
 /**
  * Loading skeleton for file grid with enhanced animations
+ * Perfectly matched to CloudStorageItemCard to prevent content shifts
  */
-export function FileGridSkeleton({ 
-  count = 8, 
+export function FileGridSkeleton({
+  count = 12,
   viewMode = 'grid',
-  className 
-}: { 
+  className
+}: {
   count?: number
   viewMode?: 'grid' | 'list'
-  className?: string 
+  className?: string
 }) {
   if (viewMode === 'list') {
     return (
-      <div className={cn("space-y-2", className)}>
+      <div className={cn("space-y-1", className)}>
         {[...Array(count)].map((_, i) => (
-          <div 
-            key={i} 
-            className="flex items-center p-4 space-x-4 rounded-lg border bg-card animate-pulse"
-            style={{ animationDelay: `${i * 50}ms` }}
+          <div
+            key={i}
+            className="flex items-center p-3 rounded-lg border border-transparent animate-pulse"
+            style={{ animationDelay: `${i * 40}ms` }}
           >
-            <Skeleton className="h-12 w-12 rounded-lg flex-shrink-0" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-3/4" />
-              <div className="flex space-x-4">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-3 w-24" />
-              </div>
+            {/* Icon Box Skeleton */}
+            <div className="mr-3 p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
+              <Skeleton className="h-5 w-5 rounded" />
             </div>
-            <div className="flex space-x-2">
-              <Skeleton className="h-8 w-8 rounded" />
-              <Skeleton className="h-8 w-8 rounded" />
+
+            {/* Content Skeleton */}
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex items-center space-x-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-4 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-3 w-1/4" />
+            </div>
+
+            {/* Action Skeleton */}
+            <div className="flex space-x-2 pr-2">
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
             </div>
           </div>
         ))}
@@ -132,31 +139,34 @@ export function FileGridSkeleton({
   return (
     <div className={cn("grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4", className)}>
       {[...Array(count)].map((_, i) => (
-        <div 
-          key={i} 
-          className="group relative rounded-lg border bg-card p-3 hover:shadow-md transition-all duration-200 animate-pulse"
-          style={{ animationDelay: `${i * 30}ms` }}
+        <div
+          key={i}
+          className="rounded-lg border bg-card p-4 animate-pulse relative"
+          style={{
+            animationDelay: `${i * 30}ms`,
+            animationDuration: '1.5s'
+          }}
         >
-          <div className="flex flex-col items-center space-y-3">
-            {/* File/Folder icon skeleton with shimmer effect */}
-            <div className="relative">
-              <Skeleton className="h-12 w-12 rounded-lg" />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+          <div className="flex flex-col items-center text-center space-y-3">
+            {/* Icon Box Skeleton */}
+            <div className="p-3 rounded-xl bg-gray-100/80 dark:bg-gray-800/80 relative overflow-hidden">
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 dark:via-white/5 to-transparent animate-shimmer" />
             </div>
-            
-            {/* File name and metadata */}
-            <div className="text-center w-full space-y-2">
+
+            {/* Content Skeleton */}
+            <div className="w-full space-y-2.5">
               <Skeleton className="h-4 w-full" />
-              <div className="flex justify-center space-x-2">
-                <Skeleton className="h-3 w-12" />
-                <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-3/4 mx-auto" />
+              <div className="pt-1 flex justify-center">
+                <Skeleton className="h-5 w-16 rounded-full" />
               </div>
             </div>
           </div>
-          
-          {/* Hover actions skeleton */}
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Skeleton className="h-6 w-6 rounded" />
+
+          {/* Top Right Actions Placeholder */}
+          <div className="absolute top-2 right-2">
+            <Skeleton className="h-7 w-7 rounded-md opacity-30" />
           </div>
         </div>
       ))}
@@ -170,18 +180,18 @@ export function FileGridSkeleton({
 export function BreadcrumbSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center space-x-2", className)}>
-      <Skeleton 
-        className="h-4 w-20 animate-pulse" 
+      <Skeleton
+        className="h-4 w-20 animate-pulse"
         style={{ animationDelay: '0ms' }}
       />
       <span className="text-muted-foreground/50">/</span>
-      <Skeleton 
-        className="h-4 w-16 animate-pulse" 
+      <Skeleton
+        className="h-4 w-16 animate-pulse"
         style={{ animationDelay: '100ms' }}
       />
       <span className="text-muted-foreground/50">/</span>
-      <Skeleton 
-        className="h-4 w-24 animate-pulse" 
+      <Skeleton
+        className="h-4 w-24 animate-pulse"
         style={{ animationDelay: '200ms' }}
       />
     </div>
@@ -198,11 +208,11 @@ interface FileOperationLoadingProps {
   className?: string
 }
 
-export function FileOperationLoading({ 
-  operation, 
-  fileName, 
+export function FileOperationLoading({
+  operation,
+  fileName,
   progress,
-  className 
+  className
 }: FileOperationLoadingProps) {
   const getOperationIcon = () => {
     switch (operation) {
@@ -323,10 +333,10 @@ interface UploadQueueLoadingProps {
   className?: string
 }
 
-export function UploadQueueLoading({ 
-  queueLength, 
-  isProcessing, 
-  className 
+export function UploadQueueLoading({
+  queueLength,
+  isProcessing,
+  className
 }: UploadQueueLoadingProps) {
   return (
     <div className={cn("flex items-center space-x-3 p-3 bg-amber-50 border border-amber-200 rounded-lg", className)}>
@@ -373,12 +383,12 @@ export function ArchiveLoading({ className }: { className?: string }) {
 /**
  * Empty state components
  */
-export function EmptyFileList({ 
-  onUpload, 
-  className 
-}: { 
+export function EmptyFileList({
+  onUpload,
+  className
+}: {
   onUpload?: () => void
-  className?: string 
+  className?: string
 }) {
   return (
     <div className={cn("text-center py-12", className)}>
@@ -412,14 +422,14 @@ export function EmptyArchive({ className }: { className?: string }) {
   )
 }
 
-export function EmptyFolder({ 
-  folderName, 
-  onUpload, 
-  className 
-}: { 
+export function EmptyFolder({
+  folderName,
+  onUpload,
+  className
+}: {
   folderName?: string
   onUpload?: () => void
-  className?: string 
+  className?: string
 }) {
   return (
     <div className={cn("text-center py-12", className)}>
@@ -452,10 +462,10 @@ interface ConnectionStatusProps {
   className?: string
 }
 
-export function ConnectionStatus({ 
-  isOnline, 
-  isConnecting = false, 
-  className 
+export function ConnectionStatus({
+  isOnline,
+  isConnecting = false,
+  className
 }: ConnectionStatusProps) {
   if (isConnecting) {
     return (
@@ -492,10 +502,10 @@ interface PerformanceIndicatorProps {
   className?: string
 }
 
-export function PerformanceIndicator({ 
-  queryTime, 
-  cacheHit = false, 
-  className 
+export function PerformanceIndicator({
+  queryTime,
+  cacheHit = false,
+  className
 }: PerformanceIndicatorProps) {
   const getPerformanceColor = () => {
     if (queryTime < 500) return 'text-green-600'
@@ -558,8 +568,8 @@ export function ContentAreaSkeleton({
       )}
 
       {/* Content skeleton */}
-      <FileGridSkeleton 
-        count={itemCount} 
+      <FileGridSkeleton
+        count={itemCount}
         viewMode={viewMode}
       />
     </div>
@@ -724,8 +734,8 @@ export function SmartSkeleton({
     return (
       <div className={cn("grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4", className)}>
         {[...Array(count)].map((_, i) => (
-          <div 
-            key={i} 
+          <div
+            key={i}
             className="rounded-lg border bg-card p-3 animate-pulse"
             style={{ animationDelay: `${i * 30}ms` }}
           >
@@ -749,8 +759,8 @@ export function SmartSkeleton({
     return (
       <div className={cn("grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4", className)}>
         {[...Array(count)].map((_, i) => (
-          <div 
-            key={i} 
+          <div
+            key={i}
             className="rounded-lg border bg-card p-3 animate-pulse"
             style={{ animationDelay: `${i * 30}ms` }}
           >

@@ -38,8 +38,22 @@ export function FileUploadZone({
     processUploadQueue
   } = useCloudStorageUpload()
 
-  // Check for completed uploads and call onUploadComplete
+  // Track if onUploadComplete has been called to prevent duplicates
+  const hasCalledComplete = useRef(false)
+
+  // Reset the completion flag when new files are added to the queue
   useEffect(() => {
+    const hasPending = uploadQueue.some(item => item.status === 'pending' || item.status === 'uploading')
+    if (hasPending) {
+      hasCalledComplete.current = false
+    }
+  }, [uploadQueue])
+
+  // Check for completed uploads and call onUploadComplete (only once per batch)
+  useEffect(() => {
+    // Skip if already called complete for this batch
+    if (hasCalledComplete.current) return
+
     const completedUploads = uploadQueue.filter(item => item.status === 'completed')
     const hasCompletedUploads = completedUploads.length > 0
     const allCompleted = uploadQueue.length > 0 && uploadQueue.every(item =>
@@ -48,6 +62,9 @@ export function FileUploadZone({
 
     // Call onUploadComplete when all uploads are finished (completed or error)
     if (hasCompletedUploads && !isUploading && allCompleted) {
+      // Mark as called to prevent duplicate invocations
+      hasCalledComplete.current = true
+
       // Use a timeout to ensure the upload process has fully completed
       const timeoutId = setTimeout(() => {
         onUploadComplete?.()
@@ -62,7 +79,7 @@ export function FileUploadZone({
 
       return () => clearTimeout(timeoutId)
     }
-  }, [uploadQueue, isUploading, onUploadComplete])
+  }, [uploadQueue, isUploading, onUploadComplete, targetPath, posthog])
 
   // Handle drag events
   const handleDragEnter = useCallback((e: React.DragEvent) => {
