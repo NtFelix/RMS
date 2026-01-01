@@ -85,6 +85,8 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   // const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
   const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false); // Keep this if fetching logic remains
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Track if document was changed for existing entries (auto-saved, needs refresh on close)
+  const [documentWasChanged, setDocumentWasChanged] = useState(false);
 
   const apartmentOptions: ComboboxOption[] = (financeModalWohnungen || []).map(w => ({ value: w.id, label: w.name }));
 
@@ -100,6 +102,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
         dokument_id: financeInitialData?.dokument_id || null,
       });
       setFinanceModalDirty(false); // Reset dirty state when modal opens or data changes
+      setDocumentWasChanged(false); // Reset document change tracking
     }
   }, [financeInitialData, isFinanceModalOpen, setFinanceModalDirty]);
 
@@ -135,10 +138,18 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   };
 
   const attemptClose = () => {
+    // If document was changed for existing entry, trigger refresh before closing
+    if (documentWasChanged && financeInitialData?.id && financeModalOnSuccess) {
+      financeModalOnSuccess({ ...financeInitialData, dokument_id: formData.dokument_id });
+    }
     closeFinanceModal(); // Store handles confirmation logic for outside clicks/X button
   };
 
   const handleCancelClick = () => {
+    // If document was changed for existing entry, trigger refresh before closing
+    if (documentWasChanged && financeInitialData?.id && financeModalOnSuccess) {
+      financeModalOnSuccess({ ...financeInitialData, dokument_id: formData.dokument_id });
+    }
     closeFinanceModal({ force: true }); // Force close for "Abbrechen" button
   };
 
@@ -296,6 +307,9 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
                   // For existing entries, the document link is auto-saved by the upload API
                   if (!financeInitialData?.id) {
                     setFinanceModalDirty(true);
+                  } else {
+                    // Track that document was changed for existing entry (for refresh on close)
+                    setDocumentWasChanged(true);
                   }
                 }}
                 disabled={isSubmitting}
