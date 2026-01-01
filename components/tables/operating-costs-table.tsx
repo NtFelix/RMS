@@ -42,6 +42,7 @@ import {
 } from "@/app/betriebskosten-actions" // Removed old wasserzaehler imports
 import { toast } from "@/hooks/use-toast" // For notifications
 import { useModalStore } from "@/hooks/use-modal-store"
+import { ActionMenu } from "@/components/ui/action-menu"
 import { useRouter } from "next/navigation"
 
 // Define sortable fields for operating costs table
@@ -514,31 +515,43 @@ export function OperatingCostsTable({
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(item.wasserkosten)}</TableCell>
                           <TableCell
-                            className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                            className={`py-2 pr-2 text-right w-[100px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const rowElement = contextMenuRefs.current.get(item.id)
-                                if (rowElement) {
-                                  const contextMenuEvent = new MouseEvent('contextmenu', {
-                                    bubbles: true,
-                                    cancelable: true,
-                                    view: window,
-                                    clientX: e.clientX,
-                                    clientY: e.clientY,
-                                  })
-                                  rowElement.dispatchEvent(contextMenuEvent)
+                            <ActionMenu
+                              actions={[
+                                {
+                                  id: `edit-${item.id}`,
+                                  icon: Pencil,
+                                  label: "Bearbeiten",
+                                  onClick: () => onEdit?.(item),
+                                  variant: 'primary',
+                                },
+                                {
+                                  id: `more-${item.id}`,
+                                  icon: MoreVertical,
+                                  label: "Mehr Optionen",
+                                  onClick: (e) => {
+                                    if (!e) return;
+                                    const rowElement = contextMenuRefs.current.get(item.id)
+                                    if (rowElement && e) {
+                                      const contextMenuEvent = new MouseEvent('contextmenu', {
+                                        bubbles: true,
+                                        cancelable: true,
+                                        view: window,
+                                        clientX: e.clientX,
+                                        clientY: e.clientY,
+                                      })
+                                      rowElement.dispatchEvent(contextMenuEvent)
+                                    }
+                                  },
+                                  variant: 'default',
                                 }
-                              }}
-                            >
-                              <span className="sr-only">Menü öffnen</span>
-                              <MoreVertical className="h-3.5 w-3.5" />
-                            </Button>
+                              ]}
+                              shape="pill"
+                              visibility="always"
+                              className="inline-flex"
+                            />
                           </TableCell>
                         </TableRow>
                       </ContextMenuTrigger>

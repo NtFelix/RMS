@@ -16,7 +16,7 @@ export interface ActionMenuItem {
     /** Accessible label for the action (shown as tooltip) */
     label: string;
     /** Click handler for the action */
-    onClick: () => void;
+    onClick: (e?: React.MouseEvent) => void;
     /** Visual variant affecting hover colors */
     variant?: 'default' | 'primary' | 'destructive';
     /** Optional custom data attributes (e.g., for accessibility or testing) */
@@ -123,7 +123,7 @@ export function ActionMenu({
                     if (stopPropagation) {
                         e.stopPropagation();
                     }
-                    action.onClick();
+                    action.onClick(e);
                 };
 
                 return (
