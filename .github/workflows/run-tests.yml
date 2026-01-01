@@ -526,6 +526,164 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # Mutation Testing - runs in parallel with unit tests to validate test quality
+  mutation-test:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    needs: setup
+    # Only run on main branch, manual dispatch, or weekly schedule to save CI minutes
+    # Can be enabled for PRs by removing this condition
+    if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Cache node_modules
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      # Cache Stryker incremental results for faster subsequent runs
+      - name: Restore Stryker incremental cache
+        uses: actions/cache/restore@v4
+        id: stryker-cache
+        with:
+          path: |
+            .stryker-tmp
+            reports/mutation
+          key: stryker-${{ runner.os }}-${{ hashFiles('lib/**/*.ts', 'utils/**/*.ts') }}
+          restore-keys: |
+            stryker-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+            echo "Installing dependencies..."
+            npm ci --prefer-offline
+          else
+            echo "✓ node_modules exists - skipping npm ci"
+          fi
+
+      - name: Run mutation tests
+        id: stryker
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧬 Running Mutation Tests (Stryker Mutator)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  Target: lib/, utils/"
+          echo "  Threshold (break): 50%"
+          echo "  Threshold (low):   60%"
+          echo "  Threshold (high):  80%"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          START_TIME=$(date +%s)
+          
+          # Run Stryker with incremental mode if cache exists
+          if [ -d ".stryker-tmp" ]; then
+            echo "Using incremental mode (cache found)..."
+            npx stryker run --incremental 2>&1 | tee stryker-output.log
+          else
+            echo "Running full mutation analysis..."
+            npx stryker run 2>&1 | tee stryker-output.log
+          fi
+          STRYKER_EXIT_CODE=${PIPESTATUS[0]}
+          
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          echo "exit_code=$STRYKER_EXIT_CODE" >> $GITHUB_OUTPUT
+          
+          # Parse mutation score from output
+          MUTATION_SCORE=$(grep -oP 'Mutation score: \K[0-9.]+' stryker-output.log | tail -1 || echo "0")
+          MUTANTS_KILLED=$(grep -oP '\K[0-9]+(?= killed)' stryker-output.log | tail -1 || echo "0")
+          MUTANTS_SURVIVED=$(grep -oP '\K[0-9]+(?= survived)' stryker-output.log | tail -1 || echo "0")
+          MUTANTS_TIMEOUT=$(grep -oP '\K[0-9]+(?= timed out)' stryker-output.log | tail -1 || echo "0")
+          MUTANTS_NO_COVERAGE=$(grep -oP '\K[0-9]+(?= no coverage)' stryker-output.log | tail -1 || echo "0")
+          
+          echo "mutation_score=$MUTATION_SCORE" >> $GITHUB_OUTPUT
+          echo "killed=$MUTANTS_KILLED" >> $GITHUB_OUTPUT
+          echo "survived=$MUTANTS_SURVIVED" >> $GITHUB_OUTPUT
+          echo "timeout=$MUTANTS_TIMEOUT" >> $GITHUB_OUTPUT
+          echo "no_coverage=$MUTANTS_NO_COVERAGE" >> $GITHUB_OUTPUT
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Mutation Testing Results"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  🎯 Mutation Score: ${MUTATION_SCORE}%"
+          echo "  ✅ Killed:         $MUTANTS_KILLED"
+          echo "  ❌ Survived:       $MUTANTS_SURVIVED"
+          echo "  ⏱️  Timeout:        $MUTANTS_TIMEOUT"
+          echo "  🚫 No Coverage:    $MUTANTS_NO_COVERAGE"
+          echo "  ⏱️  Duration:       ${DURATION}s"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Exit with Stryker's exit code (will fail if below threshold)
+          exit $STRYKER_EXIT_CODE
+        env:
+          CI: true
+          NODE_ENV: test
+
+      # Save Stryker cache for future runs
+      - name: Save Stryker incremental cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .stryker-tmp
+            reports/mutation
+          key: stryker-${{ runner.os }}-${{ hashFiles('lib/**/*.ts', 'utils/**/*.ts') }}
+
+      - name: Generate mutation summary
+        if: always()
+        run: |
+          echo "## 🧬 Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.stryker.outputs.exit_code }}" = "0" ]; then
+            echo "### ✅ Mutation tests passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Mutation score below threshold" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎯 Mutation Score | ${{ steps.stryker.outputs.mutation_score || '0' }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Killed | ${{ steps.stryker.outputs.killed || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Survived | ${{ steps.stryker.outputs.survived || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏱️ Timeout | ${{ steps.stryker.outputs.timeout || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚫 No Coverage | ${{ steps.stryker.outputs.no_coverage || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏱️ Duration | ${{ steps.stryker.outputs.duration || '0' }}s |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Thresholds:** 🟢 High (80%+) | 🟡 Low (60-79%) | 🔴 Break (<50%)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📎 Download the [Mutation Report](../artifacts) for detailed analysis." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: |
+            reports/mutation/
+            stryker-output.log
+          retention-days: 14
+          if-no-files-found: ignore
+
   test:
     name: Run Tests (Group ${{ matrix.test-group }})
     runs-on: ubuntu-latest
@@ -843,7 +1001,7 @@ jobs:
   test-summary:
     name: Test Summary & Notification
     runs-on: ubuntu-latest
-    needs: [test, e2e-test]
+    needs: [test, e2e-test, mutation-test]
     if: always()
     
     steps:
@@ -865,6 +1023,14 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report
+        continue-on-error: true
+
+      # Download Mutation report
+      - name: Download Mutation report
+        uses: actions/download-artifact@v4
+        with:
+          name: mutation-report
+          path: mutation-report
         continue-on-error: true
 
       # Download passing tests data from all groups

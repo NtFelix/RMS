@@ -54,3 +54,9 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Stryker Mutation Testing
+/.stryker-tmp/
+/stryker-tmp/
+/reports/mutation/
+stryker-output.log

@@ -1,0 +1,48 @@
+{
+    "packageManager": "npm",
+    "reporters": [
+        "html",
+        "json",
+        "progress"
+    ],
+    "testRunner": "jest",
+    "testRunnerNodeArgs": [
+        "--experimental-vm-modules"
+    ],
+    "coverageAnalysis": "perTest",
+    "mutate": [
+        "lib/**/*.ts",
+        "utils/**/*.ts",
+        "!lib/**/*.test.ts",
+        "!lib/**/*.spec.ts",
+        "!utils/**/*.test.ts",
+        "!utils/**/*.spec.ts",
+        "!lib/**/index.ts",
+        "!utils/**/index.ts"
+    ],
+    "ignorePatterns": [
+        "node_modules",
+        ".next",
+        "coverage",
+        "playwright-report",
+        "test-results",
+        "stryker-tmp"
+    ],
+    "timeoutMS": 30000,
+    "timeoutFactor": 2.5,
+    "concurrency": 2,
+    "thresholds": {
+        "high": 80,
+        "low": 60,
+        "break": 50
+    },
+    "disableTypeChecks": "{lib,utils}/**/*.ts",
+    "tempDirName": "stryker-tmp",
+    "cleanTempDir": true,
+    "htmlReporter": {
+        "fileName": "reports/mutation/mutation.html"
+    },
+    "jsonReporter": {
+        "fileName": "reports/mutation/mutation.json"
+    }
+}
