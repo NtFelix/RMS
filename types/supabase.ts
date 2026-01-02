@@ -9,4 +9,5 @@ export interface Profile {
   stripe_price_id?: string | null;
   stripe_current_period_end?: string | null; // Or Date
   onboarding_completed?: boolean;
+  setup_completed?: boolean;
 }
