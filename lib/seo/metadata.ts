@@ -225,6 +225,7 @@ export const pageMetadata = {
             'Hausverwaltung Privatvermieter',
             'Software für private Vermieter',
             'Betriebskostenabrechnung Privatvermieter',
+            'Nebenkostenabrechnung Privatvermieter',
             'Mietverwaltung privat',
             'Vermieter Software einfach',
             'kleine Vermietung Software',
