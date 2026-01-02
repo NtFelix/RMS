@@ -11,7 +11,7 @@ export const defaultMetadata: Metadata = {
         default: `${BRAND_NAME} | Hausverwaltungssoftware für Vermieter`,
         template: `%s | ${BRAND_NAME}`,
     },
-    description: 'Mit Mietevo verwalten Sie Ihre Mietobjekte professionell. Automatische Nebenkostenabrechnungen, Mieterverwaltung und Finanzen - alles in einer Software. 14 Tage kostenlos testen!',
+    description: 'Mit Mietevo verwalten Sie Ihre Mietobjekte professionell. Automatische Betriebskostenabrechnungen, Mieterverwaltung und Finanzen - alles in einer Software. 14 Tage kostenlos testen!',
     keywords: [
         'Hausverwaltungssoftware',
         'Nebenkostenabrechnung Software',
@@ -43,7 +43,7 @@ export const defaultMetadata: Metadata = {
         url: BASE_URL,
         siteName: BRAND_NAME,
         title: `${BRAND_NAME} - Hausverwaltungssoftware für Vermieter`,
-        description: 'Die moderne Lösung für Ihre Mietverwaltung und Nebenkostenabrechnung. Einfach, schnell und rechtssicher.',
+        description: 'Die moderne Lösung für Ihre Mietverwaltung und Betriebskostenabrechnung. Einfach, schnell und professionell.',
         images: [
             {
                 url: OG_IMAGE_URL,
@@ -56,7 +56,7 @@ export const defaultMetadata: Metadata = {
     twitter: {
         card: 'summary_large_image',
         title: `${BRAND_NAME} - Hausverwaltungssoftware für Vermieter`,
-        description: 'Die moderne Lösung für Ihre Mietverwaltung und Nebenkostenabrechnung.',
+        description: 'Die moderne Lösung für Ihre Mietverwaltung und Betriebskostenabrechnung.',
         site: '@Mietevo',
         creator: '@Mietevo',
         images: [OG_IMAGE_URL],
@@ -106,8 +106,8 @@ export const defaultMetadata: Metadata = {
 export const pageMetadata = {
     // Homepage
     home: {
-        title: 'Hausverwaltungssoftware für Vermieter | Nebenkostenabrechnung einfach gemacht',
-        description: 'Mit Mietevo verwalten Sie Ihre Mietobjekte professionell. Automatische Nebenkostenabrechnungen, Mieterverwaltung und Finanzen - alles in einer Software. 14 Tage kostenlos testen!',
+        title: 'Hausverwaltungssoftware für Vermieter | Betriebskostenabrechnung einfach gemacht',
+        description: 'Mit Mietevo verwalten Sie Ihre Mietobjekte professionell. Automatische Betriebskostenabrechnungen, Mieterverwaltung und Finanzen - alles in einer Software. 14 Tage kostenlos testen!',
         keywords: [
             'Hausverwaltungssoftware',
             'Nebenkostenabrechnung erstellen',
@@ -119,7 +119,7 @@ export const pageMetadata = {
         ],
         openGraph: {
             title: 'Mietevo - Hausverwaltungssoftware für Vermieter',
-            description: 'Die moderne Lösung für Ihre Mietverwaltung und Nebenkostenabrechnung. Einfach, schnell und rechtssicher.',
+            description: 'Die moderne Lösung für Ihre Mietverwaltung und Betriebskostenabrechnung. Einfach, schnell und professionell.',
         },
         alternates: {
             canonical: BASE_URL,
@@ -149,8 +149,8 @@ export const pageMetadata = {
 
     // Funktionen - Betriebskosten
     funktionenBetriebskosten: {
-        title: 'Nebenkostenabrechnung erstellen | Betriebskostenabrechnung Software',
-        description: 'Erstellen Sie rechtssichere Nebenkostenabrechnungen in Minuten. Automatische Verteilung nach Umlageschlüssel. Zählerstände erfassen. PDF-Export für Mieter.',
+        title: 'Betriebskostenabrechnung erstellen | Nebenkostenabrechnung Software',
+        description: 'Erstellen Sie professionelle Betriebskostenabrechnungen in Minuten. Automatische Verteilung nach Umlageschlüssel. Zählerstände erfassen. PDF-Export für Mieter.',
         keywords: [
             'Nebenkostenabrechnung erstellen',
             'Betriebskostenabrechnung Software',
@@ -162,8 +162,8 @@ export const pageMetadata = {
             'Umlageschlüssel berechnen',
         ],
         openGraph: {
-            title: 'Nebenkostenabrechnung erstellen | Mietevo',
-            description: 'Erstellen Sie rechtssichere Nebenkostenabrechnungen in Minuten. Automatische Verteilung, Zählerstände, PDF-Export.',
+            title: 'Betriebskostenabrechnung erstellen | Mietevo',
+            description: 'Erstellen Sie professionelle Betriebskostenabrechnungen in Minuten. Automatische Verteilung, Zählerstände, PDF-Export.',
             url: `${BASE_URL}/funktionen/betriebskosten`,
         },
         alternates: {
@@ -220,11 +220,11 @@ export const pageMetadata = {
     // Lösungen - Privatvermieter
     loesungenPrivatvermieter: {
         title: 'Hausverwaltungssoftware für Privatvermieter | Einfach & Günstig',
-        description: 'Die einfache Lösung für private Vermieter. Nebenkostenabrechnung, Mieterverwaltung, Finanzen. Ohne Vorkenntnisse sofort loslegen. Ideal für 1-10 Wohnungen.',
+        description: 'Die einfache Lösung für private Vermieter. Betriebskostenabrechnung, Mieterverwaltung, Finanzen. Ohne Vorkenntnisse sofort loslegen. Ideal für 1-10 Wohnungen.',
         keywords: [
             'Hausverwaltung Privatvermieter',
             'Software für private Vermieter',
-            'Nebenkostenabrechnung Privatvermieter',
+            'Betriebskostenabrechnung Privatvermieter',
             'Mietverwaltung privat',
             'Vermieter Software einfach',
             'kleine Vermietung Software',
@@ -335,7 +335,7 @@ export const pageMetadata = {
     // Login page - indexed with optimized metadata
     authLogin: {
         title: 'Anmelden | Login zur Hausverwaltungssoftware',
-        description: 'Melden Sie sich bei Mietevo an und verwalten Sie Ihre Immobilien. Zugriff auf Nebenkostenabrechnungen, Mieterverwaltung und Finanzen.',
+        description: 'Melden Sie sich bei Mietevo an und verwalten Sie Ihre Immobilien. Zugriff auf Betriebskostenabrechnungen, Mieterverwaltung und Finanzen.',
         keywords: [
             'Mietevo Login',
             'Hausverwaltung anmelden',
