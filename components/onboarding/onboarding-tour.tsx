@@ -83,6 +83,10 @@ export function OnboardingTour() {
                         setShowSetupWizard(true);
                         return;
                     }
+                } else {
+                    // Handle case where API call fails - prevent tour from starting
+                    console.error('Failed to fetch setup status:', setupResponse.statusText);
+                    return;
                 }
 
                 // Then check onboarding (guided tour) status

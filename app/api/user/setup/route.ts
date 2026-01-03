@@ -1,8 +1,23 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { updateBillingAddress, getBillingAddress } from "@/app/user-profile-actions";
+import { z } from "zod";
 
 export const runtime = 'edge';
+
+// Zod schema for request body validation
+const setupBodySchema = z.object({
+    firstName: z.string().min(1).optional(),
+    lastName: z.string().min(1).optional(),
+    address: z.object({
+        line1: z.string().optional(),
+        line2: z.string().optional().nullable(),
+        city: z.string().optional(),
+        postalCode: z.string().optional(),
+        country: z.string().optional(),
+    }).optional().nullable(),
+    skipSetup: z.boolean().optional(),
+});
 
 /**
  * GET /api/user/setup
@@ -79,88 +94,82 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json();
-        const { firstName, lastName, address, skipSetup } = body;
 
-        // If skipping setup, just mark as completed
-        if (skipSetup) {
-            const { error: updateError } = await supabase
-                .from("profiles")
-                .update({ setup_completed: true })
-                .eq("id", user.id);
-
-            if (updateError) {
-                console.error("Error updating setup_completed:", updateError);
-                return NextResponse.json(
-                    { error: "Failed to update setup status" },
-                    { status: 500 }
-                );
-            }
-
-            return NextResponse.json({ success: true, skipped: true });
-        }
-
-        // Validate required fields
-        if (!firstName || !lastName) {
+        // Validate request body with Zod
+        const parseResult = setupBodySchema.safeParse(body);
+        if (!parseResult.success) {
             return NextResponse.json(
-                { error: "First name and last name are required" },
+                { error: "Invalid request body", issues: parseResult.error.issues },
                 { status: 400 }
             );
         }
 
-        // 1. Update name in auth user_metadata
-        const { error: authError } = await supabase.auth.updateUser({
-            data: { first_name: firstName, last_name: lastName }
-        });
+        const { firstName, lastName, address, skipSetup } = parseResult.data;
 
-        if (authError) {
-            console.error("Error updating user metadata:", authError);
-            return NextResponse.json(
-                { error: "Failed to update name" },
-                { status: 500 }
-            );
-        }
+        // Only process user data if not skipping
+        if (!skipSetup) {
+            // Validate required fields when not skipping
+            if (!firstName || !lastName) {
+                return NextResponse.json(
+                    { error: "First name and last name are required" },
+                    { status: 400 }
+                );
+            }
 
-        // 2. Get stripe_customer_id from profile
-        const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("stripe_customer_id")
-            .eq("id", user.id)
-            .single();
+            // 1. Update name in auth user_metadata
+            const { error: authError } = await supabase.auth.updateUser({
+                data: { first_name: firstName, last_name: lastName }
+            });
 
-        if (profileError) {
-            console.error("Error fetching profile:", profileError);
-            return NextResponse.json(
-                { error: "Failed to fetch profile" },
-                { status: 500 }
-            );
-        }
+            if (authError) {
+                console.error("Error updating user metadata:", authError);
+                return NextResponse.json(
+                    { error: "Failed to update name" },
+                    { status: 500 }
+                );
+            }
 
-        // 3. Update billing address in Stripe if customer exists and address provided
-        if (profile?.stripe_customer_id && address) {
-            const fullName = `${firstName} ${lastName}`.trim();
-            const addressResult = await updateBillingAddress(
-                profile.stripe_customer_id,
-                {
-                    name: fullName,
-                    address: {
-                        line1: address.line1 || "",
-                        line2: address.line2 || null,
-                        city: address.city || "",
-                        state: address.state || null,
-                        postal_code: address.postalCode || "",
-                        country: address.country || "DE",
-                    },
+            // 2. Get stripe_customer_id from profile and update billing address
+            const { data: profile, error: profileError } = await supabase
+                .from("profiles")
+                .select("stripe_customer_id")
+                .eq("id", user.id)
+                .single();
+
+            if (profileError) {
+                console.error("Error fetching profile:", profileError);
+                return NextResponse.json(
+                    { error: "Failed to fetch profile" },
+                    { status: 500 }
+                );
+            }
+
+            // 3. Update billing address in Stripe if customer exists and address provided
+            if (profile?.stripe_customer_id && address) {
+                const fullName = `${firstName} ${lastName}`.trim();
+                const addressResult = await updateBillingAddress(
+                    profile.stripe_customer_id,
+                    {
+                        name: fullName,
+                        address: {
+                            line1: address.line1 || "",
+                            line2: address.line2 || null,
+                            city: address.city || "",
+                            state: null,
+                            postal_code: address.postalCode || "",
+                            country: address.country || "DE",
+                        },
+                    }
+                );
+
+                if (!addressResult.success) {
+                    console.error("Error updating billing address:", addressResult.error);
+                    // Don't fail the entire request if billing address update fails
                 }
-            );
-
-            if (!addressResult.success) {
-                console.error("Error updating billing address:", addressResult.error);
-                // Don't fail the entire request if billing address update fails
-                // The user can update it later in settings
             }
         }
 
-        // 4. Mark setup as completed in profiles
+        // 4. Mark setup as completed in profiles for both skip and success cases
         const { error: updateError } = await supabase
             .from("profiles")
             .update({ setup_completed: true })
@@ -174,7 +183,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, skipped: !!skipSetup });
     } catch (error) {
         console.error("Error in POST /api/user/setup:", error);
         return NextResponse.json(
@@ -183,3 +192,4 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+

@@ -83,16 +83,28 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                         setPostalCode(data.billingAddress.address.postal_code || '');
                         setCity(data.billingAddress.address.city || '');
                     }
+                } else {
+                    toast({
+                        title: 'Fehler',
+                        description: 'Die Einrichtungsdaten konnten nicht geladen werden.',
+                        variant: 'destructive',
+                    });
+                    console.error('Failed to load setup data:', response.statusText);
                 }
             } catch (error) {
                 console.error('Failed to load setup data:', error);
+                toast({
+                    title: 'Fehler',
+                    description: 'Die Einrichtungsdaten konnten nicht geladen werden.',
+                    variant: 'destructive',
+                });
             } finally {
                 setIsLoading(false);
             }
         };
 
         loadSetupData();
-    }, [isOpen, onComplete]);
+    }, [isOpen, onComplete, toast]);
 
     const handleSave = useCallback(async () => {
         setIsSaving(true);
@@ -141,12 +153,19 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
 
             if (response.ok) {
                 onComplete();
+            } else {
+                throw new Error('Failed to skip setup');
             }
         } catch (error) {
             console.error('Failed to skip setup:', error);
+            toast({
+                title: 'Fehler',
+                description: 'Die Einrichtung konnte nicht übersprungen werden. Bitte versuchen Sie es erneut.',
+                variant: 'destructive',
+            });
             setIsSaving(false);
         }
-    }, [onComplete]);
+    }, [onComplete, toast]);
 
     const progress = useMemo(() => {
         switch (step) {
