@@ -12,7 +12,8 @@ import {
     ChevronLeft,
     CheckCircle2,
     Building2,
-    FileText
+    FileText,
+    LucideIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { BRAND_NAME, LOGO_URL } from '@/lib/constants';
@@ -163,6 +164,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                 description: 'Die Einrichtung konnte nicht übersprungen werden. Bitte versuchen Sie es erneut.',
                 variant: 'destructive',
             });
+        } finally {
             setIsSaving(false);
         }
     }, [onComplete, toast]);
@@ -462,7 +464,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
     );
 }
 
-function FeatureItem({ icon: Icon, title, description }: { icon: any, title: string, description: string }) {
+function FeatureItem({ icon: Icon, title, description }: { icon: LucideIcon, title: string, description: string }) {
     return (
         <div className="flex items-start gap-4">
             <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-muted/50 transition-colors">

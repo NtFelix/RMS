@@ -5,7 +5,7 @@ import { z } from "zod";
 
 export const runtime = 'edge';
 
-// Zod schema for request body validation
+// Zod schema for request body validation with conditional validation
 const setupBodySchema = z.object({
     firstName: z.string().min(1).optional(),
     lastName: z.string().min(1).optional(),
@@ -17,6 +17,23 @@ const setupBodySchema = z.object({
         country: z.string().optional(),
     }).optional().nullable(),
     skipSetup: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+    if (!data.skipSetup) {
+        if (!data.firstName) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["firstName"],
+                message: "First name is required when not skipping setup.",
+            });
+        }
+        if (!data.lastName) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["lastName"],
+                message: "Last name is required when not skipping setup.",
+            });
+        }
+    }
 });
 
 /**
@@ -95,7 +112,7 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
-        // Validate request body with Zod
+        // Validate request body with Zod (includes conditional firstName/lastName check)
         const parseResult = setupBodySchema.safeParse(body);
         if (!parseResult.success) {
             return NextResponse.json(
@@ -108,14 +125,6 @@ export async function POST(request: NextRequest) {
 
         // Only process user data if not skipping
         if (!skipSetup) {
-            // Validate required fields when not skipping
-            if (!firstName || !lastName) {
-                return NextResponse.json(
-                    { error: "First name and last name are required" },
-                    { status: 400 }
-                );
-            }
-
             // 1. Update name in auth user_metadata
             const { error: authError } = await supabase.auth.updateUser({
                 data: { first_name: firstName, last_name: lastName }
