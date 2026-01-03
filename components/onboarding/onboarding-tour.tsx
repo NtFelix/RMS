@@ -19,6 +19,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SetupWizard } from './setup-wizard';
 
 const waitForElement = (selector: string, timeout = 5000): Promise<Element> => {
     return new Promise((resolve, reject) => {
@@ -57,6 +58,7 @@ export function OnboardingTour() {
     const router = useRouter();
     const pathname = usePathname();
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+    const [showSetupWizard, setShowSetupWizard] = useState(false);
 
     // Use refs to access current values in driver callbacks without closure staleness
     const pathnameRef = useRef(pathname);
@@ -72,6 +74,22 @@ export function OnboardingTour() {
     useEffect(() => {
         const checkOnboardingStatus = async () => {
             try {
+                // First check if setup wizard needs to be shown
+                const setupResponse = await fetch('/api/user/setup');
+                if (setupResponse.ok) {
+                    const setupData = await setupResponse.json();
+                    if (!setupData.setupCompleted) {
+                        // Show setup wizard first
+                        setShowSetupWizard(true);
+                        return;
+                    }
+                } else {
+                    // Handle case where API call fails - prevent tour from starting
+                    console.error('Failed to fetch setup status:', setupResponse.statusText);
+                    return;
+                }
+
+                // Then check onboarding (guided tour) status
                 const response = await fetch('/api/user/onboarding');
                 if (response.ok) {
                     const data = await response.json();
@@ -240,24 +258,40 @@ export function OnboardingTour() {
         };
     }, []);
 
+    // Handler for when setup wizard completes
+    const handleSetupWizardComplete = () => {
+        setShowSetupWizard(false);
+        // After setup wizard completes, start the guided tour
+        useOnboardingStore.getState().startTour();
+    };
+
     return (
-        <AlertDialog open={showCloseConfirm} onOpenChange={(open) => !open && handleCancelClose()}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Einrichtung abbrechen?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Möchten Sie den Einrichtungsassistenten wirklich beenden?
-                        Der Assistent wird als abgeschlossen markiert und Sie können ihn jederzeit in den Einstellungen neu starten.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel onClick={handleCancelClose}>Zurück zum Assistenten</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleConfirmClose}>
-                        Einrichtung beenden
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+        <>
+            {/* Setup Wizard - shown before the guided tour */}
+            <SetupWizard
+                isOpen={showSetupWizard}
+                onComplete={handleSetupWizardComplete}
+            />
+
+            {/* Close Confirmation Dialog */}
+            <AlertDialog open={showCloseConfirm} onOpenChange={(open) => !open && handleCancelClose()}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Einrichtung abbrechen?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Möchten Sie den Einrichtungsassistenten wirklich beenden?
+                            Der Assistent wird als abgeschlossen markiert und Sie können ihn jederzeit in den Einstellungen neu starten.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={handleCancelClose}>Zurück zum Assistenten</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmClose}>
+                            Einrichtung beenden
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
 
