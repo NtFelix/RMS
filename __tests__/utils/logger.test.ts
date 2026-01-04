@@ -10,10 +10,10 @@ describe('Logger', () => {
 
   beforeEach(() => {
     consoleSpy = {
-      debug: jest.spyOn(console, 'debug').mockImplementation(() => {}),
-      info: jest.spyOn(console, 'info').mockImplementation(() => {}),
-      warn: jest.spyOn(console, 'warn').mockImplementation(() => {}),
-      error: jest.spyOn(console, 'error').mockImplementation(() => {}),
+      debug: jest.spyOn(console, 'debug').mockImplementation(() => { }),
+      info: jest.spyOn(console, 'info').mockImplementation(() => { }),
+      warn: jest.spyOn(console, 'warn').mockImplementation(() => { }),
+      error: jest.spyOn(console, 'error').mockImplementation(() => { }),
     };
     // Reset instance to ensure clean state (though it's a singleton, we can't easily reset private static without a helper or accessing it directly if possible, or we just rely on setLogLevel)
     Logger.getInstance().setLogLevel('debug');
@@ -29,15 +29,18 @@ describe('Logger', () => {
     expect(instance1).toBe(instance2);
   });
 
-  it('should log info messages when level is info or lower', () => {
+  it('should log info messages when level is debug', () => {
     logger.setLogLevel('debug');
     logger.info('test info');
     expect(consoleSpy.info).toHaveBeenCalledWith(expect.stringContaining('test info'));
     expect(consoleSpy.info).toHaveBeenCalledWith(expect.stringContaining('[INFO]'));
+  });
 
+  it('should log info messages when level is info', () => {
     logger.setLogLevel('info');
-    logger.info('test info 2');
-    expect(consoleSpy.info).toHaveBeenCalledWith(expect.stringContaining('test info 2'));
+    logger.info('test info');
+    expect(consoleSpy.info).toHaveBeenCalledWith(expect.stringContaining('test info'));
+    expect(consoleSpy.info).toHaveBeenCalledWith(expect.stringContaining('[INFO]'));
   });
 
   it('should not log info messages when level is warn', () => {

@@ -17,17 +17,22 @@ jest.mock('@/lib/otlp-utils', () => ({
   buildOTLPPayloadSingle: jest.fn().mockReturnValue({ test: 'payload' }),
 }));
 
-// Mock fetch for sendLogImmediate
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({}),
-  })
-) as jest.Mock;
-
 describe('Logging Middleware', () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+      })
+    ) as jest.Mock;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
   });
 
   describe('withLogging', () => {
@@ -103,7 +108,13 @@ describe('Logging Middleware', () => {
       await wrappedAction();
 
       expect(posthogLogger.info).toHaveBeenCalledWith(
-        expect.any(String),
+        'Action started: testAction',
+        expect.objectContaining({
+          'action.user_id': 'user123',
+        })
+      );
+      expect(posthogLogger.info).toHaveBeenCalledWith(
+        'Action completed: testAction',
         expect.objectContaining({
           'action.user_id': 'user123',
         })
@@ -117,8 +128,15 @@ describe('Logging Middleware', () => {
 
       await wrappedAction();
 
+      expect(userIdFn).toHaveBeenCalled();
       expect(posthogLogger.info).toHaveBeenCalledWith(
-        expect.any(String),
+        'Action started: testAction',
+        expect.objectContaining({
+          'action.user_id': 'user123',
+        })
+      );
+      expect(posthogLogger.info).toHaveBeenCalledWith(
+        'Action completed: testAction',
         expect.objectContaining({
           'action.user_id': 'user123',
         })
@@ -145,6 +163,7 @@ describe('Logging Middleware', () => {
         'Action failed: testAction',
         expect.objectContaining({
           'action.status': 'failed',
+          'error': 'msg',
         })
       );
     });
@@ -182,7 +201,11 @@ describe('Logging Middleware', () => {
       expect(buildOTLPPayloadSingle).toHaveBeenCalledWith(
         'error',
         'API error: GET /api/test',
-        expect.anything()
+        expect.objectContaining({
+          'api.route': '/api/test',
+          'api.method': 'GET',
+          'api.event': 'error',
+        })
       );
     });
   });
