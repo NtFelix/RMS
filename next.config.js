@@ -6,12 +6,15 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   reactStrictMode: true,
   images: {
-    domains: ['ocubnwzybybcbrhsnqqs.supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ocubnwzybybcbrhsnqqs.supabase.co',
+        pathname: '/**',
+      },
+    ],
   },
   experimental: {
     optimizeCss: true,
@@ -19,8 +22,10 @@ const nextConfig = {
   },
   compress: true, // Enable gzip compression
   poweredByHeader: false, // Remove X-Powered-By header for security
+  // Empty turbopack config to acknowledge Turbopack is the default bundler in Next.js 16
+  turbopack: {},
   webpack: (config, { isServer }) => {
-    // Add path aliases
+    // Add path aliases (kept for compatibility, Turbopack uses tsconfig paths)
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, './'),
