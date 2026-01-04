@@ -10,7 +10,9 @@
     "test": "NODE_ENV=test jest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:mutation": "stryker run",
+    "test:mutation:incremental": "stryker run --incremental"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -123,6 +125,9 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5",
+    "@stryker-mutator/core": "^8.7.1",
+    "@stryker-mutator/jest-runner": "^8.7.1",
+    "@stryker-mutator/typescript-checker": "^8.7.1",
     "wait-on": "^7.2.0",
     "whatwg-fetch": "^3.6.20"
   },
