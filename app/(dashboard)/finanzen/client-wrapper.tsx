@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance/finance-visualization";
 import { FinanceTable } from "@/components/tables/finance-table";
 import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
@@ -52,6 +52,9 @@ interface FinanzenClientWrapperProps {
   wohnungen: Wohnung[];
   summaryData: SummaryData | null;
   initialAvailableYears?: number[];
+  initialYear?: number;
+  isUsingFallbackYear?: boolean;
+  currentYear?: number;
 }
 
 // Utility function to remove duplicates based on ID
@@ -66,7 +69,15 @@ const deduplicateFinances = (finances: Finanz[]): Finanz[] => {
   });
 };
 
-export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData, initialAvailableYears = [] }: FinanzenClientWrapperProps) {
+export default function FinanzenClientWrapper({
+  finances: initialFinances,
+  wohnungen,
+  summaryData: initialSummaryData,
+  initialAvailableYears = [],
+  initialYear,
+  isUsingFallbackYear = false,
+  currentYear = new Date().getFullYear()
+}: FinanzenClientWrapperProps) {
   const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
@@ -472,6 +483,21 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         }}
       />
 
+      {/* Fallback Year Notification Banner */}
+      {isUsingFallbackYear && initialYear && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+          <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              Daten aus {initialYear} werden angezeigt
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Für das aktuelle Jahr ({currentYear}) liegen noch keine Finanzdaten vor.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards for Current Year */}
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
         {isSummaryLoading && hasInitialData ? (
@@ -531,6 +557,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         finances={finData}
         summaryData={summaryData}
         availableYears={availableYears}
+        initialYear={initialYear}
         key={summaryData?.year}
       />
 
