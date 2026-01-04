@@ -54,6 +54,7 @@ interface FinanzenClientWrapperProps {
   initialAvailableYears?: number[];
   initialYear?: number;
   isUsingFallbackYear?: boolean;
+  currentYear?: number;
 }
 
 // Utility function to remove duplicates based on ID
@@ -74,7 +75,8 @@ export default function FinanzenClientWrapper({
   summaryData: initialSummaryData,
   initialAvailableYears = [],
   initialYear,
-  isUsingFallbackYear = false
+  isUsingFallbackYear = false,
+  currentYear = new Date().getFullYear()
 }: FinanzenClientWrapperProps) {
   const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
@@ -490,7 +492,7 @@ export default function FinanzenClientWrapper({
               Daten aus {initialYear} werden angezeigt
             </p>
             <p className="text-xs text-amber-600 dark:text-amber-400">
-              Für das aktuelle Jahr ({new Date().getFullYear()}) liegen noch keine Finanzdaten vor.
+              Für das aktuelle Jahr ({currentYear}) liegen noch keine Finanzdaten vor.
             </p>
           </div>
         </div>

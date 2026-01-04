@@ -89,8 +89,8 @@ function determineInitialYear(
   }
 
   // Fallback to the most recent year with data
-  // availableYears is sorted in descending order, so find the first year that isn't the current year
-  const fallbackYear = availableYears.find(year => year !== currentYear && year < currentYear);
+  // availableYears is sorted in descending order
+  const fallbackYear = availableYears.find(year => year < currentYear);
 
   return fallbackYear ?? currentYear;
 }
@@ -132,5 +132,6 @@ export default async function FinanzenPage() {
     initialAvailableYears={availableYears}
     initialYear={initialYear}
     isUsingFallbackYear={initialYear !== currentYear}
+    currentYear={currentYear}
   />;
 }
