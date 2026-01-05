@@ -19,7 +19,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { custom_id, eichungsdatum } = body
+    const { custom_id, eichungsdatum, zaehler_typ, einheit } = body
 
     // Verify the Wasserzähler belongs to the user
     const { data: existing, error: fetchError } = await supabase
@@ -33,13 +33,17 @@ export async function PATCH(
       return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
     }
 
-    // Update Wasserzähler
+    // Update Zähler
+    const updateData: Record<string, any> = {
+      custom_id: custom_id || null,
+      eichungsdatum: eichungsdatum || null,
+    }
+    if (zaehler_typ) updateData.zaehler_typ = zaehler_typ
+    if (einheit) updateData.einheit = einheit
+
     const { data, error } = await supabase
       .from('Zaehler')
-      .update({
-        custom_id: custom_id || null,
-        eichungsdatum: eichungsdatum || null,
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()

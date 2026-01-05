@@ -23,6 +23,7 @@ const AufgabeEditModal = dynamic(() => import('@/components/tasks/aufgabe-edit-m
 const BetriebskostenEditModal = dynamic(() => import('@/components/finance/betriebskosten-edit-modal').then(mod => mod.BetriebskostenEditModal), { ssr: false })
 const WasserZaehlerModal = dynamic(() => import('@/components/water-meters/wasser-zaehler-modal').then(mod => mod.WasserZaehlerModal), { ssr: false })
 const WasserAblesenModal = dynamic(() => import('@/components/water-meters/wasser-ablesungen-modal').then(mod => mod.WasserAblesenModal), { ssr: false })
+const ZaehlerModal = dynamic(() => import('@/components/meters/zaehler-modal').then(mod => mod.ZaehlerModal), { ssr: false })
 const KautionModal = dynamic(() => import('@/components/tenants/kaution-modal').then(mod => mod.KautionModal), { ssr: false })
 const HausOverviewModal = dynamic(() => import('@/components/houses/haus-overview-modal').then(mod => mod.HausOverviewModal), { ssr: false })
 const WohnungOverviewModal = dynamic(() => import('@/components/apartments/wohnung-overview-modal').then(mod => mod.WohnungOverviewModal), { ssr: false })
@@ -164,6 +165,8 @@ export default function DashboardRootLayout({
         <WasserZaehlerModal />
         {/* WasserAblesenModal - Manages Wasser_Ablesungen entries for water meters */}
         <WasserAblesenModal />
+        {/* ZaehlerModal - New multi-meter type management modal */}
+        <ZaehlerModal />
         {/* KautionModal - Handles kaution management */}
         <KautionModal serverAction={updateKautionAction} />
         {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}

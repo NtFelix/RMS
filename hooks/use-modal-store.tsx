@@ -457,6 +457,17 @@ export interface ModalState {
   openWasserAblesenModal: (wasserZaehlerId: string, wohnungName: string, customId?: string) => void;
   closeWasserAblesenModal: (options?: CloseModalOptions) => void;
   setWasserAblesenModalDirty: (isDirty: boolean) => void;
+
+  // Zaehler Modal State (new multi-meter type modal)
+  isZaehlerModalOpen: boolean;
+  zaehlerModalData?: {
+    wohnungId: string;
+    wohnungName: string;
+  };
+  isZaehlerModalDirty: boolean;
+  openZaehlerModal: (wohnungId: string, wohnungName: string) => void;
+  closeZaehlerModal: (options?: CloseModalOptions) => void;
+  setZaehlerModalDirty: (isDirty: boolean) => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -638,6 +649,12 @@ const initialWasserAblesenModalState = {
   isWasserAblesenModalDirty: false,
 };
 
+const initialZaehlerModalState = {
+  isZaehlerModalOpen: false,
+  zaehlerModalData: undefined,
+  isZaehlerModalDirty: false,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -665,6 +682,7 @@ const createInitialModalState = () => ({
   ...initialTenantMailTemplatesModalState,
   ...initialWasserZaehlerModalState,
   ...initialWasserAblesenModalState,
+  ...initialZaehlerModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -1212,5 +1230,17 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeWasserAblesenModal: createCloseHandler('isWasserAblesenModalDirty', initialWasserAblesenModalState),
     setWasserAblesenModalDirty: (isDirty) => set({ isWasserAblesenModalDirty: isDirty }),
+
+    // Zaehler Modal (new multi-meter type modal)
+    openZaehlerModal: (wohnungId: string, wohnungName: string) => set({
+      isZaehlerModalOpen: true,
+      zaehlerModalData: {
+        wohnungId,
+        wohnungName,
+      },
+      isZaehlerModalDirty: false,
+    }),
+    closeZaehlerModal: createCloseHandler('isZaehlerModalDirty', initialZaehlerModalState),
+    setZaehlerModalDirty: (isDirty) => set({ isZaehlerModalDirty: isDirty }),
   };
 });

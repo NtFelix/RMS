@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, Trash2, Droplet } from "lucide-react"
+import { Edit, Trash2, Droplet, Gauge } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 import {
   AlertDialog,
@@ -41,7 +41,7 @@ export function ApartmentContextMenu({
 }: ApartmentContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
-  const { openWasserZaehlerModal } = useModalStore()
+  const { openWasserZaehlerModal, openZaehlerModal } = useModalStore()
 
   const handleDelete = async () => {
     try {
@@ -96,6 +96,15 @@ export function ApartmentContextMenu({
           >
             <Droplet className="h-4 w-4" />
             <span>Wasserzähler</span>
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => {
+              openZaehlerModal(apartment.id, apartment.name);
+            }}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Gauge className="h-4 w-4" />
+            <span>Zähler verwalten</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
