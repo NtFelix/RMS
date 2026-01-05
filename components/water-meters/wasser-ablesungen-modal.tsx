@@ -60,7 +60,7 @@ interface WasserAblesung {
   ablese_datum: string | null
   zaehlerstand: number | null
   verbrauch: number
-  wasser_zaehler_id: string
+  zaehler_id: string
   user_id: string
   kommentar?: string | null
 }
@@ -103,7 +103,7 @@ export function WasserAblesenModal() {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/wasser-ablesungen?wasser_zaehler_id=${wasserAblesenModalData.wasserZaehlerId}`)
+      const response = await fetch(`/api/wasser-ablesungen?zaehler_id=${wasserAblesenModalData.wasserZaehlerId}`)
       if (response.ok) {
         const data = await response.json()
         // Sort by date descending (newest first)
@@ -241,7 +241,7 @@ export function WasserAblesenModal() {
           ablese_datum: newAbleseDatum ? format(newAbleseDatum, "yyyy-MM-dd") : null,
           zaehlerstand: parseFloat(newZaehlerstand),
           verbrauch: parseFloat(newVerbrauch) || 0,
-          wasser_zaehler_id: wasserAblesenModalData.wasserZaehlerId,
+          zaehler_id: wasserAblesenModalData.wasserZaehlerId,
           kommentar: newKommentar.trim() || null,
         }),
       })

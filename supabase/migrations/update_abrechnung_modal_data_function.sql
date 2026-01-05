@@ -109,16 +109,17 @@ BEGIN
         'wohnung_id', wz.wohnung_id,
         'erstellungsdatum', wz.erstellungsdatum,
         'eichungsdatum', wz.eichungsdatum,
-        'user_id', wz.user_id
+        'user_id', wz.user_id,
+        'ist_aktiv', wz.ist_aktiv
       )
     ), '[]'::jsonb) as data
-    FROM "Wasser_Zaehler" wz
+    FROM "Zaehler" wz
     WHERE wz.wohnung_id IN (SELECT wohnung_id FROM apartment_ids)
       AND wz.user_id = get_abrechnung_modal_data.user_id
   ),
   meter_ids AS (
     SELECT DISTINCT wz.id as meter_id
-    FROM "Wasser_Zaehler" wz
+    FROM "Zaehler" wz
     WHERE wz.wohnung_id IN (SELECT wohnung_id FROM apartment_ids)
       AND wz.user_id = get_abrechnung_modal_data.user_id
   ),
@@ -130,11 +131,11 @@ BEGIN
         'zaehlerstand', wa.zaehlerstand,
         'verbrauch', wa.verbrauch,
         'user_id', wa.user_id,
-        'wasser_zaehler_id', wa.wasser_zaehler_id
+        'zaehler_id', wa.zaehler_id
       )
     ), '[]'::jsonb) as data
-    FROM "Wasser_Ablesungen" wa
-    WHERE wa.wasser_zaehler_id IN (SELECT meter_id FROM meter_ids)
+    FROM "Zaehler_Ablesungen" wa
+    WHERE wa.zaehler_id IN (SELECT meter_id FROM meter_ids)
       AND wa.ablese_datum >= start_datum
       AND wa.ablese_datum <= end_datum
       AND wa.user_id = get_abrechnung_modal_data.user_id

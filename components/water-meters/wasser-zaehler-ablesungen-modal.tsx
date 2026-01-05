@@ -14,11 +14,11 @@ import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { 
-  Droplet, 
-  Building2, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  Droplet,
+  Building2,
+  TrendingUp,
+  TrendingDown,
   AlertTriangle,
   User,
   Gauge,
@@ -53,15 +53,15 @@ interface WasserZaehler {
 function isCalibrationValid(eichungsdatum: string | null, abrechnungEnddatum: string): boolean {
   // If no calibration date is set, consider it valid (no expiration)
   if (!eichungsdatum) return true;
-  
+
   // Parse dates
   const calibrationDate = new Date(eichungsdatum);
   const abrechnungEnd = new Date(abrechnungEnddatum);
-  
+
   // Reset time to compare only dates
   calibrationDate.setHours(0, 0, 0, 0);
   abrechnungEnd.setHours(0, 0, 0, 0);
-  
+
   // Meter is valid if calibration date is AFTER the Abrechnung end date
   // This means the meter was still calibrated during the entire Abrechnung period
   return calibrationDate > abrechnungEnd;
@@ -156,7 +156,7 @@ export function WasserZaehlerAblesenModal({
 
       // Count total meters before filtering
       const totalMetersCount = waterMeters.length;
-      
+
       // Map meters with their apartment info and filter by calibration date
       const allZaehler: (WasserZaehler & { wohnung: Wohnung })[] = waterMeters
         .filter((z: WasserZaehler) => isCalibrationValid(z.eichungsdatum, enddatum))
@@ -164,23 +164,23 @@ export function WasserZaehlerAblesenModal({
           ...z,
           wohnung: wohnungen.find((w: any) => w.id === z.wohnung_id)!
         }));
-      
+
       // Track how many meters were filtered out
       const filteredCount = totalMetersCount - allZaehler.length;
       setFilteredOutCount(filteredCount);
 
       // Group readings by meter
-      const readingsResults = allZaehler.map(zaehler => 
-        waterReadings.filter((r: any) => r.wasser_zaehler_id === zaehler.id)
+      const readingsResults = allZaehler.map(zaehler =>
+        waterReadings.filter((r: any) => r.zaehler_id === zaehler.id)
       );
 
       // Build zaehler info list
       const zaehlerInfoList: WasserZaehlerInfo[] = allZaehler.map((zaehler, index) => {
         const readings = readingsResults[index] || [];
         const mieter = allMieter.find((m: any) => m.wohnung_id === zaehler.wohnung_id);
-        
+
         // Sort readings by date descending
-        const sortedReadings = readings.sort((a: any, b: any) => 
+        const sortedReadings = readings.sort((a: any, b: any) =>
           new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime()
         );
 
@@ -236,7 +236,7 @@ export function WasserZaehlerAblesenModal({
   // Filter and group entries by apartment
   const groupedEntries = useMemo(() => {
     const filteredData = zaehlerList.filter(entry => {
-      const matchesSearch = searchQuery === "" || 
+      const matchesSearch = searchQuery === "" ||
         entry.wohnung_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (entry.mieter_name && entry.mieter_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (entry.custom_id && entry.custom_id.toLowerCase().includes(searchQuery.toLowerCase()));

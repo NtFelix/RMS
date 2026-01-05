@@ -21,21 +21,21 @@ export async function PATCH(
     const body = await request.json()
     const { ablese_datum, zaehlerstand, verbrauch, kommentar } = body
 
-    // Verify the Wasser_Ablesung belongs to the user
+    // Verify the Zaehler_Ablesung belongs to the user
     const { data: existing, error: fetchError } = await supabase
-      .from('Wasser_Ablesungen')
-      .select('id, wasser_zaehler_id')
+      .from('Zaehler_Ablesungen')
+      .select('id, zaehler_id')
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
 
     if (fetchError || !existing) {
-      return NextResponse.json({ error: 'Wasser_Ablesung not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404 })
     }
 
-    // Update Wasser_Ablesung
+    // Update Zaehler_Ablesung
     const { data, error } = await supabase
-      .from('Wasser_Ablesungen')
+      .from('Zaehler_Ablesungen')
       .update({
         ablese_datum: ablese_datum || null,
         zaehlerstand: zaehlerstand || null,
@@ -48,14 +48,14 @@ export async function PATCH(
       .single()
 
     if (error) {
-      console.error('Error updating Wasser_Ablesung:', error)
-      return NextResponse.json({ error: 'Failed to update Wasser_Ablesung' }, { status: 500 })
+      console.error('Error updating Zaehler_Ablesung:', error)
+      return NextResponse.json({ error: 'Failed to update Zaehler_Ablesung' }, { status: 500 })
     }
 
     // PostHog Event Tracking
     await capturePostHogEventWithContext(user.id, 'water_reading_updated', {
       reading_id: id,
-      meter_id: existing.wasser_zaehler_id,
+      meter_id: existing.zaehler_id,
       reading_value: zaehlerstand,
       reading_date: ablese_datum,
       source: 'api_route'
@@ -83,34 +83,34 @@ export async function DELETE(
 
     const { id } = await params
 
-    // Verify the Wasser_Ablesung belongs to the user
+    // Verify the Zaehler_Ablesung belongs to the user
     const { data: existing, error: fetchError } = await supabase
-      .from('Wasser_Ablesungen')
-      .select('id, wasser_zaehler_id')
+      .from('Zaehler_Ablesungen')
+      .select('id, zaehler_id')
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
 
     if (fetchError || !existing) {
-      return NextResponse.json({ error: 'Wasser_Ablesung not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404 })
     }
 
-    // Delete Wasser_Ablesung
+    // Delete Zaehler_Ablesung
     const { error } = await supabase
-      .from('Wasser_Ablesungen')
+      .from('Zaehler_Ablesungen')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id)
 
     if (error) {
-      console.error('Error deleting Wasser_Ablesung:', error)
-      return NextResponse.json({ error: 'Failed to delete Wasser_Ablesung' }, { status: 500 })
+      console.error('Error deleting Zaehler_Ablesung:', error)
+      return NextResponse.json({ error: 'Failed to delete Zaehler_Ablesung' }, { status: 500 })
     }
 
     // PostHog Event Tracking
     await capturePostHogEventWithContext(user.id, 'water_reading_deleted', {
       reading_id: id,
-      meter_id: existing.wasser_zaehler_id,
+      meter_id: existing.zaehler_id,
       source: 'api_route'
     })
 

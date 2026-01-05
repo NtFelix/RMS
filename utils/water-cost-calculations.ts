@@ -110,7 +110,7 @@ function getApartmentTenantsInPeriod(
 ): Mieter[] {
   return allTenants.filter(tenant => {
     if (tenant.wohnung_id !== apartmentId) return false;
-    
+
     const occupancyFactor = calculateOccupancyFactor(tenant, periodStart, periodEnd);
     return occupancyFactor > 0;
   });
@@ -136,7 +136,7 @@ export function calculateTenantWaterConsumption(
   const metersByApartment = new Map<string, WasserZaehler[]>();
   waterMeters.forEach(meter => {
     if (!meter.wohnung_id) return;
-    
+
     const meters = metersByApartment.get(meter.wohnung_id) || [];
     meters.push(meter);
     metersByApartment.set(meter.wohnung_id, meters);
@@ -146,7 +146,7 @@ export function calculateTenantWaterConsumption(
   metersByApartment.forEach((meters, apartmentId) => {
     // Get all tenants who lived in this apartment during the period
     const apartmentTenants = getApartmentTenantsInPeriod(tenants, apartmentId, periodStart, periodEnd);
-    
+
     if (apartmentTenants.length === 0) return;
 
     // Calculate total consumption for this apartment from all meters
@@ -160,8 +160,8 @@ export function calculateTenantWaterConsumption(
 
     meters.forEach(meter => {
       // Find readings for this meter within the period
-      const meterReadings = waterReadings.filter(reading => 
-        reading.wasser_zaehler_id === meter.id &&
+      const meterReadings = waterReadings.filter(reading =>
+        reading.zaehler_id === meter.id &&
         reading.ablese_datum >= periodStart &&
         reading.ablese_datum <= periodEnd
       );
@@ -181,15 +181,15 @@ export function calculateTenantWaterConsumption(
 
       // Sum up consumption from all readings
       const meterConsumption = meterReadings.reduce((sum, reading) => sum + reading.verbrauch, 0);
-      
+
       if (meterConsumption > 0) {
         totalApartmentConsumption += meterConsumption;
-        
+
         // Use the last reading date for this meter
-        const lastReading = meterReadings.sort((a, b) => 
+        const lastReading = meterReadings.sort((a, b) =>
           new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime()
         )[0];
-        
+
         meterConsumptions.push({
           meterId: meter.id,
           meterCustomId: meter.custom_id,
@@ -209,8 +209,8 @@ export function calculateTenantWaterConsumption(
 
     // Distribute consumption among tenants based on occupancy
     tenantOccupancyFactors.forEach(({ tenant, occupancyFactor }) => {
-      const tenantShare = totalOccupancyFactor > 0 
-        ? (occupancyFactor / totalOccupancyFactor) 
+      const tenantShare = totalOccupancyFactor > 0
+        ? (occupancyFactor / totalOccupancyFactor)
         : (1 / apartmentTenants.length);
 
       const tenantConsumption = totalApartmentConsumption * tenantShare;
@@ -291,8 +291,8 @@ export function calculateTenantWaterCosts(
     // Add WG split details if applicable
     if (isWGMember) {
       const totalApartmentConsumption = apartmentTenants.reduce((sum, t) => sum + t.totalConsumption, 0);
-      const tenantSharePercentage = totalApartmentConsumption > 0 
-        ? (tc.totalConsumption / totalApartmentConsumption) * 100 
+      const tenantSharePercentage = totalApartmentConsumption > 0
+        ? (tc.totalConsumption / totalApartmentConsumption) * 100
         : 0;
 
       cost.wgSplitDetails = {
@@ -303,8 +303,8 @@ export function calculateTenantWaterCosts(
           .map(t => ({
             tenantId: t.tenantId,
             tenantName: t.tenantName,
-            share: totalApartmentConsumption > 0 
-              ? (t.totalConsumption / totalApartmentConsumption) * 100 
+            share: totalApartmentConsumption > 0
+              ? (t.totalConsumption / totalApartmentConsumption) * 100
               : 0
           }))
       };

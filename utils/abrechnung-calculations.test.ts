@@ -197,7 +197,7 @@ describe('abrechnung-calculations', () => {
 
       // Case 3: Missing meter for apartment
       const tenantWithoutMeter = { ...mockTenant, wohnung_id: 'w2' };
-      result = validateCalculationData(nebenkosten, [tenantWithoutMeter], [mockMeter], [{ wasser_zaehler_id: 'm1', ablese_datum: '2023-06-01' }] as any);
+      result = validateCalculationData(nebenkosten, [tenantWithoutMeter], [mockMeter], [{ zaehler_id: 'm1', ablese_datum: '2023-06-01' }] as any);
       expect(result.warnings.some(w => w.includes('Wohnung w2: Keine Wasserzähler'))).toBe(true);
     });
   });
@@ -217,7 +217,7 @@ describe('abrechnung-calculations', () => {
       });
 
       const waterMeters = [{ id: 'm1', wohnung_id: 'w1' }] as any;
-      const waterReadings = [{ wasser_zaehler_id: 'm1', zaehlerstand: 100, ablese_datum: '2023-06-01' }] as any;
+      const waterReadings = [{ zaehler_id: 'm1', zaehlerstand: 100, ablese_datum: '2023-06-01' }] as any;
       const nebenkosten = { startdatum, enddatum, wasserkosten: 100, wasserverbrauch: 20 } as any;
 
       const result = calculateWaterCostDistribution(mockTenant, nebenkosten, [], waterMeters, waterReadings);

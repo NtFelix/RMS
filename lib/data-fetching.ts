@@ -108,7 +108,7 @@ export type RechnungSql = {
   // Add other fields from your Rechnungen table schema if needed
 };
 
-// Water meter types for new calculation logic
+// Water meter types for new calculation logic (using Zaehler table)
 export type WasserZaehler = {
   id: string;
   custom_id: string | null;
@@ -116,6 +116,7 @@ export type WasserZaehler = {
   erstellungsdatum: string; // ISO date string
   eichungsdatum: string | null; // ISO date string
   user_id: string;
+  ist_aktiv: boolean; // New field - indicates if meter is active
 };
 
 export type WasserAblesung = {
@@ -124,11 +125,11 @@ export type WasserAblesung = {
   zaehlerstand: number | null;
   verbrauch: number;
   user_id: string | null;
-  wasser_zaehler_id: string; // Required - matches database NOT NULL constraint
+  zaehler_id: string; // Updated from wasser_zaehler_id - matches new database schema
   kommentar?: string | null;
 };
 
-// Legacy type removed - now using Wasser_Zaehler + Wasser_Ablesungen tables
+// Legacy type removed - now using Zaehler + Zaehler_Ablesungen tables
 // This type is kept for backward compatibility in form data structures only
 export type Wasserzaehler = {
   id: string;
@@ -570,34 +571,34 @@ export async function fetchWasserzaehlerByHausAndDateRange(
       return { mieterList: [], existingReadings: [] };
     }
 
-    // 3. Fetch water meter readings from new Wasser_Zaehler + Wasser_Ablesungen tables
+    // 3. Fetch water meter readings from new Zaehler + Zaehler_Ablesungen tables
     let existingReadings: Wasserzaehler[] = [];
     if (relevantMieter.length > 0) {
       // Get water meters for these apartments
       const { data: waterMeters, error: metersError } = await supabase
-        .from('Wasser_Zaehler')
+        .from('Zaehler')
         .select('id, wohnung_id')
         .in('wohnung_id', wohnungIds);
 
       if (metersError) {
-        console.error(`Error fetching Wasser_Zaehler for Haus ${hausId}:`, metersError);
+        console.error(`Error fetching Zaehler for Haus ${hausId}:`, metersError);
       } else if (waterMeters && waterMeters.length > 0) {
         const meterIds = waterMeters.map(m => m.id);
 
         // Get readings for these meters in the date range
         const { data: readings, error: readingsError } = await supabase
-          .from('Wasser_Ablesungen')
-          .select('*, wasser_zaehler_id')
-          .in('wasser_zaehler_id', meterIds)
+          .from('Zaehler_Ablesungen')
+          .select('*, zaehler_id')
+          .in('zaehler_id', meterIds)
           .gte('ablese_datum', startdatum)
           .lte('ablese_datum', enddatum);
 
         if (readingsError) {
-          console.error(`Error fetching Wasser_Ablesungen for Haus ${hausId} in date range ${startdatum} to ${enddatum}:`, readingsError);
+          console.error(`Error fetching Zaehler_Ablesungen for Haus ${hausId} in date range ${startdatum} to ${enddatum}:`, readingsError);
         } else if (readings) {
           // Transform new structure to legacy format for compatibility
           existingReadings = readings.map(reading => {
-            const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
+            const meter = waterMeters.find(m => m.id === reading.zaehler_id);
             const mieter = relevantMieter.find(m => m.wohnung_id === meter?.wohnung_id);
 
             return {

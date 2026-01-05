@@ -31,13 +31,13 @@ export type OptimizedNebenkosten = {
   wasserverbrauch: number | null;
   haeuser_id: string;
   user_id: string;
-  
+
   // Calculated fields returned by database function (not stored in tables)
   haus_name: string;
   gesamt_flaeche: number;
   anzahl_wohnungen: number;
   anzahl_mieter: number;
-  
+
   // Compatibility fields for existing components
   Haeuser?: { name: string } | null;
   gesamtFlaeche?: number;
@@ -76,8 +76,8 @@ export type AbrechnungModalData = {
   nebenkosten_data: Nebenkosten;  // From existing Nebenkosten table
   tenants: Mieter[];              // From existing Mieter table
   rechnungen: Rechnung[];         // From existing Rechnungen table
-  water_meters: WasserZaehler[];  // From Wasser_Zaehler table
-  water_readings: WasserAblesung[]; // From Wasser_Ablesungen table
+  water_meters: WasserZaehler[];  // From Zaehler table
+  water_readings: WasserAblesung[]; // From Zaehler_Ablesungen table
 };
 
 /**
