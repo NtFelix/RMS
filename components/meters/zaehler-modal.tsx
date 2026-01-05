@@ -558,12 +558,12 @@ export function ZaehlerModal() {
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
-                                                onClick={() => openWasserAblesenModal(zaehler.id, zaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined)}
+                                                onClick={() => openWasserAblesenModal(zaehler.id, zaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined, zaehler.zaehler_typ, zaehler.einheit)}
                                                 disabled={isSaving}
                                                 className="h-8 w-8 p-0"
                                                 title="Ablesungen verwalten"
                                             >
-                                                <Droplet className="h-4 w-4" />
+                                                <Gauge className="h-4 w-4" />
                                             </Button>
                                             <Button
                                                 size="sm"

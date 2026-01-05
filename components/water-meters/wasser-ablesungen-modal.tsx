@@ -54,6 +54,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { ZAEHLER_CONFIG, type ZaehlerTyp } from "@/lib/data-fetching"
 
 interface WasserAblesung {
   id: string
@@ -568,7 +569,12 @@ export function WasserAblesenModal() {
           onAttemptClose={handleClose}
         >
           <DialogHeader>
-            <DialogTitle>Wasserzähler-Ablesungen verwalten</DialogTitle>
+            <DialogTitle>
+              {wasserAblesenModalData?.zaehlerTyp
+                ? `${ZAEHLER_CONFIG[wasserAblesenModalData.zaehlerTyp as ZaehlerTyp]?.label || 'Zähler'}-Ablesungen verwalten`
+                : 'Zähler-Ablesungen verwalten'
+              }
+            </DialogTitle>
             <DialogDescription>
               Ablesungen für Wohnung: <span className="font-medium">{wasserAblesenModalData?.wohnungName}</span>
               {wasserAblesenModalData?.customId && (
@@ -596,7 +602,7 @@ export function WasserAblesenModal() {
                 <div className="space-y-2">
                   <NumberInput
                     step="0.01"
-                    placeholder="Zählerstand (m³)"
+                    placeholder={`Zählerstand (${wasserAblesenModalData?.einheit || 'm³'})`}
                     value={newZaehlerstand}
                     onChange={(e) => handleNewZaehlerstandChange(e.target.value)}
                     onKeyDown={(e) => {
@@ -610,7 +616,7 @@ export function WasserAblesenModal() {
                 <div className="space-y-2">
                   <NumberInput
                     step="0.01"
-                    placeholder="Verbrauch (m³)"
+                    placeholder={`Verbrauch (${wasserAblesenModalData?.einheit || 'm³'})`}
                     value={newVerbrauch}
                     onChange={(e) => setNewVerbrauch(e.target.value)}
                     disabled={isSaving}
@@ -658,7 +664,7 @@ export function WasserAblesenModal() {
               ) : ablesenList.length === 0 ? (
                 <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
                   <CardContent className="flex flex-col items-center justify-center p-8 text-center">
-                    <Droplet className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                    <Gauge className="h-12 w-12 text-muted-foreground/50 mb-3" />
                     <p className="text-sm text-muted-foreground">
                       Keine Ablesungen vorhanden
                     </p>

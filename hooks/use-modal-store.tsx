@@ -452,9 +452,11 @@ export interface ModalState {
     wasserZaehlerId: string;
     wohnungName: string;
     customId?: string;
+    zaehlerTyp?: string;  // Type of meter (wasser, gas, strom, etc.)
+    einheit?: string;     // Unit of measurement (m³, kWh, etc.)
   };
   isWasserAblesenModalDirty: boolean;
-  openWasserAblesenModal: (wasserZaehlerId: string, wohnungName: string, customId?: string) => void;
+  openWasserAblesenModal: (wasserZaehlerId: string, wohnungName: string, customId?: string, zaehlerTyp?: string, einheit?: string) => void;
   closeWasserAblesenModal: (options?: CloseModalOptions) => void;
   setWasserAblesenModalDirty: (isDirty: boolean) => void;
 
@@ -1219,12 +1221,14 @@ export const useModalStore = create<ModalState>((set, get) => {
     setWasserZaehlerModalDirty: (isDirty) => set({ isWasserZaehlerModalDirty: isDirty }),
 
     // Wasser_Ablesungen Modal
-    openWasserAblesenModal: (wasserZaehlerId: string, wohnungName: string, customId?: string) => set({
+    openWasserAblesenModal: (wasserZaehlerId: string, wohnungName: string, customId?: string, zaehlerTyp?: string, einheit?: string) => set({
       isWasserAblesenModalOpen: true,
       wasserAblesenModalData: {
         wasserZaehlerId,
         wohnungName,
         customId,
+        zaehlerTyp,
+        einheit,
       },
       isWasserAblesenModalDirty: false,
     }),
