@@ -37,7 +37,7 @@ interface ColumnMapping {
 }
 
 interface ProcessedReading {
-  wasser_zaehler_id: string;
+  zaehler_id: string;
   custom_id: string;
   ablese_datum: string;
   zaehlerstand: number;
@@ -195,7 +195,7 @@ export function WasserZaehlerImportModal({
       // Basic Validation
       if (!customId) {
         return {
-          wasser_zaehler_id: "",
+          zaehler_id: "",
           custom_id: "",
           ablese_datum: ableseDatum || "",
           zaehlerstand: zaehlerstand,
@@ -211,7 +211,7 @@ export function WasserZaehlerImportModal({
 
       if (!meter) {
         return {
-          wasser_zaehler_id: "",
+          zaehler_id: "",
           custom_id: customId,
           ablese_datum: ableseDatum || "",
           zaehlerstand: zaehlerstand,
@@ -224,7 +224,7 @@ export function WasserZaehlerImportModal({
 
       if (!ableseDatum) {
         return {
-          wasser_zaehler_id: meter.id,
+          zaehler_id: meter.id,
           custom_id: customId,
           ablese_datum: "",
           zaehlerstand: zaehlerstand,
@@ -237,7 +237,7 @@ export function WasserZaehlerImportModal({
 
       if (isNaN(zaehlerstand)) {
         return {
-          wasser_zaehler_id: meter.id,
+          zaehler_id: meter.id,
           custom_id: customId,
           ablese_datum: ableseDatum,
           zaehlerstand: 0,
@@ -250,12 +250,12 @@ export function WasserZaehlerImportModal({
 
       // Check Duplicate
       const isDuplicate = waterReadings.some(
-        (r) => r.wasser_zaehler_id === meter.id && r.ablese_datum === ableseDatum
+        (r) => r.zaehler_id === meter.id && r.ablese_datum === ableseDatum
       );
 
       if (isDuplicate) {
         return {
-          wasser_zaehler_id: meter.id,
+          zaehler_id: meter.id,
           custom_id: customId,
           ablese_datum: ableseDatum,
           zaehlerstand,
@@ -274,7 +274,7 @@ export function WasserZaehlerImportModal({
         verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
       } else {
         // Otherwise calculate it
-        const meterReadings = waterReadings.filter(r => r.wasser_zaehler_id === meter.id);
+        const meterReadings = waterReadings.filter(r => r.zaehler_id === meter.id);
         const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
         previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
 
@@ -285,7 +285,7 @@ export function WasserZaehlerImportModal({
       }
 
       return {
-        wasser_zaehler_id: meter.id,
+        zaehler_id: meter.id,
         custom_id: customId,
         ablese_datum: ableseDatum,
         zaehlerstand,
@@ -312,7 +312,7 @@ export function WasserZaehlerImportModal({
     }
 
     const payload = rowsToImport.map(row => ({
-      wasser_zaehler_id: row.wasser_zaehler_id,
+      zaehler_id: row.zaehler_id,
       ablese_datum: row.ablese_datum,
       zaehlerstand: row.zaehlerstand,
       verbrauch: row.verbrauch,

@@ -25,14 +25,14 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       ablese_datum: '2024-11-01',
       zaehlerstand: 123.45,
       verbrauch: 15.5,
-      wasser_zaehler_id: 'test-zaehler-id',
+      zaehler_id: 'test-zaehler-id',
       user_id: 'test-user-id',
     },
   ]
 
   beforeEach(() => {
     jest.clearAllMocks()
-    
+
     mockUseModalStore.mockReturnValue({
       isWasserAblesenModalOpen: true,
       wasserAblesenModalData: mockWasserAblesenModalData,
@@ -40,10 +40,10 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       setWasserAblesenModalDirty: mockSetWasserAblesenModalDirty,
     } as any)
 
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => mockAblesungen,
-    })
+      ; (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockAblesungen,
+      })
   })
 
   it('should set dirty state when typing in new reading form', async () => {
@@ -95,7 +95,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       const svg = btn.querySelector('svg')
       return svg?.classList.contains('lucide-edit-2') || svg?.getAttribute('class')?.includes('edit')
     })
-    
+
     if (editButton) {
       fireEvent.click(editButton)
 
@@ -128,7 +128,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       const svg = btn.querySelector('svg')
       return svg?.classList.contains('lucide-edit-2') || svg?.getAttribute('class')?.includes('edit')
     })
-    
+
     if (editButton) {
       fireEvent.click(editButton)
 
@@ -147,7 +147,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
         const svg = btn.querySelector('svg')
         return svg?.classList.contains('lucide-x')
       })
-      
+
       if (cancelButton) {
         fireEvent.click(cancelButton)
 
@@ -194,7 +194,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
     // Initially should not be dirty (or set to false)
     const dirtyCalls = mockSetWasserAblesenModalDirty.mock.calls
     const lastCall = dirtyCalls[dirtyCalls.length - 1]
-    
+
     // The last call should be false (no unsaved changes)
     expect(lastCall?.[0]).toBe(false)
   })
@@ -212,7 +212,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       const svg = btn.querySelector('svg')
       return svg?.classList.contains('lucide-edit-2') || svg?.getAttribute('class')?.includes('edit')
     })
-    
+
     if (editButton) {
       fireEvent.click(editButton)
 
@@ -224,7 +224,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       // Find the date picker button
       const dateButtons = screen.getAllByRole('button')
       const dateButton = dateButtons.find(btn => btn.textContent?.includes('01.11.2024'))
-      
+
       if (dateButton) {
         fireEvent.click(dateButton)
 
@@ -249,7 +249,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
       const svg = btn.querySelector('svg')
       return svg?.classList.contains('lucide-edit-2') || svg?.getAttribute('class')?.includes('edit')
     })
-    
+
     if (editButton) {
       fireEvent.click(editButton)
 

@@ -36,10 +36,11 @@ BEGIN
         'wohnung_id', wz.wohnung_id,
         'erstellungsdatum', wz.erstellungsdatum,
         'eichungsdatum', wz.eichungsdatum,
-        'user_id', wz.user_id
+        'user_id', wz.user_id,
+        'ist_aktiv', wz.ist_aktiv
       ) ORDER BY wz.custom_id
     ), '[]'::jsonb) as data
-    FROM "Wasser_Zaehler" wz
+    FROM "Zaehler" wz
     WHERE wz.wohnung_id = wohnung_id_param
       AND wz.user_id = user_id_param
   ),
@@ -51,11 +52,11 @@ BEGIN
         'zaehlerstand', wa.zaehlerstand,
         'verbrauch', wa.verbrauch,
         'user_id', wa.user_id,
-        'wasser_zaehler_id', wa.wasser_zaehler_id
+        'zaehler_id', wa.zaehler_id
       ) ORDER BY wa.ablese_datum DESC
     ), '[]'::jsonb) as data
-    FROM "Wasser_Ablesungen" wa
-    JOIN "Wasser_Zaehler" wz ON wa.wasser_zaehler_id = wz.id
+    FROM "Zaehler_Ablesungen" wa
+    JOIN "Zaehler" wz ON wa.zaehler_id = wz.id
     WHERE wz.wohnung_id = wohnung_id_param
       AND wa.user_id = user_id_param
   )
@@ -105,10 +106,11 @@ BEGIN
         'wohnung_id', wz.wohnung_id,
         'erstellungsdatum', wz.erstellungsdatum,
         'eichungsdatum', wz.eichungsdatum,
-        'user_id', wz.user_id
+        'user_id', wz.user_id,
+        'ist_aktiv', wz.ist_aktiv
       ) ORDER BY wz.custom_id
     ), '[]'::jsonb) as data
-    FROM "Wasser_Zaehler" wz
+    FROM "Zaehler" wz
     JOIN "Wohnungen" w ON wz.wohnung_id = w.id
     WHERE w.haus_id = haus_id_param
       AND wz.user_id = user_id_param
@@ -121,11 +123,11 @@ BEGIN
         'zaehlerstand', wa.zaehlerstand,
         'verbrauch', wa.verbrauch,
         'user_id', wa.user_id,
-        'wasser_zaehler_id', wa.wasser_zaehler_id
+        'zaehler_id', wa.zaehler_id
       ) ORDER BY wa.ablese_datum DESC
     ), '[]'::jsonb) as data
-    FROM "Wasser_Ablesungen" wa
-    JOIN "Wasser_Zaehler" wz ON wa.wasser_zaehler_id = wz.id
+    FROM "Zaehler_Ablesungen" wa
+    JOIN "Zaehler" wz ON wa.zaehler_id = wz.id
     JOIN "Wohnungen" w ON wz.wohnung_id = w.id
     WHERE w.haus_id = haus_id_param
       AND wa.user_id = user_id_param
@@ -175,13 +177,14 @@ BEGIN
       'wohnung_id', wz.wohnung_id,
       'erstellungsdatum', wz.erstellungsdatum,
       'eichungsdatum', wz.eichungsdatum,
+      'ist_aktiv', wz.ist_aktiv,
       'Wohnungen', jsonb_build_object(
         'name', w.name,
         'groesse', w.groesse,
         'Haeuser', jsonb_build_object('name', h.name)
       )
     ) as data
-    FROM "Wasser_Zaehler" wz
+    FROM "Zaehler" wz
     LEFT JOIN "Wohnungen" w ON wz.wohnung_id = w.id
     LEFT JOIN "Haeuser" h ON w.haus_id = h.id
     WHERE wz.id = meter_id_param
@@ -195,11 +198,11 @@ BEGIN
         'zaehlerstand', wa.zaehlerstand,
         'verbrauch', wa.verbrauch,
         'user_id', wa.user_id,
-        'wasser_zaehler_id', wa.wasser_zaehler_id
+        'zaehler_id', wa.zaehler_id
       ) ORDER BY wa.ablese_datum DESC
     ), '[]'::jsonb) as data
-    FROM "Wasser_Ablesungen" wa
-    WHERE wa.wasser_zaehler_id = meter_id_param
+    FROM "Zaehler_Ablesungen" wa
+    WHERE wa.zaehler_id = meter_id_param
       AND wa.user_id = user_id_param
   )
   SELECT 

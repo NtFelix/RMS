@@ -83,6 +83,7 @@ describe('Water Cost Calculations', () => {
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
     user_id: 'user-1',
+    ist_aktiv: true,
   };
 
   const meter2: WasserZaehler = {
@@ -92,6 +93,7 @@ describe('Water Cost Calculations', () => {
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
     user_id: 'user-1',
+    ist_aktiv: true,
   };
 
   // Water readings
@@ -101,7 +103,7 @@ describe('Water Cost Calculations', () => {
     zaehlerstand: 150,
     verbrauch: 100, // 100 m³ consumed up to June 5th
     user_id: 'user-1',
-    wasser_zaehler_id: 'meter-1',
+    zaehler_id: 'meter-1',
   };
 
   const reading2: WasserAblesung = {
@@ -110,7 +112,7 @@ describe('Water Cost Calculations', () => {
     zaehlerstand: 250,
     verbrauch: 100, // Additional 100 m³ from June 5th to end of year
     user_id: 'user-1',
-    wasser_zaehler_id: 'meter-1',
+    zaehler_id: 'meter-1',
   };
 
   const reading3: WasserAblesung = {
@@ -119,7 +121,7 @@ describe('Water Cost Calculations', () => {
     zaehlerstand: 180,
     verbrauch: 180, // 180 m³ for the whole year
     user_id: 'user-1',
-    wasser_zaehler_id: 'meter-2',
+    zaehler_id: 'meter-2',
   };
 
   describe('calculateTenantWaterConsumption', () => {
@@ -184,6 +186,7 @@ describe('Water Cost Calculations', () => {
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
         user_id: 'user-1',
+        ist_aktiv: true,
       };
 
       const reading1b: WasserAblesung = {
@@ -192,7 +195,7 @@ describe('Water Cost Calculations', () => {
         zaehlerstand: 50,
         verbrauch: 50,
         user_id: 'user-1',
-        wasser_zaehler_id: 'meter-1b',
+        zaehler_id: 'meter-1b',
       };
 
       const tenants = [tenant1, tenant2];

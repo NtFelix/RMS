@@ -171,7 +171,7 @@ async function getWasserZaehlerForHausFallback(
 
     // Fetch water meters for the apartments with proper type casting
     const { data: waterMeters, error: metersError } = await supabase
-      .from("Wasser_Zaehler")
+      .from("Zaehler")
       .select("*")
       .in("wohnung_id", wohnungIds)
       .eq("user_id", userId)
@@ -193,9 +193,9 @@ async function getWasserZaehlerForHausFallback(
       // Fetch water readings for the meters
       meterIds.length > 0
         ? supabase
-          .from("Wasser_Ablesungen")
+          .from("Zaehler_Ablesungen")
           .select("*")
-          .in("wasser_zaehler_id", meterIds)
+          .in("zaehler_id", meterIds)
           .eq("user_id", userId)
           .order('ablese_datum', { ascending: false })
         : { data: null, error: null },
@@ -385,7 +385,7 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
     }
 
     const { data: result, error } = await supabase
-      .from("Wasser_Zaehler")
+      .from("Zaehler")
       .insert([{ ...data, user_id: user.id }])
       .select()
       .single();
@@ -428,7 +428,7 @@ export async function updateWasserZaehler(id: string, data: Partial<Omit<WasserZ
 
     // First verify the water meter exists and belongs to the user
     const { data: existingMeter, error: fetchError } = await supabase
-      .from("Wasser_Zaehler")
+      .from("Zaehler")
       .select('id, user_id')
       .eq('id', id)
       .single();
@@ -443,7 +443,7 @@ export async function updateWasserZaehler(id: string, data: Partial<Omit<WasserZ
 
     // Update the water meter with user_id check
     const { data: result, error } = await supabase
-      .from("Wasser_Zaehler")
+      .from("Zaehler")
       .update(data)
       .eq("id", id)
       .eq("user_id", user.id) // Ensure the meter belongs to the user
@@ -488,7 +488,7 @@ export async function deleteWasserZaehler(id: string) {
 
     // First verify the water meter exists and belongs to the user
     const { data: existingMeter, error: fetchError } = await supabase
-      .from("Wasser_Zaehler")
+      .from("Zaehler")
       .select('id, user_id')
       .eq('id', id)
       .single();
@@ -503,7 +503,7 @@ export async function deleteWasserZaehler(id: string) {
 
     // Delete the water meter with user_id check
     const { error } = await supabase
-      .from("Wasser_Zaehler")
+      .from("Zaehler")
       .delete()
       .eq("id", id)
       .eq("user_id", user.id); // Ensure the meter belongs to the user
@@ -534,7 +534,7 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
     }
 
     const { data: result, error } = await supabase
-      .from("Wasser_Ablesungen")
+      .from("Zaehler_Ablesungen")
       .insert([{ ...data, user_id: user.id }])
       .select()
       .single();
@@ -549,7 +549,7 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
     // PostHog Event Tracking
     await capturePostHogEvent(user.id, 'water_reading_recorded', {
       reading_id: result?.id,
-      meter_id: data.wasser_zaehler_id,
+      meter_id: data.zaehler_id,
       reading_value: data.zaehlerstand,
       reading_date: data.ablese_datum,
       source: 'server_action'
@@ -578,7 +578,7 @@ export async function updateWasserAblesung(id: string, data: Partial<Omit<Wasser
 
     // First verify the water reading exists and belongs to the user
     const { data: existingReading, error: fetchError } = await supabase
-      .from("Wasser_Ablesungen")
+      .from("Zaehler_Ablesungen")
       .select('id, user_id')
       .eq('id', id)
       .single();
@@ -593,7 +593,7 @@ export async function updateWasserAblesung(id: string, data: Partial<Omit<Wasser
 
     // Update the water reading with user_id check
     const { data: result, error } = await supabase
-      .from("Wasser_Ablesungen")
+      .from("Zaehler_Ablesungen")
       .update(data)
       .eq("id", id)
       .eq("user_id", user.id) // Ensure the reading belongs to the user
@@ -610,7 +610,7 @@ export async function updateWasserAblesung(id: string, data: Partial<Omit<Wasser
     // PostHog Event Tracking
     await capturePostHogEvent(user.id, 'water_reading_updated', {
       reading_id: id,
-      meter_id: result?.wasser_zaehler_id,
+      meter_id: result?.zaehler_id,
       reading_value: result?.zaehlerstand,
       reading_date: result?.ablese_datum,
       source: 'server_action'
@@ -638,7 +638,7 @@ export async function deleteWasserAblesung(id: string) {
 
     // First verify the water reading exists and belongs to the user
     const { data: existingReading, error: fetchError } = await supabase
-      .from("Wasser_Ablesungen")
+      .from("Zaehler_Ablesungen")
       .select('id, user_id')
       .eq('id', id)
       .single();
@@ -653,7 +653,7 @@ export async function deleteWasserAblesung(id: string) {
 
     // Delete the water reading with user_id check
     const { error } = await supabase
-      .from("Wasser_Ablesungen")
+      .from("Zaehler_Ablesungen")
       .delete()
       .eq("id", id)
       .eq("user_id", user.id); // Ensure the reading belongs to the user
@@ -688,11 +688,11 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
     }
 
     // Extract unique meter IDs from the readings, filtering out any null values
-    const meterIds = [...new Set(readings.map(r => r.wasser_zaehler_id).filter((id): id is string => !!id))];
+    const meterIds = [...new Set(readings.map(r => r.zaehler_id).filter((id): id is string => !!id))];
 
     // Verify ownership of all meters
     const { data: meters, error: metersError } = await supabase
-      .from("Wasser_Zaehler")
+      .from("Zaehler")
       .select('id')
       .in('id', meterIds)
       .eq('user_id', user.id);
@@ -705,7 +705,7 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
     const ownedMeterIds = new Set(meters?.map(m => m.id) || []);
 
     // Filter readings for owned meters
-    const validReadings = readings.filter(r => ownedMeterIds.has(r.wasser_zaehler_id))
+    const validReadings = readings.filter(r => ownedMeterIds.has(r.zaehler_id))
       .map(r => ({ ...r, user_id: user.id }));
 
     if (validReadings.length === 0) {
@@ -717,7 +717,7 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
     }
 
     const { data: result, error } = await supabase
-      .from("Wasser_Ablesungen")
+      .from("Zaehler_Ablesungen")
       .insert(validReadings)
       .select();
 
@@ -731,7 +731,7 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
     // PostHog Event Tracking for Bulk Operation
     await capturePostHogEvent(user.id, 'water_readings_bulk_created', {
       reading_count: validReadings.length,
-      meter_ids: Array.from(new Set(validReadings.map(r => r.wasser_zaehler_id))),
+      meter_ids: Array.from(new Set(validReadings.map(r => r.zaehler_id))),
       source: 'server_action'
     });
 

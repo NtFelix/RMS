@@ -1,4 +1,4 @@
--- Updated function to use new Wasser_Zaehler and Wasser_Ablesungen tables
+-- Updated function to use new Zaehler and Zaehler_Ablesungen tables
 CREATE OR REPLACE FUNCTION public.get_wasserzaehler_modal_data(
   nebenkosten_id uuid, 
   user_id uuid
@@ -55,7 +55,7 @@ BEGIN
       wz.id as meter_id,
       wz.wohnung_id
     FROM relevant_tenants rt
-    JOIN "Wasser_Zaehler" wz ON wz.wohnung_id = rt.wohnung_id
+    JOIN "Zaehler" wz ON wz.wohnung_id = rt.wohnung_id
     WHERE wz.user_id = get_wasserzaehler_modal_data.user_id
   ),
   current_readings AS (
@@ -69,7 +69,7 @@ BEGIN
         'verbrauch', SUM(wa.verbrauch)
       ) as reading_data
     FROM apartment_meters am
-    JOIN "Wasser_Ablesungen" wa ON wa.wasser_zaehler_id = am.meter_id
+    JOIN "Zaehler_Ablesungen" wa ON wa.zaehler_id = am.meter_id
     WHERE wa.user_id = get_wasserzaehler_modal_data.user_id
       AND wa.ablese_datum >= start_datum
       AND wa.ablese_datum <= end_datum
@@ -86,7 +86,7 @@ BEGIN
         'verbrauch', SUM(wa.verbrauch)
       ) as reading_data
     FROM apartment_meters am
-    JOIN "Wasser_Ablesungen" wa ON wa.wasser_zaehler_id = am.meter_id
+    JOIN "Zaehler_Ablesungen" wa ON wa.zaehler_id = am.meter_id
     WHERE wa.user_id = get_wasserzaehler_modal_data.user_id
       AND wa.ablese_datum < start_datum
     GROUP BY am.mieter_id
