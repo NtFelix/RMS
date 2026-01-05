@@ -58,7 +58,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/data-fetching"
+import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types"
 
 interface Zaehler {
     id: string

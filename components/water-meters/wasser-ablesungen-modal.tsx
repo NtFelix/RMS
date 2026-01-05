@@ -54,7 +54,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ZAEHLER_CONFIG, type ZaehlerTyp } from "@/lib/data-fetching"
+import { ZAEHLER_CONFIG, type ZaehlerTyp } from "@/lib/zaehler-types"
 
 interface WasserAblesung {
   id: string
