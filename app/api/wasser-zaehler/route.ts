@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch Wasserzähler with latest reading
     const { data: zaehlerData, error } = await supabase
-      .from('Wasser_Zaehler')
+      .from('Zaehler')
       .select('*')
       .eq('wohnung_id', wohnungId)
       .eq('user_id', user.id)
@@ -51,9 +51,9 @@ export async function GET(request: NextRequest) {
 
     // Fetch latest readings for all meters in a single query
     const { data: readingsData } = await supabase
-      .from('Wasser_Ablesungen')
-      .select('id, wasser_zaehler_id, ablese_datum, zaehlerstand, verbrauch')
-      .in('wasser_zaehler_id', meterIds)
+      .from('Zaehler_Ablesungen')
+      .select('id, zaehler_id, ablese_datum, zaehlerstand, verbrauch')
+      .in('zaehler_id', meterIds)
       .eq('user_id', user.id)
       .order('ablese_datum', { ascending: false });
 
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       const processedMeterIds = new Set<string>();
 
       for (const reading of readingsData) {
-        const meterId = reading.wasser_zaehler_id;
+        const meterId = reading.zaehler_id;
         // Only keep the first (latest) reading for each meter
         if (!processedMeterIds.has(meterId)) {
           latestReadingsMap.set(meterId, reading);
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     // Create Wasserzähler
     const { data, error } = await supabase
-      .from('Wasser_Zaehler')
+      .from('Zaehler')
       .insert({
         custom_id: custom_id || null,
         wohnung_id,

@@ -10,8 +10,8 @@ BEGIN
     SELECT DISTINCT n.id, n.haeuser_id, n.startdatum, n.enddatum, n.user_id
     FROM "Nebenkosten" n
     JOIN "Wohnungen" w ON w.haus_id = n.haeuser_id
-    JOIN "Wasser_Zaehler" wz ON wz.wohnung_id = w.id
-    WHERE wz.id = COALESCE(NEW.wasser_zaehler_id, OLD.wasser_zaehler_id)
+    JOIN "Zaehler" wz ON wz.wohnung_id = w.id
+    WHERE wz.id = COALESCE(NEW.zaehler_id, OLD.zaehler_id)
       AND n.user_id = COALESCE(NEW.user_id, OLD.user_id)
       -- Check if the reading date falls within the Nebenkosten period
       AND COALESCE(NEW.ablese_datum, OLD.ablese_datum) >= n.startdatum
@@ -21,8 +21,8 @@ BEGIN
     UPDATE "Nebenkosten"
     SET wasserverbrauch = (
       SELECT COALESCE(SUM(wa.verbrauch), 0)
-      FROM "Wasser_Ablesungen" wa
-      JOIN "Wasser_Zaehler" wz ON wa.wasser_zaehler_id = wz.id
+      FROM "Zaehler_Ablesungen" wa
+      JOIN "Zaehler" wz ON wa.zaehler_id = wz.id
       JOIN "Wohnungen" w ON wz.wohnung_id = w.id
       WHERE w.haus_id = affected_nebenkosten.haeuser_id
         AND wa.ablese_datum >= affected_nebenkosten.startdatum
@@ -37,23 +37,23 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Drop existing triggers if they exist
-DROP TRIGGER IF EXISTS trigger_update_wasserverbrauch_on_insert ON "Wasser_Ablesungen";
-DROP TRIGGER IF EXISTS trigger_update_wasserverbrauch_on_update ON "Wasser_Ablesungen";
-DROP TRIGGER IF EXISTS trigger_update_wasserverbrauch_on_delete ON "Wasser_Ablesungen";
+DROP TRIGGER IF EXISTS trigger_update_wasserverbrauch_on_insert ON "Zaehler_Ablesungen";
+DROP TRIGGER IF EXISTS trigger_update_wasserverbrauch_on_update ON "Zaehler_Ablesungen";
+DROP TRIGGER IF EXISTS trigger_update_wasserverbrauch_on_delete ON "Zaehler_Ablesungen";
 
--- Create triggers for INSERT, UPDATE, and DELETE on Wasser_Ablesungen
+-- Create triggers for INSERT, UPDATE, and DELETE on Zaehler_Ablesungen
 CREATE TRIGGER trigger_update_wasserverbrauch_on_insert
-  AFTER INSERT ON "Wasser_Ablesungen"
+  AFTER INSERT ON "Zaehler_Ablesungen"
   FOR EACH ROW
   EXECUTE FUNCTION update_nebenkosten_wasserverbrauch();
 
 CREATE TRIGGER trigger_update_wasserverbrauch_on_update
-  AFTER UPDATE ON "Wasser_Ablesungen"
+  AFTER UPDATE ON "Zaehler_Ablesungen"
   FOR EACH ROW
   EXECUTE FUNCTION update_nebenkosten_wasserverbrauch();
 
 CREATE TRIGGER trigger_update_wasserverbrauch_on_delete
-  AFTER DELETE ON "Wasser_Ablesungen"
+  AFTER DELETE ON "Zaehler_Ablesungen"
   FOR EACH ROW
   EXECUTE FUNCTION update_nebenkosten_wasserverbrauch();
 
@@ -64,8 +64,8 @@ BEGIN
   -- Calculate initial water consumption for new Nebenkosten entry
   NEW.wasserverbrauch := (
     SELECT COALESCE(SUM(wa.verbrauch), 0)
-    FROM "Wasser_Ablesungen" wa
-    JOIN "Wasser_Zaehler" wz ON wa.wasser_zaehler_id = wz.id
+    FROM "Zaehler_Ablesungen" wa
+    JOIN "Zaehler" wz ON wa.zaehler_id = wz.id
     JOIN "Wohnungen" w ON wz.wohnung_id = w.id
     WHERE w.haus_id = NEW.haeuser_id
       AND wa.ablese_datum >= NEW.startdatum
@@ -90,8 +90,8 @@ CREATE TRIGGER trigger_initialize_wasserverbrauch
 UPDATE "Nebenkosten" n
 SET wasserverbrauch = (
   SELECT COALESCE(SUM(wa.verbrauch), 0)
-  FROM "Wasser_Ablesungen" wa
-  JOIN "Wasser_Zaehler" wz ON wa.wasser_zaehler_id = wz.id
+  FROM "Zaehler_Ablesungen" wa
+  JOIN "Zaehler" wz ON wa.zaehler_id = wz.id
   JOIN "Wohnungen" w ON wz.wohnung_id = w.id
   WHERE w.haus_id = n.haeuser_id
     AND wa.ablese_datum >= n.startdatum

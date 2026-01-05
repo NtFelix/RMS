@@ -23,7 +23,7 @@ export async function PATCH(
 
     // Verify the Wasserzähler belongs to the user
     const { data: existing, error: fetchError } = await supabase
-      .from('Wasser_Zaehler')
+      .from('Zaehler')
       .select('id, wohnung_id')
       .eq('id', id)
       .eq('user_id', user.id)
@@ -35,7 +35,7 @@ export async function PATCH(
 
     // Update Wasserzähler
     const { data, error } = await supabase
-      .from('Wasser_Zaehler')
+      .from('Zaehler')
       .update({
         custom_id: custom_id || null,
         eichungsdatum: eichungsdatum || null,
@@ -83,7 +83,7 @@ export async function DELETE(
 
     // Verify the Wasserzähler belongs to the user
     const { data: existing, error: fetchError } = await supabase
-      .from('Wasser_Zaehler')
+      .from('Zaehler')
       .select('id, wohnung_id')
       .eq('id', id)
       .eq('user_id', user.id)
@@ -95,7 +95,7 @@ export async function DELETE(
 
     // Delete Wasserzähler
     const { error } = await supabase
-      .from('Wasser_Zaehler')
+      .from('Zaehler')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id)
