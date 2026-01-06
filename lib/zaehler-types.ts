@@ -19,7 +19,7 @@ export const ZAEHLER_CONFIG: Record<ZaehlerTyp, {
     label: string;
     einheit: string;
     alternativeEinheiten?: string[];
-    icon: 'droplet' | 'thermometer' | 'flame' | 'gauge' | 'zap';
+    icon: 'droplet' | 'thermometer' | 'flame' | 'gauge' | 'zap' | 'fuel';
     color: string;
 }> = {
     wasser: {
@@ -64,7 +64,7 @@ export const ZAEHLER_CONFIG: Record<ZaehlerTyp, {
         label: 'Gaszähler',
         einheit: 'm³',
         alternativeEinheiten: ['kWh'],
-        icon: 'flame',
+        icon: 'fuel',
         color: 'cyan',
     },
 };

@@ -32,6 +32,7 @@ import {
     Thermometer,
     Flame,
     Zap,
+    Fuel,
 } from "lucide-react"
 import { WaterDropletLoader } from "@/components/ui/water-droplet-loader"
 import { Card, CardContent } from "@/components/ui/card"
@@ -107,7 +108,7 @@ function getMeterIcon(zaehler_typ: ZaehlerTyp, className?: string) {
         case 'strom':
             return <Zap className={cn(iconClass, "text-yellow-500")} />
         case 'gas':
-            return <Flame className={cn(iconClass, "text-cyan-500")} />
+            return <Fuel className={cn(iconClass, "text-cyan-500")} />
         default:
             return <CircleGauge className={cn(iconClass, "text-primary")} />
     }
