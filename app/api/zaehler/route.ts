@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(zaehlerWithReadings)
   } catch (error) {
-    console.error('Unexpected error in GET /api/wasser-zaehler:', error)
+    console.error('Unexpected error in GET /api/zaehler:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    console.error('Unexpected error in POST /api/wasser-zaehler:', error)
+    console.error('Unexpected error in POST /api/zaehler:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1203,7 +1203,7 @@ export const useModalStore = create<ModalState>((set, get) => {
 
       // Fetch existing Wasserzähler for this Wohnung
       try {
-        const response = await fetch(`/api/wasser-zaehler?wohnung_id=${wohnungId}`);
+        const response = await fetch(`/api/zaehler?wohnung_id=${wohnungId}`);
         if (response.ok) {
           const data = await response.json();
           set((state) => ({

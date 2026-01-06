@@ -65,7 +65,7 @@ export async function PATCH(
 
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Unexpected error in PATCH /api/wasser-zaehler/[id]:', error)
+    console.error('Unexpected error in PATCH /api/zaehler/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -118,7 +118,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Unexpected error in DELETE /api/wasser-zaehler/[id]:', error)
+    console.error('Unexpected error in DELETE /api/zaehler/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

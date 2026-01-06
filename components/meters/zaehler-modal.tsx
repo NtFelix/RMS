@@ -75,6 +75,22 @@ interface Zaehler {
     } | null
 }
 
+// Interface for raw API response data (before normalization)
+interface RawZaehlerFromApi {
+    id: string
+    custom_id: string | null
+    wohnung_id: string
+    erstellungsdatum: string
+    eichungsdatum: string | null
+    zaehler_typ?: ZaehlerTyp
+    einheit?: string
+    latest_reading?: {
+        ablese_datum: string
+        zaehlerstand: number
+        verbrauch: number
+    } | null
+}
+
 // Helper function to get icon component based on meter type
 function getMeterIcon(zaehler_typ: ZaehlerTyp, className?: string) {
     const iconClass = className || "h-5 w-5"
@@ -153,11 +169,11 @@ export function ZaehlerModal() {
 
         setIsLoading(true)
         try {
-            const response = await fetch(`/api/wasser-zaehler?wohnung_id=${zaehlerModalData.wohnungId}`)
+            const response = await fetch(`/api/zaehler?wohnung_id=${zaehlerModalData.wohnungId}`)
             if (response.ok) {
-                const data = await response.json()
+                const data: RawZaehlerFromApi[] = await response.json()
                 // Ensure each meter has zaehler_typ and einheit (for backward compatibility)
-                const normalizedData = data.map((z: any) => {
+                const normalizedData: Zaehler[] = data.map((z) => {
                     const typ: ZaehlerTyp = z.zaehler_typ || 'wasser'
                     return {
                         ...z,
@@ -187,7 +203,7 @@ export function ZaehlerModal() {
         setIsSaving(true)
         try {
             const config = ZAEHLER_CONFIG[newZaehlerTyp]
-            const response = await fetch("/api/wasser-zaehler", {
+            const response = await fetch("/api/zaehler", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -239,7 +255,7 @@ export function ZaehlerModal() {
         setIsSaving(true)
         try {
             const config = ZAEHLER_CONFIG[editZaehlerTyp]
-            const response = await fetch(`/api/wasser-zaehler/${id}`, {
+            const response = await fetch(`/api/zaehler/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -290,7 +306,7 @@ export function ZaehlerModal() {
 
         setIsSaving(true)
         try {
-            const response = await fetch(`/api/wasser-zaehler/${zaehlerToDelete}`, {
+            const response = await fetch(`/api/zaehler/${zaehlerToDelete}`, {
                 method: "DELETE",
             })
 
