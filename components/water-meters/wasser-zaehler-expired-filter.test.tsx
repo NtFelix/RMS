@@ -59,7 +59,7 @@ describe('WasserZaehlerModal - Expired Meters Filter', () => {
       wasserZaehlerModalData: mockWasserZaehlerModalData,
       closeWasserZaehlerModal: jest.fn(),
       setWasserZaehlerModalDirty: jest.fn(),
-      openWasserAblesenModal: jest.fn(),
+      openAblesungenModal: jest.fn(),
     } as any)
 
     ;(global.fetch as jest.Mock).mockResolvedValue({

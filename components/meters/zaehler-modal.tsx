@@ -141,7 +141,7 @@ export function ZaehlerModal() {
         zaehlerModalData,
         closeZaehlerModal,
         setZaehlerModalDirty,
-        openWasserAblesenModal,
+        openAblesungenModal,
     } = useModalStore()
 
     const [zaehlerList, setZaehlerList] = React.useState<Zaehler[]>([])
@@ -575,7 +575,7 @@ export function ZaehlerModal() {
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
-                                                onClick={() => openWasserAblesenModal(zaehler.id, zaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined, zaehler.zaehler_typ, zaehler.einheit)}
+                                                onClick={() => openAblesungenModal(zaehler.id, zaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined, zaehler.zaehler_typ, zaehler.einheit)}
                                                 disabled={isSaving}
                                                 className="h-8 w-8 p-0"
                                                 title="Ablesungen verwalten"

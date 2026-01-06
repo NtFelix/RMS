@@ -129,7 +129,7 @@ export function WasserZaehlerAblesenModal({
   const [rawWaterReadings, setRawWaterReadings] = useState<WasserAblesung[]>([]);
 
   const { toast } = useToast();
-  const { openWasserAblesenModal } = useModalStore();
+  const { openAblesungenModal } = useModalStore();
 
   useEffect(() => {
     if (isOpen && hausId) {
@@ -222,7 +222,7 @@ export function WasserZaehlerAblesenModal({
   };
 
   const handleOpenAblesenModal = (zaehler: WasserZaehlerInfo) => {
-    openWasserAblesenModal(
+    openAblesungenModal(
       zaehler.zaehler_id,
       zaehler.wohnung_name,
       zaehler.custom_id || undefined

@@ -66,12 +66,12 @@ interface WasserAblesung {
   kommentar?: string | null
 }
 
-export function WasserAblesenModal() {
+export function AblesungenModal() {
   const {
-    isWasserAblesenModalOpen,
-    wasserAblesenModalData,
-    closeWasserAblesenModal,
-    setWasserAblesenModalDirty,
+    isAblesungenModalOpen,
+    ablesungenModalData,
+    closeAblesungenModal,
+    setAblesungenModalDirty,
   } = useModalStore()
 
   const [ablesenList, setAblesenList] = React.useState<WasserAblesung[]>([])
@@ -94,17 +94,17 @@ export function WasserAblesenModal() {
 
   // Load existing Wasser_Ablesungen when modal opens
   React.useEffect(() => {
-    if (isWasserAblesenModalOpen && wasserAblesenModalData?.wasserZaehlerId) {
+    if (isAblesungenModalOpen && ablesungenModalData?.zaehlerId) {
       loadAblesungen()
     }
-  }, [isWasserAblesenModalOpen, wasserAblesenModalData?.wasserZaehlerId])
+  }, [isAblesungenModalOpen, ablesungenModalData?.zaehlerId])
 
   const loadAblesungen = async () => {
-    if (!wasserAblesenModalData?.wasserZaehlerId) return
+    if (!ablesungenModalData?.zaehlerId) return
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/wasser-ablesungen?zaehler_id=${wasserAblesenModalData.wasserZaehlerId}`)
+      const response = await fetch(`/api/wasser-ablesungen?zaehler_id=${ablesungenModalData.zaehlerId}`)
       if (response.ok) {
         const data = await response.json()
         // Sort by date descending (newest first)
@@ -231,7 +231,7 @@ export function WasserAblesenModal() {
   }
 
   const handleAddAblesung = async () => {
-    if (!newZaehlerstand.trim() || !wasserAblesenModalData?.wasserZaehlerId) return
+    if (!newZaehlerstand.trim() || !ablesungenModalData?.zaehlerId) return
 
     setIsSaving(true)
     try {
@@ -242,7 +242,7 @@ export function WasserAblesenModal() {
           ablese_datum: newAbleseDatum ? format(newAbleseDatum, "yyyy-MM-dd") : null,
           zaehlerstand: parseFloat(newZaehlerstand),
           verbrauch: parseFloat(newVerbrauch) || 0,
-          zaehler_id: wasserAblesenModalData.wasserZaehlerId,
+          zaehler_id: ablesungenModalData.zaehlerId,
           kommentar: newKommentar.trim() || null,
         }),
       })
@@ -360,7 +360,7 @@ export function WasserAblesenModal() {
       setAblesenList((prev) => prev.filter((a) => a.id !== ablesenToDelete))
       setDeleteDialogOpen(false)
       setAblesenToDelete(null)
-      setWasserAblesenModalDirty(true)
+      setAblesungenModalDirty(true)
 
       toast({
         title: "Erfolg",
@@ -449,7 +449,7 @@ export function WasserAblesenModal() {
     setEditVerbrauchWarning("")
     setEditKommentar("")
     setCurrentAblesung(null)
-    setWasserAblesenModalDirty(false)
+    setAblesungenModalDirty(false)
   }
 
   const handleClose = () => {
@@ -464,8 +464,8 @@ export function WasserAblesenModal() {
     setEditVerbrauch("")
     setEditVerbrauchWarning("")
     setEditKommentar("")
-    setWasserAblesenModalDirty(false)
-    closeWasserAblesenModal()
+    setAblesungenModalDirty(false)
+    closeAblesungenModal()
   }
 
   // Check if there are unsaved changes in edit mode or new reading form
@@ -492,8 +492,8 @@ export function WasserAblesenModal() {
 
   // Update modal dirty state when unsaved changes are detected
   React.useEffect(() => {
-    setWasserAblesenModalDirty(hasUnsavedChanges)
-  }, [hasUnsavedChanges, setWasserAblesenModalDirty])
+    setAblesungenModalDirty(hasUnsavedChanges)
+  }, [hasUnsavedChanges, setAblesungenModalDirty])
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-"
@@ -562,7 +562,7 @@ export function WasserAblesenModal() {
 
   return (
     <>
-      <Dialog open={isWasserAblesenModalOpen} onOpenChange={(open) => !open && handleClose()}>
+      <Dialog open={isAblesungenModalOpen} onOpenChange={(open) => !open && handleClose()}>
         <DialogContent
           className="sm:max-w-[700px] max-h-[85vh] flex flex-col"
           isDirty={hasUnsavedChanges}
@@ -570,15 +570,15 @@ export function WasserAblesenModal() {
         >
           <DialogHeader>
             <DialogTitle>
-              {wasserAblesenModalData?.zaehlerTyp
-                ? `${ZAEHLER_CONFIG[wasserAblesenModalData.zaehlerTyp as ZaehlerTyp]?.label || 'Zähler'}-Ablesungen verwalten`
+              {ablesungenModalData?.zaehlerTyp
+                ? `${ZAEHLER_CONFIG[ablesungenModalData.zaehlerTyp as ZaehlerTyp]?.label || 'Zähler'}-Ablesungen verwalten`
                 : 'Zähler-Ablesungen verwalten'
               }
             </DialogTitle>
             <DialogDescription>
-              Ablesungen für Wohnung: <span className="font-medium">{wasserAblesenModalData?.wohnungName}</span>
-              {wasserAblesenModalData?.customId && (
-                <> • Zähler-ID: <span className="font-medium">{wasserAblesenModalData.customId}</span></>
+              Ablesungen für Wohnung: <span className="font-medium">{ablesungenModalData?.wohnungName}</span>
+              {ablesungenModalData?.customId && (
+                <> • Zähler-ID: <span className="font-medium">{ablesungenModalData.customId}</span></>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -602,7 +602,7 @@ export function WasserAblesenModal() {
                 <div className="space-y-2">
                   <NumberInput
                     step="0.01"
-                    placeholder={`Zählerstand (${wasserAblesenModalData?.einheit || 'm³'})`}
+                    placeholder={`Zählerstand (${ablesungenModalData?.einheit || 'm³'})`}
                     value={newZaehlerstand}
                     onChange={(e) => handleNewZaehlerstandChange(e.target.value)}
                     onKeyDown={(e) => {
@@ -616,7 +616,7 @@ export function WasserAblesenModal() {
                 <div className="space-y-2">
                   <NumberInput
                     step="0.01"
-                    placeholder={`Verbrauch (${wasserAblesenModalData?.einheit || 'm³'})`}
+                    placeholder={`Verbrauch (${ablesungenModalData?.einheit || 'm³'})`}
                     value={newVerbrauch}
                     onChange={(e) => setNewVerbrauch(e.target.value)}
                     disabled={isSaving}

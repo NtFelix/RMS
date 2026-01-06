@@ -22,7 +22,7 @@ const WohnungEditModal = dynamic(() => import('@/components/apartments/wohnung-e
 const AufgabeEditModal = dynamic(() => import('@/components/tasks/aufgabe-edit-modal').then(mod => mod.AufgabeEditModal), { ssr: false })
 const BetriebskostenEditModal = dynamic(() => import('@/components/finance/betriebskosten-edit-modal').then(mod => mod.BetriebskostenEditModal), { ssr: false })
 const WasserZaehlerModal = dynamic(() => import('@/components/water-meters/wasser-zaehler-modal').then(mod => mod.WasserZaehlerModal), { ssr: false })
-const WasserAblesenModal = dynamic(() => import('@/components/water-meters/wasser-ablesungen-modal').then(mod => mod.WasserAblesenModal), { ssr: false })
+const AblesungenModal = dynamic(() => import('@/components/meters/ablesungen-modal').then(mod => mod.AblesungenModal), { ssr: false })
 const ZaehlerModal = dynamic(() => import('@/components/meters/zaehler-modal').then(mod => mod.ZaehlerModal), { ssr: false })
 const KautionModal = dynamic(() => import('@/components/tenants/kaution-modal').then(mod => mod.KautionModal), { ssr: false })
 const HausOverviewModal = dynamic(() => import('@/components/houses/haus-overview-modal').then(mod => mod.HausOverviewModal), { ssr: false })
@@ -163,8 +163,8 @@ export default function DashboardRootLayout({
         {/* Old WasserzaehlerModal removed - now using new Wasser_Zaehler structure */}
         {/* WasserZaehlerModal - Manages Wasser_Zaehler entries for apartments */}
         <WasserZaehlerModal />
-        {/* WasserAblesenModal - Manages Wasser_Ablesungen entries for water meters */}
-        <WasserAblesenModal />
+        {/* AblesungenModal - Manages meter readings for all meter types */}
+        <AblesungenModal />
         {/* ZaehlerModal - New multi-meter type management modal */}
         <ZaehlerModal />
         {/* KautionModal - Handles kaution management */}

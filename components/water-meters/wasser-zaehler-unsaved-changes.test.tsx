@@ -36,7 +36,7 @@ describe('WasserZaehlerModal - Unsaved Changes Detection', () => {
       wasserZaehlerModalData: mockWasserZaehlerModalData,
       closeWasserZaehlerModal: mockCloseWasserZaehlerModal,
       setWasserZaehlerModalDirty: mockSetWasserZaehlerModalDirty,
-      openWasserAblesenModal: jest.fn(),
+      openAblesungenModal: jest.fn(),
     } as any)
 
     ;(global.fetch as jest.Mock).mockResolvedValue({

@@ -114,8 +114,8 @@ export type { ZaehlerTyp } from './zaehler-types';
 export { ZAEHLER_CONFIG, getZaehlerLabel, getZaehlerEinheit } from './zaehler-types';
 import type { ZaehlerTyp } from './zaehler-types';
 
-// Water meter types for new calculation logic (using Zaehler table)
-export type WasserZaehler = {
+// Generic meter type (using Zaehler table)
+export type Zaehler = {
   id: string;
   custom_id: string | null;
   wohnung_id: string | null;
@@ -127,15 +127,21 @@ export type WasserZaehler = {
   einheit: string; // Unit of measurement
 };
 
-export type WasserAblesung = {
+// Backward compatibility alias
+export type WasserZaehler = Zaehler;
+
+export type Ablesung = {
   id: string;
   ablese_datum: string; // ISO date string
   zaehlerstand: number | null;
   verbrauch: number;
   user_id: string | null;
-  zaehler_id: string; // Updated from wasser_zaehler_id - matches new database schema
+  zaehler_id: string; // Reference to Zaehler table
   kommentar?: string | null;
 };
+
+// Backward compatibility alias
+export type WasserAblesung = Ablesung;
 
 // Legacy type removed - now using Zaehler + Zaehler_Ablesungen tables
 // This type is kept for backward compatibility in form data structures only
