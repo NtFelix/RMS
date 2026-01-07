@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useDebounce } from './use-debounce';
 import { useSearchAnalytics } from './use-search-analytics';
 import type { SearchResult, SearchResponse, SearchCategory, SearchResultAction } from '@/types/search';
-import { Edit, Eye, Trash2, User, Building2, Home, Wallet, CheckSquare } from 'lucide-react';
+import { Edit, Trash2, User, Building2, Home, Wallet, CheckSquare } from 'lucide-react';
 
 interface SearchCache {
   [key: string]: {
@@ -79,10 +79,10 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   // Cache for storing search results with LRU eviction
   const cacheRef = useRef<SearchCache>({});
   const cacheKeysRef = useRef<string[]>([]);
-  
+
   // AbortController for request cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+
   // Search metrics for performance monitoring
   const metricsRef = useRef<SearchMetrics>({
     totalRequests: 0,
@@ -92,11 +92,11 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
   // Retry timeout reference
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Recent searches management
   const RECENT_SEARCHES_KEY = 'rms-recent-searches';
   const MAX_RECENT_SEARCHES = 5;
-  
+
   // Search analytics
   const { trackSearch } = useSearchAnalytics();
 
@@ -122,28 +122,28 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const addToRecentSearches = useCallback((searchQuery: string) => {
     // Normalize the query by trimming and converting to lowercase for comparison
     const normalizedQuery = searchQuery.trim();
-    
+
     // Skip if query is too short or empty
     if (normalizedQuery.length < 2) return;
-    
+
     setRecentSearches(prev => {
       // Check if the query is already the most recent search
       if (prev.length > 0 && prev[0].toLowerCase() === normalizedQuery.toLowerCase()) {
         return prev; // No need to update if it's the same as the most recent search
       }
-      
+
       // Filter out any existing instances of this query (case-insensitive)
       const filtered = prev.filter(s => s.toLowerCase() !== normalizedQuery.toLowerCase());
-      
+
       // Add the new query to the beginning and limit the array size
       const updated = [normalizedQuery, ...filtered].slice(0, MAX_RECENT_SEARCHES);
-      
+
       try {
         localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
       } catch (error) {
         console.warn('Failed to save recent searches:', error);
       }
-      
+
       return updated;
     });
   }, []);
@@ -180,9 +180,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     ];
 
     commonSuggestions.forEach(suggestion => {
-      if (suggestion.toLowerCase().includes(queryLower) && 
-          suggestion.toLowerCase() !== queryLower &&
-          !newSuggestions.includes(suggestion)) {
+      if (suggestion.toLowerCase().includes(queryLower) &&
+        suggestion.toLowerCase() !== queryLower &&
+        !newSuggestions.includes(suggestion)) {
         newSuggestions.push(suggestion);
       }
     });
@@ -221,7 +221,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const cleanupCache = useCallback(() => {
     const now = Date.now();
     const validKeys: string[] = [];
-    
+
     Object.keys(cacheRef.current).forEach(key => {
       if (now - cacheRef.current[key].timestamp < cacheTimeMs) {
         validKeys.push(key);
@@ -229,7 +229,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         delete cacheRef.current[key];
       }
     });
-    
+
     cacheKeysRef.current = validKeys;
   }, [cacheTimeMs]);
 
@@ -248,10 +248,10 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     if (Math.random() < 0.1) {
       cleanupCache();
     }
-    
+
     // Evict old entries if cache is full
     evictLRUCache();
-    
+
     // Add new entry
     cacheRef.current[key] = {
       data,
@@ -259,7 +259,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       totalCount,
       executionTime
     };
-    
+
     // Update LRU order
     const existingIndex = cacheKeysRef.current.indexOf(key);
     if (existingIndex > -1) {
@@ -273,43 +273,43 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   // Enhanced error classification
   const classifyError = useCallback((error: Error): string => {
     const message = error.message.toLowerCase();
-    
+
     if (!navigator.onLine || message.includes('network') || message.includes('fetch')) {
       return 'Keine Internetverbindung verfügbar. Bitte überprüfen Sie Ihre Netzwerkverbindung.';
     }
-    
+
     if (message.includes('timeout') || message.includes('aborted')) {
       return 'Die Suche dauert zu lange. Bitte versuchen Sie es mit einem anderen Suchbegriff.';
     }
-    
+
     if (message.includes('400') || message.includes('bad request')) {
       return 'Ungültige Suchanfrage. Bitte überprüfen Sie Ihre Eingabe.';
     }
-    
+
     if (message.includes('401') || message.includes('unauthorized') || message.includes('permission')) {
       return 'Sie haben keine Berechtigung für diese Suche. Bitte melden Sie sich erneut an.';
     }
-    
+
     if (message.includes('403') || message.includes('forbidden')) {
       return 'Zugriff verweigert. Bitte wenden Sie sich an den Administrator.';
     }
-    
+
     if (message.includes('404') || message.includes('not found')) {
       return 'Suchservice nicht verfügbar. Bitte versuchen Sie es später erneut.';
     }
-    
+
     if (message.includes('429') || message.includes('rate limit')) {
       return 'Zu viele Suchanfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
     }
-    
+
     if (message.includes('500') || message.includes('server error')) {
       return 'Serverfehler bei der Suche. Bitte versuchen Sie es später erneut.';
     }
-    
+
     if (message.includes('503') || message.includes('service unavailable')) {
       return 'Suchservice vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.';
     }
-    
+
     return 'Bei der Suche ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es erneut.';
   }, []);
 
@@ -332,7 +332,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     // Handle keyword-based filtering
     let filteredCategories = memoizedCategories;
     let actualQuery = searchQuery;
-    
+
     if (searchQuery.startsWith('M-')) {
       filteredCategories = ['tenant'];
       actualQuery = searchQuery.substring(2).trim();
@@ -373,7 +373,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     }
 
     const cacheKey = `${searchQuery}:${limit}:${filteredCategories.sort().join(',')}`;
-    
+
     // Check cache first
     const cached = cacheRef.current[cacheKey];
     if (cached && Date.now() - cached.timestamp < cacheTimeMs) {
@@ -381,17 +381,17 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       setTotalCount(cached.totalCount);
       setExecutionTime(cached.executionTime);
       setError(null);
-      
+
       // Update cache hit metrics
       metricsRef.current.cacheHits++;
-      
+
       // Update LRU order
       const keyIndex = cacheKeysRef.current.indexOf(cacheKey);
       if (keyIndex > -1) {
         cacheKeysRef.current.splice(keyIndex, 1);
         cacheKeysRef.current.push(cacheKey);
       }
-      
+
       return;
     }
 
@@ -406,7 +406,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
     setIsLoading(true);
     setError(null);
-    
+
     // Update request metrics
     metricsRef.current.totalRequests++;
     const requestStartTime = Date.now();
@@ -438,19 +438,19 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
       if (!response.ok) {
         let errorMessage: string;
-        
+
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
         } catch {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
-        
+
         throw new Error(errorMessage);
       }
 
       const data: SearchResponse = await response.json();
-      
+
       if (process.env.NODE_ENV === 'development') {
         console.log('Received search response:', {
           totalCount: data.totalCount,
@@ -464,7 +464,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           }
         });
       }
-      
+
       // Convert API response to SearchResult[]
       const searchResults: SearchResult[] = [];
 
@@ -475,13 +475,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           {
             label: 'Bearbeiten',
             icon: Edit,
-            action: () => {}, // Will be handled by command menu
-            variant: 'default'
-          },
-          {
-            label: 'Anzeigen',
-            icon: Eye,
-            action: () => {}, // Will be handled by command menu
+            action: () => { }, // Will be handled by command menu
             variant: 'default'
           }
         ];
@@ -513,13 +507,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           {
             label: 'Bearbeiten',
             icon: Edit,
-            action: () => {}, // Will be handled by command menu
-            variant: 'default'
-          },
-          {
-            label: 'Anzeigen',
-            icon: Eye,
-            action: () => {}, // Will be handled by command menu
+            action: () => { }, // Will be handled by command menu
             variant: 'default'
           }
         ];
@@ -544,13 +532,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           {
             label: 'Bearbeiten',
             icon: Edit,
-            action: () => {}, // Will be handled by command menu
-            variant: 'default'
-          },
-          {
-            label: 'Anzeigen',
-            icon: Eye,
-            action: () => {}, // Will be handled by command menu
+            action: () => { }, // Will be handled by command menu
             variant: 'default'
           }
         ];
@@ -577,19 +559,13 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           {
             label: 'Bearbeiten',
             icon: Edit,
-            action: () => {}, // Will be handled by command menu
-            variant: 'default'
-          },
-          {
-            label: 'Anzeigen',
-            icon: Eye,
-            action: () => {}, // Will be handled by command menu
+            action: () => { }, // Will be handled by command menu
             variant: 'default'
           },
           {
             label: 'Löschen',
             icon: Trash2,
-            action: () => {}, // Will be handled by command menu
+            action: () => { }, // Will be handled by command menu
             variant: 'destructive'
           }
         ];
@@ -617,19 +593,19 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           {
             label: 'Bearbeiten',
             icon: Edit,
-            action: () => {}, // Will be handled by command menu
+            action: () => { }, // Will be handled by command menu
             variant: 'default'
           },
           {
             label: task.completed ? 'Als offen markieren' : 'Als erledigt markieren',
             icon: CheckSquare,
-            action: () => {}, // Will be handled by command menu
+            action: () => { }, // Will be handled by command menu
             variant: 'default'
           },
           {
             label: 'Löschen',
             icon: Trash2,
-            action: () => {}, // Will be handled by command menu
+            action: () => { }, // Will be handled by command menu
             variant: 'destructive'
           }
         ];
@@ -665,7 +641,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       setError(null);
       setRetryCount(0); // Reset retry count on success
       setLastSuccessfulQuery(searchQuery);
-      
+
       // Add to recent searches on successful search with results
       // Only add if this is a new search (not a retry) and we have results
       if (searchResults.length > 0 && !isRetry) {
@@ -674,12 +650,12 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           addToRecentSearches(searchQuery);
         }
       }
-      
+
       // Update response time metrics
       const responseTime = Date.now() - requestStartTime;
       const currentAvg = metricsRef.current.averageResponseTime;
       const totalRequests = metricsRef.current.totalRequests;
-      metricsRef.current.averageResponseTime = 
+      metricsRef.current.averageResponseTime =
         (currentAvg * (totalRequests - 1) + responseTime) / totalRequests;
 
       // Track search analytics
@@ -697,34 +673,34 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           // Request was cancelled, don't update state
           return;
         }
-        
+
         const classifiedError = classifyError(err);
-        
+
         // Implement automatic retry for certain error types
-        const shouldRetry = !isRetry && 
-                           retryCount < MAX_RETRY_COUNT && 
-                           (err.message.includes('network') || 
-                            err.message.includes('timeout') || 
-                            err.message.includes('500') || 
-                            err.message.includes('503'));
-        
+        const shouldRetry = !isRetry &&
+          retryCount < MAX_RETRY_COUNT &&
+          (err.message.includes('network') ||
+            err.message.includes('timeout') ||
+            err.message.includes('500') ||
+            err.message.includes('503'));
+
         if (shouldRetry) {
           const newRetryCount = retryCount + 1;
           setRetryCount(newRetryCount);
-          
+
           // Schedule retry with exponential backoff
           const delay = getRetryDelay(newRetryCount - 1);
           retryTimeoutRef.current = setTimeout(() => {
             performSearch(searchQuery, true);
           }, delay);
-          
+
           setError(`${classifiedError} (Wiederholung ${newRetryCount}/${MAX_RETRY_COUNT}...)`);
         } else {
           setError(classifiedError);
           setResults([]);
           setTotalCount(0);
           setExecutionTime(0);
-          
+
           // Track error analytics
           trackSearch({
             query: searchQuery,
@@ -739,7 +715,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         setResults([]);
         setTotalCount(0);
         setExecutionTime(0);
-        
+
         // Track unknown error analytics
         trackSearch({
           query: searchQuery,
@@ -780,7 +756,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setExecutionTime(0);
     setError(null);
     setRetryCount(0);
-    
+
     // Cancel any ongoing request and retry timeout
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -795,12 +771,12 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     if (debouncedQuery.trim()) {
       setError(null);
       setRetryCount(0);
-      
+
       // Cancel any pending retry
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
-      
+
       performSearch(debouncedQuery);
     }
   }, [debouncedQuery, performSearch]);
@@ -810,7 +786,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     if (process.env.NODE_ENV === 'development') {
       return {
         cacheSize: Object.keys(cacheRef.current).length,
-        cacheHitRate: metricsRef.current.totalRequests > 0 
+        cacheHitRate: metricsRef.current.totalRequests > 0
           ? (metricsRef.current.cacheHits / metricsRef.current.totalRequests * 100).toFixed(2) + '%'
           : '0%',
         averageResponseTime: metricsRef.current.averageResponseTime.toFixed(2) + 'ms',

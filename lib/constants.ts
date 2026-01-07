@@ -13,8 +13,12 @@ export const BERECHNUNGSART_VALUES = BERECHNUNGSART_OPTIONS.map(opt => opt.value
 // Supabase PWA images storage URL
 export const PWA_IMAGES_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images';
 
-// Logo URL
+// Logo URL (mascot)
 export const LOGO_URL = `${PWA_IMAGES_URL}/mascot/normal.avif`;
+
+// SEO Image URLs - using Supabase storage for reliable crawlability
+export const FAVICON_URL = `${PWA_IMAGES_URL}/favicon.png`;
+export const OG_IMAGE_URL = `${PWA_IMAGES_URL}/cover.avif`;
 
 // Brand Name
 export const BRAND_NAME_PART_1 = 'Miet';
@@ -50,6 +54,7 @@ export const POSTHOG_FEATURE_FLAGS = {
   // Landing page
   SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
   SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
+  GOOGLE_SOCIAL_LOGIN: 'google-social-login',
 } as const;
 
 // Application routes - centralized to prevent hardcoded paths
@@ -77,6 +82,7 @@ export const ROUTES = {
   DOCUMENTATION: '/hilfe/dokumentation',
   PRIVACY: '/datenschutz',
   TERMS: '/agb',
+  IMPRESSUM: '/impressum',
 } as const;
 
 // Video URLs

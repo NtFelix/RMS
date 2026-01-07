@@ -446,17 +446,30 @@ export interface ModalState {
   closeWasserZaehlerModal: (options?: CloseModalOptions) => void;
   setWasserZaehlerModalDirty: (isDirty: boolean) => void;
 
-  // Wasser_Ablesungen Modal State
-  isWasserAblesenModalOpen: boolean;
-  wasserAblesenModalData?: {
-    wasserZaehlerId: string;
+  // Ablesungen Modal State
+  isAblesungenModalOpen: boolean;
+  ablesungenModalData?: {
+    zaehlerId: string;
     wohnungName: string;
     customId?: string;
+    zaehlerTyp?: string;  // Type of meter (wasser, gas, strom, etc.)
+    einheit?: string;     // Unit of measurement (m³, kWh, etc.)
   };
-  isWasserAblesenModalDirty: boolean;
-  openWasserAblesenModal: (wasserZaehlerId: string, wohnungName: string, customId?: string) => void;
-  closeWasserAblesenModal: (options?: CloseModalOptions) => void;
-  setWasserAblesenModalDirty: (isDirty: boolean) => void;
+  isAblesungenModalDirty: boolean;
+  openAblesungenModal: (zaehlerId: string, wohnungName: string, customId?: string, zaehlerTyp?: string, einheit?: string) => void;
+  closeAblesungenModal: (options?: CloseModalOptions) => void;
+  setAblesungenModalDirty: (isDirty: boolean) => void;
+
+  // Zaehler Modal State (new multi-meter type modal)
+  isZaehlerModalOpen: boolean;
+  zaehlerModalData?: {
+    wohnungId: string;
+    wohnungName: string;
+  };
+  isZaehlerModalDirty: boolean;
+  openZaehlerModal: (wohnungId: string, wohnungName: string) => void;
+  closeZaehlerModal: (options?: CloseModalOptions) => void;
+  setZaehlerModalDirty: (isDirty: boolean) => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -632,10 +645,16 @@ const initialWasserZaehlerModalState = {
   isWasserZaehlerModalDirty: false,
 };
 
-const initialWasserAblesenModalState = {
-  isWasserAblesenModalOpen: false,
-  wasserAblesenModalData: undefined,
-  isWasserAblesenModalDirty: false,
+const initialAblesungenModalState = {
+  isAblesungenModalOpen: false,
+  ablesungenModalData: undefined,
+  isAblesungenModalDirty: false,
+};
+
+const initialZaehlerModalState = {
+  isZaehlerModalOpen: false,
+  zaehlerModalData: undefined,
+  isZaehlerModalDirty: false,
 };
 
 const createInitialModalState = () => ({
@@ -664,7 +683,8 @@ const createInitialModalState = () => ({
   ...initialTemplatesModalState,
   ...initialTenantMailTemplatesModalState,
   ...initialWasserZaehlerModalState,
-  ...initialWasserAblesenModalState,
+  ...initialAblesungenModalState,
+  ...initialZaehlerModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -1183,7 +1203,7 @@ export const useModalStore = create<ModalState>((set, get) => {
 
       // Fetch existing Wasserzähler for this Wohnung
       try {
-        const response = await fetch(`/api/wasser-zaehler?wohnung_id=${wohnungId}`);
+        const response = await fetch(`/api/zaehler?wohnung_id=${wohnungId}`);
         if (response.ok) {
           const data = await response.json();
           set((state) => ({
@@ -1201,16 +1221,30 @@ export const useModalStore = create<ModalState>((set, get) => {
     setWasserZaehlerModalDirty: (isDirty) => set({ isWasserZaehlerModalDirty: isDirty }),
 
     // Wasser_Ablesungen Modal
-    openWasserAblesenModal: (wasserZaehlerId: string, wohnungName: string, customId?: string) => set({
-      isWasserAblesenModalOpen: true,
-      wasserAblesenModalData: {
-        wasserZaehlerId,
+    openAblesungenModal: (zaehlerId: string, wohnungName: string, customId?: string, zaehlerTyp?: string, einheit?: string) => set({
+      isAblesungenModalOpen: true,
+      ablesungenModalData: {
+        zaehlerId,
         wohnungName,
         customId,
+        zaehlerTyp,
+        einheit,
       },
-      isWasserAblesenModalDirty: false,
+      isAblesungenModalDirty: false,
     }),
-    closeWasserAblesenModal: createCloseHandler('isWasserAblesenModalDirty', initialWasserAblesenModalState),
-    setWasserAblesenModalDirty: (isDirty) => set({ isWasserAblesenModalDirty: isDirty }),
+    closeAblesungenModal: createCloseHandler('isAblesungenModalDirty', initialAblesungenModalState),
+    setAblesungenModalDirty: (isDirty) => set({ isAblesungenModalDirty: isDirty }),
+
+    // Zaehler Modal (new multi-meter type modal)
+    openZaehlerModal: (wohnungId: string, wohnungName: string) => set({
+      isZaehlerModalOpen: true,
+      zaehlerModalData: {
+        wohnungId,
+        wohnungName,
+      },
+      isZaehlerModalDirty: false,
+    }),
+    closeZaehlerModal: createCloseHandler('isZaehlerModalDirty', initialZaehlerModalState),
+    setZaehlerModalDirty: (isDirty) => set({ isZaehlerModalDirty: isDirty }),
   };
 });

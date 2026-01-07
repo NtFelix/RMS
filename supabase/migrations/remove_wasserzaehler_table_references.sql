@@ -1,5 +1,5 @@
 -- Migration to remove all references to the old Wasserzaehler table
--- and update functions to use the new Wasser_Zaehler + Wasser_Ablesungen structure
+-- and update functions to use the new Zaehler + Zaehler_Ablesungen structure
 
 -- Old save_wasserzaehler_batch function has been removed as it's no longer used
 
@@ -72,8 +72,8 @@ BEGIN
         ), '[]'::jsonb) as data
         FROM "Mieter" m
         JOIN "Wohnungen" w ON m.wohnung_id = w.id
-        LEFT JOIN "Wasser_Zaehler" wz ON wz.wohnung_id = w.id AND wz.user_id = get_abrechnung_calculation_data.user_id
-        LEFT JOIN "Wasser_Ablesungen" wa ON wa.wasser_zaehler_id = wz.id 
+        LEFT JOIN "Zaehler" wz ON wz.wohnung_id = w.id AND wz.user_id = get_abrechnung_calculation_data.user_id
+        LEFT JOIN "Zaehler_Ablesungen" wa ON wa.zaehler_id = wz.id 
             AND wa.user_id = get_abrechnung_calculation_data.user_id
             AND wa.ablese_datum >= start_datum
             AND wa.ablese_datum <= end_datum
@@ -130,8 +130,8 @@ BEGIN
             ),
             'totalWaterConsumption', COALESCE((
                 SELECT SUM(wa.verbrauch)
-                FROM "Wasser_Ablesungen" wa
-                JOIN "Wasser_Zaehler" wz ON wa.wasser_zaehler_id = wz.id
+                FROM "Zaehler_Ablesungen" wa
+                JOIN "Zaehler" wz ON wa.zaehler_id = wz.id
                 JOIN "Wohnungen" w ON wz.wohnung_id = w.id
                 WHERE w.haus_id = target_haus_id
                 AND wa.user_id = get_abrechnung_calculation_data.user_id
@@ -157,4 +157,4 @@ $function$;
 -- - get_abrechnung_calculation_data: Updated above to use new table structure
 --
 -- The old Wasserzaehler table has been removed and replaced with 
--- Wasser_Zaehler + Wasser_Ablesungen for better data normalization
+-- Zaehler + Zaehler_Ablesungen for better data normalization

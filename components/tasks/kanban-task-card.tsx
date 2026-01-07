@@ -95,12 +95,7 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({ task, onTaskUpdated
 
   return (
     <TaskContextMenu
-      task={{
-        id: task.id,
-        name: task.name,
-        beschreibung: task.beschreibung || '',
-        ist_erledigt: task.ist_erledigt
-      }}
+      task={task}
       onEdit={handleEdit}
       onStatusToggle={toggleTaskStatus}
       onTaskDeleted={onTaskDeleted}
@@ -108,13 +103,12 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({ task, onTaskUpdated
       <Card
         ref={setNodeRef}
         style={style}
-        className={`cursor-pointer transition-all duration-200 hover:shadow-md rounded-2xl ${
-          isCompleting 
-            ? "bg-green-50 border-green-200 shadow-md" 
-            : isDragging 
-            ? "opacity-50 shadow-lg scale-105" 
-            : "hover:scale-[1.01]"
-        }`}
+        className={`cursor-pointer transition-all duration-200 hover:shadow-md rounded-2xl ${isCompleting
+            ? "bg-green-50 border-green-200 shadow-md"
+            : isDragging
+              ? "opacity-50 shadow-lg scale-105"
+              : "hover:scale-[1.01]"
+          }`}
         onClick={handleEdit}
         {...attributes}
       >
@@ -129,15 +123,13 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({ task, onTaskUpdated
               />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className={`font-medium text-sm mb-2 ${
-                task.ist_erledigt ? 'line-through text-muted-foreground' : ''
-              }`}>
+              <h3 className={`font-medium text-sm mb-2 ${task.ist_erledigt ? 'line-through text-muted-foreground' : ''
+                }`}>
                 {task.name}
               </h3>
               {task.beschreibung && (
-                <p className={`text-xs mb-3 line-clamp-2 ${
-                  task.ist_erledigt ? 'line-through text-muted-foreground' : 'text-muted-foreground'
-                }`}>
+                <p className={`text-xs mb-3 line-clamp-2 ${task.ist_erledigt ? 'line-through text-muted-foreground' : 'text-muted-foreground'
+                  }`}>
                   {task.beschreibung}
                 </p>
               )}
@@ -154,9 +146,8 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({ task, onTaskUpdated
                   </Badge>
                   <div
                     {...listeners}
-                    className={`cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded transition-all duration-150 ${
-                      isDragging ? 'bg-muted' : ''
-                    }`}
+                    className={`cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded transition-all duration-150 ${isDragging ? 'bg-muted' : ''
+                      }`}
                   >
                     <GripVertical className="h-3 w-3 text-muted-foreground" />
                   </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -8,9 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, CheckSquare, FileText, Calendar, MoreVertical, X, Download, Trash2, Pencil } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, CheckSquare, FileText, Calendar, MoreVertical, X, Download, Trash2, Pencil, Check } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
-import { bulkDeleteTasksAction } from "@/app/todos-actions"
+import { bulkDeleteTasksAction, toggleTaskStatusAction } from "@/app/todos-actions"
+import { TaskContextMenu } from "@/components/tasks/task-context-menu"
+import { ActionMenu } from "@/components/ui/action-menu"
 import { toast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -31,15 +33,15 @@ interface TaskTableProps {
   onTaskUpdated?: (task: Task) => void;
 }
 
-export function TaskTable({ 
-  tasks, 
-  filter, 
-  searchQuery, 
-  onEdit, 
-  onDelete, 
-  selectedTasks: externalSelectedTasks, 
+export function TaskTable({
+  tasks,
+  filter,
+  searchQuery,
+  onEdit,
+  onDelete,
+  selectedTasks: externalSelectedTasks,
   onSelectionChange,
-  onTaskUpdated 
+  onTaskUpdated
 }: TaskTableProps) {
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -55,6 +57,25 @@ export function TaskTable({
   // Use external selection state if provided, otherwise use internal
   const selectedTasks = externalSelectedTasks ?? internalSelectedTasks
   const setSelectedTasks = onSelectionChange ?? setInternalSelectedTasks
+
+  const handleToggleStatus = useCallback(async (task: Task) => {
+    const { success, error } = await toggleTaskStatusAction(task.id, !task.ist_erledigt)
+    if (success) {
+      toast({
+        title: "Erfolg",
+        description: `Aufgabe als ${!task.ist_erledigt ? 'erledigt' : 'ausstehend'} markiert.`,
+        variant: "success",
+      })
+      onTaskUpdated?.({ ...task, ist_erledigt: !task.ist_erledigt })
+      router.refresh()
+    } else {
+      toast({
+        title: "Fehler",
+        description: error?.message || "Status konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      })
+    }
+  }, [onTaskUpdated, router])
 
   // Sorting, filtering and search logic
   const sortedAndFilteredData = useMemo(() => {
@@ -157,26 +178,26 @@ export function TaskTable({
 
   const handleBulkDelete = async () => {
     if (selectedTasks.size === 0) return;
-    
+
     setIsBulkDeleting(true);
     const selectedIds = Array.from(selectedTasks);
 
     try {
       const { success, deletedCount, error } = await bulkDeleteTasksAction(selectedIds);
-      
+
       if (success && deletedCount !== undefined) {
         const failedCount = selectedIds.length - deletedCount;
-        
+
         setShowBulkDeleteConfirm(false);
         setSelectedTasks(new Set());
-        
+
         if (deletedCount > 0) {
           toast({
             title: "Erfolg",
             description: `${deletedCount} ${deletedCount === 1 ? 'Aufgabe' : 'Aufgaben'} erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`,
             variant: "success",
           });
-          
+
           // Refresh the page to reflect the changes
           router.refresh();
         } else {
@@ -214,11 +235,11 @@ export function TaskTable({
 
   const handleBulkExport = () => {
     const selectedTasksData = tasks.filter(t => selectedTasks.has(t.id))
-    
+
     // Create CSV header
     const headers = ['Name', 'Beschreibung', 'Status', 'Erstellt', 'Geändert']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     // Create CSV rows with proper escaping
     const csvRows = selectedTasksData.map(t => {
       const row = [
@@ -230,7 +251,7 @@ export function TaskTable({
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -340,83 +361,121 @@ export function TaskTable({
                 sortedAndFilteredData.map((task, index) => {
                   const isLastRow = index === sortedAndFilteredData.length - 1
                   const isSelected = selectedTasks.has(task.id)
-                  
+
+
+
                   return (
-                    <TableRow 
+                    <TaskContextMenu
                       key={task.id}
-                      ref={(el) => {
-                        if (el) {
-                          contextMenuRefs.current.set(task.id, el)
-                        } else {
-                          contextMenuRefs.current.delete(task.id)
-                        }
-                      }}
-                      className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
-                        isSelected 
-                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                      }`}
-                      onClick={() => onEdit?.(task)}
+                      task={task}
+                      onEdit={() => onEdit?.(task)}
+                      onStatusToggle={() => handleToggleStatus(task)}
+                      onTaskDeleted={() => router.refresh()}
                     >
-                      <TableCell 
-                        className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`} 
-                        onClick={(event) => event.stopPropagation()}
+                      <TableRow
+                        key={task.id}
+                        ref={(el) => {
+                          if (el) {
+                            contextMenuRefs.current.set(task.id, el)
+                          } else {
+                            contextMenuRefs.current.delete(task.id)
+                          }
+                        }}
+                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                          }`}
+                        onClick={() => onEdit?.(task)}
                       >
-                        <Checkbox
-                          aria-label={`Aufgabe ${task.name} auswählen`}
-                          checked={selectedTasks.has(task.id)}
-                          onCheckedChange={(checked) => handleSelectTask(task.id, checked)}
-                        />
-                      </TableCell>
-                      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>
-                        <span className={task.ist_erledigt ? 'line-through text-muted-foreground' : ''}>
-                          {task.name}
-                        </span>
-                      </TableCell>
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
-                        <span className={task.ist_erledigt ? 'line-through text-muted-foreground' : ''}>
-                          {task.beschreibung ? (
-                            task.beschreibung.length > 50 
-                              ? `${task.beschreibung.substring(0, 50)}...` 
-                              : task.beschreibung
-                          ) : '-'}
-                        </span>
-                      </TableCell>
-                      <TableCell className={`py-4`}>
-                        {task.ist_erledigt ? (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400">
-                            Erledigt
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400">
-                            Ausstehend
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className={`py-4 dark:text-[#f3f4f6] text-sm`}>
-                        {format(new Date(task.erstellungsdatum), 'dd.MM.yyyy', { locale: de })}
-                      </TableCell>
-                      <TableCell className={`py-4 dark:text-[#f3f4f6] text-sm`}>
-                        {format(new Date(task.aenderungsdatum), 'dd.MM.yyyy', { locale: de })}
-                      </TableCell>
-                      <TableCell 
-                        className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onEdit?.(task)
-                          }}
+                        <TableCell
+                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
+                          onClick={(event) => event.stopPropagation()}
                         >
-                          <span className="sr-only">Aufgabe bearbeiten</span>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                          <Checkbox
+                            aria-label={`Aufgabe ${task.name} auswählen`}
+                            checked={selectedTasks.has(task.id)}
+                            onCheckedChange={(checked) => handleSelectTask(task.id, checked)}
+                          />
+                        </TableCell>
+                        <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>
+                          <span className={task.ist_erledigt ? 'line-through text-muted-foreground' : ''}>
+                            {task.name}
+                          </span>
+                        </TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
+                          <span className={task.ist_erledigt ? 'line-through text-muted-foreground' : ''}>
+                            {task.beschreibung ? (
+                              task.beschreibung.length > 50
+                                ? `${task.beschreibung.substring(0, 50)}...`
+                                : task.beschreibung
+                            ) : '-'}
+                          </span>
+                        </TableCell>
+                        <TableCell className={`py-4`}>
+                          {task.ist_erledigt ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400">
+                              Erledigt
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400">
+                              Ausstehend
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6] text-sm`}>
+                          {format(new Date(task.erstellungsdatum), 'dd.MM.yyyy', { locale: de })}
+                        </TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6] text-sm`}>
+                          {format(new Date(task.aenderungsdatum), 'dd.MM.yyyy', { locale: de })}
+                        </TableCell>
+                        <TableCell
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <ActionMenu
+                            actions={[
+                              {
+                                id: `edit-${task.id}`,
+                                icon: Pencil,
+                                label: "Bearbeiten",
+                                onClick: () => onEdit?.(task),
+                                variant: 'primary',
+                              },
+                              {
+                                id: `toggle-task-${task.id}`,
+                                icon: Check,
+                                label: task.ist_erledigt ? "Als ausstehend markieren" : "Als erledigt markieren",
+                                onClick: () => handleToggleStatus(task),
+                                variant: 'default',
+                              },
+                              {
+                                id: `more-${task.id}`,
+                                icon: MoreVertical,
+                                label: "Mehr Optionen",
+                                onClick: (e) => {
+                                  if (!e) return;
+                                  const rowElement = contextMenuRefs.current.get(task.id)
+                                  if (rowElement) {
+                                    const contextMenuEvent = new MouseEvent('contextmenu', {
+                                      bubbles: true,
+                                      cancelable: true,
+                                      view: window,
+                                      clientX: e.clientX,
+                                      clientY: e.clientY,
+                                    })
+                                    rowElement.dispatchEvent(contextMenuEvent)
+                                  }
+                                },
+                                variant: 'default',
+                              }
+                            ]}
+                            shape="pill"
+                            visibility="always"
+                            className="inline-flex"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    </TaskContextMenu>
                   )
                 })
               )}

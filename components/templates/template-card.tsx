@@ -3,9 +3,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { Template } from '@/types/template';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Edit, Trash2, FileText, Mail, MoreHorizontal } from 'lucide-react';
+import { Edit, Trash2, FileText } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ARIA_LABELS } from '@/lib/accessibility-constants';
@@ -13,6 +11,7 @@ import { TemplatePreview } from '@/components/templates/template-preview';
 import { TEMPLATE_TYPE_CONFIGS, TEMPLATE_ICON_MAP } from '@/lib/template-constants';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { ActionMenu } from '@/components/ui/action-menu';
 
 
 interface TemplateCardProps {
@@ -90,34 +89,32 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
             </div>
           </div>
 
+
           {/* Floating Actions */}
-          <div
-            className="absolute top-[14px] right-5 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-sm border"
-            role="group"
-            aria-label="Aktionen für Vorlage"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleEdit}
-              className="h-7 w-7 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-              aria-label={ARIA_LABELS.editTemplateButton(template.titel)}
-              data-template-card-action
-            >
-              <Edit className="h-3.5 w-3.5" aria-hidden="true" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDelete}
-              className="h-7 w-7 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
-              aria-label={ARIA_LABELS.deleteTemplateButton(template.titel)}
-              data-template-card-action
-            >
-              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-            </Button>
-          </div>
+          <ActionMenu
+            actions={[
+              {
+                id: `edit-${template.id}`,
+                icon: Edit,
+                label: ARIA_LABELS.editTemplateButton(template.titel),
+                onClick: handleEdit,
+                variant: 'primary',
+                dataAttributes: { 'data-template-card-action': 'true' },
+              },
+              {
+                id: `delete-${template.id}`,
+                icon: Trash2,
+                label: ARIA_LABELS.deleteTemplateButton(template.titel),
+                onClick: handleDelete,
+                variant: 'destructive',
+                dataAttributes: { 'data-template-card-action': 'true' },
+              },
+            ]}
+            shape="pill"
+            visibility="hover"
+            ariaLabel="Aktionen für Vorlage"
+            className="absolute top-[14px] right-5"
+          />
         </CardHeader>
 
         <CardContent className="py-2 px-5 flex-1">

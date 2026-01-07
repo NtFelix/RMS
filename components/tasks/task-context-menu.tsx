@@ -21,15 +21,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteTaskAction } from "@/app/todos-actions"; // Added import
+import { Task } from "@/types/Task"
 
 interface TaskContextMenuProps {
   children: React.ReactNode
-  task: {
-    id: string
-    name: string
-    beschreibung: string
-    ist_erledigt: boolean
-  }
+  task: Task
   onEdit: () => void
   onStatusToggle: () => void
   onTaskDeleted: (taskId: string) => void
@@ -91,7 +87,7 @@ export function TaskContextMenu({
             </span>
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem 
+          <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >

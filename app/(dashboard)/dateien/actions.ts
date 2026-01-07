@@ -175,12 +175,29 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
   error?: string
 }> {
   try {
-    // Get houses and their file counts from RPC
-    const { data: houses, error: housesError } = await supabase
-      .rpc('get_virtual_folders', {
+    // OPTIMIZATION: Fetch houses, system folder counts, and root files in parallel
+    const houseDocsPath = `${targetPath}/house_documents`
+    const miscPath = `${targetPath}/Miscellaneous`
+
+    const [housesResult, systemFolderCounts, dbRootFilesResult] = await Promise.all([
+      // Get houses and their file counts from RPC
+      supabase.rpc('get_virtual_folders', {
         p_user_id: userId,
         p_current_path: targetPath
-      })
+      }),
+      // Get counts for system folders in a single query
+      countDirectFilesForPaths(supabase, [houseDocsPath, miscPath], userId),
+      // Get root files
+      supabase
+        .from('Dokumente_Metadaten')
+        .select('*')
+        .eq('dateipfad', targetPath)
+        .eq('user_id', userId)
+        .order('dateiname', { ascending: true })
+    ])
+
+    const houses = housesResult.data
+    const housesError = housesResult.error
 
     if (housesError) {
       if (process.env.NODE_ENV === 'development') {
@@ -205,44 +222,32 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
       }
     }
 
-    // Add house documents folder
-    const houseDocsPath = `${targetPath}/house_documents`
-    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath, userId)
-    const houseDocsHasFiles = houseDocsFileCount > 0
-
+    // Add house documents folder (using batch count)
+    const houseDocsFileCount = systemFolderCounts.get(houseDocsPath) || 0
     folders.push({
       name: 'house_documents',
       path: houseDocsPath,
       type: 'category',
-      isEmpty: !houseDocsHasFiles,
+      isEmpty: houseDocsFileCount === 0,
       children: [],
       fileCount: houseDocsFileCount,
       displayName: 'Hausdokumente'
     })
 
-    // Add miscellaneous folder
-    const miscPath = `${targetPath}/Miscellaneous`
-    const miscFileCount = await countDirectFiles(supabase, miscPath, userId)
-    const miscHasFiles = miscFileCount > 0
-
+    // Add miscellaneous folder (using batch count)
+    const miscFileCount = systemFolderCounts.get(miscPath) || 0
     folders.push({
       name: 'Miscellaneous',
       path: miscPath,
       type: 'category',
-      isEmpty: !miscHasFiles,
+      isEmpty: miscFileCount === 0,
       children: [],
       fileCount: miscFileCount,
       displayName: 'Sonstiges'
     })
 
-    // Check for any files directly in the root from DB
-    const { data: dbRootFiles } = await supabase
-      .from('Dokumente_Metadaten')
-      .select('*')
-      .eq('dateipfad', targetPath)
-      .eq('user_id', userId)
-      .order('dateiname', { ascending: true })
-
+    // Process root files from parallel query result
+    const dbRootFiles = dbRootFilesResult.data
     const files: StorageFile[] = []
     if (dbRootFiles) {
       dbRootFiles.forEach((item: DokumenteMetadaten) => {
@@ -534,6 +539,47 @@ async function countDirectFiles(supabase: any, path: string, userId: string): Pr
   }
 }
 
+// OPTIMIZATION: Batch file count for multiple paths in a single query
+// This reduces N sequential DB calls to 1 query for folder file counts
+async function countDirectFilesForPaths(supabase: any, paths: string[], userId: string): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+
+  // Initialize all paths to 0
+  paths.forEach(path => counts.set(path, 0))
+
+  if (paths.length === 0) return counts
+
+  try {
+    // Use a single query to fetch all relevant paths, then count them on the client-side.
+    // This is more efficient than N separate DB queries for file counts.
+    const { data, error } = await supabase
+      .from('Dokumente_Metadaten')
+      .select('dateipfad')
+      .in('dateipfad', paths)
+      .neq('dateiname', '.keep')
+      .eq('user_id', userId)
+
+    if (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Error in batch file count:', error)
+      }
+      return counts
+    }
+
+    // Count occurrences of each path
+    if (data) {
+      data.forEach((item: { dateipfad: string }) => {
+        const current = counts.get(item.dateipfad) || 0
+        counts.set(item.dateipfad, current + 1)
+      })
+    }
+
+    return counts
+  } catch (error) {
+    return counts
+  }
+}
+
 export async function getFilesForPath(userId: string, path: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
@@ -711,7 +757,8 @@ export async function getApartmentFolderContents(userId: string, houseId: string
   }
 }
 
-// Server-side breadcrumb builder with friendly names
+// Server-side breadcrumb builder with friendly names - OPTIMIZED VERSION
+// Batches all database queries and resolves entity names in parallel
 export async function getBreadcrumbs(userId: string, path: string): Promise<BreadcrumbItem[]> {
   try {
     const supabase = await createClient()
@@ -740,106 +787,88 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
       return segment
     }
 
+    // OPTIMIZATION: Extract all potential entity IDs first, then batch fetch
+    const potentialHouseId = pathSegments[1]
+    const potentialApartmentId = pathSegments[2]
+    const potentialTenantId = pathSegments[3]
+
+    // Known category names that should not trigger DB lookups
+    const categoryNames = ['Miscellaneous', 'house_documents', 'apartment_documents']
+
+    // Batch fetch all entity data in parallel
+    const [houseResult, apartmentResult, tenantResult] = await Promise.all([
+      // Only fetch house if it's not a known category
+      potentialHouseId && !categoryNames.includes(potentialHouseId)
+        ? supabase
+          .from('Haeuser')
+          .select('id, name')
+          .eq('id', potentialHouseId)
+          .eq('user_id', userId)
+          .single()
+        : Promise.resolve({ data: null, error: null }),
+
+      // Only fetch apartment if there's a potential apartment ID and parent exists
+      potentialApartmentId &&
+        potentialHouseId &&
+        !categoryNames.includes(potentialApartmentId) &&
+        !categoryNames.includes(potentialHouseId)
+        ? supabase
+          .from('Wohnungen')
+          .select('id, name')
+          .eq('id', potentialApartmentId)
+          .eq('user_id', userId)
+          .single()
+        : Promise.resolve({ data: null, error: null }),
+
+      // Only fetch tenant if there are valid parent paths
+      potentialTenantId &&
+        potentialApartmentId &&
+        !categoryNames.includes(potentialTenantId) &&
+        !categoryNames.includes(potentialApartmentId)
+        ? supabase
+          .from('Mieter')
+          .select('id, name')
+          .eq('id', potentialTenantId)
+          .eq('user_id', userId)
+          .single()
+        : Promise.resolve({ data: null, error: null })
+    ])
+
+    // Cache the resolved entity names
+    const entityNames = new Map<string, { name: string; type: BreadcrumbItem['type'] }>()
+
+    if (houseResult.data) {
+      entityNames.set(potentialHouseId, { name: houseResult.data.name, type: 'house' })
+    }
+    if (apartmentResult.data && houseResult.data) {
+      // Only valid if house exists
+      entityNames.set(potentialApartmentId, { name: apartmentResult.data.name, type: 'apartment' })
+    }
+    if (tenantResult.data && apartmentResult.data && houseResult.data) {
+      // Only valid if both house and apartment exist
+      entityNames.set(potentialTenantId, { name: tenantResult.data.name, type: 'tenant' })
+    }
+
+    // Build breadcrumbs using the cached data
     let currentPath = rootPath
     for (let i = 1; i < pathSegments.length; i++) {
       const segment = pathSegments[i]
       currentPath = `${currentPath}/${segment}`
 
-      // Try to resolve friendly names depending on depth
-      if (i === 1) {
-        // Potential house level - check if it's actually a house in the database
-        if (segment === 'Miscellaneous') {
-          crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
-        } else {
-          // Check if this is a valid house ID
-          const isValidHouse = await isValidHouseId(supabase, userId, segment)
-          if (isValidHouse) {
-            try {
-              const { data: house } = await supabase
-                .from('Haeuser')
-                .select('name')
-                .eq('id', segment)
-                .single()
-              crumbs.push({ name: house?.name || segment, path: currentPath, type: 'house' })
-            } catch {
-              crumbs.push({ name: segment, path: currentPath, type: 'house' })
-            }
-          } else {
-            // It's a custom folder, treat as category
-            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
-          }
-        }
+      // Check if this segment is a known category
+      if (categoryNames.includes(segment)) {
+        crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
         continue
       }
 
-      if (i === 2) {
-        // Potential apartment level or category under house/custom folder
-        if (segment === 'house_documents' || segment === 'Miscellaneous') {
-          crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
-        } else {
-          // Check if the parent is a valid house and this is a valid apartment
-          const parentSegment = pathSegments[i - 1]
-          const isParentValidHouse = await isValidHouseId(supabase, userId, parentSegment)
-
-          if (isParentValidHouse) {
-            const isValidApartment = await isValidApartmentId(supabase, userId, segment)
-            if (isValidApartment) {
-              try {
-                const { data: apartment } = await supabase
-                  .from('Wohnungen')
-                  .select('name')
-                  .eq('id', segment)
-                  .single()
-                crumbs.push({ name: apartment?.name || segment, path: currentPath, type: 'apartment' })
-              } catch {
-                crumbs.push({ name: segment, path: currentPath, type: 'apartment' })
-              }
-            } else {
-              // It's a custom folder under a house
-              crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
-            }
-          } else {
-            // Parent is not a house, so this is just a custom folder
-            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
-          }
-        }
-        continue
+      // Check if we have cached entity data for this segment
+      const entityInfo = entityNames.get(segment)
+      if (entityInfo) {
+        crumbs.push({ name: entityInfo.name || segment, path: currentPath, type: entityInfo.type })
+      } else {
+        // Unknown segment - treat as custom folder
+        crumbs.push({ name: segment, path: currentPath, type: 'category' })
       }
-
-      if (i === 3) {
-        // Potential tenant level or category under apartment/custom folder
-        if (segment === 'apartment_documents') {
-          crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
-        } else {
-          // Check if we're under a valid apartment
-          const grandParentSegment = pathSegments[i - 2]
-          const parentSegment = pathSegments[i - 1]
-          const isGrandParentValidHouse = await isValidHouseId(supabase, userId, grandParentSegment)
-          const isParentValidApartment = isGrandParentValidHouse && await isValidApartmentId(supabase, userId, parentSegment)
-
-          if (isParentValidApartment) {
-            try {
-              const { data: tenant } = await supabase
-                .from('Mieter')
-                .select('name')
-                .eq('id', segment)
-                .single()
-              const tenantName = tenant ? tenant.name : null
-              crumbs.push({ name: tenantName || segment, path: currentPath, type: 'tenant' })
-            } catch {
-              // Not a valid tenant, treat as custom folder
-              crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
-            }
-          } else {
-            // Not under a valid apartment, treat as custom folder
-            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
-          }
-        }
-        continue
-      }
-
-      // Any deeper levels treated as categories
-      crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
     }
 
     return crumbs
@@ -898,15 +927,17 @@ export async function getPathContents(userId: string, path?: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
   breadcrumbs: BreadcrumbItem[]
+  totalSize: number
   error?: string
 }> {
   try {
     const targetPath = path || `user_${userId}`
-    const [{ files, folders, error }, breadcrumbs] = await Promise.all([
+    const [{ files, folders, error }, breadcrumbs, totalSize] = await Promise.all([
       getInitialFiles(userId, targetPath),
-      getBreadcrumbs(userId, targetPath)
+      getBreadcrumbs(userId, targetPath),
+      getTotalStorageUsage(userId)
     ])
-    return { files, folders, breadcrumbs, error }
+    return { files, folders, breadcrumbs, totalSize, error }
   } catch (e) {
     // Log error only in development
     if (process.env.NODE_ENV === 'development') {
@@ -916,6 +947,7 @@ export async function getPathContents(userId: string, path?: string): Promise<{
       files: [],
       folders: [],
       breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+      totalSize: 0,
       error: 'Unerwarteter Fehler beim Laden der Dateien'
     }
   }

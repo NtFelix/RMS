@@ -30,7 +30,12 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
-  MessageSquare
+  MessageSquare,
+  Thermometer,
+  Flame,
+  Zap,
+  Fuel,
+  CircleGauge,
 } from "lucide-react"
 import { WaterDropletLoader } from "@/components/ui/water-droplet-loader"
 import { Card, CardContent } from "@/components/ui/card"
@@ -54,26 +59,74 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { ZAEHLER_CONFIG, type ZaehlerTyp } from "@/lib/zaehler-types"
 
-interface WasserAblesung {
+interface Ablesung {
   id: string
   ablese_datum: string | null
   zaehlerstand: number | null
   verbrauch: number
-  wasser_zaehler_id: string
+  zaehler_id: string
   user_id: string
   kommentar?: string | null
 }
 
-export function WasserAblesenModal() {
+// Helper function to get icon component based on meter type
+function getMeterIcon(zaehlerTyp: string | undefined, className?: string) {
+  const iconClass = className || "h-5 w-5"
+  const typ = (zaehlerTyp || 'wasser') as ZaehlerTyp
+
+  switch (typ) {
+    case 'wasser':
+    case 'kaltwasser':
+      return <Droplet className={cn(iconClass, "text-blue-500")} />
+    case 'warmwasser':
+      return <Thermometer className={cn(iconClass, "text-red-500")} />
+    case 'waermemenge':
+      return <Flame className={cn(iconClass, "text-orange-500")} />
+    case 'heizkostenverteiler':
+      return <Gauge className={cn(iconClass, "text-purple-500")} />
+    case 'strom':
+      return <Zap className={cn(iconClass, "text-yellow-500")} />
+    case 'gas':
+      return <Fuel className={cn(iconClass, "text-cyan-500")} />
+    default:
+      return <CircleGauge className={cn(iconClass, "text-primary")} />
+  }
+}
+
+// Helper function to get background color based on meter type
+function getMeterBgColor(zaehlerTyp: string | undefined) {
+  const typ = (zaehlerTyp || 'wasser') as ZaehlerTyp
+
+  switch (typ) {
+    case 'wasser':
+    case 'kaltwasser':
+      return "bg-blue-100 dark:bg-blue-900/30"
+    case 'warmwasser':
+      return "bg-red-100 dark:bg-red-900/30"
+    case 'waermemenge':
+      return "bg-orange-100 dark:bg-orange-900/30"
+    case 'heizkostenverteiler':
+      return "bg-purple-100 dark:bg-purple-900/30"
+    case 'strom':
+      return "bg-yellow-100 dark:bg-yellow-900/30"
+    case 'gas':
+      return "bg-cyan-100 dark:bg-cyan-900/30"
+    default:
+      return "bg-primary/10"
+  }
+}
+
+export function AblesungenModal() {
   const {
-    isWasserAblesenModalOpen,
-    wasserAblesenModalData,
-    closeWasserAblesenModal,
-    setWasserAblesenModalDirty,
+    isAblesungenModalOpen,
+    ablesungenModalData,
+    closeAblesungenModal,
+    setAblesungenModalDirty,
   } = useModalStore()
 
-  const [ablesenList, setAblesenList] = React.useState<WasserAblesung[]>([])
+  const [ablesenList, setAblesenList] = React.useState<Ablesung[]>([])
   const [isLoading, setIsLoading] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
   const [newAbleseDatum, setNewAbleseDatum] = React.useState<Date | undefined>(undefined)
@@ -87,27 +140,27 @@ export function WasserAblesenModal() {
   const [editVerbrauch, setEditVerbrauch] = React.useState("")
   const [editVerbrauchWarning, setEditVerbrauchWarning] = React.useState("")
   const [editKommentar, setEditKommentar] = React.useState("")
-  const [currentAblesung, setCurrentAblesung] = React.useState<WasserAblesung | null>(null)
+  const [currentAblesung, setCurrentAblesung] = React.useState<Ablesung | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [ablesenToDelete, setAblesenToDelete] = React.useState<string | null>(null)
 
   // Load existing Wasser_Ablesungen when modal opens
   React.useEffect(() => {
-    if (isWasserAblesenModalOpen && wasserAblesenModalData?.wasserZaehlerId) {
+    if (isAblesungenModalOpen && ablesungenModalData?.zaehlerId) {
       loadAblesungen()
     }
-  }, [isWasserAblesenModalOpen, wasserAblesenModalData?.wasserZaehlerId])
+  }, [isAblesungenModalOpen, ablesungenModalData?.zaehlerId])
 
   const loadAblesungen = async () => {
-    if (!wasserAblesenModalData?.wasserZaehlerId) return
+    if (!ablesungenModalData?.zaehlerId) return
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/wasser-ablesungen?wasser_zaehler_id=${wasserAblesenModalData.wasserZaehlerId}`)
+      const response = await fetch(`/api/wasser-ablesungen?zaehler_id=${ablesungenModalData.zaehlerId}`)
       if (response.ok) {
         const data = await response.json()
         // Sort by date descending (newest first)
-        const sortedData = data.sort((a: WasserAblesung, b: WasserAblesung) => {
+        const sortedData = data.sort((a: Ablesung, b: Ablesung) => {
           const dateA = a.ablese_datum ? new Date(a.ablese_datum).getTime() : 0
           const dateB = b.ablese_datum ? new Date(b.ablese_datum).getTime() : 0
           return dateB - dateA
@@ -184,7 +237,7 @@ export function WasserAblesenModal() {
   }
 
   // Smart calculation for editing
-  const handleEditZaehlerstandChange = (value: string, currentAblesung: WasserAblesung) => {
+  const handleEditZaehlerstandChange = (value: string, currentAblesung: Ablesung) => {
     setEditZaehlerstand(value)
 
     const currentReading = parseFloat(value)
@@ -230,7 +283,7 @@ export function WasserAblesenModal() {
   }
 
   const handleAddAblesung = async () => {
-    if (!newZaehlerstand.trim() || !wasserAblesenModalData?.wasserZaehlerId) return
+    if (!newZaehlerstand.trim() || !ablesungenModalData?.zaehlerId) return
 
     setIsSaving(true)
     try {
@@ -241,7 +294,7 @@ export function WasserAblesenModal() {
           ablese_datum: newAbleseDatum ? format(newAbleseDatum, "yyyy-MM-dd") : null,
           zaehlerstand: parseFloat(newZaehlerstand),
           verbrauch: parseFloat(newVerbrauch) || 0,
-          wasser_zaehler_id: wasserAblesenModalData.wasserZaehlerId,
+          zaehler_id: ablesungenModalData.zaehlerId,
           kommentar: newKommentar.trim() || null,
         }),
       })
@@ -359,7 +412,7 @@ export function WasserAblesenModal() {
       setAblesenList((prev) => prev.filter((a) => a.id !== ablesenToDelete))
       setDeleteDialogOpen(false)
       setAblesenToDelete(null)
-      setWasserAblesenModalDirty(true)
+      setAblesungenModalDirty(true)
 
       toast({
         title: "Erfolg",
@@ -378,7 +431,7 @@ export function WasserAblesenModal() {
     }
   }
 
-  const startEdit = (ablesung: WasserAblesung) => {
+  const startEdit = (ablesung: Ablesung) => {
     setEditingId(ablesung.id)
     setCurrentAblesung(ablesung)
     setEditAbleseDatum(ablesung.ablese_datum ? new Date(ablesung.ablese_datum) : undefined)
@@ -388,7 +441,7 @@ export function WasserAblesenModal() {
     setEditKommentar(ablesung.kommentar || "")
   }
 
-  const handleEdit = (ablesung: WasserAblesung) => {
+  const handleEdit = (ablesung: Ablesung) => {
     setEditingId(ablesung.id)
     setEditZaehlerstand(ablesung.zaehlerstand?.toString() || "")
     setEditVerbrauch(ablesung.verbrauch.toString())
@@ -399,7 +452,7 @@ export function WasserAblesenModal() {
   }
 
   // Handle date change and recalculate consumption if needed
-  const handleEditDateChange = (date: Date | undefined, currentAblesung: WasserAblesung) => {
+  const handleEditDateChange = (date: Date | undefined, currentAblesung: Ablesung) => {
     setEditAbleseDatum(date)
 
     // Only recalculate if we have a zaehlerstand value and a valid date
@@ -448,7 +501,7 @@ export function WasserAblesenModal() {
     setEditVerbrauchWarning("")
     setEditKommentar("")
     setCurrentAblesung(null)
-    setWasserAblesenModalDirty(false)
+    setAblesungenModalDirty(false)
   }
 
   const handleClose = () => {
@@ -463,8 +516,8 @@ export function WasserAblesenModal() {
     setEditVerbrauch("")
     setEditVerbrauchWarning("")
     setEditKommentar("")
-    setWasserAblesenModalDirty(false)
-    closeWasserAblesenModal()
+    setAblesungenModalDirty(false)
+    closeAblesungenModal()
   }
 
   // Check if there are unsaved changes in edit mode or new reading form
@@ -491,8 +544,8 @@ export function WasserAblesenModal() {
 
   // Update modal dirty state when unsaved changes are detected
   React.useEffect(() => {
-    setWasserAblesenModalDirty(hasUnsavedChanges)
-  }, [hasUnsavedChanges, setWasserAblesenModalDirty])
+    setAblesungenModalDirty(hasUnsavedChanges)
+  }, [hasUnsavedChanges, setAblesungenModalDirty])
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-"
@@ -561,18 +614,23 @@ export function WasserAblesenModal() {
 
   return (
     <>
-      <Dialog open={isWasserAblesenModalOpen} onOpenChange={(open) => !open && handleClose()}>
+      <Dialog open={isAblesungenModalOpen} onOpenChange={(open) => !open && handleClose()}>
         <DialogContent
           className="sm:max-w-[700px] max-h-[85vh] flex flex-col"
           isDirty={hasUnsavedChanges}
           onAttemptClose={handleClose}
         >
           <DialogHeader>
-            <DialogTitle>Wasserzähler-Ablesungen verwalten</DialogTitle>
+            <DialogTitle>
+              {ablesungenModalData?.zaehlerTyp
+                ? `${ZAEHLER_CONFIG[ablesungenModalData.zaehlerTyp as ZaehlerTyp]?.label || 'Zähler'}-Ablesungen verwalten`
+                : 'Zähler-Ablesungen verwalten'
+              }
+            </DialogTitle>
             <DialogDescription>
-              Ablesungen für Wohnung: <span className="font-medium">{wasserAblesenModalData?.wohnungName}</span>
-              {wasserAblesenModalData?.customId && (
-                <> • Zähler-ID: <span className="font-medium">{wasserAblesenModalData.customId}</span></>
+              Ablesungen für Wohnung: <span className="font-medium">{ablesungenModalData?.wohnungName}</span>
+              {ablesungenModalData?.customId && (
+                <> • Zähler-ID: <span className="font-medium">{ablesungenModalData.customId}</span></>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -596,7 +654,7 @@ export function WasserAblesenModal() {
                 <div className="space-y-2">
                   <NumberInput
                     step="0.01"
-                    placeholder="Zählerstand (m³)"
+                    placeholder={`Zählerstand (${ablesungenModalData?.einheit || 'm³'})`}
                     value={newZaehlerstand}
                     onChange={(e) => handleNewZaehlerstandChange(e.target.value)}
                     onKeyDown={(e) => {
@@ -610,7 +668,7 @@ export function WasserAblesenModal() {
                 <div className="space-y-2">
                   <NumberInput
                     step="0.01"
-                    placeholder="Verbrauch (m³)"
+                    placeholder={`Verbrauch (${ablesungenModalData?.einheit || 'm³'})`}
                     value={newVerbrauch}
                     onChange={(e) => setNewVerbrauch(e.target.value)}
                     disabled={isSaving}
@@ -658,7 +716,7 @@ export function WasserAblesenModal() {
               ) : ablesenList.length === 0 ? (
                 <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
                   <CardContent className="flex flex-col items-center justify-center p-8 text-center">
-                    <Droplet className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                    <Gauge className="h-12 w-12 text-muted-foreground/50 mb-3" />
                     <p className="text-sm text-muted-foreground">
                       Keine Ablesungen vorhanden
                     </p>
@@ -688,8 +746,8 @@ export function WasserAblesenModal() {
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                                      <Droplet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                    <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", getMeterBgColor(ablesungenModalData?.zaehlerTyp))}>
+                                      {getMeterIcon(ablesungenModalData?.zaehlerTyp, "h-5 w-5")}
                                     </div>
                                     <span className="text-sm font-medium text-muted-foreground">Bearbeiten</span>
                                   </div>
@@ -753,7 +811,7 @@ export function WasserAblesenModal() {
                                   </div>
                                   <div>
                                     <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                                      <Droplet className="h-3 w-3" />
+                                      {getMeterIcon(ablesungenModalData?.zaehlerTyp, "h-3 w-3")}
                                       Verbrauch
                                     </Label>
                                     <NumberInput
@@ -800,8 +858,8 @@ export function WasserAblesenModal() {
                                 <div className="p-4">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                        <Droplet className="h-5 w-5 text-primary" />
+                                      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", getMeterBgColor(ablesungenModalData?.zaehlerTyp))}>
+                                        {getMeterIcon(ablesungenModalData?.zaehlerTyp, "h-5 w-5")}
                                       </div>
                                       <div>
                                         <h4 className="font-semibold text-base">
@@ -866,12 +924,12 @@ export function WasserAblesenModal() {
                                     className="flex items-start gap-2"
                                   >
                                     <div className="flex-shrink-0 mt-0.5">
-                                      <Droplet className="h-4 w-4 text-muted-foreground" />
+                                      {getMeterIcon(ablesungenModalData?.zaehlerTyp, "h-4 w-4 text-muted-foreground")}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Verbrauch</p>
                                       <p className="text-sm font-medium">
-                                        {formatNumber(ablesung.verbrauch)} m³
+                                        {formatNumber(ablesung.verbrauch)} {ablesungenModalData?.einheit || 'm³'}
                                       </p>
                                     </div>
                                   </motion.div>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TenantContextMenu } from "@/components/tenants/tenant-context-menu"
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2, Euro, MoreVertical, X, Download } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ActionMenu } from "@/components/ui/action-menu"
 
 import { useModalStore } from "@/hooks/use-modal-store"
 import { deleteTenantAction } from "@/app/mieter-actions"
@@ -127,6 +128,33 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     return result
   }, [tenants, filter, searchQuery, sortKey, sortDirection, wohnungsMap])
 
+  const handleOpenKaution = useCallback((tenant: Tenant) => {
+    // Clean tenant object for modal
+    const cleanTenant = {
+      id: tenant.id,
+      name: tenant.name,
+      wohnung_id: tenant.wohnung_id
+    };
+
+    let kautionData = undefined;
+    if (tenant.kaution) {
+      const amount = typeof tenant.kaution.amount === 'string'
+        ? parseFloat(tenant.kaution.amount)
+        : tenant.kaution.amount;
+
+      if (!isNaN(amount)) {
+        kautionData = {
+          amount,
+          paymentDate: tenant.kaution.paymentDate || '',
+          status: tenant.kaution.status || 'Ausstehend',
+          createdAt: tenant.kaution.createdAt,
+          updatedAt: tenant.kaution.updatedAt
+        };
+      }
+    }
+    useModalStore.getState().openKautionModal(cleanTenant, kautionData);
+  }, [])
+
   const visibleTenantIds = useMemo(() => sortedAndFilteredData.map((tenant) => tenant.id), [sortedAndFilteredData])
 
   const allSelected = visibleTenantIds.length > 0 && visibleTenantIds.every((id) => selectedTenants.has(id))
@@ -228,11 +256,11 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
 
   const handleBulkExport = () => {
     const selectedTenantsData = tenants.filter(t => selectedTenants.has(t.id))
-    
+
     // Create CSV header
     const headers = ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     // Create CSV rows with proper escaping
     const csvRows = selectedTenantsData.map(t => {
       const row = [
@@ -245,7 +273,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -325,121 +353,139 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
-          <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
-            <TableHead className="w-12 pl-0 pr-0 -ml-2">
-              <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
-                <Checkbox
-                  aria-label="Alle Mieter auswählen"
-                  checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
-                  onCheckedChange={handleSelectAll}
-                  className="transition-transform duration-100 hover:scale-105"
-                />
-              </div>
-            </TableHead>
-            <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={User}>Name</TableHeaderCell>
-            <TableHeaderCell sortKey="email" className="dark:text-[#f3f4f6]" icon={Mail}>E-Mail</TableHeaderCell>
-            <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone}>Telefon</TableHeaderCell>
-            <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
-            <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText}>Nebenkosten</TableHeaderCell>
-            <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedAndFilteredData.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center">
-                Keine Mieter gefunden.
-              </TableCell>
-            </TableRow>
-          ) : (
-            sortedAndFilteredData.map((tenant, index) => {
-              const isLastRow = index === sortedAndFilteredData.length - 1
-              const isSelected = selectedTenants.has(tenant.id)
-              
-              return (
-                <TenantContextMenu
-                  key={tenant.id}
-                  tenant={tenant}
-                  onEdit={() => onEdit?.(tenant)}
-                  onRefresh={() => router.refresh()}
-                >
-                  <TableRow 
-                    ref={(el) => {
-                      if (el) {
-                        contextMenuRefs.current.set(tenant.id, el)
-                      } else {
-                        contextMenuRefs.current.delete(tenant.id)
-                      }
-                    }}
-                    className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
-                      isSelected 
-                        ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                    }`}
-                    onClick={() => onEdit?.(tenant)}
-                  >
-                  <TableCell 
-                    className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`} 
-                    onClick={(event) => event.stopPropagation()}
-                  >
+              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+                <TableHead className="w-12 pl-0 pr-0 -ml-2">
+                  <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                     <Checkbox
-                      aria-label={`Mieter ${tenant.name} auswählen`}
-                      checked={selectedTenants.has(tenant.id)}
-                      onCheckedChange={(checked) => handleSelectTenant(tenant.id, checked)}
+                      aria-label="Alle Mieter auswählen"
+                      checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
+                      onCheckedChange={handleSelectAll}
+                      className="transition-transform duration-100 hover:scale-105"
                     />
-                  </TableCell>
-                  <TableCell className={`font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3`}>
-                    <Avatar className="h-9 w-9 flex-shrink-0 bg-primary text-primary-foreground">
-                      <AvatarImage src="" alt={tenant.name} />
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {getInitials(tenant.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span>{tenant.name}</span>
-                  </TableCell>
-                  <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.email}</TableCell>
-                  <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.telefonnummer}</TableCell>
-                  <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
-                  <TableCell className={`py-4`}>
-                    {tenant.nebenkosten && tenant.nebenkosten.length > 0
-                      ? tenant.nebenkosten
-                          .slice(0, 3)
-                          .map((n: NebenkostenEntry) => `${n.amount} €`)
-                          .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
-                      : '-'}
-                  </TableCell>
-                  <TableCell 
-                    className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const rowElement = contextMenuRefs.current.get(tenant.id)
-                        if (rowElement) {
-                          const contextMenuEvent = new MouseEvent('contextmenu', {
-                            bubbles: true,
-                            cancelable: true,
-                            view: window,
-                            clientX: e.clientX,
-                            clientY: e.clientY,
-                          })
-                          rowElement.dispatchEvent(contextMenuEvent)
-                        }
-                      }}
-                    >
-                      <span className="sr-only">Menü öffnen</span>
-                      <MoreVertical className="h-3.5 w-3.5" />
-                    </Button>
+                  </div>
+                </TableHead>
+                <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={User}>Name</TableHeaderCell>
+                <TableHeaderCell sortKey="email" className="dark:text-[#f3f4f6]" icon={Mail}>E-Mail</TableHeaderCell>
+                <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone}>Telefon</TableHeaderCell>
+                <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
+                <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText}>Nebenkosten</TableHeaderCell>
+                <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedAndFilteredData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                    Keine Mieter gefunden.
                   </TableCell>
                 </TableRow>
-              </TenantContextMenu>
-            )
-            })
-          )}
+              ) : (
+                sortedAndFilteredData.map((tenant, index) => {
+                  const isLastRow = index === sortedAndFilteredData.length - 1
+                  const isSelected = selectedTenants.has(tenant.id)
+
+                  return (
+                    <TenantContextMenu
+                      key={tenant.id}
+                      tenant={tenant}
+                      onEdit={() => onEdit?.(tenant)}
+                      onRefresh={() => router.refresh()}
+                    >
+                      <TableRow
+                        ref={(el) => {
+                          if (el) {
+                            contextMenuRefs.current.set(tenant.id, el)
+                          } else {
+                            contextMenuRefs.current.delete(tenant.id)
+                          }
+                        }}
+                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                          }`}
+                        onClick={() => onEdit?.(tenant)}
+                      >
+                        <TableCell
+                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <Checkbox
+                            aria-label={`Mieter ${tenant.name} auswählen`}
+                            checked={selectedTenants.has(tenant.id)}
+                            onCheckedChange={(checked) => handleSelectTenant(tenant.id, checked)}
+                          />
+                        </TableCell>
+                        <TableCell className={`font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3`}>
+                          <Avatar className="h-9 w-9 flex-shrink-0 bg-primary text-primary-foreground">
+                            <AvatarImage src="" alt={tenant.name} />
+                            <AvatarFallback className="bg-primary text-primary-foreground">
+                              {getInitials(tenant.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>{tenant.name}</span>
+                        </TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.email}</TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.telefonnummer}</TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
+                        <TableCell className={`py-4`}>
+                          {tenant.nebenkosten && tenant.nebenkosten.length > 0
+                            ? tenant.nebenkosten
+                              .slice(0, 3)
+                              .map((n: NebenkostenEntry) => `${n.amount} €`)
+                              .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
+                            : '-'}
+                        </TableCell>
+                        <TableCell
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <ActionMenu
+                            actions={[
+                              {
+                                id: `edit-${tenant.id}`,
+                                icon: Pencil,
+                                label: "Bearbeiten",
+                                onClick: () => onEdit?.(tenant),
+                                variant: 'primary',
+                              },
+                              {
+                                id: `kaution-${tenant.id}`,
+                                icon: Euro,
+                                label: "Kaution",
+                                onClick: () => handleOpenKaution(tenant),
+                                variant: 'default',
+                              },
+                              {
+                                id: `more-${tenant.id}`,
+                                icon: MoreVertical,
+                                label: "Mehr Optionen",
+                                onClick: (e) => {
+                                  if (!e) return;
+                                  const rowElement = contextMenuRefs.current.get(tenant.id)
+                                  if (rowElement) {
+                                    const contextMenuEvent = new MouseEvent('contextmenu', {
+                                      bubbles: true,
+                                      cancelable: true,
+                                      view: window,
+                                      clientX: e.clientX,
+                                      clientY: e.clientY,
+                                    })
+                                    rowElement.dispatchEvent(contextMenuEvent)
+                                  }
+                                },
+                                variant: 'default',
+                              }
+                            ]}
+                            shape="pill"
+                            visibility="always"
+                            className="inline-flex"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    </TenantContextMenu>
+                  )
+                })
+              )}
             </TableBody>
           </Table>
         </div>

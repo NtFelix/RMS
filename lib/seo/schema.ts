@@ -5,9 +5,7 @@
  * potentially enabling rich snippets in search results.
  */
 
-import { BASE_URL, BRAND_NAME, SUPPORT_EMAIL } from '@/lib/constants'
-
-const LOGO_URL = `${BASE_URL}/favicon.png`
+import { BASE_URL, BRAND_NAME, SUPPORT_EMAIL, FAVICON_URL, OG_IMAGE_URL } from '@/lib/constants'
 
 /**
  * Organization Schema
@@ -26,14 +24,14 @@ export function getOrganizationSchema() {
         logo: {
             '@type': 'ImageObject',
             '@id': `${BASE_URL}/#logo`,
-            url: LOGO_URL,
-            contentUrl: LOGO_URL,
+            url: FAVICON_URL,
+            contentUrl: FAVICON_URL,
             width: 512,
             height: 512,
             caption: `${BRAND_NAME} Logo`,
         },
         // Also provide simple logo reference for broader compatibility
-        image: LOGO_URL,
+        image: FAVICON_URL,
         description: 'Moderne Hausverwaltungssoftware für Vermieter und Hausverwaltungen in Deutschland.',
         slogan: 'Die moderne Lösung für Ihre Mietverwaltung',
         foundingDate: '2024',
@@ -69,6 +67,7 @@ export function getOrganizationSchema() {
         // Known for property management in Germany
         knowsAbout: [
             'Hausverwaltung',
+            'Betriebskostenabrechnung',
             'Nebenkostenabrechnung',
             'Mietverwaltung',
             'Immobilienverwaltung',
@@ -88,10 +87,11 @@ export function getSoftwareApplicationSchema() {
         applicationCategory: 'BusinessApplication',
         applicationSubCategory: 'Property Management Software',
         operatingSystem: 'Web Browser',
-        description: 'Hausverwaltungssoftware für Nebenkostenabrechnungen, Mieterverwaltung und Finanzen. Die moderne Lösung für Vermieter in Deutschland.',
+        description: 'Hausverwaltungssoftware für Betriebskostenabrechnungen, Mieterverwaltung und Finanzen. Die moderne Lösung für Vermieter in Deutschland.',
         url: BASE_URL,
-        screenshot: `${BASE_URL}/og-image.png`,
+        screenshot: OG_IMAGE_URL,
         featureList: [
+            'Betriebskostenabrechnung erstellen',
             'Nebenkostenabrechnung erstellen',
             'Mieterverwaltung',
             'Finanzverwaltung',
@@ -131,7 +131,7 @@ export function getWebsiteSchema() {
             '@type': 'Organization',
             name: BRAND_NAME,
             url: BASE_URL,
-            logo: LOGO_URL,
+            logo: FAVICON_URL,
         },
         potentialAction: {
             '@type': 'SearchAction',
@@ -244,7 +244,7 @@ export function getArticleSchema(
             url: BASE_URL,
             logo: {
                 '@type': 'ImageObject',
-                url: LOGO_URL,
+                url: FAVICON_URL,
             },
         },
         inLanguage: 'de-DE',
@@ -295,8 +295,8 @@ export const pricingPageFAQs = [
         answer: 'Die Anzahl der Wohnungen hängt von Ihrem gewählten Tarif ab. Kontaktieren Sie uns für individuelle Lösungen bei größeren Portfolios.',
     },
     {
-        question: 'Ist meine Nebenkostenabrechnung rechtssicher?',
-        answer: 'Ja, unsere Nebenkostenabrechnungen entsprechen den aktuellen gesetzlichen Anforderungen in Deutschland.',
+        question: 'Ist meine Betriebskostenabrechnung korrekt erstellt?',
+        answer: 'Ja, unsere Betriebskostenabrechnungen werden nach den gängigen Verteilerschlüsseln erstellt und im professionellen PDF-Format für Ihre Mieter exportiert.',
     },
     {
         question: 'Kann ich meine bestehenden Daten importieren?',

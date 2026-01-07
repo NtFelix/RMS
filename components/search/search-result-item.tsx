@@ -3,7 +3,7 @@
 import React from "react"
 import { SearchResult } from "@/types/search"
 import { CommandItem } from "@/components/ui/command"
-import { Button } from "@/components/ui/button"
+import { ActionMenu } from "@/components/ui/action-menu"
 import {
   Users,
   Building2,
@@ -19,8 +19,6 @@ import {
   CheckCircle,
   Circle,
   FileText,
-  MoreHorizontal,
-  ArrowRight,
   TrendingUp,
   TrendingDown,
   AlertCircle
@@ -309,34 +307,22 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
       </div>
 
       {/* Actions Section */}
-      <div className="flex items-center self-center pl-2 opacity-0 group-data-[selected=true]:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
-
-        {result.actions && result.actions.length > 0 && (
-          <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm p-1 rounded-lg border shadow-sm">
-            {result.actions.slice(0, 3).map((action, index) => (
-              <Button
-                key={index}
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
-                title={action.label}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onAction?.(result, index)
-                }}
-              >
-                {React.createElement(action.icon, { className: "!h-3.5 !w-3.5" })}
-              </Button>
-            ))}
-
-            {/* Enter Action Hint */}
-            <div className="w-px h-4 bg-border mx-1" />
-            <div className="flex items-center justify-center h-7 w-7 text-muted-foreground/50">
-              <ArrowRight className="!h-3.5 !w-3.5" />
-            </div>
-          </div>
-        )}
-      </div>
+      {result.actions && result.actions.length > 0 && (
+        <ActionMenu
+          actions={result.actions.map((action, index) => ({
+            id: `action-${result.id}-${index}`,
+            icon: action.icon,
+            label: action.label,
+            onClick: () => onAction?.(result, index),
+            variant: action.variant || 'default',
+          }))}
+          shape="pill"
+          visibility="selected"
+          showEnterHint
+          onSelect={() => onSelect(result)}
+          className="ml-2"
+        />
+      )}
     </CommandItem>
   )
 }

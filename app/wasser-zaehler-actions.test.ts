@@ -96,8 +96,8 @@ describe('wasser-zaehler-actions', () => {
       // We can use `mockImplementationOnce` on the final `order` or `select` if needed,
       // but the chains are:
       // 1. from('Wohnungen')...order() -> returns Promise
-      // 2. from('Wasser_Zaehler')...order() -> returns Promise
-      // 3. from('Wasser_Ablesungen')...order() -> returns Promise (inside Promise.all)
+      // 2. from('Zaehler')...order() -> returns Promise
+      // 3. from('Zaehler_Ablesungen')...order() -> returns Promise (inside Promise.all)
       // 4. from('Mieter')...order() -> returns Promise (inside Promise.all)
 
       // We can mock `from` to return different objects based on table name?
@@ -110,8 +110,8 @@ describe('wasser-zaehler-actions', () => {
           then: (resolve: any) => { // Make it thenable to act like a promise
             let data: any[] = [];
             if (table === 'Wohnungen') data = [{ id: 'w1', haus_id: 'house1' }];
-            if (table === 'Wasser_Zaehler') data = [{ id: 'm1', wohnung_id: 'w1' }];
-            if (table === 'Wasser_Ablesungen') data = [{ id: 'r1', wasser_zaehler_id: 'm1' }];
+            if (table === 'Zaehler') data = [{ id: 'm1', wohnung_id: 'w1' }];
+            if (table === 'Zaehler_Ablesungen') data = [{ id: 'r1', zaehler_id: 'm1' }];
             if (table === 'Mieter') data = [{ id: 't1', wohnung_id: 'w1' }];
             resolve({ data, error: null });
           }

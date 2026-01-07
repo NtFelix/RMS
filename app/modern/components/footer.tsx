@@ -20,6 +20,7 @@ const footerLinks = {
   Rechtliches: [
     "Datenschutz",
     "AGB",
+    "Impressum",
   ],
 }
 
@@ -31,6 +32,7 @@ const specialLinks: Record<string, { href: string; text: string }> = {
   "Hilfezentrum": { href: ROUTES.DOCUMENTATION, text: "Dokumentation" },
   "Datenschutz": { href: ROUTES.PRIVACY, text: "Datenschutz" },
   "AGB": { href: ROUTES.TERMS, text: "AGB" },
+  "Impressum": { href: ROUTES.IMPRESSUM, text: "Impressum" },
   "Preise": { href: ROUTES.PRICING, text: "Preise" },
   "Kontakt": { href: `mailto:${INFO_EMAIL}`, text: "Kontakt" },
 }
@@ -151,7 +153,7 @@ export default function Footer() {
           viewport={{ once: true }}
           className="pt-8 border-t border-border flex flex-col justify-center items-center text-center gap-3"
         >
-          <p className="text-muted-foreground text-sm">© 2025 {BRAND_NAME}. Alle Rechte vorbehalten.</p>
+          <p className="text-muted-foreground text-sm">© {new Date().getFullYear()} {BRAND_NAME}. Alle Rechte vorbehalten.</p>
           <p className="text-muted-foreground/70 text-sm">Entwickelt, um die Mietverwaltung für alle zu vereinfachen.</p>
         </motion.div>
       </div>

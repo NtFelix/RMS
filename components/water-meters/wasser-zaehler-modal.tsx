@@ -71,7 +71,7 @@ export function WasserZaehlerModal() {
     wasserZaehlerModalData,
     closeWasserZaehlerModal,
     setWasserZaehlerModalDirty,
-    openWasserAblesenModal,
+    openAblesungenModal,
   } = useModalStore()
 
   const [zaehlerList, setZaehlerList] = React.useState<WasserZaehler[]>([])
@@ -98,7 +98,7 @@ export function WasserZaehlerModal() {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/wasser-zaehler?wohnung_id=${wasserZaehlerModalData.wohnungId}`)
+      const response = await fetch(`/api/zaehler?wohnung_id=${wasserZaehlerModalData.wohnungId}`)
       if (response.ok) {
         const data = await response.json()
         setZaehlerList(data)
@@ -122,7 +122,7 @@ export function WasserZaehlerModal() {
 
     setIsSaving(true)
     try {
-      const response = await fetch("/api/wasser-zaehler", {
+      const response = await fetch("/api/zaehler", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -169,7 +169,7 @@ export function WasserZaehlerModal() {
 
     setIsSaving(true)
     try {
-      const response = await fetch(`/api/wasser-zaehler/${id}`, {
+      const response = await fetch(`/api/zaehler/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -216,7 +216,7 @@ export function WasserZaehlerModal() {
 
     setIsSaving(true)
     try {
-      const response = await fetch(`/api/wasser-zaehler/${zaehlerToDelete}`, {
+      const response = await fetch(`/api/zaehler/${zaehlerToDelete}`, {
         method: "DELETE",
       })
 
@@ -538,7 +538,7 @@ export function WasserZaehlerModal() {
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={() => openWasserAblesenModal(zaehler.id, wasserZaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined)}
+                                        onClick={() => openAblesungenModal(zaehler.id, wasserZaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined)}
                                         disabled={isSaving}
                                         className="h-8 w-8 p-0"
                                         title="Ablesungen verwalten"
@@ -834,7 +834,7 @@ export function WasserZaehlerModal() {
                                         <Button
                                           size="sm"
                                           variant="ghost"
-                                          onClick={() => openWasserAblesenModal(zaehler.id, wasserZaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined)}
+                                          onClick={() => openAblesungenModal(zaehler.id, wasserZaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined)}
                                           disabled={isSaving}
                                           className="h-8 w-8 p-0"
                                           title="Ablesungen verwalten"

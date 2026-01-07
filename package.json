@@ -1,13 +1,16 @@
 {
   "name": "mietevo",
-  "version": "2.1.0",
+  "version": "2.1.30",
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build --no-lint",
     "start": "next start",
     "lint": "next lint",
-    "test": "NODE_ENV=test jest"
+    "test": "NODE_ENV=test jest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -55,7 +58,7 @@
     "@supabase/supabase-js": "latest",
     "@tiptap/core": "^3.12.1",
     "@tiptap/extension-mention": "^3.12.1",
-    "@tiptap/react": "^3.12.1",
+    "@tiptap/react": "^3.15.3",
     "@tiptap/starter-kit": "^3.12.1",
     "@tiptap/suggestion": "^3.4.2",
     "@types/dompurify": "^3.2.0",
@@ -70,8 +73,8 @@
     "framer-motion": "^12.23.25",
     "immer": "latest",
     "input-otp": "1.4.2",
-    "jspdf": "^3.0.4",
-    "jspdf-autotable": "^5.0.2",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",
     "lucide-react": "^0.555.0",
     "marked": "^17.0.1",
@@ -80,7 +83,7 @@
     "next-themes": "^0.4.4",
     "papaparse": "^5.4.1",
     "posthog-js": "^1.310.1",
-    "posthog-node": "^5.18.0",
+    "posthog-node": "^5.19.0",
     "react": "^19.2.3",
     "react-day-picker": "^9.13.0",
     "react-dom": "^19.2.3",
@@ -93,12 +96,13 @@
     "tippy.js": "^6.3.7",
     "use-sync-external-store": "latest",
     "vaul": "^1.1.2",
-    "ws": "^8.18.2",
+    "ws": "^8.19.0",
     "xlsx": "^0.18.5",
     "zod": "^3.24.1",
     "zustand": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@testing-library/user-event": "^14.6.1",
@@ -119,7 +123,6 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5",
-    "wait-on": "^7.2.0",
     "whatwg-fetch": "^3.6.20"
   },
   "overrides": {

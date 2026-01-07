@@ -37,7 +37,7 @@ import { posthogLogger } from '@/lib/posthog-logger';
 function getMostRecentReadingByApartment(readings: WasserAblesung[]): Record<string, WasserAblesung> {
   const mostRecent: Record<string, WasserAblesung> = {};
   for (const reading of readings) {
-    const meterId = reading.wasser_zaehler_id;
+    const meterId = reading.zaehler_id;
     if (meterId && !mostRecent[meterId]) {
       mostRecent[meterId] = reading;
     }
@@ -376,7 +376,7 @@ async function getPreviousWasserzaehlerRecordAction(
 
     // Get water meters for this apartment
     const { data: waterMeters, error: metersError } = await supabase
-      .from("Wasser_Zaehler")
+      .from("Zaehler")
       .select("id")
       .eq("wohnung_id", mieterData.wohnung_id)
       .eq("user_id", user.id);
@@ -396,9 +396,9 @@ async function getPreviousWasserzaehlerRecordAction(
         const previousYearEnd = `${previousYear}-12-31`;
 
         const { data: previousYearData, error: previousYearError } = await supabase
-          .from("Wasser_Ablesungen")
+          .from("Zaehler_Ablesungen")
           .select("*")
-          .in("wasser_zaehler_id", meterIds)
+          .in("zaehler_id", meterIds)
           .eq("user_id", user.id)
           .gte("ablese_datum", previousYearStart)
           .lte("ablese_datum", previousYearEnd)
@@ -427,9 +427,9 @@ async function getPreviousWasserzaehlerRecordAction(
 
     // If no previous year reading found, get the most recent reading regardless of year
     const { data, error } = await supabase
-      .from("Wasser_Ablesungen")
+      .from("Zaehler_Ablesungen")
       .select("*")
-      .in("wasser_zaehler_id", meterIds)
+      .in("zaehler_id", meterIds)
       .eq("user_id", user.id)
       .order("ablese_datum", { ascending: false })
       .limit(1)
@@ -495,7 +495,7 @@ async function fetchWaterReadingsForMieters(
 
   // Get water meters for these apartments
   const { data: waterMeters, error: metersError } = await supabase
-    .from("Wasser_Zaehler")
+    .from("Zaehler")
     .select("id, wohnung_id")
     .in("wohnung_id", wohnungIds)
     .eq("user_id", userId);
@@ -509,9 +509,9 @@ async function fetchWaterReadingsForMieters(
 
   // Build the query
   let query = supabase
-    .from("Wasser_Ablesungen")
+    .from("Zaehler_Ablesungen")
     .select("*")
-    .in("wasser_zaehler_id", meterIds)
+    .in("zaehler_id", meterIds)
     .eq("user_id", userId);
 
   // Add date range if provided
@@ -531,7 +531,7 @@ async function fetchWaterReadingsForMieters(
 
   // Map readings back to mieter IDs
   readings.forEach((reading: WasserAblesung) => {
-    const meter = waterMeters.find((m: { id: string }) => m.id === reading.wasser_zaehler_id);
+    const meter = waterMeters.find((m: { id: string }) => m.id === reading.zaehler_id);
     if (!meter) return;
 
     const mieter = mieterApartments.find((m: { wohnung_id: string }) => m.wohnung_id === meter.wohnung_id);
@@ -1127,7 +1127,7 @@ export async function getWasserzaehlerModalDataAction(
         if (apartmentIds.length > 0) {
           // Fetch water meters once for both current and previous readings
           const { data: waterMeters, error: metersError } = await supabase
-            .from("Wasser_Zaehler")
+            .from("Zaehler")
             .select("id, wohnung_id")
             .in("wohnung_id", apartmentIds)
             .eq("user_id", user.id);
@@ -1137,18 +1137,18 @@ export async function getWasserzaehlerModalDataAction(
 
             // Fetch current period readings
             const currentPromise = supabase
-              .from("Wasser_Ablesungen")
+              .from("Zaehler_Ablesungen")
               .select("*")
-              .in("wasser_zaehler_id", meterIds)
+              .in("zaehler_id", meterIds)
               .eq("user_id", user.id)
               .gte("ablese_datum", nebenkostenData.startdatum)
               .lte("ablese_datum", nebenkostenData.enddatum);
 
             // Fetch previous period readings
             const previousPromise = supabase
-              .from("Wasser_Ablesungen")
+              .from("Zaehler_Ablesungen")
               .select("*")
-              .in("wasser_zaehler_id", meterIds)
+              .in("zaehler_id", meterIds)
               .eq("user_id", user.id)
               .lt("ablese_datum", nebenkostenData.startdatum)
               .order("ablese_datum", { ascending: false });
@@ -1162,7 +1162,7 @@ export async function getWasserzaehlerModalDataAction(
             // Process current readings
             if (!currentError && currentData) {
               currentReadings = currentData.map(reading => {
-                const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
+                const meter = waterMeters.find(m => m.id === reading.zaehler_id);
                 const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
                 return {
                   ...reading,
@@ -1174,7 +1174,7 @@ export async function getWasserzaehlerModalDataAction(
             // Process previous readings
             if (!previousError && previousData) {
               previousReadings = previousData.map(reading => {
-                const meter = waterMeters.find(m => m.id === reading.wasser_zaehler_id);
+                const meter = waterMeters.find(m => m.id === reading.zaehler_id);
                 const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
                 return {
                   ...reading,
@@ -1538,7 +1538,7 @@ async function getAbrechnungModalDataFallback(
   if (apartmentIds.length > 0) {
     // Fetch water meters for these apartments
     const { data: metersData, error: metersError } = await supabase
-      .from("Wasser_Zaehler")
+      .from("Zaehler")
       .select("*")
       .in("wohnung_id", apartmentIds)
       .eq("user_id", userId);
@@ -1556,9 +1556,9 @@ async function getAbrechnungModalDataFallback(
       const meterIds = waterMeters.map((m: { id: string }) => m.id);
       if (meterIds.length > 0) {
         const { data: readingsData, error: readingsError } = await supabase
-          .from("Wasser_Ablesungen")
+          .from("Zaehler_Ablesungen")
           .select("*")
-          .in("wasser_zaehler_id", meterIds)
+          .in("zaehler_id", meterIds)
           .gte("ablese_datum", nebenkostenData.startdatum)
           .lte("ablese_datum", nebenkostenData.enddatum)
           .eq("user_id", userId);

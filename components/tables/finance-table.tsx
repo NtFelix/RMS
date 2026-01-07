@@ -9,11 +9,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, FileText, Home, Calendar, Euro, TrendingUp, Pencil, Trash2, MoreVertical, X, Download, Loader2, CheckCircle2, Filter, Database, Search } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, FileText, Home, Calendar, Euro, TrendingUp, Pencil, Trash2, MoreVertical, X, Download, Loader2, CheckCircle2, Filter, Database, Search, ArrowUpDown, Paperclip } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { toast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/utils/format"
+import { toggleFinanceStatusAction } from "@/app/finanzen-actions"
+
+import { ActionMenu } from "@/components/ui/action-menu"
 
 interface Finanz {
   id: string;
@@ -23,12 +26,13 @@ interface Finanz {
   betrag: number;
   ist_einnahmen: boolean;
   notiz?: string;
+  dokument_id?: string | null;
   Wohnungen?: { name: string };
 }
 
-interface Wohnung { 
-  id: string; 
-  name: string; 
+interface Wohnung {
+  id: string;
+  name: string;
 }
 
 // Define sortable fields for finance table
@@ -62,15 +66,15 @@ const formatDate = (dateString: string | undefined): string => {
   })
 }
 
-export function FinanceTable({ 
-  finances, 
-  wohnungen, 
-  filter, 
-  searchQuery, 
-  onEdit, 
+export function FinanceTable({
+  finances,
+  wohnungen,
+  filter,
+  searchQuery,
+  onEdit,
   onRefresh,
-  onDelete, 
-  selectedFinances: externalSelectedFinances, 
+  onDelete,
+  selectedFinances: externalSelectedFinances,
   onSelectionChange,
   isFilterLoading = false,
   hasMore = false,
@@ -116,12 +120,37 @@ export function FinanceTable({
       .substring(0, 2);
   };
 
-  // Map wohnung_id to wohnung name
   const wohnungsMap = useMemo(() => {
     const map: Record<string, string> = {}
     wohnungen?.forEach(w => { map[w.id] = w.name })
     return map
   }, [wohnungen])
+
+  const handleToggleStatus = useCallback(async (finance: Finanz) => {
+    try {
+      const result = await toggleFinanceStatusAction(finance.id, finance.ist_einnahmen);
+      if (result.success) {
+        toast({
+          title: "Status aktualisiert",
+          description: `Die Transaktion wurde erfolgreich als ${!finance.ist_einnahmen ? "Einnahme" : "Ausgabe"} markiert.`,
+          variant: "success",
+        });
+        onRefresh?.();
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Der Status konnte nicht aktualisiert werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
+        variant: "destructive",
+      });
+    }
+  }, [onRefresh])
 
   // Sorting logic - filtering is handled by the server
   const sortedData = useMemo(() => {
@@ -169,8 +198,8 @@ export function FinanceTable({
   }, [finances, sortKey, sortDirection])
 
   // Get IDs of all currently visible finance records for selection handling
-  const visibleFinanceIds = useMemo(() => 
-    sortedData.map((finance: Finanz) => finance.id), 
+  const visibleFinanceIds = useMemo(() =>
+    sortedData.map((finance: Finanz) => finance.id),
     [sortedData]
   )
 
@@ -221,10 +250,10 @@ export function FinanceTable({
 
   const handleBulkDelete = async () => {
     if (selectedFinances.size === 0) return;
-    
+
     setIsBulkDeleting(true);
     const selectedIds = Array.from(selectedFinances);
-    
+
     try {
       const response = await fetch('/api/finanzen/bulk-delete', {
         method: 'POST',
@@ -235,14 +264,14 @@ export function FinanceTable({
       });
 
       const result = await response.json();
-      
+
       if (response.ok) {
         toast({
           title: "Erfolg",
           description: `${selectedIds.length} Transaktionen erfolgreich gelöscht.`,
           variant: "success",
         });
-        
+
         // Refresh the data after successful deletion
         if (onRefresh) {
           onRefresh();
@@ -277,11 +306,11 @@ export function FinanceTable({
 
   const handleBulkExport = () => {
     const selectedFinancesData = finances.filter(f => selectedFinances.has(f.id))
-    
+
     // Create CSV header
     const headers = ['Bezeichnung', 'Wohnung', 'Datum', 'Betrag', 'Typ', 'Notiz']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     // Create CSV rows with proper escaping
     const csvRows = selectedFinancesData.map(f => {
       const row = [
@@ -294,7 +323,7 @@ export function FinanceTable({
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -374,225 +403,248 @@ export function FinanceTable({
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
-          <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
-            <TableHead className="w-12 pl-0 pr-0 -ml-2">
-              <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
-                <Checkbox
-                  aria-label="Alle Transaktionen auswählen"
-                  checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
-                  onCheckedChange={handleSelectAll}
-                  className="transition-transform duration-100 hover:scale-105"
-                />
-              </div>
-            </TableHead>
-            <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={FileText}>Bezeichnung</TableHeaderCell>
-            <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
-            <TableHeaderCell sortKey="datum" className="dark:text-[#f3f4f6]" icon={Calendar}>Datum</TableHeaderCell>
-            <TableHeaderCell sortKey="betrag" className="dark:text-[#f3f4f6]" icon={Euro}>Betrag</TableHeaderCell>
-            <TableHeaderCell sortKey="typ" className="dark:text-[#f3f4f6]" icon={TrendingUp}>Typ</TableHeaderCell>
-            <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isFilterLoading && (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-12">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="relative">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <div className="absolute inset-0 h-8 w-8 rounded-full border-2 border-primary/20 animate-pulse"></div>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Filter className="h-4 w-4 text-primary" />
-                      Filter werden angewendet
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Transaktionen werden gefiltert und sortiert...
-                    </div>
-                  </div>
-                </div>
-              </TableCell>
-            </TableRow>
-          )}
-          {!isFilterLoading && sortedData.length === 0 && !isLoading ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-16">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="relative">
-                    <Database className="h-12 w-12 text-muted-foreground/40" />
-                    <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-muted flex items-center justify-center">
-                      <Search className="h-2.5 w-2.5 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <h3 className="text-sm font-medium text-foreground">Keine Transaktionen gefunden</h3>
-                    <p className="text-xs text-muted-foreground max-w-sm text-center">
-                      Es wurden noch keine Transaktionen erstellt oder die aktuellen Filter ergeben keine Ergebnisse.
-                    </p>
-                  </div>
-                </div>
-              </TableCell>
-            </TableRow>
-          ) : !isFilterLoading ? (
-            sortedData.map((finance: Finanz, index: number) => {
-              const isLastElement = sortedData.length === index + 1;
-              const isLastRow = index === sortedData.length - 1
-              const isSelected = selectedFinances.has(finance.id)
-              
-              return (
-                <FinanceContextMenu
-                  key={finance.id}
-                  finance={finance}
-                  onEdit={() => onEdit?.(finance)}
-                  onRefresh={onRefresh} // Pass the onRefresh prop here
-                >
-                  <TableRow 
-                    ref={isLastElement ? lastTransactionElementRef : (el) => {
-                      if (el) {
-                        contextMenuRefs.current.set(finance.id, el)
-                      } else {
-                        contextMenuRefs.current.delete(finance.id)
-                      }
-                    }}
-                    className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
-                      isSelected 
-                        ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                    }`}
-                    onClick={() => onEdit?.(finance)}
-                  >
-                  <TableCell 
-                    className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`} 
-                    onClick={(event) => event.stopPropagation()}
-                  >
+              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+                <TableHead className="w-12 pl-0 pr-0 -ml-2">
+                  <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                     <Checkbox
-                      aria-label={`Transaktion ${finance.name} auswählen`}
-                      checked={selectedFinances.has(finance.id)}
-                      onCheckedChange={(checked) => handleSelectFinance(finance.id, checked)}
+                      aria-label="Alle Transaktionen auswählen"
+                      checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
+                      onCheckedChange={handleSelectAll}
+                      className="transition-transform duration-100 hover:scale-105"
                     />
-                  </TableCell>
-                  <TableCell className={`font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3`}>
-                    <Avatar className="h-9 w-9 flex-shrink-0 bg-primary text-primary-foreground">
-                      <AvatarImage src="" alt={finance.name} />
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {getInitials(finance.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span>{finance.name}</span>
-                  </TableCell>
-                  <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{finance.Wohnungen?.name || '-'}</TableCell>
-                  <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatDate(finance.datum)}</TableCell>
-                  <TableCell className={`py-4`}>
-                    <span className={finance.ist_einnahmen ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                      {formatCurrency(finance.betrag)}
-                    </span>
-                  </TableCell>
-                  <TableCell className={`py-4`}>
-                    <Badge 
-                      variant="outline" 
-                      className={finance.ist_einnahmen 
-                        ? "bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400" 
-                        : "bg-red-50 text-red-700 hover:bg-red-50 dark:bg-red-900/30 dark:text-red-400"
-                      }
-                    >
-                      {finance.ist_einnahmen ? "Einnahme" : "Ausgabe"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell 
-                    className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const rowElement = contextMenuRefs.current.get(finance.id)
-                        if (rowElement) {
-                          const contextMenuEvent = new MouseEvent('contextmenu', {
-                            bubbles: true,
-                            cancelable: true,
-                            view: window,
-                            clientX: e.clientX,
-                            clientY: e.clientY,
-                          })
-                          rowElement.dispatchEvent(contextMenuEvent)
-                        }
-                      }}
-                    >
-                      <span className="sr-only">Menü öffnen</span>
-                      <MoreVertical className="h-3.5 w-3.5" />
-                    </Button>
+                  </div>
+                </TableHead>
+                <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={FileText}>Bezeichnung</TableHeaderCell>
+                <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
+                <TableHeaderCell sortKey="datum" className="dark:text-[#f3f4f6]" icon={Calendar}>Datum</TableHeaderCell>
+                <TableHeaderCell sortKey="betrag" className="dark:text-[#f3f4f6]" icon={Euro}>Betrag</TableHeaderCell>
+                <TableHeaderCell sortKey="typ" className="dark:text-[#f3f4f6]" icon={TrendingUp}>Typ</TableHeaderCell>
+                <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isFilterLoading && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="relative">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <div className="absolute inset-0 h-8 w-8 rounded-full border-2 border-primary/20 animate-pulse"></div>
+                      </div>
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                          <Filter className="h-4 w-4 text-primary" />
+                          Filter werden angewendet
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Transaktionen werden gefiltert und sortiert...
+                        </div>
+                      </div>
+                    </div>
                   </TableCell>
                 </TableRow>
-              </FinanceContextMenu>
-            )
-            })
-          ) : null}
-          {!isFilterLoading && isLoading && (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-8">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="relative">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <div className="absolute inset-0 h-6 w-6 rounded-full border border-primary/20 animate-ping"></div>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Weitere Transaktionen werden geladen...
-                  </div>
-                </div>
-              </TableCell>
-            </TableRow>
-          )}
-          {!isFilterLoading && !isLoading && !hasMore && sortedData.length > 0 && (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-8">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="relative">
-                    <CheckCircle2 className="h-6 w-6 text-green-500" />
-                    <div className="absolute inset-0 h-6 w-6 rounded-full bg-green-500/10 animate-pulse"></div>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="text-sm font-medium text-foreground">
-                      Alle Transaktionen geladen
+              )}
+              {!isFilterLoading && sortedData.length === 0 && !isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="relative">
+                        <Database className="h-12 w-12 text-muted-foreground/40" />
+                        <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-muted flex items-center justify-center">
+                          <Search className="h-2.5 w-2.5 text-muted-foreground" />
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center gap-2">
+                        <h3 className="text-sm font-medium text-foreground">Keine Transaktionen gefunden</h3>
+                        <p className="text-xs text-muted-foreground max-w-sm text-center">
+                          Es wurden noch keine Transaktionen erstellt oder die aktuellen Filter ergeben keine Ergebnisse.
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {sortedData.length} von {finances.length} Einträgen insgesamt
+                  </TableCell>
+                </TableRow>
+              ) : !isFilterLoading ? (
+                sortedData.map((finance: Finanz, index: number) => {
+                  const isLastElement = sortedData.length === index + 1;
+                  const isLastRow = index === sortedData.length - 1
+                  const isSelected = selectedFinances.has(finance.id)
+
+                  return (
+                    <FinanceContextMenu
+                      key={finance.id}
+                      finance={finance}
+                      onEdit={() => onEdit?.(finance)}
+                      onRefresh={onRefresh} // Pass the onRefresh prop here
+                    >
+                      <TableRow
+                        ref={isLastElement ? lastTransactionElementRef : (el) => {
+                          if (el) {
+                            contextMenuRefs.current.set(finance.id, el)
+                          } else {
+                            contextMenuRefs.current.delete(finance.id)
+                          }
+                        }}
+                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                          }`}
+                        onClick={() => onEdit?.(finance)}
+                      >
+                        <TableCell
+                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <Checkbox
+                            aria-label={`Transaktion ${finance.name} auswählen`}
+                            checked={selectedFinances.has(finance.id)}
+                            onCheckedChange={(checked) => handleSelectFinance(finance.id, checked)}
+                          />
+                        </TableCell>
+                        <TableCell className={`font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3`}>
+                          <Avatar className="h-9 w-9 flex-shrink-0 bg-primary text-primary-foreground">
+                            <AvatarImage src="" alt={finance.name} />
+                            <AvatarFallback className="bg-primary text-primary-foreground">
+                              {getInitials(finance.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>{finance.name}</span>
+                          {finance.dokument_id && (
+                            <span title="Dokument angehängt">
+                              <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{finance.Wohnungen?.name || '-'}</TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatDate(finance.datum)}</TableCell>
+                        <TableCell className={`py-4`}>
+                          <span className={finance.ist_einnahmen ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                            {formatCurrency(finance.betrag)}
+                          </span>
+                        </TableCell>
+                        <TableCell className={`py-4`}>
+                          <Badge
+                            variant="outline"
+                            className={finance.ist_einnahmen
+                              ? "bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-red-50 text-red-700 hover:bg-red-50 dark:bg-red-900/30 dark:text-red-400"
+                            }
+                          >
+                            {finance.ist_einnahmen ? "Einnahme" : "Ausgabe"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell
+                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <ActionMenu
+                            actions={[
+                              {
+                                id: `edit-${finance.id}`,
+                                icon: Pencil,
+                                label: "Bearbeiten",
+                                onClick: () => onEdit?.(finance),
+                                variant: 'primary',
+                              },
+                              {
+                                id: `toggle-status-${finance.id}`,
+                                icon: ArrowUpDown,
+                                label: finance.ist_einnahmen ? "Als Ausgabe markieren" : "Als Einnahme markieren",
+                                onClick: () => handleToggleStatus(finance),
+                                variant: 'default',
+                              },
+                              {
+                                id: `more-${finance.id}`,
+                                icon: MoreVertical,
+                                label: "Mehr Optionen",
+                                onClick: (e) => {
+                                  if (!e) return;
+                                  const rowElement = contextMenuRefs.current.get(finance.id)
+                                  if (rowElement) {
+                                    const contextMenuEvent = new MouseEvent('contextmenu', {
+                                      bubbles: true,
+                                      cancelable: true,
+                                      view: window,
+                                      clientX: e.clientX,
+                                      clientY: e.clientY,
+                                    })
+                                    rowElement.dispatchEvent(contextMenuEvent)
+                                  }
+                                },
+                                variant: 'default',
+                              }
+                            ]}
+                            shape="pill"
+                            visibility="always"
+                            className="inline-flex"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    </FinanceContextMenu>
+                  )
+                })
+              ) : null}
+              {!isFilterLoading && isLoading && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="relative">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <div className="absolute inset-0 h-6 w-6 rounded-full border border-primary/20 animate-ping"></div>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Weitere Transaktionen werden geladen...
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </TableCell>
-            </TableRow>
-          )}
-          {!isFilterLoading && error && (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-8">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="relative">
-                    <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center">
-                      <Search className="h-6 w-6 text-red-500" />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!isFilterLoading && !isLoading && !hasMore && sortedData.length > 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="relative">
+                        <CheckCircle2 className="h-6 w-6 text-green-500" />
+                        <div className="absolute inset-0 h-6 w-6 rounded-full bg-green-500/10 animate-pulse"></div>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="text-sm font-medium text-foreground">
+                          Alle Transaktionen geladen
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {sortedData.length} von {finances.length} Einträgen insgesamt
+                        </div>
+                      </div>
                     </div>
-                    <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
-                      <span className="text-white text-xs">!</span>
+                  </TableCell>
+                </TableRow>
+              )}
+              {!isFilterLoading && error && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="relative">
+                        <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center">
+                          <Search className="h-6 w-6 text-red-500" />
+                        </div>
+                        <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
+                          <span className="text-white text-xs">!</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center gap-2">
+                        <h3 className="text-sm font-medium text-red-600">Fehler beim Laden</h3>
+                        <p className="text-xs text-muted-foreground text-center max-w-sm">
+                          {error}
+                        </p>
+                        <Button onClick={loadFinances} variant="outline" size="sm" className="mt-2">
+                          <Loader2 className="mr-2 h-3 w-3" />
+                          Erneut versuchen
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <h3 className="text-sm font-medium text-red-600">Fehler beim Laden</h3>
-                    <p className="text-xs text-muted-foreground text-center max-w-sm">
-                      {error}
-                    </p>
-                    <Button onClick={loadFinances} variant="outline" size="sm" className="mt-2">
-                      <Loader2 className="mr-2 h-3 w-3" />
-                      Erneut versuchen
-                    </Button>
-                  </div>
-                </div>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
           </Table>
         </div>
       </div>

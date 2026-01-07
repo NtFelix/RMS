@@ -26,7 +26,7 @@ describe('WasserZaehlerModal - Latest Reading Display', () => {
       wasserZaehlerModalData: mockWasserZaehlerModalData,
       closeWasserZaehlerModal: mockCloseWasserZaehlerModal,
       setWasserZaehlerModalDirty: mockSetWasserZaehlerModalDirty,
-      openWasserAblesenModal: jest.fn(),
+      openAblesungenModal: jest.fn(),
     } as any)
   })
 
