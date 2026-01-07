@@ -18,37 +18,12 @@ import { toast } from "@/hooks/use-toast"
 import {
     Loader2,
     Plus,
-    Trash2,
-    Edit2,
-    X,
-    Check,
     CircleGauge,
-    Calendar as CalendarIcon,
-    Gauge,
-    Clock,
-    Hash,
-    Droplet,
     Archive,
-    Thermometer,
-    Flame,
-    Zap,
-    Fuel,
 } from "lucide-react"
 import { WaterDropletLoader } from "@/components/ui/water-droplet-loader"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { DatePicker } from "@/components/ui/date-picker"
-import { Separator } from "@/components/ui/separator"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
-import { motion, AnimatePresence } from "framer-motion"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -60,21 +35,14 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types"
-
-interface Zaehler {
-    id: string
-    custom_id: string | null
-    wohnung_id: string
-    erstellungsdatum: string
-    eichungsdatum: string | null
-    zaehler_typ: ZaehlerTyp
-    einheit: string
-    latest_reading?: {
-        ablese_datum: string
-        zaehlerstand: number
-        verbrauch: number
-    } | null
-}
+import { format } from "date-fns"
+import {
+    MeterCard,
+    MeterTypeSelector,
+    isExpired,
+    type Zaehler,
+    type EditingMeterState,
+} from "./meter-card"
 
 // Interface for raw API response data (before normalization)
 interface RawZaehlerFromApi {
@@ -92,47 +60,17 @@ interface RawZaehlerFromApi {
     } | null
 }
 
-// Helper function to get icon component based on meter type
-function getMeterIcon(zaehler_typ: ZaehlerTyp, className?: string) {
-    const iconClass = className || "h-5 w-5"
-    switch (zaehler_typ) {
-        case 'wasser':
-        case 'kaltwasser':
-            return <Droplet className={cn(iconClass, "text-blue-500")} />
-        case 'warmwasser':
-            return <Thermometer className={cn(iconClass, "text-red-500")} />
-        case 'waermemenge':
-            return <Flame className={cn(iconClass, "text-orange-500")} />
-        case 'heizkostenverteiler':
-            return <Gauge className={cn(iconClass, "text-purple-500")} />
-        case 'strom':
-            return <Zap className={cn(iconClass, "text-yellow-500")} />
-        case 'gas':
-            return <Fuel className={cn(iconClass, "text-cyan-500")} />
-        default:
-            return <CircleGauge className={cn(iconClass, "text-primary")} />
-    }
+// Consolidated state for new meter form
+interface NewMeterState {
+    customId: string
+    eichungsdatum: Date | undefined
+    zaehlerTyp: ZaehlerTyp
 }
 
-// Helper function to get background color based on meter type
-function getMeterBgColor(zaehler_typ: ZaehlerTyp) {
-    switch (zaehler_typ) {
-        case 'wasser':
-        case 'kaltwasser':
-            return "bg-blue-100 dark:bg-blue-900/30"
-        case 'warmwasser':
-            return "bg-red-100 dark:bg-red-900/30"
-        case 'waermemenge':
-            return "bg-orange-100 dark:bg-orange-900/30"
-        case 'heizkostenverteiler':
-            return "bg-purple-100 dark:bg-purple-900/30"
-        case 'strom':
-            return "bg-yellow-100 dark:bg-yellow-900/30"
-        case 'gas':
-            return "bg-cyan-100 dark:bg-cyan-900/30"
-        default:
-            return "bg-primary/10"
-    }
+const INITIAL_NEW_METER_STATE: NewMeterState = {
+    customId: "",
+    eichungsdatum: undefined,
+    zaehlerTyp: "wasser",
 }
 
 export function ZaehlerModal() {
@@ -144,18 +82,22 @@ export function ZaehlerModal() {
         openAblesungenModal,
     } = useModalStore()
 
+    // Core state
     const [zaehlerList, setZaehlerList] = React.useState<Zaehler[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
     const [isSaving, setIsSaving] = React.useState(false)
-    const [newCustomId, setNewCustomId] = React.useState("")
-    const [newEichungsdatum, setNewEichungsdatum] = React.useState<Date | undefined>(undefined)
-    const [newZaehlerTyp, setNewZaehlerTyp] = React.useState<ZaehlerTyp>("wasser")
-    const [editingId, setEditingId] = React.useState<string | null>(null)
-    const [editCustomId, setEditCustomId] = React.useState("")
-    const [editEichungsdatum, setEditEichungsdatum] = React.useState<Date | undefined>(undefined)
-    const [editZaehlerTyp, setEditZaehlerTyp] = React.useState<ZaehlerTyp>("wasser")
+
+    // Consolidated new meter state
+    const [newMeter, setNewMeter] = React.useState<NewMeterState>(INITIAL_NEW_METER_STATE)
+
+    // Consolidated editing state (null when not editing)
+    const [editingMeter, setEditingMeter] = React.useState<EditingMeterState | null>(null)
+
+    // Delete dialog state
     const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
     const [zaehlerToDelete, setZaehlerToDelete] = React.useState<string | null>(null)
+
+    // UI state
     const [showExpiredMeters, setShowExpiredMeters] = React.useState(false)
 
     // Load existing Zähler when modal opens
@@ -199,19 +141,19 @@ export function ZaehlerModal() {
     }
 
     const handleAddZaehler = async () => {
-        if (!newCustomId.trim() || !zaehlerModalData?.wohnungId) return
+        if (!newMeter.customId.trim() || !zaehlerModalData?.wohnungId) return
 
         setIsSaving(true)
         try {
-            const config = ZAEHLER_CONFIG[newZaehlerTyp]
+            const config = ZAEHLER_CONFIG[newMeter.zaehlerTyp]
             const response = await fetch("/api/zaehler", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    custom_id: newCustomId.trim(),
+                    custom_id: newMeter.customId.trim(),
                     wohnung_id: zaehlerModalData.wohnungId,
-                    eichungsdatum: newEichungsdatum ? format(newEichungsdatum, "yyyy-MM-dd") : null,
-                    zaehler_typ: newZaehlerTyp,
+                    eichungsdatum: newMeter.eichungsdatum ? format(newMeter.eichungsdatum, "yyyy-MM-dd") : null,
+                    zaehler_typ: newMeter.zaehlerTyp,
                     einheit: config.einheit,
                 }),
             })
@@ -224,12 +166,10 @@ export function ZaehlerModal() {
             const newZaehler = await response.json()
             setZaehlerList((prev) => [...prev, {
                 ...newZaehler,
-                zaehler_typ: newZaehler.zaehler_typ || newZaehlerTyp,
+                zaehler_typ: newZaehler.zaehler_typ || newMeter.zaehlerTyp,
                 einheit: newZaehler.einheit || config.einheit,
             }])
-            setNewCustomId("")
-            setNewEichungsdatum(undefined)
-            setNewZaehlerTyp("wasser")
+            setNewMeter(INITIAL_NEW_METER_STATE)
 
             useOnboardingStore.getState().completeStep('create-meter-form')
 
@@ -251,18 +191,18 @@ export function ZaehlerModal() {
     }
 
     const handleUpdateZaehler = async (id: string) => {
-        if (!editCustomId.trim()) return
+        if (!editingMeter || !editingMeter.customId.trim()) return
 
         setIsSaving(true)
         try {
-            const config = ZAEHLER_CONFIG[editZaehlerTyp]
+            const config = ZAEHLER_CONFIG[editingMeter.zaehlerTyp]
             const response = await fetch(`/api/zaehler/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    custom_id: editCustomId.trim(),
-                    eichungsdatum: editEichungsdatum ? format(editEichungsdatum, "yyyy-MM-dd") : null,
-                    zaehler_typ: editZaehlerTyp,
+                    custom_id: editingMeter.customId.trim(),
+                    eichungsdatum: editingMeter.eichungsdatum ? format(editingMeter.eichungsdatum, "yyyy-MM-dd") : null,
+                    zaehler_typ: editingMeter.zaehlerTyp,
                     einheit: config.einheit,
                 }),
             })
@@ -276,14 +216,11 @@ export function ZaehlerModal() {
             setZaehlerList((prev) =>
                 prev.map((z) => (z.id === id ? {
                     ...updatedZaehler,
-                    zaehler_typ: updatedZaehler.zaehler_typ || editZaehlerTyp,
+                    zaehler_typ: updatedZaehler.zaehler_typ || editingMeter.zaehlerTyp,
                     einheit: updatedZaehler.einheit || config.einheit,
                 } : z))
             )
-            setEditingId(null)
-            setEditCustomId("")
-            setEditEichungsdatum(undefined)
-            setEditZaehlerTyp("wasser")
+            setEditingMeter(null)
 
             toast({
                 title: "Erfolg",
@@ -337,363 +274,77 @@ export function ZaehlerModal() {
         }
     }
 
-    const startEdit = (zaehler: Zaehler) => {
-        setEditingId(zaehler.id)
-        setEditCustomId(zaehler.custom_id || "")
-        setEditEichungsdatum(zaehler.eichungsdatum ? new Date(zaehler.eichungsdatum) : undefined)
-        setEditZaehlerTyp(zaehler.zaehler_typ || "wasser")
-    }
+    const handleStartEdit = React.useCallback((zaehler: Zaehler) => {
+        setEditingMeter({
+            id: zaehler.id,
+            customId: zaehler.custom_id || "",
+            eichungsdatum: zaehler.eichungsdatum ? new Date(zaehler.eichungsdatum) : undefined,
+            zaehlerTyp: zaehler.zaehler_typ || "wasser",
+        })
+    }, [])
 
-    const cancelEdit = () => {
-        setEditingId(null)
-        setEditCustomId("")
-        setEditEichungsdatum(undefined)
-        setEditZaehlerTyp("wasser")
+    const handleCancelEdit = React.useCallback(() => {
+        setEditingMeter(null)
         setZaehlerModalDirty(false)
-    }
+    }, [setZaehlerModalDirty])
+
+    const handleEditChange = React.useCallback((updates: Partial<Omit<EditingMeterState, 'id'>>) => {
+        setEditingMeter((prev) => prev ? { ...prev, ...updates } : null)
+    }, [])
+
+    const handleOpenAblesungen = React.useCallback((zaehler: Zaehler) => {
+        openAblesungenModal(
+            zaehler.id,
+            zaehlerModalData?.wohnungName || "",
+            zaehler.custom_id || undefined,
+            zaehler.zaehler_typ,
+            zaehler.einheit
+        )
+    }, [openAblesungenModal, zaehlerModalData?.wohnungName])
+
+    const handleDeleteClick = React.useCallback((id: string) => {
+        setZaehlerToDelete(id)
+        setDeleteDialogOpen(true)
+    }, [])
 
     const handleClose = () => {
-        setNewCustomId("")
-        setNewEichungsdatum(undefined)
-        setNewZaehlerTyp("wasser")
-        setEditingId(null)
-        setEditCustomId("")
-        setEditEichungsdatum(undefined)
-        setEditZaehlerTyp("wasser")
+        setNewMeter(INITIAL_NEW_METER_STATE)
+        setEditingMeter(null)
         setZaehlerModalDirty(false)
         closeZaehlerModal()
     }
 
     // Check if there are unsaved changes
     const hasUnsavedChanges = React.useMemo(() => {
-        if (newCustomId.trim() || newEichungsdatum || newZaehlerTyp !== "wasser") {
+        // Check new meter form
+        if (
+            newMeter.customId.trim() ||
+            newMeter.eichungsdatum ||
+            newMeter.zaehlerTyp !== "wasser"
+        ) {
             return true
         }
 
-        if (editingId) {
-            const originalZaehler = zaehlerList.find(z => z.id === editingId)
+        // Check editing state
+        if (editingMeter) {
+            const originalZaehler = zaehlerList.find(z => z.id === editingMeter.id)
             if (originalZaehler) {
-                const customIdChanged = editCustomId !== (originalZaehler.custom_id || "")
-                const dateChanged = (editEichungsdatum ? format(editEichungsdatum, 'yyyy-MM-dd') : null) !== originalZaehler.eichungsdatum
-                const typeChanged = editZaehlerTyp !== (originalZaehler.zaehler_typ || "wasser")
+                const customIdChanged = editingMeter.customId !== (originalZaehler.custom_id || "")
+                const dateChanged = (editingMeter.eichungsdatum ? format(editingMeter.eichungsdatum, 'yyyy-MM-dd') : null) !== originalZaehler.eichungsdatum
+                const typeChanged = editingMeter.zaehlerTyp !== (originalZaehler.zaehler_typ || "wasser")
                 return customIdChanged || dateChanged || typeChanged
             }
         }
 
         return false
-    }, [newCustomId, newEichungsdatum, newZaehlerTyp, editingId, editCustomId, editEichungsdatum, editZaehlerTyp, zaehlerList])
+    }, [newMeter, editingMeter, zaehlerList])
 
     React.useEffect(() => {
         setZaehlerModalDirty(hasUnsavedChanges)
     }, [hasUnsavedChanges, setZaehlerModalDirty])
 
-    const formatDate = (dateString: string | null) => {
-        if (!dateString) return "-"
-        const date = new Date(dateString)
-        return date.toLocaleDateString("de-DE", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-        })
-    }
-
-    const isExpired = (eichungsdatum: string | null) => {
-        if (!eichungsdatum) return false
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const calibrationDate = new Date(eichungsdatum)
-        calibrationDate.setHours(0, 0, 0, 0)
-        return calibrationDate < today
-    }
-
     const activeMeters = zaehlerList.filter(z => !isExpired(z.eichungsdatum))
     const expiredMeters = zaehlerList.filter(z => isExpired(z.eichungsdatum))
-
-    // Meter type selector component
-    const MeterTypeSelector = ({
-        value,
-        onChange,
-        disabled
-    }: {
-        value: ZaehlerTyp
-        onChange: (value: ZaehlerTyp) => void
-        disabled?: boolean
-    }) => (
-        <Select value={value} onValueChange={(v) => onChange(v as ZaehlerTyp)} disabled={disabled}>
-            <SelectTrigger className="w-full">
-                <SelectValue placeholder="Zählertyp wählen">
-                    <div className="flex items-center gap-2">
-                        {getMeterIcon(value, "h-4 w-4")}
-                        <span>{ZAEHLER_CONFIG[value]?.label || "Zähler"}</span>
-                    </div>
-                </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-                {(Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[]).map((typ) => (
-                    <SelectItem key={typ} value={typ}>
-                        <div className="flex items-center gap-2">
-                            {getMeterIcon(typ, "h-4 w-4")}
-                            <span>{ZAEHLER_CONFIG[typ].label}</span>
-                            <span className="text-muted-foreground text-xs">({ZAEHLER_CONFIG[typ].einheit})</span>
-                        </div>
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
-    )
-
-    const renderMeterCard = (zaehler: Zaehler) => {
-        const config = ZAEHLER_CONFIG[zaehler.zaehler_typ] || ZAEHLER_CONFIG.wasser
-        const einheit = zaehler.einheit || config.einheit
-
-        return (
-            <Card key={zaehler.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
-                <CardContent className="p-0">
-                    <AnimatePresence mode="wait">
-                        {editingId === zaehler.id ? (
-                            // Edit Mode
-                            <motion.div
-                                key="edit"
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 10 }}
-                                transition={{ duration: 0.2, ease: "easeInOut" }}
-                                className="p-4 space-y-4"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", getMeterBgColor(editZaehlerTyp))}>
-                                            {getMeterIcon(editZaehlerTyp)}
-                                        </div>
-                                        <span className="text-sm font-medium text-muted-foreground">Bearbeiten</span>
-                                    </div>
-                                    <div className="flex gap-1">
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleUpdateZaehler(zaehler.id)}
-                                            disabled={!editCustomId.trim() || isSaving}
-                                        >
-                                            <Check className="h-4 w-4 mr-1" />
-                                            Speichern
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={cancelEdit}
-                                            disabled={isSaving}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <Separator />
-
-                                <div className="space-y-3">
-                                    <div>
-                                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <CircleGauge className="h-3 w-3" />
-                                            Zählertyp
-                                        </Label>
-                                        <div className="mt-1.5">
-                                            <MeterTypeSelector
-                                                value={editZaehlerTyp}
-                                                onChange={setEditZaehlerTyp}
-                                                disabled={isSaving}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <Hash className="h-3 w-3" />
-                                            Zähler-ID
-                                        </Label>
-                                        <Input
-                                            value={editCustomId}
-                                            onChange={(e) => setEditCustomId(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
-                                                    handleUpdateZaehler(zaehler.id)
-                                                } else if (e.key === "Escape") {
-                                                    cancelEdit()
-                                                }
-                                            }}
-                                            disabled={isSaving}
-                                            placeholder="Zähler-ID"
-                                            className="mt-1.5"
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <CalendarIcon className="h-3 w-3" />
-                                            Eichungsdatum
-                                        </Label>
-                                        <DatePicker
-                                            value={editEichungsdatum}
-                                            onChange={setEditEichungsdatum}
-                                            placeholder="Datum wählen"
-                                            disabled={isSaving}
-                                            variant="button"
-                                            fromYear={1990}
-                                            toYear={2100}
-                                            className="mt-1.5"
-                                        />
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ) : (
-                            // View Mode
-                            <motion.div
-                                key="view"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2, ease: "easeInOut" }}
-                            >
-                                {/* Header */}
-                                <div className="p-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", getMeterBgColor(zaehler.zaehler_typ))}>
-                                                {getMeterIcon(zaehler.zaehler_typ)}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="font-semibold text-base">
-                                                        {zaehler.custom_id || "Unbenannt"}
-                                                    </h4>
-                                                    {isExpired(zaehler.eichungsdatum) && (
-                                                        <Badge variant="destructive" className="text-xs">
-                                                            Abgelaufen
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">{config.label}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-1">
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => openAblesungenModal(zaehler.id, zaehlerModalData?.wohnungName || "", zaehler.custom_id || undefined, zaehler.zaehler_typ, zaehler.einheit)}
-                                                disabled={isSaving}
-                                                className="h-8 w-8 p-0"
-                                                title="Ablesungen verwalten"
-                                            >
-                                                <Gauge className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => startEdit(zaehler)}
-                                                disabled={isSaving}
-                                                className="h-8 w-8 p-0"
-                                            >
-                                                <Edit2 className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => {
-                                                    setZaehlerToDelete(zaehler.id)
-                                                    setDeleteDialogOpen(true)
-                                                }}
-                                                disabled={isSaving}
-                                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <Separator className="bg-gray-200 dark:bg-gray-700" />
-
-                                {/* Information Grid */}
-                                <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    {/* Zählerstand */}
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.3, delay: 0.1 }}
-                                        className="flex items-start gap-2"
-                                    >
-                                        <div className="flex-shrink-0 mt-0.5">
-                                            <Gauge className="h-4 w-4 text-muted-foreground" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
-                                            {zaehler.latest_reading ? (
-                                                <p className="text-sm font-medium">
-                                                    {zaehler.latest_reading.zaehlerstand} {einheit}
-                                                </p>
-                                            ) : (
-                                                <p className="text-sm font-medium text-muted-foreground italic">
-                                                    Noch nicht erfasst
-                                                </p>
-                                            )}
-                                        </div>
-                                    </motion.div>
-
-                                    {/* Eichungsdatum */}
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.3, delay: 0.2 }}
-                                        className="flex items-start gap-2"
-                                    >
-                                        <div className="flex-shrink-0 mt-0.5">
-                                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs text-muted-foreground mb-1">Eichungsdatum</p>
-                                            <p className="text-sm font-medium">
-                                                {zaehler.eichungsdatum ? formatDate(zaehler.eichungsdatum) : (
-                                                    <span className="text-muted-foreground italic">Nicht gesetzt</span>
-                                                )}
-                                            </p>
-                                        </div>
-                                    </motion.div>
-
-                                    {/* Letzte Ablesung */}
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.3, delay: 0.3 }}
-                                        className="flex items-start gap-2"
-                                    >
-                                        <div className="flex-shrink-0 mt-0.5">
-                                            <Clock className="h-4 w-4 text-muted-foreground" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs text-muted-foreground mb-1">Letzte Ablesung</p>
-                                            {zaehler.latest_reading ? (
-                                                <p className="text-sm font-medium">
-                                                    {formatDate(zaehler.latest_reading.ablese_datum)}
-                                                </p>
-                                            ) : (
-                                                <p className="text-sm font-medium text-muted-foreground italic">
-                                                    Noch keine Ablesung
-                                                </p>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                </div>
-
-                                {/* Footer */}
-                                <div className="px-4 pb-4">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <Clock className="h-3 w-3" />
-                                        <span>Erstellt am {formatDate(zaehler.erstellungsdatum)}</span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </CardContent>
-            </Card>
-        )
-    }
 
     return (
         <>
@@ -717,17 +368,17 @@ export function ZaehlerModal() {
                             <Label className="text-sm font-medium">Neuen Zähler hinzufügen</Label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <MeterTypeSelector
-                                    value={newZaehlerTyp}
-                                    onChange={setNewZaehlerTyp}
+                                    value={newMeter.zaehlerTyp}
+                                    onChange={(value) => setNewMeter(prev => ({ ...prev, zaehlerTyp: value }))}
                                     disabled={isSaving}
                                 />
                                 <Input
                                     id="custom_id"
                                     placeholder="Zähler-ID eingeben..."
-                                    value={newCustomId}
-                                    onChange={(e) => setNewCustomId(e.target.value)}
+                                    value={newMeter.customId}
+                                    onChange={(e) => setNewMeter(prev => ({ ...prev, customId: e.target.value }))}
                                     onKeyDown={(e) => {
-                                        if (e.key === "Enter" && newCustomId.trim()) {
+                                        if (e.key === "Enter" && newMeter.customId.trim()) {
                                             handleAddZaehler()
                                         }
                                     }}
@@ -737,8 +388,8 @@ export function ZaehlerModal() {
                             <div className="flex gap-2">
                                 <div className="flex-1">
                                     <DatePicker
-                                        value={newEichungsdatum}
-                                        onChange={setNewEichungsdatum}
+                                        value={newMeter.eichungsdatum}
+                                        onChange={(value) => setNewMeter(prev => ({ ...prev, eichungsdatum: value }))}
                                         placeholder="Eichungsdatum (optional)"
                                         disabled={isSaving}
                                         variant="button"
@@ -748,7 +399,7 @@ export function ZaehlerModal() {
                                 </div>
                                 <Button
                                     onClick={handleAddZaehler}
-                                    disabled={!newCustomId.trim() || isSaving}
+                                    disabled={!newMeter.customId.trim() || isSaving}
                                     size="default"
                                 >
                                     {isSaving ? (
@@ -788,7 +439,20 @@ export function ZaehlerModal() {
                                 <div className="space-y-3">
                                     {/* Active meters */}
                                     <div className="grid gap-3">
-                                        {activeMeters.map((zaehler) => renderMeterCard(zaehler))}
+                                        {activeMeters.map((zaehler) => (
+                                            <MeterCard
+                                                key={zaehler.id}
+                                                zaehler={zaehler}
+                                                editingMeter={editingMeter}
+                                                isSaving={isSaving}
+                                                onStartEdit={handleStartEdit}
+                                                onCancelEdit={handleCancelEdit}
+                                                onSaveEdit={handleUpdateZaehler}
+                                                onDelete={handleDeleteClick}
+                                                onOpenAblesungen={handleOpenAblesungen}
+                                                onEditChange={handleEditChange}
+                                            />
+                                        ))}
                                     </div>
 
                                     {/* Toggle button for expired meters */}
@@ -809,7 +473,20 @@ export function ZaehlerModal() {
                                     {/* Expired meters */}
                                     {showExpiredMeters && expiredMeters.length > 0 && (
                                         <div className="grid gap-3">
-                                            {expiredMeters.map((zaehler) => renderMeterCard(zaehler))}
+                                            {expiredMeters.map((zaehler) => (
+                                                <MeterCard
+                                                    key={zaehler.id}
+                                                    zaehler={zaehler}
+                                                    editingMeter={editingMeter}
+                                                    isSaving={isSaving}
+                                                    onStartEdit={handleStartEdit}
+                                                    onCancelEdit={handleCancelEdit}
+                                                    onSaveEdit={handleUpdateZaehler}
+                                                    onDelete={handleDeleteClick}
+                                                    onOpenAblesungen={handleOpenAblesungen}
+                                                    onEditChange={handleEditChange}
+                                                />
+                                            ))}
                                         </div>
                                     )}
                                 </div>
