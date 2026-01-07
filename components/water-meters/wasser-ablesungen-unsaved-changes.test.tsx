@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { WasserAblesenModal } from '@/components/water-meters/wasser-ablesungen-modal'
+import { AblesungenModal } from '@/components/meters/ablesungen-modal'
 import { useModalStore } from '@/hooks/use-modal-store'
 
 // Mock the modal store
@@ -9,15 +9,15 @@ const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalSt
 // Mock fetch
 global.fetch = jest.fn()
 
-describe('WasserAblesenModal - Unsaved Changes Detection', () => {
-  const mockWasserAblesenModalData = {
-    wasserZaehlerId: 'test-zaehler-id',
+describe('AblesungenModal - Unsaved Changes Detection', () => {
+  const mockAblesungenModalData = {
+    zaehlerId: 'test-zaehler-id',
     wohnungName: 'Test Wohnung',
     customId: 'Meter-001',
   }
 
-  const mockSetWasserAblesenModalDirty = jest.fn()
-  const mockCloseWasserAblesenModal = jest.fn()
+  const mockSetAblesungenModalDirty = jest.fn()
+  const mockCloseAblesungenModal = jest.fn()
 
   const mockAblesungen = [
     {
@@ -34,10 +34,10 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
     jest.clearAllMocks()
 
     mockUseModalStore.mockReturnValue({
-      isWasserAblesenModalOpen: true,
-      wasserAblesenModalData: mockWasserAblesenModalData,
-      closeWasserAblesenModal: mockCloseWasserAblesenModal,
-      setWasserAblesenModalDirty: mockSetWasserAblesenModalDirty,
+      isAblesungenModalOpen: true,
+      ablesungenModalData: mockAblesungenModalData,
+      closeAblesungenModal: mockCloseAblesungenModal,
+      setAblesungenModalDirty: mockSetAblesungenModalDirty,
     } as any)
 
       ; (global.fetch as jest.Mock).mockResolvedValue({
@@ -47,7 +47,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
   })
 
   it('should set dirty state when typing in new reading form', async () => {
-    render(<WasserAblesenModal />)
+    render(<AblesungenModal />)
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Zählerstand (m³)')).toBeInTheDocument()
@@ -59,12 +59,12 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
 
     // Should set dirty state to true
     await waitFor(() => {
-      expect(mockSetWasserAblesenModalDirty).toHaveBeenCalledWith(true)
+      expect(mockSetAblesungenModalDirty).toHaveBeenCalledWith(true)
     })
   })
 
   it('should set dirty state when typing in verbrauch field', async () => {
-    render(<WasserAblesenModal />)
+    render(<AblesungenModal />)
 
     await waitFor(() => {
       const verbrauchInputs = screen.getAllByPlaceholderText('Verbrauch (m³)')
@@ -78,12 +78,12 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
 
     // Should set dirty state to true
     await waitFor(() => {
-      expect(mockSetWasserAblesenModalDirty).toHaveBeenCalledWith(true)
+      expect(mockSetAblesungenModalDirty).toHaveBeenCalledWith(true)
     })
   })
 
   it('should set dirty state when entering edit mode and changing values', async () => {
-    render(<WasserAblesenModal />)
+    render(<AblesungenModal />)
 
     await waitFor(() => {
       expect(screen.getByText('123,45 m³')).toBeInTheDocument()
@@ -110,13 +110,13 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
 
       // Should set dirty state to true
       await waitFor(() => {
-        expect(mockSetWasserAblesenModalDirty).toHaveBeenCalledWith(true)
+        expect(mockSetAblesungenModalDirty).toHaveBeenCalledWith(true)
       })
     }
   })
 
   it('should clear dirty state when canceling edit', async () => {
-    render(<WasserAblesenModal />)
+    render(<AblesungenModal />)
 
     await waitFor(() => {
       expect(screen.getByText('123,45 m³')).toBeInTheDocument()
@@ -153,14 +153,14 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
 
         // Should set dirty state to false
         await waitFor(() => {
-          expect(mockSetWasserAblesenModalDirty).toHaveBeenCalledWith(false)
+          expect(mockSetAblesungenModalDirty).toHaveBeenCalledWith(false)
         })
       }
     }
   })
 
   it('should clear dirty state when closing modal', async () => {
-    render(<WasserAblesenModal />)
+    render(<AblesungenModal />)
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Zählerstand (m³)')).toBeInTheDocument()
@@ -171,7 +171,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
     fireEvent.change(zaehlerstandInput, { target: { value: '150.00' } })
 
     await waitFor(() => {
-      expect(mockSetWasserAblesenModalDirty).toHaveBeenCalledWith(true)
+      expect(mockSetAblesungenModalDirty).toHaveBeenCalledWith(true)
     })
 
     // Find and click close button
@@ -180,19 +180,19 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
 
     // Should set dirty state to false when closing
     await waitFor(() => {
-      expect(mockSetWasserAblesenModalDirty).toHaveBeenCalledWith(false)
+      expect(mockSetAblesungenModalDirty).toHaveBeenCalledWith(false)
     })
   })
 
   it('should not set dirty state when no changes are made', async () => {
-    render(<WasserAblesenModal />)
+    render(<AblesungenModal />)
 
     await waitFor(() => {
       expect(screen.getByText('123,45 m³')).toBeInTheDocument()
     })
 
     // Initially should not be dirty (or set to false)
-    const dirtyCalls = mockSetWasserAblesenModalDirty.mock.calls
+    const dirtyCalls = mockSetAblesungenModalDirty.mock.calls
     const lastCall = dirtyCalls[dirtyCalls.length - 1]
 
     // The last call should be false (no unsaved changes)
@@ -200,7 +200,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
   })
 
   it('should detect changes in reading date', async () => {
-    render(<WasserAblesenModal />)
+    render(<AblesungenModal />)
 
     await waitFor(() => {
       expect(screen.getByText('123,45 m³')).toBeInTheDocument()
@@ -230,14 +230,14 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
 
         // Should eventually set dirty state to true when date changes
         await waitFor(() => {
-          expect(mockSetWasserAblesenModalDirty).toHaveBeenCalled()
+          expect(mockSetAblesungenModalDirty).toHaveBeenCalled()
         })
       }
     }
   })
 
   it('should detect changes in verbrauch during edit', async () => {
-    render(<WasserAblesenModal />)
+    render(<AblesungenModal />)
 
     await waitFor(() => {
       expect(screen.getByText('123,45 m³')).toBeInTheDocument()
@@ -264,7 +264,7 @@ describe('WasserAblesenModal - Unsaved Changes Detection', () => {
 
       // Should set dirty state to true
       await waitFor(() => {
-        expect(mockSetWasserAblesenModalDirty).toHaveBeenCalledWith(true)
+        expect(mockSetAblesungenModalDirty).toHaveBeenCalledWith(true)
       })
     }
   })

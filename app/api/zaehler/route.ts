@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(zaehlerWithReadings)
   } catch (error) {
-    console.error('Unexpected error in GET /api/wasser-zaehler:', error)
+    console.error('Unexpected error in GET /api/zaehler:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { custom_id, wohnung_id, eichungsdatum } = body
+    const { custom_id, wohnung_id, eichungsdatum, zaehler_typ, einheit } = body
 
     if (!wohnung_id) {
       return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400 })
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Wohnung not found or access denied' }, { status: 404 })
     }
 
-    // Create Wasserzähler
+    // Create Zähler
     const { data, error } = await supabase
       .from('Zaehler')
       .insert({
@@ -123,6 +123,8 @@ export async function POST(request: NextRequest) {
         wohnung_id,
         eichungsdatum: eichungsdatum || null,
         user_id: user.id,
+        zaehler_typ: zaehler_typ || 'wasser',
+        einheit: einheit || 'm³',
       })
       .select()
       .single()
@@ -133,17 +135,18 @@ export async function POST(request: NextRequest) {
     }
 
     // PostHog Event Tracking
-    await capturePostHogEventWithContext(user.id, 'water_meter_created', {
+    await capturePostHogEventWithContext(user.id, 'meter_created', {
       meter_id: data?.id,
       apartment_id: wohnung_id,
       custom_id: custom_id || null,
       eichungsdatum: eichungsdatum || null,
+      zaehler_typ: zaehler_typ || 'wasser',
       source: 'api_route'
     })
 
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    console.error('Unexpected error in POST /api/wasser-zaehler:', error)
+    console.error('Unexpected error in POST /api/zaehler:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
