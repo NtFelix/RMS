@@ -55,6 +55,7 @@ export const POSTHOG_FEATURE_FLAGS = {
   SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
   SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
   GOOGLE_SOCIAL_LOGIN: 'google-social-login',
+  MICROSOFT_SOCIAL_LOGIN: 'microsoft-social-login',
 } as const;
 
 // Application routes - centralized to prevent hardcoded paths
