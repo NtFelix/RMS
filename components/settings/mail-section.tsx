@@ -877,17 +877,19 @@ const MailSection = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>E-Mails erneut synchronisieren?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                Sie haben bereits <strong>{existingEmailCount} E-Mails</strong> aus diesem Outlook-Konto importiert.
-              </p>
-              <p>
-                Beim erneuten Synchronisieren werden nur neue E-Mails importiert.
-                Bereits vorhandene E-Mails werden automatisch übersprungen und nicht dupliziert.
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                💡 Tipp: Verwenden Sie diese Funktion, um neue E-Mails abzurufen, die seit dem letzten Import eingegangen sind.
-              </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <span className="block">
+                  Sie haben bereits <strong>{existingEmailCount} E-Mails</strong> aus diesem Outlook-Konto importiert.
+                </span>
+                <span className="block">
+                  Beim erneuten Synchronisieren werden nur neue E-Mails importiert.
+                  Bereits vorhandene E-Mails werden automatisch übersprungen und nicht dupliziert.
+                </span>
+                <span className="block text-xs text-muted-foreground mt-2">
+                  💡 Tipp: Verwenden Sie diese Funktion, um neue E-Mails abzurufen, die seit dem letzten Import eingegangen sind.
+                </span>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
