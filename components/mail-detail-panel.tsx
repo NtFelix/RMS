@@ -11,7 +11,7 @@ import { fetchEmailById, fetchEmailBody, listEmailAttachments, downloadAttachmen
 import type { EmailBody, EmailAttachment } from "@/lib/email-utils"
 import DOMPurify from 'dompurify'
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
 
 interface Mail {
   id: string;
@@ -54,12 +54,13 @@ const getStatusBadge = (status: Mail['status']) => {
 
 export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [panelWidth, setPanelWidth] = useState(50); // percentage
   const [isResizing, setIsResizing] = useState(false);
   const [isAnimating, setIsAnimating] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  
+
   // Email content state
   const [emailBody, setEmailBody] = useState<EmailBody | null>(null);
   const [attachments, setAttachments] = useState<EmailAttachment[]>([]);
@@ -83,7 +84,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
       try {
         // Fetch full email metadata
         const emailMetadata = await fetchEmailById(mail.id);
-        
+
         // Mark as read if not already
         if (!emailMetadata.ist_gelesen) {
           await updateEmailReadStatus(mail.id, true);
@@ -102,7 +103,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
           setEmailBody(body);
         } catch (error) {
           console.error('Error loading email body:', error);
-          toast.error('Fehler beim Laden des E-Mail-Inhalts');
+          toast({ title: 'Fehler beim Laden des E-Mail-Inhalts', variant: 'destructive' });
         } finally {
           setIsLoadingBody(false);
         }
@@ -125,7 +126,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
         }
       } catch (error) {
         console.error('Error loading email:', error);
-        toast.error('Fehler beim Laden der E-Mail');
+        toast({ title: 'Fehler beim Laden der E-Mail', variant: 'destructive' });
       }
     };
 
@@ -169,31 +170,31 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
       await toggleEmailFavorite(mail.id, !isFavorite);
       setIsFavorite(!isFavorite);
       router.refresh();
-      toast.success(isFavorite ? 'Favorit entfernt' : 'Als Favorit markiert');
+      toast({ title: isFavorite ? 'Favorit entfernt' : 'Als Favorit markiert' });
     } catch (error) {
-      toast.error('Fehler beim Aktualisieren');
+      toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [mail.id, isFavorite, router]);
 
   const handleArchive = useCallback(async () => {
     try {
       await moveEmailToFolder(mail.id, 'archive');
-      toast.success('E-Mail archiviert');
+      toast({ title: 'E-Mail archiviert' });
       router.refresh();
       handleClose();
     } catch (error) {
-      toast.error('Fehler beim Archivieren');
+      toast({ title: 'Fehler beim Archivieren', variant: 'destructive' });
     }
   }, [mail.id, router, handleClose]);
 
   const handleDelete = useCallback(async () => {
     try {
       await moveEmailToFolder(mail.id, 'trash');
-      toast.success('E-Mail in Papierkorb verschoben');
+      toast({ title: 'E-Mail in Papierkorb verschoben' });
       router.refresh();
       handleClose();
     } catch (error) {
-      toast.error('Fehler beim Löschen');
+      toast({ title: 'Fehler beim Löschen', variant: 'destructive' });
     }
   }, [mail.id, router, handleClose]);
 
@@ -206,9 +207,9 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
         attachment.name,
         attachment.id
       );
-      toast.success('Anhang heruntergeladen');
+      toast({ title: 'Anhang heruntergeladen' });
     } catch (error) {
-      toast.error('Fehler beim Herunterladen');
+      toast({ title: 'Fehler beim Herunterladen', variant: 'destructive' });
     }
   }, [mail.id, mail.source]);
 
@@ -218,7 +219,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
 
       const windowWidth = window.innerWidth;
       const newWidth = ((windowWidth - e.clientX) / windowWidth) * 100;
-      
+
       // Constrain between 30% and 80%
       const constrainedWidth = Math.min(Math.max(newWidth, 30), 80);
       setPanelWidth(constrainedWidth);
@@ -229,7 +230,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
 
       const windowWidth = window.innerWidth;
       const newWidth = ((windowWidth - e.touches[0].clientX) / windowWidth) * 100;
-      
+
       // Constrain between 30% and 80%
       const constrainedWidth = Math.min(Math.max(newWidth, 30), 80);
       setPanelWidth(constrainedWidth);
@@ -259,35 +260,35 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
   }, [isResizing]);
 
   // Sanitize HTML content
-  const sanitizedHtml = emailBody?.html 
+  const sanitizedHtml = emailBody?.html
     ? DOMPurify.sanitize(emailBody.html, {
-        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span'],
-        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style']
-      })
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span'],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style']
+    })
     : null;
 
   const panelContent = (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className={`fixed inset-0 bg-black/20 dark:bg-black/40 z-[9998] transition-opacity duration-200 ${isResizing ? 'cursor-ew-resize' : ''}`}
         style={{
           opacity: isAnimating || isClosing ? 0 : 1
         }}
         onClick={!isResizing ? handleClose : undefined}
       />
-      
+
       {/* Panel */}
-      <div 
+      <div
         ref={panelRef}
         className="fixed right-0 top-0 h-screen bg-white dark:bg-[#22272e] border-l border-gray-200 dark:border-gray-700 shadow-2xl z-[9999] flex flex-col origin-right"
-        style={{ 
+        style={{
           width: `${panelWidth}%`,
-          transform: isAnimating || isClosing 
-            ? 'translateX(100%) scale(0.95)' 
+          transform: isAnimating || isClosing
+            ? 'translateX(100%) scale(0.95)'
             : 'translateX(0) scale(1)',
-          transition: isResizing 
-            ? 'none' 
+          transition: isResizing
+            ? 'none'
             : 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s ease-out',
           opacity: isAnimating || isClosing ? 0.8 : 1
         }}
@@ -304,167 +305,167 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
             <GripVertical className="h-4 w-4 text-primary" />
           </div>
         </div>
-      {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-3">
-          <Mail className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-lg font-semibold dark:text-[#f3f4f6]">E-Mail Details</h2>
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            <Mail className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold dark:text-[#f3f4f6]">E-Mail Details</h2>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleClose}
+            className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Schließen</span>
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleClose}
-          className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Schließen</span>
-        </Button>
-      </div>
 
-      {/* Mail Info */}
-      <div className="p-6 space-y-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h3 className="text-xl font-semibold dark:text-[#f3f4f6] mb-2">{mail.subject}</h3>
+        {/* Mail Info */}
+        <div className="p-6 space-y-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="text-xl font-semibold dark:text-[#f3f4f6] mb-2">{mail.subject}</h3>
+              <div className="flex items-center gap-2">
+                {getStatusBadge(mail.status)}
+                <Badge variant="outline" className="dark:text-[#f3f4f6]">
+                  {mail.type === 'inbox' ? 'Posteingang' : 'Postausgang'}
+                </Badge>
+                <Badge variant="outline" className="dark:text-[#f3f4f6]">
+                  {mail.source}
+                </Badge>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
-              {getStatusBadge(mail.status)}
-              <Badge variant="outline" className="dark:text-[#f3f4f6]">
-                {mail.type === 'inbox' ? 'Posteingang' : 'Postausgang'}
-              </Badge>
-              <Badge variant="outline" className="dark:text-[#f3f4f6]">
-                {mail.source}
-              </Badge>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleToggleFavorite}
+                className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <Star className={`h-4 w-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleArchive}
+                className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <Archive className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleDelete}
+                className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleToggleFavorite}
-              className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              <Star className={`h-4 w-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleArchive}
-              className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              <Archive className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDelete}
-              className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-sm">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Absender:</span>
+              <span className="font-medium dark:text-[#f3f4f6]">{mail.sender}</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Datum:</span>
+              <span className="font-medium dark:text-[#f3f4f6]">{formatDate(mail.date)}</span>
+            </div>
+            {mail.hasAttachment && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 text-sm">
+                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Anhänge:</span>
+                  {isLoadingAttachments && <Loader2 className="h-3 w-3 animate-spin" />}
+                </div>
+                <div className="ml-7 flex flex-col gap-2">
+                  {attachments.length > 0 ? (
+                    attachments.map((attachment) => (
+                      <div
+                        key={attachment.path}
+                        onClick={() => handleDownloadAttachment(attachment)}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                      >
+                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium dark:text-[#f3f4f6]">{attachment.name}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {(attachment.size / 1024).toFixed(1)} KB
+                        </span>
+                        <Download className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    ))
+                  ) : !isLoadingAttachments ? (
+                    <div className="text-sm text-muted-foreground">Keine Anhänge gefunden</div>
+                  ) : null}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <Separator />
-
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 text-sm">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Absender:</span>
-            <span className="font-medium dark:text-[#f3f4f6]">{mail.sender}</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Datum:</span>
-            <span className="font-medium dark:text-[#f3f4f6]">{formatDate(mail.date)}</span>
-          </div>
-          {mail.hasAttachment && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 text-sm">
-                <Paperclip className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Anhänge:</span>
-                {isLoadingAttachments && <Loader2 className="h-3 w-3 animate-spin" />}
-              </div>
-              <div className="ml-7 flex flex-col gap-2">
-                {attachments.length > 0 ? (
-                  attachments.map((attachment) => (
-                    <div
-                      key={attachment.path}
-                      onClick={() => handleDownloadAttachment(attachment)}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                    >
-                      <Paperclip className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium dark:text-[#f3f4f6]">{attachment.name}</span>
-                      <span className="text-xs text-muted-foreground ml-auto">
-                        {(attachment.size / 1024).toFixed(1)} KB
-                      </span>
-                      <Download className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                  ))
-                ) : !isLoadingAttachments ? (
-                  <div className="text-sm text-muted-foreground">Keine Anhänge gefunden</div>
-                ) : null}
-              </div>
+        {/* Mail Content */}
+        <ScrollArea className="flex-1 p-6">
+          {isLoadingBody ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : emailBody ? (
+            <div className="space-y-4">
+              {emailBody.html && emailBody.plain && (
+                <div className="flex gap-2 mb-4">
+                  <Button
+                    variant={showHtml ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowHtml(true)}
+                  >
+                    HTML
+                  </Button>
+                  <Button
+                    variant={!showHtml ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowHtml(false)}
+                  >
+                    Text
+                  </Button>
+                </div>
+              )}
+              {showHtml && sanitizedHtml ? (
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none dark:text-[#f3f4f6]"
+                  dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+                />
+              ) : (
+                <div className="whitespace-pre-wrap font-mono text-sm dark:text-[#f3f4f6]">
+                  {emailBody.plain || 'Kein Inhalt verfügbar'}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              E-Mail-Inhalt nicht verfügbar
             </div>
           )}
+        </ScrollArea>
+
+        {/* Action Buttons */}
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3">
+          <Button className="flex-1">
+            <Reply className="mr-2 h-4 w-4" />
+            Antworten
+          </Button>
+          <Button variant="outline" className="flex-1">
+            <Forward className="mr-2 h-4 w-4" />
+            Weiterleiten
+          </Button>
         </div>
       </div>
-
-      {/* Mail Content */}
-      <ScrollArea className="flex-1 p-6">
-        {isLoadingBody ? (
-          <div className="flex items-center justify-center h-32">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : emailBody ? (
-          <div className="space-y-4">
-            {emailBody.html && emailBody.plain && (
-              <div className="flex gap-2 mb-4">
-                <Button
-                  variant={showHtml ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowHtml(true)}
-                >
-                  HTML
-                </Button>
-                <Button
-                  variant={!showHtml ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowHtml(false)}
-                >
-                  Text
-                </Button>
-              </div>
-            )}
-            {showHtml && sanitizedHtml ? (
-              <div 
-                className="prose prose-sm dark:prose-invert max-w-none dark:text-[#f3f4f6]"
-                dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
-              />
-            ) : (
-              <div className="whitespace-pre-wrap font-mono text-sm dark:text-[#f3f4f6]">
-                {emailBody.plain || 'Kein Inhalt verfügbar'}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center text-muted-foreground py-8">
-            E-Mail-Inhalt nicht verfügbar
-          </div>
-        )}
-      </ScrollArea>
-
-      {/* Action Buttons */}
-      <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3">
-        <Button className="flex-1">
-          <Reply className="mr-2 h-4 w-4" />
-          Antworten
-        </Button>
-        <Button variant="outline" className="flex-1">
-          <Forward className="mr-2 h-4 w-4" />
-          Weiterleiten
-        </Button>
-      </div>
-    </div>
     </>
   );
 

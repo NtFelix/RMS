@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
 
 interface MailBulkActionBarProps {
   selectedMails: Set<string>
@@ -42,6 +42,7 @@ export function MailBulkActionBar({
   onDeletePermanently,
   onMoveToFolder,
 }: MailBulkActionBarProps) {
+  const { toast } = useToast()
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isReadStatusDialogOpen, setIsReadStatusDialogOpen] = useState(false)
@@ -62,7 +63,7 @@ export function MailBulkActionBar({
       setIsReadStatusDialogOpen(false)
       setSelectedReadStatus("read")
     } catch (error) {
-      toast.error("Fehler beim Aktualisieren des Lesestatus")
+      toast({ title: "Fehler beim Aktualisieren des Lesestatus", variant: "destructive" })
     } finally {
       setIsProcessing(false)
     }
@@ -70,7 +71,7 @@ export function MailBulkActionBar({
 
   const handleMoveToFolder = async () => {
     if (!selectedFolder) {
-      toast.error("Bitte wählen Sie einen Ordner aus")
+      toast({ title: "Bitte wählen Sie einen Ordner aus", variant: "destructive" })
       return
     }
 
@@ -79,9 +80,9 @@ export function MailBulkActionBar({
       await onMoveToFolder(selectedFolder)
       setIsMoveDialogOpen(false)
       setSelectedFolder("inbox")
-      toast.success(`${selectedMails.size} E-Mails verschoben`)
+      toast({ title: `${selectedMails.size} E-Mails verschoben` })
     } catch (error) {
-      toast.error("Fehler beim Verschieben der E-Mails")
+      toast({ title: "Fehler beim Verschieben der E-Mails", variant: "destructive" })
     } finally {
       setIsProcessing(false)
     }
@@ -92,9 +93,9 @@ export function MailBulkActionBar({
     try {
       await onDeletePermanently()
       setIsDeleteDialogOpen(false)
-      toast.success(`${selectedMails.size} E-Mails endgültig gelöscht`)
+      toast({ title: `${selectedMails.size} E-Mails endgültig gelöscht` })
     } catch (error) {
-      toast.error("Fehler beim Löschen der E-Mails")
+      toast({ title: "Fehler beim Löschen der E-Mails", variant: "destructive" })
     } finally {
       setIsProcessing(false)
     }
@@ -322,15 +323,15 @@ export function MailBulkActionBar({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={isProcessing}
             >
               Abbrechen
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleDeletePermanently}
               disabled={isProcessing}
             >

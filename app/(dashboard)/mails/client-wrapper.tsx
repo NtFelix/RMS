@@ -5,7 +5,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { PlusCircle, Mail, Send, Clock, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
-import { StatCard } from "@/components/stat-card";
+import { StatCard } from "@/components/common/stat-card";
 import { MailsTable } from "@/components/mails-table";
 import { MailDetailPanel } from "@/components/mail-detail-panel";
 import { MailBulkActionBar } from "@/components/mail-bulk-action-bar";
@@ -13,16 +13,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { PAGINATION } from "@/constants";
-import { 
-  getEmailCounts, 
-  updateEmailReadStatus, 
-  toggleEmailFavorite, 
+import {
+  getEmailCounts,
+  updateEmailReadStatus,
+  toggleEmailFavorite,
   moveEmailToFolder,
-  deleteEmailPermanently 
+  deleteEmailPermanently
 } from "@/lib/email-utils";
 import { useRouter } from "next/navigation";
 import type { LegacyMail } from "@/types/Mail";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 // Re-export for backward compatibility
 export type Mail = LegacyMail;
@@ -46,6 +46,7 @@ export default function MailsClientView({
   userId,
 }: MailsClientViewProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("inbox");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMails, setSelectedMails] = useState<Set<string>>(new Set());
@@ -111,30 +112,30 @@ export default function MailsClientView({
   const handleToggleRead = useCallback(async (mailId: string, isRead: boolean) => {
     try {
       await updateEmailReadStatus(mailId, isRead);
-      toast.success(isRead ? 'Als gelesen markiert' : 'Als ungelesen markiert');
+      toast({ title: isRead ? 'Als gelesen markiert' : 'Als ungelesen markiert' });
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Aktualisieren');
+      toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [router]);
 
   const handleToggleFavorite = useCallback(async (mailId: string, isFavorite: boolean) => {
     try {
       await toggleEmailFavorite(mailId, isFavorite);
-      toast.success(isFavorite ? 'Als Favorit markiert' : 'Favorit entfernt');
+      toast({ title: isFavorite ? 'Als Favorit markiert' : 'Favorit entfernt' });
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Aktualisieren');
+      toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [router]);
 
   const handleArchive = useCallback(async (mailId: string) => {
     try {
       await moveEmailToFolder(mailId, 'archive');
-      toast.success('E-Mail archiviert');
+      toast({ title: 'E-Mail archiviert' });
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Archivieren');
+      toast({ title: 'Fehler beim Archivieren', variant: 'destructive' });
     }
   }, [router]);
 
@@ -144,9 +145,9 @@ export default function MailsClientView({
       if (selectedMail?.id === mailId) {
         setSelectedMail(null);
       }
-      
+
       await deleteEmailPermanently(mailId, userId);
-      toast.success('E-Mail endgültig gelöscht');
+      toast({ title: 'E-Mail endgültig gelöscht' });
       router.refresh();
     } catch (error) {
       console.error('Error deleting email:', {
@@ -156,24 +157,24 @@ export default function MailsClientView({
         userId
       });
       const errorMessage = error instanceof Error ? error.message : 'Fehler beim Löschen';
-      toast.error(errorMessage);
+      toast({ title: errorMessage, variant: 'destructive' });
     }
   }, [router, userId, selectedMail]);
 
   // Bulk action handlers
   const handleBulkExport = useCallback(() => {
     const selectedMailsData = mailData.filter(m => selectedMails.has(m.id));
-    
+
     const headers = ['Datum', 'Betreff', 'Empfänger', 'Status', 'Typ', 'Quelle'];
     const csvHeader = headers.join(',');
-    
+
     const escapeCsvValue = (value: string) => {
       if (value.includes(',') || value.includes('"') || value.includes('\n')) {
         return `"${value.replace(/"/g, '""')}"`;
       }
       return value;
     };
-    
+
     const csvRows = selectedMailsData.map(m => {
       const row = [
         m.date,
@@ -185,7 +186,7 @@ export default function MailsClientView({
       ];
       return row.map(v => escapeCsvValue(String(v))).join(',');
     });
-    
+
     const csv = [csvHeader, ...csvRows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -196,33 +197,33 @@ export default function MailsClientView({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    toast.success(`${selectedMails.size} E-Mails exportiert`);
+
+    toast({ title: `${selectedMails.size} E-Mails exportiert` });
   }, [selectedMails, initialMails]);
 
   const handleBulkMarkAsRead = useCallback(async () => {
     try {
-      const promises = Array.from(selectedMails).map(id => 
+      const promises = Array.from(selectedMails).map(id =>
         updateEmailReadStatus(id, true)
       );
       await Promise.all(promises);
-      toast.success(`${selectedMails.size} E-Mails als gelesen markiert`);
+      toast({ title: `${selectedMails.size} E-Mails als gelesen markiert` });
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Aktualisieren');
+      toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [selectedMails, router]);
 
   const handleBulkMarkAsUnread = useCallback(async () => {
     try {
-      const promises = Array.from(selectedMails).map(id => 
+      const promises = Array.from(selectedMails).map(id =>
         updateEmailReadStatus(id, false)
       );
       await Promise.all(promises);
-      toast.success(`${selectedMails.size} E-Mails als ungelesen markiert`);
+      toast({ title: `${selectedMails.size} E-Mails als ungelesen markiert` });
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Aktualisieren');
+      toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [selectedMails, router]);
 
@@ -233,52 +234,52 @@ export default function MailsClientView({
         return toggleEmailFavorite(id, !mail?.favorite);
       });
       await Promise.all(promises);
-      toast.success(`${selectedMails.size} E-Mails aktualisiert`);
+      toast({ title: `${selectedMails.size} E-Mails aktualisiert` });
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Aktualisieren');
+      toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [selectedMails, mailData, router]);
 
   const handleBulkArchive = useCallback(async () => {
     try {
-      const promises = Array.from(selectedMails).map(id => 
+      const promises = Array.from(selectedMails).map(id =>
         moveEmailToFolder(id, 'archive')
       );
       await Promise.all(promises);
-      toast.success(`${selectedMails.size} E-Mails archiviert`);
+      toast({ title: `${selectedMails.size} E-Mails archiviert` });
       setSelectedMails(new Set());
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Archivieren');
+      toast({ title: 'Fehler beim Archivieren', variant: 'destructive' });
     }
   }, [selectedMails, router]);
 
   const handleBulkDeletePermanently = useCallback(async () => {
     try {
-      const promises = Array.from(selectedMails).map(id => 
+      const promises = Array.from(selectedMails).map(id =>
         deleteEmailPermanently(id, userId)
       );
       await Promise.all(promises);
-      toast.success(`${selectedMails.size} E-Mails endgültig gelöscht`);
+      toast({ title: `${selectedMails.size} E-Mails endgültig gelöscht` });
       setSelectedMails(new Set());
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Löschen');
+      toast({ title: 'Fehler beim Löschen', variant: 'destructive' });
     }
   }, [selectedMails, userId, router]);
 
   const handleBulkMoveToFolder = useCallback(async (folder: string) => {
     try {
-      const promises = Array.from(selectedMails).map(id => 
+      const promises = Array.from(selectedMails).map(id =>
         moveEmailToFolder(id, folder)
       );
       await Promise.all(promises);
-      toast.success(`${selectedMails.size} E-Mails verschoben`);
+      toast({ title: `${selectedMails.size} E-Mails verschoben` });
       setSelectedMails(new Set());
       router.refresh();
     } catch (error) {
-      toast.error('Fehler beim Verschieben');
+      toast({ title: 'Fehler beim Verschieben', variant: 'destructive' });
     }
   }, [selectedMails, router]);
 
@@ -319,11 +320,11 @@ export default function MailsClientView({
   // Load more mails function - matches finance page pattern
   const loadMoreMails = useCallback(async (resetData = false) => {
     if (isLoading || (!hasMore && !resetData)) return;
-    
+
     setIsLoading(true);
-    
+
     const targetPage = resetData ? 1 : page + 1;
-    
+
     try {
       const params = new URLSearchParams({
         page: targetPage.toString(),
@@ -331,16 +332,16 @@ export default function MailsClientView({
         sortKey: sortKey,
         sortDirection: sortDirection,
       });
-      
+
       const response = await fetch(`/api/mails?${params.toString()}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch more emails');
       }
-      
+
       const newMails = await response.json();
       const totalCount = parseInt(response.headers.get('X-Total-Count') || '0', 10);
-      
+
       // Convert to legacy format
       const convertedMails = newMails.map((email: any) => ({
         id: email.id,
@@ -354,7 +355,7 @@ export default function MailsClientView({
         read: email.ist_gelesen,
         favorite: email.ist_favorit,
       }));
-      
+
       if (resetData) {
         // Replace all data when resetting (e.g., after sort change)
         setMailData(convertedMails);
@@ -368,13 +369,13 @@ export default function MailsClientView({
         });
         setPage(targetPage);
       }
-      
+
       // Check if there are more records to load
       const loadedCount = resetData ? convertedMails.length : mailData.length + convertedMails.length;
       setHasMore(loadedCount < totalCount);
     } catch (error) {
       console.error('Error loading more mails:', error);
-      toast.error('Fehler beim Laden weiterer E-Mails');
+      toast({ title: 'Fehler beim Laden weiterer E-Mails', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
