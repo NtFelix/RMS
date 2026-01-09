@@ -1,8 +1,8 @@
 import { Suspense } from 'react'
-import { CloudStorageSimple } from "@/components/cloud-storage-simple"
+import { CloudStorage } from "@/components/cloud-storage/cloud-storage"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
-import { getPathContents } from "./actions"
+import { getPathContents, getTotalStorageUsage } from "./actions"
 import DateienLoading from './loading'
 
 export const runtime = 'edge'
@@ -10,29 +10,32 @@ export const runtime = 'edge'
 async function CloudStorageContent({ userId }: { userId: string }) {
   // Load initial files, folders and breadcrumbs on the server
   const initialPath = `user_${userId}`
-  const { files, folders, breadcrumbs, error: loadError } = await getPathContents(userId, initialPath)
+  const pathContents = await getPathContents(userId, initialPath)
+
+  const { files, folders, breadcrumbs, totalSize, error: loadError } = pathContents
 
   if (loadError) {
     console.error('Error loading initial files:', loadError)
   }
 
   return (
-    <CloudStorageSimple
+    <CloudStorage
       userId={userId}
       initialPath={initialPath}
       initialFiles={files}
       initialFolders={folders}
       initialBreadcrumbs={breadcrumbs}
+      initialTotalSize={totalSize}
     />
   )
 }
 
 export default async function DateienPage() {
   const supabase = await createClient()
-  
+
   // Get user on server side
   const { data: { user }, error } = await supabase.auth.getUser()
-  
+
   if (error || !user) {
     redirect('/auth/login')
   }

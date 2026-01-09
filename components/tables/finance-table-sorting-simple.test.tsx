@@ -1,0 +1,299 @@
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { FinanceTransactions } from '@/components/finance-transactions'
+
+// Mock the context menu component
+jest.mock('@/components/finance/finance-context-menu', () => ({
+  FinanceContextMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>
+}))
+
+// Mock the toast hook
+jest.mock('@/hooks/use-toast', () => ({
+  toast: jest.fn()
+}))
+
+// Mock IntersectionObserver for infinite scroll
+window.IntersectionObserver = jest.fn().mockImplementation((callback: IntersectionObserverCallback) => {
+  return {
+    observe: jest.fn().mockImplementation((element: Element) => {
+      // Immediately trigger the intersection for testing purposes
+      callback([
+        {
+          isIntersecting: true,
+          target: element,
+          intersectionRatio: 1,
+          intersectionRect: {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            toJSON: () => ({})
+          },
+          boundingClientRect: {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            toJSON: () => ({})
+          },
+          rootBounds: {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            toJSON: () => ({})
+          },
+          time: Date.now()
+        }
+      ], this as any);
+    }),
+    unobserve: jest.fn(),
+    disconnect: jest.fn(),
+    takeRecords: jest.fn().mockReturnValue([])
+  }
+})
+
+interface Finanz {
+  id: string
+  wohnung_id?: string
+  name: string
+  datum?: string
+  betrag: number
+  ist_einnahmen: boolean
+  notiz?: string
+  Wohnungen?: { name: string }
+}
+
+const mockFinances: Finanz[] = [
+  {
+    id: '1',
+    wohnung_id: '1',
+    name: 'Rent Payment January',
+    datum: '2023-01-15',
+    betrag: 1000,
+    ist_einnahmen: true,
+    notiz: 'Monthly rent',
+    Wohnungen: { name: 'Apartment A' }
+  },
+  {
+    id: '2',
+    wohnung_id: '2',
+    name: 'Maintenance Cost',
+    datum: '2023-02-10',
+    betrag: 500,
+    ist_einnahmen: false,
+    notiz: 'Plumbing repair',
+    Wohnungen: { name: 'Apartment B' }
+  }
+]
+
+// Helper function to render FinanceTransactions with default props
+const renderFinanceTransactions = (props: Partial<React.ComponentProps<typeof FinanceTransactions>> = {}) => {
+  const defaultProps: React.ComponentProps<typeof FinanceTransactions> = {
+    finances: mockFinances,
+    wohnungen: [{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }],
+    availableYears: [2023],
+    hasMore: false,
+    isLoading: false,
+    error: null,
+    filters: {
+      searchQuery: '',
+      selectedApartment: 'Alle Wohnungen',
+      selectedYear: 'Alle Jahre',
+      selectedType: '',
+      sortKey: 'datum',
+      sortDirection: 'desc'
+    },
+    onFiltersChange: () => {}
+  }
+
+  return render(<FinanceTransactions {...defaultProps} {...props} />)
+}
+
+describe('FinanceTransactions Basic Sorting', () => {
+  describe('Core sorting functionality', () => {
+    it('should render table with sortable headers', () => {
+      const mockOnFiltersChange = jest.fn()
+      
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      expect(screen.getByText('Bezeichnung')).toBeInTheDocument()
+      expect(screen.getByText('Wohnung')).toBeInTheDocument()
+      expect(screen.getByText('Datum')).toBeInTheDocument()
+      expect(screen.getByText('Betrag')).toBeInTheDocument()
+      expect(screen.getByText('Typ')).toBeInTheDocument()
+    })
+
+    it('should sort by date in descending order by default', () => {
+      // This test is checking that the data is displayed as received
+      // The actual sorting is done server-side before passing to this component
+      const mockOnFiltersChange = jest.fn()
+      
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      const rows = screen.getAllByRole('row')
+      // Data should be displayed in the order it's provided
+      // Using within to scope queries to specific rows for more robust testing
+      const firstRow = within(rows[1])
+      expect(firstRow.getByText('Rent Payment January')).toBeInTheDocument()
+      expect(firstRow.getByText('Apartment A')).toBeInTheDocument()
+      expect(firstRow.getByText('15.01.2023')).toBeInTheDocument()
+      expect(firstRow.getByText('1.000,00 €')).toBeInTheDocument()
+      expect(firstRow.getByText('Einnahme')).toBeInTheDocument()
+      
+      const secondRow = within(rows[2])
+      expect(secondRow.getByText('Maintenance Cost')).toBeInTheDocument()
+      expect(secondRow.getByText('Apartment B')).toBeInTheDocument()
+      expect(secondRow.getByText('10.02.2023')).toBeInTheDocument()
+      expect(secondRow.getByText('500,00 €')).toBeInTheDocument()
+      expect(secondRow.getByText('Ausgabe')).toBeInTheDocument()
+    })
+
+    it('should call onFiltersChange with correct parameters when clicking name header', async () => {
+      const mockOnFiltersChange = jest.fn()
+      const user = userEvent.setup()
+      
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      const nameHeader = screen.getByText('Bezeichnung').closest('div')
+      await user.click(nameHeader!)
+
+      // Should call onFiltersChange with sortKey 'name' and sortDirection 'asc'
+      expect(mockOnFiltersChange).toHaveBeenCalledWith({
+        searchQuery: '',
+        selectedApartment: 'Alle Wohnungen',
+        selectedYear: 'Alle Jahre',
+        selectedType: '',
+        sortKey: 'name',
+        sortDirection: 'asc'
+      })
+    })
+
+    it('should call onFiltersChange with correct parameters when clicking amount header', async () => {
+      const mockOnFiltersChange = jest.fn()
+      const user = userEvent.setup()
+      
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      const amountHeader = screen.getByText('Betrag').closest('div')
+      await user.click(amountHeader!)
+
+      // Should call onFiltersChange with sortKey 'betrag' and sortDirection 'asc'
+      expect(mockOnFiltersChange).toHaveBeenCalledWith({
+        searchQuery: '',
+        selectedApartment: 'Alle Wohnungen',
+        selectedYear: 'Alle Jahre',
+        selectedType: '',
+        sortKey: 'betrag',
+        sortDirection: 'asc'
+      })
+    })
+
+    it('should handle header clicks for sorting', async () => {
+      const mockOnFiltersChange = jest.fn()
+      const user = userEvent.setup()
+      
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      const nameHeader = screen.getByText('Bezeichnung').closest('div')
+      
+      // Verify header is clickable
+      expect(nameHeader).toHaveClass('cursor-pointer')
+      
+      // Click should not throw error
+      await user.click(nameHeader!)
+      
+      // Should call onFiltersChange
+      expect(mockOnFiltersChange).toHaveBeenCalled()
+    })
+
+    it('should display transaction types correctly', () => {
+      const mockOnFiltersChange = jest.fn()
+      
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      expect(screen.getByText('Einnahme')).toBeInTheDocument()
+      expect(screen.getByText('Ausgabe')).toBeInTheDocument()
+    })
+
+    it('should format dates correctly', () => {
+      const mockOnFiltersChange = jest.fn()
+      
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      expect(screen.getByText('15.01.2023')).toBeInTheDocument()
+      expect(screen.getByText('10.02.2023')).toBeInTheDocument()
+    })
+
+    it('should handle empty dataset', () => {
+      const mockOnFiltersChange = jest.fn()
+      
+      renderFinanceTransactions({
+        finances: [],
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      expect(screen.getByText('Keine Transaktionen gefunden')).toBeInTheDocument()
+    })
+  })
+
+  describe('Visual indicators', () => {
+    it('should apply hover effects to sortable headers', () => {
+      const mockOnFiltersChange = jest.fn()
+      
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      const nameHeader = screen.getByText('Bezeichnung').closest('div')
+      expect(nameHeader).toHaveClass('cursor-pointer')
+      expect(nameHeader).toHaveClass('hover:bg-muted/50')
+    })
+
+    it('should display sort icons', async () => {
+      const mockOnFiltersChange = jest.fn()
+      const user = userEvent.setup()
+      
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
+
+      const nameHeader = screen.getByText('Bezeichnung').closest('div')
+      
+      // Should have sort icon (testing that the header is clickable)
+      expect(nameHeader).toHaveClass('cursor-pointer')
+      
+      // Click to change sort direction
+      await user.click(nameHeader!)
+      
+      // Should call onFiltersChange
+      expect(mockOnFiltersChange).toHaveBeenCalled()
+    })
+  })
+})

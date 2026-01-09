@@ -2,20 +2,25 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/components/common/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { PostHogProvider } from "@/components/providers/posthog-provider"
-import { CookieConsentBanner } from "@/components/cookie-consent-banner"
+import { CookieConsentBanner } from "@/components/common/cookie-consent-banner"
+import { defaultMetadata } from "@/lib/seo"
+import { PWA_IMAGES_URL } from "@/lib/constants"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Property Management Dashboard",
-  description: "Modern dashboard for property management",
-  generator: 'v0.dev',
+  ...defaultMetadata,
   icons: {
-    icon: '/favicon.png',
-    apple: '/apple-icon.png',
+    icon: [
+      // Primary: Local favicon for Google crawlability (avoids Supabase x-robots-tag: none)
+      { url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
+      // Fallback: Supabase PNG
+      { url: `${PWA_IMAGES_URL}/favicon.png`, type: 'image/png' },
+    ],
+    apple: `${PWA_IMAGES_URL}/apple-icon.png`,
   },
 }
 
@@ -25,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="light">
+    <html lang="de" suppressHydrationWarning className="light">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
           <PostHogProvider>

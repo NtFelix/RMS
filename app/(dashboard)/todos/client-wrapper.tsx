@@ -1,10 +1,10 @@
 "use client";
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { Input } from "@/components/ui/input";
-import { PlusCircle, Search } from "lucide-react";
-import { TaskBoard } from "@/components/task-board";
+import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
+import { SearchInput } from "@/components/ui/search-input";
+import { PlusCircle } from "lucide-react";
+import { TaskBoard } from "@/components/tasks/task-board";
 import { TaskBoardTask } from "@/types/Task";
 import { useModalStore } from "@/hooks/use-modal-store";
 
@@ -21,7 +21,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
     setTasks(currentTasks => {
       const exists = currentTasks.some(task => task.id === updatedTask.id);
       if (exists) {
-        return currentTasks.map(task => 
+        return currentTasks.map(task =>
           task.id === updatedTask.id ? updatedTask : task
         );
       }
@@ -30,7 +30,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
   }, []);
 
   const handleTaskDeleted = useCallback((taskId: string) => {
-    setTasks(currentTasks => 
+    setTasks(currentTasks =>
       currentTasks.filter(task => task.id !== taskId)
     );
   }, []);
@@ -44,7 +44,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
   }, [openAufgabeModal, handleTaskUpdated]);
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
       <div
         className="absolute inset-0 z-[-1]"
         style={{
@@ -53,16 +53,15 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
       />
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-start justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Aufgaben Board</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Aufgaben</p>
+              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Aufgaben</p>
             </div>
-            <div className="mt-1">
-              <ButtonWithTooltip className="sm:w-auto" onClick={handleAddTask}>
-                <PlusCircle className="mr-2 h-4 w-4" />
+            <div className="mt-0 sm:mt-1">
+              <ResponsiveButtonWithTooltip onClick={handleAddTask} icon={<PlusCircle className="h-4 w-4" />} shortText="Hinzufügen">
                 Aufgabe hinzufügen
-              </ButtonWithTooltip>
+              </ResponsiveButtonWithTooltip>
             </div>
           </div>
         </CardHeader>
@@ -70,20 +69,19 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-6 mt-6">
+          <div className="flex flex-col gap-4 sm:gap-6 mt-4 sm:mt-6">
             <div className="flex justify-center">
-              <div className="relative w-full max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Aufgabe suchen..."
-                  className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              <SearchInput
+                placeholder="Suchen..."
+                className="rounded-full"
+                wrapperClassName="w-full max-w-md"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
+              />
             </div>
-            <TaskBoard 
-              searchQuery={searchQuery} 
+            <TaskBoard
+              searchQuery={searchQuery}
               tasks={tasks}
               onTaskUpdated={handleTaskUpdated}
               onTaskDeleted={handleTaskDeleted}

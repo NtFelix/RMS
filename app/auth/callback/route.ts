@@ -1,5 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
+import { logApiRoute } from "@/lib/logging-middleware"
+import { capturePostHogEvent } from "@/lib/posthog-helpers"
 
 export const runtime = 'edge'
 
@@ -9,30 +11,66 @@ export async function GET(request: Request) {
   const origin = requestUrl.origin
 
   if (!code) {
-    console.error('No auth code found in callback URL')
+    logApiRoute('/auth/callback', 'GET', 'error', {
+      error_message: 'No auth code found in callback URL'
+    })
     return NextResponse.redirect(`${origin}/auth/login?error=invalid_code`)
   }
 
   try {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-    
+
     if (error) {
-      console.error('Error exchanging code for session:', error.message)
+      logApiRoute('/auth/callback', 'GET', 'error', {
+        error_message: error.message,
+        error_type: 'auth_exchange_failed'
+      })
       return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`)
     }
-    
-    // Successful authentication, redirect to home with user info for client-side PostHog tracking
+
+    // Log successful authentication
+    const provider = data?.user?.app_metadata?.provider || 'email'
+    const isNewUser = data?.user?.created_at === data?.user?.last_sign_in_at
+
+    logApiRoute('/auth/callback', 'GET', 'response', {
+      user_id: data?.user?.id,
+      provider,
+      is_new_user: isNewUser,
+      event: 'auth_callback_success'
+    })
+
+    // Track the successful OAuth completion in PostHog (server-side)
+    // Uses the unified 'auth' event schema with action, status, method properties
+    if (data?.user?.id) {
+      await capturePostHogEvent(data.user.id, 'auth', {
+        action: isNewUser ? 'signup' : 'login',
+        status: 'success',
+        method: provider,
+        is_new_user: isNewUser,
+      })
+    }
+
+    // Successful authentication, redirect to subscription onboarding with tracking info
     const redirectUrl = new URL(origin)
     if (data?.user) {
       // Pass user info as URL params for client-side PostHog tracking
       redirectUrl.searchParams.set('login_success', 'true')
-      redirectUrl.searchParams.set('provider', data.user.app_metadata?.provider || 'email')
+      redirectUrl.searchParams.set('provider', provider)
+      redirectUrl.searchParams.set('is_new_user', String(isNewUser))
+      // Redirect to subscription onboarding
+      redirectUrl.pathname = '/onboarding/subscription'
     }
-    
+
     return NextResponse.redirect(redirectUrl.toString())
   } catch (error) {
-    console.error('Unexpected error during authentication:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    logApiRoute('/auth/callback', 'GET', 'error', {
+      error_message: errorMessage,
+      error_type: 'unexpected_error'
+    })
     return NextResponse.redirect(`${origin}/auth/login?error=unexpected_error`)
   }
 }
+
+

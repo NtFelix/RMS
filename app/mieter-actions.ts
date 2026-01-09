@@ -2,10 +2,19 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { Mieter } from "../lib/data-fetching"; // Added import for Mieter type
+import { Mieter } from "../lib/data-fetching";
 import { KautionData, KautionStatus } from "@/types/Tenant";
+import { logAction } from '@/lib/logging-middleware';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
+import { logger } from '@/utils/logger';
+import { posthogLogger } from '@/lib/posthog-logger';
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
+  const id = formData.get('id');
+  const actionName = id ? 'updateTenant' : 'createTenant';
+  const tenantName = formData.get('name') as string;
+  logAction(actionName, 'start', { tenant_id: id as string | null, tenant_name: tenantName });
+
   const supabase = await createClient();
 
   try {
@@ -32,20 +41,54 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     };
     const id = formData.get('id');
 
+    let finalTenantId = id as string | null;
+
     if (id) {
       const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { error } = await supabase.from('Mieter').insert(payload);
+      const { data: newTenant, error } = await supabase.from('Mieter').insert(payload).select('id').single();
       if (error) {
         return { success: false, error: { message: error.message } };
       }
+      if (newTenant) {
+        finalTenantId = newTenant.id;
+      }
     }
     revalidatePath('/mieter');
+    logAction(actionName, 'success', { tenant_name: tenantName, operation: id ? 'update' : 'create' });
+
+    try {
+      const posthog = getPostHogServer();
+      const eventName = id ? 'tenant_updated' : 'tenant_added';
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        posthog.capture({
+          distinctId: user.id,
+          event: eventName,
+          properties: {
+            tenant_id: finalTenantId || 'unknown',
+            tenant_name: tenantName,
+            has_property: !!payload.wohnung_id,
+            property_id: payload.wohnung_id,
+            has_email: !!payload.email,
+            source: 'server_action'
+          }
+        });
+        await posthog.flush();
+        await posthogLogger.flush();
+        logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
+      }
+    } catch (phError) {
+      logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
+    }
+
     return { success: true };
   } catch (e) {
+    logAction(actionName, 'error', { tenant_name: tenantName, error_message: (e as Error).message });
     return { success: false, error: { message: (e as Error).message } };
   }
 }
@@ -67,7 +110,7 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
     // Revalidate related apartment details if a tenant was unlinked from an apartment.
     // This is a general revalidation; specific apartment revalidation might be too complex here
     // without knowing which apartment was affected.
-    revalidatePath('/wohnungen'); 
+    revalidatePath('/wohnungen');
     // Also consider revalidating the dashboard if it summarizes tenant counts or related info.
     // revalidatePath('/'); 
 
@@ -83,8 +126,8 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
 }
 
 export async function getMieterByHausIdAction(
-  hausId: string, 
-  startdatum?: string, 
+  hausId: string,
+  startdatum?: string,
   enddatum?: string
 ): Promise<{ success: boolean; data?: Mieter[] | null; error?: string | null; }> {
   if (!hausId) {
@@ -97,20 +140,20 @@ export async function getMieterByHausIdAction(
   if (startdatum && enddatum) {
     const startDate = new Date(startdatum);
     const endDate = new Date(enddatum);
-    
+
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return { 
-        success: false, 
-        error: 'Ungültiges Datumsformat. Verwenden Sie YYYY-MM-DD.', 
-        data: null 
+      return {
+        success: false,
+        error: 'Ungültiges Datumsformat. Verwenden Sie YYYY-MM-DD.',
+        data: null
       };
     }
-    
+
     if (startDate >= endDate) {
-      return { 
-        success: false, 
-        error: 'Enddatum muss nach dem Startdatum liegen.', 
-        data: null 
+      return {
+        success: false,
+        error: 'Enddatum muss nach dem Startdatum liegen.',
+        data: null
       };
     }
   }
@@ -155,7 +198,7 @@ export async function getMieterByHausIdAction(
       console.error(`Error fetching Mieter for Haus ${hausId} (Wohnung IDs: ${wohnungIds.join(', ')}):`, mieterError.message);
       return { success: false, error: mieterError.message, data: null };
     }
-    
+
     // If mieterData is null (though no error), it means no tenants found for those wohnung_ids.
     // This is also a successful query with no results.
     return { success: true, data: mieterData || [] };
@@ -238,7 +281,7 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
 
     // Revalidate the mieter page to reflect changes
     revalidatePath('/mieter');
-    
+
     return { success: true };
 
   } catch (e) {
@@ -265,11 +308,11 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
     return { success: true };
   } catch (error) {
     console.error('Unexpected error updating tenant apartment:', error);
-    return { 
-      success: false, 
-      error: { 
-        message: error instanceof Error ? error.message : 'An unknown error occurred' 
-      } 
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      }
     };
   }
 }

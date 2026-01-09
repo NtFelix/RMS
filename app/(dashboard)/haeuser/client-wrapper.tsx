@@ -2,17 +2,19 @@
 
 import { useState, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { PlusCircle, Building, Home, Key, Search, X, Download, Trash2, Loader2 } from "lucide-react";
+import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
+import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
+import { PlusCircle, Building, Home, Key, X, Download, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { StatCard } from "@/components/stat-card";
-import { HouseTable, House } from "@/components/house-table";
+import { StatCard } from "@/components/common/stat-card";
+import { HouseTable, House } from "@/components/tables/house-table";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 // Props for the main client view component
 interface HaeuserClientViewProps {
@@ -78,10 +80,10 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
   const handleBulkExport = useCallback(() => {
     const selectedHousesData = enrichedHaeuser.filter(h => selectedHouses.has(h.id))
-    
+
     const headers = ['Haus', 'Ort', 'Größe (m²)', 'Miete (€)', '€/m²', 'Status']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     const csvRows = selectedHousesData.map(h => {
       const row = [
         h.name,
@@ -93,7 +95,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -159,45 +161,52 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
   }, [selectedHouses, router, refreshTable]);
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
       <div
         className="absolute inset-0 z-[-1]"
         style={{
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
-      <div className="flex flex-wrap gap-4">
-        <StatCard 
-          title="Häuser gesamt" 
-          value={summary.totalHouses} 
-          icon={<Building className="h-4 w-4 text-muted-foreground" />} 
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
+        <StatCard
+          title="Häuser gesamt"
+          value={summary.totalHouses}
+          icon={<Building className="h-4 w-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
-        <StatCard 
-          title="Wohnungen gesamt" 
-          value={summary.totalApartments} 
-          icon={<Home className="h-4 w-4 text-muted-foreground" />} 
+        <StatCard
+          title="Wohnungen gesamt"
+          value={summary.totalApartments}
+          icon={<Home className="h-4 w-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
-        <StatCard 
-          title="Freie Wohnungen" 
-          value={summary.freeApartments} 
-          icon={<Key className="h-4 w-4 text-muted-foreground" />} 
+        <StatCard
+          title="Freie Wohnungen"
+          value={summary.freeApartments}
+          icon={<Key className="h-4 w-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
       </div>
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-start justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Hausverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Häuser</p>
+              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Häuser</p>
             </div>
-            <div className="mt-1">
-              <ButtonWithTooltip onClick={handleAdd} className="sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
+            <div className="mt-0 sm:mt-1">
+              <ResponsiveButtonWithTooltip
+                id="create-object-btn"
+                onClick={() => {
+                  useOnboardingStore.getState().completeStep('create-house-start');
+                  handleAdd();
+                }}
+                icon={<PlusCircle className="h-4 w-4" />}
+                shortText="Hinzufügen"
+              >
                 Haus hinzufügen
-              </ButtonWithTooltip>
+              </ResponsiveButtonWithTooltip>
             </div>
           </div>
         </CardHeader>
@@ -205,36 +214,34 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {[
-                  { value: "all", label: "Alle Häuser" },
-                  { value: "full", label: "Voll belegt" },
-                  { value: "vacant", label: "Mit freien Wohnungen" },
-                ].map(({ value, label }) => (
-                  <Button
+                  { value: "all", shortLabel: "Alle", fullLabel: "Alle Häuser" },
+                  { value: "full", shortLabel: "Belegt", fullLabel: "Voll belegt" },
+                  { value: "vacant", shortLabel: "Frei", fullLabel: "Mit freien Wohnungen" },
+                ].map(({ value, shortLabel, fullLabel }) => (
+                  <ResponsiveFilterButton
                     key={value}
-                    variant={filter === value ? "default" : "ghost"}
+                    shortLabel={shortLabel}
+                    fullLabel={fullLabel}
+                    isActive={filter === value}
                     onClick={() => setFilter(value)}
-                    className="h-9 rounded-full"
-                  >
-                    {label}
-                  </Button>
+                  />
                 ))}
               </div>
-              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Häuser suchen..."
-                  className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              <SearchInput
+                placeholder="Suchen..."
+                className="rounded-full"
+                mode="table"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
+              />
             </div>
             {selectedHouses.size > 0 && (
-              <div className="p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+              <div className="p-3 sm:p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between animate-in slide-in-from-top-2 duration-200">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -243,7 +250,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       className="data-[state=checked]:bg-primary"
                     />
                     <span className="font-medium text-sm">
-                      {selectedHouses.size} {selectedHouses.size === 1 ? 'Haus' : 'Häuser'} ausgewählt
+                      {selectedHouses.size} <span className="hidden sm:inline">{selectedHouses.size === 1 ? 'Haus' : 'Häuser'}</span> ausgewählt
                     </span>
                   </div>
                   <Button
@@ -255,32 +262,35 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleBulkExport}
-                    className="h-8 gap-2"
+                    className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                   >
                     <Download className="h-4 w-4" />
-                    Exportieren
+                    <span className="hidden sm:inline">Exportieren</span>
+                    <span className="sm:hidden">Export</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowBulkDeleteConfirm(true)}
                     disabled={isBulkDeleting}
-                    className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                    className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                   >
                     {isBulkDeleting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Wird gelöscht...
+                        <span className="hidden sm:inline">Löschen...</span>
+                        <span className="sm:hidden">...</span>
                       </>
                     ) : (
                       <>
                         <Trash2 className="h-4 w-4" />
-                        Löschen ({selectedHouses.size})
+                        <span className="hidden sm:inline">Löschen ({selectedHouses.size})</span>
+                        <span className="sm:hidden">{selectedHouses.size}</span>
                       </>
                     )}
                   </Button>

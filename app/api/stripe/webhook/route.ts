@@ -4,13 +4,15 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
+import { STRIPE_CONFIG } from '@/lib/constants/stripe';
+import { logApiRoute } from '@/lib/logging-middleware';
 
 // Module-level constants that are safe to initialize here
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 // Note: supabaseAdmin and stripe client initializations are moved into the POST handler.
 
 export async function POST(req: Request) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -50,11 +52,15 @@ export async function POST(req: Request) {
     let event: Stripe.Event;
 
     if (!webhookSecret) {
-     console.error('STRIPE_WEBHOOK_SECRET is not set.');
-     return new NextResponse('Webhook secret is not configured', { status: 500 });
+      logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+        error_message: 'STRIPE_WEBHOOK_SECRET is not set'
+      });
+      return new NextResponse('Webhook secret is not configured', { status: 500 });
     }
-     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('Supabase URL or Service Role Key is not set for Admin client.');
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+        error_message: 'Supabase admin client not configured'
+      });
       return new NextResponse('Supabase admin client not configured', { status: 500 });
     }
 
@@ -62,34 +68,51 @@ export async function POST(req: Request) {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error(`⚠️  Webhook signature verification failed: ${errorMessage}`);
+      logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+        error_message: errorMessage,
+        error_type: 'signature_verification_failed'
+      });
       return new NextResponse(`Webhook Error: ${errorMessage}`, { status: 400 });
     }
 
-    console.log(`Received Stripe event: ${event.type}`, event.id);
+    logApiRoute('/api/stripe/webhook', 'POST', 'request', {
+      event_type: event.type,
+      event_id: event.id
+    });
 
     // Handle the event
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        console.log('Checkout session completed:', session.id);
         const userId = session.metadata?.userId;
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
 
         if (!userId) {
-          console.error('User ID not found in session metadata for session:', session.id);
-          break; // Acknowledge event but don't process further if critical info is missing
+          logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+            event_type: 'checkout.session.completed',
+            session_id: session.id,
+            error_message: 'User ID not found in session metadata'
+          });
+          break;
         }
         if (!customerId || !subscriptionId) {
-            console.error('Customer ID or Subscription ID not found in session:', session.id);
-            break;
+          logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+            event_type: 'checkout.session.completed',
+            session_id: session.id,
+            error_message: 'Customer ID or Subscription ID not found'
+          });
+          break;
         }
 
         const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
         if (!retrievedSubscription) {
-            console.error('Could not retrieve subscription details for sub ID:', subscriptionId);
-            break;
+          logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+            event_type: 'checkout.session.completed',
+            subscription_id: subscriptionId,
+            error_message: 'Could not retrieve subscription details'
+          });
+          break;
         }
 
         const profileUpdateData: Partial<Profile> = {
@@ -101,23 +124,40 @@ export async function POST(req: Request) {
         };
 
         await updateProfileInSupabase(userId, profileUpdateData);
+
+        logApiRoute('/api/stripe/webhook', 'POST', 'response', {
+          event_type: 'checkout.session.completed',
+          user_id: userId,
+          customer_id: customerId,
+          subscription_id: subscriptionId,
+          subscription_status: retrievedSubscription.status,
+          price_id: retrievedSubscription.items.data[0]?.price.id,
+          action: 'subscription_created'
+        });
         break;
       }
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
-        console.log('Invoice paid:', invoice.id);
         const customerId = invoice.customer as string;
         const subscriptionId = (invoice as any).subscription as string;
 
         if (!customerId || !subscriptionId) {
-            console.error('Customer ID or Subscription ID not found in invoice:', invoice.id);
-            break;
+          logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+            event_type: 'invoice.paid',
+            invoice_id: invoice.id,
+            error_message: 'Customer ID or Subscription ID not found'
+          });
+          break;
         }
 
         const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
         if (!retrievedSubscription) {
-            console.error('Could not retrieve subscription details for sub ID (invoice.paid):', subscriptionId);
-            break;
+          logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+            event_type: 'invoice.paid',
+            subscription_id: subscriptionId,
+            error_message: 'Could not retrieve subscription details'
+          });
+          break;
         }
 
         await updateProfileByCustomerIdInSupabase(customerId, {
@@ -125,80 +165,122 @@ export async function POST(req: Request) {
           stripe_price_id: retrievedSubscription.items.data[0]?.price.id,
           stripe_current_period_end: new Date((retrievedSubscription as any).current_period_end * 1000).toISOString(),
         });
+
+        logApiRoute('/api/stripe/webhook', 'POST', 'response', {
+          event_type: 'invoice.paid',
+          customer_id: customerId,
+          invoice_id: invoice.id,
+          amount_paid: invoice.amount_paid,
+          action: 'invoice_paid'
+        });
         break;
       }
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
-        console.log('Invoice payment failed:', invoice.id);
         const customerId = invoice.customer as string;
         if (!customerId) {
-            console.error('Customer ID not found in invoice (payment_failed):', invoice.id);
-            break;
+          logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+            event_type: 'invoice.payment_failed',
+            invoice_id: invoice.id,
+            error_message: 'Customer ID not found'
+          });
+          break;
         }
 
-        const subscriptionId = (invoice as any).subscription as string; // Apply similar fix here if this was also an issue
-        let status = 'past_due'; // Default status
+        const subscriptionId = (invoice as any).subscription as string;
+        let status = 'past_due';
         if (subscriptionId) {
-            try {
-                const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
-                status = retrievedSubscription.status; // e.g., 'past_due', 'unpaid', 'canceled'
-            } catch (subError) {
-                console.error(`Could not retrieve subscription ${subscriptionId} for failed invoice ${invoice.id}:`, subError);
-                // Stick with 'past_due' or decide on another default if subscription is not retrievable
-            }
+          try {
+            const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            status = retrievedSubscription.status;
+          } catch (subError) {
+            console.error(`Could not retrieve subscription ${subscriptionId} for failed invoice ${invoice.id}:`, subError);
+          }
         }
 
         await updateProfileByCustomerIdInSupabase(customerId, {
           stripe_subscription_status: status,
         });
-        console.log(`Profile updated for customer ${customerId} to status '${status}' after invoice payment failure.`);
+
+        logApiRoute('/api/stripe/webhook', 'POST', 'response', {
+          event_type: 'invoice.payment_failed',
+          customer_id: customerId,
+          invoice_id: invoice.id,
+          subscription_status: status,
+          action: 'payment_failed'
+        });
         break;
       }
       case 'customer.subscription.updated': {
-        // The 'subscription' object here is directly from the event data, not from a 'retrieve' call.
         const subscriptionFromEvent = event.data.object as Stripe.Subscription;
-        console.log('Subscription updated:', subscriptionFromEvent.id, 'Status:', subscriptionFromEvent.status);
         const customerId = subscriptionFromEvent.customer as string;
         if (!customerId) {
-            console.error('Customer ID not found in subscription (updated):', subscriptionFromEvent.id);
-            break;
+          logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+            event_type: 'customer.subscription.updated',
+            subscription_id: subscriptionFromEvent.id,
+            error_message: 'Customer ID not found'
+          });
+          break;
         }
 
         const profileUpdateData: Partial<Profile> = {
-            stripe_subscription_id: subscriptionFromEvent.id,
-            stripe_subscription_status: subscriptionFromEvent.status,
-            stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
-            stripe_current_period_end: new Date((subscriptionFromEvent as any).current_period_end * 1000).toISOString(),
+          stripe_subscription_id: subscriptionFromEvent.id,
+          stripe_subscription_status: subscriptionFromEvent.status,
+          stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
+          stripe_current_period_end: new Date((subscriptionFromEvent as any).current_period_end * 1000).toISOString(),
         };
 
         await updateProfileByCustomerIdInSupabase(customerId, profileUpdateData);
+
+        logApiRoute('/api/stripe/webhook', 'POST', 'response', {
+          event_type: 'customer.subscription.updated',
+          customer_id: customerId,
+          subscription_id: subscriptionFromEvent.id,
+          subscription_status: subscriptionFromEvent.status,
+          price_id: subscriptionFromEvent.items.data[0]?.price.id,
+          action: 'subscription_updated'
+        });
         break;
       }
       case 'customer.subscription.deleted': {
-        // The 'subscription' object here is directly from the event data.
         const subscriptionFromEvent = event.data.object as Stripe.Subscription;
-        console.log('Subscription deleted:', subscriptionFromEvent.id, 'Status:', subscriptionFromEvent.status);
         const customerId = subscriptionFromEvent.customer as string;
-         if (!customerId) {
-            console.error('Customer ID not found in subscription (deleted):', subscriptionFromEvent.id);
-            break;
+        if (!customerId) {
+          logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+            event_type: 'customer.subscription.deleted',
+            subscription_id: subscriptionFromEvent.id,
+            error_message: 'Customer ID not found'
+          });
+          break;
         }
         await updateProfileByCustomerIdInSupabase(customerId, {
-          stripe_subscription_status: subscriptionFromEvent.status, // Stripe sends 'canceled', or other relevant status.
-          // Consider how you want to handle other fields on deletion.
-          // stripe_subscription_id: null, // Might be good to nullify if it's truly deleted and not just 'canceled' status.
+          stripe_subscription_status: subscriptionFromEvent.status,
         });
-        console.log(`Profile updated for customer ${customerId} after subscription deletion.`);
+
+        logApiRoute('/api/stripe/webhook', 'POST', 'response', {
+          event_type: 'customer.subscription.deleted',
+          customer_id: customerId,
+          subscription_id: subscriptionFromEvent.id,
+          subscription_status: subscriptionFromEvent.status,
+          action: 'subscription_cancelled'
+        });
         break;
       }
       default:
-        console.log(`Unhandled event type ${event.type} for event ID ${event.id}`);
+        logApiRoute('/api/stripe/webhook', 'POST', 'response', {
+          event_type: event.type,
+          event_id: event.id,
+          action: 'unhandled_event'
+        });
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Error handling Stripe webhook:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logApiRoute('/api/stripe/webhook', 'POST', 'error', {
+      error_message: errorMessage,
+      error_type: 'webhook_handler_error'
+    });
     return new NextResponse(`Internal Server Error in webhook: ${errorMessage}`, { status: 500 });
   }
 }

@@ -8,12 +8,12 @@ export const runtime = 'edge';
  */
 export async function GET(request: NextRequest) {
   return NextResponse.json(
-    { 
-      status: 'ok', 
+    {
+      status: 'ok',
       timestamp: new Date().toISOString(),
-      server: 'mietfluss-api'
+      server: 'mietevo-api'
     },
-    { 
+    {
       status: 200,
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',

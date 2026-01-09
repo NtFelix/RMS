@@ -10,16 +10,79 @@ export type BerechnungsartValue = typeof BERECHNUNGSART_OPTIONS[number]['value']
 // You can also export an array of the values if that's useful
 export const BERECHNUNGSART_VALUES = BERECHNUNGSART_OPTIONS.map(opt => opt.value);
 
-// Logo URL configured via NEXT_PUBLIC_LOGO_URL environment variable
-export const LOGO_URL = process.env.NEXT_PUBLIC_LOGO_URL!;
+// Supabase PWA images storage URL
+export const PWA_IMAGES_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images';
 
-// Feature flags for gradual rollout
-export const FEATURE_FLAGS = {
-  // Cloud storage navigation improvements
-  ENABLE_CLIENT_NAVIGATION: process.env.NEXT_PUBLIC_ENABLE_CLIENT_NAVIGATION !== 'false', // Default enabled
-  ENABLE_HYBRID_NAVIGATION: process.env.NEXT_PUBLIC_ENABLE_HYBRID_NAVIGATION !== 'false', // Default enabled
-  ENABLE_NAVIGATION_CACHE: process.env.NEXT_PUBLIC_ENABLE_NAVIGATION_CACHE !== 'false', // Default enabled
-  ENABLE_OPTIMISTIC_UI: process.env.NEXT_PUBLIC_ENABLE_OPTIMISTIC_UI !== 'false', // Default enabled
+// Logo URL (mascot)
+export const LOGO_URL = `${PWA_IMAGES_URL}/mascot/normal.avif`;
+
+// SEO Image URLs - using Supabase storage for reliable crawlability
+export const FAVICON_URL = `${PWA_IMAGES_URL}/favicon.png`;
+export const OG_IMAGE_URL = `${PWA_IMAGES_URL}/cover.avif`;
+
+// Brand Name
+export const BRAND_NAME_PART_1 = 'Miet';
+export const BRAND_NAME_PART_2 = 'evo';
+export const BRAND_NAME = `${BRAND_NAME_PART_1}${BRAND_NAME_PART_2}`;
+export const SUPPORT_EMAIL = "support@mietevo.de";
+export const INFO_EMAIL = "info@mietevo.de";
+// DEPRECATED: Use SUPPORT_EMAIL or INFO_EMAIL directly.
+// For backward compatibility, CONTACT_EMAIL now aliases INFO_EMAIL (it was previously SUPPORT_EMAIL).
+export const CONTACT_EMAIL = INFO_EMAIL;
+
+// Base URL - centralized to ensure consistency across all environments
+export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de';
+
+// Website domain (without protocol) - for display in legal pages
+export const WEBSITE_DOMAIN = 'mietevo.de';
+
+
+// Feature flags removed as functionality is now standard
+// PostHog feature flag keys - centralized to prevent magic strings
+export const POSTHOG_FEATURE_FLAGS = {
+  // Pricing page
+  SHOW_WAITLIST_BUTTON: 'show-waitlist-button',
+  PRICING_PAGE_PREVIEW_LIMIT_NOTICE: 'pricing-page-preview-limit-notice',
+  // Navigation
+  DOCUMENTS_TAB_ACCESS: 'documents_tab_access',
+  MAILS_TAB: 'mails-tab',
+  // Features
+  TEMPLATE_MODAL_ENABLED: 'template-modal-enabled',
+  CREATE_FILE_OPTION: 'create-file-option',
+  DARK_MODE: 'dark-mode',
+  AI_DOCUMENTATION_MODE: 'ai-documentation-mode',
+  // Landing page
+  SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
+  SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
+  GOOGLE_SOCIAL_LOGIN: 'google-social-login',
+} as const;
+
+// Application routes - centralized to prevent hardcoded paths
+export const ROUTES = {
+  // Auth
+  LOGIN: '/auth/login',
+  REGISTER: '/auth/register',
+  RESET_PASSWORD: '/auth/reset-password',
+  UPDATE_PASSWORD: '/auth/update-password',
+  // Dashboard
+  HOME: '/home',
+  PROPERTIES: '/objekte',
+  TENANTS: '/mieter',
+  FINANCES: '/finanzen',
+  DOCUMENTS: '/dateien',
+  SETTINGS: '/einstellungen',
+  // Landing
+  LANDING: '/',
+  PRICING: '/preise',
+  FEATURES: '/funktionen',
+  FEATURES_WOHNUNGSVERWALTUNG: '/funktionen/wohnungsverwaltung',
+  FEATURES_FINANZVERWALTUNG: '/funktionen/finanzverwaltung',
+  FEATURES_BETRIEBSKOSTEN: '/funktionen/betriebskosten',
+  // Legal & Resources
+  DOCUMENTATION: '/hilfe/dokumentation',
+  PRIVACY: '/datenschutz',
+  TERMS: '/agb',
+  IMPRESSUM: '/impressum',
 } as const;
 
 // Video URLs
@@ -27,6 +90,9 @@ export const HERO_VIDEO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/
 
 // Document URLs
 export const EXAMPLE_BILL_PDF_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/Beispielabrechnung.pdf';
+
+// Demo calendar URL
+export const DEMO_CALENDAR_URL = 'https://calendar.notion.so/meet/felix-b0111/demo-anfordern';
 
 // Countries for billing address
 export const BILLING_COUNTRIES = {

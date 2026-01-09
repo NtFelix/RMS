@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-Mail-Adresse ändern - Mietfluss</title>
+    <title>E-Mail-Adresse ändern - Mietevo</title>
     <style>
         :root {
             --primary: #2b3e4f;
@@ -102,17 +103,26 @@
             border-top: 1px solid var(--border);
         }
 
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
         @media (max-width: 480px) {
             body {
                 padding: 15px;
             }
+
             .email-container {
                 padding: 30px 20px;
                 border-radius: 20px;
             }
+
             h1 {
                 font-size: 24px;
             }
+
             .btn-confirm {
                 padding: 16px 0;
                 font-size: 16px;
@@ -120,23 +130,26 @@
         }
     </style>
 </head>
+
 <body>
     <div class="email-container">
         <div class="header">
-            <img src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png" alt="Mietfluss Mascot" class="logo">
+            <img src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png"
+                alt="Mietevo Mascot" class="logo">
             <h1>E-Mail-Adresse bestätigen</h1>
         </div>
 
         <p>Hallo,</p>
-        
-        <p>Sie haben eine Änderung Ihrer E-Mail-Adresse für Ihr Mietfluss-Konto angefordert.</p>
+
+        <p>Sie haben eine Änderung Ihrer E-Mail-Adresse für Ihr Mietevo-Konto angefordert.</p>
 
         <div class="info-box">
             <p><strong>Aktuelle E-Mail:</strong> {{ .Email }}</p>
             <p><strong>Neue E-Mail:</strong> {{ .NewEmail }}</p>
         </div>
 
-        <p>Um die Änderung zu bestätigen und diese E-Mail-Adresse für Ihr Konto zu verwenden, klicken Sie bitte auf den folgenden Button:</p>
+        <p>Um die Änderung zu bestätigen und diese E-Mail-Adresse für Ihr Konto zu verwenden, klicken Sie bitte auf den
+            folgenden Button:</p>
 
         <div class="btn-container">
             <a href="{{ .ConfirmationURL }}" class="btn-confirm">E-Mail-Änderung bestätigen</a>
@@ -147,13 +160,16 @@
 
         <p>Dieser Link ist 24 Stunden gültig.</p>
 
-        <p><strong>Wichtig:</strong> Nach der Bestätigung wird diese E-Mail-Adresse für alle zukünftigen Anmeldungen und Benachrichtigungen verwendet.</p>
+        <p><strong>Wichtig:</strong> Nach der Bestätigung wird diese E-Mail-Adresse für alle zukünftigen Anmeldungen und
+            Benachrichtigungen verwendet.</p>
 
         <div class="footer">
-            <p>Falls Sie diese Änderung nicht angefordert haben, ignorieren Sie diese E-Mail. Ihre aktuelle E-Mail-Adresse bleibt unverändert.</p>
-            <p>Bei Fragen erreichen Sie uns unter felix.plant@web.de</p>
-            <p>&copy; 2025 Mietfluss. Alle Rechte vorbehalten.</p>
+            <p>Falls Sie diese Änderung nicht angefordert haben, ignorieren Sie diese E-Mail. Ihre aktuelle
+                E-Mail-Adresse bleibt unverändert.</p>
+            <p>Bei Fragen erreichen Sie uns unter <a href="mailto:support@mietevo.de">support@mietevo.de</a></p>
+            <p>&copy; 2025 Mietevo. Alle Rechte vorbehalten.</p>
         </div>
     </div>
 </body>
+
 </html>

@@ -15,7 +15,8 @@ BEGIN
   DELETE FROM public."Mieter" WHERE user_id = OLD.id;
   DELETE FROM public."Nebenkosten" WHERE user_id = OLD.id;
   DELETE FROM public."Rechnungen" WHERE user_id = OLD.id;
-  DELETE FROM public."Wasserzaehler" WHERE user_id = OLD.id;
+  DELETE FROM public."Zaehler_Ablesungen" WHERE user_id = OLD.id;
+  DELETE FROM public."Zaehler" WHERE user_id = OLD.id;
   DELETE FROM public."Wohnungen" WHERE user_id = OLD.id;
 
   RETURN OLD;

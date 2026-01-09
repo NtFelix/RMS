@@ -1,5 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
+
 import { Home, Building2, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
 
@@ -52,13 +53,13 @@ export default function NotFound() {
           <div className="relative w-8 h-8 rounded-full overflow-hidden">
             <Image
               src={LOGO_URL}
-              alt="Mietfluss Logo"
+              alt="Mietevo Logo"
               fill
               className="object-cover"
-              sizes="32px"
+              unoptimized // Supabase images are stored as pre-optimized .avif
             />
           </div>
-          <span className="text-lg">Mietfluss</span>
+          <span className="text-lg">Mietevo</span>
         </Link>
       </header>
 
@@ -72,7 +73,7 @@ export default function NotFound() {
               Seite nicht gefunden
             </h2>
             <p className="text-lg text-muted-foreground max-w-md mx-auto">
-              Die angeforderte Seite konnte nicht gefunden werden. 
+              Die angeforderte Seite konnte nicht gefunden werden.
               Möglicherweise wurde sie verschoben oder existiert nicht mehr.
             </p>
           </div>

@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/utils/supabase/server';
+import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 
 // Define interfaces for expanded Stripe objects
 interface ExpandedStripeInvoice extends Stripe.Invoice {
@@ -18,9 +19,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-06-30.basil',
-  });
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
 
   try {
     const supabase = await createClient();

@@ -34,8 +34,8 @@ const config = {
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-DEFAULT: "hsl(var(--destructive))",
-foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
         },
         success: { // Added success
           DEFAULT: "#22c55e", // green-500
@@ -87,6 +87,7 @@ foreground: "hsl(var(--destructive-foreground))",
         xl: "calc(var(--radius) + 0.25rem)",
         "2xl": "calc(var(--radius) + 0.5rem)",
         "3xl": "calc(var(--radius) + 0.75rem)",
+        "4xl": "calc(var(--radius) + 1.0rem)",
         // Pill shapes for interactive elements
         pill: "9999px",
         // Nested element radius following the formula: Outer radius = Inner radius + Padding
@@ -128,6 +129,9 @@ foreground: "hsl(var(--destructive-foreground))",
         "slide-up": "slide-up 0.3s ease-out",
         "bounce-subtle": "bounce-subtle 0.6s ease-in-out",
       },
+      transitionTimingFunction: {
+        smooth: "cubic-bezier(0.32, 0.72, 0, 1)",
+      },
     },
   },
   plugins: [
@@ -139,6 +143,12 @@ foreground: "hsl(var(--destructive-foreground))",
           "backdrop-filter": "blur(8px) saturate(150%)",
           "-webkit-backdrop-filter": "blur(8px) saturate(150%)",
           "border": "1px solid rgba(255, 255, 255, 0.2)",
+        },
+        ".dark .glass": {
+          "background-color": "rgba(17, 24, 39, 0.4)",
+          "backdrop-filter": "blur(8px) saturate(150%)",
+          "-webkit-backdrop-filter": "blur(8px) saturate(150%)",
+          "border": "1px solid rgba(55, 65, 81, 0.3)",
         },
         ".line-clamp-1": {
           "overflow": "hidden",

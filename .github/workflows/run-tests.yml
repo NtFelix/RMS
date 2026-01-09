@@ -14,6 +14,10 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+# Limit permissions of GITHUB_TOKEN for security
+permissions:
+  contents: read
+
 env:
   NODE_ENV: test
   CI: true
@@ -22,58 +26,514 @@ env:
   FORCE_COLOR: '1'
 
 jobs:
-  test:
-    name: Run Tests
+  # Setup job to dynamically discover test files and determine which need to run
+  setup:
+    name: Discover & Filter Test Files
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      total-files: ${{ steps.set-matrix.outputs.total-files }}
+      files-to-test: ${{ steps.set-matrix.outputs.files-to-test }}
+      is-full-run: ${{ steps.set-matrix.outputs.is-full-run }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for changed file detection
+
+      # Restore cache of previously passing tests
+      - name: Restore passing tests cache
+        id: cache-passing-tests
+        uses: actions/cache/restore@v4
+        with:
+          path: .test-cache
+          key: passing-tests-${{ runner.os }}-dummy-key-for-restore
+          restore-keys: |
+            passing-tests-${{ runner.os }}-
+
+      # Get changed files for PR or push
+      - name: Get changed files
+        id: changed-files
+        run: |
+          # Determine if this is a PR or a push
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            # For push events, compare with the previous commit
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+            
+            # If before is empty (first push), use parent commit
+            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+            fi
+          fi
+          
+          echo "Base SHA: $BASE_SHA"
+          echo "Head SHA: $HEAD_SHA"
+          
+          # Get changed files
+          if [ -n "$BASE_SHA" ]; then
+            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx)$' || echo "")
+          else
+            # Fallback: consider all source files as changed
+            CHANGED_FILES="ALL"
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Save to file for next step
+          echo "$CHANGED_FILES" > changed_files.txt
+          
+          # Output for debugging
+          if [ "$CHANGED_FILES" = "ALL" ]; then
+            echo "all-changed=true" >> $GITHUB_OUTPUT
+            echo "changed-count=all" >> $GITHUB_OUTPUT
+          elif [ -z "$CHANGED_FILES" ]; then
+            echo "all-changed=false" >> $GITHUB_OUTPUT
+            echo "changed-count=0" >> $GITHUB_OUTPUT
+          else
+            # Count non-empty lines properly
+            CHANGED_COUNT=$(echo "$CHANGED_FILES" | grep -c -v '^$' 2>/dev/null || echo "0")
+            echo "all-changed=false" >> $GITHUB_OUTPUT
+            echo "changed-count=${CHANGED_COUNT}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Find and filter test files
+        id: set-matrix
+        run: |
+          # Find all test files
+          ALL_TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
+            -not -path "./node_modules/*" \
+            -not -path "./.next/*" \
+            -not -path "./coverage/*" \
+            -not -path "./.git/*" \
+            | sed 's|^\./||' \
+            | sort)
+          
+          mapfile -t ALL_FILES_ARRAY <<< "$ALL_TEST_FILES"
+          TOTAL_ALL_FILES=${#ALL_FILES_ARRAY[@]}
+          
+          echo "Found $TOTAL_ALL_FILES total test files"
+          
+          # Determine if we should run all tests or just changed ones
+          IS_MAIN_BRANCH=false
+          IS_FULL_RUN=false
+          
+          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            IS_MAIN_BRANCH=true
+            IS_FULL_RUN=true
+            echo "Main branch or manual trigger - running ALL tests"
+          fi
+          
+          # Load passing tests cache
+          PASSING_TESTS_FILE=".test-cache/passing-tests.json"
+          if [ -f "$PASSING_TESTS_FILE" ]; then
+            echo "Found passing tests cache"
+            cat "$PASSING_TESTS_FILE" | head -20
+          else
+            echo "No passing tests cache found - will run all tests"
+            IS_FULL_RUN=true
+            mkdir -p .test-cache
+            echo '{}' > "$PASSING_TESTS_FILE"
+          fi
+          
+          # Read changed files
+          CHANGED_FILES=$(cat changed_files.txt)
+          
+          if [ "$CHANGED_FILES" = "ALL" ]; then
+            echo "Cannot determine changed files - running all tests"
+            IS_FULL_RUN=true
+          fi
+          
+          # Determine which test files to run
+          TEST_FILES_TO_RUN=""
+          SKIPPED_FILES=""
+          
+          if [ "$IS_FULL_RUN" = "true" ]; then
+            TEST_FILES_TO_RUN="$ALL_TEST_FILES"
+            echo "Running all $TOTAL_ALL_FILES tests (full run)"
+          else
+            echo "Smart mode: checking which tests need to run..."
+            
+            for TEST_FILE in "${ALL_FILES_ARRAY[@]}"; do
+              SHOULD_RUN=false
+              
+              # Check if the test file itself was changed
+              if grep -Fxq "$TEST_FILE" changed_files.txt 2>/dev/null; then
+                echo "  ✓ $TEST_FILE - changed directly"
+                SHOULD_RUN=true
+              fi
+              
+              # Check if any related source file was changed
+              # Extract the source file path that this test might be testing
+              SOURCE_FILE=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.tsx|' | sed 's|\.test\.ts$|.ts|')
+              SOURCE_FILE_ALT=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.ts|')
+              
+              if grep -q "$SOURCE_FILE" changed_files.txt 2>/dev/null || grep -q "$SOURCE_FILE_ALT" changed_files.txt 2>/dev/null; then
+                echo "  ✓ $TEST_FILE - related source changed"
+                SHOULD_RUN=true
+              fi
+              
+              # Check if test was previously passing (if not, run it again)
+              if [ "$SHOULD_RUN" = "false" ]; then
+                # Calculate hash of test file content
+                if [ -f "$TEST_FILE" ]; then
+                  FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
+                  CACHED_HASH=$(jq -r --arg file "$TEST_FILE" '.[$file] // ""' "$PASSING_TESTS_FILE")
+                  
+                  if [ "$FILE_HASH" = "$CACHED_HASH" ]; then
+                    echo "  ⏭ $TEST_FILE - cached as passing (skipping)"
+                    SKIPPED_FILES="$SKIPPED_FILES $TEST_FILE"
+                  else
+                    echo "  ✓ $TEST_FILE - content changed or not in cache"
+                    SHOULD_RUN=true
+                  fi
+                else
+                  SHOULD_RUN=true
+                fi
+              fi
+              
+              if [ "$SHOULD_RUN" = "true" ]; then
+                TEST_FILES_TO_RUN="$TEST_FILES_TO_RUN $TEST_FILE"
+              fi
+            done
+          fi
+          
+          # Trim and convert to array
+          # Trim and convert to array
+          TEST_FILES_TO_RUN=$(echo "$TEST_FILES_TO_RUN" | xargs)
+          
+          if [ -z "$TEST_FILES_TO_RUN" ]; then
+            FILES_ARRAY=()
+          else
+            # Ensure grep doesn't fail the script if no lines match (though -z check covers most cases)
+            mapfile -t FILES_ARRAY <<< "$(echo "$TEST_FILES_TO_RUN" | tr ' ' '\n' | grep -v '^$' || true)"
+          fi
+          
+          TOTAL_FILES=${#FILES_ARRAY[@]}
+          
+          # Count skipped
+          SKIPPED_COUNT=$(echo "$SKIPPED_FILES" | wc -w | xargs)
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Test Summary:"
+          echo "   Total test files:  $TOTAL_ALL_FILES"
+          echo "   Skipped (cached):  $SKIPPED_COUNT"
+          echo "   Running:           $TOTAL_FILES"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          echo "total-files=$TOTAL_FILES" >> $GITHUB_OUTPUT
+          echo "is-full-run=$IS_FULL_RUN" >> $GITHUB_OUTPUT
+          
+          if [ "$TOTAL_FILES" -eq 0 ]; then
+            echo "No tests to run!"
+            echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
+            echo "files-to-test=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Number of parallel runners
+          NUM_GROUPS=3
+          
+          # Partition files into groups using round-robin for even distribution
+          GROUP1_FILES=""
+          GROUP2_FILES=""
+          GROUP3_FILES=""
+          
+          INDEX=0
+          for FILE in "${FILES_ARRAY[@]}"; do
+            if [ -n "$FILE" ]; then
+              GROUP_NUM=$(( (INDEX % NUM_GROUPS) + 1 ))
+              case $GROUP_NUM in
+                1) GROUP1_FILES="$GROUP1_FILES $FILE" ;;
+                2) GROUP2_FILES="$GROUP2_FILES $FILE" ;;
+                3) GROUP3_FILES="$GROUP3_FILES $FILE" ;;
+              esac
+              INDEX=$((INDEX + 1))
+            fi
+          done
+          
+          # Trim leading spaces
+          GROUP1_FILES=$(echo "$GROUP1_FILES" | xargs)
+          GROUP2_FILES=$(echo "$GROUP2_FILES" | xargs)
+          GROUP3_FILES=$(echo "$GROUP3_FILES" | xargs)
+          
+          # Count files per group
+          GROUP1_COUNT=$(echo "$GROUP1_FILES" | wc -w | xargs)
+          GROUP2_COUNT=$(echo "$GROUP2_FILES" | wc -w | xargs)
+          GROUP3_COUNT=$(echo "$GROUP3_FILES" | wc -w | xargs)
+          
+          echo ""
+          echo "Distribution across runners:"
+          echo "  Group 1: $GROUP1_COUNT files"
+          echo "  Group 2: $GROUP2_COUNT files"
+          echo "  Group 3: $GROUP3_COUNT files"
+          
+          # Build matrix JSON - only include groups with files
+          INCLUDE_ARRAY="["
+          FIRST=true
+          
+          if [ -n "$GROUP1_FILES" ]; then
+            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":1,\"is-first-group\":true,\"test-files\":$(echo "$GROUP1_FILES" | jq -R .)}"
+            FIRST=false
+          fi
+          
+          if [ -n "$GROUP2_FILES" ]; then
+            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":2,\"is-first-group\":false,\"test-files\":$(echo "$GROUP2_FILES" | jq -R .)}"
+            FIRST=false
+          fi
+          
+          if [ -n "$GROUP3_FILES" ]; then
+            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":3,\"is-first-group\":false,\"test-files\":$(echo "$GROUP3_FILES" | jq -R .)}"
+            FIRST=false
+          fi
+          
+          INCLUDE_ARRAY="$INCLUDE_ARRAY]"
+          MATRIX_JSON="{\"include\":$INCLUDE_ARRAY}"
+          
+          echo ""
+          echo "Matrix JSON:"
+          echo "$MATRIX_JSON" | jq .
+          
+          # Output
+          echo "matrix=$(echo "$MATRIX_JSON" | jq -c .)" >> $GITHUB_OUTPUT
+          echo "files-to-test=$TEST_FILES_TO_RUN" >> $GITHUB_OUTPUT
+
+  # E2E Tests with Playwright - runs in parallel with unit tests
+  e2e-test:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: setup
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Generate build cache key (same strategy as Lighthouse workflow for cache sharing)
+      - name: Generate build cache key
+        id: build-cache-key
+        run: |
+          # Create a hash of all files that affect the build
+          BUILD_HASH=$(find app components lib hooks types utils public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" -o -name "*.json" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
+          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json', 'tailwind.config.ts') }}"
+          CACHE_KEY="build-${BUILD_HASH}-${PACKAGE_HASH}"
+          echo "cache-key=${CACHE_KEY}" >> $GITHUB_OUTPUT
+          echo "Build cache key: ${CACHE_KEY}"
+
+      # Restore full build cache (shared with Lighthouse workflow)
+      - name: Restore build cache
+        id: restore-build-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .next
+          key: ${{ steps.build-cache-key.outputs.cache-key }}
+          restore-keys: |
+            build-
+
+      # Cache node_modules (shared with other jobs)
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      # Cache Playwright browsers to avoid re-downloading
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: cache-playwright
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Display cache status
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 E2E Test Cache Status"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  Build cache: ${{ steps.restore-build-cache.outputs.cache-hit == 'true' && '✅ HIT (skipping build)' || '❌ MISS (will build)' }}"
+          echo "  node_modules: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && '✅ HIT' || '❌ MISS' }}"
+          echo "  Playwright browsers: ${{ steps.cache-playwright.outputs.cache-hit == 'true' && '✅ HIT' || '❌ MISS' }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: Install dependencies
+        run: |
+          # Only run npm ci if node_modules doesn't exist or is incomplete
+          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+            echo "Installing dependencies..."
+            npm ci --prefer-offline
+          else
+            echo "✓ node_modules exists and appears complete - skipping npm ci"
+          fi
+
+      # Only install browsers if not cached
+      - name: Install Playwright Browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
+
+      # Install system dependencies if browsers were cached (deps not included in cache)
+      - name: Install Playwright system dependencies
+        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        run: npx playwright install-deps
+
+      # Only build if cache miss
+      - name: Build application
+        id: build
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "🏗️ Building Next.js application..."
+          START_TIME=$(date +%s)
+          npm run build
+          END_TIME=$(date +%s)
+          BUILD_TIME=$((END_TIME - START_TIME))
+          echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
+          echo "✅ Build completed in ${BUILD_TIME}s"
+        env:
+          # Add any required build-time environment variables
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+
+      # Save build cache for future runs
+      - name: Save build cache
+        if: steps.restore-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .next
+          key: ${{ steps.build-cache-key.outputs.cache-key }}
+
+      - name: Build status
+        id: build-status
+        run: |
+          if [ "${{ steps.restore-build-cache.outputs.cache-hit }}" == "true" ]; then
+            echo "✓ Build restored from cache (0s)"
+            echo "build_time=0" >> $GITHUB_OUTPUT
+            echo "from_cache=true" >> $GITHUB_OUTPUT
+          else
+            echo "✓ Build completed and cached"
+            echo "from_cache=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Playwright tests
+        id: playwright
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎭 Running Playwright E2E Tests"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  Browsers: Chromium, Firefox, WebKit"
+          echo "  Base URL: http://localhost:3000"
+          echo "  Workers: 1 (CI mode)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          START_TIME=$(date +%s)
+          npx playwright test --reporter=list 2>&1 | tee playwright-output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          END_TIME=$(date +%s)
+          TEST_TIME=$((END_TIME - START_TIME))
+          echo "test_time=$TEST_TIME" >> $GITHUB_OUTPUT
+          echo "exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          
+          # Parse results from output
+          PASSED=$(grep -oP '\d+(?= passed)' playwright-output.log | tail -1 || echo "0")
+          FAILED=$(grep -oP '\d+(?= failed)' playwright-output.log | tail -1 || echo "0")
+          SKIPPED=$(grep -oP '\d+(?= skipped)' playwright-output.log | tail -1 || echo "0")
+          
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 E2E Test Results"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  ✅ Passed:  $PASSED"
+          echo "  ❌ Failed:  $FAILED"
+          echo "  ⏭️  Skipped: $SKIPPED"
+          echo "  ⏱️  Duration: ${TEST_TIME}s"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          exit $TEST_EXIT_CODE
+        env:
+          CI: true
+          # Use production build for E2E tests
+          NODE_ENV: production
+
+      - name: Generate E2E summary
+        if: always()
+        run: |
+          echo "## 🎭 E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.playwright.outputs.exit_code }}" = "0" ]; then
+            echo "### ✅ All E2E tests passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Some E2E tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Passed | ${{ steps.playwright.outputs.passed || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Failed | ${{ steps.playwright.outputs.failed || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏭️ Skipped | ${{ steps.playwright.outputs.skipped || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏱️ Test Duration | ${{ steps.playwright.outputs.test_time || '0' }}s |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.restore-build-cache.outputs.cache-hit }}" == "true" ]; then
+            echo "| 🏗️ Build | ✅ Restored from cache |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🏗️ Build Duration | ${{ steps.build.outputs.build_time || '0' }}s |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Cache Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Cache | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build (.next) | ${{ steps.restore-build-cache.outputs.cache-hit == 'true' && '✅ Hit' || '❌ Miss' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| node_modules | ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && '✅ Hit' || '❌ Miss' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Playwright browsers | ${{ steps.cache-playwright.outputs.cache-hit == 'true' && '✅ Hit' || '❌ Miss' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📎 Download the [Playwright Report](../artifacts) for detailed results and traces." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Playwright test results
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  test:
+    name: Run Tests (Group ${{ matrix.test-group }})
+    runs-on: ubuntu-latest
+    needs: setup
+    if: ${{ needs.setup.outputs.total-files != '0' }}
     strategy:
       fail-fast: false
-      matrix:
-        test-group: [1, 2, 3]
-        include:
-          - test-group: 1
-            is-first-group: true
-            test-files: >-
-              lib/__tests__/data-fetching.test.ts
-              lib/__tests__/utils.test.ts
-              lib/__tests__/template-constants.test.ts
-              lib/__tests__/storage-service.test.ts
-              lib/__tests__/path-utils.test.ts
-              lib/__tests__/constants.test.ts
-              lib/__tests__/supabase-server.test.ts
-              lib/__tests__/stripe-server.test.ts
-              hooks/__tests__/use-command-menu.test.tsx
-              hooks/__tests__/use-search.test.ts
-              components/__tests__/house-filters.test.tsx
-              components/__tests__/wohnung-overview-modal.test.tsx
-              components/__tests__/search-error-boundary.test.tsx
-              components/__tests__/search-result-item.test.tsx
-              components/__tests__/finance-edit-modal.test.tsx
-          - test-group: 2
-            is-first-group: false
-            test-files: >-
-              hooks/__tests__/use-cloud-storage-upload.test.ts
-              hooks/__tests__/use-keyboard-navigation.test.ts
-              hooks/__tests__/use-cloud-storage-navigation.test.ts
-              hooks/__tests__/use-cloud-storage-store.test.ts
-              hooks/__tests__/use-modal-store-timeout.test.ts
-              components/ui/__tests__/custom-combobox.test.tsx
-              components/ui/__tests__/video-player.test.tsx
-              components/ui/__tests__/label-with-tooltip.test.tsx
-              components/ui/__tests__/button-with-tooltip.test.tsx
-              app/(dashboard)/wohnungen/__tests__/client.test.tsx
-              app/(dashboard)/todos/__tests__/client-wrapper.test.tsx
-              app/(dashboard)/betriebskosten/__tests__/client-wrapper.test.tsx
-              app/(dashboard)/betriebskosten/__tests__/client-wrapper-layout.test.tsx
-              app/__tests__/wohnungen-actions.test.ts
-              app/subscription-locked/__tests__/page.test.tsx
-          - test-group: 3
-            is-first-group: false
-            test-files: >-
-              __tests__/template-service.test.ts
-              __tests__/mention-utils.test.ts
-              __tests__/betriebskosten-error-recovery.test.ts
-              __tests__/template-validation.test.ts
-              lib/__tests__/directory-cache.test.ts
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     
     # Job name is set by the matrix strategy
     
@@ -210,20 +670,6 @@ jobs:
           # Exit with the test status code
           exit $TEST_EXIT_CODE
 
-      # Upload test coverage to Codecov (only from first group and main/develop branches)
-      - name: Upload coverage to Codecov
-        if: always() && matrix.is-first-group && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-        run: |
-          if [ -f "coverage/lcov.info" ]; then
-            echo "Uploading lcov.info to Codecov..."
-            npx codecov --file=coverage/lcov.info --token=${{ secrets.CODECOV_TOKEN }}
-          elif [ -f "coverage/coverage-final.json" ]; then
-            echo "Uploading coverage-final.json to Codecov..."
-            npx codecov --file=coverage/coverage-final.json --token=${{ secrets.CODECOV_TOKEN }}
-          else
-            echo "No coverage files found. Skipping Codecov upload."
-          fi
-
       # Upload test results as artifacts (only from first group)
       - name: Upload test results
         if: always() && matrix.is-first-group
@@ -344,6 +790,45 @@ jobs:
           EOF
           
           cat test-summaries/group-${{ matrix.test-group }}.json
+
+      # Record passing tests for cache
+      - name: Record passing tests
+        if: success()
+        run: |
+          # Only record passing tests if all tests in this group passed
+          echo "Recording passing tests for group ${{ matrix.test-group }}..."
+          
+          mkdir -p .test-cache
+          PASSING_TESTS_FILE=".test-cache/passing-tests-group-${{ matrix.test-group }}.json"
+          
+          # Start with empty JSON object
+          echo '{}' > "$PASSING_TESTS_FILE"
+          
+          # Read test files that were run in this group
+          if [ -f test_files.json ]; then
+            TEST_FILES=$(jq -r '.[]' test_files.json)
+            
+            # For each passing test file, record its content hash
+            for TEST_FILE in $TEST_FILES; do
+              if [ -f "$TEST_FILE" ]; then
+                FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
+                # Add to JSON using jq
+                jq --arg file "$TEST_FILE" --arg hash "$FILE_HASH" '. + {($file): $hash}' "$PASSING_TESTS_FILE" > tmp.json && mv tmp.json "$PASSING_TESTS_FILE"
+                echo "  ✓ Recorded: $TEST_FILE ($FILE_HASH)"
+              fi
+            done
+          fi
+          
+          echo "Recorded $(jq 'length' "$PASSING_TESTS_FILE") passing tests for group ${{ matrix.test-group }}"
+
+      # Upload passing tests data for cache update
+      - name: Upload passing tests data
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: passing-tests-group-${{ matrix.test-group }}
+          path: .test-cache/passing-tests-group-${{ matrix.test-group }}.json
+          retention-days: 30
       
       # Upload test summary
       - name: Upload test summary
@@ -358,7 +843,7 @@ jobs:
   test-summary:
     name: Test Summary & Notification
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, e2e-test]
     if: always()
     
     steps:
@@ -372,6 +857,79 @@ jobs:
           pattern: test-summary-*
           path: test-summaries
           merge-multiple: true
+        continue-on-error: true
+
+      # Download Playwright report
+      - name: Download Playwright report
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+        continue-on-error: true
+
+      # Download passing tests data from all groups
+      - name: Download passing tests data
+        uses: actions/download-artifact@v4
+        with:
+          pattern: passing-tests-group-*
+          path: passing-tests-data
+          merge-multiple: true
+        continue-on-error: true
+
+      # Restore and update passing tests cache
+      - name: Restore passing tests cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: .test-cache
+          key: passing-tests-${{ runner.os }}-dummy-key-for-restore
+          restore-keys: |
+            passing-tests-${{ runner.os }}-
+
+      # Merge passing tests from all groups into cache
+      - name: Merge passing tests cache
+        run: |
+          mkdir -p .test-cache
+          CACHE_FILE=".test-cache/passing-tests.json"
+          
+          # Start with existing cache or empty object
+          if [ -f "$CACHE_FILE" ]; then
+            echo "Loading existing cache with $(jq 'length' "$CACHE_FILE") entries"
+          else
+            echo '{}' > "$CACHE_FILE"
+            echo "Starting with empty cache"
+          fi
+          
+          # Merge all group passing tests files
+          if [ -d "passing-tests-data" ]; then
+            echo "Merging passing tests from groups..."
+            for GROUP_FILE in passing-tests-data/*.json; do
+              if [ -f "$GROUP_FILE" ]; then
+                echo "  Merging: $GROUP_FILE ($(jq 'length' "$GROUP_FILE") entries)"
+                # Merge: newer entries override older ones
+                jq -s '.[0] * .[1]' "$CACHE_FILE" "$GROUP_FILE" > tmp.json && mv tmp.json "$CACHE_FILE"
+              fi
+            done
+          else
+            echo "No passing tests data to merge"
+          fi
+          
+          FINAL_COUNT=$(jq 'length' "$CACHE_FILE")
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Passing Tests Cache Updated"
+          echo "   Total cached tests: $FINAL_COUNT"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      # Save updated passing tests cache
+      # Note: GitHub cache keys are immutable, so we use run_id + timestamp to ensure uniqueness
+      - name: Save passing tests cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: .test-cache
+          key: passing-tests-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+        continue-on-error: true
       
       # Aggregate results and send Discord notification
       - name: Aggregate results and notify Discord
@@ -428,10 +986,23 @@ jobs:
           echo "Total Tests: $TOTAL_TESTS (Passed: $TOTAL_TESTS_PASSED, Failed: $TOTAL_TESTS_FAILED)"
           echo "Total Suites: $TOTAL_SUITES (Passed: $TOTAL_SUITES_PASSED, Failed: $TOTAL_SUITES_FAILED)"
           
+          # Check E2E test status from job needs context
+          E2E_STATUS="${{ needs.e2e-test.result }}"
+          echo "E2E Test Status: $E2E_STATUS"
+          
+          E2E_FAILED=false
+          if [ "$E2E_STATUS" = "failure" ] || [ "$E2E_STATUS" = "cancelled" ]; then
+            E2E_FAILED=true
+          fi
+          
           # Send Discord notification for both success and failure
-          if [ "$TOTAL_TESTS_FAILED" -gt 0 ] || [ "$TOTAL_SUITES_FAILED" -gt 0 ]; then
+          if [ "$TOTAL_TESTS_FAILED" -gt 0 ] || [ "$TOTAL_SUITES_FAILED" -gt 0 ] || [ "$E2E_FAILED" = "true" ]; then
             NOTIFICATION_COLOR=15158332  # Red for failures
-            NOTIFICATION_TITLE="❌ Tests Failed"
+            if [ "$E2E_FAILED" = "true" ] && [ "$TOTAL_TESTS_FAILED" -eq 0 ]; then
+              NOTIFICATION_TITLE="❌ E2E Tests Failed"
+            else
+              NOTIFICATION_TITLE="❌ Tests Failed"
+            fi
           else
             NOTIFICATION_COLOR=3066993   # Green for success
             NOTIFICATION_TITLE="✅ All Tests Passed"
@@ -482,6 +1053,11 @@ jobs:
                 {
                   "name": "Tests",
                   "value": "✅ $TOTAL_TESTS_PASSED passed | ❌ $TOTAL_TESTS_FAILED failed | 📊 $TOTAL_TESTS total",
+                  "inline": false
+                },
+                {
+                  "name": "E2E Tests",
+                  "value": "$(if [ \"$E2E_STATUS\" = \"success\" ]; then echo '✅ Passed'; elif [ \"$E2E_STATUS\" = \"failure\" ]; then echo '❌ Failed'; elif [ \"$E2E_STATUS\" = \"skipped\" ]; then echo '⏭️ Skipped'; else echo '⚠️ $E2E_STATUS'; fi)",
                   "inline": false
                 },
                 {

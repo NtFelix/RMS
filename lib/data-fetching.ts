@@ -74,9 +74,22 @@ export type Nebenkosten = {
   anzahlMieter?: number; // Number of tenants (calculated field)
 };
 
+export type NebenkostenChartData = {
+  year: number;
+  data: {
+    name: string;
+    value: number;
+  }[];
+};
+
+export type NebenkostenChartDatum = {
+  name: string;
+  value: number;
+};
+
 // Added as per subtask
 export interface Rechnung {
-  id:string;
+  id: string;
   user_id: string;
   nebenkosten_id: string | null;
   mieter_id: string | null;
@@ -95,6 +108,53 @@ export type RechnungSql = {
   // Add other fields from your Rechnungen table schema if needed
 };
 
+// Meter type definitions for multi-meter support
+// Re-exported from zaehler-types.ts for backward compatibility
+export type { ZaehlerTyp } from './zaehler-types';
+export { ZAEHLER_CONFIG, getZaehlerLabel, getZaehlerEinheit } from './zaehler-types';
+import type { ZaehlerTyp } from './zaehler-types';
+
+// Generic meter type (using Zaehler table)
+export type Zaehler = {
+  id: string;
+  custom_id: string | null;
+  wohnung_id: string | null;
+  erstellungsdatum: string; // ISO date string
+  eichungsdatum: string | null; // ISO date string
+  user_id: string;
+  ist_aktiv: boolean; // Indicates if meter is active
+  zaehler_typ: ZaehlerTyp; // Type of meter
+  einheit: string; // Unit of measurement
+};
+
+// Backward compatibility alias
+export type WasserZaehler = Zaehler;
+
+export type Ablesung = {
+  id: string;
+  ablese_datum: string; // ISO date string
+  zaehlerstand: number | null;
+  verbrauch: number;
+  user_id: string | null;
+  zaehler_id: string; // Reference to Zaehler table
+  kommentar?: string | null;
+};
+
+// Backward compatibility alias
+export type WasserAblesung = Ablesung;
+
+// Legacy type removed - now using Zaehler + Zaehler_Ablesungen tables
+// This type is kept for backward compatibility in form data structures only
+export type Wasserzaehler = {
+  id: string;
+  nebenkosten_id: string;
+  mieter_id: string;
+  ablese_datum: string;
+  zaehlerstand: number;
+  verbrauch: number;
+  user_id: string;
+};
+
 export type Finanzen = {
   id: string;
   wohnung_id: string | null;
@@ -104,6 +164,7 @@ export type Finanzen = {
   ist_einnahmen: boolean;
   notiz: string | null;
   user_id: string;
+  dokument_id: string | null;
 };
 
 export async function fetchHaeuser() {
@@ -111,12 +172,12 @@ export async function fetchHaeuser() {
   const { data, error } = await supabase
     .from("Haeuser")
     .select('*, groesse');
-    
+
   if (error) {
     console.error("Error fetching Haeuser:", error);
     return [];
   }
-  
+
   return data as Haus[];
 }
 
@@ -125,12 +186,12 @@ export async function fetchWohnungen() {
   const { data, error } = await supabase
     .from("Wohnungen")
     .select('*');
-    
+
   if (error) {
     console.error("Error fetching Wohnungen:", error);
     return [];
   }
-  
+
   return data as Wohnung[];
 }
 
@@ -139,12 +200,12 @@ export async function fetchMieter() {
   const { data, error } = await supabase
     .from("Mieter")
     .select('*, Wohnungen(name, groesse, miete)');
-    
+
   if (error) {
     console.error("Error fetching Mieter:", error);
     return [];
   }
-  
+
   return data as Mieter[];
 }
 
@@ -154,12 +215,12 @@ export async function fetchAufgaben() {
     .from("Aufgaben")
     .select('*')
     .eq('ist_erledigt', false);
-    
+
   if (error) {
     console.error("Error fetching Aufgaben:", error);
     return [];
   }
-  
+
   return data as Aufgabe[];
 }
 
@@ -168,19 +229,19 @@ export async function fetchFinanzen() {
   const { data, error } = await supabase
     .from("Finanzen")
     .select('*');
-    
+
   if (error) {
     console.error("Error fetching Finanzen:", error);
     return [];
   }
-  
+
   return data as Finanzen[];
 }
 
 export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   const supabase = createSupabaseServerClient();
   let query = supabase.from("Nebenkosten").select('*');
-  
+
   // If year is provided, filter by date range that overlaps with that year
   if (year) {
     const yearStart = `${year}-01-01`;
@@ -200,6 +261,71 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   return data as Nebenkosten[];
 }
 
+export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
+  const supabase = createSupabaseServerClient();
+
+  // First, get the most recent year with data
+  const { data: latestYearData } = await supabase
+    .from("Nebenkosten")
+    .select("startdatum")
+    .order("startdatum", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!latestYearData?.startdatum) {
+    console.log("No Nebenkosten data found");
+    return { year: new Date().getFullYear(), data: [] };
+  }
+
+  // Extract the year from the most recent entry
+  const latestYear = new Date(latestYearData.startdatum).getFullYear();
+  const yearStart = `${latestYear}-01-01`;
+  const yearEnd = `${latestYear}-12-31`;
+
+  // Fetch only the data for the most recent year with data
+  const { data, error } = await supabase
+    .from("Nebenkosten")
+    .select("nebenkostenart, betrag, startdatum, enddatum")
+    .lte('startdatum', yearEnd)
+    .gte('enddatum', yearStart)
+    .order("startdatum", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching Nebenkosten chart data:", error);
+    return { year: latestYear, data: [] };
+  }
+
+  const categoryTotals: Record<string, number> = {};
+
+  (data as Nebenkosten[] | null)?.forEach((record) => {
+    const arten = record.nebenkostenart ?? [];
+    const betraege = record.betrag ?? [];
+
+    arten.forEach((art, index) => {
+      if (!art) {
+        return;
+      }
+
+      const amount = Number(betraege[index]);
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return;
+      }
+
+      categoryTotals[art] = (categoryTotals[art] ?? 0) + amount;
+    });
+  });
+
+  const formattedData = Object.entries(categoryTotals)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  return {
+    year: latestYear,
+    data: formattedData
+  };
+}
+
 // getHausGesamtFlaeche function removed - replaced by get_nebenkosten_with_metrics database function
 // This eliminates O(n) database calls and improves performance significantly
 
@@ -215,19 +341,19 @@ export async function fetchFinanzenByMonth() {
     .from("Finanzen")
     .select('*')
     .order('datum', { ascending: true });
-    
+
   if (error) {
     console.error("Error fetching Finanzen by month:", error);
     return [];
   }
-  
+
   // Group by month
   const monthlyData = (data as Finanzen[]).reduce((acc, item) => {
     if (!item.datum) return acc;
-    
+
     const date = new Date(item.datum);
     const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
-    
+
     if (!acc[monthYear]) {
       acc[monthYear] = {
         month: new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(date),
@@ -235,16 +361,16 @@ export async function fetchFinanzenByMonth() {
         ausgaben: 0
       };
     }
-    
+
     if (item.ist_einnahmen) {
       acc[monthYear].einnahmen += Number(item.betrag);
     } else {
       acc[monthYear].ausgaben += Number(item.betrag);
     }
-    
+
     return acc;
   }, {} as Record<string, { month: string; einnahmen: number; ausgaben: number }>);
-  
+
   // Convert to array and sort by month
   return Object.values(monthlyData).slice(-12);
 }
@@ -252,30 +378,30 @@ export async function fetchFinanzenByMonth() {
 export async function getMietstatistik() {
   const wohnungen = await fetchWohnungen();
   const mieter = await fetchMieter();
-  
+
   // Calculate occupancy data by month (last 12 months)
   const now = new Date();
   const monthsData = [];
-  
+
   for (let i = 11; i >= 0; i--) {
     const date = new Date(now);
     date.setMonth(date.getMonth() - i);
-    
+
     const month = new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(date);
     const vermietet = mieter.filter(m => {
       const einzug = m.einzug ? new Date(m.einzug) : null;
       const auszug = m.auszug ? new Date(m.auszug) : null;
-      
+
       return einzug && einzug <= date && (!auszug || auszug >= date);
     }).length;
-    
+
     monthsData.push({
       month,
       vermietet,
       frei: wohnungen.length - vermietet
     });
   }
-  
+
   return monthsData;
 }
 
@@ -284,10 +410,10 @@ export async function getDashboardSummary() {
   const wohnungen = await fetchWohnungen();
   const mieter = await fetchMieter();
   const aufgaben = await fetchAufgaben();
-  
+
   // Calculate monthly income
   const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
-  
+
   // Calculate yearly expenses from Nebenkosten - fetch only last year's data
   const currentYear = new Date().getFullYear();
   const lastYear = (currentYear - 1).toString();
@@ -358,9 +484,9 @@ export async function fetchUserProfile(): Promise<Profile | null> {
     // If profile row doesn't exist (PGRST116) or other error, return base user info with null Stripe fields
     // This ensures the function always returns a consistently shaped object or null.
     if (profileError.code === 'PGRST116') {
-        // Profile not found in 'profiles' table - this is expected for new users
+      // Profile not found in 'profiles' table - this is expected for new users
     } else {
-        console.error(`Unhandled error fetching profile data for user ${user.id}:`, profileError);
+      console.error(`Unhandled error fetching profile data for user ${user.id}:`, profileError);
     }
     return baseUserProfile;
   }
@@ -377,15 +503,8 @@ export async function fetchUserProfile(): Promise<Profile | null> {
 
   return finalProfile;
 }
-export type Wasserzaehler = {
-  id: string; // uuid
-  user_id: string; // uuid, default auth.uid()
-  mieter_id: string; // uuid
-  ablese_datum: string | null; // date
-  zaehlerstand: number; // numeric
-  verbrauch: number; // numeric
-  nebenkosten_id: string; // uuid // Corrected property name to match DB
-};
+
+// Wasserzaehler type is defined earlier in the file (line ~132)
 
 export type WasserzaehlerFormEntry = {
   mieter_id: string;
@@ -466,30 +585,53 @@ export async function fetchWasserzaehlerByHausAndDateRange(
       return { mieterList: [], existingReadings: [] };
     }
 
-    // 3. Fetch Wasserzaehler readings for these mieters in the specified date range
+    // 3. Fetch water meter readings from new Zaehler + Zaehler_Ablesungen tables
     let existingReadings: Wasserzaehler[] = [];
     if (relevantMieter.length > 0) {
-      const mieterIds = relevantMieter.map(m => m.id);
-      const startDate = new Date(startdatum);
-      const endDate = new Date(enddatum);
+      // Get water meters for these apartments
+      const { data: waterMeters, error: metersError } = await supabase
+        .from('Zaehler')
+        .select('id, wohnung_id')
+        .in('wohnung_id', wohnungIds);
 
-      const { data: readings, error: readingsError } = await supabase
-        .from('Wasserzaehler')
-        .select('*')
-        .in('mieter_id', mieterIds)
-        .gte('ablese_datum', startDate.toISOString())
-        .lte('ablese_datum', endDate.toISOString());
+      if (metersError) {
+        console.error('Error fetching Zaehler for Haus %s:', hausId, metersError);
+      } else if (waterMeters && waterMeters.length > 0) {
+        const meterIds = waterMeters.map(m => m.id);
 
-      if (readingsError) {
-        console.error(`Error fetching Wasserzaehler readings for Haus ${hausId} in date range ${startdatum} to ${enddatum}:`, readingsError);
-      } else if (readings) {
-        existingReadings = readings;
+        // Get readings for these meters in the date range
+        const { data: readings, error: readingsError } = await supabase
+          .from('Zaehler_Ablesungen')
+          .select('*, zaehler_id')
+          .in('zaehler_id', meterIds)
+          .gte('ablese_datum', startdatum)
+          .lte('ablese_datum', enddatum);
+
+        if (readingsError) {
+          console.error('Error fetching Zaehler_Ablesungen for Haus %s in date range %s to %s:', hausId, startdatum, enddatum, readingsError);
+        } else if (readings) {
+          // Transform new structure to legacy format for compatibility
+          existingReadings = readings.map(reading => {
+            const meter = waterMeters.find(m => m.id === reading.zaehler_id);
+            const mieter = relevantMieter.find(m => m.wohnung_id === meter?.wohnung_id);
+
+            return {
+              id: reading.id,
+              nebenkosten_id: '', // Not applicable in new structure
+              mieter_id: mieter?.id || '',
+              ablese_datum: reading.ablese_datum,
+              zaehlerstand: reading.zaehlerstand || 0,
+              verbrauch: reading.verbrauch || 0,
+              user_id: reading.user_id
+            };
+          });
+        }
       }
     }
 
-    return { 
+    return {
       mieterList: relevantMieter,
-      existingReadings 
+      existingReadings
     };
 
   } catch (error) {
@@ -533,9 +675,9 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     //    This maintains backward compatibility with the existing code
     const filteredReadings = existingReadings.filter(reading => reading.nebenkosten_id === nebenkostenId);
 
-    return { 
-      mieterList, 
-      existingReadings: filteredReadings 
+    return {
+      mieterList,
+      existingReadings: filteredReadings
     };
 
   } catch (error) {

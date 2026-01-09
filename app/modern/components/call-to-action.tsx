@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, Download, ExternalLink } from "lucide-react"
+import { ArrowRight, Download, ExternalLink, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { EXAMPLE_BILL_PDF_URL } from "@/lib/constants"
+import { EXAMPLE_BILL_PDF_URL, DEMO_CALENDAR_URL } from "@/lib/constants"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +16,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  trackCTAClicked,
+  trackExamplePDFDownloaded,
+  trackDemoRequestClicked,
+  trackDemoConfirmed,
+  type CTASource,
+} from "@/lib/posthog-landing-events"
 
 interface CallToActionProps {
   variant?: 'default' | 'hero' | 'cta'
@@ -23,14 +30,41 @@ interface CallToActionProps {
 }
 
 export function CallToAction({ variant = 'default', onGetStarted }: CallToActionProps) {
-  const isHero = variant === 'hero'
-  
+  const isHero = variant === 'hero';
+  const source: CTASource = (() => {
+    switch (variant) {
+      case 'hero':
+        return 'hero';
+      case 'cta':
+      case 'default':
+        return 'bottom_cta';
+    }
+  })();
+
+  const handleGetStarted = () => {
+    trackCTAClicked(source, 'Jetzt loslegen')
+    onGetStarted()
+  }
+
+  const handlePDFDownload = () => {
+    trackExamplePDFDownloaded(EXAMPLE_BILL_PDF_URL)
+  }
+
+  const handleDemoRequest = () => {
+    trackDemoRequestClicked(source)
+  }
+
+  const handleDemoConfirm = () => {
+    trackDemoConfirmed(DEMO_CALENDAR_URL)
+    window.open(DEMO_CALENDAR_URL, "_blank")
+  }
+
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full">
       <Button
         size="lg"
-        onClick={onGetStarted}
+        onClick={handleGetStarted}
         className="relative px-12 py-6 text-xl font-semibold group overflow-hidden"
       >
         <span className="flex items-center">
@@ -43,16 +77,17 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
         <Button
           size="lg"
           variant="outline"
-          className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
+          className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
           asChild
         >
-          <Link 
+          <Link
             href={EXAMPLE_BILL_PDF_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handlePDFDownload}
           >
             <span className="flex items-center">
-              <Download className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
+              <Download className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
               Beispiel-Abrechnung
             </span>
           </Link>
@@ -63,7 +98,8 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
             <Button
               size="lg"
               variant="outline"
-              className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
+              className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
+              onClick={handleDemoRequest}
             >
               <span className="flex items-center">
                 Demo anfordern
@@ -81,7 +117,7 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction onClick={() => window.open("https://calendar.notion.so/meet/felix-b0111/demo-anfordern", "_blank")}>
+              <AlertDialogAction onClick={handleDemoConfirm}>
                 Weiterleiten
               </AlertDialogAction>
             </AlertDialogFooter>

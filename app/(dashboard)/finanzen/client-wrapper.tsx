@@ -3,17 +3,17 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download } from "lucide-react";
-import { FinanceVisualization } from "@/components/finance-visualization";
-import { FinanceTable } from "@/components/finance-table";
-import { FinanceBulkActionBar } from "@/components/finance-bulk-action-bar";
-import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
-import { SummaryCard } from "@/components/summary-card";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info } from "lucide-react";
+import { FinanceVisualization } from "@/components/finance/finance-visualization";
+import { FinanceTable } from "@/components/tables/finance-table";
+import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
+import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
+import { SummaryCard } from "@/components/common/summary-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { StatCard } from "@/components/stat-card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
+import { SearchInput } from "@/components/ui/search-input";
+import { StatCard } from "@/components/common/stat-card";
+import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { CustomCombobox } from "@/components/ui/custom-combobox";
 
 import { PAGINATION } from "@/constants";
@@ -52,6 +52,9 @@ interface FinanzenClientWrapperProps {
   wohnungen: Wohnung[];
   summaryData: SummaryData | null;
   initialAvailableYears?: number[];
+  initialYear?: number;
+  isUsingFallbackYear?: boolean;
+  currentYear?: number;
 }
 
 // Utility function to remove duplicates based on ID
@@ -66,7 +69,15 @@ const deduplicateFinances = (finances: Finanz[]): Finanz[] => {
   });
 };
 
-export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData, initialAvailableYears = [] }: FinanzenClientWrapperProps) {
+export default function FinanzenClientWrapper({
+  finances: initialFinances,
+  wohnungen,
+  summaryData: initialSummaryData,
+  initialAvailableYears = [],
+  initialYear,
+  isUsingFallbackYear = false,
+  currentYear = new Date().getFullYear()
+}: FinanzenClientWrapperProps) {
   const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
@@ -109,9 +120,9 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     if (isLoading || (!hasMore && !resetData)) return;
     setIsLoading(true);
     setError(null);
-    
+
     const targetPage = resetData ? 1 : page + 1;
-    
+
     try {
       const params = new URLSearchParams({
         page: targetPage.toString(),
@@ -123,7 +134,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         sortKey: filtersRef.current.sortKey,
         sortDirection: filtersRef.current.sortDirection
       });
-      
+
       const response = await fetch(`/api/finanzen?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch transactions');
@@ -143,7 +154,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         });
         setPage(prev => prev + 1);
       }
-      
+
       // Check if there are more records to load
       const loadedCount = resetData ? newTransactions.length : finData.length + newTransactions.length;
       setHasMore(loadedCount < totalCount);
@@ -162,19 +173,19 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     setBalanceLoading(true);
     try {
       const supabase = createClient();
-      
+
       const { data, error } = await supabase.rpc('get_filtered_financial_summary', {
         search_query: debouncedSearchQueryRef.current,
         apartment_name: filtersRef.current.selectedApartment,
         target_year: filtersRef.current.selectedYear,
         transaction_type: filtersRef.current.selectedType
       });
-      
+
       if (error) {
         console.error('Failed to fetch filtered summary:', error);
         throw new Error(error.message);
       }
-      
+
       // The RPC function is designed to always return a single row.
       // We provide a fallback just in case the contract changes or an unexpected error occurs.
       const summary = data?.[0] ?? { total_balance: 0, total_income: 0, total_expenses: 0 };
@@ -227,13 +238,13 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       // Add new item at the beginning
       return [newFinance, ...prev];
     });
-    
+
     // Refresh summary data if the transaction is from current year
     const currentYear = new Date().getFullYear();
     if (newFinance.datum && new Date(newFinance.datum).getFullYear() === currentYear) {
       refreshSummaryData();
     }
-    
+
     // Refresh balance to reflect the new/updated transaction
     fetchBalance();
   }, [refreshSummaryData, fetchBalance]);
@@ -293,13 +304,13 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const ALL_YEARS_FILTER = 'Alle Jahre';
 
   // Filter options
-  const apartmentOptions = useMemo(() => 
-    [ALL_APARTMENTS_FILTER, ...wohnungen.map(w => w.name)].map(a => ({ value: a, label: a })), 
+  const apartmentOptions = useMemo(() =>
+    [ALL_APARTMENTS_FILTER, ...wohnungen.map(w => w.name)].map(a => ({ value: a, label: a })),
     [wohnungen]
   );
 
-  const yearOptions = useMemo(() => 
-    [ALL_YEARS_FILTER, ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })), 
+  const yearOptions = useMemo(() =>
+    [ALL_YEARS_FILTER, ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })),
     [availableYears]
   );
 
@@ -354,19 +365,19 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       });
 
       const result = await response.json();
-      
+
       if (response.ok) {
         toast({
           title: "Erfolg",
           description: `${selectedFinances.size} Transaktionen erfolgreich gelöscht.`,
           variant: "success",
         });
-        
+
         // Refresh the data after successful deletion
         if (refreshFinances) {
           refreshFinances();
         }
-        
+
         // Clear selection after successful deletion
         setSelectedFinances(new Set());
       } else {
@@ -384,11 +395,11 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
   const handleBulkExport = useCallback(() => {
     const selectedFinancesData = finData.filter(f => selectedFinances.has(f.id))
-    
+
     // Create CSV header
     const headers = ['Bezeichnung', 'Wohnung', 'Datum', 'Betrag', 'Typ', 'Notiz']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     // Create CSV rows with proper escaping
     const csvRows = selectedFinancesData.map(f => {
       const row = [
@@ -401,7 +412,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -458,39 +469,54 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       loadMoreTransactions(true).finally(() => setIsFilterLoading(false));
       fetchBalance();
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, [filters.selectedApartment, filters.selectedYear, filters.selectedType, filters.sortKey, filters.sortDirection, debouncedSearchQuery]);
 
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
       <div
         className="absolute inset-0 z-[-1]"
         style={{
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
-      
+
+      {/* Fallback Year Notification Banner */}
+      {isUsingFallbackYear && initialYear && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+          <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              Daten aus {initialYear} werden angezeigt
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Für das aktuelle Jahr ({currentYear}) liegen noch keine Finanzdaten vor.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards for Current Year */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
         {isSummaryLoading && hasInitialData ? (
           <>
-            <SummaryCardSkeleton 
-              title="Ø Monatliche Einnahmen" 
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+            <SummaryCardSkeleton
+              title="Ø Monatliche Einnahmen"
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
             />
-            <SummaryCardSkeleton 
-              title="Ø Monatliche Ausgaben" 
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+            <SummaryCardSkeleton
+              title="Ø Monatliche Ausgaben"
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
             />
-            <SummaryCardSkeleton 
-              title="Ø Monatlicher Cashflow" 
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+            <SummaryCardSkeleton
+              title="Ø Monatlicher Cashflow"
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
             />
-            <SummaryCardSkeleton 
-              title="Jahresprognose" 
-              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} 
+            <SummaryCardSkeleton
+              title="Jahresprognose"
+              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
             />
           </>
         ) : (
@@ -527,28 +553,29 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         )}
       </div>
 
-      <FinanceVisualization 
-        finances={finData} 
-        summaryData={summaryData} 
+      <FinanceVisualization
+        finances={finData}
+        summaryData={summaryData}
         availableYears={availableYears}
-        key={summaryData?.year} 
+        initialYear={initialYear}
+        key={summaryData?.year}
       />
-      
+
       {/* Filtered Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-4">
         {balanceLoading ? (
           <>
-            <SummaryCardSkeleton 
-              title="Gefilterte Einnahmen" 
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+            <SummaryCardSkeleton
+              title="Gefilterte Einnahmen"
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
             />
-            <SummaryCardSkeleton 
-              title="Gefilterte Ausgaben" 
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+            <SummaryCardSkeleton
+              title="Gefilterte Ausgaben"
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
             />
-            <SummaryCardSkeleton 
-              title="Aktueller Saldo" 
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+            <SummaryCardSkeleton
+              title="Aktueller Saldo"
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
             />
           </>
         ) : (
@@ -580,27 +607,26 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-start justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Finanzverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
+              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
             </div>
-            <div className="mt-1">
-              <ButtonWithTooltip onClick={handleAddTransaction} className="sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
+            <div className="mt-0 sm:mt-1">
+              <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="h-4 w-4" />} shortText="Hinzufügen">
                 Transaktion hinzufügen
-              </ButtonWithTooltip>
+              </ResponsiveButtonWithTooltip>
             </div>
           </div>
         </CardHeader>
-        <div className="px-6">
+        <div className="px-4 sm:px-6">
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-6">
+          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
             {/* Filter Controls */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full md:flex-1">
                 <CustomCombobox
                   options={apartmentOptions}
                   value={filters.selectedApartment}
@@ -632,25 +658,21 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
                   emptyText="Kein Typ gefunden"
                   width="w-full"
                 />
-                <div className="relative col-span-1 sm:col-span-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    type="search" 
-                    placeholder="Transaktion suchen..." 
-                    className="pl-10" 
-                    value={filters.searchQuery} 
-                    onChange={(e) => handleFilterChange('searchQuery', e.target.value)} 
-                  />
-                </div>
+                <SearchInput
+                  placeholder="Transaktion suchen..."
+                  wrapperClassName="col-span-1 sm:col-span-2 md:col-span-1"
+                  value={filters.searchQuery}
+                  onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+                  onClear={() => handleFilterChange('searchQuery', '')}
+                />
               </div>
-              <div className="flex items-center gap-2 mt-4 md:mt-0">
-                <ButtonWithTooltip variant="outline" onClick={handleExportCsv}>
-                  <Download className="mr-2 h-4 w-4" />
+              <div className="flex items-center gap-2 md:flex-shrink-0">
+                <ResponsiveButtonWithTooltip variant="outline" onClick={handleExportCsv} icon={<Download className="h-4 w-4" />} shortText="Exportieren">
                   Als CSV exportieren
-                </ButtonWithTooltip>
+                </ResponsiveButtonWithTooltip>
               </div>
             </div>
-            
+
             <FinanceBulkActionBar
               selectedFinances={selectedFinances}
               wohnungsMap={wohnungsMap}

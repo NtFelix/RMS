@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anmeldung bei Mietfluss</title>
+    <title>Anmeldung bei Mietevo</title>
     <style>
         :root {
             --primary: #2b3e4f;
@@ -102,17 +103,26 @@
             border-top: 1px solid var(--border);
         }
 
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
         @media (max-width: 480px) {
             body {
                 padding: 15px;
             }
+
             .email-container {
                 padding: 30px 20px;
                 border-radius: 20px;
             }
+
             h1 {
                 font-size: 24px;
             }
+
             .btn-confirm {
                 padding: 16px 0;
                 font-size: 16px;
@@ -120,35 +130,39 @@
         }
     </style>
 </head>
+
 <body>
     <div class="email-container">
         <div class="header">
-            <img src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png" alt="Mietfluss Mascot" class="logo">
-            <h1>Anmeldung bei Mietfluss</h1>
+            <img src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png"
+                alt="Mietevo Mascot" class="logo">
+            <h1>Anmeldung bei Mietevo</h1>
         </div>
 
         <p>Hallo,</p>
-        
-        <p>Sie haben eine passwortlose Anmeldung bei Mietfluss angefordert.</p>
-        
+
+        <p>Sie haben eine passwortlose Anmeldung bei Mietevo angefordert.</p>
+
         <p>Klicken Sie auf den folgenden Button, um sich sicher anzumelden:</p>
 
         <div class="btn-container">
-            <a href="{{ .ConfirmationURL }}" class="btn-confirm">Bei Mietfluss anmelden</a>
+            <a href="{{ .ConfirmationURL }}" class="btn-confirm">Bei Mietevo anmelden</a>
         </div>
 
         <p>Falls der Button nicht funktioniert, können Sie auch diesen Link in Ihren Browser kopieren:</p>
         <p style="word-break: break-all; color: var(--primary); font-size: 14px;">{{ .ConfirmationURL }}</p>
 
         <div class="security-note">
-            <strong>Sicherheitshinweis:</strong> Dieser Link ist nur 1 Stunde gültig und kann nur einmal verwendet werden.
+            <strong>Sicherheitshinweis:</strong> Dieser Link ist nur 1 Stunde gültig und kann nur einmal verwendet
+            werden.
         </div>
 
         <div class="footer">
             <p>Falls Sie diese Anmeldung nicht angefordert haben, können Sie diese E-Mail ignorieren.</p>
-            <p>Bei Fragen erreichen Sie uns unter felix.plant@web.de</p>
-            <p>&copy; 2025 Mietfluss. Alle Rechte vorbehalten.</p>
+            <p>Bei Fragen erreichen Sie uns unter <a href="mailto:support@mietevo.de">support@mietevo.de</a></p>
+            <p>&copy; 2025 Mietevo. Alle Rechte vorbehalten.</p>
         </div>
     </div>
 </body>
+
 </html>

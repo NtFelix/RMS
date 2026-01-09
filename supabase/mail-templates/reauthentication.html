@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -101,17 +102,26 @@
             border-top: 1px solid var(--border);
         }
 
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
         @media (max-width: 480px) {
             body {
                 padding: 15px;
             }
+
             .email-container {
                 padding: 30px 20px;
                 border-radius: 20px;
             }
+
             h1 {
                 font-size: 24px;
             }
+
             .token-code {
                 font-size: 28px;
                 padding: 12px 20px;
@@ -119,17 +129,20 @@
         }
     </style>
 </head>
+
 <body>
     <div class="email-container">
         <div class="header">
-            <img src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png" alt="Mietfluss Mascot" class="logo">
+            <img src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png"
+                alt="Mietevo Mascot" class="logo">
             <h1>Erneute Anmeldung erforderlich</h1>
         </div>
 
         <p>Hallo,</p>
-        
-        <p>Aus Sicherheitsgründen ist eine erneute Bestätigung Ihrer Identität erforderlich, um auf sensible Funktionen in Ihrem Mietfluss-Konto zuzugreifen.</p>
-        
+
+        <p>Aus Sicherheitsgründen ist eine erneute Bestätigung Ihrer Identität erforderlich, um auf sensible Funktionen
+            in Ihrem Mietevo-Konto zuzugreifen.</p>
+
         <p>Dies kann erforderlich sein, wenn Sie:</p>
         <ul>
             <li>Ihr Passwort ändern möchten</li>
@@ -137,25 +150,31 @@
             <li>Wichtige Kontoeinstellungen bearbeiten</li>
             <li>Zahlungsinformationen verwalten</li>
         </ul>
-        
-        <p>Klicken Sie auf den folgenden Link, um sich erneut zu authentifizieren:</p>
-        
-        <div style="text-align: center; margin: 35px 0;">
-            <a href="{{ .ConfirmationURL }}" style="display: block; width: 100%; background-color: var(--primary); color: white; text-decoration: none; padding: 18px 0; border-radius: 20px; font-weight: 600; font-size: 18px;">Identität bestätigen</a>
+
+        <p>Bitte geben Sie den folgenden Code ein, um sich erneut zu authentifizieren:</p>
+
+        <div
+            style="background-color: #f1f5f9; border: 2px solid #e2e8f0; border-radius: 20px; padding: 30px; margin: 35px 0; text-align: center;">
+            <div
+                style="font-size: 14px; color: #6b7280; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                Ihr Bestätigungscode</div>
+            <div
+                style="font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 32px; font-weight: 800; color: #1e293b; letter-spacing: 0.15em; padding: 15px 25px; background: white; border-radius: 15px; display: inline-block; border: 1px solid #e5e7eb;">
+                {{ .Token }}</div>
         </div>
-        
-        <p>Falls der Button nicht funktioniert, können Sie auch diesen Link in Ihren Browser kopieren:</p>
-        <p style="word-break: break-all; color: var(--primary); font-size: 14px;">{{ .ConfirmationURL }}</p>
-        
-        <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 12px; padding: 20px; margin: 25px 0;">
-            <strong>Sicherheitshinweis:</strong> Dieser Link ist nur 15 Minuten gültig. Diese Maßnahme dient dem Schutz Ihres Kontos und Ihrer Daten.
+
+        <div
+            style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 12px; padding: 20px; margin: 25px 0;">
+            <strong>Sicherheitshinweis:</strong> Dieser Code ist nur 15 Minuten gültig. Diese Maßnahme dient dem Schutz
+            Ihres Kontos und Ihrer Daten.
         </div>
 
         <div class="footer">
             <p>Falls Sie diese Aktion nicht angefordert haben, melden Sie sich bitte umgehend bei unserem Support.</p>
-            <p>Bei Fragen erreichen Sie uns unter felix.plant@web.de</p>
-            <p>&copy; 2025 Mietfluss. Alle Rechte vorbehalten.</p>
+            <p>Bei Fragen erreichen Sie uns unter <a href="mailto:support@mietevo.de">support@mietevo.de</a></p>
+            <p>&copy; 2025 Mietevo. Alle Rechte vorbehalten.</p>
         </div>
     </div>
 </body>
+
 </html>

@@ -56,7 +56,7 @@ export function validateAIInput(
   config: ValidationConfig = {}
 ): ValidationResult {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
-  
+
   // Handle empty input
   if (!input || input.trim().length === 0) {
     if (finalConfig.allowEmptyInput) {
@@ -104,7 +104,7 @@ export function validateAIInput(
     sanitizedInput = sanitizedInput.replace(EXCESSIVE_PUNCTUATION, (match) => {
       return match.charAt(0).repeat(Math.min(3, match.length));
     });
-    
+
     if (sanitizedInput.length !== originalLength) {
       warnings.push('Übermäßige Satzzeichen wurden reduziert.');
     }
@@ -127,7 +127,7 @@ export function validateAIInput(
     // Check for excessive repetition of words
     const words = sanitizedInput.toLowerCase().split(/\s+/);
     const wordCount = new Map<string, number>();
-    
+
     for (const word of words) {
       if (word.length > 2) { // Only count meaningful words
         wordCount.set(word, (wordCount.get(word) || 0) + 1);
@@ -178,7 +178,7 @@ export function validateAIContext(input: string): ValidationResult {
   }
 
   const sanitizedInput = basicValidation.sanitizedInput!;
-  
+
   // Check for potential prompt injection attempts
   const promptInjectionPatterns = [
     /ignore\s+(?:previous|all|above)\s+(?:instructions|prompts?|commands?)/gi,
@@ -197,7 +197,7 @@ export function validateAIContext(input: string): ValidationResult {
     if (pattern.test(sanitizedInput)) {
       return {
         isValid: false,
-        error: 'Ihre Anfrage enthält ungültige Anweisungen. Bitte stellen Sie eine normale Frage über Mietfluss.'
+        error: 'Ihre Anfrage enthält ungültige Anweisungen. Bitte stellen Sie eine normale Frage über Mietevo.'
       };
     }
   }
@@ -214,7 +214,7 @@ export function validateAIContext(input: string): ValidationResult {
       return {
         isValid: true,
         sanitizedInput,
-        warning: 'Ich kann nur Fragen zu Mietfluss beantworten. Bitte fragen Sie nach spezifischen Funktionen oder Hilfe.'
+        warning: 'Ich kann nur Fragen zu Mietevo beantworten. Bitte fragen Sie nach spezifischen Funktionen oder Hilfe.'
       };
     }
   }
@@ -230,7 +230,7 @@ export function validateAIContext(input: string): ValidationResult {
  */
 export function sanitizeInput(input: string): string {
   if (!input) return '';
-  
+
   return input
     .trim()
     .replace(/<[^>]*>/g, '') // Remove HTML tags
@@ -245,25 +245,25 @@ export function sanitizeInput(input: string): string {
  */
 export function isQuestion(input: string): boolean {
   const trimmed = input.trim().toLowerCase();
-  
+
   // German question words
   const questionWords = [
     'was', 'wie', 'wo', 'wann', 'warum', 'wer', 'welche', 'welcher', 'welches',
     'können', 'kann', 'soll', 'sollte', 'würde', 'ist', 'sind', 'hat', 'haben'
   ];
-  
+
   // Check if starts with question word
   for (const word of questionWords) {
     if (trimmed.startsWith(word + ' ')) {
       return true;
     }
   }
-  
+
   // Check if ends with question mark
   if (trimmed.endsWith('?')) {
     return true;
   }
-  
+
   // Check for common question patterns
   const questionPatterns = [
     /^(?:können sie|kannst du|könnten sie)/i,
@@ -272,7 +272,7 @@ export function isQuestion(input: string): boolean {
     /^(?:was ist|was sind|was bedeutet)/i,
     /^(?:gibt es|existiert|haben sie)/i
   ];
-  
+
   return questionPatterns.some(pattern => pattern.test(trimmed));
 }
 
@@ -281,28 +281,28 @@ export function isQuestion(input: string): boolean {
  */
 export function getInputSuggestions(input: string): string[] {
   const suggestions: string[] = [];
-  
+
   if (!input || input.trim().length === 0) {
     return [
-      'Fragen Sie nach Mietfluss-Funktionen wie "Wie erstelle ich eine Betriebskostenabrechnung?"',
+      'Fragen Sie nach Mietevo-Funktionen wie "Wie erstelle ich eine Betriebskostenabrechnung?"',
       'Bitten Sie um Hilfe bei spezifischen Aufgaben wie "Wie füge ich einen neuen Mieter hinzu?"',
       'Erkundigen Sie sich nach Features wie "Welche Berichte kann ich erstellen?"'
     ];
   }
-  
+
   const trimmed = input.trim();
-  
+
   if (trimmed.length < 5) {
     suggestions.push('Versuchen Sie eine vollständigere Frage zu stellen.');
   }
-  
+
   if (!isQuestion(trimmed)) {
     suggestions.push('Formulieren Sie Ihre Eingabe als Frage für bessere Ergebnisse.');
   }
-  
-  if (!/mietfluss|immobilie|mieter|wohnung|haus|betriebskosten|nebenkosten/i.test(trimmed)) {
-    suggestions.push('Beziehen Sie sich auf Mietfluss-spezifische Themen für relevantere Antworten.');
+
+  if (!/mietevo|immobilie|mieter|wohnung|haus|betriebskosten|nebenkosten/i.test(trimmed)) {
+    suggestions.push('Beziehen Sie sich auf Mietevo-spezifische Themen für relevantere Antworten.');
   }
-  
+
   return suggestions;
 }

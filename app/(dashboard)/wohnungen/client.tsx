@@ -1,24 +1,26 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
-import { PlusCircle, Home, Key, Euro, Ruler, Search, X, Download, Trash2, Building2, Loader2 } from "lucide-react";
+import { ResponsiveButtonWithHoverCard } from "@/components/ui/responsive-button";
+import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
+import { PlusCircle, Home, Key, Euro, Ruler, X, Download, Trash2, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ApartmentTable } from "@/components/apartment-table";
+import { ApartmentTable } from "@/components/tables/apartment-table";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
-import { StatCard } from "@/components/stat-card";
+import type { Apartment as ApartmentTableType } from "@/components/tables/apartment-table";
+import { StatCard } from "@/components/common/stat-card";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -79,7 +81,7 @@ export default function WohnungenClientView({
   useEffect(() => {
     let message = "";
     const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
-    
+
     if (!serverUserIsEligibleToAdd) {
       message = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
     } else if (limitReached) {
@@ -91,7 +93,7 @@ export default function WohnungenClientView({
         message = "Das Wohnungslimit ist erreicht.";
       }
     }
-    
+
     setButtonTooltipMessage(message);
     setIsAddButtonDisabled(!serverUserIsEligibleToAdd || limitReached);
   }, [serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd, serverLimitReason]);
@@ -129,10 +131,10 @@ export default function WohnungenClientView({
 
   const handleBulkExport = useCallback(() => {
     const selectedApartmentsData = apartments.filter(a => selectedApartments.has(a.id))
-    
+
     const headers = ['Name', 'Größe (m²)', 'Miete (€)', 'Miete pro m²', 'Haus', 'Status']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     const csvRows = selectedApartmentsData.map(a => {
       const row = [
         a.name,
@@ -144,7 +146,7 @@ export default function WohnungenClientView({
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -179,10 +181,10 @@ export default function WohnungenClientView({
       }
 
       const { successCount } = await response.json();
-      
+
       setShowBulkDeleteConfirm(false);
       setSelectedApartments(new Set());
-      
+
       toast({
         title: "Erfolg",
         description: `${successCount} Wohnungen erfolgreich gelöscht.`,
@@ -214,7 +216,7 @@ export default function WohnungenClientView({
     }
 
     setIsUpdating(true)
-    
+
     try {
       const selectedIds = Array.from(selectedApartments)
       if (selectedIds.length === 0) return
@@ -237,7 +239,7 @@ export default function WohnungenClientView({
 
       const { successCount } = await response.json()
       const failedCount = selectedIds.length - successCount
-      
+
       if (successCount > 0) {
         toast({
           title: "Erfolgreich aktualisiert",
@@ -245,7 +247,7 @@ export default function WohnungenClientView({
           variant: "success"
         })
       }
-      
+
       if (failedCount > 0) {
         toast({
           title: "Teilweise Fehler",
@@ -253,7 +255,7 @@ export default function WohnungenClientView({
           variant: "destructive"
         })
       }
-      
+
       if (successCount > 0) {
         setIsAssignDialogOpen(false)
         setSelectedHouse("none")
@@ -303,7 +305,7 @@ export default function WohnungenClientView({
 
   useEffect(() => {
     const handleEditApartmentListener = async (event: Event) => {
-      const customEvent = event as CustomEvent<{id: string}>;
+      const customEvent = event as CustomEvent<{ id: string }>;
       const apartmentId = customEvent.detail?.id;
       if (!apartmentId) return;
       try {
@@ -319,14 +321,14 @@ export default function WohnungenClientView({
   }, [handleEditWohnung]);
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
       <div
         className="absolute inset-0 z-[-1]"
         style={{
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
       />
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
         <StatCard
           title="Wohnungen gesamt"
           value={summary.total}
@@ -359,22 +361,26 @@ export default function WohnungenClientView({
 
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-start justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Wohnungsverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Wohnungen</p>
+              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Wohnungen</p>
             </div>
-            <div className="mt-1">
-              <ButtonWithHoverCard 
-                onClick={handleAddWohnung} 
-                className="sm:w-auto" 
+            <div className="mt-0 sm:mt-1">
+              <ResponsiveButtonWithHoverCard
+                id="create-unit-btn"
+                onClick={() => {
+                  useOnboardingStore.getState().completeStep('create-apartment-start');
+                  handleAddWohnung();
+                }}
                 disabled={isAddButtonDisabled}
                 tooltip={buttonTooltipMessage}
                 showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}
+                icon={<PlusCircle className="h-4 w-4" />}
+                shortText="Hinzufügen"
               >
-                <PlusCircle className="mr-2 h-4 w-4" />
                 Wohnung hinzufügen
-              </ButtonWithHoverCard>
+              </ResponsiveButtonWithHoverCard>
             </div>
           </div>
         </CardHeader>
@@ -382,36 +388,34 @@ export default function WohnungenClientView({
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {[
-                  { value: "all", label: "Alle Wohnungen" },
-                  { value: "free", label: "Freie Wohnungen" },
-                  { value: "rented", label: "Vermietete Wohnungen" },
-                ].map(({ value, label }) => (
-                  <Button
+                  { value: "all", shortLabel: "Alle", fullLabel: "Alle Wohnungen" },
+                  { value: "free", shortLabel: "Frei", fullLabel: "Freie Wohnungen" },
+                  { value: "rented", shortLabel: "Vermietet", fullLabel: "Vermietete Wohnungen" },
+                ].map(({ value, shortLabel, fullLabel }) => (
+                  <ResponsiveFilterButton
                     key={value}
-                    variant={filter === value ? "default" : "ghost"}
+                    shortLabel={shortLabel}
+                    fullLabel={fullLabel}
+                    isActive={filter === value}
                     onClick={() => setFilter(value)}
-                    className="h-9 rounded-full"
-                  >
-                    {label}
-                  </Button>
+                  />
                 ))}
               </div>
-              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Wohnungen suchen..."
-                  className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              <SearchInput
+                placeholder="Suchen..."
+                className="rounded-full"
+                mode="table"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
+              />
             </div>
             {selectedApartments.size > 0 && (
-              <div className="p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+              <div className="p-3 sm:p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between animate-in slide-in-from-top-2 duration-200">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -420,7 +424,7 @@ export default function WohnungenClientView({
                       className="data-[state=checked]:bg-primary"
                     />
                     <span className="font-medium text-sm">
-                      {selectedApartments.size} {selectedApartments.size === 1 ? 'Wohnung' : 'Wohnungen'} ausgewählt
+                      {selectedApartments.size} <span className="hidden sm:inline">{selectedApartments.size === 1 ? 'Wohnung' : 'Wohnungen'}</span> ausgewählt
                     </span>
                   </div>
                   <Button
@@ -432,41 +436,45 @@ export default function WohnungenClientView({
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setIsAssignDialogOpen(true)}
-                    className="h-8 gap-2"
+                    className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                   >
                     <Building2 className="h-4 w-4" />
-                    Haus zuweisen
+                    <span className="hidden sm:inline">Haus zuweisen</span>
+                    <span className="sm:hidden">Zuweisen</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleBulkExport}
-                    className="h-8 gap-2"
+                    className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                   >
                     <Download className="h-4 w-4" />
-                    Exportieren
+                    <span className="hidden sm:inline">Exportieren</span>
+                    <span className="sm:hidden">Export</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowBulkDeleteConfirm(true)}
                     disabled={isBulkDeleting}
-                    className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                    className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                   >
                     {isBulkDeleting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Wird gelöscht...
+                        <span className="hidden sm:inline">Löschen...</span>
+                        <span className="sm:hidden">...</span>
                       </>
                     ) : (
                       <>
                         <Trash2 className="h-4 w-4" />
-                        Löschen ({selectedApartments.size})
+                        <span className="hidden sm:inline">Löschen ({selectedApartments.size})</span>
+                        <span className="sm:hidden">{selectedApartments.size}</span>
                       </>
                     )}
                   </Button>

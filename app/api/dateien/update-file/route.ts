@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     // If upsert fails due to RLS, try delete-then-upload approach
     if (uploadError) {
       console.log('Upsert failed, trying delete-then-upload approach:', uploadError)
-      
+
       // Delete the existing file
       const { error: deleteError } = await supabase.storage
         .from('documents')
@@ -58,13 +58,13 @@ export async function POST(request: NextRequest) {
       let uploadSuccess = false
       let lastError = null
       const maxRetries = 3
-      
+
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         // Wait with exponential backoff: 100ms, 200ms, 400ms
         if (attempt > 0) {
           await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt - 1)))
         }
-        
+
         const { error: newUploadError } = await supabase.storage
           .from('documents')
           .upload(fullPath, blob, {
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
           uploadSuccess = true
           break
         }
-        
+
         lastError = newUploadError
         console.log(`Upload attempt ${attempt + 1} failed:`, newUploadError)
       }
@@ -89,7 +89,32 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`File updated successfully: ${fullPath}`)
-    
+
+    // Update Dokumente_Metadaten
+    try {
+      const { error: dbUpdateError } = await supabase
+        .from('Dokumente_Metadaten')
+        .update({
+          dateigroesse: new Blob([content]).size,
+          aktualisierungsdatum: new Date().toISOString(),
+          mime_type: 'text/markdown'
+        })
+        .eq('dateipfad', filePath)
+        .eq('dateiname', fileName)
+        .eq('user_id', user.id)
+
+      if (dbUpdateError) {
+        throw dbUpdateError
+      }
+    } catch (dbError) {
+      console.error('Failed to update Dokumente_Metadaten:', dbError)
+      // Notify client about the partial failure
+      return NextResponse.json(
+        { error: 'File content was updated, but metadata failed to save. Please try refreshing.' },
+        { status: 500 }
+      )
+    }
+
     // Return with cache-busting headers
     return NextResponse.json({ success: true }, {
       headers: {

@@ -21,7 +21,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -48,20 +48,20 @@ const DialogContent = React.forwardRef<
 
     // Check if the interaction is with a combobox or popover element
     const target = event.target as Element;
-    
+
     // More comprehensive check for combobox elements
-    if (target?.closest('[data-radix-popover-content]') || 
-        target?.closest('[data-radix-popper-content-wrapper]') ||
-        target?.hasAttribute('cmdk-input') ||
-        target?.hasAttribute('cmdk-item') ||
-        target?.hasAttribute('cmdk-list') ||
-        target?.closest('[role="combobox"]') ||
-        target?.closest('[role="option"]') ||
-        target?.closest('[role="listbox"]') ||
-        target?.closest('[data-dialog-ignore-interaction]') ||
-        target?.closest('[data-combobox-dropdown]') ||
-        target?.hasAttribute('data-combobox-input') ||
-        target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
+    if (target?.closest('[data-radix-popover-content]') ||
+      target?.closest('[data-radix-popper-content-wrapper]') ||
+      target?.hasAttribute('cmdk-input') ||
+      target?.hasAttribute('cmdk-item') ||
+      target?.hasAttribute('cmdk-list') ||
+      target?.closest('[role="combobox"]') ||
+      target?.closest('[role="option"]') ||
+      target?.closest('[role="listbox"]') ||
+      target?.closest('[data-dialog-ignore-interaction]') ||
+      target?.closest('[data-combobox-dropdown]') ||
+      target?.hasAttribute('data-combobox-input') ||
+      target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
       // Allow interactions with combobox elements - just return without preventing
       return;
     }
@@ -91,7 +91,18 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-6 border bg-background p-6 shadow-xl duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl sm:w-full sm:rounded-[2.5rem] sm:p-8",
+          // Mobile-first: Full-width drawer from bottom, easier to reach on mobile
+          "fixed z-50 grid w-full gap-4 border bg-background shadow-xl duration-300",
+          // Mobile positioning: bottom sheet style
+          "inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl p-4 pb-6",
+          // Mobile animations: slide up from bottom
+          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          // Tablet and up: centered modal style (no max-width here - let child components set it)
+          "sm:inset-auto sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-[2rem] sm:p-6 sm:max-h-[85vh]",
+          "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
+          // Large screens: more padding
+          "md:p-8 md:rounded-[2.5rem]",
           className
         )}
         onInteractOutside={handleInteraction} // Assign the correctly typed handler
@@ -107,14 +118,14 @@ const DialogContent = React.forwardRef<
           // Don't prevent focus from moving to combobox elements or when combobox is actively being used
           const target = e.target as Element;
           const activeComboboxInput = document.querySelector('[data-combobox-active="true"]')
-          
-          if (target?.hasAttribute('data-combobox-input') || 
-              target?.hasAttribute('data-combobox-active') ||
-              target?.closest('[data-dialog-ignore-interaction]') ||
-              target?.closest('[data-combobox-dropdown]') ||
-              target?.closest('[role="listbox"]') ||
-              target?.closest('[role="option"]') ||
-              activeComboboxInput) {
+
+          if (target?.hasAttribute('data-combobox-input') ||
+            target?.hasAttribute('data-combobox-active') ||
+            target?.closest('[data-dialog-ignore-interaction]') ||
+            target?.closest('[data-combobox-dropdown]') ||
+            target?.closest('[role="listbox"]') ||
+            target?.closest('[role="option"]') ||
+            activeComboboxInput) {
             e.preventDefault();
           }
         }}
@@ -126,7 +137,7 @@ const DialogContent = React.forwardRef<
         {!hideCloseButton && (
           <DialogPrimitive.Close
             onClick={handleCloseButtonClick}
-            className="absolute right-6 top-6 rounded-full p-2.5 opacity-70 ring-offset-background transition-all duration-300 hover:opacity-100 hover:bg-gray-100 hover:scale-110 active:scale-95 hover:shadow-lg hover:rotate-90 dark:modal-close-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+            className="absolute right-3 top-3 rounded-full p-2 opacity-70 ring-offset-background transition-all duration-300 hover:opacity-100 hover:bg-gray-100 hover:scale-110 active:scale-95 hover:shadow-lg hover:rotate-90 dark:modal-close-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground sm:right-4 sm:top-4 sm:p-2.5 md:right-6 md:top-6"
           >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>

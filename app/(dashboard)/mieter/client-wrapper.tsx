@@ -2,18 +2,19 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
+import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
+import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle, Users, BadgeCheck, Euro, Search } from "lucide-react";
-import { StatCard } from "@/components/stat-card";
-import { TenantTable } from "@/components/tenant-table";
-import { TenantBulkActionBar } from "@/components/tenant-bulk-action-bar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { StatCard } from "@/components/common/stat-card";
+import { TenantTable } from "@/components/tables/tenant-table";
+import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
+import { SearchInput } from "@/components/ui/search-input";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { deleteTenantAction } from "@/app/mieter-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 
 import type { Tenant } from "@/types/Tenant";
@@ -29,10 +30,17 @@ interface MieterClientViewProps {
 // Internal AddTenantButton (could be kept from previous step if preferred)
 function AddTenantButton({ onAdd }: { onAdd: () => void }) {
   return (
-    <ButtonWithTooltip onClick={onAdd} className="sm:w-auto">
-      <PlusCircle className="mr-2 h-4 w-4" />
+    <ResponsiveButtonWithTooltip
+      id="add-tenant-btn"
+      onClick={() => {
+        useOnboardingStore.getState().completeStep('assign-tenant-start');
+        onAdd();
+      }}
+      icon={<PlusCircle className="h-4 w-4" />}
+      shortText="Hinzufügen"
+    >
       Mieter hinzufügen
-    </ButtonWithTooltip>
+    </ResponsiveButtonWithTooltip>
   );
 }
 
@@ -135,11 +143,11 @@ export default function MieterClientView({
 
   const handleBulkExport = useCallback(() => {
     const selectedTenantsData = initialTenants.filter(t => selectedTenants.has(t.id))
-    
+
     // Create CSV header
     const headers = ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-    
+
     // Create CSV rows with proper escaping
     const csvRows = selectedTenantsData.map(t => {
       const row = [
@@ -152,7 +160,7 @@ export default function MieterClientView({
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-    
+
     const csvContent = [csvHeader, ...csvRows].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -220,8 +228,8 @@ export default function MieterClientView({
   }, [selectedTenants, router]);
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
-      <div className="flex flex-wrap gap-4">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
         <StatCard
           title="Mieter gesamt"
           value={summary.total}
@@ -245,12 +253,12 @@ export default function MieterClientView({
       </div>
       <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
         <CardHeader>
-          <div className="flex flex-row items-start justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Mieterverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Mieter</p>
+              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Mieter</p>
             </div>
-            <div className="mt-1">
+            <div className="mt-0 sm:mt-1">
               <AddTenantButton onAdd={handleAddTenant} />
             </div>
           </div>
@@ -259,33 +267,31 @@ export default function MieterClientView({
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
         <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {[
-                  { value: "current" as const, label: "Aktuelle Mieter" },
-                  { value: "previous" as const, label: "Vorherige Mieter" },
-                  { value: "all" as const, label: "Alle Mieter" },
-                ].map(({ value, label }) => (
-                  <Button
+                  { value: "current" as const, shortLabel: "Aktuelle", fullLabel: "Aktuelle Mieter" },
+                  { value: "previous" as const, shortLabel: "Vorherige", fullLabel: "Vorherige Mieter" },
+                  { value: "all" as const, shortLabel: "Alle", fullLabel: "Alle Mieter" },
+                ].map(({ value, shortLabel, fullLabel }) => (
+                  <ResponsiveFilterButton
                     key={value}
-                    variant={filter === value ? "default" : "ghost"}
+                    shortLabel={shortLabel}
+                    fullLabel={fullLabel}
+                    isActive={filter === value}
                     onClick={() => setFilter(value)}
-                    className="h-9 rounded-full"
-                  >
-                    {label}
-                  </Button>
+                  />
                 ))}
               </div>
-              <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Mieter suchen..."
-                  className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              <SearchInput
+                placeholder="Suchen..."
+                className="rounded-full"
+                mode="table"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
+              />
             </div>
             <TenantBulkActionBar
               selectedTenants={selectedTenants}

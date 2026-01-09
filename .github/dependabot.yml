@@ -7,26 +7,25 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
       day: "monday"
       time: "09:00"
       timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "automated"
+      - "patch"
     commit-message:
       prefix: "chore"
       include: "scope"
-    # Group minor and patch updates together to reduce PR noise
+    # Group only patch updates to reduce PR noise
+    # Major and minor updates create individual PRs for easier review
     groups:
-      production-dependencies:
+      production-patch-updates:
         dependency-type: "production"
         update-types:
-          - "minor"
           - "patch"
-      development-dependencies:
+      development-patch-updates:
         dependency-type: "development"
         update-types:
-          - "minor"
           - "patch"

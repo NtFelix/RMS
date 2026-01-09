@@ -6,8 +6,11 @@ import { Info, Monitor } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
-import { ThemeSwitcherCards } from "@/components/theme-switcher-cards";
+import { ThemeSwitcherCards } from "@/components/common/theme-switcher-cards";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { Button } from "@/components/ui/button";
+import { Play } from "lucide-react";
 
 const DisplaySection = () => {
   const darkModeEnabled = useFeatureFlagEnabled('dark-mode')
@@ -69,6 +72,25 @@ const DisplaySection = () => {
                 className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input hover:scale-105 transition-transform duration-150 ease-in-out"
               />
             </div>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard>
+          <div className="flex items-center justify-between gap-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Play className="h-4 w-4 text-muted-foreground" />
+                <label className="text-sm font-medium leading-none">
+                  Tutorial neu starten
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Startet die interaktive Einführungstour erneut.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => useOnboardingStore.getState().resetTour()}>
+              Neustart
+            </Button>
           </div>
         </SettingsCard>
       </SettingsSection>

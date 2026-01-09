@@ -1,0 +1,124 @@
+/* Custom Driver.js Theme */
+.driver-popover.driverjs-theme {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    border: 1px solid hsl(var(--border) / 0.5);
+    border-radius: 2rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05),
+        0 0 0 1px hsl(var(--border) / 0.1);
+    padding: 1.5rem;
+    max-width: 400px;
+    font-family: inherit;
+}
+
+.driver-popover.driverjs-theme .driver-popover-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+    color: hsl(var(--foreground));
+}
+
+.driver-popover.driverjs-theme .driver-popover-description {
+    font-size: 0.925rem;
+    line-height: 1.6;
+    color: hsl(var(--muted-foreground));
+    margin-bottom: 1.5rem;
+}
+
+/* Footer layout */
+.driver-popover.driverjs-theme .driver-popover-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0;
+}
+
+/* Progress text */
+.driver-popover.driverjs-theme .driver-popover-progress-text {
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    font-weight: 500;
+}
+
+/* Buttons container */
+.driver-popover.driverjs-theme .driver-popover-navigation-btns {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Base button styles */
+.driver-popover.driverjs-theme button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    height: 2.25rem;
+    padding: 0 0.75rem;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    outline: none;
+    text-shadow: none;
+}
+
+/* Close button - Improved style */
+.driver-popover.driverjs-theme .driver-popover-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    color: hsl(var(--muted-foreground));
+    border-radius: 50%;
+    background-color: hsl(var(--muted) / 0.3);
+    border: 1px solid transparent;
+    align-items: center;
+    justify-content: center;
+    display: flex;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.driver-popover.driverjs-theme .driver-popover-close-btn:hover {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--foreground));
+    transform: scale(1.05);
+}
+
+/* Previous Button - Ghost variant */
+.driver-popover.driverjs-theme .driver-popover-prev-btn {
+    background-color: transparent;
+    color: hsl(var(--muted-foreground));
+    border: 1px solid hsl(var(--border));
+}
+
+.driver-popover.driverjs-theme .driver-popover-prev-btn:hover {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--foreground));
+}
+
+/* Next Button - Primary variant */
+.driver-popover.driverjs-theme .driver-popover-next-btn {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    text-shadow: none;
+    border: 1px solid transparent;
+}
+
+.driver-popover.driverjs-theme .driver-popover-next-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* Focus styles for accessibility */
+.driver-popover.driverjs-theme button:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}

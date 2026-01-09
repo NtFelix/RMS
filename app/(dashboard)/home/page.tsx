@@ -1,20 +1,40 @@
+import type { Metadata } from 'next';
+
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
+
+// Prevent this private dashboard page from being indexed by search engines
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      noimageindex: true,
+    },
+  },
+};
 
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
-import { TenantPaymentBento } from "@/components/tenant-payment-bento"
-import { getDashboardSummary } from "@/lib/data-fetching"
+import { TenantPaymentBento } from "@/components/tenants/tenant-payment-bento"
+import { getDashboardSummary, getNebenkostenChartData } from "@/lib/data-fetching"
 import { RevenueExpensesChart } from "@/components/charts/revenue-expenses-chart"
 import { OccupancyChart } from "@/components/charts/occupancy-chart"
 import { MaintenanceDonutChart } from "@/components/charts/maintenance-donut-chart"
-import { LastTransactionsContainer } from "@/components/last-transactions-container"
+import { NebenkostenChart } from "@/components/charts/nebenkosten-chart"
+import { LastTransactionsContainer } from "@/components/finance/last-transactions-container"
 
 export default async function Dashboard() {
   // Fetch real data from database
-  const summary = await getDashboardSummary();
-  
+  const [summary, nebenkostenData] = await Promise.all([
+    getDashboardSummary(),
+    getNebenkostenChartData()
+  ]);
+
+  const { data: nebenkostenChartData, year: nebenkostenYear } = nebenkostenData;
+
   return (
     <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
       <div>
@@ -112,7 +132,7 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        
+
         <Link href="/finanzen" className="col-span-1 row-span-1 md:hidden">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
@@ -132,7 +152,7 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        
+
         <Link href="/betriebskosten" className="col-span-1 row-span-1 md:hidden">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
@@ -177,7 +197,7 @@ export default async function Dashboard() {
                 </CardContent>
               </Card>
             </Link>
-            
+
             <Link href="/finanzen" className="flex-1">
               <Card className="h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
@@ -197,7 +217,7 @@ export default async function Dashboard() {
                 </CardContent>
               </Card>
             </Link>
-            
+
             <Link href="/betriebskosten" className="flex-1">
               <Card className="h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
@@ -220,7 +240,7 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        {/* Row 8: Last Transactions (left 50%) + Instandhaltung Chart (right 50%) */}
+        {/* Row 8: Last Transactions (left 50%) + Nebenkosten Chart (right 50%) */}
         <div className="col-span-1 row-span-1 md:col-span-3 md:row-span-3">
           <div className="h-[300px] md:h-full overflow-hidden">
             <LastTransactionsContainer />
@@ -228,7 +248,7 @@ export default async function Dashboard() {
         </div>
         <div className="col-span-1 row-span-1 md:col-span-3 md:row-span-3">
           <div className="h-[300px] md:h-full overflow-hidden">
-            <MaintenanceDonutChart />
+            <NebenkostenChart nebenkostenData={nebenkostenChartData} year={nebenkostenYear} />
           </div>
         </div>
       </div>

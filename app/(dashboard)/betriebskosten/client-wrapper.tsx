@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Droplets, FileText, X } from "lucide-react";
-import { OperatingCostsFilters } from "@/components/operating-costs-filters";
-import { OperatingCostsTable } from "@/components/operating-costs-table";
+import { Droplets, X } from "lucide-react";
+import { CreateAbrechnungDropdown } from "@/components/abrechnung/create-abrechnung-dropdown";
+import { OperatingCostsFilters } from "@/components/finance/operating-costs-filters";
+import { OperatingCostsTable } from "@/components/tables/operating-costs-table";
 
 import { Haus } from "../../../lib/data-fetching"; // Ensure correct path
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
@@ -78,16 +78,21 @@ export default function BetriebskostenClientView({
     setFilteredNebenkosten(result);
   }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
 
-  const handleOpenCreateModal = useCallback(() => {
+  const handleOpenCreateModal = useCallback((templateType: 'blank' | 'previous' | 'default' = 'blank') => {
     // Pass initialHaeuser and a success callback (e.g., to refresh data)
-    openBetriebskostenModal(null, initialHaeuser, () => {
-      // This callback is called on successful save from the modal
-      // Trigger data refresh here, e.g., by re-fetching or using router.refresh()
-      // For now, let's assume the modal itself or a global mechanism handles refresh.
-      // If not, this is where you'd add `router.refresh()` or similar.
-      router.refresh(); // Example refresh
-    });
+    openBetriebskostenModal(
+      templateType !== 'blank' ? { useTemplate: templateType } : null, 
+      initialHaeuser, 
+      () => {
+        // This callback is called on successful save from the modal
+        router.refresh();
+      }
+    );
   }, [openBetriebskostenModal, initialHaeuser, router]);
+  
+  const handleOpenBlankModal = useCallback(() => handleOpenCreateModal('blank'), [handleOpenCreateModal]);
+  const handleOpenPreviousTemplateModal = useCallback(() => handleOpenCreateModal('previous'), [handleOpenCreateModal]);
+  const handleOpenDefaultTemplateModal = useCallback(() => handleOpenCreateModal('default'), [handleOpenCreateModal]);
 
   const handleOpenEditModal = useCallback((item: OptimizedNebenkosten) => {
     // Convert OptimizedNebenkosten to Nebenkosten format for the modal
@@ -245,13 +250,13 @@ export default function BetriebskostenClientView({
               ))}
             </div>
             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
-              <ButtonWithTooltip 
-                onClick={handleOpenCreateModal} 
+              <CreateAbrechnungDropdown
+                onBlankClick={handleOpenBlankModal}
+                onPreviousClick={handleOpenPreviousTemplateModal}
+                onTemplateClick={handleOpenDefaultTemplateModal}
                 className="flex-1"
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Neue Abrechnung erstellen
-              </ButtonWithTooltip>
+                buttonText="Neue Abrechnung erstellen"
+              />
               <Button 
                 variant="outline" 
                 onClick={scrollToTable}
@@ -273,10 +278,13 @@ export default function BetriebskostenClientView({
               <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Betriebskostenabrechnungen</p>
             </div>
             <div className="mt-1">
-              <ButtonWithTooltip onClick={handleOpenCreateModal} className="sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Betriebskostenabrechnung erstellen
-              </ButtonWithTooltip>
+              <CreateAbrechnungDropdown
+                onBlankClick={handleOpenBlankModal}
+                onPreviousClick={handleOpenPreviousTemplateModal}
+                onTemplateClick={handleOpenDefaultTemplateModal}
+                buttonText="Betriebskostenabrechnung erstellen"
+                className="sm:w-auto"
+              />
             </div>
           </div>
         </CardHeader>
@@ -291,6 +299,7 @@ export default function BetriebskostenClientView({
               onHouseChange={setSelectedHouseId}
               haeuser={initialHaeuser}
               selectedHouseId={selectedHouseId}
+              searchQuery={searchQuery}
             />
           </div>
           <div ref={tableRef}>

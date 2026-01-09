@@ -1,32 +1,19 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-
-// Define the Plan interface that will be returned by the API
-interface Plan {
-  id: string; // Stripe Price ID
-  name: string; // This will be the Price nickname (e.g., "Monthly", "Annually") or Product Name if nickname is not set
-  productName: string; // This will be the Stripe Product Name, used for grouping
-  price: number; // unit_amount in cents
-  currency: string;
-  interval: string | null; // e.g., 'month', 'year'
-  interval_count: number | null;
-  features: string[];
-  limit_wohnungen?: number;
-  priceId: string; // Stripe Price ID (same as id)
-  position?: number; // Used for sorting products
-  description?: string; // Added for Stripe Product description
-}
+import { STRIPE_CONFIG } from '@/lib/constants/stripe';
+import { StripePlan } from '@/types/stripe';
 
 export async function GET() {
   if (!process.env.STRIPE_SECRET_KEY) {
-    console.error('Stripe secret key not configured');
+    // Only log in non-CI environments to avoid cluttering test output
+    if (process.env.CI !== 'true') {
+      console.error('Stripe secret key not configured');
+    }
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-06-30.basil', // Use your desired API version
-  });
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
 
   try {
     const prices = await stripe.prices.list({
@@ -34,7 +21,7 @@ export async function GET() {
       expand: ['data.product'], // Expand product data for each price
     });
 
-    const plans: Plan[] = prices.data.map(price => {
+    const plans: StripePlan[] = prices.data.map(price => {
       const product = price.product as Stripe.Product; // Type assertion after expansion
 
       let featuresArray: string[] = [];
@@ -79,9 +66,10 @@ export async function GET() {
         interval: price.recurring?.interval || null,
         interval_count: price.recurring?.interval_count || null,
         features: featuresArray,
-        limit_wohnungen: limitWohnungen,
+        limit_wohnungen: limitWohnungen ?? null,
         position: position, // This position is used to sort products
-        description: product.description || undefined, // Add product description
+        description: product.description || '',
+        metadata: product.metadata, // Pass all metadata to frontend
       };
     });
 

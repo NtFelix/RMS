@@ -2,10 +2,10 @@ import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
-import { 
-  fetchDocumentationContext, 
-  processContextForAI, 
-  getArticleContext, 
+import {
+  fetchDocumentationContext,
+  processContextForAI,
+  getArticleContext,
   getSearchContext,
   categorizeAIError
 } from '@/lib/ai-documentation-context';
@@ -122,7 +122,7 @@ if (POSTHOG_API_KEY) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'Mietfluss-AI-Assistant/1.0',
+            'User-Agent': 'Mietevo-AI-Assistant/1.0',
           },
           body: JSON.stringify({
             api_key: POSTHOG_API_KEY,
@@ -136,7 +136,7 @@ if (POSTHOG_API_KEY) {
             timestamp: new Date().toISOString()
           })
         });
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`PostHog capture failed with status ${response.status}: ${errorText}`, {
@@ -160,10 +160,10 @@ if (POSTHOG_API_KEY) {
 // Rate limiting functions
 function checkRateLimit(clientId: string, sessionId?: string): { allowed: boolean; retryAfter?: number; details?: any } {
   const now = Date.now();
-  
+
   // Check IP-based rate limit
   let clientData = rateLimitStore.get(clientId);
-  
+
   if (!clientData || now > clientData.resetTime) {
     clientData = {
       count: 0,
@@ -172,14 +172,14 @@ function checkRateLimit(clientId: string, sessionId?: string): { allowed: boolea
     };
     rateLimitStore.set(clientId, clientData);
   }
-  
+
   // Clean up expired sessions
   clientData.sessions.forEach((sessionData, sessionKey) => {
     if (now > sessionData.resetTime) {
       clientData.sessions.delete(sessionKey);
     }
   });
-  
+
   // Check IP limit
   if (clientData.count >= RATE_LIMIT_CONFIG.maxRequests) {
     const retryAfter = Math.ceil((clientData.resetTime - now) / 1000);
@@ -194,11 +194,11 @@ function checkRateLimit(clientId: string, sessionId?: string): { allowed: boolea
       }
     };
   }
-  
+
   // Check session limit if sessionId provided
   if (sessionId) {
     let sessionData = clientData.sessions.get(sessionId);
-    
+
     if (!sessionData || now > sessionData.resetTime) {
       sessionData = {
         count: 0,
@@ -206,7 +206,7 @@ function checkRateLimit(clientId: string, sessionId?: string): { allowed: boolea
       };
       clientData.sessions.set(sessionId, sessionData);
     }
-    
+
     if (sessionData.count >= RATE_LIMIT_CONFIG.maxRequestsPerSession) {
       const retryAfter = Math.ceil((sessionData.resetTime - now) / 1000);
       return {
@@ -220,14 +220,14 @@ function checkRateLimit(clientId: string, sessionId?: string): { allowed: boolea
         }
       };
     }
-    
+
     // Increment session count
     sessionData.count++;
   }
-  
+
   // Increment IP count
   clientData.count++;
-  
+
   return { allowed: true };
 }
 
@@ -238,13 +238,13 @@ async function retryWithBackoff<T>(
   context: string = 'operation'
 ): Promise<T> {
   let lastError: Error;
-  
+
   for (let attempt = 0; attempt < config.maxAttempts; attempt++) {
     try {
       return await operation();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       // Don't retry on certain errors
       if (
         lastError.message.includes('API key') ||
@@ -254,26 +254,26 @@ async function retryWithBackoff<T>(
       ) {
         throw lastError;
       }
-      
+
       // If this is the last attempt, throw the error
       if (attempt === config.maxAttempts - 1) {
         console.error(`${context} failed after ${config.maxAttempts} attempts:`, lastError.message);
         throw lastError;
       }
-      
+
       // Calculate delay with jitter
       const delay = Math.min(
         config.baseDelay * Math.pow(config.backoffFactor, attempt),
         config.maxDelay
       );
       const jitteredDelay = delay + Math.random() * 1000;
-      
+
       console.warn(`${context} attempt ${attempt + 1} failed, retrying in ${Math.round(jitteredDelay)}ms:`, lastError.message);
-      
+
       await new Promise(resolve => setTimeout(resolve, jitteredDelay));
     }
   }
-  
+
   throw lastError!;
 }
 
@@ -288,7 +288,7 @@ function createErrorResponse(
 ): { response: NextResponse; errorDetails: any } {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorLower = errorMessage.toLowerCase();
-  
+
   // Use existing error categorization
   const errorDetails = categorizeAIError(errorMessage, {
     sessionId: context.sessionId || '',
@@ -298,10 +298,10 @@ function createErrorResponse(
       client_id: context.clientId || 'unknown'
     }
   });
-  
+
   let apiError: APIError;
   let statusCode: number;
-  
+
   // Enhanced error handling with German messages
   if (errorLower.includes('rate limit') || errorLower.includes('quota') || errorLower.includes('429')) {
     apiError = {
@@ -370,31 +370,31 @@ function createErrorResponse(
     };
     statusCode = 500;
   }
-  
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  
+
   if (apiError.retryAfter) {
     headers['Retry-After'] = apiError.retryAfter.toString();
   }
-  
+
   if (apiError.code === 'RATE_LIMIT') {
     headers['X-RateLimit-Limit'] = RATE_LIMIT_CONFIG.maxRequests.toString();
     headers['X-RateLimit-Remaining'] = '0';
     headers['X-RateLimit-Reset'] = Math.ceil((Date.now() + RATE_LIMIT_CONFIG.windowMs) / 1000).toString();
   }
-  
+
   return {
     response: NextResponse.json(apiError, { status: statusCode, headers }),
     errorDetails
   };
 }
 
-// System instruction for Mietfluss assistant
-const SYSTEM_INSTRUCTION = `Stelle dir vor du bist ein hilfreicher Assistent der für Mietfluss arbeitet. 
+// System instruction for Mietevo assistant
+const SYSTEM_INSTRUCTION = `Stelle dir vor du bist ein hilfreicher Assistent der für Mietevo arbeitet. 
 Deine Aufgabe ist den Nutzer zu helfen seine Frage zu dem Programm zu beantworten. 
-Das Programm zu dem du fragen beantworten sollst ist Mietfluss, ein 
+Das Programm zu dem du fragen beantworten sollst ist Mietevo, ein 
 Immobilienverwaltungsprogramm das Benutzern ermöglicht einfach ihre Immobilien 
 zu verwalten, indem Nebenkosten/Betriebskostenabrechnungen vereinfach werden 
 und viele weitere Funktionen.
@@ -411,10 +411,10 @@ export async function POST(request: NextRequest) {
   let traceId = '';
   let isAuthenticated = false;
   let isAnonymous = true;
-  
+
   // Track server-side performance metrics
   const serverPerformanceStart = performance.now();
-  
+
   try {
     // Validate API key
     if (!process.env.GEMINI_API_KEY) {
@@ -426,7 +426,7 @@ export async function POST(request: NextRequest) {
     // Try to authenticate user, but allow anonymous access
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     // Allow both authenticated and anonymous users
     isAuthenticated = !authError && !!user;
     isAnonymous = !isAuthenticated;
@@ -442,15 +442,15 @@ export async function POST(request: NextRequest) {
       });
       return response;
     }
-    
+
     validatedData = AIRequestSchema.parse(body);
-    
+
     const { message, context, contextOptions, sessionId } = validatedData;
 
     // Generate session ID if not provided - handle both authenticated and anonymous users
     const userIdForSession = isAuthenticated && user ? user.id : 'anonymous';
     currentSessionId = sessionId || `session_${userIdForSession}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // User identification for PostHog events
     if (isAuthenticated && user) {
       userIdentifier = user.email || user.id;
@@ -458,14 +458,14 @@ export async function POST(request: NextRequest) {
       // For anonymous users, create a consistent identifier based on session
       userIdentifier = `anonymous_${currentSessionId}`;
     }
-    
+
     // Generate unique trace ID for this AI generation
     traceId = `trace_${userIdForSession}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Get client identifier for rate limiting
-    clientId = request.headers.get('x-forwarded-for') || 
-               request.headers.get('x-real-ip') || 
-               'unknown';
+    clientId = request.headers.get('x-forwarded-for') ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
 
     // Check rate limits
     const rateLimitResult = checkRateLimit(clientId, currentSessionId);
@@ -473,7 +473,7 @@ export async function POST(request: NextRequest) {
       const isSessionLimit = rateLimitResult.details?.type === 'session_limit';
       const limitType = isSessionLimit ? 'Sitzung' : 'IP-Adresse';
       const limit = isSessionLimit ? RATE_LIMIT_CONFIG.maxRequestsPerSession : RATE_LIMIT_CONFIG.maxRequests;
-      
+
       const rateLimitError: APIError = {
         error: 'Rate limit exceeded',
         code: 'RATE_LIMIT',
@@ -568,12 +568,12 @@ export async function POST(request: NextRequest) {
         // Process context for AI
         const aiContext = processContextForAI(documentationContext, message);
         finalContext = aiContext;
-        
+
         console.log(`Fetched ${documentationContext.articles.length} articles for AI context`);
       } catch (error) {
         console.error('Error fetching documentation context after retries:', error);
         // Continue without context if fetching fails after retries
-        
+
         // Track context fetch failure
         if (posthogClient) {
           posthogClient.capture('ai_context_fetch_failed', {
@@ -596,7 +596,7 @@ export async function POST(request: NextRequest) {
           contextText += `\n**${article.titel}** (Kategorie: ${article.kategorie || 'Allgemein'}):\n${article.seiteninhalt}\n`;
         }
       });
-      
+
       // Add category information if available
       if (finalContext.categories && finalContext.categories.length > 0) {
         contextText += '\n\nVerfügbare Kategorien:\n';
@@ -620,7 +620,7 @@ export async function POST(request: NextRequest) {
     const cachedResponse = aiCache.getCachedResponse(message, contextHash);
     if (cachedResponse) {
       console.log('Using cached AI response');
-      
+
       // Track cache hit
       if (posthogClient) {
         posthogClient.capture('ai_response_cache_hit', {
@@ -640,7 +640,7 @@ export async function POST(request: NextRequest) {
         start(controller) {
           // Send cached response as chunks to simulate streaming
           const chunks = cachedResponse.match(/.{1,50}/g) || [cachedResponse];
-          
+
           let chunkIndex = 0;
           const sendNextChunk = () => {
             if (chunkIndex < chunks.length) {
@@ -650,10 +650,10 @@ export async function POST(request: NextRequest) {
                 content: chunk,
                 sessionId: currentSessionId
               });
-              
+
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               chunkIndex++;
-              
+
               // Small delay to simulate streaming
               setTimeout(sendNextChunk, 50);
             } else {
@@ -667,12 +667,12 @@ export async function POST(request: NextRequest) {
                   outputTokens: 0
                 }
               });
-              
+
               controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
               controller.close();
             }
           };
-          
+
           sendNextChunk();
         }
       });
@@ -711,30 +711,30 @@ export async function POST(request: NextRequest) {
       ...RETRY_CONFIG,
       maxAttempts: 2, // Reduce attempts for streaming to avoid long delays
     }, 'Gemini API streaming request');
-    
+
     // Create a readable stream for the response
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
           let fullResponse = '';
-          
+
           for await (const chunk of result) {
             const chunkText = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
             if (chunkText) {
               fullResponse += chunkText;
-            
+
               // Send chunk to client
               const data = JSON.stringify({
                 type: 'chunk',
                 content: chunkText,
                 sessionId: currentSessionId
               });
-              
+
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             }
           }
-          
+
           // Cache the response
           const responseTime = Date.now() - requestStartTime;
           aiCache.cacheResponse(
@@ -748,7 +748,7 @@ export async function POST(request: NextRequest) {
           // Track successful AI response (server-side) with enhanced performance metrics
           if (posthogClient) {
             const serverProcessingTime = performance.now() - serverPerformanceStart;
-            
+
             posthogClient.capture('ai_response_generated_server', {
               distinct_id: userIdentifier,
               response_time_ms: responseTime,
@@ -761,43 +761,43 @@ export async function POST(request: NextRequest) {
               context_hash: contextHash,
               user_type: isAuthenticated ? 'authenticated' : 'anonymous',
               is_anonymous: isAnonymous,
-              
+
               // Performance breakdown
               context_processing_time_ms: contextProcessingTime || 0,
               gemini_api_time_ms: responseTime - (contextProcessingTime || 0),
-              
+
               // Resource usage
               memory_usage_estimate_mb: Math.round(fullResponse.length / 1024 / 1024 * 2), // Rough estimate
-              
+
               timestamp: new Date().toISOString()
             });
 
             // Note: LLM Generation completion tracking is handled client-side to avoid duplicates
-            
+
             // Track detailed server performance metrics
             posthogClient.capture('ai_server_performance_breakdown', {
               distinct_id: userIdentifier,
-                session_id: currentSessionId,
-                total_request_time_ms: responseTime,
-                server_processing_time_ms: serverProcessingTime,
-                validation_time_ms: validationTime || 0,
-                context_fetch_time_ms: contextProcessingTime || 0,
-                gemini_api_time_ms: geminiApiTime || 0,
-                response_processing_time_ms: responseProcessingTime || 0,
-                user_type: isAuthenticated ? 'authenticated' : 'anonymous',
-                is_anonymous: isAnonymous,
-                
-                // Request characteristics
-                request_size_bytes: validatedData?.message?.length || 0,
-                context_articles_count: finalContext?.articles?.length || 0,
-                context_size_bytes: contextText.length,
-                response_size_bytes: fullResponse.length,
-                
-                // Performance category
-                performance_category: categorizeServerPerformance(responseTime),
-                
-                timestamp: new Date().toISOString()
-              });
+              session_id: currentSessionId,
+              total_request_time_ms: responseTime,
+              server_processing_time_ms: serverProcessingTime,
+              validation_time_ms: validationTime || 0,
+              context_fetch_time_ms: contextProcessingTime || 0,
+              gemini_api_time_ms: geminiApiTime || 0,
+              response_processing_time_ms: responseProcessingTime || 0,
+              user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+              is_anonymous: isAnonymous,
+
+              // Request characteristics
+              request_size_bytes: validatedData?.message?.length || 0,
+              context_articles_count: finalContext?.articles?.length || 0,
+              context_size_bytes: contextText.length,
+              response_size_bytes: fullResponse.length,
+
+              // Performance category
+              performance_category: categorizeServerPerformance(responseTime),
+
+              timestamp: new Date().toISOString()
+            });
           }
 
           // Send final response with metadata
@@ -810,23 +810,23 @@ export async function POST(request: NextRequest) {
               outputTokens: 0
             }
           });
-          
+
           controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
           controller.close();
-          
+
         } catch (error) {
           console.error('Streaming error:', error);
-          
+
           // Create enhanced error response for streaming
           const { errorDetails } = createErrorResponse(error instanceof Error ? error : String(error), {
             sessionId: currentSessionId,
             clientId: clientId
           });
-          
+
           // Track streaming error (server-side) with enhanced categorization
           if (posthogClient) {
             const responseTime = Date.now() - requestStartTime;
-            
+
             // Override for streaming-specific error types
             let streamingErrorDetails = { ...errorDetails };
             if (error instanceof Error) {
@@ -849,41 +849,41 @@ export async function POST(request: NextRequest) {
             // Track the enhanced ai_request_failed event for streaming errors
             posthogClient.capture('ai_request_failed', {
               distinct_id: userIdentifier,
-                response_time_ms: responseTime,
-                session_id: currentSessionId,
-                error_type: streamingErrorDetails.errorType,
-                error_code: streamingErrorDetails.errorCode,
-                error_message: streamingErrorDetails.errorMessage,
-                http_status: 200, // Streaming started successfully but failed during processing
-                retryable: streamingErrorDetails.retryable,
-                failure_stage: 'streaming_server',
-                client_id: clientId,
-                user_type: isAuthenticated ? 'authenticated' : 'anonymous',
-                is_anonymous: isAnonymous,
-                timestamp: new Date().toISOString(),
-                ...streamingErrorDetails.additionalData
-              });
+              response_time_ms: responseTime,
+              session_id: currentSessionId,
+              error_type: streamingErrorDetails.errorType,
+              error_code: streamingErrorDetails.errorCode,
+              error_message: streamingErrorDetails.errorMessage,
+              http_status: 200, // Streaming started successfully but failed during processing
+              retryable: streamingErrorDetails.retryable,
+              failure_stage: 'streaming_server',
+              client_id: clientId,
+              user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+              is_anonymous: isAnonymous,
+              timestamp: new Date().toISOString(),
+              ...streamingErrorDetails.additionalData
+            });
 
             // Note: LLM Generation error tracking is handled client-side to avoid duplicates
 
             // Also track the legacy event for backward compatibility
             posthogClient.capture('ai_response_generated_server', {
               distinct_id: userIdentifier,
-                response_time_ms: responseTime,
-                session_id: currentSessionId,
-                success: false,
-                error_type: streamingErrorDetails.errorType,
-                error_message: streamingErrorDetails.errorMessage,
-                user_type: isAuthenticated ? 'authenticated' : 'anonymous',
-                is_anonymous: isAnonymous,
-                timestamp: new Date().toISOString()
-              });
+              response_time_ms: responseTime,
+              session_id: currentSessionId,
+              success: false,
+              error_type: streamingErrorDetails.errorType,
+              error_message: streamingErrorDetails.errorMessage,
+              user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+              is_anonymous: isAnonymous,
+              timestamp: new Date().toISOString()
+            });
           }
-          
+
           // Determine appropriate German error message based on error type
           let userMessage = 'Ein Fehler ist beim Generieren der Antwort aufgetreten.';
           let retryable = true;
-          
+
           if (error instanceof Error) {
             const errorLower = error.message.toLowerCase();
             if (errorLower.includes('timeout')) {
@@ -897,7 +897,7 @@ export async function POST(request: NextRequest) {
               retryable = false;
             }
           }
-          
+
           const errorData = JSON.stringify({
             type: 'error',
             error: userMessage,
@@ -908,7 +908,7 @@ export async function POST(request: NextRequest) {
               errorType: 'streaming_error'
             }
           });
-          
+
           controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
           controller.close();
         }
@@ -939,7 +939,7 @@ export async function POST(request: NextRequest) {
     // Track API error (server-side) with enhanced error categorization
     if (posthogClient) {
       const responseTime = Date.now() - requestStartTime;
-      
+
       // Special handling for Zod validation errors
       let finalErrorDetails = errorDetails;
       if (error instanceof z.ZodError) {
@@ -956,37 +956,37 @@ export async function POST(request: NextRequest) {
       // Track the enhanced ai_request_failed event
       posthogClient.capture('ai_request_failed', {
         distinct_id: userIdentifier,
-          response_time_ms: responseTime,
-          session_id: currentSessionId,
-          error_type: finalErrorDetails.errorType,
-          error_code: finalErrorDetails.errorCode,
-          error_message: finalErrorDetails.errorMessage,
-          http_status: finalErrorDetails.httpStatus,
-          retryable: finalErrorDetails.retryable,
-          failure_stage: finalErrorDetails.failureStage,
-          client_id: clientId,
-          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
-          is_anonymous: isAnonymous,
-          request_message_length: validatedData?.message?.length || 0,
-          has_context: !!(validatedData?.context?.articles && validatedData.context.articles.length > 0),
-          context_articles_count: validatedData?.context?.articles?.length || 0,
-          user_agent: request.headers.get('user-agent') || 'unknown',
-          timestamp: new Date().toISOString(),
-          ...finalErrorDetails.additionalData
-        });
+        response_time_ms: responseTime,
+        session_id: currentSessionId,
+        error_type: finalErrorDetails.errorType,
+        error_code: finalErrorDetails.errorCode,
+        error_message: finalErrorDetails.errorMessage,
+        http_status: finalErrorDetails.httpStatus,
+        retryable: finalErrorDetails.retryable,
+        failure_stage: finalErrorDetails.failureStage,
+        client_id: clientId,
+        user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+        is_anonymous: isAnonymous,
+        request_message_length: validatedData?.message?.length || 0,
+        has_context: !!(validatedData?.context?.articles && validatedData.context.articles.length > 0),
+        context_articles_count: validatedData?.context?.articles?.length || 0,
+        user_agent: request.headers.get('user-agent') || 'unknown',
+        timestamp: new Date().toISOString(),
+        ...finalErrorDetails.additionalData
+      });
 
       // Also track the legacy event for backward compatibility
       posthogClient.capture('ai_response_generated_server', {
         distinct_id: userIdentifier,
-          response_time_ms: responseTime,
-          session_id: currentSessionId,
-          success: false,
-          error_type: finalErrorDetails.errorType,
-          error_message: finalErrorDetails.errorMessage,
-          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
-          is_anonymous: isAnonymous,
-          timestamp: new Date().toISOString()
-        });
+        response_time_ms: responseTime,
+        session_id: currentSessionId,
+        success: false,
+        error_type: finalErrorDetails.errorType,
+        error_message: finalErrorDetails.errorMessage,
+        user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+        is_anonymous: isAnonymous,
+        timestamp: new Date().toISOString()
+      });
     }
 
     return response;

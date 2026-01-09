@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { logAction } from '@/lib/logging-middleware';
 
 interface AufgabePayload {
   name: string;
@@ -16,11 +17,14 @@ interface AufgabeDbRecord {
   name: string;
   beschreibung?: string | null;
   ist_erledigt: boolean;
-  created_at: string; 
+  created_at: string;
   // Add other DB fields if they exist
 }
 
 export async function aufgabeServerAction(id: string | null, data: AufgabePayload): Promise<{ success: boolean; error?: any; data?: AufgabeDbRecord }> {
+  const actionName = id ? 'updateTask' : 'createTask';
+  logAction(actionName, 'start', { task_id: id, task_name: data.name });
+
   const supabase = await createClient();
 
   const payload = {
@@ -39,6 +43,7 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
 
   // Basic validation
   if (!payload.name || payload.name.trim() === "") {
+    logAction(actionName, 'failed', { task_id: id, error_message: 'Name ist erforderlich.' });
     return { success: false, error: { message: "Name ist erforderlich." } };
   }
 
@@ -53,16 +58,14 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
       const insertPayload = { ...payload, ist_erledigt: payload.ist_erledigt ?? false };
       dbResponse = await supabase.from("Aufgaben").insert(insertPayload).select().single();
     }
-    
+
     if (dbResponse.error) throw dbResponse.error;
 
     revalidatePath('/todos'); // Revalidate the main tasks page
-    // Potentially revalidate other paths if tasks are displayed elsewhere (e.g., dashboard summary)
-    // revalidatePath('/'); 
-
+    logAction(actionName, 'success', { task_id: dbResponse.data?.id, task_name: data.name });
     return { success: true, data: dbResponse.data as AufgabeDbRecord };
   } catch (error: any) {
-    console.error("Error in aufgabeServerAction:", error);
+    logAction(actionName, 'error', { task_id: id, task_name: data.name, error_message: error.message });
     return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
   }
 }
@@ -71,38 +74,34 @@ export async function toggleTaskStatusAction(
   taskId: string,
   newStatus: boolean
 ): Promise<{ success: boolean; task?: any; error?: { message: string } }> {
+  const actionName = 'toggleTaskStatus';
+  logAction(actionName, 'start', { task_id: taskId, new_status: newStatus });
+
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({
         ist_erledigt: newStatus,
-        aenderungsdatum: new Date().toISOString(), // Update modification timestamp
+        aenderungsdatum: new Date().toISOString(),
       })
       .eq("id", taskId)
-      .select() // Optionally select to confirm the update
-      .single(); // Ensures one row is affected or an error if not (e.g. PGRST116 for no rows)
+      .select()
+      .single();
 
     if (error) {
-      // This will catch errors like task not found (if .single() is used and it doesn't find the row) 
-      // or other database errors.
-      console.error("Supabase error in toggleTaskStatusAction:", error);
+      logAction(actionName, 'error', { task_id: taskId, error_message: error.message });
       return { success: false, error: { message: error.message } };
     }
 
-    // revalidatePath should be called on success
     revalidatePath("/todos");
-    // Optionally revalidate other paths where tasks might be displayed
-    // revalidatePath("/"); 
-
+    logAction(actionName, 'success', { task_id: taskId, new_status: newStatus });
     return { success: true, task: data };
 
-  } catch (e: unknown) { // Changed type to unknown for better type safety with instanceof
-    console.error("Unexpected error in toggleTaskStatusAction:", e);
-    if (e instanceof Error) {
-      return { success: false, error: { message: e.message } };
-    }
-    return { success: false, error: { message: "An unknown server error occurred" } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -110,7 +109,11 @@ export async function bulkUpdateTaskStatusesAction(
   taskIds: string[],
   newStatus: boolean
 ): Promise<{ success: boolean; updatedCount?: number; error?: { message: string } }> {
+  const actionName = 'bulkUpdateTaskStatuses';
+  logAction(actionName, 'start', { task_count: taskIds.length, new_status: newStatus });
+
   if (!taskIds || taskIds.length === 0) {
+    logAction(actionName, 'failed', { error_message: 'Keine Aufgaben zum Aktualisieren ausgewählt.' });
     return { success: false, error: { message: "Keine Aufgaben zum Aktualisieren ausgewählt." } };
   }
 
@@ -123,36 +126,33 @@ export async function bulkUpdateTaskStatusesAction(
         aenderungsdatum: new Date().toISOString(),
       })
       .in("id", taskIds)
-      .select("id"); // Only return the IDs of updated tasks
+      .select("id");
 
     if (error) {
-      console.error("Supabase error in bulkUpdateTaskStatusesAction:", error);
+      logAction(actionName, 'error', { task_count: taskIds.length, error_message: error.message });
       return { success: false, error: { message: error.message } };
     }
 
     const updatedCount = data?.length || 0;
-    
-    // Revalidate the tasks page to reflect the changes
     revalidatePath("/todos");
-    
-    return { 
-      success: true, 
-      updatedCount 
-    };
+    logAction(actionName, 'success', { task_count: taskIds.length, updated_count: updatedCount });
+    return { success: true, updatedCount };
 
   } catch (e: unknown) {
-    console.error("Unexpected error in bulkUpdateTaskStatusesAction:", e);
-    if (e instanceof Error) {
-      return { success: false, error: { message: e.message } };
-    }
-    return { success: false, error: { message: "Ein unbekannter Fehler ist aufgetreten." } };
+    const errorMessage = e instanceof Error ? e.message : "Ein unbekannter Fehler ist aufgetreten.";
+    logAction(actionName, 'error', { task_count: taskIds.length, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
 export async function bulkDeleteTasksAction(
   taskIds: string[]
 ): Promise<{ success: boolean; deletedCount?: number; error?: { message: string } }> {
+  const actionName = 'bulkDeleteTasks';
+  logAction(actionName, 'start', { task_count: taskIds.length });
+
   if (!taskIds || taskIds.length === 0) {
+    logAction(actionName, 'failed', { error_message: 'Keine Aufgaben zum Löschen ausgewählt.' });
     return { success: false, error: { message: "Keine Aufgaben zum Löschen ausgewählt." } };
   }
 
@@ -164,28 +164,25 @@ export async function bulkDeleteTasksAction(
       .in("id", taskIds);
 
     if (error) {
-      console.error("Supabase error in bulkDeleteTasksAction:", error);
+      logAction(actionName, 'error', { task_count: taskIds.length, error_message: error.message });
       return { success: false, error: { message: error.message } };
     }
 
-    // Revalidate the tasks page to reflect the changes
     revalidatePath("/todos");
-    
-    return { 
-      success: true, 
-      deletedCount: count || 0
-    };
+    logAction(actionName, 'success', { task_count: taskIds.length, deleted_count: count || 0 });
+    return { success: true, deletedCount: count || 0 };
 
   } catch (e: unknown) {
-    console.error("Unexpected error in bulkDeleteTasksAction:", e);
-    if (e instanceof Error) {
-      return { success: false, error: { message: e.message } };
-    }
-    return { success: false, error: { message: "Ein unbekannter Fehler ist aufgetreten." } };
+    const errorMessage = e instanceof Error ? e.message : "Ein unbekannter Fehler ist aufgetreten.";
+    logAction(actionName, 'error', { task_count: taskIds.length, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
 export async function deleteTaskAction(taskId: string): Promise<{ success: boolean; taskId?: string; error?: { message: string } }> {
+  const actionName = 'deleteTask';
+  logAction(actionName, 'start', { task_id: taskId });
+
   try {
     const supabase = await createClient();
     const { error } = await supabase
@@ -194,20 +191,18 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
       .eq("id", taskId);
 
     if (error) {
-      // Log the error for server-side visibility
-      console.error("Error deleting task from Supabase:", error);
+      logAction(actionName, 'error', { task_id: taskId, error_message: error.message });
       return { success: false, error: { message: error.message } };
     }
 
-    revalidatePath('/todos'); // Revalidate the main tasks page
-
+    revalidatePath('/todos');
+    logAction(actionName, 'success', { task_id: taskId });
     return { success: true, taskId };
 
-  } catch (e: unknown) { // Using unknown for better type safety with instanceof
-    console.error("Unexpected error in deleteTaskAction:", e);
-    if (e instanceof Error) {
-      return { success: false, error: { message: e.message } };
-    }
-    return { success: false, error: { message: "An unknown server error occurred" } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
+
