@@ -64,6 +64,37 @@ export default function AuthModal({
 
   const enabledProvidersCount = [isGoogleLoginEnabled, isMicrosoftLoginEnabled].filter(Boolean).length;
 
+  const handleSocialAuth = async (provider: 'google' | 'microsoft', flow: 'login' | 'signup') => {
+    setSocialLoading(provider);
+    const errorSetter = flow === 'login' ? setLoginError : setRegisterError;
+    errorSetter(null);
+
+    const handler = provider === 'google' ? handleGoogleSignIn : handleMicrosoftSignIn;
+    const { error } = await handler(flow);
+
+    if (error) {
+      errorSetter(error);
+      setSocialLoading(null);
+    }
+  };
+
+  const socialProviders = [
+    {
+      id: 'google' as const,
+      name: 'Google',
+      fullLabel: 'Mit Google anmelden',
+      Icon: GoogleIcon,
+      enabled: isGoogleLoginEnabled,
+    },
+    {
+      id: 'microsoft' as const,
+      name: 'Microsoft',
+      fullLabel: 'Mit Microsoft anmelden',
+      Icon: MicrosoftIcon,
+      enabled: isMicrosoftLoginEnabled,
+    }
+  ].filter(p => p.enabled);
+
   const [activeView, setActiveView] = useState<'login' | 'register' | 'forgotPassword'>(initialTab);
 
   useEffect(() => {
@@ -377,47 +408,23 @@ export default function AuthModal({
                     </div>
 
                     <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
-                      {isGoogleLoginEnabled && (
+                      {socialProviders.map((provider) => (
                         <Button
+                          key={provider.id}
                           type="button"
                           variant="outline"
                           className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
-                          onClick={async () => {
-                            setSocialLoading('google')
-                            const { error } = await handleGoogleSignIn('login')
-                            if (error) setSocialLoading(null)
-                          }}
+                          onClick={() => handleSocialAuth(provider.id, 'login')}
                           disabled={socialLoading !== null}
                         >
-                          {socialLoading === 'google' ? (
+                          {socialLoading === provider.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <GoogleIcon className="h-4 w-4 mr-2" />
+                            <provider.Icon className="h-4 w-4 mr-2" />
                           )}
-                          {enabledProvidersCount > 1 ? "Google" : "Mit Google anmelden"}
+                          {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
                         </Button>
-                      )}
-
-                      {isMicrosoftLoginEnabled && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
-                          onClick={async () => {
-                            setSocialLoading('microsoft')
-                            const { error } = await handleMicrosoftSignIn('login')
-                            if (error) setSocialLoading(null)
-                          }}
-                          disabled={socialLoading !== null}
-                        >
-                          {socialLoading === 'microsoft' ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <MicrosoftIcon className="h-4 w-4 mr-2" />
-                          )}
-                          {enabledProvidersCount > 1 ? "Microsoft" : "Mit Microsoft anmelden"}
-                        </Button>
-                      )}
+                      ))}
                     </div>
                   </div>
                 )}
@@ -506,47 +513,23 @@ export default function AuthModal({
                       </div>
 
                       <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
-                        {isGoogleLoginEnabled && (
+                        {socialProviders.map((provider) => (
                           <Button
+                            key={provider.id}
                             type="button"
                             variant="outline"
                             className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
-                            onClick={async () => {
-                              setSocialLoading('google')
-                              const { error } = await handleGoogleSignIn('signup')
-                              if (error) setSocialLoading(null)
-                            }}
+                            onClick={() => handleSocialAuth(provider.id, 'signup')}
                             disabled={socialLoading !== null}
                           >
-                            {socialLoading === 'google' ? (
+                            {socialLoading === provider.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                              <GoogleIcon className="h-4 w-4 mr-2" />
+                              <provider.Icon className="h-4 w-4 mr-2" />
                             )}
-                            {enabledProvidersCount > 1 ? "Google" : "Mit Google anmelden"}
+                            {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
                           </Button>
-                        )}
-
-                        {isMicrosoftLoginEnabled && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
-                            onClick={async () => {
-                              setSocialLoading('microsoft')
-                              const { error } = await handleMicrosoftSignIn('signup')
-                              if (error) setSocialLoading(null)
-                            }}
-                            disabled={socialLoading !== null}
-                          >
-                            {socialLoading === 'microsoft' ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <MicrosoftIcon className="h-4 w-4 mr-2" />
-                            )}
-                            {enabledProvidersCount > 1 ? "Microsoft" : "Mit Microsoft anmelden"}
-                          </Button>
-                        )}
+                        ))}
                       </div>
                     </div>
                   )}
