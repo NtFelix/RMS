@@ -353,7 +353,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           } finally {
             setIsSubmitting(false);
           }
-        }} className="grid gap-3 pt-3 pb-2 sm:gap-4 sm:pt-4">
+        }} className="grid gap-3 sm:gap-4">
           {/* Removed hidden id input, it's added to FormData directly if editing */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <div className="space-y-2">

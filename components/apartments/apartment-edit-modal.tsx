@@ -154,7 +154,7 @@ export function ApartmentEditModal({
           <DialogTitle>{wohnungInitialData?.id ? "Wohnung bearbeiten" : "Wohnung hinzufügen"}</DialogTitle>
           <DialogDescription>Geben Sie die Wohnungsdaten ein.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-3 py-3 sm:gap-4 sm:py-4">
+        <form onSubmit={handleSubmit} className="grid gap-3 sm:gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={loading} />

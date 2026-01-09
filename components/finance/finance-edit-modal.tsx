@@ -224,7 +224,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
           <DialogTitle>{financeInitialData ? "Transaktion bearbeiten" : "Transaktion hinzufügen"}</DialogTitle>
           <DialogDescription>Füllen Sie die erforderlichen Felder aus.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} noValidate className="grid gap-3 pt-3 pb-2 sm:gap-4 sm:pt-4">
+        <form onSubmit={handleSubmit} noValidate className="grid gap-3 sm:gap-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <div className="col-span-1 sm:col-span-2 space-y-2">
               <LabelWithTooltip htmlFor="name" infoText="Kurze, allgemeine Bezeichnung (z.B. 'Handwerker', 'Hausverwaltung'). Detaillierte Informationen können im Notizfeld ergänzt werden. Erleichtert die spätere Suche und Kategorisierung.">
