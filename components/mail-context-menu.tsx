@@ -15,11 +15,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { 
-  Star, 
-  Archive, 
-  Trash2, 
-  Mail, 
+import {
+  Star,
+  Archive,
+  Trash2,
+  Mail,
   MailOpen,
   MoreVertical
 } from "lucide-react"
@@ -43,7 +43,7 @@ interface Mail {
   status: 'sent' | 'draft' | 'archiv';
   type: 'inbox' | 'outbox';
   hasAttachment: boolean;
-  source: 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP';
+  source: 'Mietevo' | 'Outlook' | 'Gmail' | 'SMTP';
   read: boolean;
   favorite: boolean;
 }
@@ -101,7 +101,7 @@ export function MailContextMenu({
             <Archive className="mr-2 h-4 w-4" />
             Archivieren
           </ContextMenuItem>
-          <ContextMenuItem 
+          <ContextMenuItem
             onClick={() => setShowDeleteDialog(true)}
             className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
           >
@@ -170,7 +170,7 @@ export function MailActionsDropdown({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={() => onToggleRead?.(mail.id, !mail.read)}
             className="focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item"
           >
@@ -186,7 +186,7 @@ export function MailActionsDropdown({
               </>
             )}
           </DropdownMenuItem>
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={() => onToggleFavorite?.(mail.id, !mail.favorite)}
             className="focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item"
           >
@@ -194,14 +194,14 @@ export function MailActionsDropdown({
             {mail.favorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={() => onArchive?.(mail.id)}
             className="focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item"
           >
             <Archive className="mr-2 h-4 w-4" />
             Archivieren
           </DropdownMenuItem>
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={() => setShowDeleteDialog(true)}
             className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950 hover:bg-red-50 hover:scale-[1.02]"
           >

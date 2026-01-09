@@ -21,7 +21,7 @@ interface Mail {
   status: 'sent' | 'draft' | 'archiv';
   type: 'inbox' | 'outbox';
   hasAttachment: boolean;
-  source: 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP';
+  source: 'Mietevo' | 'Outlook' | 'Gmail' | 'SMTP';
   read: boolean;
   favorite: boolean;
 }

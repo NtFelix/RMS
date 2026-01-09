@@ -47,7 +47,7 @@ interface Mail {
 
 
 
-  source: 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP';
+  source: 'Mietevo' | 'Outlook' | 'Gmail' | 'SMTP';
 
 
 
@@ -134,10 +134,10 @@ const formatDate = (dateString: string) => {
 
 
 
-export function MailsTable({ 
-  mails, 
-  selectedMails: externalSelectedMails, 
-  onSelectionChange, 
+export function MailsTable({
+  mails,
+  selectedMails: externalSelectedMails,
+  onSelectionChange,
   onMailClick,
   onToggleRead,
   onToggleFavorite,
@@ -165,7 +165,7 @@ export function MailsTable({
   const lastMailElementRef = useCallback((node: HTMLTableRowElement) => {
     if (isLoading) return
     if (observer.current) observer.current.disconnect()
-    
+
     observer.current = new IntersectionObserver(
       entries => {
         if (entries[0].isIntersecting && hasMore && loadMails) {
@@ -179,7 +179,7 @@ export function MailsTable({
         threshold: 0.1 // Trigger when 10% visible
       }
     )
-    
+
     if (node) {
       console.log('[MailsTable] Observing last row')
       observer.current.observe(node)
@@ -462,7 +462,7 @@ export function MailsTable({
 
   const handleSort = (key: MailSortKey) => {
     if (!onSortChange) return;
-    
+
     if (externalSortKey === key) {
       onSortChange(key, externalSortDirection === "asc" ? "desc" : "asc");
     } else {
@@ -649,7 +649,7 @@ export function MailsTable({
 
 
 
-    
+
 
 
 
@@ -689,7 +689,7 @@ export function MailsTable({
 
 
 
-    
+
 
 
 
@@ -1008,7 +1008,7 @@ export function MailsTable({
                 sortedMails.map((mail, index) => {
                   const isLastRow = index === sortedMails.length - 1
                   const isSelected = selectedMails.has(mail.id)
-                  
+
                   return (
                     <MailContextMenu
                       key={mail.id}
@@ -1018,7 +1018,7 @@ export function MailsTable({
                       onArchive={onArchive}
                       onDeletePermanently={onDeletePermanently}
                     >
-                      <TableRow 
+                      <TableRow
                         ref={(node) => {
                           if (node) {
                             contextMenuRefs.current.set(mail.id, node)
@@ -1027,13 +1027,11 @@ export function MailsTable({
                             lastMailElementRef(node)
                           }
                         }}
-                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${
-                          !mail.read ? 'font-semibold' : ''
-                        } ${
-                          isSelected 
-                            ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}` 
+                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${!mail.read ? 'font-semibold' : ''
+                          } ${isSelected
+                            ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                        }`}
+                          }`}
                         onClick={() => onMailClick?.(mail)}
                       >
 
@@ -1043,7 +1041,7 @@ export function MailsTable({
 
 
 
-                      <TableCell 
+                        <TableCell
 
 
 
@@ -1051,7 +1049,7 @@ export function MailsTable({
 
 
 
-                        className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`} 
+                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
 
 
 
@@ -1059,7 +1057,7 @@ export function MailsTable({
 
 
 
-                        onClick={(event) => event.stopPropagation()}
+                          onClick={(event) => event.stopPropagation()}
 
 
 
@@ -1067,7 +1065,7 @@ export function MailsTable({
 
 
 
-                      >
+                        >
 
 
 
@@ -1075,7 +1073,7 @@ export function MailsTable({
 
 
 
-                        <Checkbox
+                          <Checkbox
 
 
 
@@ -1083,7 +1081,7 @@ export function MailsTable({
 
 
 
-                          aria-label={`E-Mail ${mail.subject} auswählen`}
+                            aria-label={`E-Mail ${mail.subject} auswählen`}
 
 
 
@@ -1091,7 +1089,7 @@ export function MailsTable({
 
 
 
-                          checked={selectedMails.has(mail.id)}
+                            checked={selectedMails.has(mail.id)}
 
 
 
@@ -1099,7 +1097,7 @@ export function MailsTable({
 
 
 
-                          onCheckedChange={(checked) => handleSelectMail(mail.id, checked)}
+                            onCheckedChange={(checked) => handleSelectMail(mail.id, checked)}
 
 
 
@@ -1107,7 +1105,7 @@ export function MailsTable({
 
 
 
-                        />
+                          />
 
 
 
@@ -1115,7 +1113,7 @@ export function MailsTable({
 
 
 
-                      </TableCell>
+                        </TableCell>
 
 
 
@@ -1123,7 +1121,7 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`py-4`}>{getStatusIcon(mail)}</TableCell>
+                        <TableCell className={`py-4`}>{getStatusIcon(mail)}</TableCell>
 
 
 
@@ -1131,7 +1129,7 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.sender}</TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.sender}</TableCell>
 
 
 
@@ -1139,7 +1137,7 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.subject}</TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.subject}</TableCell>
 
 
 
@@ -1147,7 +1145,7 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{formatDate(mail.date)}</TableCell>
+                        <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{formatDate(mail.date)}</TableCell>
 
 
 
@@ -1155,7 +1153,7 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.hasAttachment ? <Paperclip className="h-4 w-4" /> : ''}</TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.hasAttachment ? <Paperclip className="h-4 w-4" /> : ''}</TableCell>
 
 
 
@@ -1163,7 +1161,7 @@ export function MailsTable({
 
 
 
-                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.source}</TableCell>
+                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{mail.source}</TableCell>
 
 
 
@@ -1171,7 +1169,7 @@ export function MailsTable({
 
 
 
-                      <TableCell 
+                        <TableCell
 
 
 
@@ -1179,7 +1177,7 @@ export function MailsTable({
 
 
 
-                        className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`} 
+                          className={`py-2 pr-2 text-right w-[80px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
 
 
 
@@ -1187,7 +1185,7 @@ export function MailsTable({
 
 
 
-                        onClick={(event) => event.stopPropagation()}
+                          onClick={(event) => event.stopPropagation()}
 
 
 
@@ -1195,7 +1193,7 @@ export function MailsTable({
 
 
 
-                      >
+                        >
 
 
 
@@ -1203,31 +1201,31 @@ export function MailsTable({
 
 
 
-                        <div className="flex items-center justify-end">
-                          {mail.favorite && <Star className="h-4 w-4 text-yellow-400 mr-2" />}
-                          {mail.read ? <EyeOff className="h-4 w-4 text-gray-400 mr-2" /> : <Eye className="h-4 w-4 text-blue-500 mr-2" />}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const rowElement = contextMenuRefs.current.get(mail.id)
-                              if (rowElement) {
-                                const contextMenuEvent = new MouseEvent('contextmenu', {
-                                  bubbles: true,
-                                  cancelable: true,
-                                  view: window,
-                                  clientX: e.clientX,
-                                  clientY: e.clientY,
-                                })
-                                rowElement.dispatchEvent(contextMenuEvent)
-                              }
-                            }}
-                          >
-                            <span className="sr-only">Menü öffnen</span>
-                            <MoreVertical className="h-3.5 w-3.5" />
-                          </Button>
+                          <div className="flex items-center justify-end">
+                            {mail.favorite && <Star className="h-4 w-4 text-yellow-400 mr-2" />}
+                            {mail.read ? <EyeOff className="h-4 w-4 text-gray-400 mr-2" /> : <Eye className="h-4 w-4 text-blue-500 mr-2" />}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const rowElement = contextMenuRefs.current.get(mail.id)
+                                if (rowElement) {
+                                  const contextMenuEvent = new MouseEvent('contextmenu', {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    view: window,
+                                    clientX: e.clientX,
+                                    clientY: e.clientY,
+                                  })
+                                  rowElement.dispatchEvent(contextMenuEvent)
+                                }
+                              }}
+                            >
+                              <span className="sr-only">Menü öffnen</span>
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
 
 
 
@@ -1235,7 +1233,7 @@ export function MailsTable({
 
 
 
-                        </div>
+                          </div>
 
 
 
@@ -1243,8 +1241,8 @@ export function MailsTable({
 
 
 
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                      </TableRow>
                     </MailContextMenu>
                   )
 

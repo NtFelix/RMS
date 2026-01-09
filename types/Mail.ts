@@ -51,7 +51,7 @@ export interface LegacyMail {
   status: 'sent' | 'draft' | 'archiv';
   type: 'inbox' | 'outbox';
   hasAttachment: boolean;
-  source: 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP';
+  source: 'Mietevo' | 'Outlook' | 'Gmail' | 'SMTP';
   read: boolean;
   favorite: boolean;
 }
@@ -89,7 +89,7 @@ export function convertToLegacyMail(mail: Mail): LegacyMail {
     status: status,
     type: type,
     hasAttachment: mail.hat_anhang,
-    source: (mail.quelle.charAt(0).toUpperCase() + mail.quelle.slice(1)) as 'Mietfluss' | 'Outlook' | 'Gmail' | 'SMTP',
+    source: (mail.quelle.charAt(0).toUpperCase() + mail.quelle.slice(1)) as 'Mietevo' | 'Outlook' | 'Gmail' | 'SMTP',
     read: mail.ist_gelesen,
     favorite: mail.ist_favorit
   };

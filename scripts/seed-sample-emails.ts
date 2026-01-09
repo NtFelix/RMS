@@ -33,8 +33,8 @@ interface SampleEmail {
 
 const sampleEmails: SampleEmail[] = [
   {
-    betreff: 'Willkommen bei Mietfluss!',
-    absender: 'info@mietfluss.de',
+    betreff: 'Willkommen bei Mietevo!',
+    absender: 'info@mietevo.de',
     empfaenger: 'user@example.com',
     ordner: 'inbox',
     quelle: 'custom',
@@ -43,7 +43,7 @@ const sampleEmails: SampleEmail[] = [
     ist_favorit: false,
     htmlContent: `
       <p>Sehr geehrte Damen und Herren,</p>
-      <p>herzlich willkommen bei Mietfluss! Wir freuen uns, Sie als neuen Nutzer begrüßen zu dürfen.</p>
+      <p>herzlich willkommen bei Mietevo! Wir freuen uns, Sie als neuen Nutzer begrüßen zu dürfen.</p>
       <p>Mit unserer Plattform können Sie:</p>
       <ul>
         <li>Ihre Immobilien effizient verwalten</li>
@@ -51,11 +51,11 @@ const sampleEmails: SampleEmail[] = [
         <li>Finanzen im Blick behalten</li>
       </ul>
       <p>Bei Fragen stehen wir Ihnen jederzeit zur Verfügung.</p>
-      <p>Mit freundlichen Grüßen<br/>Ihr Mietfluss Team</p>
+      <p>Mit freundlichen Grüßen<br/>Ihr Mietevo Team</p>
     `,
     plainContent: `Sehr geehrte Damen und Herren,
 
-herzlich willkommen bei Mietfluss! Wir freuen uns, Sie als neuen Nutzer begrüßen zu dürfen.
+herzlich willkommen bei Mietevo! Wir freuen uns, Sie als neuen Nutzer begrüßen zu dürfen.
 
 Mit unserer Plattform können Sie:
 - Ihre Immobilien effizient verwalten
@@ -65,11 +65,11 @@ Mit unserer Plattform können Sie:
 Bei Fragen stehen wir Ihnen jederzeit zur Verfügung.
 
 Mit freundlichen Grüßen
-Ihr Mietfluss Team`
+Ihr Mietevo Team`
   },
   {
     betreff: 'Ihre Rechnung für Januar 2025',
-    absender: 'billing@mietfluss.de',
+    absender: 'billing@mietevo.de',
     empfaenger: 'user@example.com',
     ordner: 'inbox',
     quelle: 'custom',
@@ -85,7 +85,7 @@ Ihr Mietfluss Team`
         <tr><td style="padding: 5px;"><strong>Betrag:</strong></td><td style="padding: 5px;">49,99 €</td></tr>
       </table>
       <p>Die Zahlung erfolgt automatisch über Ihre hinterlegte Zahlungsmethode.</p>
-      <p>Mit freundlichen Grüßen<br/>Ihr Mietfluss Team</p>
+      <p>Mit freundlichen Grüßen<br/>Ihr Mietevo Team</p>
     `,
     plainContent: `Sehr geehrte Damen und Herren,
 
@@ -98,11 +98,11 @@ Betrag: 49,99 €
 Die Zahlung erfolgt automatisch über Ihre hinterlegte Zahlungsmethode.
 
 Mit freundlichen Grüßen
-Ihr Mietfluss Team`
+Ihr Mietevo Team`
   },
   {
     betreff: 'Neue Funktionen verfügbar',
-    absender: 'updates@mietfluss.de',
+    absender: 'updates@mietevo.de',
     empfaenger: 'user@example.com',
     ordner: 'inbox',
     quelle: 'custom',
@@ -110,28 +110,28 @@ Ihr Mietfluss Team`
     ist_gelesen: true,
     ist_favorit: false,
     htmlContent: `
-      <h2>Neue Funktionen in Mietfluss</h2>
+      <h2>Neue Funktionen in Mietevo</h2>
       <p>Wir haben einige spannende neue Funktionen für Sie entwickelt:</p>
       <ol>
-        <li><strong>E-Mail-Integration:</strong> Verwalten Sie Ihre E-Mails direkt in Mietfluss</li>
+        <li><strong>E-Mail-Integration:</strong> Verwalten Sie Ihre E-Mails direkt in Mietevo</li>
         <li><strong>Erweiterte Berichte:</strong> Neue Finanzberichte und Analysen</li>
         <li><strong>Mobile App:</strong> Jetzt auch für iOS und Android verfügbar</li>
       </ol>
       <p>Probieren Sie die neuen Funktionen aus und geben Sie uns Feedback!</p>
-      <p>Viele Grüße<br/>Ihr Mietfluss Team</p>
+      <p>Viele Grüße<br/>Ihr Mietevo Team</p>
     `,
-    plainContent: `Neue Funktionen in Mietfluss
+    plainContent: `Neue Funktionen in Mietevo
 
 Wir haben einige spannende neue Funktionen für Sie entwickelt:
 
-1. E-Mail-Integration: Verwalten Sie Ihre E-Mails direkt in Mietfluss
+1. E-Mail-Integration: Verwalten Sie Ihre E-Mails direkt in Mietevo
 2. Erweiterte Berichte: Neue Finanzberichte und Analysen
 3. Mobile App: Jetzt auch für iOS und Android verfügbar
 
 Probieren Sie die neuen Funktionen aus und geben Sie uns Feedback!
 
 Viele Grüße
-Ihr Mietfluss Team`
+Ihr Mietevo Team`
   }
 ];
 
@@ -158,7 +158,7 @@ async function seedEmails(userId: string) {
         user_id: userId,
         email_address: 'user@example.com',
         provider: 'custom',
-        display_name: 'Mietfluss Account',
+        display_name: 'Mietevo Account',
         is_active: true
       })
       .select()

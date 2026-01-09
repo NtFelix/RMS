@@ -40,4 +40,4 @@ CREATE POLICY "Users can delete their own mail accounts"
   USING (auth.uid() = user_id);
 
 -- Add comment to table
-COMMENT ON TABLE public."Mail_Accounts" IS 'Stores user email accounts with @mietfluss.de or @mietfluss.com domains';
+COMMENT ON TABLE public."Mail_Accounts" IS 'Stores user email accounts with @mietevo.de domain';

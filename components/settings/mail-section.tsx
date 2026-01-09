@@ -64,7 +64,7 @@ const MailSection = () => {
   // Helper function to format relative time
   const formatRelativeTime = (dateString: string | null) => {
     if (!dateString) return null
-    
+
     const date = new Date(dateString)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
@@ -76,18 +76,18 @@ const MailSection = () => {
     if (diffMins < 60) return `vor ${diffMins} Min.`
     if (diffHours < 24) return `vor ${diffHours} Std.`
     if (diffDays < 7) return `vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''}`
-    
+
     // For older dates, show the actual date
-    return date.toLocaleDateString('de-DE', { 
-      day: '2-digit', 
-      month: '2-digit', 
+    return date.toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     })
   }
   const [newMailPrefix, setNewMailPrefix] = useState("")
-  const [selectedDomain, setSelectedDomain] = useState("@mietfluss.de")
+  const [selectedDomain, setSelectedDomain] = useState("@mietevo.de")
   const [isCreating, setIsCreating] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<MailAccount | null>(null)
@@ -110,7 +110,7 @@ const MailSection = () => {
   useEffect(() => {
     loadMailAccounts()
     loadOutlookStatus()
-    
+
     // Check for OAuth callback results
     const params = new URLSearchParams(window.location.search)
     if (params.get("outlook_success")) {
@@ -225,7 +225,7 @@ const MailSection = () => {
             .select('id')
             .not('provider_user_id', 'is', null)
             .single()
-          
+
           setOutlookConnection({
             ...data.connection,
             account_id: account?.id
@@ -335,20 +335,20 @@ const MailSection = () => {
       loadOutlookStatus()
     } catch (error) {
       console.error("Error syncing Outlook:", error)
-      
+
       // Check if re-authentication is required
       const errorResponse = error instanceof Error ? error.message : ""
-      const requiresReauth = errorResponse.includes("Token refresh failed") || 
-                            errorResponse.includes("re-authentication")
-      
+      const requiresReauth = errorResponse.includes("Token refresh failed") ||
+        errorResponse.includes("re-authentication")
+
       toast({
         title: "Fehler",
-        description: requiresReauth 
+        description: requiresReauth
           ? "Ihre Outlook-Verbindung ist abgelaufen. Bitte verbinden Sie Ihr Konto erneut."
           : (error instanceof Error ? error.message : "E-Mails konnten nicht synchronisiert werden."),
         variant: "destructive",
       })
-      
+
       // If re-auth required, reload status to show disconnect button
       if (requiresReauth) {
         loadOutlookStatus()
@@ -504,8 +504,8 @@ const MailSection = () => {
   return (
     <div className="space-y-6">
       <SettingsSection
-        title="Mietfluss E-Mail-Konten"
-        description={`Erstellen und verwalten Sie Ihre @mietfluss.de oder @mietfluss.com E-Mail-Adressen. (${mailAccounts.length}/2 erstellt)`}
+        title="Mietevo E-Mail-Konten"
+        description={`Erstellen und verwalten Sie Ihre @mietevo.de E-Mail-Adressen. (${mailAccounts.length}/2 erstellt)`}
       >
         <SettingsCard>
           <div className="space-y-4">
@@ -526,14 +526,13 @@ const MailSection = () => {
                 <Select
                   value={selectedDomain}
                   onValueChange={setSelectedDomain}
-                  disabled={isCreating}
+                  disabled={true}
                 >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Domain wählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="@mietfluss.de">@mietfluss.de</SelectItem>
-                    <SelectItem value="@mietfluss.com">@mietfluss.com</SelectItem>
+                    <SelectItem value="@mietevo.de">@mietevo.de</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -570,9 +569,8 @@ const MailSection = () => {
                   return (
                     <div
                       key={account.id}
-                      className={`group relative flex items-center justify-between p-5 border rounded-xl bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100/80 dark:hover:bg-gray-800/50 transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] hover:shadow-sm ${
-                        isLastRow ? 'mb-0' : ''
-                      }`}
+                      className={`group relative flex items-center justify-between p-5 border rounded-xl bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100/80 dark:hover:bg-gray-800/50 transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] hover:shadow-sm ${isLastRow ? 'mb-0' : ''
+                        }`}
                     >
                       <div className="flex items-center gap-4 flex-1">
                         <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/15 transition-colors">
@@ -626,7 +624,7 @@ const MailSection = () => {
                   <Mail className="h-8 w-8 text-primary/50" />
                 </div>
                 <p className="text-sm font-medium">Noch keine E-Mail-Konten erstellt.</p>
-                <p className="text-xs mt-1">Erstellen Sie Ihr erstes Mietfluss E-Mail-Konto oben.</p>
+                <p className="text-xs mt-1">Erstellen Sie Ihr erstes Mietevo E-Mail-Konto oben.</p>
               </div>
             )}
           </div>
@@ -635,7 +633,7 @@ const MailSection = () => {
 
       <SettingsSection
         title="E-Mail-Verbindungen"
-        description="Verbinden Sie externe E-Mail-Konten mit Mietfluss."
+        description="Verbinden Sie externe E-Mail-Konten mit Mietevo."
       >
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {/* Gmail Card */}
@@ -672,9 +670,8 @@ const MailSection = () => {
               </div>
             )}
             <div className="flex flex-col items-center text-center space-y-4 py-2 min-w-0">
-              <div className={`p-4 rounded-full bg-blue-100 dark:bg-blue-900/20 ring-4 ring-blue-50 dark:ring-blue-900/10 transition-all ${
-                syncStatus.isImporting ? 'animate-pulse' : ''
-              }`}>
+              <div className={`p-4 rounded-full bg-blue-100 dark:bg-blue-900/20 ring-4 ring-blue-50 dark:ring-blue-900/10 transition-all ${syncStatus.isImporting ? 'animate-pulse' : ''
+                }`}>
                 <Mail className="h-7 w-7 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="w-full min-w-0">
@@ -686,7 +683,7 @@ const MailSection = () => {
                     <p className="text-xs font-medium text-foreground truncate px-2">
                       {outlookConnection.email}
                     </p>
-                    
+
                     {/* Sync Status Display */}
                     {syncStatus.isImporting ? (
                       <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-2">
@@ -720,8 +717,8 @@ const MailSection = () => {
                         </div>
                         {/* Progress bar */}
                         <div className="w-full bg-blue-100 dark:bg-blue-900/50 rounded-full h-1.5 overflow-hidden">
-                          <div className="h-full bg-blue-600 dark:bg-blue-400 rounded-full animate-pulse" 
-                               style={{ width: '100%' }} />
+                          <div className="h-full bg-blue-600 dark:bg-blue-400 rounded-full animate-pulse"
+                            style={{ width: '100%' }} />
                         </div>
                       </div>
                     ) : syncStatus.totalImported > 0 ? (
@@ -885,7 +882,7 @@ const MailSection = () => {
                 Sie haben bereits <strong>{existingEmailCount} E-Mails</strong> aus diesem Outlook-Konto importiert.
               </p>
               <p>
-                Beim erneuten Synchronisieren werden nur neue E-Mails importiert. 
+                Beim erneuten Synchronisieren werden nur neue E-Mails importiert.
                 Bereits vorhandene E-Mails werden automatisch übersprungen und nicht dupliziert.
               </p>
               <p className="text-xs text-muted-foreground mt-2">
