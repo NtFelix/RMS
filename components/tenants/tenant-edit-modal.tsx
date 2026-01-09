@@ -282,7 +282,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     <Dialog open={isTenantModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent
         id="tenant-form-container"
-        className="sm:max-w-[600px]"
+        className="sm:max-w-[600px] md:max-w-[650px]"
         isDirty={isTenantModalDirty}
         onAttemptClose={attemptClose}
       >
@@ -353,9 +353,9 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           } finally {
             setIsSubmitting(false);
           }
-        }} className="grid gap-4 pt-4 pb-2">
+        }} className="grid gap-3 sm:gap-4">
           {/* Removed hidden id input, it's added to FormData directly if editing */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="wohnung_id">Wohnung</Label>
@@ -422,7 +422,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               </div>
               <Input id="telefonnummer" name="telefonnummer" value={formData.telefonnummer} onChange={handleChange} disabled={isSubmitting} />
             </div>
-            <div className="col-span-2 space-y-2">
+            <div className="col-span-1 sm:col-span-2 space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="notiz">Notiz</Label>
                 <InfoTooltip infoText="Hier können Sie zusätzliche Informationen oder Anmerkungen zum Mieter erfassen." />
@@ -445,22 +445,22 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 </div>
               </div>
             </div>
-            <div className="col-span-2 space-y-3">
+            <div className="col-span-1 sm:col-span-2 space-y-3">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Nebenkosten Vorauszahlungen
                 </h3>
                 <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
               </div>
-              <div className="bg-white dark:bg-card rounded-3xl border border-border/50 shadow-sm">
+              <div className="bg-white dark:bg-card rounded-2xl sm:rounded-3xl border border-border/50 shadow-sm">
                 <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
-                  <div className="p-4 space-y-4">
+                  <div className="p-3 space-y-3 sm:p-4 sm:space-y-4">
                     {nebenkostenEntries.length === 0 ? (
                       <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
                         Keine Nebenkosten-Vorauszahlungen vorhanden
                       </div>
                     ) : nebenkostenEntries.map((entry) => (
-                      <div key={entry.id} className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
+                      <div key={entry.id} className="grid gap-2 grid-cols-[1fr_auto] sm:gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
                         <div className="space-y-1">
                           <NumberInput
                             step="0.01"
@@ -500,7 +500,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                     ))}
                   </div>
                 </div>
-                <div className="border-t border-border/40 p-4">
+                <div className="border-t border-border/40 p-3 sm:p-4">
                   <Button
                     type="button"
                     variant="outline"

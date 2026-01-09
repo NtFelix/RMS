@@ -940,7 +940,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     <Dialog open={isBetriebskostenModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent
         id="utility-bill-form-container"
-        className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
+        className="sm:max-w-3xl md:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
         onAttemptClose={attemptClose}
         isDirty={isBetriebskostenModalDirty}
       >  <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>

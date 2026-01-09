@@ -268,7 +268,7 @@ export function MarkdownEditorModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
+      <DialogContent className="sm:max-w-5xl md:max-w-6xl h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center">

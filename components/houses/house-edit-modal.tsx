@@ -201,7 +201,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             {houseInitialData ? "Aktualisiere die Hausinformationen." : "Gib die Hausinformationen ein."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
+        <form onSubmit={handleSubmit} className="grid gap-3 sm:gap-4">
           <div className="space-y-2">
             <LabelWithTooltip
               htmlFor="name"

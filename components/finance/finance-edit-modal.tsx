@@ -216,7 +216,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   return (
     <Dialog open={isFinanceModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent
-        className="sm:max-w-[500px]"
+        className="sm:max-w-[500px] md:max-w-[550px]"
         isDirty={isFinanceModalDirty}
         onAttemptClose={attemptClose}
       >
@@ -224,9 +224,9 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
           <DialogTitle>{financeInitialData ? "Transaktion bearbeiten" : "Transaktion hinzufügen"}</DialogTitle>
           <DialogDescription>Füllen Sie die erforderlichen Felder aus.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} noValidate className="grid gap-4 pt-4 pb-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 space-y-2">
+        <form onSubmit={handleSubmit} noValidate className="grid gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+            <div className="col-span-1 sm:col-span-2 space-y-2">
               <LabelWithTooltip htmlFor="name" infoText="Kurze, allgemeine Bezeichnung (z.B. 'Handwerker', 'Hausverwaltung'). Detaillierte Informationen können im Notizfeld ergänzt werden. Erleichtert die spätere Suche und Kategorisierung.">
                 Bezeichnung
               </LabelWithTooltip>
@@ -285,7 +285,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2 space-y-2">
+            <div className="col-span-1 sm:col-span-2 space-y-2">
               <LabelWithTooltip
                 htmlFor="notiz"
                 infoText="Optionale interne Notiz. Hier können zusätzliche Details wie Rechnungsnummern, spezifische Leistungen oder weitere Informationen eingetragen werden. Der Inhalt ist durchsuchbar und erleichtert das spätere Auffinden spezifischer Transaktionen."

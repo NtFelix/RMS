@@ -14,9 +14,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/components/auth/auth-provider';
 import { useTemplates } from '@/hooks/use-templates';
 import { Template } from '@/types/template';
-import { 
-  FileText, 
-  Search, 
+import {
+  FileText,
+  Search,
   AlertCircle,
   Mail,
   Calendar,
@@ -41,9 +41,9 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   // Extract text with mention/variable highlighting from TipTap JSON content
   const getPreviewWithHighlights = (content: any): { text: string; hasVariables: boolean } => {
     if (!content || !content.content) return { text: '', hasVariables: false };
-    
+
     let hasVariables = false;
-    
+
     const extractTextWithHighlights = (node: any): string => {
       if (node.type === 'text') {
         return node.text || '';
@@ -65,10 +65,10 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       }
       return '';
     };
-    
+
     const text = content.content.map(extractTextWithHighlights).join('').replace(/\s+/g, ' ').trim();
     const truncatedText = text.length > 150 ? text.substring(0, 150) + '...' : text;
-    
+
     return { text: truncatedText, hasVariables };
   };
 
@@ -77,14 +77,14 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   // Extract full content for email with proper line break handling
   const getFullEmailContent = (content: any): string => {
     if (!content || !content.content) return '';
-    
+
     // Map of variable names to their resolver functions
     const variableResolvers: Record<string, () => string> = {
       'mieter.name': () => tenantName || '[Mieter Name]',
       'datum.heute': () => new Date().toLocaleDateString('de-DE'),
-      'vermieter.name': () => 
-        (user?.user_metadata?.first_name && user?.user_metadata?.last_name 
-          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}` 
+      'vermieter.name': () =>
+        (user?.user_metadata?.first_name && user?.user_metadata?.last_name
+          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
           : user?.email) || '[Vermieter Name]',
     };
 
@@ -93,14 +93,14 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       if (node.type === 'text') {
         return node.text || '';
       }
-      
+
       // Handle mention nodes
       if (node.type === 'mention') {
         const label = node.attrs?.label || node.attrs?.id || 'Variable';
         const resolver = variableResolvers[label.toLowerCase()];
         return resolver ? resolver() : `[${label}]`;
       }
-      
+
       // Handle paragraph nodes - this is key for line breaks
       if (node.type === 'paragraph') {
         if (!node.content || !Array.isArray(node.content)) {
@@ -110,28 +110,28 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
         const paragraphText = node.content.map(processNode).join('');
         return paragraphText; // Don't add line breaks here, we'll handle them at the document level
       }
-      
+
       // Handle hard breaks
       if (node.type === 'hardBreak') {
         return '\n';
       }
-      
+
       // Handle other node types that might have content
       if (node.content && Array.isArray(node.content)) {
         return node.content.map(processNode).join('');
       }
-      
+
       return '';
     };
-    
+
     // Process the document content - each paragraph should be separated by double line breaks
     if (!content.content || !Array.isArray(content.content)) {
       return '';
     }
-    
+
     // Process each paragraph and collect them
     const paragraphs: string[] = [];
-    
+
     content.content.forEach((node: any) => {
       if (node.type === 'paragraph') {
         const paragraphText = processNode(node);
@@ -146,7 +146,7 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
         }
       }
     });
-    
+
     // Join all paragraphs with double line breaks
     return paragraphs.join('\n\n');
   };
@@ -155,19 +155,19 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   const detectPlatformAndClient = () => {
     const userAgent = navigator.userAgent.toLowerCase();
     const platform = navigator.platform.toLowerCase();
-    
+
     // Detect platform
     const isMac = platform.includes('mac') || userAgent.includes('mac');
     const isWindows = platform.includes('win') || userAgent.includes('win');
     const isLinux = platform.includes('linux') || userAgent.includes('linux');
-    
+
     // Detect potential mail clients based on common patterns
     const hasOutlook = userAgent.includes('outlook') || userAgent.includes('office');
     const hasThunderbird = userAgent.includes('thunderbird');
     const isChrome = userAgent.includes('chrome') && !userAgent.includes('edge');
     const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
     const isFirefox = userAgent.includes('firefox');
-    
+
     return {
       platform: isMac ? 'mac' : isWindows ? 'windows' : isLinux ? 'linux' : 'unknown',
       isMac,
@@ -186,13 +186,13 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
     const emailContent = getFullEmailContent(template.inhalt);
     const subject = template.titel;
     const recipient = tenantEmail || '';
-    
+
     // Detect platform and client
     const clientInfo = detectPlatformAndClient();
-    
+
     let formattedContent: string;
     let encodingStrategy: string;
-    
+
     // Choose encoding strategy based on platform and client
     if (clientInfo.isMac || clientInfo.hasThunderbird || clientInfo.isFirefox) {
       // These clients handle LF well, no conversion needed
@@ -203,13 +203,13 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
       formattedContent = emailContent.replace(/\n/g, '\r\n');
       encodingStrategy = 'crlf';
     }
-    
+
     // Encode the content
     const encodedContent = encodeURIComponent(formattedContent);
-    
+
     // For some clients, we might need to try alternative encoding
     let mailtoUrl: string;
-    
+
     if (clientInfo.isSafari) {
       // Safari sometimes has issues with standard encoding, try simpler approach
       const simpleContent = emailContent.replace(/\n/g, '%0A');
@@ -217,7 +217,7 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
     } else {
       mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;
     }
-    
+
     // Open mail app
     window.location.href = mailtoUrl;
   };
@@ -225,15 +225,15 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   // Highlight mentions/variables in the preview text
   const highlightVariables = (text: string) => {
     if (!text) return null;
-    
+
     // Split by @ mentions and highlight them
     const parts = text.split(/(@[^\s@]+)/g);
-    
+
     return parts.map((part, index) => {
       if (part.startsWith('@')) {
         return (
-          <span 
-            key={index} 
+          <span
+            key={index}
             className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-1 py-0.5 rounded text-xs font-medium"
           >
             {part}
@@ -245,7 +245,7 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   };
 
   return (
-    <div 
+    <div
       onClick={handleTemplateClick}
       className="border border-border rounded-lg p-4 hover:bg-muted/50 hover:border-border/80 hover:shadow-sm dark:hover:bg-muted/30 transition-all duration-200 cursor-pointer group bg-card"
     >
@@ -257,13 +257,13 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
           {template.kategorie}
         </Badge>
       </div>
-      
+
       {preview && (
         <div className="text-sm text-muted-foreground line-clamp-3 mb-3 leading-relaxed">
           {highlightVariables(preview)}
         </div>
       )}
-      
+
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
           <Calendar className="h-3 w-3" />
@@ -295,14 +295,14 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   );
 }
 
-export function TenantMailTemplatesModal({ 
-  isOpen, 
-  onClose, 
+export function TenantMailTemplatesModal({
+  isOpen,
+  onClose,
   tenantName,
-  tenantEmail 
+  tenantEmail
 }: TenantMailTemplatesModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const {
     templates,
     loading,
@@ -317,7 +317,7 @@ export function TenantMailTemplatesModal({
   // Apply search filter
   const filteredTemplates = useMemo(() => {
     if (!searchQuery.trim()) return mailTemplates;
-    
+
     const query = searchQuery.toLowerCase();
     return mailTemplates.filter(template =>
       template.titel.toLowerCase().includes(query)
@@ -370,8 +370,8 @@ export function TenantMailTemplatesModal({
         {searchQuery ? 'Keine Vorlagen gefunden' : 'Keine Mail-Vorlagen verfügbar'}
       </h3>
       <p className="text-muted-foreground max-w-md">
-        {searchQuery 
-          ? 'Versuchen Sie andere Suchbegriffe oder entfernen Sie den Filter.' 
+        {searchQuery
+          ? 'Versuchen Sie andere Suchbegriffe oder entfernen Sie den Filter.'
           : 'Es wurden noch keine Mail-Vorlagen erstellt. Erstellen Sie Vorlagen im Vorlagen-Manager.'
         }
       </p>
@@ -388,7 +388,7 @@ export function TenantMailTemplatesModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-3xl md:max-w-4xl h-[80vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <div className="rounded-md bg-primary/10 p-1.5">
@@ -428,7 +428,7 @@ export function TenantMailTemplatesModal({
                 className="peer w-full pl-10 bg-background border-input focus:border-primary focus:bg-background/80 hover:border-border/80 focus:ring-0 focus:outline-none transition-all duration-300 ease-in-out"
               />
             </div>
-            
+
             {/* Results Count */}
             {!loading && !error && (
               <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground relative z-10">

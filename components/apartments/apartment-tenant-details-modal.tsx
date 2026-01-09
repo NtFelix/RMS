@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
-import { 
-  AlertCircle, 
-  RefreshCw, 
-  Home, 
-  User, 
-  Edit, 
-  Mail, 
-  Phone, 
+import {
+  AlertCircle,
+  RefreshCw,
+  Home,
+  User,
+  Edit,
+  Mail,
+  Phone,
   Calendar,
   FileText,
   Euro,
@@ -85,12 +85,12 @@ export function ApartmentTenantDetailsModal() {
     if (apartmentTenantDetailsData?.apartment?.id) {
       setApartmentTenantDetailsError(undefined)
       setApartmentTenantDetailsLoading(true)
-      
+
       try {
         const url = apartmentTenantDetailsData.tenant
           ? `/api/apartments/${apartmentTenantDetailsData.apartment.id}/tenant/${apartmentTenantDetailsData.tenant.id}/details`
           : `/api/apartments/${apartmentTenantDetailsData.apartment.id}/details`
-        
+
         const response = await fetch(url)
         if (!response.ok) {
           throw new Error('Failed to load data')
@@ -107,9 +107,9 @@ export function ApartmentTenantDetailsModal() {
 
   const handleEditApartment = async () => {
     if (!apartmentTenantDetailsData?.apartment) return;
-    
+
     const apartment = apartmentTenantDetailsData.apartment;
-    
+
     // Transform the apartment data for the edit modal
     const transformedApartment = {
       id: apartment.id,
@@ -122,7 +122,7 @@ export function ApartmentTenantDetailsModal() {
       ...(apartment.amenities && { amenities: apartment.amenities }),
       ...(apartment.condition && { condition: apartment.condition })
     };
-    
+
     // Only fetch the specific house we need
     try {
       // If we already have the house name, we can use it directly
@@ -130,7 +130,7 @@ export function ApartmentTenantDetailsModal() {
       const houseInfo = apartment.haus_id && apartment.hausName
         ? [{ id: apartment.haus_id, name: apartment.hausName }]
         : [];
-      
+
       // Open the modal with the existing house info
       // The modal can handle fetching additional house data if needed
       openWohnungModal(transformedApartment, houseInfo, () => {
@@ -180,15 +180,15 @@ export function ApartmentTenantDetailsModal() {
 
   return (
     <Dialog open={isApartmentTenantDetailsModalOpen} onOpenChange={() => closeApartmentTenantDetailsModal()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+      <DialogContent className="sm:max-w-3xl md:max-w-4xl max-h-[90vh] p-0">
         <DialogHeader className="px-6 py-4">
           <DialogTitle className="sr-only">
-            {apartmentTenantDetailsError 
-              ? "Fehler beim Laden" 
+            {apartmentTenantDetailsError
+              ? "Fehler beim Laden"
               : "Wohnung-Mieter Details"}
           </DialogTitle>
           <DialogDescription className="sr-only">
-            {apartmentTenantDetailsError 
+            {apartmentTenantDetailsError
               ? "Es ist ein Fehler beim Laden der Wohnung-Mieter Details aufgetreten."
               : "Detaillierte Informationen über die Wohnung und den aktuellen Mieter."}
           </DialogDescription>
@@ -196,13 +196,13 @@ export function ApartmentTenantDetailsModal() {
 
         <div className="p-6 overflow-y-auto">
           {apartmentTenantDetailsLoading ? (
-            <ApartmentTenantDetailsSkeleton 
-              isSlowLoading={isSlowLoading} 
-              loadingProgress={loadingProgress} 
+            <ApartmentTenantDetailsSkeleton
+              isSlowLoading={isSlowLoading}
+              loadingProgress={loadingProgress}
             />
           ) : apartmentTenantDetailsError ? (
-            <ErrorState 
-              error={apartmentTenantDetailsError} 
+            <ErrorState
+              error={apartmentTenantDetailsError}
               onRetry={handleRetry}
               loadingStartTime={loadingStartTime}
               onClose={closeApartmentTenantDetailsModal}
@@ -252,7 +252,7 @@ export function ApartmentTenantDetailsModal() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Additional apartment details if available */}
                   {apartmentTenantDetailsData.apartment.amenities && apartmentTenantDetailsData.apartment.amenities.length > 0 && (
                     <div className="space-y-2">
@@ -269,7 +269,7 @@ export function ApartmentTenantDetailsModal() {
                       </div>
                     </div>
                   )}
-                  
+
                   {apartmentTenantDetailsData.apartment.condition && (
                     <div className="space-y-2">
                       <span className="font-medium">Zustand:</span>
@@ -278,7 +278,7 @@ export function ApartmentTenantDetailsModal() {
                       </p>
                     </div>
                   )}
-                  
+
                   {apartmentTenantDetailsData.apartment.notes && (
                     <div className="space-y-2">
                       <span className="font-medium">Notizen:</span>
@@ -320,7 +320,7 @@ export function ApartmentTenantDetailsModal() {
                           <div className="flex items-center gap-2">
                             <Mail className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">E-Mail:</span>
-                            <a 
+                            <a
                               href={`mailto:${apartmentTenantDetailsData.tenant.email}`}
                               className="text-blue-600 hover:underline"
                             >
@@ -332,7 +332,7 @@ export function ApartmentTenantDetailsModal() {
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">Telefon:</span>
-                            <a 
+                            <a
                               href={`tel:${apartmentTenantDetailsData.tenant.telefon}`}
                               className="text-blue-600 hover:underline"
                             >
@@ -356,7 +356,7 @@ export function ApartmentTenantDetailsModal() {
                         )}
                       </div>
                     </div>
-                    
+
                     {apartmentTenantDetailsData.tenant.leaseTerms && (
                       <div className="space-y-2">
                         <span className="font-medium">Mietvertrag:</span>
@@ -365,7 +365,7 @@ export function ApartmentTenantDetailsModal() {
                         </p>
                       </div>
                     )}
-                    
+
                     {apartmentTenantDetailsData.tenant.notes && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
@@ -377,7 +377,7 @@ export function ApartmentTenantDetailsModal() {
                         </p>
                       </div>
                     )}
-                    
+
                     {/* Payment History Section */}
                     {apartmentTenantDetailsData.tenant.paymentHistory && apartmentTenantDetailsData.tenant.paymentHistory.length > 0 && (
                       <div className="space-y-3">
@@ -435,12 +435,12 @@ export function ApartmentTenantDetailsModal() {
   )
 }
 
-function ApartmentTenantDetailsSkeleton({ 
-  isSlowLoading, 
-  loadingProgress 
-}: { 
+function ApartmentTenantDetailsSkeleton({
+  isSlowLoading,
+  loadingProgress
+}: {
   isSlowLoading: boolean
-  loadingProgress: number 
+  loadingProgress: number
 }) {
   return (
     <div className="space-y-6">
@@ -544,12 +544,12 @@ function ApartmentTenantDetailsSkeleton({
   )
 }
 
-function ErrorState({ 
-  error, 
-  onRetry, 
+function ErrorState({
+  error,
+  onRetry,
   loadingStartTime,
   onClose
-}: { 
+}: {
   error: string
   onRetry: () => void
   loadingStartTime: number | null
@@ -576,7 +576,7 @@ function ErrorState({
           <RefreshCw className="h-4 w-4" />
           Erneut versuchen
         </Button>
-        <Button 
+        <Button
           onClick={onClose}
           variant="ghost"
           className="text-gray-600"
