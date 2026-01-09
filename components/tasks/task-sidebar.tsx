@@ -1,0 +1,244 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { format, isAfter, isBefore, addDays, startOfDay } from "date-fns";
+import { de } from "date-fns/locale";
+import {
+    ChevronDown,
+    ChevronRight,
+    Clock,
+    CalendarOff,
+    CheckCircle2,
+    Circle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { TaskBoardTask as Task } from "@/types/Task";
+
+interface TaskSidebarProps {
+    tasks: Task[];
+    onTaskClick: (task: Task) => void;
+    onTaskToggle: (taskId: string, completed: boolean) => void;
+}
+
+interface TaskItemProps {
+    task: Task;
+    onTaskClick: (task: Task) => void;
+    onTaskToggle: (taskId: string, completed: boolean) => void;
+}
+
+function TaskItem({ task, onTaskClick, onTaskToggle }: TaskItemProps) {
+    return (
+        <div
+            className={cn(
+                "flex items-start gap-2 p-2 rounded-lg transition-colors hover:bg-accent/50 cursor-pointer group",
+                task.ist_erledigt && "opacity-60"
+            )}
+        >
+            <Checkbox
+                checked={task.ist_erledigt}
+                onCheckedChange={(checked) => onTaskToggle(task.id, checked as boolean)}
+                onClick={(e) => e.stopPropagation()}
+                className="mt-0.5 flex-shrink-0"
+            />
+            <div
+                className="flex-1 min-w-0"
+                onClick={() => onTaskClick(task)}
+            >
+                <p
+                    className={cn(
+                        "text-sm font-medium truncate",
+                        task.ist_erledigt && "line-through text-muted-foreground"
+                    )}
+                >
+                    {task.name}
+                </p>
+                {task.faelligkeitsdatum && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {format(new Date(task.faelligkeitsdatum), "dd. MMM", { locale: de })}
+                    </p>
+                )}
+            </div>
+            {task.ist_erledigt ? (
+                <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            ) : (
+                <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            )}
+        </div>
+    );
+}
+
+export function TaskSidebar({
+    tasks,
+    onTaskClick,
+    onTaskToggle,
+}: TaskSidebarProps) {
+    const [isUpcomingOpen, setIsUpcomingOpen] = useState(true);
+    const [isNoDateOpen, setIsNoDateOpen] = useState(true);
+    const [isOverdueOpen, setIsOverdueOpen] = useState(true);
+
+    const today = startOfDay(new Date());
+    const nextWeek = addDays(today, 7);
+
+    // Categorize tasks
+    const { upcomingTasks, noDateTasks, overdueTasks } = useMemo(() => {
+        const upcoming: Task[] = [];
+        const noDate: Task[] = [];
+        const overdue: Task[] = [];
+
+        tasks.forEach((task) => {
+            // Skip completed tasks for upcoming/overdue
+            if (task.ist_erledigt) {
+                // Completed tasks with no date still show in no-date section
+                if (!task.faelligkeitsdatum) {
+                    noDate.push(task);
+                }
+                return;
+            }
+
+            if (!task.faelligkeitsdatum) {
+                noDate.push(task);
+            } else {
+                const dueDate = startOfDay(new Date(task.faelligkeitsdatum));
+
+                if (isBefore(dueDate, today)) {
+                    // Overdue
+                    overdue.push(task);
+                } else if (!isAfter(dueDate, nextWeek)) {
+                    // Due within next 7 days (including today)
+                    upcoming.push(task);
+                }
+            }
+        });
+
+        // Sort by due date
+        upcoming.sort((a, b) => {
+            const dateA = new Date(a.faelligkeitsdatum!).getTime();
+            const dateB = new Date(b.faelligkeitsdatum!).getTime();
+            return dateA - dateB;
+        });
+
+        overdue.sort((a, b) => {
+            const dateA = new Date(a.faelligkeitsdatum!).getTime();
+            const dateB = new Date(b.faelligkeitsdatum!).getTime();
+            return dateB - dateA; // Most overdue first
+        });
+
+        // Sort no-date tasks by creation date
+        noDate.sort((a, b) => {
+            return new Date(b.erstellungsdatum).getTime() - new Date(a.erstellungsdatum).getTime();
+        });
+
+        return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue };
+    }, [tasks, today, nextWeek]);
+
+    return (
+        <div className="h-full flex flex-col gap-4 overflow-y-auto">
+            {/* Overdue Section */}
+            {overdueTasks.length > 0 && (
+                <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                        <div className="flex items-center gap-2">
+                            {isOverdueOpen ? (
+                                <ChevronDown className="h-4 w-4 text-red-500" />
+                            ) : (
+                                <ChevronRight className="h-4 w-4 text-red-500" />
+                            )}
+                            <Clock className="h-4 w-4 text-red-500" />
+                            <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                                Überfällig
+                            </span>
+                        </div>
+                        <Badge variant="destructive" className="h-5 px-1.5 text-xs">
+                            {overdueTasks.length}
+                        </Badge>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 space-y-1">
+                        {overdueTasks.map((task) => (
+                            <TaskItem
+                                key={task.id}
+                                task={task}
+                                onTaskClick={onTaskClick}
+                                onTaskToggle={onTaskToggle}
+                            />
+                        ))}
+                    </CollapsibleContent>
+                </Collapsible>
+            )}
+
+            {/* Upcoming Section */}
+            <Collapsible open={isUpcomingOpen} onOpenChange={setIsUpcomingOpen}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center gap-2">
+                        {isUpcomingOpen ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <Clock className="h-4 w-4 text-yellow-600" />
+                        <span className="text-sm font-medium">Anstehend</span>
+                    </div>
+                    <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                        {upcomingTasks.length}
+                    </Badge>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-1 space-y-1">
+                    {upcomingTasks.length === 0 ? (
+                        <p className="text-sm text-muted-foreground px-2 py-4 text-center">
+                            Keine anstehenden Aufgaben
+                        </p>
+                    ) : (
+                        upcomingTasks.map((task) => (
+                            <TaskItem
+                                key={task.id}
+                                task={task}
+                                onTaskClick={onTaskClick}
+                                onTaskToggle={onTaskToggle}
+                            />
+                        ))
+                    )}
+                </CollapsibleContent>
+            </Collapsible>
+
+            {/* No Date Section */}
+            <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center gap-2">
+                        {isNoDateOpen ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <CalendarOff className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Ohne Datum</span>
+                    </div>
+                    <Badge variant="outline" className="h-5 px-1.5 text-xs">
+                        {noDateTasks.length}
+                    </Badge>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-1 space-y-1">
+                    {noDateTasks.length === 0 ? (
+                        <p className="text-sm text-muted-foreground px-2 py-4 text-center">
+                            Alle Aufgaben haben ein Datum
+                        </p>
+                    ) : (
+                        noDateTasks.map((task) => (
+                            <TaskItem
+                                key={task.id}
+                                task={task}
+                                onTaskClick={onTaskClick}
+                                onTaskToggle={onTaskToggle}
+                            />
+                        ))
+                    )}
+                </CollapsibleContent>
+            </Collapsible>
+        </div>
+    );
+}
