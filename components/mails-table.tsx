@@ -4,10 +4,9 @@ import React, { useState, useMemo, useRef, useCallback } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen, Loader2, CheckCircle2, Inbox, Trash2 } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen, Loader2, CheckCircle2, Inbox, Trash2 } from "lucide-react"
 import { MailContextMenu } from "@/components/mail-context-menu"
 import { ActionMenu } from "@/components/ui/action-menu"
 
@@ -63,20 +62,6 @@ const getInitials = (sender: string) => {
   }
   // Otherwise use first two characters
   return sender.substring(0, 2).toUpperCase();
-};
-
-// Get avatar color based on source
-const getSourceColor = (source: string) => {
-  switch (source.toLowerCase()) {
-    case 'outlook':
-      return 'bg-blue-500 text-white';
-    case 'gmail':
-      return 'bg-red-500 text-white';
-    case 'mietevo':
-      return 'bg-primary text-primary-foreground';
-    default:
-      return 'bg-gray-500 text-white';
-  }
 };
 
 export function MailsTable({
@@ -336,9 +321,9 @@ export function MailsTable({
 
                         <TableCell className="py-4 dark:text-[#f3f4f6]">
                           <div className="flex items-center gap-3">
-                            <Avatar className={`h-8 w-8 flex-shrink-0 ${getSourceColor(mail.source)}`}>
+                            <Avatar className="h-9 w-9 flex-shrink-0">
                               <AvatarImage src="" alt={mail.sender} />
-                              <AvatarFallback className={getSourceColor(mail.source)}>
+                              <AvatarFallback className="bg-primary text-primary-foreground">
                                 {getInitials(mail.sender)}
                               </AvatarFallback>
                             </Avatar>
