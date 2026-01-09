@@ -7,8 +7,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen, Loader2, CheckCircle2, Inbox } from "lucide-react"
-import { MailContextMenu, MailActionsDropdown } from "@/components/mail-context-menu"
+import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, MoreVertical, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen, Loader2, CheckCircle2, Inbox, Trash2 } from "lucide-react"
+import { MailContextMenu } from "@/components/mail-context-menu"
+import { ActionMenu } from "@/components/ui/action-menu"
 
 interface Mail {
   id: string;
@@ -265,7 +266,7 @@ export function MailsTable({
                 <TableHeaderCell sortKey="subject" className="min-w-[250px] dark:text-[#f3f4f6]" icon={FileText}>Betreff</TableHeaderCell>
                 <TableHeaderCell sortKey="date" className="w-[160px] dark:text-[#f3f4f6]" icon={Calendar}>Datum</TableHeaderCell>
                 <TableHead className="w-[100px] dark:text-[#f3f4f6]">Quelle</TableHead>
-                <TableHead className="w-[80px] dark:text-[#f3f4f6] text-right pr-4">Aktionen</TableHead>
+                <TableHead className="w-[160px] dark:text-[#f3f4f6] text-right pr-4">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -373,34 +374,55 @@ export function MailsTable({
                           className="py-2 pr-4 text-right"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={`h-7 w-7 p-0 transition-colors ${mail.read
-                                ? 'hover:bg-blue-50 dark:hover:bg-blue-950'
-                                : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                                }`}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onToggleRead?.(mail.id, !mail.read)
-                              }}
-                              title={mail.read ? 'Als ungelesen markieren' : 'Als gelesen markieren'}
-                            >
-                              {mail.read ? (
-                                <Eye className="h-4 w-4 text-gray-400" />
-                              ) : (
-                                <EyeOff className="h-4 w-4 text-blue-500" />
-                              )}
-                            </Button>
-                            <MailActionsDropdown
-                              mail={mail}
-                              onToggleRead={onToggleRead}
-                              onToggleFavorite={onToggleFavorite}
-                              onArchive={onArchive}
-                              onDeletePermanently={onDeletePermanently}
-                            />
-                          </div>
+                          <ActionMenu
+                            actions={[
+                              {
+                                id: `read-${mail.id}`,
+                                icon: mail.read ? Eye : EyeOff,
+                                label: mail.read ? 'Als ungelesen markieren' : 'Als gelesen markieren',
+                                onClick: () => onToggleRead?.(mail.id, !mail.read),
+                                variant: 'default',
+                              },
+                              {
+                                id: `favorite-${mail.id}`,
+                                icon: Star,
+                                label: mail.favorite ? 'Favorit entfernen' : 'Als Favorit markieren',
+                                onClick: () => onToggleFavorite?.(mail.id, !mail.favorite),
+                                variant: mail.favorite ? 'primary' : 'default',
+                              },
+                              {
+                                id: `archive-${mail.id}`,
+                                icon: Archive,
+                                label: 'Archivieren',
+                                onClick: () => onArchive?.(mail.id),
+                                variant: 'default',
+                              },
+                              {
+                                id: `delete-${mail.id}`,
+                                icon: Trash2,
+                                label: 'Löschen',
+                                onClick: (e) => {
+                                  if (!e) return;
+                                  const rowElement = contextMenuRefs.current.get(mail.id)
+                                  if (rowElement) {
+                                    const contextMenuEvent = new MouseEvent('contextmenu', {
+                                      bubbles: true,
+                                      cancelable: true,
+                                      view: window,
+                                      clientX: e.clientX,
+                                      clientY: e.clientY,
+                                    })
+                                    rowElement.dispatchEvent(contextMenuEvent)
+                                  }
+                                },
+                                variant: 'destructive',
+                              }
+                            ]}
+                            maxActions={4}
+                            shape="pill"
+                            visibility="always"
+                            className="inline-flex"
+                          />
                         </TableCell>
                       </TableRow>
                     </MailContextMenu>
