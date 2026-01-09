@@ -14,11 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { PAGINATION } from "@/constants";
 import {
-  getEmailCounts,
+  getEmailSummary,
   updateEmailReadStatus,
   toggleEmailFavorite,
   moveEmailToFolder,
-  deleteEmailPermanently
+  deleteEmailPermanently,
+  type EmailSummary
 } from "@/lib/email-utils";
 import { useRouter } from "next/navigation";
 import type { LegacyMail } from "@/types/Mail";
@@ -52,7 +53,6 @@ export default function MailsClientView({
   const [selectedMails, setSelectedMails] = useState<Set<string>>(new Set());
   const [selectedMail, setSelectedMail] = useState<LegacyMail | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [emailCounts, setEmailCounts] = useState<Record<string, number>>({});
   const [mailData, setMailData] = useState<LegacyMail[]>(initialMails);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -60,26 +60,23 @@ export default function MailsClientView({
   const [sortKey, setSortKey] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  // Fetch email counts on mount
+  // Fetch email summary on mount using efficient RPC function
   useEffect(() => {
-    const fetchCounts = async () => {
+    const fetchSummary = async () => {
       try {
-        const counts = await getEmailCounts(userId);
-        setEmailCounts(counts);
+        const summaryData = await getEmailSummary();
+        setSummary(summaryData);
       } catch (error) {
-        console.error('Error fetching email counts:', error);
+        console.error('Error fetching email summary:', error);
       }
     };
-    fetchCounts();
-  }, [userId]);
+    fetchSummary();
+  }, []);
 
-  const summary = useMemo(() => {
-    const total = mailData.length;
-    const sentCount = mailData.filter(m => m.status === 'sent').length;
-    const draftCount = mailData.filter(m => m.status === 'draft').length;
-    const unreadCount = mailData.filter(m => !m.read).length;
-    return { total, sentCount, draftCount, unreadCount };
-  }, [mailData]);
+  // Summary state from server (more accurate than client-side calculation)
+  const [summary, setSummary] = useState<EmailSummary>({
+    total: 0, unread: 0, inbox: 0, sent: 0, drafts: 0, archive: 0, trash: 0, spam: 0, favorites: 0
+  });
 
   const handleAddMail = useCallback(() => {
     // TODO: Implement mail creation logic
@@ -99,15 +96,15 @@ export default function MailsClientView({
     try {
       // Refresh the page to get latest data
       router.refresh();
-      // Refresh counts
-      const counts = await getEmailCounts(userId);
-      setEmailCounts(counts);
+      // Refresh summary using efficient RPC
+      const summaryData = await getEmailSummary();
+      setSummary(summaryData);
     } catch (error) {
       console.error('Error refreshing emails:', error);
     } finally {
       setIsRefreshing(false);
     }
-  }, [router, userId]);
+  }, [router]);
 
   const handleToggleRead = useCallback(async (mailId: string, isRead: boolean) => {
     try {
@@ -405,13 +402,13 @@ export default function MailsClientView({
         />
         <StatCard
           title="Ungelesen"
-          value={summary.unreadCount}
+          value={summary.unread}
           icon={<Inbox className="h-4 w-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
         <StatCard
           title="Gesendet / Entwurf"
-          value={`${summary.sentCount} / ${summary.draftCount}`}
+          value={`${summary.sent} / ${summary.drafts}`}
           icon={<Send className="h-4 w-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />

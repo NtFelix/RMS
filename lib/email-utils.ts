@@ -47,7 +47,7 @@ export async function fetchEmailMetadata(
   offset: number = 0
 ) {
   const supabase = createClient();
-  
+
   const { data, error, count } = await supabase
     .from('Mail_Metadaten')
     .select('*', { count: 'exact' })
@@ -69,7 +69,7 @@ export async function fetchEmailMetadata(
  */
 export async function fetchEmailById(emailId: string) {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('Mail_Metadaten')
     .select('*')
@@ -104,7 +104,7 @@ export async function fetchEmailBodyFromOutlook(emailId: string): Promise<EmailB
  */
 export async function fetchEmailBodyFromStorage(dateipfad: string): Promise<EmailBody> {
   const supabase = createClient();
-  
+
   try {
     // Download gzipped body
     const { data: bodyBlob, error: downloadError } = await supabase.storage
@@ -124,7 +124,7 @@ export async function fetchEmailBodyFromStorage(dateipfad: string): Promise<Emai
 
     // Parse JSON
     const emailBody = JSON.parse(decompressed) as EmailBody;
-    
+
     return emailBody;
   } catch (error) {
     console.error('Error fetching email body from storage:', error);
@@ -149,12 +149,12 @@ export async function fetchEmailBody(emailId: string, quelle: string, dateipfad?
       throw error;
     }
   }
-  
+
   // For other sources, use storage
   if (dateipfad) {
     return await fetchEmailBodyFromStorage(dateipfad);
   }
-  
+
   throw new Error('No email body source available');
 }
 
@@ -176,7 +176,7 @@ export async function listStorageAttachments(
   emailId: string
 ): Promise<EmailAttachment[]> {
   const supabase = createClient();
-  
+
   const { data: files, error } = await supabase.storage
     .from('mails')
     .list(`${userId}/${emailId}/attachments`);
@@ -209,7 +209,7 @@ export async function listEmailAttachments(
       return await listStorageAttachments(userId, emailId);
     }
   }
-  
+
   return await listStorageAttachments(userId, emailId);
 }
 
@@ -230,7 +230,7 @@ export async function downloadOutlookAttachment(
  */
 export async function downloadStorageAttachment(path: string, filename: string) {
   const supabase = createClient();
-  
+
   const { data: fileBlob, error } = await supabase.storage
     .from('mails')
     .download(path);
@@ -269,7 +269,7 @@ export async function downloadAttachment(
       // Fall through to storage download
     }
   }
-  
+
   await downloadStorageAttachment(path, filename);
 }
 
@@ -278,7 +278,7 @@ export async function downloadAttachment(
  */
 export async function updateEmailReadStatus(emailId: string, isRead: boolean) {
   const supabase = createClient();
-  
+
   const { error } = await supabase
     .from('Mail_Metadaten')
     .update({ ist_gelesen: isRead })
@@ -295,7 +295,7 @@ export async function updateEmailReadStatus(emailId: string, isRead: boolean) {
  */
 export async function toggleEmailFavorite(emailId: string, isFavorite: boolean) {
   const supabase = createClient();
-  
+
   const { error } = await supabase
     .from('Mail_Metadaten')
     .update({ ist_favorit: isFavorite })
@@ -312,7 +312,7 @@ export async function toggleEmailFavorite(emailId: string, isFavorite: boolean) 
  */
 export async function moveEmailToFolder(emailId: string, folder: string) {
   const supabase = createClient();
-  
+
   const { error } = await supabase
     .from('Mail_Metadaten')
     .update({ ordner: folder })
@@ -332,9 +332,9 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
   console.log('=== Starting deleteEmailPermanently ===');
   console.log('Email ID:', emailId);
   console.log('User ID:', userId);
-  
+
   const supabase = createClient();
-  
+
   try {
     // First, get the email to verify ownership and get the file path
     console.log('Step 1: Fetching email metadata...');
@@ -348,12 +348,12 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
     if (fetchError) {
       console.error('Step 1 FAILED: Error fetching email');
       console.error('Fetch error details:', fetchError);
-      
+
       // Check if it's a PGRST116 error (no rows returned)
       if (fetchError.code === 'PGRST116') {
         throw new Error('Diese E-Mail existiert nicht in der Datenbank. Möglicherweise handelt es sich um Mock-Daten.');
       }
-      
+
       throw new Error(`Email nicht gefunden: ${fetchError.message || fetchError.code || 'Unbekannter Fehler'}`);
     }
 
@@ -368,17 +368,17 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
     console.log('Step 2: Deleting storage files...');
     console.log('Storage path:', `${userId}/${emailId}`);
     console.log('Email dateipfad:', email.dateipfad);
-    
+
     try {
       // Build list of all possible file paths to delete
       const filesToDelete: string[] = [];
-      
+
       // 1. Try to delete the body file directly if we have the path
       if (email.dateipfad) {
         console.log('Adding body file to delete list:', email.dateipfad);
         filesToDelete.push(email.dateipfad);
       }
-      
+
       // 2. List and delete all files in the email folder
       const folderPath = `${userId}/${emailId}`;
       const { data: files, error: listError } = await supabase.storage
@@ -423,12 +423,12 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
           console.error('Failed to delete files from storage');
         } else {
           console.log('Storage delete response:', deleteData);
-          
+
           // Verify files were actually deleted by trying to list them again
           const { data: remainingFiles } = await supabase.storage
             .from('mails')
             .list(folderPath);
-          
+
           if (remainingFiles && remainingFiles.length > 0) {
             console.warn(`Warning: ${remainingFiles.length} files still remain in storage:`, remainingFiles);
           } else {
@@ -446,7 +446,7 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
 
     // Delete from database (this will trigger the database trigger)
     console.log('Step 3: Deleting from database...');
-    
+
     const { error: dbError } = await supabase
       .from('Mail_Metadaten')
       .delete()
@@ -456,18 +456,18 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
     if (dbError) {
       console.error('Step 3 FAILED: Database deletion error');
       console.error('DB error:', dbError);
-      
+
       // Check if it's a 404 (table doesn't exist)
       if (dbError.code === 'PGRST116' || dbError.message?.includes('404')) {
         throw new Error('Tabelle Mail_Metadaten existiert nicht. Bitte führen Sie die Datenbank-Migration aus.');
       }
-      
+
       throw new Error(`Fehler beim Löschen aus Datenbank: ${dbError.message || dbError.code || 'Unbekannter Fehler'}`);
     }
 
     console.log('Step 3 SUCCESS: Database record deleted');
     console.log('=== deleteEmailPermanently COMPLETE ===');
-    
+
   } catch (error) {
     console.error('=== deleteEmailPermanently FAILED ===');
     console.error('Error:', error);
@@ -484,7 +484,7 @@ export async function searchEmails(
   ordner?: string
 ) {
   const supabase = createClient();
-  
+
   let query = supabase
     .from('Mail_Metadaten')
     .select('*')
@@ -507,14 +507,71 @@ export async function searchEmails(
 }
 
 /**
- * Get email counts per folder
+ * Email summary statistics interface
  */
-export async function getEmailCounts(userId: string) {
-  const supabase = createClient();
-  
-  const folders = ['inbox', 'sent', 'drafts', 'archive', 'trash', 'spam'];
-  const counts: Record<string, number> = {};
+export interface EmailSummary {
+  total: number;
+  unread: number;
+  inbox: number;
+  sent: number;
+  drafts: number;
+  archive: number;
+  trash: number;
+  spam: number;
+  favorites: number;
+}
 
+/**
+ * Get email summary statistics using RPC function (efficient single query)
+ * Falls back to multiple queries if RPC is not available
+ */
+export async function getEmailSummary(): Promise<EmailSummary> {
+  const supabase = createClient();
+
+  try {
+    // Try using the RPC function first (single query, most efficient)
+    const { data, error } = await supabase.rpc('get_mail_summary');
+
+    if (!error && data) {
+      return data as EmailSummary;
+    }
+
+    // Log the error for debugging but continue with fallback
+    if (error) {
+      console.warn('RPC get_mail_summary not available, using fallback:', error.message);
+    }
+  } catch (rpcError) {
+    console.warn('RPC call failed, using fallback:', rpcError);
+  }
+
+  // Fallback: Get user ID and make separate queries
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { total: 0, unread: 0, inbox: 0, sent: 0, drafts: 0, archive: 0, trash: 0, spam: 0, favorites: 0 };
+  }
+
+  return getEmailCountsLegacy(user.id);
+}
+
+/**
+ * Legacy implementation: Get email counts per folder (multiple queries)
+ * @deprecated Use getEmailSummary() instead for better performance
+ */
+async function getEmailCountsLegacy(userId: string): Promise<EmailSummary> {
+  const supabase = createClient();
+
+  const folders = ['inbox', 'sent', 'drafts', 'archive', 'trash', 'spam'] as const;
+  const counts: Partial<EmailSummary> = {};
+
+  // Get total count
+  const { count: totalCount } = await supabase
+    .from('Mail_Metadaten')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  counts.total = totalCount || 0;
+
+  // Get folder counts
   for (const folder of folders) {
     const { count, error } = await supabase
       .from('Mail_Metadaten')
@@ -524,6 +581,8 @@ export async function getEmailCounts(userId: string) {
 
     if (!error) {
       counts[folder] = count || 0;
+    } else {
+      counts[folder] = 0;
     }
   }
 
@@ -536,5 +595,36 @@ export async function getEmailCounts(userId: string) {
 
   counts.unread = unreadCount || 0;
 
-  return counts;
+  // Get favorites count
+  const { count: favoritesCount } = await supabase
+    .from('Mail_Metadaten')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('ist_favorit', true);
+
+  counts.favorites = favoritesCount || 0;
+
+  return counts as EmailSummary;
 }
+
+/**
+ * Get email counts per folder
+ * @deprecated Use getEmailSummary() instead for better performance
+ */
+export async function getEmailCounts(userId: string): Promise<Record<string, number>> {
+  const summary = await getEmailSummary();
+
+  // Convert to legacy format for backwards compatibility
+  return {
+    inbox: summary.inbox,
+    sent: summary.sent,
+    drafts: summary.drafts,
+    archive: summary.archive,
+    trash: summary.trash,
+    spam: summary.spam,
+    unread: summary.unread,
+    total: summary.total,
+    favorites: summary.favorites,
+  };
+}
+
