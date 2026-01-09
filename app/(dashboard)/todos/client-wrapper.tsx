@@ -160,69 +160,80 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
         }}
       />
 
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <CalendarIcon className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Aufgabenkalender</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <SearchInput
-            placeholder="Suchen..."
-            className="rounded-full"
-            wrapperClassName="w-full sm:w-64"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onClear={() => setSearchQuery("")}
-          />
-          <ResponsiveButtonWithTooltip
-            onClick={() => handleAddTask()}
-            icon={<PlusCircle className="h-4 w-4" />}
-            shortText="Neu"
-          >
-            Aufgabe hinzufügen
-          </ResponsiveButtonWithTooltip>
-        </div>
-      </div>
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle>Aufgabenkalender</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">
+                Verwalten Sie hier Ihre Aufgaben und Termine
+              </p>
+            </div>
+            <div className="mt-0 sm:mt-1">
+              <ResponsiveButtonWithTooltip
+                onClick={() => handleAddTask()}
+                icon={<PlusCircle className="h-4 w-4" />}
+                shortText="Hinzufügen"
+              >
+                Aufgabe hinzufügen
+              </ResponsiveButtonWithTooltip>
+            </div>
+          </div>
+        </CardHeader>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-        {/* Sidebar */}
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-2xl h-fit lg:h-auto lg:max-h-[calc(100vh-200px)] overflow-hidden">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <List className="h-5 w-5" />
-              Aufgabenliste
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <TaskSidebar
-              tasks={filteredTasks}
-              onTaskClick={handleTaskClick}
-              onTaskToggle={handleTaskToggle}
-            />
-          </CardContent>
-        </Card>
+        <div className="px-4 sm:px-6">
+          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+        </div>
 
-        {/* Calendar */}
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5" />
-              Kalender
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TaskCalendar
-              tasks={filteredTasks}
-              currentMonth={currentMonth}
-              onMonthChange={handleMonthChange}
-              onDayClick={handleDayClick}
-              selectedDate={selectedDate}
-            />
-          </CardContent>
-        </Card>
-      </div>
+        <CardContent className="flex flex-col gap-6">
+          {/* Search */}
+          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+            <div className="flex justify-center sm:justify-start">
+              <SearchInput
+                placeholder="Aufgaben suchen..."
+                className="rounded-full"
+                wrapperClassName="w-full sm:w-72"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
+              />
+            </div>
+          </div>
+
+          {/* Calendar and Sidebar Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+            {/* Sidebar */}
+            <div className="order-2 lg:order-1 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 h-fit lg:max-h-[calc(100vh-350px)] overflow-hidden flex flex-col">
+              <div className="flex items-center gap-2 mb-4 shrink-0">
+                <List className="h-5 w-5 text-muted-foreground" />
+                <h3 className="font-medium">Aufgabenliste</h3>
+              </div>
+              <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+                <TaskSidebar
+                  tasks={filteredTasks}
+                  onTaskClick={handleTaskClick}
+                  onTaskToggle={handleTaskToggle}
+                />
+              </div>
+            </div>
+
+            {/* Calendar */}
+            <div className="order-1 lg:order-2 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+                <h3 className="font-medium">Kalender</h3>
+              </div>
+              <TaskCalendar
+                tasks={filteredTasks}
+                currentMonth={currentMonth}
+                onMonthChange={handleMonthChange}
+                onDayClick={handleDayClick}
+                selectedDate={selectedDate}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Day Modal */}
       {selectedDate && (

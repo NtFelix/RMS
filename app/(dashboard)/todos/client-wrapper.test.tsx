@@ -103,7 +103,7 @@ describe('TodosClientWrapper - Calendar Layout', () => {
     it('renders search input', () => {
       render(<TodosClientWrapper {...defaultProps} />);
 
-      expect(screen.getByPlaceholderText('Suchen...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Aufgaben suchen...')).toBeInTheDocument();
     });
   });
 
@@ -127,7 +127,7 @@ describe('TodosClientWrapper - Calendar Layout', () => {
       const user = userEvent.setup();
       render(<TodosClientWrapper {...defaultProps} />);
 
-      const searchInput = screen.getByPlaceholderText('Suchen...');
+      const searchInput = screen.getByPlaceholderText('Aufgaben suchen...');
       await user.type(searchInput, 'faucet');
 
       // The search should filter tasks (implementation depends on how components render)
@@ -138,7 +138,7 @@ describe('TodosClientWrapper - Calendar Layout', () => {
       const user = userEvent.setup();
       render(<TodosClientWrapper {...defaultProps} />);
 
-      const searchInput = screen.getByPlaceholderText('Suchen...');
+      const searchInput = screen.getByPlaceholderText('Aufgaben suchen...');
       await user.type(searchInput, 'test');
 
       expect(searchInput).toHaveValue('test');
