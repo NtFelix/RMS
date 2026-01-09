@@ -18,6 +18,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { PillTabSwitcher } from "@/components/ui/pill-tab-switcher";
+import { useFeatureFlagEnabled } from 'posthog-js/react'
+import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
+import { GoogleIcon } from "@/components/icons/google-icon"
+import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
+import { Loader2 } from "lucide-react"
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -51,6 +57,12 @@ export default function AuthModal({
   const [forgotPasswordError, setForgotPasswordError] = useState<string | null>(null)
   const [forgotPasswordIsLoading, setForgotPasswordIsLoading] = useState(false)
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
+
+  const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
+  const isMicrosoftLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MICROSOFT_SOCIAL_LOGIN)
+  const [socialLoading, setSocialLoading] = useState<string | null>(null) // 'google' | 'microsoft' | null
+
+  const enabledProvidersCount = [isGoogleLoginEnabled, isMicrosoftLoginEnabled].filter(Boolean).length;
 
   const [activeView, setActiveView] = useState<'login' | 'register' | 'forgotPassword'>(initialTab);
 
@@ -352,6 +364,63 @@ export default function AuthModal({
                 <Button type="submit" className="w-full" disabled={loginIsLoading}>
                   {loginIsLoading ? "Wird angemeldet..." : "Anmelden"}
                 </Button>
+
+                {(isGoogleLoginEnabled || isMicrosoftLoginEnabled) && (
+                  <div className="pt-2 space-y-3">
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-card px-2 text-muted-foreground">WEITERE ANMELDEMETHODEN</span>
+                      </div>
+                    </div>
+
+                    <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
+                      {isGoogleLoginEnabled && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
+                          onClick={async () => {
+                            setSocialLoading('google')
+                            const { error } = await handleGoogleSignIn('login')
+                            if (error) setSocialLoading(null)
+                          }}
+                          disabled={socialLoading !== null}
+                        >
+                          {socialLoading === 'google' ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <GoogleIcon className="h-4 w-4 mr-2" />
+                          )}
+                          {enabledProvidersCount > 1 ? "Google" : "Mit Google anmelden"}
+                        </Button>
+                      )}
+
+                      {isMicrosoftLoginEnabled && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
+                          onClick={async () => {
+                            setSocialLoading('microsoft')
+                            const { error } = await handleMicrosoftSignIn('login')
+                            if (error) setSocialLoading(null)
+                          }}
+                          disabled={socialLoading !== null}
+                        >
+                          {socialLoading === 'microsoft' ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MicrosoftIcon className="h-4 w-4 mr-2" />
+                          )}
+                          {enabledProvidersCount > 1 ? "Microsoft" : "Mit Microsoft anmelden"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </AuthForm>
             </>
           )}
@@ -424,6 +493,63 @@ export default function AuthModal({
                   <Button type="submit" className="w-full" disabled={registerIsLoading || !agbAccepted}>
                     {registerIsLoading ? "Wird registriert..." : "Registrieren"}
                   </Button>
+
+                  {(isGoogleLoginEnabled || isMicrosoftLoginEnabled) && (
+                    <div className="pt-2 space-y-3">
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t border-border" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-card px-2 text-muted-foreground">WEITERE ANMELDEMETHODEN</span>
+                        </div>
+                      </div>
+
+                      <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
+                        {isGoogleLoginEnabled && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
+                            onClick={async () => {
+                              setSocialLoading('google')
+                              const { error } = await handleGoogleSignIn('signup')
+                              if (error) setSocialLoading(null)
+                            }}
+                            disabled={socialLoading !== null}
+                          >
+                            {socialLoading === 'google' ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <GoogleIcon className="h-4 w-4 mr-2" />
+                            )}
+                            {enabledProvidersCount > 1 ? "Google" : "Mit Google anmelden"}
+                          </Button>
+                        )}
+
+                        {isMicrosoftLoginEnabled && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
+                            onClick={async () => {
+                              setSocialLoading('microsoft')
+                              const { error } = await handleMicrosoftSignIn('signup')
+                              if (error) setSocialLoading(null)
+                            }}
+                            disabled={socialLoading !== null}
+                          >
+                            {socialLoading === 'microsoft' ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MicrosoftIcon className="h-4 w-4 mr-2" />
+                            )}
+                            {enabledProvidersCount > 1 ? "Microsoft" : "Mit Microsoft anmelden"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </form>
               </CardContent>
             </>

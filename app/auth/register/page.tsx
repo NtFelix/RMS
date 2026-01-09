@@ -18,8 +18,9 @@ import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 import { trackRegisterStarted, trackRegisterSuccess, trackRegisterFailed } from '@/lib/posthog-auth-events'
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
-import { handleGoogleSignIn } from "@/lib/auth-helpers"
+import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
+import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
 
 const benefits = [
   "14 Tage kostenlos testen",
@@ -46,6 +47,9 @@ export default function RegisterPage() {
   }, [])
 
   const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
+  const isMicrosoftLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MICROSOFT_SOCIAL_LOGIN)
+
+  const enabledProvidersCount = [isGoogleLoginEnabled, isMicrosoftLoginEnabled].filter(Boolean).length;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -353,41 +357,72 @@ export default function RegisterPage() {
                 )}
               </Button>
 
-              {mounted && isGoogleLoginEnabled && (
+              {mounted && (isGoogleLoginEnabled || isMicrosoftLoginEnabled) && (
                 <div className="pt-4 space-y-4">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t border-border" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-card px-2 text-muted-foreground">ODER MIT GOOGLE</span>
+                      <span className="bg-card px-2 text-muted-foreground">WEITERE ANMELDEMETHODEN</span>
                     </div>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 rounded-xl text-base font-medium border-border hover:bg-muted/50 transition-colors"
-                    onClick={async () => {
-                      setIsLoading(true)
-                      setError(null)
+                  <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-4"}>
+                    {isGoogleLoginEnabled && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-12 rounded-xl text-base font-medium border-border hover:bg-muted/50 transition-colors`}
+                        onClick={async () => {
+                          setIsLoading(true)
+                          setError(null)
 
-                      const { error } = await handleGoogleSignIn('signup')
+                          const { error } = await handleGoogleSignIn('signup')
 
-                      if (error) {
-                        setError(error)
-                        setIsLoading(false)
-                      }
-                    }}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <GoogleIcon className="h-5 w-5 mr-2" />
+                          if (error) {
+                            setError(error)
+                            setIsLoading(false)
+                          }
+                        }}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <GoogleIcon className="h-5 w-5 mr-2" />
+                        )}
+                        {enabledProvidersCount > 1 ? "Google" : "Mit Google anmelden"}
+                      </Button>
                     )}
-                    Mit Google anmelden
-                  </Button>
+
+                    {isMicrosoftLoginEnabled && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-12 rounded-xl text-base font-medium border-border hover:bg-muted/50 transition-colors`}
+                        onClick={async () => {
+                          setIsLoading(true)
+                          setError(null)
+
+                          const { error } = await handleMicrosoftSignIn('signup')
+
+                          if (error) {
+                            setError(error)
+                            setIsLoading(false)
+                          }
+                        }}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MicrosoftIcon className="h-5 w-5 mr-2" />
+                        )}
+                        {enabledProvidersCount > 1 ? "Microsoft" : "Mit Microsoft anmelden"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
 
