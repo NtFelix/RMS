@@ -10,8 +10,7 @@ import { MailsTable } from "@/components/mails-table";
 import { MailDetailPanel } from "@/components/mail-detail-panel";
 import { MailBulkActionBar } from "@/components/mail-bulk-action-bar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { SearchInput } from "@/components/ui/search-input";
 import { PAGINATION } from "@/constants";
 import {
   getEmailSummary,
@@ -454,15 +453,14 @@ export default function MailsClientView({
                   </Button>
                 ))}
               </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="E-Mails suchen..."
-                  className="pl-10 rounded-full"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              <SearchInput
+                mode="table"
+                placeholder="E-Mails suchen..."
+                className="rounded-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery("")}
+              />
             </div>
           </div>
           <MailBulkActionBar
