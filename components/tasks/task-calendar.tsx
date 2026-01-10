@@ -111,10 +111,12 @@ export function TaskCalendar({
     // Weekday headers
     const weekDays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
+    const weeks = Math.ceil(calendarDays.length / 7);
+
     return (
-        <div className="w-full">
+        <div className="w-full h-full flex flex-col">
             {/* Calendar Header */}
-            <div className="flex items-center justify-between mb-4 px-2">
+            <div className="flex items-center justify-between mb-4 px-2 shrink-0">
                 <Button
                     variant="outline"
                     size="icon"
@@ -165,7 +167,7 @@ export function TaskCalendar({
             </div>
 
             {/* Weekday Headers */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
+            <div className="grid grid-cols-7 gap-1 mb-2 shrink-0">
                 {weekDays.map((day) => (
                     <div
                         key={day}
@@ -177,7 +179,10 @@ export function TaskCalendar({
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-1">
+            <div
+                className="grid grid-cols-7 gap-1 flex-1 min-h-0"
+                style={{ gridTemplateRows: `repeat(${weeks}, minmax(0, 1fr))` }}
+            >
                 {calendarDays.map((day) => {
                     const dateKey = format(day, "yyyy-MM-dd");
                     const taskInfo = tasksByDate[dateKey];
@@ -190,8 +195,8 @@ export function TaskCalendar({
                             key={dateKey}
                             onClick={() => onDayClick(day)}
                             className={cn(
-                                "relative h-16 sm:h-20 p-1 rounded-lg border transition-all hover:bg-accent/50",
-                                "flex flex-col items-start justify-start",
+                                "relative w-full h-full p-1 rounded-lg border transition-all hover:bg-accent/50",
+                                "flex flex-col items-start justify-start overflow-hidden",
                                 !isCurrentMonth && "text-muted-foreground/50 bg-muted/20",
                                 isCurrentMonth && "bg-card hover:bg-accent",
                                 isSelected && "ring-2 ring-primary bg-primary/5",

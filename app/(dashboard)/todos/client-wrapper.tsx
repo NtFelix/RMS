@@ -185,13 +185,12 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
           <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
         </div>
 
-        <CardContent className="flex flex-col gap-6">
-
+        <CardContent className="flex flex-col gap-6 pt-6">
 
           {/* Calendar and Sidebar Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:h-[calc(100vh-250px)]">
             {/* Sidebar */}
-            <div className="order-2 lg:order-1 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 h-fit lg:max-h-[calc(100vh-350px)] overflow-hidden flex flex-col">
+            <div className="order-2 lg:order-1 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 h-fit lg:h-full overflow-hidden flex flex-col">
               <div className="flex flex-col gap-4 mb-4 shrink-0">
                 <div className="flex items-center gap-2">
                   <List className="h-5 w-5 text-muted-foreground" />
@@ -216,8 +215,8 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
             </div>
 
             {/* Calendar */}
-            <div className="order-1 lg:order-2 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="order-1 lg:order-2 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 flex flex-col h-full overflow-hidden">
+              <div className="flex items-center gap-2 mb-4 shrink-0">
                 <CalendarIcon className="h-5 w-5 text-muted-foreground" />
                 <h3 className="font-medium">Kalender</h3>
               </div>
