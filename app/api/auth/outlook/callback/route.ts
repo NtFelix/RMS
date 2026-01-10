@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
+import { encryptToken } from "@/lib/encryption"
 
 export const runtime = 'edge';
 
@@ -88,6 +89,10 @@ export async function GET(request: NextRequest) {
 
     const profile = await profileResponse.json()
 
+    // Encrypt tokens before storing
+    const encryptedAccessToken = await encryptToken(tokens.access_token)
+    const encryptedRefreshToken = await encryptToken(tokens.refresh_token)
+
     // Store tokens and profile in Mail_Accounts table
     const supabase = await createClient()
 
@@ -108,8 +113,8 @@ export async function GET(request: NextRequest) {
       const result = await supabase
         .from("Mail_Accounts")
         .update({
-          access_token_encrypted: tokens.access_token,
-          refresh_token_encrypted: tokens.refresh_token,
+          access_token_encrypted: encryptedAccessToken,
+          refresh_token_encrypted: encryptedRefreshToken,
           token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
           provider_user_id: profile.id,
           provider_tenant_id: tenantId,
@@ -126,8 +131,8 @@ export async function GET(request: NextRequest) {
         .insert({
           user_id: userId,
           mailadresse: email,
-          access_token_encrypted: tokens.access_token,
-          refresh_token_encrypted: tokens.refresh_token,
+          access_token_encrypted: encryptedAccessToken,
+          refresh_token_encrypted: encryptedRefreshToken,
           token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
           provider_user_id: profile.id,
           provider_tenant_id: tenantId,

@@ -471,30 +471,41 @@ Deno.serve(async (req) => {
     let duplicateCount = 0
     let errorCount = 0
 
-    for (const email of emailsToInsert) {
-      const { error: insertError } = await supabase
-        .from('Mail_Metadaten')
-        .insert(email)
-        .select()
-        .single()
+    // Use bulk upsert with onConflict to efficiently handle duplicates
+    // The unique constraint is on (quelle, quelle_id)
+    const { data: insertedData, error: bulkInsertError } = await supabase
+      .from('Mail_Metadaten')
+      .upsert(emailsToInsert, {
+        onConflict: 'quelle,quelle_id',
+        ignoreDuplicates: true, // Don't update existing records, just skip
+      })
+      .select('id')
 
-      if (insertError) {
-        if (insertError.code === '23505') {
-          // Duplicate key constraint violation
-          duplicateCount++
-        } else {
-          errorCount++
-          reqLogger.warn('Error inserting email', {
-            userId: task.user_id,
-            account_id: task.account_id,
-            email_id: email.quelle_id,
-            error_code: insertError.code,
-            error_message: insertError.message,
-          })
-        }
+    if (bulkInsertError) {
+      // Check if it's a unique constraint violation (shouldn't happen with onConflict)
+      // or another type of error
+      if (bulkInsertError.code === '23505') {
+        // All were duplicates
+        duplicateCount = emailsToInsert.length
+        reqLogger.debug('All emails were duplicates', {
+          userId: task.user_id,
+          account_id: task.account_id,
+          count: duplicateCount,
+        })
       } else {
-        insertedCount++
+        errorCount = emailsToInsert.length
+        reqLogger.warn('Error inserting email batch', {
+          userId: task.user_id,
+          account_id: task.account_id,
+          error_code: bulkInsertError.code,
+          error_message: bulkInsertError.message,
+        })
       }
+    } else {
+      // Count how many were actually inserted
+      insertedCount = insertedData?.length || 0
+      // The difference is duplicates that were skipped
+      duplicateCount = emailsToInsert.length - insertedCount
     }
 
     logAction('insertEmails', insertedCount > 0 || duplicateCount > 0 ? 'success' : 'failed', {

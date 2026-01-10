@@ -9,6 +9,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChevronsUpDown, ArrowUp, ArrowDown, Mail, User, Calendar, FileText, Paperclip, Star, Eye, EyeOff, FileEdit, Send, Archive, MailOpen, Loader2, CheckCircle2, Inbox, Trash2 } from "lucide-react"
 import { MailContextMenu } from "@/components/mail-context-menu"
 import { ActionMenu } from "@/components/ui/action-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Mail {
   id: string;
@@ -81,6 +91,8 @@ export function MailsTable({
   onSortChange
 }: MailsTableProps) {
   const [internalSelectedMails, setInternalSelectedMails] = useState<Set<string>>(new Set())
+  // State for delete confirmation dialog
+  const [mailToDelete, setMailToDelete] = useState<string | null>(null)
 
   // Infinite scroll observer
   const observer = useRef<IntersectionObserver | null>(null)
@@ -104,11 +116,16 @@ export function MailsTable({
     if (node) observer.current.observe(node)
   }, [isLoading, hasMore, loadMails])
 
-  // Context menu refs for programmatic triggering
-  const contextMenuRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
-
   const selectedMails = externalSelectedMails ?? internalSelectedMails
   const setSelectedMails = onSelectionChange ?? setInternalSelectedMails
+
+  // Handler for delete confirmation
+  const handleDeleteConfirm = useCallback(() => {
+    if (mailToDelete) {
+      onDeletePermanently?.(mailToDelete)
+      setMailToDelete(null)
+    }
+  }, [mailToDelete, onDeletePermanently])
 
   // No client-side sorting - data comes pre-sorted from server
   const sortedMails = mails;
@@ -290,9 +307,6 @@ export function MailsTable({
                     >
                       <TableRow
                         ref={(node) => {
-                          if (node) {
-                            contextMenuRefs.current.set(mail.id, node)
-                          }
                           if (isLastRow && node) {
                             lastMailElementRef(node)
                           }
@@ -386,20 +400,7 @@ export function MailsTable({
                                 id: `delete-${mail.id}`,
                                 icon: Trash2,
                                 label: 'Löschen',
-                                onClick: (e) => {
-                                  if (!e) return;
-                                  const rowElement = contextMenuRefs.current.get(mail.id)
-                                  if (rowElement) {
-                                    const contextMenuEvent = new MouseEvent('contextmenu', {
-                                      bubbles: true,
-                                      cancelable: true,
-                                      view: window,
-                                      clientX: e.clientX,
-                                      clientY: e.clientY,
-                                    })
-                                    rowElement.dispatchEvent(contextMenuEvent)
-                                  }
-                                },
+                                onClick: () => setMailToDelete(mail.id),
                                 variant: 'destructive',
                               }
                             ]}
@@ -455,6 +456,27 @@ export function MailsTable({
           </Table>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!mailToDelete} onOpenChange={(open) => !open && setMailToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>E-Mail löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Aktion kann nicht rückgängig gemacht werden. Die E-Mail und alle Anhänge werden permanent gelöscht.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

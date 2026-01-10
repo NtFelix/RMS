@@ -23,7 +23,7 @@ import {
   MailOpen,
   MoreVertical
 } from "lucide-react"
-import { useState } from "react"
+import { useState, ReactNode } from "react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,13 +48,119 @@ interface Mail {
   favorite: boolean;
 }
 
-interface MailContextMenuProps {
-  mail: Mail;
-  children: React.ReactNode;
+interface MailActionHandlers {
   onToggleRead?: (mailId: string, isRead: boolean) => void;
   onToggleFavorite?: (mailId: string, isFavorite: boolean) => void;
   onArchive?: (mailId: string) => void;
   onDeletePermanently?: (mailId: string) => void;
+}
+
+interface MailActionsProps extends MailActionHandlers {
+  mail: Mail;
+}
+
+/**
+ * Shared delete confirmation dialog component
+ */
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}
+
+function DeleteConfirmDialog({ open, onOpenChange, onConfirm }: DeleteConfirmDialogProps) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>E-Mail löschen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Diese Aktion kann nicht rückgängig gemacht werden. Die E-Mail und alle Anhänge werden permanent gelöscht.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+          >
+            Löschen
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/**
+ * Shared hook for mail action state and handlers
+ */
+function useMailActions(mail: Mail, handlers: MailActionHandlers) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const handleToggleRead = () => {
+    handlers.onToggleRead?.(mail.id, !mail.read);
+  };
+
+  const handleToggleFavorite = () => {
+    handlers.onToggleFavorite?.(mail.id, !mail.favorite);
+  };
+
+  const handleArchive = () => {
+    handlers.onArchive?.(mail.id);
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    setShowDeleteDialog(false);
+    handlers.onDeletePermanently?.(mail.id);
+  };
+
+  return {
+    showDeleteDialog,
+    setShowDeleteDialog,
+    handleToggleRead,
+    handleToggleFavorite,
+    handleArchive,
+    handleDeleteClick,
+    handleDeleteConfirm,
+  };
+}
+
+/**
+ * Shared action item content for read/unread toggle
+ */
+function ReadActionContent({ isRead }: { isRead: boolean }) {
+  return isRead ? (
+    <>
+      <Mail className="mr-2 h-4 w-4" />
+      Als ungelesen markieren
+    </>
+  ) : (
+    <>
+      <MailOpen className="mr-2 h-4 w-4" />
+      Als gelesen markieren
+    </>
+  );
+}
+
+/**
+ * Shared action item content for favorite toggle
+ */
+function FavoriteActionContent({ isFavorite }: { isFavorite: boolean }) {
+  return (
+    <>
+      <Star className={`mr-2 h-4 w-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+      {isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
+    </>
+  );
+}
+
+interface MailContextMenuProps extends MailActionsProps {
+  children: ReactNode;
 }
 
 export function MailContextMenu({
@@ -65,12 +171,12 @@ export function MailContextMenu({
   onArchive,
   onDeletePermanently,
 }: MailContextMenuProps) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
-  const handleDeletePermanently = () => {
-    setShowDeleteDialog(false);
-    onDeletePermanently?.(mail.id);
-  };
+  const actions = useMailActions(mail, {
+    onToggleRead,
+    onToggleFavorite,
+    onArchive,
+    onDeletePermanently,
+  });
 
   return (
     <>
@@ -79,30 +185,19 @@ export function MailContextMenu({
           {children}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
-          <ContextMenuItem onClick={() => onToggleRead?.(mail.id, !mail.read)}>
-            {mail.read ? (
-              <>
-                <Mail className="mr-2 h-4 w-4" />
-                Als ungelesen markieren
-              </>
-            ) : (
-              <>
-                <MailOpen className="mr-2 h-4 w-4" />
-                Als gelesen markieren
-              </>
-            )}
+          <ContextMenuItem onClick={actions.handleToggleRead}>
+            <ReadActionContent isRead={mail.read} />
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => onToggleFavorite?.(mail.id, !mail.favorite)}>
-            <Star className={`mr-2 h-4 w-4 ${mail.favorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-            {mail.favorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
+          <ContextMenuItem onClick={actions.handleToggleFavorite}>
+            <FavoriteActionContent isFavorite={mail.favorite} />
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => onArchive?.(mail.id)}>
+          <ContextMenuItem onClick={actions.handleArchive}>
             <Archive className="mr-2 h-4 w-4" />
             Archivieren
           </ContextMenuItem>
           <ContextMenuItem
-            onClick={() => setShowDeleteDialog(true)}
+            onClick={actions.handleDeleteClick}
             className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
           >
             <Trash2 className="mr-2 h-4 w-4" />
@@ -111,35 +206,13 @@ export function MailContextMenu({
         </ContextMenuContent>
       </ContextMenu>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>E-Mail löschen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Diese Aktion kann nicht rückgängig gemacht werden. Die E-Mail und alle Anhänge werden permanent gelöscht.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeletePermanently}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-            >
-              Löschen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={actions.showDeleteDialog}
+        onOpenChange={actions.setShowDeleteDialog}
+        onConfirm={actions.handleDeleteConfirm}
+      />
     </>
   );
-}
-
-interface MailActionsDropdownProps {
-  mail: Mail;
-  onToggleRead?: (mailId: string, isRead: boolean) => void;
-  onToggleFavorite?: (mailId: string, isFavorite: boolean) => void;
-  onArchive?: (mailId: string) => void;
-  onDeletePermanently?: (mailId: string) => void;
 }
 
 export function MailActionsDropdown({
@@ -148,13 +221,15 @@ export function MailActionsDropdown({
   onToggleFavorite,
   onArchive,
   onDeletePermanently,
-}: MailActionsDropdownProps) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+}: MailActionsProps) {
+  const actions = useMailActions(mail, {
+    onToggleRead,
+    onToggleFavorite,
+    onArchive,
+    onDeletePermanently,
+  });
 
-  const handleDeletePermanently = () => {
-    setShowDeleteDialog(false);
-    onDeletePermanently?.(mail.id);
-  };
+  const dropdownItemClass = "focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item";
 
   return (
     <>
@@ -170,39 +245,19 @@ export function MailActionsDropdown({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem
-            onClick={() => onToggleRead?.(mail.id, !mail.read)}
-            className="focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item"
-          >
-            {mail.read ? (
-              <>
-                <Mail className="mr-2 h-4 w-4" />
-                Als ungelesen markieren
-              </>
-            ) : (
-              <>
-                <MailOpen className="mr-2 h-4 w-4" />
-                Als gelesen markieren
-              </>
-            )}
+          <DropdownMenuItem onClick={actions.handleToggleRead} className={dropdownItemClass}>
+            <ReadActionContent isRead={mail.read} />
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onToggleFavorite?.(mail.id, !mail.favorite)}
-            className="focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item"
-          >
-            <Star className={`mr-2 h-4 w-4 ${mail.favorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-            {mail.favorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
+          <DropdownMenuItem onClick={actions.handleToggleFavorite} className={dropdownItemClass}>
+            <FavoriteActionContent isFavorite={mail.favorite} />
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => onArchive?.(mail.id)}
-            className="focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item"
-          >
+          <DropdownMenuItem onClick={actions.handleArchive} className={dropdownItemClass}>
             <Archive className="mr-2 h-4 w-4" />
             Archivieren
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => setShowDeleteDialog(true)}
+            onClick={actions.handleDeleteClick}
             className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950 hover:bg-red-50 hover:scale-[1.02]"
           >
             <Trash2 className="mr-2 h-4 w-4" />
@@ -211,25 +266,11 @@ export function MailActionsDropdown({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>E-Mail löschen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Diese Aktion kann nicht rückgängig gemacht werden. Die E-Mail und alle Anhänge werden permanent gelöscht.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeletePermanently}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-            >
-              Löschen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={actions.showDeleteDialog}
+        onOpenChange={actions.setShowDeleteDialog}
+        onConfirm={actions.handleDeleteConfirm}
+      />
     </>
   );
 }

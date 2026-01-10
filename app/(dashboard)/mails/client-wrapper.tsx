@@ -113,7 +113,7 @@ export default function MailsClientView({
     } catch (error) {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
-  }, [router]);
+  }, [router, toast]);
 
   const handleToggleFavorite = useCallback(async (mailId: string, isFavorite: boolean) => {
     try {
@@ -123,7 +123,7 @@ export default function MailsClientView({
     } catch (error) {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
-  }, [router]);
+  }, [router, toast]);
 
   const handleArchive = useCallback(async (mailId: string) => {
     try {
@@ -133,7 +133,7 @@ export default function MailsClientView({
     } catch (error) {
       toast({ title: 'Fehler beim Archivieren', variant: 'destructive' });
     }
-  }, [router]);
+  }, [router, toast]);
 
   const handleDeletePermanently = useCallback(async (mailId: string) => {
     try {
@@ -208,7 +208,7 @@ export default function MailsClientView({
     } catch (error) {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
-  }, [selectedMails, router]);
+  }, [selectedMails, router, toast]);
 
   const handleBulkMarkAsUnread = useCallback(async () => {
     try {
@@ -221,7 +221,7 @@ export default function MailsClientView({
     } catch (error) {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
-  }, [selectedMails, router]);
+  }, [selectedMails, router, toast]);
 
   const handleBulkToggleFavorite = useCallback(async () => {
     try {
@@ -235,7 +235,7 @@ export default function MailsClientView({
     } catch (error) {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
-  }, [selectedMails, mailData, router]);
+  }, [selectedMails, mailData, router, toast]);
 
   const handleBulkArchive = useCallback(async () => {
     try {
@@ -249,7 +249,7 @@ export default function MailsClientView({
     } catch (error) {
       toast({ title: 'Fehler beim Archivieren', variant: 'destructive' });
     }
-  }, [selectedMails, router]);
+  }, [selectedMails, router, toast]);
 
   const handleBulkDeletePermanently = useCallback(async () => {
     try {
@@ -263,7 +263,7 @@ export default function MailsClientView({
     } catch (error) {
       toast({ title: 'Fehler beim Löschen', variant: 'destructive' });
     }
-  }, [selectedMails, userId, router]);
+  }, [selectedMails, userId, router, toast]);
 
   const handleBulkMoveToFolder = useCallback(async (folder: string) => {
     try {
@@ -277,7 +277,7 @@ export default function MailsClientView({
     } catch (error) {
       toast({ title: 'Fehler beim Verschieben', variant: 'destructive' });
     }
-  }, [selectedMails, router]);
+  }, [selectedMails, router, toast]);
 
   // Filter all mails based on tab and search
   const filteredMails = useMemo(() => {
@@ -333,19 +333,35 @@ export default function MailsClientView({
       const newMails = await response.json();
       const totalCount = parseInt(response.headers.get('X-Total-Count') || '0', 10);
 
-      // Convert to legacy format
-      const convertedMails = newMails.map((email: any) => ({
-        id: email.id,
-        date: email.datum_erhalten,
-        subject: email.betreff || '(Kein Betreff)',
-        sender: email.absender,
-        status: email.ordner === 'sent' ? 'sent' : email.ordner === 'drafts' ? 'draft' : 'archiv',
-        type: email.ordner === 'inbox' ? 'inbox' : 'outbox',
-        hasAttachment: email.hat_anhang,
-        source: email.quelle === 'outlook' ? 'Outlook' : email.quelle === 'gmail' ? 'Gmail' : 'SMTP',
-        read: email.ist_gelesen,
-        favorite: email.ist_favorit,
-      }));
+      // Convert to legacy format with proper status mapping
+      const convertedMails = newMails.map((email: any) => {
+        // Map ordner to status - inbox emails should not have 'archiv' status
+        let status: 'sent' | 'draft' | 'archiv';
+        if (email.ordner === 'sent') {
+          status = 'sent';
+        } else if (email.ordner === 'drafts') {
+          status = 'draft';
+        } else if (email.ordner === 'archive') {
+          status = 'archiv';
+        } else {
+          // For inbox and other folders, use 'sent' as a neutral default
+          // The actual read/unread state is tracked by the 'read' field
+          status = 'sent';
+        }
+
+        return {
+          id: email.id,
+          date: email.datum_erhalten,
+          subject: email.betreff || '(Kein Betreff)',
+          sender: email.absender,
+          status,
+          type: email.ordner === 'inbox' ? 'inbox' as const : 'outbox' as const,
+          hasAttachment: email.hat_anhang,
+          source: email.quelle === 'outlook' ? 'Outlook' as const : email.quelle === 'gmail' ? 'Gmail' as const : 'SMTP' as const,
+          read: email.ist_gelesen,
+          favorite: email.ist_favorit,
+        };
+      });
 
       if (resetData) {
         // Replace all data when resetting (e.g., after sort change)
@@ -373,9 +389,12 @@ export default function MailsClientView({
   }, [page, hasMore, isLoading, mailData.length, sortKey, sortDirection, toast]);
 
   // Reload data when sort changes
+  // Note: We intentionally exclude loadMoreMails from deps to avoid infinite loops
+  // since loadMoreMails itself depends on mailData.length which it modifies
   useEffect(() => {
     loadMoreMails(true);
-  }, [sortKey, sortDirection, loadMoreMails]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortKey, sortDirection]);
 
 
 
