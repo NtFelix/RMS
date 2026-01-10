@@ -32,8 +32,30 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Decode state to get user ID
-    const { userId } = JSON.parse(Buffer.from(state, "base64").toString())
+    // SECURITY: Get user ID from the authenticated session, NOT from the state parameter
+    // The state parameter should only be used for CSRF protection
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      console.error("User not authenticated during OAuth callback")
+      return NextResponse.redirect(`${appUrl}/auth/login?error=session_expired`)
+    }
+
+    const userId = user.id
+
+    // Verify state parameter matches to prevent CSRF attacks
+    // State is base64 encoded JSON containing the original userId
+    try {
+      const stateData = JSON.parse(Buffer.from(state, "base64").toString())
+      if (stateData.userId !== userId) {
+        console.error("State userId mismatch - possible CSRF attempt")
+        return NextResponse.redirect(`${appUrl}?outlook_error=state_mismatch`)
+      }
+    } catch (e) {
+      console.error("Invalid state parameter:", e)
+      return NextResponse.redirect(`${appUrl}?outlook_error=invalid_state`)
+    }
 
     // Exchange code for tokens using 'common' endpoint for multi-tenant support
     const tokenResponse = await fetch(
@@ -93,9 +115,7 @@ export async function GET(request: NextRequest) {
     const encryptedAccessToken = await encryptToken(tokens.access_token)
     const encryptedRefreshToken = await encryptToken(tokens.refresh_token)
 
-    // Store tokens and profile in Mail_Accounts table
-    const supabase = await createClient()
-
+    // Reuse the supabase client created earlier for authentication
     const email = profile.mail || profile.userPrincipalName
 
     // Check if email already exists for this user

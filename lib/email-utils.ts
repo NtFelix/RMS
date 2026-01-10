@@ -354,53 +354,53 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
     }
 
     // Delete from Storage first (body and attachments)
-    try {
-      // Build list of all possible file paths to delete
-      const filesToDelete: string[] = [];
+    // If this fails, we throw an error to prevent orphaned database records
+    const filesToDelete: string[] = [];
 
-      // 1. Try to delete the body file directly if we have the path
-      if (email.dateipfad) {
-        filesToDelete.push(email.dateipfad);
-      }
+    // 1. Try to delete the body file directly if we have the path
+    if (email.dateipfad) {
+      filesToDelete.push(email.dateipfad);
+    }
 
-      // 2. List and delete all files in the email folder
-      const folderPath = `${userId}/${emailId}`;
-      const { data: files, error: listError } = await supabase.storage
-        .from('mails')
-        .list(folderPath);
+    // 2. List and delete all files in the email folder
+    const folderPath = `${userId}/${emailId}`;
+    const { data: files, error: listError } = await supabase.storage
+      .from('mails')
+      .list(folderPath);
 
-      if (!listError && files && files.length > 0) {
-        files.forEach(file => {
-          const fullPath = `${folderPath}/${file.name}`;
-          if (!filesToDelete.includes(fullPath)) {
-            filesToDelete.push(fullPath);
-          }
-        });
-      }
-
-      // 3. List and delete files in attachments subfolder
-      const { data: attachments, error: attachListError } = await supabase.storage
-        .from('mails')
-        .list(`${folderPath}/attachments`);
-
-      if (!attachListError && attachments && attachments.length > 0) {
-        attachments.forEach(file => {
-          filesToDelete.push(`${folderPath}/attachments/${file.name}`);
-        });
-      }
-
-      // 4. Delete all collected files
-      if (filesToDelete.length > 0) {
-        const { error: deleteError } = await supabase.storage
-          .from('mails')
-          .remove(filesToDelete);
-
-        if (deleteError) {
-          console.error('Storage delete error:', deleteError);
+    if (listError) {
+      // Log but don't fail if folder doesn't exist (it might be an Outlook email with no storage)
+      console.warn('Warning listing files for deletion:', listError);
+    } else if (files && files.length > 0) {
+      files.forEach(file => {
+        const fullPath = `${folderPath}/${file.name}`;
+        if (!filesToDelete.includes(fullPath)) {
+          filesToDelete.push(fullPath);
         }
+      });
+    }
+
+    // 3. List and delete files in attachments subfolder
+    const { data: attachments, error: attachListError } = await supabase.storage
+      .from('mails')
+      .list(`${folderPath}/attachments`);
+
+    if (!attachListError && attachments && attachments.length > 0) {
+      attachments.forEach(file => {
+        filesToDelete.push(`${folderPath}/attachments/${file.name}`);
+      });
+    }
+
+    // 4. Delete all collected files - throw error if deletion fails
+    if (filesToDelete.length > 0) {
+      const { error: deleteError } = await supabase.storage
+        .from('mails')
+        .remove(filesToDelete);
+
+      if (deleteError) {
+        // Throw error to prevent orphaned database records
+        throw new Error(`Fehler beim Löschen der E-Mail-Dateien: ${deleteError.message}. Die E-Mail wurde nicht gelöscht.`);
       }
-    } catch (storageError) {
-      console.error('Storage cleanup error:', storageError);
     }
 
     // Delete from database (this will trigger the database trigger)

@@ -4,7 +4,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { PlusCircle, Mail, Send, Clock, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
+import { PlusCircle, Mail as MailIcon, Send, Clock, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
 import { MailsTable } from "@/components/mails-table";
 import { MailDetailPanel } from "@/components/mail-detail-panel";
@@ -21,7 +21,7 @@ import {
   type EmailSummary
 } from "@/lib/email-utils";
 import { useRouter } from "next/navigation";
-import type { LegacyMail } from "@/types/Mail";
+import { type LegacyMail, type Mail as DbMail, convertToLegacyMail } from "@/types/Mail";
 import { useToast } from "@/hooks/use-toast";
 
 // Re-export for backward compatibility
@@ -333,35 +333,8 @@ export default function MailsClientView({
       const newMails = await response.json();
       const totalCount = parseInt(response.headers.get('X-Total-Count') || '0', 10);
 
-      // Convert to legacy format with proper status mapping
-      const convertedMails = newMails.map((email: any) => {
-        // Map ordner to status - inbox emails should not have 'archiv' status
-        let status: 'sent' | 'draft' | 'archiv';
-        if (email.ordner === 'sent') {
-          status = 'sent';
-        } else if (email.ordner === 'drafts') {
-          status = 'draft';
-        } else if (email.ordner === 'archive') {
-          status = 'archiv';
-        } else {
-          // For inbox and other folders, use 'sent' as a neutral default
-          // The actual read/unread state is tracked by the 'read' field
-          status = 'sent';
-        }
-
-        return {
-          id: email.id,
-          date: email.datum_erhalten,
-          subject: email.betreff || '(Kein Betreff)',
-          sender: email.absender,
-          status,
-          type: email.ordner === 'inbox' ? 'inbox' as const : 'outbox' as const,
-          hasAttachment: email.hat_anhang,
-          source: email.quelle === 'outlook' ? 'Outlook' as const : email.quelle === 'gmail' ? 'Gmail' as const : 'SMTP' as const,
-          read: email.ist_gelesen,
-          favorite: email.ist_favorit,
-        };
-      });
+      // Convert to legacy format using the centralized conversion function
+      const convertedMails: LegacyMail[] = (newMails as DbMail[]).map(convertToLegacyMail);
 
       if (resetData) {
         // Replace all data when resetting (e.g., after sort change)
@@ -412,7 +385,7 @@ export default function MailsClientView({
         <StatCard
           title="E-Mails Gesamt"
           value={summary.total}
-          icon={<Mail className="h-4 w-4 text-muted-foreground" />}
+          icon={<MailIcon className="h-4 w-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
         />
         <StatCard
