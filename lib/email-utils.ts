@@ -329,15 +329,10 @@ export async function moveEmailToFolder(emailId: string, folder: string) {
  * Deletes the database record and storage files (via trigger)
  */
 export async function deleteEmailPermanently(emailId: string, userId: string) {
-  console.log('=== Starting deleteEmailPermanently ===');
-  console.log('Email ID:', emailId);
-  console.log('User ID:', userId);
-
   const supabase = createClient();
 
   try {
     // First, get the email to verify ownership and get the file path
-    console.log('Step 1: Fetching email metadata...');
     const { data: email, error: fetchError } = await supabase
       .from('Mail_Metadaten')
       .select('dateipfad, user_id')
@@ -346,9 +341,6 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
       .single();
 
     if (fetchError) {
-      console.error('Step 1 FAILED: Error fetching email');
-      console.error('Fetch error details:', fetchError);
-
       // Check if it's a PGRST116 error (no rows returned)
       if (fetchError.code === 'PGRST116') {
         throw new Error('Diese E-Mail existiert nicht in der Datenbank. Möglicherweise handelt es sich um Mock-Daten.');
@@ -358,24 +350,16 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
     }
 
     if (!email) {
-      console.error('Step 1 FAILED: Email not found');
       throw new Error('Diese E-Mail existiert nicht in der Datenbank.');
     }
 
-    console.log('Step 1 SUCCESS: Email found');
-
     // Delete from Storage first (body and attachments)
-    console.log('Step 2: Deleting storage files...');
-    console.log('Storage path:', `${userId}/${emailId}`);
-    console.log('Email dateipfad:', email.dateipfad);
-
     try {
       // Build list of all possible file paths to delete
       const filesToDelete: string[] = [];
 
       // 1. Try to delete the body file directly if we have the path
       if (email.dateipfad) {
-        console.log('Adding body file to delete list:', email.dateipfad);
         filesToDelete.push(email.dateipfad);
       }
 
@@ -385,18 +369,13 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
         .from('mails')
         .list(folderPath);
 
-      if (listError) {
-        console.warn('Storage list error:', listError);
-      } else if (files && files.length > 0) {
-        console.log(`Found ${files.length} files in folder`);
+      if (!listError && files && files.length > 0) {
         files.forEach(file => {
           const fullPath = `${folderPath}/${file.name}`;
           if (!filesToDelete.includes(fullPath)) {
             filesToDelete.push(fullPath);
           }
         });
-      } else {
-        console.log('No files found in main folder');
       }
 
       // 3. List and delete files in attachments subfolder
@@ -405,7 +384,6 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
         .list(`${folderPath}/attachments`);
 
       if (!attachListError && attachments && attachments.length > 0) {
-        console.log(`Found ${attachments.length} attachments`);
         attachments.forEach(file => {
           filesToDelete.push(`${folderPath}/attachments/${file.name}`);
         });
@@ -413,40 +391,19 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
 
       // 4. Delete all collected files
       if (filesToDelete.length > 0) {
-        console.log(`Deleting ${filesToDelete.length} files:`, filesToDelete);
-        const { data: deleteData, error: deleteError } = await supabase.storage
+        const { error: deleteError } = await supabase.storage
           .from('mails')
           .remove(filesToDelete);
 
         if (deleteError) {
           console.error('Storage delete error:', deleteError);
-          console.error('Failed to delete files from storage');
-        } else {
-          console.log('Storage delete response:', deleteData);
-
-          // Verify files were actually deleted by trying to list them again
-          const { data: remainingFiles } = await supabase.storage
-            .from('mails')
-            .list(folderPath);
-
-          if (remainingFiles && remainingFiles.length > 0) {
-            console.warn(`Warning: ${remainingFiles.length} files still remain in storage:`, remainingFiles);
-          } else {
-            console.log('✓ All storage files deleted successfully');
-          }
         }
-      } else {
-        console.log('No files to delete from storage');
       }
     } catch (storageError) {
       console.error('Storage cleanup error:', storageError);
     }
 
-    console.log('Step 2 COMPLETE: Storage cleanup finished');
-
     // Delete from database (this will trigger the database trigger)
-    console.log('Step 3: Deleting from database...');
-
     const { error: dbError } = await supabase
       .from('Mail_Metadaten')
       .delete()
@@ -454,9 +411,6 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
       .eq('user_id', userId);
 
     if (dbError) {
-      console.error('Step 3 FAILED: Database deletion error');
-      console.error('DB error:', dbError);
-
       // Check if it's a 404 (table doesn't exist)
       if (dbError.code === 'PGRST116' || dbError.message?.includes('404')) {
         throw new Error('Tabelle Mail_Metadaten existiert nicht. Bitte führen Sie die Datenbank-Migration aus.');
@@ -465,12 +419,8 @@ export async function deleteEmailPermanently(emailId: string, userId: string) {
       throw new Error(`Fehler beim Löschen aus Datenbank: ${dbError.message || dbError.code || 'Unbekannter Fehler'}`);
     }
 
-    console.log('Step 3 SUCCESS: Database record deleted');
-    console.log('=== deleteEmailPermanently COMPLETE ===');
-
   } catch (error) {
-    console.error('=== deleteEmailPermanently FAILED ===');
-    console.error('Error:', error);
+    console.error('deleteEmailPermanently error:', error);
     throw error;
   }
 }

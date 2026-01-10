@@ -11,6 +11,16 @@ export async function GET(request: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
+  // Validate required environment variables early
+  const clientId = process.env.OUTLOOK_CLIENT_ID
+  const clientSecret = process.env.OUTLOOK_CLIENT_SECRET
+  const redirectUri = process.env.OUTLOOK_REDIRECT_URI
+
+  if (!clientId || !clientSecret || !redirectUri) {
+    console.error("Missing Outlook OAuth environment variables")
+    return NextResponse.redirect(`${appUrl}?outlook_error=server_config_error`)
+  }
+
   if (error) {
     console.error("OAuth error:", error)
     return NextResponse.redirect(`${appUrl}?outlook_error=${error}`)
@@ -33,10 +43,10 @@ export async function GET(request: NextRequest) {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          client_id: process.env.OUTLOOK_CLIENT_ID!,
-          client_secret: process.env.OUTLOOK_CLIENT_SECRET!,
+          client_id: clientId,
+          client_secret: clientSecret,
           code,
-          redirect_uri: process.env.OUTLOOK_REDIRECT_URI!,
+          redirect_uri: redirectUri,
           grant_type: "authorization_code",
         }),
       }
@@ -80,9 +90,9 @@ export async function GET(request: NextRequest) {
 
     // Store tokens and profile in Mail_Accounts table
     const supabase = await createClient()
-    
+
     const email = profile.mail || profile.userPrincipalName
-    
+
     // Check if email already exists for this user
     const { data: existing } = await supabase
       .from("Mail_Accounts")
@@ -92,7 +102,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     let dbError
-    
+
     if (existing) {
       // Update existing record
       const result = await supabase

@@ -378,12 +378,13 @@ const MailSection = () => {
       return
     }
 
-    // Validate email prefix must contain a dot and follow firstname.lastname format
-    const emailRegex = /^[a-z]+\.[a-z]+$/
+    // Validate email prefix must contain a dot and follow a name format
+    // Allows: firstname.lastname, firstname.m.lastname, j.doe, jane-doe.smith, etc.
+    const emailRegex = /^[a-z]+(-[a-z]+)*(\.[a-z]+(-[a-z]+)*)+$/
     if (!emailRegex.test(newMailPrefix)) {
       toast({
         title: "Fehler",
-        description: "Der E-Mail-Präfix muss im Format 'vorname.nachname' sein (nur Kleinbuchstaben und ein Punkt).",
+        description: "Der E-Mail-Präfix muss im Format 'vorname.nachname' sein (Kleinbuchstaben, Punkte und Bindestriche erlaubt).",
         variant: "destructive",
       })
       return

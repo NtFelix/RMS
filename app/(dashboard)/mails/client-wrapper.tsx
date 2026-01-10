@@ -155,7 +155,7 @@ export default function MailsClientView({
       const errorMessage = error instanceof Error ? error.message : 'Fehler beim Löschen';
       toast({ title: errorMessage, variant: 'destructive' });
     }
-  }, [router, userId, selectedMail]);
+  }, [router, userId, selectedMail, toast]);
 
   // Bulk action handlers
   const handleBulkExport = useCallback(() => {
@@ -195,7 +195,7 @@ export default function MailsClientView({
     document.body.removeChild(link);
 
     toast({ title: `${selectedMails.size} E-Mails exportiert` });
-  }, [selectedMails, initialMails]);
+  }, [selectedMails, mailData, toast]);
 
   const handleBulkMarkAsRead = useCallback(async () => {
     try {
@@ -278,11 +278,6 @@ export default function MailsClientView({
       toast({ title: 'Fehler beim Verschieben', variant: 'destructive' });
     }
   }, [selectedMails, router]);
-
-  // Reload data when sort changes
-  useEffect(() => {
-    loadMoreMails(true);
-  }, [sortKey, sortDirection]);
 
   // Filter all mails based on tab and search
   const filteredMails = useMemo(() => {
@@ -375,12 +370,14 @@ export default function MailsClientView({
     } finally {
       setIsLoading(false);
     }
-  }, [page, hasMore, isLoading, mailData.length, sortKey, sortDirection]);
+  }, [page, hasMore, isLoading, mailData.length, sortKey, sortDirection, toast]);
+
+  // Reload data when sort changes
+  useEffect(() => {
+    loadMoreMails(true);
+  }, [sortKey, sortDirection, loadMoreMails]);
 
 
-
-  console.log("activeTab", activeTab);
-  console.log("filteredMails", filteredMails);
 
   const tabs = [
     { id: "inbox", label: "Posteingang", icon: Inbox },

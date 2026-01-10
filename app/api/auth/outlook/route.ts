@@ -5,10 +5,10 @@ export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
-  
+
   // Check if user is authenticated
   const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
+
   if (authError || !user) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const clientId = process.env.OUTLOOK_CLIENT_ID
   const tenantId = process.env.OUTLOOK_TENANT_ID
   const redirectUri = process.env.OUTLOOK_REDIRECT_URI
-  
+
   if (!clientId || !tenantId || !redirectUri) {
     return NextResponse.json(
       { error: "Outlook OAuth configuration missing" },
@@ -39,13 +39,16 @@ export async function GET(request: NextRequest) {
   ].join(" ")
 
   // Use 'common' endpoint for multi-tenant apps that support all Microsoft accounts
-  const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
-    `client_id=${clientId}` +
-    `&response_type=code` +
-    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&response_mode=query` +
-    `&scope=${encodeURIComponent(scopes)}` +
-    `&state=${state}`
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'code',
+    redirect_uri: redirectUri,
+    response_mode: 'query',
+    scope: scopes,
+    state: state,
+  })
+
+  const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`
 
   return NextResponse.redirect(authUrl)
 }
