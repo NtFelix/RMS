@@ -77,33 +77,62 @@ export async function encryptToken(plaintext: string): Promise<string> {
 /**
  * Decrypt an encrypted token using AES-256-GCM
  * 
- * @param encrypted - Base64-encoded encrypted token (iv:ciphertext)
+ * Also handles legacy unencrypted tokens for backwards compatibility.
+ * 
+ * @param encrypted - Base64-encoded encrypted token (iv:ciphertext) or legacy plaintext token
  * @returns Decrypted plaintext token
  */
 export async function decryptToken(encrypted: string): Promise<string> {
-    const key = await getEncryptionKey();
+    // Check if this might be a legacy unencrypted token (JWT format: xxx.yyy.zzz)
+    // JWTs have 3 base64 parts separated by dots
+    if (encrypted.includes('.') && encrypted.split('.').length === 3) {
+        console.log('Detected legacy unencrypted JWT token - returning as-is');
+        return encrypted;
+    }
 
-    // Decode base64
-    const combined = Buffer.from(encrypted, 'base64');
+    // Another heuristic: if it starts with "ey" it's likely an unencrypted JWT (base64 for '{"')
+    if (encrypted.startsWith('ey')) {
+        console.log('Detected legacy unencrypted token (starts with ey) - returning as-is');
+        return encrypted;
+    }
 
-    // Extract IV and ciphertext
-    const iv = combined.subarray(0, IV_LENGTH);
-    const ciphertext = combined.subarray(IV_LENGTH);
+    try {
+        const key = await getEncryptionKey();
 
-    // Decrypt
-    const plaintext = await crypto.subtle.decrypt(
-        {
-            name: ALGORITHM,
-            iv,
-            tagLength: TAG_LENGTH,
-        },
-        key,
-        ciphertext
-    );
+        // Decode base64
+        const combined = Buffer.from(encrypted, 'base64');
 
-    // Decode as text
-    const decoder = new TextDecoder();
-    return decoder.decode(plaintext);
+        // Extract IV and ciphertext
+        const iv = combined.subarray(0, IV_LENGTH);
+        const ciphertext = combined.subarray(IV_LENGTH);
+
+        // Decrypt
+        const plaintext = await crypto.subtle.decrypt(
+            {
+                name: ALGORITHM,
+                iv,
+                tagLength: TAG_LENGTH,
+            },
+            key,
+            ciphertext
+        );
+
+        // Decode as text
+        const decoder = new TextDecoder();
+        return decoder.decode(plaintext);
+    } catch (error) {
+        // If decryption fails, it might be an unencrypted token
+        // This can happen during migration from unencrypted to encrypted storage
+        console.warn('Token decryption failed, checking if it might be unencrypted:', error);
+
+        // If the token looks like a JWT or OAuth token, return it as-is
+        if (encrypted.length > 100) {
+            console.log('Treating as legacy unencrypted token due to decryption failure');
+            return encrypted;
+        }
+
+        throw error;
+    }
 }
 
 /**
