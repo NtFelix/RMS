@@ -44,64 +44,36 @@ async function getEncryptionKey(): Promise<CryptoKey> {
  * 
  * @param encrypted - Base64-encoded encrypted token (iv + ciphertext)
  * @returns Decrypted plaintext token
+ * @throws Error if decryption fails
  */
 export async function decryptToken(encrypted: string): Promise<string> {
-    // Check if this might be a legacy unencrypted token (JWT format: xxx.yyy.zzz)
-    // JWTs have 3 base64 parts separated by dots
-    if (encrypted.includes('.') && encrypted.split('.').length === 3) {
-        console.log('Detected legacy unencrypted JWT token - returning as-is')
-        return encrypted
+    const key = await getEncryptionKey()
+
+    // Decode base64 - Deno uses atob
+    const combinedString = atob(encrypted)
+    const combined = new Uint8Array(combinedString.length)
+    for (let i = 0; i < combinedString.length; i++) {
+        combined[i] = combinedString.charCodeAt(i)
     }
 
-    // Another heuristic: encrypted tokens are base64 and should decode to binary
-    // If it's a very long base64 string without dots, it's likely our encrypted format
-    // If it starts with "ey" it's likely an unencrypted JWT (base64 for '{"')
-    if (encrypted.startsWith('ey')) {
-        console.log('Detected legacy unencrypted token (starts with ey) - returning as-is')
-        return encrypted
-    }
+    // Extract IV and ciphertext
+    const iv = combined.slice(0, IV_LENGTH)
+    const ciphertext = combined.slice(IV_LENGTH)
 
-    try {
-        const key = await getEncryptionKey()
+    // Decrypt
+    const plaintext = await crypto.subtle.decrypt(
+        {
+            name: ALGORITHM,
+            iv,
+            tagLength: TAG_LENGTH,
+        },
+        key,
+        ciphertext
+    )
 
-        // Decode base64 - Deno uses atob
-        const combinedString = atob(encrypted)
-        const combined = new Uint8Array(combinedString.length)
-        for (let i = 0; i < combinedString.length; i++) {
-            combined[i] = combinedString.charCodeAt(i)
-        }
-
-        // Extract IV and ciphertext
-        const iv = combined.slice(0, IV_LENGTH)
-        const ciphertext = combined.slice(IV_LENGTH)
-
-        // Decrypt
-        const plaintext = await crypto.subtle.decrypt(
-            {
-                name: ALGORITHM,
-                iv,
-                tagLength: TAG_LENGTH,
-            },
-            key,
-            ciphertext
-        )
-
-        // Decode as text
-        const decoder = new TextDecoder()
-        return decoder.decode(plaintext)
-    } catch (error) {
-        // If decryption fails, it might be an unencrypted token
-        // This can happen during migration from unencrypted to encrypted storage
-        console.warn('Token decryption failed, checking if it might be unencrypted:', error)
-
-        // If the token looks like a JWT or OAuth token, return it as-is
-        if (encrypted.length > 100) {
-            console.log('Treating as legacy unencrypted token due to decryption failure')
-            return encrypted
-        }
-
-        throw error
-    }
+    // Decode as text
+    const decoder = new TextDecoder()
+    return decoder.decode(plaintext)
 }
 
 /**
