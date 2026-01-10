@@ -7,6 +7,7 @@ import {
   sanitizeAttributes,
   type ActionResult
 } from './logger.ts'
+import { decryptToken, encryptToken } from './encryption.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -22,6 +23,9 @@ const refreshTokenAction = withLogging(
   async (supabase: any, account: any, accountId: string): Promise<ActionResult<string>> => {
     const tenantEndpoint = account.provider_tenant_id || 'common'
 
+    // Decrypt the refresh token before using it
+    const decryptedRefreshToken = await decryptToken(account.refresh_token_encrypted)
+
     const tokenResponse = await fetch(
       `https://login.microsoftonline.com/${tenantEndpoint}/oauth2/v2.0/token`,
       {
@@ -32,7 +36,7 @@ const refreshTokenAction = withLogging(
         body: new URLSearchParams({
           client_id: outlookClientId,
           client_secret: outlookClientSecret,
-          refresh_token: account.refresh_token_encrypted,
+          refresh_token: decryptedRefreshToken,
           grant_type: 'refresh_token',
           scope: 'openid profile email offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read',
         }),
@@ -52,15 +56,22 @@ const refreshTokenAction = withLogging(
 
     const tokens = await tokenResponse.json()
 
+    // Encrypt tokens before storing
+    const encryptedAccessToken = await encryptToken(tokens.access_token)
+    const encryptedRefreshToken = tokens.refresh_token
+      ? await encryptToken(tokens.refresh_token)
+      : account.refresh_token_encrypted // Keep existing if not returned
+
     await supabase
       .from('Mail_Accounts')
       .update({
-        access_token_encrypted: tokens.access_token,
-        refresh_token_encrypted: tokens.refresh_token || account.refresh_token_encrypted,
+        access_token_encrypted: encryptedAccessToken,
+        refresh_token_encrypted: encryptedRefreshToken,
         token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       })
       .eq('id', accountId)
 
+    // Return the plaintext access token for immediate use
     return {
       success: true,
       data: tokens.access_token,
@@ -70,7 +81,8 @@ const refreshTokenAction = withLogging(
 )
 
 async function getAccessToken(supabase: any, account: any, accountId: string): Promise<string> {
-  let accessToken = account.access_token_encrypted
+  // Decrypt the stored access token
+  let accessToken = await decryptToken(account.access_token_encrypted)
   const tokenExpiresAt = account.token_expires_at ? new Date(account.token_expires_at) : null
   const now = new Date()
 
@@ -90,6 +102,7 @@ async function getAccessToken(supabase: any, account: any, accountId: string): P
       throw new Error(result.error?.message || 'Token refresh failed')
     }
 
+    // refreshTokenAction returns plaintext access token
     accessToken = result.data
 
     logAction('getAccessToken', 'success', {

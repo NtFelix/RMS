@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8'
+import { decryptToken, encryptToken } from './encryption.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -18,6 +19,9 @@ async function refreshToken(supabase: any, account: any, accountId: string) {
   // Use the stored tenant ID, or 'common' if not available
   const tenantEndpoint = account.provider_tenant_id || 'common'
 
+  // Decrypt the refresh token before using it
+  const decryptedRefreshToken = await decryptToken(account.refresh_token_encrypted)
+
   const tokenResponse = await fetch(
     `https://login.microsoftonline.com/${tenantEndpoint}/oauth2/v2.0/token`,
     {
@@ -28,7 +32,7 @@ async function refreshToken(supabase: any, account: any, accountId: string) {
       body: new URLSearchParams({
         client_id: outlookClientId,
         client_secret: outlookClientSecret,
-        refresh_token: account.refresh_token_encrypted,
+        refresh_token: decryptedRefreshToken,
         grant_type: 'refresh_token',
         scope: 'openid profile email offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read',
       }),
@@ -43,17 +47,24 @@ async function refreshToken(supabase: any, account: any, accountId: string) {
 
   const tokens = await tokenResponse.json()
 
+  // Encrypt tokens before storing
+  const encryptedAccessToken = await encryptToken(tokens.access_token)
+  const encryptedRefreshToken = tokens.refresh_token
+    ? await encryptToken(tokens.refresh_token)
+    : account.refresh_token_encrypted // Keep existing if not returned
+
   // Update tokens in database
   await supabase
     .from('Mail_Accounts')
     .update({
-      access_token_encrypted: tokens.access_token,
-      refresh_token_encrypted: tokens.refresh_token || account.refresh_token_encrypted,
+      access_token_encrypted: encryptedAccessToken,
+      refresh_token_encrypted: encryptedRefreshToken,
       token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
     })
     .eq('id', accountId)
 
   console.log('Token refreshed successfully')
+  // Return the plaintext access token for immediate use
   return tokens.access_token
 }
 
@@ -158,7 +169,8 @@ Deno.serve(async (req) => {
     }
 
     // Get access token (refresh if needed)
-    let accessToken = account.access_token_encrypted
+    // Decrypt the stored access token
+    let accessToken = await decryptToken(account.access_token_encrypted)
     const tokenExpiresAt = account.token_expires_at ? new Date(account.token_expires_at) : null
     const now = new Date()
 
