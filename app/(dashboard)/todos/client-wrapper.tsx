@@ -186,27 +186,25 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
         </div>
 
         <CardContent className="flex flex-col gap-6">
-          {/* Search */}
-          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
-            <div className="flex justify-center sm:justify-start">
-              <SearchInput
-                placeholder="Aufgaben suchen..."
-                className="rounded-full"
-                wrapperClassName="w-full sm:w-72"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onClear={() => setSearchQuery("")}
-              />
-            </div>
-          </div>
+
 
           {/* Calendar and Sidebar Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
             {/* Sidebar */}
             <div className="order-2 lg:order-1 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 h-fit lg:max-h-[calc(100vh-350px)] overflow-hidden flex flex-col">
-              <div className="flex items-center gap-2 mb-4 shrink-0">
-                <List className="h-5 w-5 text-muted-foreground" />
-                <h3 className="font-medium">Aufgabenliste</h3>
+              <div className="flex flex-col gap-4 mb-4 shrink-0">
+                <div className="flex items-center gap-2">
+                  <List className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="font-medium">Aufgabenliste</h3>
+                </div>
+                <SearchInput
+                  placeholder="Aufgaben suchen..."
+                  className="rounded-full"
+                  wrapperClassName="w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onClear={() => setSearchQuery("")}
+                />
               </div>
               <div className="overflow-y-auto flex-1 -mr-2 pr-2">
                 <TaskSidebar
