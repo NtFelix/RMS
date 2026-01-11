@@ -330,7 +330,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
           </div>
         </div>
       )}
-      <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <div className="overflow-x-auto -mx-4 sm:mx-0 min-h-[600px]">
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
@@ -357,7 +357,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
             <TableBody>
               {sortedAndFilteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-[400px] text-center">
                     Keine Wohnungen gefunden.
                   </TableCell>
                 </TableRow>
