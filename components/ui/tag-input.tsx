@@ -181,7 +181,13 @@ export function TagInput({
                     </div>
                 </div>
 
-                <div className="max-h-[350px] overflow-y-auto p-3 space-y-5 custom-scrollbar">
+                <div
+                    className="max-h-[350px] overflow-y-auto p-3 space-y-5 custom-scrollbar"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onWheel={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
+                >
                     {filteredCategories.length === 0 ? (
                         <div className="py-10 text-center space-y-2">
                             <div className="inline-flex p-3 rounded-full bg-muted/50 text-muted-foreground">
