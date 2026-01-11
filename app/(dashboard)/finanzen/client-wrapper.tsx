@@ -634,7 +634,7 @@ export default function FinanzenClientWrapper({
           <div className="flex flex-col gap-4 mt-4 sm:mt-6">
             {/* Filter Controls */}
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full md:flex-1">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 w-full md:flex-1">
                 <CustomCombobox
                   options={apartmentOptions}
                   value={filters.selectedApartment}
