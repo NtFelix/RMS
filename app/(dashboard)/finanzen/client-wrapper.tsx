@@ -681,11 +681,7 @@ export default function FinanzenClientWrapper({
                   onClear={() => handleFilterChange('searchQuery', '')}
                 />
               </div>
-              <div className="flex items-center gap-2 md:flex-shrink-0">
-                <ResponsiveButtonWithTooltip variant="outline" onClick={handleExportCsv} icon={<Download className="h-4 w-4" />} shortText="Exportieren">
-                  Als CSV exportieren
-                </ResponsiveButtonWithTooltip>
-              </div>
+
             </div>
 
             <FinanceBulkActionBar
