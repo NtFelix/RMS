@@ -119,14 +119,14 @@ export function TagInput({
                     )}
                     disabled={disabled}
                 >
-                    <div className="flex flex-wrap gap-1 flex-1 text-left">
+                    <div className="flex items-center gap-1 flex-1 text-left overflow-hidden">
                         {value.length === 0 ? (
                             <span className="text-muted-foreground font-normal">{placeholder}</span>
                         ) : (
-                            <AnimatePresence mode="popLayout">
-                                {value.map((tag) => (
+                            <div className="flex items-center gap-1 overflow-hidden">
+                                <AnimatePresence mode="popLayout">
                                     <motion.div
-                                        key={tag}
+                                        key={value[0]}
                                         layout
                                         initial={{ scale: 0.8, opacity: 0 }}
                                         animate={{ scale: 1, opacity: 1 }}
@@ -134,18 +134,22 @@ export function TagInput({
                                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
                                     >
                                         <Badge
-                                            key={tag}
                                             variant="secondary"
-                                            className="mr-1 mb-0.5 cursor-pointer hover:bg-secondary/80 flex items-center gap-1 h-6"
-                                            onClick={(e) => handleRemoveTag(tag, e)}
+                                            className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1 h-6 max-w-[120px]"
+                                            onClick={(e) => handleRemoveTag(value[0], e)}
                                         >
-                                            <Hash className="h-3 w-3 opacity-50" />
-                                            <span>{tag}</span>
-                                            <X className="h-3 w-3" />
+                                            <Hash className="h-3 w-3 opacity-50 flex-shrink-0" />
+                                            <span className="truncate">{value[0]}</span>
+                                            <X className="h-3 w-3 flex-shrink-0" />
                                         </Badge>
                                     </motion.div>
-                                ))}
-                            </AnimatePresence>
+                                </AnimatePresence>
+                                {value.length > 1 && (
+                                    <Badge variant="outline" className="h-6 px-2 flex-shrink-0">
+                                        +{value.length - 1}
+                                    </Badge>
+                                )}
+                            </div>
                         )}
                     </div>
                     <div className="flex items-center gap-1 ml-2 flex-shrink-0">
