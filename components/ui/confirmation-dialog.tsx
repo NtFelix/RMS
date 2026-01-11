@@ -44,6 +44,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
+        className="sm:max-w-lg"
         // We don't want this confirmation dialog to trigger another confirmation
         isDirty={false}
         onPointerDownOutside={(e) => e.preventDefault()} // Prevent closing on click outside by default for this specific dialog
