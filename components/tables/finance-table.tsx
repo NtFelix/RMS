@@ -27,6 +27,7 @@ interface Finanz {
   ist_einnahmen: boolean;
   notiz?: string;
   dokument_id?: string | null;
+  tags?: string[] | null;
   Wohnungen?: { name: string };
 }
 

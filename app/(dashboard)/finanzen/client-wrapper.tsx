@@ -15,6 +15,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/common/stat-card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { CustomCombobox } from "@/components/ui/custom-combobox";
+import { TagInput, ALL_FINANCE_TAGS } from "@/components/ui/tag-input";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -29,6 +30,7 @@ interface Finanz {
   betrag: number;
   ist_einnahmen: boolean;
   notiz?: string;
+  tags?: string[] | null;
   Wohnungen?: { name: string };
 }
 
@@ -93,6 +95,7 @@ export default function FinanzenClientWrapper({
     selectedApartment: 'Alle Wohnungen',
     selectedYear: 'Alle Jahre',
     selectedType: 'Alle Transaktionen',
+    selectedTags: [] as string[],
     sortKey: 'datum',
     sortDirection: 'desc'
   });
@@ -134,6 +137,11 @@ export default function FinanzenClientWrapper({
         sortKey: filtersRef.current.sortKey,
         sortDirection: filtersRef.current.sortDirection
       });
+
+      // Add selected tags as a comma-separated list
+      if (filtersRef.current.selectedTags.length > 0) {
+        params.set('selectedTags', filtersRef.current.selectedTags.join(','));
+      }
 
       const response = await fetch(`/api/finanzen?${params.toString()}`);
       if (!response.ok) {
@@ -471,7 +479,7 @@ export default function FinanzenClientWrapper({
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [filters.selectedApartment, filters.selectedYear, filters.selectedType, filters.sortKey, filters.sortDirection, debouncedSearchQuery]);
+  }, [filters.selectedApartment, filters.selectedYear, filters.selectedType, filters.selectedTags, filters.sortKey, filters.sortDirection, debouncedSearchQuery]);
 
 
   return (
@@ -658,6 +666,13 @@ export default function FinanzenClientWrapper({
                   emptyText="Kein Typ gefunden"
                   width="w-full"
                 />
+                <div className="col-span-1 sm:col-span-2 md:col-span-1">
+                  <TagInput
+                    value={filters.selectedTags}
+                    onChange={(tags) => setFilters({ ...filters, selectedTags: tags })}
+                    placeholder="Tags filtern..."
+                  />
+                </div>
                 <SearchInput
                   placeholder="Transaktion suchen..."
                   wrapperClassName="col-span-1 sm:col-span-2 md:col-span-1"
