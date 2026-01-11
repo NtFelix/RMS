@@ -16,6 +16,7 @@ interface FinanzInput {
   ist_einnahmen: boolean;
   notiz?: string | null;
   dokument_id?: string | null;
+  tags?: string[] | null;
 }
 
 export async function financeServerAction(id: string | null, data: FinanzInput): Promise<{ success: boolean; error?: any; data?: any }> {
