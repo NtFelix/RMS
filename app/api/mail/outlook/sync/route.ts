@@ -6,9 +6,9 @@ export const runtime = 'edge';
 export async function POST() {
   try {
     const supabase = await createClient()
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -28,9 +28,9 @@ export async function POST() {
     if (accountError || !account) {
       console.error("Account lookup error:", accountError)
       return NextResponse.json(
-        { 
+        {
           error: "No Outlook account connected",
-          details: accountError?.message 
+          details: accountError?.message
         },
         { status: 404 }
       )
@@ -39,20 +39,20 @@ export async function POST() {
     console.log("Found Outlook account:", account.id)
 
     // Call edge function directly via Supabase Functions
-    console.log("Calling sync-outlook-emails edge function...")
-    const { data, error } = await supabase.functions.invoke('sync-outlook-emails', {
+    console.log("Calling queue-outlook-sync edge function...")
+    const { data, error } = await supabase.functions.invoke('queue-outlook-sync', {
       body: {
         accountId: account.id,
         userId: user.id,
       },
     })
-    
+
     console.log("Edge function response:", { data, error })
 
     if (error) {
       console.error("Edge function error:", error)
       return NextResponse.json(
-        { 
+        {
           error: "Failed to start sync",
           details: error.message || error.toString(),
           data: data
@@ -65,7 +65,7 @@ export async function POST() {
     if (data?.error) {
       console.error("Edge function returned error:", data)
       return NextResponse.json(
-        { 
+        {
           error: data.error,
           details: data.details,
           requiresReauth: data.requiresReauth || false
