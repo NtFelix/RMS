@@ -23,6 +23,7 @@ import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { cn } from '@/lib/utils'
 import { SettingsModal } from '@/components/modals/settings-modal'
 import { createClient } from '@/utils/supabase/client'
+import { ROUTES } from '@/lib/constants'
 
 // Touch interaction debounce utility
 const useDebouncedCallback = (callback: (...args: any[]) => void, delay: number) => {
@@ -253,7 +254,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     {
       id: 'home',
       title: 'Home',
-      href: '/dashboard',
+      href: ROUTES.HOME,
       icon: BarChart3
     },
     {

@@ -3,6 +3,7 @@
 import React, { useState, createContext, useContext, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import AuthModal from "@/components/auth/auth-modal";
+import { ROUTES } from "@/lib/constants";
 
 // Define the context type
 interface AuthModalContextType {
@@ -69,7 +70,7 @@ function AuthModalProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (authIntent === 'get-started') {
-            router.push('/dashboard');
+            router.push(ROUTES.HOME);
           } else {
             // For regular login (Anmelden button), stay on current page
             router.refresh();

@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/navigation';
 import AuthModalProvider, { useAuthModal } from './auth-modal-provider';
+import { ROUTES } from '@/lib/constants';
 
 // Mock dependencies
 jest.mock('next/navigation', () => ({
@@ -147,7 +148,7 @@ describe('AuthModalProvider - Jetzt loslegen Feature', () => {
 
       await waitFor(() => {
         expect(window.sessionStorage.removeItem).toHaveBeenCalledWith('authIntent');
-        expect(mockRouter.push).toHaveBeenCalledWith('/dashboard');
+        expect(mockRouter.push).toHaveBeenCalledWith(ROUTES.HOME);
       });
     });
 
@@ -169,7 +170,7 @@ describe('AuthModalProvider - Jetzt loslegen Feature', () => {
       await user.click(authenticateButton);
 
       await waitFor(() => {
-        expect(mockRouter.push).not.toHaveBeenCalledWith('/dashboard');
+        expect(mockRouter.push).not.toHaveBeenCalledWith(ROUTES.HOME);
         expect(mockRouter.refresh).toHaveBeenCalled();
       });
     });
