@@ -266,7 +266,6 @@ export function CustomCombobox({
                     if (!option.disabled) {
                       onChange(option.value === value ? null : option.value)
                       closeCombobox()
-                      buttonRef.current?.focus()
                     }
                   }}
                   onMouseEnter={() => handleOptionMouseEnter(index)}
