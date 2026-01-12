@@ -10,14 +10,17 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state")
   const error = searchParams.get("error")
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  // Dynamically derive app URL from the request - no env variable needed
+  const appUrl = request.nextUrl.origin
+
+  // Dynamically derive redirect URI from the request URL
+  const redirectUri = `${appUrl}/api/auth/outlook/callback`
 
   // Validate required environment variables early
   const clientId = process.env.OUTLOOK_CLIENT_ID
   const clientSecret = process.env.OUTLOOK_CLIENT_SECRET
-  const redirectUri = process.env.OUTLOOK_REDIRECT_URI
 
-  if (!clientId || !clientSecret || !redirectUri) {
+  if (!clientId || !clientSecret) {
     console.error("Missing Outlook OAuth environment variables")
     return NextResponse.redirect(`${appUrl}?outlook_error=server_config_error`)
   }
