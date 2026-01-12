@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/client'
 import { toast } from '@/hooks/use-toast'
 import { TenantBentoItem } from '@/types/tenant-payment'
 import { getLatestNebenkostenAmount } from '@/utils/tenant-payment-calculations'
-import { PAYMENT_KEYWORDS } from '@/utils/constants'
+import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from '@/utils/constants'
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -110,15 +110,26 @@ export function useTenantPayments() {
                     variant: "default",
                 })
             } else {
-                // Create payment entries
-                const entries = [
+                // Create payment entries with auto-applied tags
+                interface PaymentEntry {
+                    wohnung_id: string
+                    name: string
+                    datum: string
+                    betrag: number
+                    ist_einnahmen: boolean
+                    notiz: string
+                    tags: string[]
+                }
+
+                const entries: PaymentEntry[] = [
                     {
                         wohnung_id: tenant.apartmentId,
                         name: `${capitalize(PAYMENT_KEYWORDS.RENT)} ${tenant.apartment}`,
                         datum: new Date().toISOString().split('T')[0],
                         betrag: tenant.mieteRaw,
                         ist_einnahmen: true,
-                        notiz: `${capitalize(PAYMENT_KEYWORDS.RENT)} von ${tenant.tenant}`
+                        notiz: `${capitalize(PAYMENT_KEYWORDS.RENT)} von ${tenant.tenant}`,
+                        tags: [PAYMENT_TAGS.RENT]
                     }
                 ]
 
@@ -129,7 +140,8 @@ export function useTenantPayments() {
                         datum: new Date().toISOString().split('T')[0],
                         betrag: tenant.nebenkostenRaw,
                         ist_einnahmen: true,
-                        notiz: `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)}-Vorauszahlung von ${tenant.tenant}`
+                        notiz: `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)}-Vorauszahlung von ${tenant.tenant}`,
+                        tags: [PAYMENT_TAGS.NEBENKOSTEN]
                     })
                 }
 

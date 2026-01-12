@@ -11,6 +11,7 @@ interface FinanceEntry {
   datum: string
   ist_einnahmen?: boolean
   notiz?: string
+  tags?: string[]
 }
 
 export async function POST(request: Request) {
