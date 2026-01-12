@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { CheckCircle2, XCircle, AlertCircle, Loader2, ArrowRight, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ROUTES } from '@/lib/constants';
 
 type VerificationStatus = 'idle' | 'loading' | 'success' | 'error' | 'not_verified';
 
@@ -208,7 +209,7 @@ export default function SuccessContent() {
           {verificationStatus === 'success' ? (
             <>
               <Button asChild className="flex-1" size="lg">
-                <Link href="/home">
+                <Link href={ROUTES.HOME}>
                   Zum Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>

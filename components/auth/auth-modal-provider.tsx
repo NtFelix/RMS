@@ -3,6 +3,7 @@
 import React, { useState, createContext, useContext, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import AuthModal from "@/components/auth/auth-modal";
+import { ROUTES } from "@/lib/constants";
 
 // Define the context type
 interface AuthModalContextType {
@@ -67,9 +68,9 @@ function AuthModalProvider({ children }: { children: React.ReactNode }) {
           } catch (e) {
             console.warn('SessionStorage not available');
           }
-          
+
           if (authIntent === 'get-started') {
-            router.push('/home');
+            router.push(ROUTES.HOME);
           } else {
             // For regular login (Anmelden button), stay on current page
             router.refresh();

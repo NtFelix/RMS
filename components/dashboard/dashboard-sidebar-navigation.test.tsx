@@ -25,7 +25,7 @@ const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>
 
 describe('DashboardSidebar Navigation', () => {
   beforeEach(() => {
-    mockUsePathname.mockReturnValue('/home')
+    mockUsePathname.mockReturnValue('/dashboard')
   })
 
   afterEach(() => {
@@ -63,7 +63,7 @@ describe('DashboardSidebar Navigation', () => {
   })
 
   it('applies inactive styling to non-current routes', () => {
-    mockUsePathname.mockReturnValue('/home')
+    mockUsePathname.mockReturnValue('/dashboard')
     render(<DashboardSidebar />)
 
     const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
@@ -78,13 +78,13 @@ describe('DashboardSidebar Navigation', () => {
     const navTexts = navLinks.map(link => link.textContent)
 
     // Filter out the logo link and get only navigation items
-    const navigationTexts = navTexts.filter(text => 
+    const navigationTexts = navTexts.filter(text =>
       text && !text.includes('Property Manager')
     )
 
     expect(navigationTexts).toEqual([
       'Dashboard',
-      'Häuser', 
+      'Häuser',
       'Wohnungen',
       'Mieter',
       'Finanzen',
@@ -99,7 +99,7 @@ describe('DashboardSidebar Navigation', () => {
 
     const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
     expect(cloudStorageLink).toBeInTheDocument()
-    
+
     // Check that the link is properly accessible
     expect(cloudStorageLink).toHaveAttribute('href', '/dateien')
   })

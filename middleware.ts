@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
 import { createServerClient } from "@supabase/ssr"
+import { ROUTES } from "@/lib/constants"
 
 
 export async function middleware(request: NextRequest) {
@@ -68,7 +69,7 @@ export async function middleware(request: NextRequest) {
 
   // If the user is authenticated and trying to access auth routes (except login), redirect to home
   if (sessionUser && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
-    return NextResponse.redirect(new URL('/home', request.url))
+    return NextResponse.redirect(new URL(ROUTES.HOME, request.url))
   }
 
   // Subscription check
