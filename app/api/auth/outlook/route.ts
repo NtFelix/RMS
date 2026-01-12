@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
+import { ROUTES } from "@/lib/constants"
 
 export const runtime = 'edge';
 
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   // Dynamically derive redirect URI from the request URL
   const origin = request.nextUrl.origin
-  const redirectUri = `${origin}/api/auth/outlook/callback`
+  const redirectUri = `${origin}${ROUTES.API_OUTLOOK_CALLBACK}`
 
   // Store user ID in state parameter for callback
   const state = Buffer.from(JSON.stringify({ userId: user.id })).toString("base64")

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
 import { encryptToken } from "@/lib/encryption"
+import { ROUTES } from "@/lib/constants"
 
 export const runtime = 'edge';
 
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
   const appUrl = request.nextUrl.origin
 
   // Dynamically derive redirect URI from the request URL
-  const redirectUri = `${appUrl}/api/auth/outlook/callback`
+  const redirectUri = `${appUrl}${ROUTES.API_OUTLOOK_CALLBACK}`
 
   // Validate required environment variables early
   const clientId = process.env.OUTLOOK_CLIENT_ID
