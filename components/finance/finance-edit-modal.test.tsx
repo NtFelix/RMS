@@ -23,24 +23,24 @@ const mockToast = toast as jest.MockedFunction<typeof toast>;
 describe('FinanceEditModal', () => {
   // Suppress React act() warnings - these are expected in modal tests
   const originalError = console.error;
-  
+
   beforeAll(() => {
     console.error = jest.fn((message) => {
       if (
-        typeof message === 'string' && 
-        (message.includes('Warning: An update to') || 
-         message.includes('not wrapped in act'))
+        typeof message === 'string' &&
+        (message.includes('Warning: An update to') ||
+          message.includes('not wrapped in act'))
       ) {
         return;
       }
       originalError(message);
     });
   });
-  
+
   afterAll(() => {
     console.error = originalError;
   });
-  
+
   const mockServerAction = jest.fn();
   const mockCloseFinanceModal = jest.fn();
   const mockSetFinanceModalDirty = jest.fn();
@@ -211,6 +211,8 @@ describe('FinanceEditModal', () => {
           wohnung_id: null,
           datum: null,
           notiz: null,
+          dokument_id: null,
+          tags: null,
         });
       });
     });
@@ -247,6 +249,8 @@ describe('FinanceEditModal', () => {
           wohnung_id: initialData.wohnung_id,
           datum: initialData.datum,
           notiz: initialData.notiz,
+          dokument_id: null,
+          tags: null,
         });
       });
     });

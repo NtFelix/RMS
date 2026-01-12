@@ -17,6 +17,7 @@ import { formatCurrency } from "@/utils/format"
 import { toggleFinanceStatusAction } from "@/app/finanzen-actions"
 
 import { ActionMenu } from "@/components/ui/action-menu"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Finanz {
   id: string;
@@ -27,6 +28,7 @@ interface Finanz {
   ist_einnahmen: boolean;
   notiz?: string;
   dokument_id?: string | null;
+  tags?: string[] | null;
   Wohnungen?: { name: string };
 }
 
@@ -399,7 +401,7 @@ export function FinanceTable({
           </div>
         </div>
       )}
-      <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <div className="overflow-x-auto -mx-4 sm:mx-0 min-h-[600px]">
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
@@ -424,29 +426,38 @@ export function FinanceTable({
             </TableHeader>
             <TableBody>
               {isFilterLoading && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="relative">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <div className="absolute inset-0 h-8 w-8 rounded-full border-2 border-primary/20 animate-pulse"></div>
+                Array.from({ length: 10 }).map((_, i) => (
+                  <TableRow key={`skeleton-${i}`}>
+                    <TableCell className="w-12 py-4">
+                      <Skeleton className="h-4 w-4 rounded" />
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 rounded-full" />
+                        <Skeleton className="h-4 w-32" />
                       </div>
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                          <Filter className="h-4 w-4 text-primary" />
-                          Filter werden angewendet
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Transaktionen werden gefiltert und sortiert...
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </TableCell>
+                    <TableCell className="py-4 pr-2 text-right">
+                      <Skeleton className="h-8 w-10 ml-auto rounded-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
               {!isFilterLoading && sortedData.length === 0 && !isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-16">
+                  <TableCell colSpan={7} className="text-center h-[400px]">
                     <div className="flex flex-col items-center gap-4">
                       <div className="relative">
                         <Database className="h-12 w-12 text-muted-foreground/40" />
