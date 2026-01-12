@@ -36,7 +36,7 @@ import {
 
 // Navigation dropdown items
 const produkteItems = [
-  { name: "Web-Anwendung", href: "/home", icon: LayoutDashboard, description: "Die Web-Anwendung" },
+  { name: "Web-Anwendung", href: "/dashboard", icon: LayoutDashboard, description: "Die Web-Anwendung" },
   { name: "Browser-Erweiterung", href: "/warteliste/browser-erweiterung", icon: Package, description: "Demnächst verfügbar" },
   { name: "Mobile App", href: "/warteliste/mobile-app", icon: Phone, description: "Demnächst verfügbar" },
 ]
@@ -437,7 +437,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         </div>
                         <DropdownMenuSeparator className="my-2" />
                         <DropdownMenuItem asChild className="px-3 py-2 rounded-xl group">
-                          <Link href="/home" className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
+                          <Link href="/dashboard" className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
                             <LayoutDashboard className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
                             <span>Dashboard</span>
                           </Link>
@@ -446,7 +446,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           className="px-3 py-2 rounded-xl group hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90 cursor-pointer"
                           onClick={() => {
                             // Navigate to dashboard first
-                            window.location.href = '/home';
+                            window.location.href = '/dashboard';
                             // Then open settings after a small delay to ensure navigation completes
                             setTimeout(() => {
                               setIsSettingsOpen(true);
@@ -596,7 +596,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         </div>
                       </div>
                       <Button asChild variant="outline" className="w-full">
-                        <Link href="/home">
+                        <Link href="/dashboard">
                           <LayoutDashboard className="w-4 h-4 mr-2" />
                           Dashboard
                         </Link>

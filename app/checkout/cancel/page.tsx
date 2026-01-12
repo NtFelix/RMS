@@ -19,7 +19,7 @@ export default function CheckoutCancelPage() {
         <Link href="/preise">View Subscription Options</Link>
       </Button>
       <Button variant="link" asChild className="mt-4">
-        <Link href="/home">Back to Dashboard</Link>
+        <Link href="/dashboard">Back to Dashboard</Link>
       </Button>
     </div>
   );

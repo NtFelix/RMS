@@ -68,7 +68,7 @@ export async function middleware(request: NextRequest) {
 
   // If the user is authenticated and trying to access auth routes (except login), redirect to home
   if (sessionUser && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
-    return NextResponse.redirect(new URL('/home', request.url))
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   // Subscription check

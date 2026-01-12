@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { 
-  BarChart3, 
-  Users, 
-  Search as SearchIcon, 
-  Wallet, 
+import {
+  BarChart3,
+  Users,
+  Search as SearchIcon,
+  Wallet,
   Menu,
   Building2,
   Home,
@@ -27,7 +27,7 @@ import { createClient } from '@/utils/supabase/client'
 // Touch interaction debounce utility
 const useDebouncedCallback = (callback: (...args: any[]) => void, delay: number) => {
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
-  
+
   return useCallback((...args: any[]) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
@@ -63,11 +63,11 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   const { isRouteActive } = useSidebarActiveState()
   const { setOpen: setCommandMenuOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
-  
+
   // Hydration safety - prevent SSR/client mismatch
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  
+
   // Local state for dropdown management
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [focusedItemIndex, setFocusedItemIndex] = useState(-1)
@@ -75,15 +75,15 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   const dropdownRef = useRef<HTMLDivElement>(null)
   const moreButtonRef = useRef<HTMLButtonElement>(null)
   const dropdownItemRefs = useRef<(HTMLAnchorElement | null)[]>([])
-  
+
   // Screen reader announcement state
   const [announcement, setAnnouncement] = useState('')
-  
+
   // Touch interaction states for enhanced feedback
   const [touchedItem, setTouchedItem] = useState<string | null>(null)
   const [isNavigating, setIsNavigating] = useState(false)
   const navigationTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
-  
+
   // Touch event tracking for better mobile interactions
   const [touchStartTime, setTouchStartTime] = useState(0)
   const [touchStartPosition, setTouchStartPosition] = useState({ x: 0, y: 0 })
@@ -92,43 +92,43 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   useEffect(() => {
     // Set mounted to true to prevent hydration mismatches
     setMounted(true)
-    
+
     // Check initial screen size
     const checkScreenSize = () => {
       const newIsMobile = window.innerWidth < 768
       setIsMobile(newIsMobile)
       return newIsMobile
     }
-    
+
     // Set initial state
     checkScreenSize()
-    
+
     // Add resize listener for responsive behavior with debouncing
     let resizeTimeout: NodeJS.Timeout
     const handleResize = () => {
       clearTimeout(resizeTimeout)
       resizeTimeout = setTimeout(() => {
         const newIsMobile = checkScreenSize()
-        
+
         // Close dropdown when switching from mobile to desktop
         if (!newIsMobile && isDropdownOpen) {
           setIsDropdownOpen(false)
           setAnnouncement('Navigation switched to desktop mode.')
         }
-        
+
         // Announce responsive behavior changes
         if (newIsMobile !== isMobile) {
           setAnnouncement(
-            newIsMobile 
-              ? 'Switched to mobile navigation.' 
+            newIsMobile
+              ? 'Switched to mobile navigation.'
               : 'Switched to desktop navigation.'
           )
         }
       }, 150) // Debounce resize events
     }
-    
+
     window.addEventListener('resize', handleResize, { passive: true })
-    
+
     return () => {
       window.removeEventListener('resize', handleResize)
       clearTimeout(resizeTimeout)
@@ -138,10 +138,10 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   // Debounced navigation handler to prevent rapid navigation attempts
   const debouncedNavigate = useDebouncedCallback((callback: () => void) => {
     if (isNavigating) return
-    
+
     setIsNavigating(true)
     callback()
-    
+
     // Reset navigation state after a short delay
     if (navigationTimeoutRef.current) {
       clearTimeout(navigationTimeoutRef.current)
@@ -164,20 +164,20 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   const handleTouchEnd = useCallback((itemId: string, event: React.TouchEvent) => {
     const touchEndTime = Date.now()
     const touchDuration = touchEndTime - touchStartTime
-    
+
     // Only trigger if it's a quick tap (not a long press or drag)
     if (touchDuration < 500) {
       const touchEndPosition = {
         x: event.changedTouches[0].clientX,
         y: event.changedTouches[0].clientY
       }
-      
+
       // Check if touch didn't move too much (not a swipe)
       const touchDistance = Math.sqrt(
         Math.pow(touchEndPosition.x - touchStartPosition.x, 2) +
         Math.pow(touchEndPosition.y - touchStartPosition.y, 2)
       )
-      
+
       if (touchDistance < 10) {
         // Valid tap - provide haptic feedback if available
         if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
@@ -189,7 +189,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         }
       }
     }
-    
+
     // Always provide haptic feedback for valid touch end events
     if (touchDuration < 500 && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
       try {
@@ -198,7 +198,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         // Silently fail if vibration is not supported
       }
     }
-    
+
     // Clear touched state after a short delay for visual feedback
     setTimeout(() => {
       setTouchedItem(null)
@@ -215,7 +215,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       const newState = !isDropdownOpen
       setIsDropdownOpen(newState)
       setFocusedItemIndex(-1)
-      
+
       // Announce state change to screen readers
       if (newState) {
         setAnnouncement('More menu opened. Use arrow keys to navigate.')
@@ -253,7 +253,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
     {
       id: 'home',
       title: 'Home',
-      href: '/home',
+      href: '/dashboard',
       icon: BarChart3
     },
     {
@@ -293,7 +293,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   const handleLogout = async () => {
     setIsDropdownOpen(false)
     setAnnouncement('Logging out...')
-    
+
     try {
       const supabase = createClient()
       const { error } = await supabase.auth.signOut()
@@ -366,17 +366,17 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   const dropdownRoutes = dropdownItems
     .filter(item => item.href && !item.onClick) // Only include link items, not button items
     .map(item => item.href!)
-  
+
   // Check if any dropdown route is active to highlight "More" button
   const isMoreActive = dropdownRoutes.some(route => isRouteActive(route))
-  
+
   // Get visible dropdown items for keyboard navigation
   const visibleDropdownItems = dropdownItems.filter(item => !item.hidden)
-  
+
   // Keyboard navigation handler for dropdown
   const handleDropdownKeyDown = useCallback((event: KeyboardEvent) => {
     if (!isDropdownOpen) return
-    
+
     switch (event.key) {
       case 'Escape':
         event.preventDefault()
@@ -384,38 +384,38 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         setAnnouncement('More menu closed.')
         moreButtonRef.current?.focus()
         break
-        
+
       case 'ArrowDown':
         event.preventDefault()
-        const nextIndex = focusedItemIndex < visibleDropdownItems.length - 1 
-          ? focusedItemIndex + 1 
+        const nextIndex = focusedItemIndex < visibleDropdownItems.length - 1
+          ? focusedItemIndex + 1
           : 0
         setFocusedItemIndex(nextIndex)
         dropdownItemRefs.current[nextIndex]?.focus()
         break
-        
+
       case 'ArrowUp':
         event.preventDefault()
-        const prevIndex = focusedItemIndex > 0 
-          ? focusedItemIndex - 1 
+        const prevIndex = focusedItemIndex > 0
+          ? focusedItemIndex - 1
           : visibleDropdownItems.length - 1
         setFocusedItemIndex(prevIndex)
         dropdownItemRefs.current[prevIndex]?.focus()
         break
-        
+
       case 'Home':
         event.preventDefault()
         setFocusedItemIndex(0)
         dropdownItemRefs.current[0]?.focus()
         break
-        
+
       case 'End':
         event.preventDefault()
         const lastIndex = visibleDropdownItems.length - 1
         setFocusedItemIndex(lastIndex)
         dropdownItemRefs.current[lastIndex]?.focus()
         break
-        
+
       case 'Tab':
         // Allow normal tab behavior but close dropdown
         setIsDropdownOpen(false)
@@ -423,17 +423,17 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         break
     }
   }, [isDropdownOpen, focusedItemIndex, visibleDropdownItems.length])
-  
+
   // Handle navigation item selection with debouncing
   const handleNavigationSelect = useCallback((itemTitle: string, callback?: () => void) => {
     if (isNavigating) return
-    
+
     setIsNavigating(true)
     setAnnouncement(`Navigating to ${itemTitle}.`)
-    
+
     // Execute callback immediately for better UX
     callback?.()
-    
+
     // Reset navigation state after delay
     setTimeout(() => {
       setIsNavigating(false)
@@ -444,7 +444,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
       if (
-        dropdownRef.current && 
+        dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
         moreButtonRef.current &&
         !moreButtonRef.current.contains(event.target as Node)
@@ -464,7 +464,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       }
     }
   }, [isDropdownOpen])
-  
+
   // Keyboard navigation event listener
   useEffect(() => {
     if (isDropdownOpen) {
@@ -474,7 +474,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       }
     }
   }, [isDropdownOpen, handleDropdownKeyDown])
-  
+
   // Clear announcement after it's been read
   useEffect(() => {
     if (announcement) {
@@ -499,7 +499,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/50 shadow-lg shadow-black/5 mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
         role="navigation"
         aria-label="Main mobile navigation"
-        style={{ 
+        style={{
           // CSS-only fallback - ensure proper responsive behavior
           display: 'block',
           // Safe area support with balanced padding
@@ -559,8 +559,8 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
           aria-label="More navigation options"
           aria-orientation="vertical"
           aria-activedescendant={
-            focusedItemIndex >= 0 
-              ? `dropdown-item-${visibleDropdownItems[focusedItemIndex]?.id}` 
+            focusedItemIndex >= 0
+              ? `dropdown-item-${visibleDropdownItems[focusedItemIndex]?.id}`
               : undefined
           }
         >
@@ -569,7 +569,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
               const IconComponent = item.icon
               const isActive = item.href ? isRouteActive(item.href) : false
               const isFocused = index === focusedItemIndex
-              
+
               // Handle button items (like profile)
               if (item.onClick) {
                 return (
@@ -606,7 +606,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                       tabIndex={0}
                       aria-label={`Open ${item.title}`}
                     >
-                      <IconComponent 
+                      <IconComponent
                         className={cn(
                           "w-5 h-5 mr-3 transition-all duration-300 ease-out",
                           // Icon styling exactly identical to link items (no active state for buttons)
@@ -630,7 +630,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   </div>
                 )
               }
-              
+
               // Handle link items
               return (
                 <div key={item.id}>
@@ -659,8 +659,8 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                       // Enhanced touch feedback
                       touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
                       // Active state styling - mobile optimized without scaling
-                      isActive 
-                        ? "bg-primary/10 text-primary shadow-sm" 
+                      isActive
+                        ? "bg-primary/10 text-primary shadow-sm"
                         : "text-foreground hover:bg-accent/10",
                       // Focus state styling - mobile optimized without scaling
                       isFocused && !isActive && "bg-accent/5"
@@ -670,7 +670,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     aria-current={isActive ? "page" : undefined}
                     aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
                   >
-                    <IconComponent 
+                    <IconComponent
                       className={cn(
                         "w-5 h-5 mr-3 transition-all duration-300 ease-out",
                         isActive && "text-primary",
@@ -693,22 +693,22 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 </div>
               )
             })}
-            
+
 
           </div>
         </div>
       )}
 
       {/* Screen reader announcements */}
-      <div 
-        className="sr-only" 
-        aria-live="polite" 
+      <div
+        className="sr-only"
+        aria-live="polite"
         aria-atomic="true"
         role="status"
       >
         {announcement}
       </div>
-      
+
       {/* Hidden description for More button */}
       <div id="more-button-description" className="sr-only">
         Opens additional navigation options. Use arrow keys to navigate when open.
@@ -743,7 +743,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
         <div className="flex items-center justify-around px-1 h-16">
           {primaryNavItems.map((item) => {
             const IconComponent = item.icon
-            
+
             // Determine if this item is active
             let isActive = false
             if (item.href) {
@@ -752,7 +752,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
               // Special case: "More" button is active if any dropdown route is active
               isActive = isMoreActive
             }
-            
+
             // Handle "More" button separately due to ref requirement
             if (item.id === 'more') {
               return (
@@ -774,8 +774,8 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     // Enhanced touch feedback
                     touchedItem === item.id && "scale-95 bg-accent/20",
                     // Active state styling - mobile optimized without scaling
-                    isActive 
-                      ? "bg-primary/10 text-primary shadow-sm" 
+                    isActive
+                      ? "bg-primary/10 text-primary shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/10",
                     // Special styling when dropdown is open
                     isDropdownOpen && "bg-primary/15 text-primary",
@@ -789,7 +789,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   aria-controls={isDropdownOpen ? "more-dropdown-menu" : undefined}
                   aria-describedby="more-button-description"
                 >
-                  <IconComponent 
+                  <IconComponent
                     className={cn(
                       "w-5 h-5 mb-1 transition-all duration-300 ease-out",
                       isActive && "",
@@ -807,7 +807,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                 </button>
               )
             }
-            
+
             // If item has href, render as Link, otherwise as button
             if (item.href) {
               return (
@@ -834,8 +834,8 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     // Enhanced touch feedback
                     touchedItem === item.id && "scale-95 bg-accent/20",
                     // Active state styling matching desktop navigation
-                    isActive 
-                      ? "bg-primary/10 text-primary shadow-sm" 
+                    isActive
+                      ? "bg-primary/10 text-primary shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
                     // Disabled state for navigation debouncing
                     isNavigating && "opacity-70 pointer-events-none"
@@ -843,7 +843,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <IconComponent 
+                  <IconComponent
                     className={cn(
                       "w-5 h-5 mb-1 transition-all duration-300 ease-out",
                       isActive && ""
@@ -881,8 +881,8 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     // Enhanced touch feedback
                     touchedItem === item.id && "scale-95 bg-accent/20",
                     // Active state styling matching desktop navigation
-                    isActive 
-                      ? "bg-primary/10 text-primary shadow-sm" 
+                    isActive
+                      ? "bg-primary/10 text-primary shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
                     // Disabled state for navigation debouncing
                     isNavigating && "opacity-70 pointer-events-none"
@@ -890,7 +890,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                   aria-label={`${item.title}${item.id === 'search' ? ' - Open search' : ''}${isActive ? ' (current page)' : ''}`}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <IconComponent 
+                  <IconComponent
                     className={cn(
                       "w-5 h-5 mb-1 transition-all duration-300 ease-out",
                       isActive && ""

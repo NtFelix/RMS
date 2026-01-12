@@ -48,7 +48,7 @@ const navigationItems = [
   },
   {
     title: "Dashboard",
-    href: "/home",
+    href: "/dashboard",
     icon: BarChart3,
   },
   {

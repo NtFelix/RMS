@@ -7,7 +7,7 @@ import { LOGO_URL } from "@/lib/constants"
 const quickLinks = [
   {
     title: "Dashboard",
-    href: "/home",
+    href: "/dashboard",
     icon: Home,
     description: "Zurück zur Übersicht"
   },

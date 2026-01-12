@@ -23,7 +23,7 @@ export default function robots(): MetadataRoute.Robots {
                     '/auth/update-password/',
                     '/auth/callback/',
                     // Private dashboard pages
-                    '/home/',
+                    '/dashboard/',
                     '/haeuser/',
                     '/wohnungen/',
                     '/mieter/',

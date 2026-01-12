@@ -20,7 +20,7 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 const sidebarNavItems = [
   {
     title: "Dashboard",
-    href: "/home",
+    href: "/dashboard",
     icon: BarChart3,
   },
   {
@@ -368,7 +368,7 @@ function SidebarContent({
                         id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
                         onClick={() => {
                           setIsOpen(false)
-                          if (item.href === '/home') {
+                          if (item.href === '/dashboard') {
                             useOnboardingStore.getState().completeStep('overview-open')
                           }
                         }}

@@ -67,9 +67,9 @@ function AuthModalProvider({ children }: { children: React.ReactNode }) {
           } catch (e) {
             console.warn('SessionStorage not available');
           }
-          
+
           if (authIntent === 'get-started') {
-            router.push('/home');
+            router.push('/dashboard');
           } else {
             // For regular login (Anmelden button), stay on current page
             router.refresh();

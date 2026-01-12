@@ -68,7 +68,7 @@ export const ROUTES = {
   // API - OAuth callbacks
   API_OUTLOOK_CALLBACK: '/api/auth/outlook/callback',
   // Dashboard
-  HOME: '/home',
+  HOME: '/dashboard',
   PROPERTIES: '/objekte',
   TENANTS: '/mieter',
   FINANCES: '/finanzen',

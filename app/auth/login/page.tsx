@@ -26,7 +26,7 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
-  const redirect = redirectParam || "/home"
+  const redirect = redirectParam || "/dashboard"
 
   const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
   const isMicrosoftLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MICROSOFT_SOCIAL_LOGIN)

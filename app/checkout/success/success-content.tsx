@@ -208,7 +208,7 @@ export default function SuccessContent() {
           {verificationStatus === 'success' ? (
             <>
               <Button asChild className="flex-1" size="lg">
-                <Link href="/home">
+                <Link href="/dashboard">
                   Zum Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>

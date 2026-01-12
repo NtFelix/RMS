@@ -319,7 +319,7 @@ function LandingPageContent() {
 
   const handleGetStarted = async () => {
     if (sessionUser) {
-      router.push('/home');
+      router.push('/dashboard');
     } else {
       // Store intent to redirect to dashboard after login
       try {
