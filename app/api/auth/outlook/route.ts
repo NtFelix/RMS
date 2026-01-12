@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
+import { ROUTES } from "@/lib/constants"
 
 export const runtime = 'edge';
 
@@ -15,14 +16,17 @@ export async function GET(request: NextRequest) {
 
   const clientId = process.env.OUTLOOK_CLIENT_ID
   const tenantId = process.env.OUTLOOK_TENANT_ID
-  const redirectUri = process.env.OUTLOOK_REDIRECT_URI
 
-  if (!clientId || !tenantId || !redirectUri) {
+  if (!clientId || !tenantId) {
     return NextResponse.json(
       { error: "Outlook OAuth configuration missing" },
       { status: 500 }
     )
   }
+
+  // Dynamically derive redirect URI from the request URL
+  const origin = request.nextUrl.origin
+  const redirectUri = `${origin}${ROUTES.API_OUTLOOK_CALLBACK}`
 
   // Store user ID in state parameter for callback
   const state = Buffer.from(JSON.stringify({ userId: user.id })).toString("base64")
