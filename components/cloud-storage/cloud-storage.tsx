@@ -23,6 +23,8 @@ import { useNavigation } from "@/lib/navigation-controller"
 import { CloudStorageQuickActions } from "@/components/cloud-storage/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage/cloud-storage-item-card"
 import { DocumentsSummaryCards } from "@/components/common/documents-summary-cards"
+import { useStorageUsage } from "@/hooks/use-storage-usage"
+import { useUserProfile } from "@/hooks/use-user-profile"
 
 interface CloudStorageProps {
     userId: string
@@ -31,6 +33,7 @@ interface CloudStorageProps {
     initialPath?: string
     initialBreadcrumbs?: BreadcrumbItem[]
     initialTotalSize?: number
+    initialStorageLimit?: number | null
 }
 
 type ViewMode = 'grid' | 'list'
@@ -51,11 +54,18 @@ export function CloudStorage({
     initialFolders = [],
     initialPath = `user_${userId}`,
     initialBreadcrumbs = [],
-    initialTotalSize = 0
+    initialTotalSize = 0,
+    initialStorageLimit
 }: CloudStorageProps) {
     const router = useRouter()
     const { toast } = useToast()
     const { openUploadModal, openCreateFolderModal, openCreateFileModal } = useModalStore()
+
+    // Get current user for storage usage hook
+    const { user } = useUserProfile()
+
+    // Get storage limit from subscription
+    const { limit: storageLimit, isLoading: isLoadingLimit } = useStorageUsage(user, initialTotalSize)
 
     // Centralized navigation management
     const {
@@ -532,6 +542,8 @@ export function CloudStorage({
             {/* Summary Cards Container */}
             <DocumentsSummaryCards
                 totalSize={totalFileSize}
+                storageLimit={storageLimit ?? initialStorageLimit}
+                isLoadingLimit={isLoadingLimit}
                 onUpload={handleUploadWithFiles}
                 onCreateFolder={handleCreateFolder}
             />
@@ -562,6 +574,12 @@ export function CloudStorage({
                             selectedCount={selectedItems.size}
                             onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
                             onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
+                            isUploadDisabled={storageLimit === 0 || (storageLimit !== undefined && totalFileSize >= storageLimit)}
+                            storageDisabledMessage={
+                                storageLimit === 0
+                                    ? "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif."
+                                    : "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif."
+                            }
                         />
 
                         {/* Breadcrumb Navigation */}

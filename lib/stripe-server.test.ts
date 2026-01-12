@@ -5,7 +5,7 @@
 // Mock Stripe before importing
 jest.mock('stripe');
 
-import { getPlanDetails } from './stripe-server';
+import { getPlanDetails, parseStorageString } from './stripe-server';
 import { STRIPE_API_VERSION } from './constants/stripe';
 import Stripe from 'stripe';
 
@@ -87,7 +87,8 @@ describe('lib/stripe-server', () => {
         interval: null,
         interval_count: null,
         features: ['Feature 1', 'Feature 2', 'Feature 3'],
-        limitWohnungen: 10
+        limitWohnungen: 10,
+        storageLimit: 0
       });
     });
 
@@ -163,6 +164,69 @@ describe('lib/stripe-server', () => {
       mockStripe.mockImplementation(() => mockStripeInstance as any);
 
       await expect(getPlanDetails(null as any)).rejects.toThrow('Invalid price ID');
+    });
+  });
+
+  describe('parseStorageString', () => {
+    it('should parse bytes correctly', () => {
+      expect(parseStorageString('100 B')).toBe(100);
+      expect(parseStorageString('1B')).toBe(1);
+    });
+
+    it('should parse kilobytes correctly', () => {
+      expect(parseStorageString('1 KB')).toBe(1024);
+      expect(parseStorageString('2KB')).toBe(2048);
+    });
+
+    it('should parse megabytes correctly', () => {
+      expect(parseStorageString('1 MB')).toBe(1048576);
+      expect(parseStorageString('100 MB')).toBe(104857600);
+    });
+
+    it('should parse gigabytes correctly', () => {
+      expect(parseStorageString('1 GB')).toBe(1073741824);
+      expect(parseStorageString('10 GB')).toBe(10737418240);
+    });
+
+    it('should parse terabytes correctly', () => {
+      expect(parseStorageString('1 TB')).toBe(1099511627776);
+    });
+
+    it('should handle decimal values', () => {
+      expect(parseStorageString('1.5 GB')).toBe(1610612736);
+      expect(parseStorageString('0.5 MB')).toBe(524288);
+    });
+
+    it('should be case insensitive', () => {
+      expect(parseStorageString('1 gb')).toBe(1073741824);
+      expect(parseStorageString('1 Gb')).toBe(1073741824);
+      expect(parseStorageString('1 GB')).toBe(1073741824);
+    });
+
+    it('should return 0 for missing/null/undefined values (no storage access)', () => {
+      expect(parseStorageString('')).toBe(0);
+      expect(parseStorageString(null)).toBe(0);
+      expect(parseStorageString(undefined)).toBe(0);
+    });
+
+    it('should return 0 for invalid formats (no storage access)', () => {
+      expect(parseStorageString('invalid')).toBe(0);
+      expect(parseStorageString('100')).toBe(0);
+      expect(parseStorageString('GB')).toBe(0);
+    });
+
+    it('should return 0 for "Nicht enthalten" and similar values', () => {
+      expect(parseStorageString('Nicht enthalten')).toBe(0);
+      expect(parseStorageString('nicht enthalten')).toBe(0);
+      expect(parseStorageString('false')).toBe(0);
+      expect(parseStorageString('no')).toBe(0);
+      expect(parseStorageString('none')).toBe(0);
+      expect(parseStorageString('-')).toBe(0);
+      expect(parseStorageString('0')).toBe(0);
+    });
+
+    it('should return 0 for negative values', () => {
+      expect(parseStorageString('-1 GB')).toBe(0);
     });
   });
 });
