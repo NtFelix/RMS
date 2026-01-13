@@ -67,6 +67,8 @@ export const ROUTES = {
   UPDATE_PASSWORD: '/auth/update-password',
   // API - OAuth callbacks
   API_OUTLOOK_CALLBACK: '/api/auth/outlook/callback',
+  // Onboarding
+  ONBOARDING_SUBSCRIPTION: '/onboarding/subscription',
   // Dashboard
   HOME: '/dashboard',
   PROPERTIES: '/objekte',

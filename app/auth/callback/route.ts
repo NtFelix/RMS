@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
 import { logApiRoute } from "@/lib/logging-middleware"
 import { capturePostHogEvent } from "@/lib/posthog-helpers"
+import { ROUTES } from "@/lib/constants"
 
 export const runtime = 'edge'
 
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
 
       // Redirect based on whether this is a new user or returning user
       // New users go to subscription onboarding, returning users go to dashboard
-      redirectUrl.pathname = isNewUser ? '/onboarding/subscription' : '/dashboard'
+      redirectUrl.pathname = isNewUser ? ROUTES.ONBOARDING_SUBSCRIPTION : ROUTES.HOME
     }
 
     return NextResponse.redirect(redirectUrl.toString())
