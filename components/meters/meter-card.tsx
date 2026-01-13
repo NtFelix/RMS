@@ -32,7 +32,7 @@ import {
     Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { motion, AnimatePresence } from "framer-motion"
+import { m, AnimatePresence } from "framer-motion"
 import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types"
 
 // Types
@@ -198,7 +198,7 @@ export function MeterCard({
                 <AnimatePresence mode="wait">
                     {isEditing && editingMeter ? (
                         // Edit Mode
-                        <motion.div
+                        <m.div
                             key="edit"
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -280,10 +280,10 @@ export function MeterCard({
                                     />
                                 </div>
                             </div>
-                        </motion.div>
+                        </m.div>
                     ) : (
                         // View Mode
-                        <motion.div
+                        <m.div
                             key="view"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -349,7 +349,7 @@ export function MeterCard({
                             {/* Information Grid */}
                             <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {/* Zählerstand */}
-                                <motion.div
+                                <m.div
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.3, delay: 0.1 }}
@@ -370,10 +370,10 @@ export function MeterCard({
                                             </p>
                                         )}
                                     </div>
-                                </motion.div>
+                                </m.div>
 
                                 {/* Eichungsdatum */}
-                                <motion.div
+                                <m.div
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.3, delay: 0.2 }}
@@ -390,10 +390,10 @@ export function MeterCard({
                                             )}
                                         </p>
                                     </div>
-                                </motion.div>
+                                </m.div>
 
                                 {/* Letzte Ablesung */}
-                                <motion.div
+                                <m.div
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.3, delay: 0.3 }}
@@ -414,7 +414,7 @@ export function MeterCard({
                                             </p>
                                         )}
                                     </div>
-                                </motion.div>
+                                </m.div>
                             </div>
 
                             {/* Footer */}
@@ -424,7 +424,7 @@ export function MeterCard({
                                     <span>Erstellt am {formatDate(zaehler.erstellungsdatum)}</span>
                                 </div>
                             </div>
-                        </motion.div>
+                        </m.div>
                     )}
                 </AnimatePresence>
             </CardContent>

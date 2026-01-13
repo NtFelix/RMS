@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { m } from "framer-motion"
 import {
   Sparkles, ListTodo, FileText, Download, ShieldCheck,
   FolderOpen, FileSpreadsheet, History, CheckCircle2, Server
@@ -173,7 +173,7 @@ export default function FeatureSections() {
         <div className="max-w-7xl mx-auto">
           {/* Section Header */}
           <div className="text-center w-full max-w-3xl mx-auto mb-16 sm:mb-24">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -182,9 +182,9 @@ export default function FeatureSections() {
             >
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-primary">Mehr Features</span>
-            </motion.div>
+            </m.div>
 
-            <motion.h2
+            <m.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -192,9 +192,9 @@ export default function FeatureSections() {
               className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent"
             >
               Tools für Profis
-            </motion.h2>
+            </m.h2>
 
-            <motion.p
+            <m.p
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -204,13 +204,13 @@ export default function FeatureSections() {
               Über die reinen Verwaltungsfunktionen hinaus bietet Mietevo Ihnen Werkzeuge,
               <br className="hidden sm:inline" />
               die Ihren Arbeitsalltag spürbar erleichtern.
-            </motion.p>
+            </m.p>
           </div>
 
           {/* Bento Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
             {features.map((feature, index) => (
-              <motion.div
+              <m.div
                 key={feature.title}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -243,7 +243,7 @@ export default function FeatureSections() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>

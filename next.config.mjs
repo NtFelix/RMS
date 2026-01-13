@@ -1,4 +1,9 @@
 import { withPostHogConfig } from "@posthog/nextjs-config";
+import bundleAnalyzer from "@next/bundle-analyzer";
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -28,6 +33,14 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
+    // Optimize barrel file imports for better tree-shaking
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'framer-motion',
+      '@radix-ui/react-icons',
+      'date-fns',
+    ],
   },
   webpack: (config, { webpack }) => {
     // Stub and ignore 'ws' module in all builds
@@ -48,8 +61,8 @@ const nextConfig = {
   },
 };
 
-export default withPostHogConfig(nextConfig, {
+export default withBundleAnalyzer(withPostHogConfig(nextConfig, {
   personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY,
   envId: process.env.POSTHOG_ENV_ID,
   host: process.env.POSTHOG_HOST,
-});
+}));

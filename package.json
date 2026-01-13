@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build --no-lint",
+    "analyze": "ANALYZE=true next build --no-lint",
     "start": "next start",
     "lint": "next lint",
     "test": "NODE_ENV=test jest",
@@ -104,6 +105,7 @@
     "zustand": "latest"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.1.1",
     "@playwright/test": "^1.57.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",

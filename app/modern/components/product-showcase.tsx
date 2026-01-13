@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { m, AnimatePresence } from "framer-motion"
 import { Sparkles, Home, Receipt, BarChart3, Maximize2, X } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -52,7 +52,7 @@ export default function ProductShowcase() {
             <div className="max-w-[90rem] mx-auto relative">
                 {/* Section Header */}
                 <div className="text-center w-full max-w-3xl mx-auto mb-16 sm:mb-20 relative z-10">
-                    <motion.div
+                    <m.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -61,9 +61,9 @@ export default function ProductShowcase() {
                     >
                         <Sparkles className="w-4 h-4 text-primary" />
                         <span className="text-sm font-medium text-primary">Plattform</span>
-                    </motion.div>
+                    </m.div>
 
-                    <motion.h2
+                    <m.h2
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -71,11 +71,11 @@ export default function ProductShowcase() {
                         className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent"
                     >
                         Entdecken Sie die Funktionen
-                    </motion.h2>
+                    </m.h2>
                 </div>
 
                 {/* Component Container */}
-                <motion.div
+                <m.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
@@ -160,7 +160,7 @@ export default function ProductShowcase() {
                                 />
 
                                 <AnimatePresence mode="wait">
-                                    <motion.div
+                                    <m.div
                                         key={selectedFeature.id}
                                         initial={{ opacity: 0, scale: 0.98, filter: "blur(4px)" }}
                                         animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
@@ -195,7 +195,7 @@ export default function ProductShowcase() {
                                                 />
                                             )}
                                         </div>
-                                    </motion.div>
+                                    </m.div>
                                 </AnimatePresence>
 
                                 {/* Maximize Button - appears on hover */}
@@ -210,13 +210,13 @@ export default function ProductShowcase() {
 
                         </div>
                     </div>
-                </motion.div>
+                </m.div>
             </div>
 
             {/* Fullscreen Lightbox Modal */}
             <AnimatePresence>
                 {isFullscreen && (
-                    <motion.div
+                    <m.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -234,7 +234,7 @@ export default function ProductShowcase() {
                         </button>
 
                         {/* Fullscreen Image */}
-                        <motion.div
+                        <m.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
@@ -265,13 +265,13 @@ export default function ProductShowcase() {
                                     unoptimized
                                 />
                             )}
-                        </motion.div>
+                        </m.div>
 
                         {/* Feature Title Overlay */}
                         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
                             <span className="text-white font-medium">{selectedFeature.title}</span>
                         </div>
-                    </motion.div>
+                    </m.div>
                 )}
             </AnimatePresence>
         </section>

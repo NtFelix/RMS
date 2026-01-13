@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { m } from "framer-motion"
 import { ClipboardList, TrendingUp, Euro } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -29,7 +29,7 @@ export default function MoreFeatures() {
   return (
     <section className="py-24 px-4 bg-background text-foreground">
       <div className="max-w-7xl mx-auto">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
@@ -42,11 +42,11 @@ export default function MoreFeatures() {
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Entdecken Sie weitere leistungsstarke Werkzeuge, die Ihnen die Verwaltung erleichtern.
           </p>
-        </motion.div>
+        </m.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {moreFeatures.map((feature, index) => (
-            <motion.div
+            <m.div
               key={index}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -68,7 +68,7 @@ export default function MoreFeatures() {
                   <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
           ))}
         </div>
       </div>

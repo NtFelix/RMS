@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect } from "react"
-import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionTemplate, AnimatePresence } from "framer-motion"
+import { m, useScroll, useTransform, useSpring, useMotionValue, useMotionTemplate, AnimatePresence } from "framer-motion"
 import {
   Sparkles, Shield, Zap, Check, ChevronRight, Play, Star,
   Calendar, FileCheck, ArrowRight,
@@ -128,7 +128,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
       className="relative min-h-[110vh] flex flex-col items-center justify-start overflow-hidden bg-background pt-32 pb-40 px-6 transition-colors duration-500"
     >
       {/* --- DYNAMIC SPOTLIGHT BACKGROUND --- */}
-      <motion.div
+      <m.div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{ background: spotlight }}
       />
@@ -146,7 +146,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
       <div className="relative z-10 w-full max-w-[1400px] mx-auto flex flex-col items-center text-center">
 
         {/* Updated Trust Pill (Reverted Text) */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6 }}
@@ -161,10 +161,10 @@ export default function Hero({ onGetStarted }: HeroProps) {
             </span>
             <ArrowRight size={14} className="text-muted-foreground group-hover:translate-x-1 group-hover:text-primary transition-all" />
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Updated Main Title (Reverted Text) */}
-        <motion.div style={{ opacity, scale }} className="mb-14 max-w-5xl">
+        <m.div style={{ opacity, scale }} className="mb-14 max-w-5xl">
           <h1 className="text-6xl sm:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-foreground mb-8">
             Abrechnung. <br />
             <span className="relative inline-block z-10">
@@ -176,20 +176,20 @@ export default function Hero({ onGetStarted }: HeroProps) {
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed font-medium">
             Verabschieden Sie sich von Excel. Erstellen Sie Ihre Nebenkostenabrechnungen in <span className="text-foreground border-b-2 border-primary/30">Rekordzeit.</span>
           </p>
-        </motion.div>
+        </m.div>
 
         {/* CTA */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="flex flex-col sm:flex-row items-center gap-6 mb-28"
         >
           <CallToAction variant="hero" onGetStarted={onGetStarted} />
-        </motion.div>
+        </m.div>
 
         {/* --- THE REALISTIC APP MOCKUP --- */}
-        <motion.div
+        <m.div
           style={{
             y,
             rotateX,
@@ -237,7 +237,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
               {/* STAGE 1: INPUT COST (Belege) */}
               <AnimatePresence mode="wait">
                 {stage === "input" && (
-                  <motion.div
+                  <m.div
                     key="input"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.5 }}
@@ -259,7 +259,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                         { icon: Droplets, label: "Wasserbetriebe", date: "15.01.2024", amount: "1.820,00 €" },
                         { icon: Trash2, label: "BSR Müllabfuhr", date: "01.02.2024", amount: "840,00 €" },
                       ].map((item, i) => (
-                        <motion.div
+                        <m.div
                           key={item.label}
                           initial={{ x: -20, opacity: 0 }}
                           animate={{ x: 0, opacity: 1 }}
@@ -276,26 +276,26 @@ export default function Hero({ onGetStarted }: HeroProps) {
                             </div>
                           </div>
                           <div className="text-sm font-bold tabular-nums">{item.amount}</div>
-                        </motion.div>
+                        </m.div>
                       ))}
                     </div>
 
                     {/* Continue Button */}
                     <div className="absolute bottom-8 inset-x-0 flex justify-center">
-                      <motion.button
+                      <m.button
                         animate={clickedButton === "input-next" ? { scale: 0.9, opacity: 0.9 } : { scale: 1, opacity: 1 }}
                         transition={{ duration: 0.1 }}
                         className="px-6 py-3 bg-foreground text-background text-xs font-bold uppercase rounded-xl hover:bg-foreground/90 transition-colors flex items-center gap-2"
                       >
                         Weiter <ArrowRightCircle size={16} />
-                      </motion.button>
+                      </m.button>
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
 
                 {/* STAGE 2: KEYS DISTRIBUTION */}
                 {stage === "keys" && (
-                  <motion.div
+                  <m.div
                     key="keys"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.5 }}
@@ -342,20 +342,20 @@ export default function Hero({ onGetStarted }: HeroProps) {
 
                     {/* Continue Button */}
                     <div className="absolute bottom-8 inset-x-0 flex justify-center">
-                      <motion.button
+                      <m.button
                         animate={clickedButton === "keys-next" ? { scale: 0.9, opacity: 0.9 } : { scale: 1, opacity: 1 }}
                         transition={{ duration: 0.1 }}
                         className="px-6 py-3 bg-foreground text-background text-xs font-bold uppercase rounded-xl hover:bg-foreground/90 transition-colors flex items-center gap-2"
                       >
                         Weiter <ArrowRightCircle size={16} />
-                      </motion.button>
+                      </m.button>
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
 
                 {/* STAGE 3: CALCULATION */}
                 {stage === "calc" && (
-                  <motion.div
+                  <m.div
                     key="calc"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.5 }}
@@ -388,33 +388,33 @@ export default function Hero({ onGetStarted }: HeroProps) {
                         </div>
                       </div>
 
-                      <motion.div
+                      <m.div
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 1 }}
                         className="pt-4 flex justify-center"
                       >
-                        <motion.button
+                        <m.button
                           animate={clickedButton === "calc-create" ? { scale: 0.95, opacity: 0.9 } : { scale: 1, opacity: 1 }}
                           transition={{ duration: 0.1 }}
                           className="px-8 py-3 bg-foreground text-background font-bold rounded-xl shadow-xl hover:scale-105 hover:bg-foreground/90 transition-all flex items-center gap-2"
                         >
                           <FileCheck size={18} /> Abrechnung erstellen
-                        </motion.button>
-                      </motion.div>
+                        </m.button>
+                      </m.div>
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
 
                 {/* STAGE 4: PDF RESULT - High Fidelity */}
                 {stage === "pdf" && (
-                  <motion.div
+                  <m.div
                     key="pdf"
                     initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.8 }}
                     className="w-full h-full flex flex-col items-center justify-center relative p-8"
                   >
-                    <motion.div
+                    <m.div
                       initial="rest"
                       whileHover="hover"
                       animate={{ y: 0, opacity: 1 }}
@@ -426,7 +426,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                       className="relative z-10 w-[240px] aspect-[1/1.41] group cursor-pointer"
                     >
                       {/* Stacked Papers (Background) - Fan out on hover */}
-                      <motion.div
+                      <m.div
                         variants={{
                           rest: { opacity: 0, scale: 0.95, rotate: 0, x: 0 },
                           hover: { opacity: 1, scale: 1, rotate: -6, x: -16 }
@@ -434,7 +434,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                         transition={{ duration: 0.4, ease: "easeOut" }}
                         className="absolute inset-0 bg-white rounded-lg shadow-sm border border-black/5 z-0 origin-bottom-left"
                       />
-                      <motion.div
+                      <m.div
                         variants={{
                           rest: { opacity: 0, scale: 0.95, rotate: 0, x: 0 },
                           hover: { opacity: 1, scale: 1, rotate: 6, x: 16 }
@@ -482,24 +482,22 @@ export default function Hero({ onGetStarted }: HeroProps) {
                           <div className="text-xs font-bold text-gray-900">250,00 €</div>
                         </div>
                       </div>
-                    </motion.div>
+                    </m.div>
 
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 1 }}
                       className="mt-8 flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20"
                     >
                       <Check size={14} strokeWidth={3} />
                       <span className="text-xs font-bold uppercase tracking-wide">PDF Generiert</span>
-                    </motion.div>
-                  </motion.div>
+                    </m.div>
+                  </m.div>
                 )}
               </AnimatePresence>
-
             </div>
           </div>
-
-        </motion.div>
+        </m.div>
       </div>
     </section>
   )

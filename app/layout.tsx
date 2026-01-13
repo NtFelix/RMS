@@ -24,6 +24,8 @@ export const metadata: Metadata = {
   },
 }
 
+import { FramerLazyProvider } from "@/components/providers/framer-lazy-provider"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,9 +36,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
           <PostHogProvider>
-            {children}
-            <Toaster />
-            <CookieConsentBanner />
+            <FramerLazyProvider>
+              {children}
+              <Toaster />
+              <CookieConsentBanner />
+            </FramerLazyProvider>
           </PostHogProvider>
         </ThemeProvider>
       </body>
