@@ -6,15 +6,13 @@ export async function GET(
     request: Request,
     { params }: { params: Promise<{ priceId: string }> }
 ) {
-    let priceId = 'unknown';
+    const { priceId } = await params;
+
+    if (!priceId) {
+        return NextResponse.json({ error: 'Price ID is required' }, { status: 400 });
+    }
+
     try {
-        const paramsData = await params;
-        priceId = paramsData.priceId;
-
-        if (!priceId) {
-            return NextResponse.json({ error: 'Price ID is required' }, { status: 400 });
-        }
-
         const plan = await getPlanDetails(priceId);
 
         if (!plan) {

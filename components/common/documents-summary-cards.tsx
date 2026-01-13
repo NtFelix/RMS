@@ -294,9 +294,7 @@ export function DocumentsSummaryCards({
                       )}>
                         {isOverLimit
                           ? "Speicherlimit erreicht"
-                          : isNearLimit
-                            ? `${usagePercentage.toFixed(0)}% verwendet`
-                            : `${usagePercentage.toFixed(0)}% verwendet`
+                          : `${usagePercentage.toFixed(0)}% verwendet`
                         }
                       </p>
                     </div>
