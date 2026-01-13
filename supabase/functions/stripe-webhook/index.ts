@@ -45,6 +45,18 @@ if (supabaseUrl && supabaseServiceRoleKey) {
   console.error("Supabase client could not be initialized in Edge Function: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
 }
 
+// --- Helper Functions ---
+
+/**
+ * Safely extracts and converts the subscription period end timestamp to ISO string.
+ * Falls back to item-level period end for flexible billing subscriptions.
+ */
+function getSubscriptionPeriodEnd(subscription: Stripe.Subscription): string | null {
+  const timestamp = subscription.current_period_end
+    ?? (subscription.items?.data?.[0] as { current_period_end?: number })?.current_period_end;
+  return timestamp ? new Date(timestamp * 1000).toISOString() : null;
+}
+
 // --- Database Helper Functions ---
 async function updateProfileInSupabase(userId: string, dataToUpdate: any) {
   if (!supabaseAdmin) {
@@ -140,11 +152,7 @@ Deno.serve(async (request: Request) => {
           stripe_subscription_id: subscription.id,
           stripe_subscription_status: subscription.status,
           stripe_price_id: subscription.items.data[0]?.price.id,
-          stripe_current_period_end: subscription.current_period_end
-            ? new Date(subscription.current_period_end * 1000).toISOString()
-            : (subscription.items?.data?.[0] as any)?.current_period_end
-              ? new Date((subscription.items.data[0] as any).current_period_end * 1000).toISOString()
-              : null,
+          stripe_current_period_end: getSubscriptionPeriodEnd(subscription),
         };
 
         // Trial period is now handled by Stripe subscription status only
@@ -173,11 +181,7 @@ Deno.serve(async (request: Request) => {
         await updateProfileByCustomerIdInSupabase(customerId, {
           stripe_subscription_status: subscription.status,
           stripe_price_id: subscription.items.data[0]?.price.id,
-          stripe_current_period_end: subscription.current_period_end
-            ? new Date(subscription.current_period_end * 1000).toISOString()
-            : (subscription.items?.data?.[0] as any)?.current_period_end
-              ? new Date((subscription.items.data[0] as any).current_period_end * 1000).toISOString()
-              : null,
+          stripe_current_period_end: getSubscriptionPeriodEnd(subscription),
         });
         break;
       }
@@ -217,11 +221,7 @@ Deno.serve(async (request: Request) => {
           stripe_subscription_id: subscription.id,
           stripe_subscription_status: subscription.status,
           stripe_price_id: subscription.items.data[0]?.price.id,
-          stripe_current_period_end: subscription.current_period_end
-            ? new Date(subscription.current_period_end * 1000).toISOString()
-            : (subscription.items?.data?.[0] as any)?.current_period_end
-              ? new Date((subscription.items.data[0] as any).current_period_end * 1000).toISOString()
-              : null,
+          stripe_current_period_end: getSubscriptionPeriodEnd(subscription),
         });
         break;
       }
