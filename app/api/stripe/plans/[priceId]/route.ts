@@ -4,10 +4,12 @@ import { getPlanDetails } from '@/lib/stripe-server';
 
 export async function GET(
     request: Request,
-    { params }: { params: { priceId: string } }
+    { params }: { params: Promise<{ priceId: string }> }
 ) {
+    let priceId = 'unknown';
     try {
-        const { priceId } = params;
+        const paramsData = await params;
+        priceId = paramsData.priceId;
 
         if (!priceId) {
             return NextResponse.json({ error: 'Price ID is required' }, { status: 400 });
@@ -21,7 +23,7 @@ export async function GET(
 
         return NextResponse.json(plan);
     } catch (error) {
-        console.error(`Error fetching plan details for ${params.priceId}:`, error);
+        console.error(`Error fetching plan details for ${priceId}:`, error);
         return NextResponse.json(
             { error: 'Failed to fetch plan details' },
             { status: 500 }
