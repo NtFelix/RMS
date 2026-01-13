@@ -9,6 +9,7 @@ import { Check, X } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { DashboardTenantContextMenu } from "@/components/dashboard/dashboard-tenant-context-menu"
 import { formatNumber } from "@/utils/format"
+import { PAYMENT_TAGS } from "@/utils/constants"
 
 type TenantDataItem = {
   id: string
@@ -29,11 +30,11 @@ export function TenantDataTable() {
   const [editTenantId, setEditTenantId] = useState<string | null>(null)
   const [editApartmentId, setEditApartmentId] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
-  
+
   const fetchData = async () => {
     setLoading(true)
     const supabase = createClient()
-    
+
     // Mieter und verknüpfte Wohnungen abrufen
     const { data: mieterData, error: mieterError } = await supabase
       .from("Mieter")
@@ -50,20 +51,20 @@ export function TenantDataTable() {
         )
       `)
       .or(`auszug.is.null,auszug.gt.${new Date().toISOString()}`)
-    
+
     if (mieterError) {
       console.error("Fehler beim Abrufen der Mieter:", mieterError)
       setLoading(false)
       return
     }
-    
+
     // Finanzdaten für Mietstatus abrufen
     const currentDate = new Date()
     const currentMonth = currentDate.getMonth() + 1
     const currentYear = currentDate.getFullYear()
     const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
     const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
-    
+
     const { data: finanzData, error: finanzError } = await supabase
       .from("Finanzen")
       .select('*')
@@ -71,11 +72,11 @@ export function TenantDataTable() {
       .gte('datum', startOfMonth)
       .lte('datum', endOfMonth)
       .ilike('name', '%Mietzahlung%')
-    
+
     if (finanzError) {
       console.error("Fehler beim Abrufen der Finanzen:", finanzError)
     }
-    
+
     // Zuordnung Wohnung -> Mietstatus erstellen
     const mietStatus: Record<string, boolean> = {}
     finanzData?.forEach(finanz => {
@@ -83,7 +84,7 @@ export function TenantDataTable() {
         mietStatus[finanz.wohnung_id] = true
       }
     })
-    
+
     // Daten für die Tabelle aufbereiten
     const formattedData: TenantDataItem[] = mieterData
       .filter(mieter => mieter.Wohnungen) // Nur Mieter mit Wohnungen
@@ -95,11 +96,11 @@ export function TenantDataTable() {
           groesse: number;
           miete: number;
         };
-        
+
         const groesse = Number(wohnung.groesse) || 0
         const miete = Number(wohnung.miete) || 0
         const pricePerSqm = groesse > 0 ? miete / groesse : 0
-        
+
         return {
           id: mieter.id,
           tenantId: mieter.id,
@@ -113,20 +114,20 @@ export function TenantDataTable() {
           mieteRaw: miete
         }
       })
-    
+
     setTenantData(formattedData)
     setLoading(false)
   }
-  
+
   useEffect(() => {
     fetchData()
   }, [])
-  
+
   const toggleRentPayment = async (tenant: TenantDataItem) => {
     try {
       setUpdatingStatus(tenant.id)
       const supabase = createClient()
-      
+
       if (tenant.status === 'Miete bezahlt') {
         // Lösche Mietzahlung aus Finanzen für den aktuellen Monat
         const currentDate = new Date()
@@ -143,9 +144,9 @@ export function TenantDataTable() {
           .ilike('name', '%Mietzahlung%')
           .gte('datum', startOfMonth)
           .lte('datum', endOfMonth)
-        
+
         if (error) throw error
-        
+
         toast({
           title: "Mietstatus aktualisiert",
           description: `Mietzahlung für ${tenant.apartment} als unbezahlt markiert.`
@@ -153,7 +154,7 @@ export function TenantDataTable() {
       } else {
         // Füge Mietzahlung zu Finanzen hinzu
         const currentDate = new Date().toISOString().split('T')[0]
-        
+
         const { error } = await supabase
           .from('Finanzen')
           .insert({
@@ -162,17 +163,18 @@ export function TenantDataTable() {
             datum: currentDate,
             betrag: tenant.mieteRaw,
             ist_einnahmen: true,
-            notiz: `Mietzahlung von ${tenant.tenant}`
+            notiz: `Mietzahlung von ${tenant.tenant}`,
+            tags: [PAYMENT_TAGS.RENT]
           })
-        
+
         if (error) throw error
-        
+
         toast({
           title: "Mietstatus aktualisiert",
           description: `Mietzahlung für ${tenant.apartment} als bezahlt markiert.`
         })
       }
-      
+
       // Daten neu laden
       await fetchData()
     } catch (error) {
@@ -186,15 +188,15 @@ export function TenantDataTable() {
       setUpdatingStatus(null)
     }
   }
-  
+
   const openTenantModal = (id: string) => {
     setEditTenantId(id)
   }
-  
+
   const openApartmentModal = (id: string) => {
     setEditApartmentId(id)
   }
-  
+
   return (
     <Card>
       <CardHeader>
@@ -235,11 +237,11 @@ export function TenantDataTable() {
                         <TableCell>{tenant.rent}</TableCell>
                         <TableCell>{tenant.pricePerSqm}</TableCell>
                         <TableCell>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
-                            className={tenant.status === 'Miete bezahlt' ? 
-                              'bg-green-50 text-green-700 hover:bg-green-100' : 
+                            className={tenant.status === 'Miete bezahlt' ?
+                              'bg-green-50 text-green-700 hover:bg-green-100' :
                               'bg-red-50 text-red-700 hover:bg-red-100'}
                             onClick={(e) => {
                               e.stopPropagation()
@@ -273,7 +275,7 @@ export function TenantDataTable() {
           </div>
         )}
       </CardContent>
-      
+
       {/* Removed unused edit modals due to updated server-side handling */}
     </Card>
   )
