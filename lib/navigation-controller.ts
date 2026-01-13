@@ -370,13 +370,27 @@ async function processNavigationRequest(
             !errorMessage.includes('cancelled') &&
             !request.abortController.signal.aborted
         ) {
-            request.retryCount++
-            const retryDelay = get().retryDelay * Math.pow(2, request.retryCount - 1)
+            const newRetryCount = request.retryCount + 1
+            const retryDelay = get().retryDelay * Math.pow(2, newRetryCount - 1)
 
-            console.warn(`Navigation retry ${request.retryCount}/${request.maxRetries} for ${request.path} in ${retryDelay}ms`)
+            console.warn(`Navigation retry ${newRetryCount}/${request.maxRetries} for ${request.path} in ${retryDelay}ms`)
+
+            // Create a new request object with updated retryCount instead of mutating
+            const retryRequest: NavigationRequest = {
+                ...request,
+                retryCount: newRetryCount,
+            }
+
+            // Update the pending request in the store
+            set((draft) => {
+                draft.pendingRequests.set(request.path, retryRequest)
+                if (draft.activeRequest?.id === request.id) {
+                    draft.activeRequest = retryRequest
+                }
+            })
 
             await new Promise(resolve => setTimeout(resolve, retryDelay))
-            return processNavigationRequest(request, timeout, get, set)
+            return processNavigationRequest(retryRequest, timeout, get, set)
         }
 
         // Final failure
