@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import type { PieLabelRenderProps } from "recharts"
 import {
   Bar,
   Pie,
-  PieLabelRenderProps,
   Line,
   XAxis,
   YAxis,
@@ -13,8 +13,11 @@ import {
   Legend,
   Tooltip,
   Cell,
-} from "recharts"
-import { LazyBarChart, LazyPieChart, LazyLineChart, LazyResponsiveContainer } from "@/components/charts/lazy-recharts"
+  LazyBarChart,
+  LazyPieChart,
+  LazyLineChart,
+  LazyResponsiveContainer
+} from "@/components/charts/lazy-recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"

@@ -39,7 +39,10 @@ export const LazyPieChart = dynamic(
 
 export const LazyResponsiveContainer = dynamic(
     () => import('recharts').then((mod) => mod.ResponsiveContainer),
-    { ssr: false }
+    {
+        ssr: false,
+        loading: ChartLoadingFallback
+    }
 );
 
 // Re-export commonly used components via dynamic imports

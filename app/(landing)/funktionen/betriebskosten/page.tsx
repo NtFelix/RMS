@@ -8,7 +8,7 @@ import { CTAButton } from '@/components/ui/cta-button';
 import BottomCTA from '@/components/ui/bottom-cta';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { motion } from 'framer-motion';
+import { m } from "framer-motion";
 import { Input } from '@/components/ui/input';
 import { EXAMPLE_BILL_PDF_URL } from '@/lib/constants';
 
@@ -98,7 +98,7 @@ export default function UtilityCostPage() {
       {/* Detailed Features Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-7xl mx-auto">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -106,10 +106,10 @@ export default function UtilityCostPage() {
             className="text-center mb-12"
           >
             <h2 className="text-4xl font-bold">Funktionen im Detail</h2>
-          </motion.div>
+          </m.div>
 
           {/* Kostenübersicht Section - 2 Column Layout (Table Left, Text Right) */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -117,7 +117,7 @@ export default function UtilityCostPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Table in Mac Window */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
@@ -161,10 +161,10 @@ export default function UtilityCostPage() {
                   </Table>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Right Column - Description */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
@@ -197,11 +197,11 @@ export default function UtilityCostPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
 
           {/* Zählerstände Section - 2 Column Layout (Text Left, Table Right) */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.8 }}
@@ -209,7 +209,7 @@ export default function UtilityCostPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Description */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: -50 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 1.0 }}
@@ -242,10 +242,10 @@ export default function UtilityCostPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Right Column - Table in Mac Window */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 1.2 }}
@@ -287,11 +287,11 @@ export default function UtilityCostPage() {
                   </Table>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
 
           {/* Abrechnung Section - 2 Column Layout (Table Left, Text Right) */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 1.4 }}
@@ -299,7 +299,7 @@ export default function UtilityCostPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Table in Mac Window */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 1.6 }}
@@ -353,10 +353,10 @@ export default function UtilityCostPage() {
                   </Table>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Right Column - Description */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 1.8 }}
@@ -407,8 +407,8 @@ export default function UtilityCostPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         </div>
       </div>
 

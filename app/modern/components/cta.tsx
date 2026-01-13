@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { m } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import { CallToAction } from "./call-to-action"
 
@@ -16,7 +16,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background" />
 
         {/* Animated Gradient Orbs - Adjusted for theme */}
-        <motion.div
+        <m.div
           className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"
           animate={{
             scale: [1, 1.2, 1],
@@ -28,7 +28,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
             ease: "easeInOut",
           }}
         />
-        <motion.div
+        <m.div
           className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-l from-secondary/20 to-primary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"
           animate={{
             scale: [1.2, 1, 1.2],
@@ -54,7 +54,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
       </div>
 
       <div className="max-w-4xl mx-auto text-center relative z-10">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
@@ -65,9 +65,9 @@ export default function CTA({ onGetStarted }: CTAProps) {
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm text-muted-foreground">Bereit zur Vereinfachung?</span>
           </div>
-        </motion.div>
+        </m.div>
 
-        <motion.h2
+        <m.h2
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
@@ -79,9 +79,9 @@ export default function CTA({ onGetStarted }: CTAProps) {
           <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
             Immobilien noch heute
           </span>
-        </motion.h2>
+        </m.h2>
 
-        <motion.p
+        <m.p
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
@@ -89,16 +89,16 @@ export default function CTA({ onGetStarted }: CTAProps) {
           className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed"
         >
           Beginnen Sie noch heute, Ihre Immobilien effizienter zu verwalten und profitieren Sie von einer modernen und benutzerfreundlichen Plattform.
-        </motion.p>
+        </m.p>
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
           viewport={{ once: true }}
         >
           <CallToAction variant="cta" onGetStarted={onGetStarted} />
-        </motion.div>
+        </m.div>
       </div>
     </section>
   )

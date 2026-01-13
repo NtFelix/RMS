@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from "framer-motion";
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BRAND_NAME } from '@/lib/constants';
@@ -64,7 +64,7 @@ export function FAQ() {
                                 <span className="text-lg font-medium pr-8">
                                     {item.question}
                                 </span>
-                                <motion.div
+                                <m.div
                                     animate={{ rotate: openIndex === index ? 180 : 0 }}
                                     transition={{ duration: 0.2 }}
                                     className={cn(
@@ -73,12 +73,12 @@ export function FAQ() {
                                     )}
                                 >
                                     <ChevronDown className="w-5 h-5" />
-                                </motion.div>
+                                </m.div>
                             </button>
 
                             <AnimatePresence initial={false}>
                                 {openIndex === index && (
-                                    <motion.div
+                                    <m.div
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: "auto", opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
@@ -87,7 +87,7 @@ export function FAQ() {
                                         <div className="px-6 pb-6 text-muted-foreground leading-relaxed">
                                             {item.answer}
                                         </div>
-                                    </motion.div>
+                                    </m.div>
                                 )}
                             </AnimatePresence>
                         </div>

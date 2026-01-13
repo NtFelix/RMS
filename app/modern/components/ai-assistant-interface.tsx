@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Send, Bot, User, AlertCircle, RotateCcw, X, Wifi, WifiOff, Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -177,7 +177,7 @@ export default function AIAssistantInterface({
   if (!isOpen) return null;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
@@ -286,7 +286,7 @@ export default function AIAssistantInterface({
             )}
 
             {state.messages.map((message) => (
-              <motion.div
+              <m.div
                 key={message.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -349,12 +349,12 @@ export default function AIAssistantInterface({
                     <User className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
-              </motion.div>
+              </m.div>
             ))}
 
             {/* Loading indicator - only show when loading and no assistant message is being streamed */}
             {state.isLoading && !state.messages.some(msg => msg.role === 'assistant' && msg.content === '') && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-3 justify-start"
@@ -368,7 +368,7 @@ export default function AIAssistantInterface({
                     Verbinde mit AI...
                   </span>
                 </div>
-              </motion.div>
+              </m.div>
             )}
 
             <div ref={messagesEndRef} />
@@ -378,7 +378,7 @@ export default function AIAssistantInterface({
         {/* Enhanced Error Display */}
         <AnimatePresence>
           {(state.error || state.validationError || retryState.nextRetryIn > 0) && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
@@ -453,7 +453,7 @@ export default function AIAssistantInterface({
                   </AlertDescription>
                 </Alert>
               )}
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
 
@@ -549,6 +549,6 @@ export default function AIAssistantInterface({
           </div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

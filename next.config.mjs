@@ -40,6 +40,9 @@ const nextConfig = {
       'framer-motion',
       '@radix-ui/react-icons',
       'date-fns',
+      'zod',
+      '@supabase/ssr',
+      '@supabase/supabase-js',
     ],
   },
   webpack: (config, { webpack }) => {
