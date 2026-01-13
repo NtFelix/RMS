@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { StripePlan } from '@/types/stripe';
+import { parseStorageString } from '@/lib/stripe-server';
 
 export async function GET() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -40,6 +41,11 @@ export async function GET() {
         }
       }
 
+      // Parse storage limit from feat_storage metadata (e.g., "10 GB" -> bytes)
+      const storageLimitMetadata = price.metadata.feat_storage || product.metadata.feat_storage;
+      const storageLimit = parseStorageString(storageLimitMetadata);
+
+
       // Position should ideally be on the Product, as it defines the display order of products.
       // If plans within a product need specific ordering beyond monthly/annual, that's a different case.
       let position: number | undefined = undefined;
@@ -67,6 +73,7 @@ export async function GET() {
         interval_count: price.recurring?.interval_count || null,
         features: featuresArray,
         limit_wohnungen: limitWohnungen ?? null,
+        storage_limit: storageLimit, // Storage limit in bytes, 0 means no storage access
         position: position, // This position is used to sort products
         description: product.description || '',
         metadata: product.metadata, // Pass all metadata to frontend
