@@ -294,7 +294,7 @@ export default function TenantPaymentEditModal() {
   return (
     <>
       <Dialog open={isTenantPaymentEditModalOpen} onOpenChange={handleClose}>
-        <DialogContent>
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>Zahlungsabweichung erfassen</DialogTitle>
             <DialogDescription>
@@ -406,7 +406,7 @@ export default function TenantPaymentEditModal() {
 
       {showConfirmModal && (
         <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-          <DialogContent>
+          <DialogContent size="md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-5 w-5" />
