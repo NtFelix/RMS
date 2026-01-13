@@ -35,7 +35,6 @@ export default function robots(): MetadataRoute.Robots {
                     '/mail/',
                     '/vorlagen/',
                     // Other private pages
-                    '/onboarding/',
                     '/subscription-locked/',
                     '/checkout/',
                 ],
