@@ -5,6 +5,16 @@ import { TenantBentoItem } from '@/types/tenant-payment'
 import { getLatestNebenkostenAmount } from '@/utils/tenant-payment-calculations'
 import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from '@/utils/constants'
 
+interface PaymentEntry {
+    wohnung_id: string
+    name: string
+    datum: string
+    betrag: number
+    ist_einnahmen: boolean
+    notiz: string
+    tags: string[]
+}
+
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export function useTenantPayments() {
@@ -111,16 +121,6 @@ export function useTenantPayments() {
                 })
             } else {
                 // Create payment entries with auto-applied tags
-                interface PaymentEntry {
-                    wohnung_id: string
-                    name: string
-                    datum: string
-                    betrag: number
-                    ist_einnahmen: boolean
-                    notiz: string
-                    tags: string[]
-                }
-
                 const entries: PaymentEntry[] = [
                     {
                         wohnung_id: tenant.apartmentId,
