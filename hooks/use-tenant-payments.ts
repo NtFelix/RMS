@@ -2,18 +2,9 @@ import { useState, useCallback } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { toast } from '@/hooks/use-toast'
 import { TenantBentoItem } from '@/types/tenant-payment'
+import { FinanceEntryPayload } from '@/types/finanzen'
 import { getLatestNebenkostenAmount } from '@/utils/tenant-payment-calculations'
 import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from '@/utils/constants'
-
-interface PaymentEntry {
-    wohnung_id: string
-    name: string
-    datum: string
-    betrag: number
-    ist_einnahmen: boolean
-    notiz: string
-    tags: string[]
-}
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -121,7 +112,7 @@ export function useTenantPayments() {
                 })
             } else {
                 // Create payment entries with auto-applied tags
-                const entries: PaymentEntry[] = [
+                const entries: FinanceEntryPayload[] = [
                     {
                         wohnung_id: tenant.apartmentId,
                         name: `${capitalize(PAYMENT_KEYWORDS.RENT)} ${tenant.apartment}`,

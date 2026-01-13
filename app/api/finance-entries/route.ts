@@ -3,22 +3,13 @@ export const runtime = 'edge'
 
 import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
-
-interface FinanceEntry {
-  wohnung_id: string
-  name: string
-  betrag: number
-  datum: string
-  ist_einnahmen?: boolean
-  notiz?: string
-  tags?: string[]
-}
+import { FinanceEntryPayload } from "@/types/finanzen"
 
 export async function POST(request: Request) {
   const requestStartTime = Date.now()
   try {
     const body = await request.json()
-    const { entries }: { entries: FinanceEntry[] } = body
+    const { entries }: { entries: FinanceEntryPayload[] } = body
 
     if (!entries || !Array.isArray(entries) || entries.length === 0) {
       return NextResponse.json(

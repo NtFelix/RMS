@@ -61,6 +61,7 @@ BEGIN
 
       inserted_count := inserted_count + 1;
     EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'Skipping entry due to error: %. Entry: %', SQLERRM, entry;
       skipped_count := skipped_count + 1;
       CONTINUE;
     END;
