@@ -207,7 +207,8 @@ CREATE OR REPLACE FUNCTION get_filtered_financial_summary(
   search_query TEXT DEFAULT '',
   apartment_name TEXT DEFAULT '',
   target_year TEXT DEFAULT '',
-  transaction_type TEXT DEFAULT ''
+  transaction_type TEXT DEFAULT '',
+  filter_tags TEXT[] DEFAULT '{}'
 )
 RETURNS TABLE (
   total_income DECIMAL,
@@ -238,12 +239,14 @@ BEGIN
     -- Transaction type filter
     AND (transaction_type = '' OR transaction_type = 'Alle Transaktionen' OR 
          (transaction_type = 'Einnahme' AND f.ist_einnahmen = true) OR
-         (transaction_type = 'Ausgabe' AND f.ist_einnahmen = false));
+         (transaction_type = 'Ausgabe' AND f.ist_einnahmen = false))
+    -- Tags filter - check if entry has at least one of the selected tags
+    AND (array_length(filter_tags, 1) IS NULL OR f.tags && filter_tags);
 END;
 $$;
 
 -- Grant execute permission to authenticated users
-GRANT EXECUTE ON FUNCTION get_filtered_financial_summary(TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_filtered_financial_summary(TEXT, TEXT, TEXT, TEXT, TEXT[]) TO authenticated;
 
 -- Test the functions (optional - you can run these to verify they work)
 -- SELECT * FROM get_financial_summary_data(2024);
