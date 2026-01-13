@@ -574,7 +574,7 @@ export function CloudStorage({
                             selectedCount={selectedItems.size}
                             onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
                             onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
-                            isUploadDisabled={storageLimit === 0 || (storageLimit !== undefined && totalFileSize >= storageLimit)}
+                            isUploadDisabled={storageLimit === 0 || (storageLimit > 0 && totalFileSize >= storageLimit)}
                             storageDisabledMessage={
                                 storageLimit === 0
                                     ? "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif."

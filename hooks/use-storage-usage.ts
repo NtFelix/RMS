@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
-import { StripePlan } from '@/types/stripe';
 
 export interface StorageUsage {
     usage: number; // Current usage in bytes
@@ -33,7 +32,7 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
         error: null,
     });
 
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     useEffect(() => {
         if (!user) {
@@ -70,14 +69,14 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
 
                 if (isActiveOrTrialing) {
                     try {
-                        const response = await fetch('/api/stripe/plans');
+                        const response = await fetch(`/api/stripe/plans/${profile.stripe_price_id}`);
                         if (response.ok) {
-                            const plans = await response.json() as StripePlan[];
-                            const currentPlan = plans.find(plan => plan.priceId === profile.stripe_price_id);
+                            const planDetails = await response.json();
 
-                            if (currentPlan && typeof currentPlan.storage_limit === 'number') {
-                                // Use the limit from the plan (can be 0 for no access)
-                                storageLimit = currentPlan.storage_limit;
+                            // The planDetails from /api/stripe/plans/[priceId] uses storageLimit 
+                            // (matching the getPlanDetails return type)
+                            if (planDetails && typeof planDetails.storageLimit === 'number') {
+                                storageLimit = planDetails.storageLimit;
                             }
                         }
                     } catch (error) {

@@ -12,6 +12,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
+const NO_STORAGE_MESSAGE = "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif.";
+const STORAGE_FULL_MESSAGE = "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif.";
+
 interface DocumentsSummaryCardsProps {
   totalSize: number
   storageLimit?: number // Storage limit in bytes, 0 or undefined means no storage access
@@ -85,8 +88,8 @@ export function DocumentsSummaryCards({
       toast({
         variant: "destructive",
         description: hasNoStorageAccess
-          ? "Speicher ist in Ihrem Tarif nicht enthalten. Bitte upgraden Sie auf einen höheren Tarif."
-          : "Speicherlimit erreicht. Bitte löschen Sie Dateien oder upgraden Sie Ihren Tarif."
+          ? NO_STORAGE_MESSAGE
+          : STORAGE_FULL_MESSAGE
       })
       return
     }
@@ -188,8 +191,8 @@ export function DocumentsSummaryCards({
             <TooltipContent side="bottom" className="max-w-[250px]">
               <p className="text-sm">
                 {hasNoStorageAccess
-                  ? "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif."
-                  : "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif."
+                  ? NO_STORAGE_MESSAGE
+                  : STORAGE_FULL_MESSAGE
                 }
               </p>
             </TooltipContent>

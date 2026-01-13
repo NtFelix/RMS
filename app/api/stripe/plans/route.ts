@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { StripePlan } from '@/types/stripe';
+import { parseStorageString } from '@/lib/stripe-server';
 
 export async function GET() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -41,30 +42,9 @@ export async function GET() {
       }
 
       // Parse storage limit from feat_storage metadata (e.g., "10 GB" -> bytes)
-      // Default to 0 (no storage access) if not set or invalid
-      const NO_STORAGE_VALUES = ['nicht enthalten', 'false', 'no', 'none', '0', '-'];
-      let storageLimit = 0;
       const storageLimitMetadata = price.metadata.feat_storage || product.metadata.feat_storage;
-      if (storageLimitMetadata) {
-        const trimmed = storageLimitMetadata.trim().toLowerCase();
-        if (!NO_STORAGE_VALUES.includes(trimmed)) {
-          const match = storageLimitMetadata.trim().match(/^([\d.]+)\s*(B|KB|MB|GB|TB)$/i);
-          if (match) {
-            const value = parseFloat(match[1]);
-            const unit = match[2].toUpperCase();
-            const multipliers: Record<string, number> = {
-              'B': 1,
-              'KB': 1024,
-              'MB': 1024 * 1024,
-              'GB': 1024 * 1024 * 1024,
-              'TB': 1024 * 1024 * 1024 * 1024,
-            };
-            if (!isNaN(value) && value >= 0) {
-              storageLimit = Math.round(value * multipliers[unit]);
-            }
-          }
-        }
-      }
+      const storageLimit = parseStorageString(storageLimitMetadata);
+
 
       // Position should ideally be on the Product, as it defines the display order of products.
       // If plans within a product need specific ordering beyond monthly/annual, that's a different case.
