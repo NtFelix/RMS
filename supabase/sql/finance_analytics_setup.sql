@@ -241,8 +241,7 @@ BEGIN
          (transaction_type = 'Einnahme' AND f.ist_einnahmen = true) OR
          (transaction_type = 'Ausgabe' AND f.ist_einnahmen = false))
     -- Tags filter - check if entry has at least one of the selected tags
-    AND (array_length(filter_tags, 1) IS NULL OR filter_tags = '{}' OR 
-         f.tags && filter_tags);
+    AND (array_length(filter_tags, 1) IS NULL OR f.tags && filter_tags);
 END;
 $$;
 
