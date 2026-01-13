@@ -252,7 +252,7 @@ function SubscriptionPageContent() {
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background pt-20">
             <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl mb-4">
