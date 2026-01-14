@@ -182,7 +182,7 @@ export function TagInput({
                 </div>
 
                 <div
-                    className="max-h-[350px] overflow-y-auto p-3 space-y-5 custom-scrollbar"
+                    className="max-h-[350px] overflow-y-auto p-3 pb-4 space-y-5 custom-scrollbar"
                     onPointerDown={(e) => e.stopPropagation()}
                     onWheel={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
