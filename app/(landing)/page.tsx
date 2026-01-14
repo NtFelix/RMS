@@ -20,6 +20,7 @@ import { Profile } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import { trackSectionViewed, type LandingSection } from '@/lib/posthog-landing-events';
+import { ROUTES } from '@/lib/constants';
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -319,7 +320,7 @@ function LandingPageContent() {
 
   const handleGetStarted = async () => {
     if (sessionUser) {
-      router.push('/home');
+      router.push(ROUTES.HOME);
     } else {
       // Store intent to redirect to dashboard after login
       try {

@@ -38,6 +38,7 @@ import {
   getPlanApartmentLimit,
   getUserApartmentCount,
 } from "@/app/user-actions"
+import { ROUTES } from "@/lib/constants"
 
 // Stelle sicher, dass der Mieter-Link im Command-Menü korrekt ist
 const navigationItems = [
@@ -48,7 +49,7 @@ const navigationItems = [
   },
   {
     title: "Dashboard",
-    href: "/home",
+    href: ROUTES.HOME,
     icon: BarChart3,
   },
   {

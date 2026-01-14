@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/navigation';
 import AuthModalProvider, { useAuthModal } from './auth-modal-provider';
+import { ROUTES } from '@/lib/constants';
 
 // Mock dependencies
 jest.mock('next/navigation', () => ({
@@ -10,11 +11,11 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('./auth-modal', () => {
-  return function MockAuthModal({ 
-    isOpen, 
-    onClose, 
-    onAuthenticated, 
-    initialTab 
+  return function MockAuthModal({
+    isOpen,
+    onClose,
+    onAuthenticated,
+    initialTab
   }: {
     isOpen: boolean;
     onClose: () => void;
@@ -22,7 +23,7 @@ jest.mock('./auth-modal', () => {
     initialTab: 'login' | 'register';
   }) {
     if (!isOpen) return null;
-    
+
     return (
       <div data-testid="auth-modal">
         <div data-testid="modal-tab">{initialTab}</div>
@@ -41,7 +42,7 @@ const mockRouter = {
 // Test component that uses the auth modal context
 function TestComponent() {
   const { openAuthModal, closeAuthModal, isOpen } = useAuthModal();
-  
+
   return (
     <div>
       <button onClick={() => openAuthModal('login')} data-testid="open-login">
@@ -62,7 +63,7 @@ describe('AuthModalProvider - Jetzt loslegen Feature', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
-    
+
     // Mock sessionStorage
     Object.defineProperty(window, 'sessionStorage', {
       value: {
@@ -147,7 +148,7 @@ describe('AuthModalProvider - Jetzt loslegen Feature', () => {
 
       await waitFor(() => {
         expect(window.sessionStorage.removeItem).toHaveBeenCalledWith('authIntent');
-        expect(mockRouter.push).toHaveBeenCalledWith('/home');
+        expect(mockRouter.push).toHaveBeenCalledWith(ROUTES.HOME);
       });
     });
 
@@ -169,7 +170,7 @@ describe('AuthModalProvider - Jetzt loslegen Feature', () => {
       await user.click(authenticateButton);
 
       await waitFor(() => {
-        expect(mockRouter.push).not.toHaveBeenCalledWith('/home');
+        expect(mockRouter.push).not.toHaveBeenCalledWith(ROUTES.HOME);
         expect(mockRouter.refresh).toHaveBeenCalled();
       });
     });
@@ -177,7 +178,7 @@ describe('AuthModalProvider - Jetzt loslegen Feature', () => {
     it('handles sessionStorage errors during authentication', async () => {
       const user = userEvent.setup();
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       (window.sessionStorage.getItem as jest.Mock).mockImplementation(() => {
         throw new Error('SessionStorage not available');
       });
@@ -227,7 +228,7 @@ describe('AuthModalProvider - Jetzt loslegen Feature', () => {
     it('handles sessionStorage errors when closing modal', async () => {
       const user = userEvent.setup();
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       (window.sessionStorage.removeItem as jest.Mock).mockImplementation(() => {
         throw new Error('SessionStorage not available');
       });
@@ -267,7 +268,7 @@ describe('AuthModalProvider - Jetzt loslegen Feature', () => {
 
     it('throws error when used outside provider', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       expect(() => {
         render(<TestComponent />);
       }).toThrow('useAuthModal must be used within an AuthModalProvider');

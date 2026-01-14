@@ -14,16 +14,16 @@ const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 // --- Validate Environment Variables ---
 if (!stripeSecretKey) {
-    console.error('Missing STRIPE_SECRET_KEY environment variable.');
+  console.error('Missing STRIPE_SECRET_KEY environment variable.');
 }
 if (!webhookSigningSecret) {
-    console.error('Missing STRIPE_WEBHOOK_SIGNING_SECRET environment variable.');
+  console.error('Missing STRIPE_WEBHOOK_SIGNING_SECRET environment variable.');
 }
 if (!supabaseUrl) {
-    console.error('Missing SUPABASE_URL environment variable.');
+  console.error('Missing SUPABASE_URL environment variable.');
 }
 if (!supabaseServiceRoleKey) {
-    console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable.');
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable.');
 }
 
 // --- Initialize Stripe Client ---
@@ -40,9 +40,21 @@ console.log('Stripe Webhook Handler (Supabase Edge Function) loaded. Version: 1.
 // --- Initialize Supabase Admin Client ---
 let supabaseAdmin: SupabaseClient | null = null;
 if (supabaseUrl && supabaseServiceRoleKey) {
-    supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+  supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 } else {
-    console.error("Supabase client could not be initialized in Edge Function: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
+  console.error("Supabase client could not be initialized in Edge Function: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
+}
+
+// --- Helper Functions ---
+
+/**
+ * Safely extracts and converts the subscription period end timestamp to ISO string.
+ * Falls back to item-level period end for flexible billing subscriptions.
+ */
+function getSubscriptionPeriodEnd(subscription: Stripe.Subscription): string | null {
+  const timestamp = subscription.current_period_end
+    ?? (subscription.items?.data?.[0] as { current_period_end?: number })?.current_period_end;
+  return timestamp ? new Date(timestamp * 1000).toISOString() : null;
 }
 
 // --- Database Helper Functions ---
@@ -125,14 +137,14 @@ Deno.serve(async (request: Request) => {
           return new Response('User ID missing in metadata', { status: 200 });
         }
         if (!customerId || !subscriptionId) {
-            console.error('Customer ID or Subscription ID not found in session:', session.id);
-            return new Response('Customer or Subscription ID missing', { status: 200 });
+          console.error('Customer ID or Subscription ID not found in session:', session.id);
+          return new Response('Customer or Subscription ID missing', { status: 200 });
         }
 
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         if (!subscription) {
-            console.error('Could not retrieve subscription details from Stripe for sub ID:', subscriptionId);
-            return new Response('Subscription not retrievable', { status: 200 });
+          console.error('Could not retrieve subscription details from Stripe for sub ID:', subscriptionId);
+          return new Response('Subscription not retrievable', { status: 200 });
         }
 
         const profileUpdateData: any = {
@@ -140,7 +152,7 @@ Deno.serve(async (request: Request) => {
           stripe_subscription_id: subscription.id,
           stripe_subscription_status: subscription.status,
           stripe_price_id: subscription.items.data[0]?.price.id,
-          stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          stripe_current_period_end: getSubscriptionPeriodEnd(subscription),
         };
 
         // Trial period is now handled by Stripe subscription status only
@@ -156,20 +168,20 @@ Deno.serve(async (request: Request) => {
         const subscriptionId = invoice.subscription as string;
 
         if (!customerId || !subscriptionId) {
-            console.error('Customer ID or Subscription ID not found in invoice.paid event:', invoice.id);
-            return new Response('Customer or Subscription ID missing', { status: 200 });
+          console.error('Customer ID or Subscription ID not found in invoice.paid event:', invoice.id);
+          return new Response('Customer or Subscription ID missing', { status: 200 });
         }
 
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         if (!subscription) {
-            console.error('Could not retrieve subscription (invoice.paid) for sub ID:', subscriptionId);
-            return new Response('Subscription not retrievable', { status: 200 });
+          console.error('Could not retrieve subscription (invoice.paid) for sub ID:', subscriptionId);
+          return new Response('Subscription not retrievable', { status: 200 });
         }
 
         await updateProfileByCustomerIdInSupabase(customerId, {
           stripe_subscription_status: subscription.status,
           stripe_price_id: subscription.items.data[0]?.price.id,
-          stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          stripe_current_period_end: getSubscriptionPeriodEnd(subscription),
         });
         break;
       }
@@ -178,19 +190,19 @@ Deno.serve(async (request: Request) => {
         console.log('Processing invoice.payment_failed for invoice ID:', invoice.id);
         const customerId = invoice.customer as string;
         if (!customerId) {
-            console.error('Customer ID not found in invoice.payment_failed event:', invoice.id);
-            return new Response('Customer ID missing', { status: 200 });
+          console.error('Customer ID not found in invoice.payment_failed event:', invoice.id);
+          return new Response('Customer ID missing', { status: 200 });
         }
 
         const subscriptionId = invoice.subscription as string;
         let status = 'past_due';
         if (subscriptionId) {
-            try {
-                const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-                status = subscription.status;
-            } catch (subError) {
-                console.error(`Could not retrieve subscription ${subscriptionId} for failed invoice ${invoice.id}:`, subError.message);
-            }
+          try {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            status = subscription.status;
+          } catch (subError) {
+            console.error(`Could not retrieve subscription ${subscriptionId} for failed invoice ${invoice.id}:`, subError.message);
+          }
         }
         await updateProfileByCustomerIdInSupabase(customerId, {
           stripe_subscription_status: status,
@@ -201,15 +213,15 @@ Deno.serve(async (request: Request) => {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('Processing customer.subscription.updated for subscription ID:', subscription.id);
         const customerId = subscription.customer as string;
-         if (!customerId) {
-            console.error('Customer ID not found in customer.subscription.updated event:', subscription.id);
-            return new Response('Customer ID missing', { status: 200 });
+        if (!customerId) {
+          console.error('Customer ID not found in customer.subscription.updated event:', subscription.id);
+          return new Response('Customer ID missing', { status: 200 });
         }
         await updateProfileByCustomerIdInSupabase(customerId, {
-            stripe_subscription_id: subscription.id,
-            stripe_subscription_status: subscription.status,
-            stripe_price_id: subscription.items.data[0]?.price.id,
-            stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          stripe_subscription_id: subscription.id,
+          stripe_subscription_status: subscription.status,
+          stripe_price_id: subscription.items.data[0]?.price.id,
+          stripe_current_period_end: getSubscriptionPeriodEnd(subscription),
         });
         break;
       }
@@ -218,8 +230,8 @@ Deno.serve(async (request: Request) => {
         console.log('Processing customer.subscription.deleted for subscription ID:', subscription.id);
         const customerId = subscription.customer as string;
         if (!customerId) {
-            console.error('Customer ID not found in customer.subscription.deleted event:', subscription.id);
-            return new Response('Customer ID missing', { status: 200 });
+          console.error('Customer ID not found in customer.subscription.deleted event:', subscription.id);
+          return new Response('Customer ID missing', { status: 200 });
         }
         await updateProfileByCustomerIdInSupabase(customerId, {
           stripe_subscription_status: subscription.status, // should be 'canceled' or similar
@@ -230,8 +242,8 @@ Deno.serve(async (request: Request) => {
         console.log(`Unhandled event type: ${event.type}`);
     }
   } catch (error) {
-     console.error('Error processing event:', event.id, error.message, error.stack);
-     return new Response(`Internal Server Error processing event: ${error.message}`, { status: 500 });
+    console.error('Error processing event:', event.id, error.message, error.stack);
+    return new Response(`Internal Server Error processing event: ${error.message}`, { status: 500 });
   }
 
   return new Response(JSON.stringify({ received: true }), { status: 200 });

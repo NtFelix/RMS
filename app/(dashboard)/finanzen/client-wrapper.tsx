@@ -186,7 +186,8 @@ export default function FinanzenClientWrapper({
         search_query: debouncedSearchQueryRef.current,
         apartment_name: filtersRef.current.selectedApartment,
         target_year: filtersRef.current.selectedYear,
-        transaction_type: filtersRef.current.selectedType
+        transaction_type: filtersRef.current.selectedType,
+        filter_tags: filtersRef.current.selectedTags
       });
 
       if (error) {

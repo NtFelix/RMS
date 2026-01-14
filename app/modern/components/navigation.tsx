@@ -8,7 +8,7 @@ import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, Layo
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2, INFO_EMAIL } from "@/lib/constants"
+import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2, INFO_EMAIL, ROUTES } from "@/lib/constants"
 import { Button } from '@/components/ui/button'
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
@@ -36,7 +36,7 @@ import {
 
 // Navigation dropdown items
 const produkteItems = [
-  { name: "Web-Anwendung", href: "/home", icon: LayoutDashboard, description: "Die Web-Anwendung" },
+  { name: "Web-Anwendung", href: ROUTES.HOME, icon: LayoutDashboard, description: "Die Web-Anwendung" },
   { name: "Browser-Erweiterung", href: "/warteliste/browser-erweiterung", icon: Package, description: "Demnächst verfügbar" },
   { name: "Mobile App", href: "/warteliste/mobile-app", icon: Phone, description: "Demnächst verfügbar" },
 ]
@@ -437,7 +437,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         </div>
                         <DropdownMenuSeparator className="my-2" />
                         <DropdownMenuItem asChild className="px-3 py-2 rounded-xl group">
-                          <Link href="/home" className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
+                          <Link href={ROUTES.HOME} className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
                             <LayoutDashboard className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
                             <span>Dashboard</span>
                           </Link>
@@ -446,7 +446,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           className="px-3 py-2 rounded-xl group hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90 cursor-pointer"
                           onClick={() => {
                             // Navigate to dashboard first
-                            window.location.href = '/home';
+                            window.location.href = ROUTES.HOME;
                             // Then open settings after a small delay to ensure navigation completes
                             setTimeout(() => {
                               setIsSettingsOpen(true);
@@ -596,7 +596,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         </div>
                       </div>
                       <Button asChild variant="outline" className="w-full">
-                        <Link href="/home">
+                        <Link href={ROUTES.HOME}>
                           <LayoutDashboard className="w-4 h-4 mr-2" />
                           Dashboard
                         </Link>

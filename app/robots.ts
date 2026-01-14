@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next'
+import { ROUTES } from '@/lib/constants'
 
 // Required for Cloudflare Pages deployment
 export const runtime = 'edge'
@@ -23,7 +24,7 @@ export default function robots(): MetadataRoute.Robots {
                     '/auth/update-password/',
                     '/auth/callback/',
                     // Private dashboard pages
-                    '/home/',
+                    `${ROUTES.HOME}/`,
                     '/haeuser/',
                     '/wohnungen/',
                     '/mieter/',
@@ -34,7 +35,6 @@ export default function robots(): MetadataRoute.Robots {
                     '/mail/',
                     '/vorlagen/',
                     // Other private pages
-                    '/onboarding/',
                     '/subscription-locked/',
                     '/checkout/',
                 ],

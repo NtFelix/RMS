@@ -65,8 +65,10 @@ export const ROUTES = {
   REGISTER: '/auth/register',
   RESET_PASSWORD: '/auth/reset-password',
   UPDATE_PASSWORD: '/auth/update-password',
+  // API - OAuth callbacks
+  API_OUTLOOK_CALLBACK: '/api/auth/outlook/callback',
   // Dashboard
-  HOME: '/home',
+  HOME: '/dashboard',
   PROPERTIES: '/objekte',
   TENANTS: '/mieter',
   FINANCES: '/finanzen',

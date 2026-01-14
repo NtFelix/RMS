@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
-import { LOGO_URL, POSTHOG_FEATURE_FLAGS, BASE_URL } from "@/lib/constants"
+import { LOGO_URL, POSTHOG_FEATURE_FLAGS, BASE_URL, ROUTES } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
@@ -26,7 +26,7 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
-  const redirect = redirectParam || "/home"
+  const redirect = redirectParam || ROUTES.HOME
 
   const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
   const isMicrosoftLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MICROSOFT_SOCIAL_LOGIN)

@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { motion, Variants } from "framer-motion"
-import { LOGO_URL } from "@/lib/constants"
+import { LOGO_URL, ROUTES } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,7 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 const sidebarNavItems = [
   {
     title: "Dashboard",
-    href: "/home",
+    href: ROUTES.HOME,
     icon: BarChart3,
   },
   {
@@ -368,7 +368,7 @@ function SidebarContent({
                         id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
                         onClick={() => {
                           setIsOpen(false)
-                          if (item.href === '/home') {
+                          if (item.href === ROUTES.HOME) {
                             useOnboardingStore.getState().completeStep('overview-open')
                           }
                         }}
