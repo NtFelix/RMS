@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
 import { logApiRoute } from "@/lib/logging-middleware"
 import { capturePostHogEvent } from "@/lib/posthog-helpers"
+import { ROUTES } from "@/lib/constants"
 
 export const runtime = 'edge'
 
@@ -51,15 +52,15 @@ export async function GET(request: Request) {
       })
     }
 
-    // Successful authentication, redirect to subscription onboarding with tracking info
+    // Successful authentication, redirect based on user status
     const redirectUrl = new URL(origin)
     if (data?.user) {
       // Pass user info as URL params for client-side PostHog tracking
       redirectUrl.searchParams.set('login_success', 'true')
       redirectUrl.searchParams.set('provider', provider)
       redirectUrl.searchParams.set('is_new_user', String(isNewUser))
-      // Redirect to subscription onboarding
-      redirectUrl.pathname = '/onboarding/subscription'
+      // Redirect new users to pricing page, existing users to dashboard
+      redirectUrl.pathname = isNewUser ? ROUTES.PRICING : ROUTES.HOME
     }
 
     return NextResponse.redirect(redirectUrl.toString())
