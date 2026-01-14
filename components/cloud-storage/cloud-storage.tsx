@@ -153,19 +153,19 @@ export function CloudStorage({
 
     /**
      * Handle efficient navigation using the navigation controller
+     * 
+     * Fetches data first via server actions, then updates the URL using
+     * window.history.pushState to avoid Next.js RSC re-fetching.
+     * This provides instant client-side navigation with proper URL updates.
      */
     const handleNavigate = useCallback(async (path: string, useClientSide = true) => {
         if (path === currentNavPath) return
 
+        // Clear selections immediately
+        setSelectedItems(new Set())
+
         if (useClientSide) {
-            // Update URL immediately for better responsiveness
-            const url = pathToUrl(path)
-            window.history.pushState({ path, clientNavigation: true }, '', url)
-
-            // Clear selections immediately
-            setSelectedItems(new Set())
-
-            // Start navigation via controller
+            // Start navigation via controller to fetch data FIRST
             const result = await navigate(path)
 
             if (result.success && result.data) {
@@ -178,6 +178,15 @@ export function CloudStorage({
                     setTotalStorageSize(data.totalSize)
                     setError(null)
                 })
+
+                // Update URL AFTER successful data load using native History API
+                // This avoids Next.js RSC re-fetch that happens with router.push
+                const url = pathToUrl(path)
+                window.history.pushState(
+                    { path, clientNavigation: true, timestamp: Date.now() },
+                    '',
+                    url
+                )
             }
         } else {
             router.push(pathToUrl(path))
@@ -247,11 +256,12 @@ export function CloudStorage({
 
     /**
      * Handle browser back/forward navigation
+     * Required since we use window.history.pushState for URL updates
      */
     useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
+            // Check if this is one of our client-side navigation states
             if (event.state?.clientNavigation && event.state?.path) {
-                console.log('Handling browser navigation to:', event.state.path)
                 handleNavigate(event.state.path, true)
             }
         }
