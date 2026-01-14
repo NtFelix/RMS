@@ -47,6 +47,7 @@ export function DocumentationArticleJsonLd({ article }: DocumentationArticleJson
                 <HowToJsonLd
                     name={seo.title || article.titel}
                     description={seo.description || getPreviewText(article.seiteninhalt)}
+                    image={seo.og?.image}
                     steps={seo.structuredData.steps.map(step => ({
                         name: step.name,
                         text: step.text
@@ -65,6 +66,7 @@ export function DocumentationArticleJsonLd({ article }: DocumentationArticleJson
                     title={seo?.title || article.titel}
                     description={seo?.description || getPreviewText(article.seiteninhalt)}
                     url={articleUrl}
+                    image={seo?.og?.image}
                     datePublished={article.meta?.created_time || new Date().toISOString()}
                     dateModified={article.meta?.last_edited_time || article.meta?.created_time}
                 />

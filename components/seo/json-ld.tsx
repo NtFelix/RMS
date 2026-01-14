@@ -80,6 +80,7 @@ interface ArticleJsonLdProps {
     url: string
     datePublished: string
     dateModified?: string
+    image?: string
 }
 
 export function ArticleJsonLd({
@@ -87,11 +88,12 @@ export function ArticleJsonLd({
     description,
     url,
     datePublished,
-    dateModified
+    dateModified,
+    image
 }: ArticleJsonLdProps) {
     return (
         <JsonLd
-            data={getArticleSchema(title, description, url, datePublished, dateModified)}
+            data={getArticleSchema(title, description, url, datePublished, dateModified, image)}
         />
     )
 }
@@ -103,10 +105,11 @@ interface HowToJsonLdProps {
     name: string
     description: string
     steps: Array<{ name: string; text: string }>
+    image?: string
 }
 
-export function HowToJsonLd({ name, description, steps }: HowToJsonLdProps) {
-    return <JsonLd data={getHowToSchema(name, description, steps)} />
+export function HowToJsonLd({ name, description, steps, image }: HowToJsonLdProps) {
+    return <JsonLd data={getHowToSchema(name, description, steps, image)} />
 }
 
 /**
