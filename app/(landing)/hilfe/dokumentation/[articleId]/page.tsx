@@ -1,10 +1,18 @@
+import { cache } from 'react';
 import { Metadata } from 'next';
 import { createDocumentationService } from '@/lib/documentation-service';
 import type { ArticleSEO } from '@/types/documentation';
 import ArticlePageClient from './article-page-client';
 import { DocumentationArticleJsonLd } from '@/components/documentation/documentation-json-ld';
+import { BASE_URL } from '@/lib/constants';
 
 export const runtime = 'edge';
+
+// Deduplicate database requests using cache
+const getArticle = cache(async (id: string) => {
+  const documentationService = createDocumentationService(true);
+  return await documentationService.getArticleById(id);
+});
 
 interface ArticlePageProps {
   params: Promise<{ articleId: string }>;
@@ -15,8 +23,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   const { articleId } = await params;
 
   try {
-    const documentationService = createDocumentationService(true);
-    const article = await documentationService.getArticleById(articleId);
+    const article = await getArticle(articleId);
 
     if (!article) {
       return {
@@ -41,7 +48,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 
     const title = seo?.title || `${article.titel} | Mietevo Dokumentation`;
     const description = seo?.description || getPreviewText(article.seiteninhalt) || `Erfahren Sie mehr über ${article.titel} in der Mietevo Dokumentation.`;
-    const canonicalUrl = `https://mietevo.de/hilfe/dokumentation/${article.id}`;
+    const canonicalUrl = `${BASE_URL}/hilfe/dokumentation/${article.id}`;
 
     return {
       title,
@@ -85,8 +92,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { articleId } = await params;
-  const documentationService = createDocumentationService(true);
-  const article = await documentationService.getArticleById(articleId);
+  const article = await getArticle(articleId);
 
   if (!article) {
     return (
@@ -100,7 +106,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   return (
     <>
       <DocumentationArticleJsonLd article={article} />
-      <ArticlePageClient articleId={articleId} />
+      <ArticlePageClient article={article} />
     </>
   );
 }

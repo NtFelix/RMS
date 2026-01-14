@@ -60,15 +60,16 @@ export function DocumentationArticleJsonLd({ article }: DocumentationArticleJson
             )}
 
             {/* Always include Article schema as a base if not already using a more specific one, 
-          or even alongside HowTo for better coverage */}
-            {(structuredDataType === 'Article' || structuredDataType === 'HowTo') && (
+                or even alongside HowTo for better coverage. 
+                Only show if we have a valid publication date to avoid SEO instability. */}
+            {(structuredDataType === 'Article' || structuredDataType === 'HowTo') && article.meta?.created_time && (
                 <ArticleJsonLd
                     title={seo?.title || article.titel}
                     description={seo?.description || getPreviewText(article.seiteninhalt)}
                     url={articleUrl}
                     image={seo?.og?.image}
-                    datePublished={article.meta?.created_time || new Date().toISOString()}
-                    dateModified={article.meta?.last_edited_time || article.meta?.created_time}
+                    datePublished={article.meta.created_time}
+                    dateModified={article.meta.last_edited_time || article.meta.created_time}
                 />
             )}
         </>
