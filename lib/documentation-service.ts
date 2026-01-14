@@ -1,15 +1,15 @@
-import { 
-  createDocumentationQueryBuilder, 
-  getDocumentationClient, 
-  getDocumentationServerClient 
+import {
+  createDocumentationQueryBuilder,
+  getDocumentationClient,
+  getDocumentationServerClient
 } from '@/lib/supabase/documentation-client';
 import { naturalSort } from '@/lib/utils';
-import type { 
-  Article, 
-  Category, 
-  DokumentationRecord, 
-  DocumentationFilters, 
-  SearchResult 
+import type {
+  Article,
+  Category,
+  DokumentationRecord,
+  DocumentationFilters,
+  SearchResult
 } from '@/types/documentation';
 
 /**
@@ -38,7 +38,7 @@ export class DocumentationService {
     try {
       const queryBuilder = await this.getQueryBuilder();
       const { data, error } = await queryBuilder.getCategories();
-      
+
       if (error) {
         console.error('Database error in getCategories:', error);
         return [];
@@ -50,7 +50,7 @@ export class DocumentationService {
 
       // Count articles per category
       const categoryMap = new Map<string, number>();
-      
+
       for (const item of data) {
         if (item.kategorie) {
           categoryMap.set(item.kategorie, (categoryMap.get(item.kategorie) || 0) + 1);
@@ -74,7 +74,7 @@ export class DocumentationService {
     try {
       const queryBuilder = await this.getQueryBuilder();
       const { data, error } = await queryBuilder.getByCategory(kategorie);
-      
+
       if (error) {
         throw new Error(`Failed to fetch articles for category ${kategorie}: ${error.message}`);
       }
@@ -98,7 +98,7 @@ export class DocumentationService {
       const queryBuilder = await this.getQueryBuilder();
       // Use the custom search function for better ranking
       const { data, error } = await queryBuilder.searchWithRanking(query.trim());
-      
+
       if (error) {
         throw new Error(`Failed to search articles: ${error.message}`);
       }
@@ -114,7 +114,7 @@ export class DocumentationService {
         relevanceScore: record.relevance_score,
         highlightedTitle: this.highlightText(record.titel, query),
         highlightedContent: this.highlightText(
-          record.seiteninhalt?.substring(0, 200) || '', 
+          record.seiteninhalt?.substring(0, 200) || '',
           query
         )
       }));
@@ -132,7 +132,7 @@ export class DocumentationService {
     try {
       const queryBuilder = await this.getQueryBuilder();
       const { data, error } = await queryBuilder.getById(id);
-      
+
       if (error) {
         throw new Error(`Failed to fetch article ${id}: ${error.message}`);
       }
@@ -164,7 +164,7 @@ export class DocumentationService {
       }
 
       const { data, error } = await query;
-      
+
       if (error) {
         console.error('Database error in getAllArticles:', error);
         // Return empty array instead of throwing to prevent UI crashes
@@ -181,7 +181,7 @@ export class DocumentationService {
         } catch (searchError) {
           console.error('Search error, falling back to basic filter:', searchError);
           // Fallback to basic text filtering
-          articles = articles.filter(article => 
+          articles = articles.filter(article =>
             article.titel.toLowerCase().includes(filters.searchQuery!.toLowerCase()) ||
             (article.seiteninhalt && article.seiteninhalt.toLowerCase().includes(filters.searchQuery!.toLowerCase()))
           );
@@ -221,7 +221,8 @@ export class DocumentationService {
       titel: record.titel,
       kategorie: record.kategorie || 'Uncategorized',
       seiteninhalt: record.seiteninhalt || '',
-      meta: record.meta || {}
+      meta: record.meta || {},
+      seo: record.seo || null
     };
   }
 
@@ -249,7 +250,7 @@ export class DocumentationService {
     try {
       const queryBuilder = await this.getQueryBuilder();
       const { data, error } = await queryBuilder.search(query);
-      
+
       if (error) {
         throw error;
       }
@@ -258,7 +259,7 @@ export class DocumentationService {
         ...this.transformRecordToArticle(record),
         highlightedTitle: this.highlightText(record.titel, query),
         highlightedContent: this.highlightText(
-          record.seiteninhalt?.substring(0, 200) || '', 
+          record.seiteninhalt?.substring(0, 200) || '',
           query
         )
       }));
