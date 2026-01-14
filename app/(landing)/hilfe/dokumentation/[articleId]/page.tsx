@@ -91,22 +91,32 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 }
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
-  const { articleId } = await params;
-  const article = await getArticle(articleId);
+  try {
+    const { articleId } = await params;
+    const article = await getArticle(articleId);
 
-  if (!article) {
+    if (!article) {
+      return (
+        <div className="container mx-auto py-20 text-center">
+          <h1 className="text-2xl font-bold">Artikel nicht gefunden</h1>
+          <p className="mt-4 text-muted-foreground">Der angeforderte Artikel konnte nicht gefunden werden.</p>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <DocumentationArticleJsonLd article={article} />
+        <ArticlePageClient article={article} />
+      </>
+    );
+  } catch (error) {
+    console.error('Error rendering article page:', error);
     return (
       <div className="container mx-auto py-20 text-center">
-        <h1 className="text-2xl font-bold">Artikel nicht gefunden</h1>
-        <p className="mt-4 text-muted-foreground">Der angeforderte Artikel konnte nicht gefunden werden.</p>
+        <h1 className="text-2xl font-bold">Serverfehler</h1>
+        <p className="mt-4 text-muted-foreground">Ein unerwarteter Fehler ist aufgetreten.</p>
       </div>
     );
   }
-
-  return (
-    <>
-      <DocumentationArticleJsonLd article={article} />
-      <ArticlePageClient article={article} />
-    </>
-  );
 }

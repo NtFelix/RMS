@@ -129,24 +129,32 @@ export class DocumentationService {
    * Get article by ID
    */
   async getArticleById(id: string): Promise<Article | null> {
+    // Basic UUID validation to prevent Postgres errors
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      console.warn(`Invalid article search ID skipped: ${id}`);
+      return null;
+    }
+
     try {
       const queryBuilder = await this.getQueryBuilder();
       const { data, error } = await queryBuilder.getById(id);
 
       if (error) {
-        throw new Error(`Failed to fetch article ${id}: ${error.message}`);
+        // If it's a 406 or similar, it's just not found
+        console.error(`Database error fetching article ${id}:`, error.message);
+        return null;
       }
 
       // Ensure data is a valid record before transforming
       if (!data || typeof data !== 'object' || 'Error' in data) {
-        console.error('Article not found or invalid data:', data);
         return null;
       }
 
       return this.transformRecordToArticle(data);
     } catch (error) {
-      console.error(`Error fetching article ${id}:`, error);
-      throw error;
+      console.error(`Unexpected error fetching article ${id}:`, error);
+      return null; // Return null instead of throwing to prevent 500s
     }
   }
 
