@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
 import { logApiRoute } from "@/lib/logging-middleware"
 import { capturePostHogEvent } from "@/lib/posthog-helpers"
+import { ROUTES } from "@/lib/constants"
 
 export const runtime = 'edge'
 
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
       redirectUrl.searchParams.set('provider', provider)
       redirectUrl.searchParams.set('is_new_user', String(isNewUser))
       // Redirect new users to pricing page, existing users to dashboard
-      redirectUrl.pathname = isNewUser ? '/preise' : '/dashboard'
+      redirectUrl.pathname = isNewUser ? ROUTES.PRICING : ROUTES.HOME
     }
 
     return NextResponse.redirect(redirectUrl.toString())
