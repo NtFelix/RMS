@@ -1,7 +1,8 @@
 import {
   createDocumentationQueryBuilder,
   getDocumentationClient,
-  getDocumentationServerClient
+  getDocumentationServerClient,
+  getPublicDocumentationClient
 } from '@/lib/supabase/documentation-client';
 import { naturalSort } from '@/lib/utils';
 import type {
@@ -25,7 +26,8 @@ export class DocumentationService {
 
   private async getQueryBuilder() {
     if (!this.queryBuilder) {
-      const client = this.isServer ? await getDocumentationServerClient() : getDocumentationClient();
+      // For public documentation, we prefer a cookie-less client on the server to avoid SEO issues
+      const client = this.isServer ? getPublicDocumentationClient() : getDocumentationClient();
       this.queryBuilder = createDocumentationQueryBuilder(client);
     }
     return this.queryBuilder;
