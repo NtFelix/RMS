@@ -1,8 +1,18 @@
+import { cache } from 'react';
 import { Metadata } from 'next';
-import { createClient } from '@/utils/supabase/server';
+import { createDocumentationService } from '@/lib/documentation-service';
+import type { ArticleSEO } from '@/types/documentation';
 import ArticlePageClient from './article-page-client';
+import { DocumentationArticleJsonLd } from '@/components/documentation/documentation-json-ld';
+import { BASE_URL } from '@/lib/constants';
 
 export const runtime = 'edge';
+
+// Deduplicate database requests using cache
+const getArticle = cache(async (id: string) => {
+  const documentationService = createDocumentationService(true);
+  return await documentationService.getArticleById(id);
+});
 
 interface ArticlePageProps {
   params: Promise<{ articleId: string }>;
@@ -13,12 +23,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   const { articleId } = await params;
 
   try {
-    const supabase = await createClient();
-    const { data: article } = await supabase
-      .from('Dokumentation')
-      .select('id, titel, kategorie, seiteninhalt, meta')
-      .eq('id', articleId)
-      .single();
+    const article = await getArticle(articleId);
 
     if (!article) {
       return {
@@ -26,6 +31,8 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
         description: 'Der angeforderte Artikel konnte nicht gefunden werden.',
       };
     }
+
+    const seo = article.seo as ArticleSEO | null;
 
     // Generate preview text from content
     const getPreviewText = (content: string | null, maxLength: number = 160): string => {
@@ -39,33 +46,36 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
         : truncated + '...';
     };
 
-    const title = `${article.titel} | Mietevo Dokumentation`;
-    const description = getPreviewText(article.seiteninhalt) || `Erfahren Sie mehr über ${article.titel} in der Mietevo Dokumentation.`;
-    const canonicalUrl = `https://mietevo.de/dokumentation/${article.id}`;
+    const title = seo?.title || `${article.titel} | Mietevo Dokumentation`;
+    const description = seo?.description || getPreviewText(article.seiteninhalt) || `Erfahren Sie mehr über ${article.titel} in der Mietevo Dokumentation.`;
+    const canonicalUrl = `${BASE_URL}/hilfe/dokumentation/${article.id}`;
 
     return {
       title,
       description,
+      keywords: seo?.keywords || ['Mietevo', 'Hausverwaltung', 'Dokumentation', article.kategorie || 'Hilfe'],
       openGraph: {
-        title,
-        description,
+        title: seo?.og?.title || title,
+        description: seo?.og?.description || description,
         url: canonicalUrl,
         type: 'article',
         siteName: 'Mietevo',
         locale: 'de_DE',
+        images: seo?.og?.image ? [{ url: seo.og.image }] : undefined,
         publishedTime: article.meta?.created_time,
-        modifiedTime: article.meta?.last_edited_time,
+        modifiedTime: article.meta?.last_edited_time || article.meta?.created_time,
         section: article.kategorie || undefined,
         authors: ['Mietevo'],
       },
       twitter: {
-        card: 'summary',
-        title,
-        description,
+        card: 'summary_large_image',
+        title: seo?.og?.title || title,
+        description: seo?.og?.description || description,
+        images: seo?.og?.image ? [seo.og.image] : undefined,
       },
       robots: {
-        index: true,
-        follow: true,
+        index: !seo?.noIndex,
+        follow: !seo?.noIndex,
       },
       alternates: {
         canonical: canonicalUrl,
@@ -81,6 +91,32 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 }
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
-  const { articleId } = await params;
-  return <ArticlePageClient articleId={articleId} />;
+  try {
+    const { articleId } = await params;
+    const article = await getArticle(articleId);
+
+    if (!article) {
+      return (
+        <div className="container mx-auto py-20 text-center">
+          <h1 className="text-2xl font-bold">Artikel nicht gefunden</h1>
+          <p className="mt-4 text-muted-foreground">Der angeforderte Artikel konnte nicht gefunden werden.</p>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <DocumentationArticleJsonLd article={article} />
+        <ArticlePageClient article={article} />
+      </>
+    );
+  } catch (error) {
+    console.error('Error rendering article page:', error);
+    return (
+      <div className="container mx-auto py-20 text-center">
+        <h1 className="text-2xl font-bold">Serverfehler</h1>
+        <p className="mt-4 text-muted-foreground">Ein unerwarteter Fehler ist aufgetreten.</p>
+      </div>
+    );
+  }
 }
