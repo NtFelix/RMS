@@ -36,6 +36,7 @@ interface TaskCalendarProps {
     onMonthChange: (date: Date) => void;
     onDayClick: (date: Date) => void;
     selectedDate?: Date | null;
+    onTaskClick?: (task: Task) => void;
 }
 
 export function TaskCalendar({
@@ -44,6 +45,7 @@ export function TaskCalendar({
     onMonthChange,
     onDayClick,
     selectedDate,
+    onTaskClick,
 }: TaskCalendarProps) {
     // Group tasks by date for efficient lookup
     const tasksByDate = useMemo(() => {
@@ -193,6 +195,7 @@ export function TaskCalendar({
                             selectedDate={selectedDate || undefined}
                             onDayClick={onDayClick}
                             tasks={dayTasks}
+                            onTaskClick={onTaskClick}
                         />
                     );
                 })}
@@ -207,6 +210,7 @@ interface CalendarDayProps {
     selectedDate?: Date;
     onDayClick: (date: Date) => void;
     tasks: Task[];
+    onTaskClick?: (task: Task) => void;
 }
 
 export function CalendarTaskPill({
@@ -221,11 +225,11 @@ export function CalendarTaskPill({
     return (
         <div
             className={cn(
-                "group relative flex items-center gap-1.5 px-1.5 py-1 rounded text-[11px] font-medium transition-all border border-transparent cursor-grab active:cursor-grabbing w-full shadow-sm",
+                "group relative flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all border cursor-grab active:cursor-grabbing w-full shadow-sm",
                 task.ist_erledigt
-                    ? "bg-gray-100 text-gray-500 line-through dark:bg-gray-800 dark:text-gray-400"
-                    : "bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-100 hover:text-blue-700 dark:bg-[#1e1e1e] dark:text-gray-300 dark:hover:bg-blue-900/30 dark:hover:border-blue-800 dark:hover:text-blue-200 border-gray-100 dark:border-gray-800",
-                isDragging && "opacity-30"
+                    ? "bg-gray-100 text-gray-500 border-transparent line-through dark:bg-gray-800 dark:text-gray-400"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-blue-400 hover:shadow-md dark:bg-[#1e1e1e] dark:text-gray-300 dark:border-gray-700 dark:hover:border-blue-400",
+                isDragging && "opacity-50 ring-2 ring-blue-500 ring-offset-2 z-50"
             )}
             onClick={onClick}
         >
@@ -238,7 +242,7 @@ export function CalendarTaskPill({
     );
 }
 
-function DraggableCalendarTask({ task }: { task: Task }) {
+function DraggableCalendarTask({ task, onTaskClick }: { task: Task, onTaskClick?: (task: Task) => void }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: `calendar-${task.id}`,
         data: {
@@ -256,13 +260,16 @@ function DraggableCalendarTask({ task }: { task: Task }) {
             <CalendarTaskPill
                 task={task}
                 isDragging={isDragging}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onTaskClick?.(task);
+                }}
             />
         </div>
     );
 }
 
-function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks }: CalendarDayProps) {
+function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTaskClick }: CalendarDayProps) {
     const dateKey = format(day, "yyyy-MM-dd");
     const { isOver, setNodeRef } = useDroppable({
         id: dateKey,
@@ -305,7 +312,7 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks }: Cal
             {/* Tasks List */}
             <div className="w-full flex flex-col gap-0.5 min-h-0 flex-1">
                 {visibleTasks.map(task => (
-                    <DraggableCalendarTask key={task.id} task={task} />
+                    <DraggableCalendarTask key={task.id} task={task} onTaskClick={onTaskClick} />
                 ))}
 
                 {hiddenCount > 0 && (

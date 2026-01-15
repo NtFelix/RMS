@@ -350,6 +350,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
                   onMonthChange={handleMonthChange}
                   onDayClick={handleDayClick}
                   selectedDate={selectedDate}
+                  onTaskClick={handleTaskClick}
                 />
               </div>
             </div>
