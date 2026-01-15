@@ -24,7 +24,7 @@ export class DocumentationService {
     this.isServer = isServer;
   }
 
-  private async getQueryBuilder() {
+  private getQueryBuilder() {
     if (!this.queryBuilder) {
       // For public documentation, we prefer a cookie-less client on the server to avoid SEO issues
       const client = this.isServer ? getPublicDocumentationClient() : getDocumentationClient();
@@ -38,7 +38,7 @@ export class DocumentationService {
    */
   async getCategories(): Promise<Category[]> {
     try {
-      const queryBuilder = await this.getQueryBuilder();
+      const queryBuilder = this.getQueryBuilder();
       const { data, error } = await queryBuilder.getCategories();
 
       if (error) {
@@ -74,7 +74,7 @@ export class DocumentationService {
    */
   async getArticlesByCategory(kategorie: string): Promise<Article[]> {
     try {
-      const queryBuilder = await this.getQueryBuilder();
+      const queryBuilder = this.getQueryBuilder();
       const { data, error } = await queryBuilder.getByCategory(kategorie);
 
       if (error) {
@@ -97,7 +97,7 @@ export class DocumentationService {
     }
 
     try {
-      const queryBuilder = await this.getQueryBuilder();
+      const queryBuilder = this.getQueryBuilder();
       // Use the custom search function for better ranking
       const { data, error } = await queryBuilder.searchWithRanking(query.trim());
 
@@ -139,7 +139,7 @@ export class DocumentationService {
     }
 
     try {
-      const queryBuilder = await this.getQueryBuilder();
+      const queryBuilder = this.getQueryBuilder();
       const { data, error } = await queryBuilder.getById(id);
 
       if (error) {
@@ -165,7 +165,7 @@ export class DocumentationService {
    */
   async getAllArticles(filters: DocumentationFilters = {}): Promise<Article[]> {
     try {
-      const queryBuilder = await this.getQueryBuilder();
+      const queryBuilder = this.getQueryBuilder();
       let query = queryBuilder.getAll();
 
       // Apply category filter
@@ -258,7 +258,7 @@ export class DocumentationService {
    */
   private async fallbackSearch(query: string): Promise<SearchResult[]> {
     try {
-      const queryBuilder = await this.getQueryBuilder();
+      const queryBuilder = this.getQueryBuilder();
       const { data, error } = await queryBuilder.search(query);
 
       if (error) {
