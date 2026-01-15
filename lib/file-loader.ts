@@ -135,11 +135,15 @@ async function executeFileLoad(
             }
         }
 
-        // Import server action
-        const { getFolderContents } = await import('@/app/(dashboard)/dateien/actions')
-
-        // Execute with abort check
-        const result = await getFolderContents(userId, path)
+        // Use API route instead of server actions to avoid 404 on Cloudflare Pages
+        // Server actions POST to the current URL, which fails for dynamic routes
+        const response = await fetch(`/api/files/contents?path=${encodeURIComponent(path)}`, {
+            method: 'GET',
+            signal: abortSignal,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
 
         // Check if aborted after request
         if (abortSignal.aborted) {
@@ -152,6 +156,13 @@ async function executeFileLoad(
             }
         }
 
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+            throw new Error(errorData.error || `HTTP ${response.status}`)
+        }
+
+        const result = await response.json()
+
         const loadTime = performance.now() - startTime
         const displayPath = path.length > 50 ? '...' + path.slice(-47) : path
 
@@ -160,8 +171,8 @@ async function executeFileLoad(
         const level = result.error ? 'WARN' : 'INFO'
         logLoader(level as 'INFO' | 'WARN', `${status} Loaded in ${Math.round(loadTime)}ms`, {
             path: displayPath,
-            folders: result.folders.length,
-            files: result.files.length,
+            folders: result.folders?.length ?? 0,
+            files: result.files?.length ?? 0,
             executionTime: `${Math.round(loadTime)}ms`,
             ...(result.error ? { error: result.error } : {})
         })
@@ -176,6 +187,18 @@ async function executeFileLoad(
         }
     } catch (error) {
         const loadTime = performance.now() - startTime
+
+        // Handle abort errors gracefully
+        if (error instanceof Error && error.name === 'AbortError') {
+            return {
+                files: [],
+                folders: [],
+                breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+                totalSize: 0,
+                error: 'Request cancelled',
+                loadTime,
+            }
+        }
 
         return {
             files: [],
