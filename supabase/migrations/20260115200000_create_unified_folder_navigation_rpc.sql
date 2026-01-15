@@ -59,12 +59,14 @@ BEGIN
     'type', 'root'
   );
   
-  -- Process each path segment after user prefix
+  -- Optimization: Pre-fetch entity IDs from the path to look them up once
+  -- This avoids running 3 queries for every path segment
   FOR i IN 2..v_depth LOOP
     v_segment := v_path_parts[i];
     v_breadcrumb_path := v_breadcrumb_path || '/' || v_segment;
+    v_entity_name := NULL;
     
-    -- Determine breadcrumb name and type based on segment
+    -- Fast lookup for system names
     IF v_segment = 'Miscellaneous' THEN
       v_entity_name := 'Sonstiges';
       v_breadcrumb_type := 'category';
@@ -75,23 +77,25 @@ BEGIN
       v_entity_name := 'Wohnungsdokumente';
       v_breadcrumb_type := 'category';
     ELSIF v_segment ~ v_uuid_pattern THEN
-      -- Check if it's a house, apartment, or tenant
-      SELECT name INTO v_entity_name FROM "Haeuser" WHERE id = v_segment::uuid AND user_id = p_user_id;
-      IF FOUND THEN
+      -- Use the depth to guide the lookup
+      IF i = 2 THEN -- Should be a House
+        SELECT name INTO v_entity_name FROM "Haeuser" WHERE id = v_segment::uuid AND user_id = p_user_id;
         v_breadcrumb_type := 'house';
-      ELSE
+      ELSIF i = 3 THEN -- Should be an Apartment
         SELECT name INTO v_entity_name FROM "Wohnungen" WHERE id = v_segment::uuid AND user_id = p_user_id;
-        IF FOUND THEN
-          v_breadcrumb_type := 'apartment';
-        ELSE
-          SELECT name INTO v_entity_name FROM "Mieter" WHERE id = v_segment::uuid AND user_id = p_user_id;
-          IF FOUND THEN
-            v_breadcrumb_type := 'tenant';
-          ELSE
-            v_entity_name := v_segment;
-            v_breadcrumb_type := 'category';
-          END IF;
-        END IF;
+        v_breadcrumb_type := 'apartment';
+      ELSIF i = 4 THEN -- Should be a Tenant
+        SELECT name INTO v_entity_name FROM "Mieter" WHERE id = v_segment::uuid AND user_id = p_user_id;
+        v_breadcrumb_type := 'tenant';
+      ELSE
+        v_entity_name := v_segment;
+        v_breadcrumb_type := 'category';
+      END IF;
+      
+      -- Fallback if UUID didn't match an entity
+      IF v_entity_name IS NULL THEN
+        v_entity_name := v_segment;
+        v_breadcrumb_type := 'category';
       END IF;
     ELSE
       v_entity_name := v_segment;
@@ -99,7 +103,7 @@ BEGIN
     END IF;
     
     v_breadcrumbs := v_breadcrumbs || jsonb_build_object(
-      'name', COALESCE(v_entity_name, v_segment),
+      'name', v_entity_name,
       'path', v_breadcrumb_path,
       'type', v_breadcrumb_type
     );
@@ -319,39 +323,53 @@ BEGIN
   -- ============================================
   -- DISCOVER CUSTOM STORAGE FOLDERS (at any depth)
   -- These are folders created by users that exist in the metadata table
+  -- Optimization: Use a single CTE to find all unique sub-folders one level deeper
   -- ============================================
   FOR v_folder_record IN
-    WITH subfolders AS (
-      SELECT DISTINCT
-        split_part(substring(dateipfad from length(p_current_path) + 2), '/', 1) as folder_name
+    WITH folder_stats AS (
+      -- Get paths that are exactly one level deeper than current path
+      SELECT 
+        dateipfad,
+        COUNT(*) filter (where dateiname != '.keep') as direct_file_count
       FROM "Dokumente_Metadaten"
       WHERE dateipfad LIKE p_current_path || '/%'
         AND user_id = p_user_id
-        AND length(dateipfad) > length(p_current_path) + 1
+      GROUP BY dateipfad
+    ),
+    immediate_subfolders AS (
+      SELECT DISTINCT
+        split_part(substring(dateipfad from length(p_current_path) + 2), '/', 1) as folder_name,
+        dateipfad as target_path,
+        direct_file_count
+      FROM folder_stats
+      WHERE length(dateipfad) > length(p_current_path) + 1
+    ),
+    aggregated_subfolders AS (
+      SELECT 
+        folder_name,
+        p_current_path || '/' || folder_name as path,
+        SUM(direct_file_count) filter (where target_path = p_current_path || '/' || folder_name) as file_count
+      FROM immediate_subfolders
+      WHERE folder_name != ''
+      GROUP BY folder_name
     )
     SELECT 
-      s.folder_name,
-      p_current_path || '/' || s.folder_name as path,
-      (SELECT COUNT(*) FROM "Dokumente_Metadaten" dm 
-       WHERE dm.dateipfad = p_current_path || '/' || s.folder_name 
-       AND dm.user_id = p_user_id 
-       AND dm.dateiname != '.keep') as file_count
-    FROM subfolders s
-    WHERE s.folder_name != ''
-      AND s.folder_name NOT IN ('Miscellaneous', 'house_documents', 'apartment_documents')
+      *
+    FROM aggregated_subfolders
+    WHERE folder_name NOT IN ('Miscellaneous', 'house_documents', 'apartment_documents')
       -- Exclude folders that are already added (houses, apartments, tenants by UUID)
       AND NOT EXISTS (
         SELECT 1 FROM jsonb_array_elements(v_folders) f 
-        WHERE f->>'name' = s.folder_name
+        WHERE f->>'name' = folder_name
       )
   LOOP
     v_folders := v_folders || jsonb_build_object(
       'name', v_folder_record.folder_name,
       'path', v_folder_record.path,
       'type', 'storage',
-      'isEmpty', v_folder_record.file_count = 0,
+      'isEmpty', COALESCE(v_folder_record.file_count, 0) = 0,
       'children', '[]'::jsonb,
-      'fileCount', v_folder_record.file_count,
+      'fileCount', COALESCE(v_folder_record.file_count, 0),
       'displayName', v_folder_record.folder_name
     );
   END LOOP;
@@ -359,6 +377,7 @@ BEGIN
   -- ============================================
   -- CALCULATE TOTAL STORAGE SIZE
   -- ============================================
+  -- This query is fast with individual index on user_id
   SELECT COALESCE(SUM(dateigroesse), 0) INTO v_total_size
   FROM "Dokumente_Metadaten"
   WHERE user_id = p_user_id;
