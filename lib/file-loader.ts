@@ -1,10 +1,9 @@
 /**
- * Optimized File Loader
+ * File Loader
  * 
  * Provides high-performance file and folder loading with:
+ * - Single RPC call for all folder contents
  * - Request deduplication across multiple callers
- * - Batched database queries
- * - Optimized breadcrumb resolution
  * - Request cancellation support
  * - LRU caching with intelligent invalidation
  */
@@ -30,11 +29,18 @@ export interface LoadResult {
     loadTime?: number
 }
 
+// Helper for logging (matches the project's logger format)
+function logLoader(level: 'INFO' | 'DEBUG' | 'WARN', message: string, context?: Record<string, unknown>) {
+    const timestamp = new Date().toISOString()
+    const contextString = context ? `\nContext: ${JSON.stringify(context, null, 2)}` : ''
+    console.log(`[${timestamp}] [${level}] 📂 FileLoader: ${message}${contextString}`)
+}
+
 /**
- * Deduplicated file loader
- * Multiple simultaneous requests to the same path will share a single network request
+ * Load files and folders for a path
+ * Deduplicates requests - multiple simultaneous requests to the same path share a single network request
  */
-export async function loadFilesOptimized(
+export async function loadFiles(
     userId: string,
     path: string,
     abortSignal?: AbortSignal
@@ -46,6 +52,7 @@ export async function loadFilesOptimized(
     const existing = pendingRequests.get(cacheKey)
     if (existing && now - existing.timestamp < REQUEST_DEDUP_WINDOW) {
         // Wait for existing request
+        logLoader('DEBUG', 'Deduplicating request - reusing in-flight', { path })
         try {
             return await existing.promise
         } catch (error) {
@@ -129,10 +136,10 @@ async function executeFileLoad(
         }
 
         // Import server action
-        const { getPathContents } = await import('@/app/(dashboard)/dateien/actions')
+        const { getFolderContents } = await import('@/app/(dashboard)/dateien/actions')
 
         // Execute with abort check
-        const result = await getPathContents(userId, path)
+        const result = await getFolderContents(userId, path)
 
         // Check if aborted after request
         if (abortSignal.aborted) {
@@ -146,6 +153,18 @@ async function executeFileLoad(
         }
 
         const loadTime = performance.now() - startTime
+        const displayPath = path.length > 50 ? '...' + path.slice(-47) : path
+
+        // Log load result
+        const status = result.error ? '⚠️' : '✅'
+        const level = result.error ? 'WARN' : 'INFO'
+        logLoader(level as 'INFO' | 'WARN', `${status} Loaded in ${Math.round(loadTime)}ms`, {
+            path: displayPath,
+            folders: result.folders.length,
+            files: result.files.length,
+            executionTime: `${Math.round(loadTime)}ms`,
+            ...(result.error ? { error: result.error } : {})
+        })
 
         return {
             files: result.files as unknown as StorageObject[],
@@ -184,7 +203,7 @@ export async function preloadPaths(
 
     for (const chunk of chunks) {
         await Promise.allSettled(
-            chunk.map(path => loadFilesOptimized(userId, path))
+            chunk.map(path => loadFiles(userId, path))
         )
     }
 }
@@ -212,7 +231,7 @@ export function getPreloadPaths(userId: string, currentPath: string): string[] {
     return paths
 }
 
-// Optimized breadcrumb builder that uses cached data when available
+// Breadcrumb cache
 let breadcrumbCache = new Map<string, { data: BreadcrumbItem[]; timestamp: number }>()
 const BREADCRUMB_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 

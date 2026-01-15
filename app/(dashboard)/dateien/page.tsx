@@ -2,47 +2,45 @@ import { Suspense } from 'react'
 import { CloudStorage } from "@/components/cloud-storage/cloud-storage"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
-import { getPathContents, getTotalStorageUsage } from "./actions"
+import { getFolderContents } from "./actions"
 import DateienLoading from './loading'
 
 export const runtime = 'edge'
 
 async function CloudStorageContent({ userId }: { userId: string }) {
-  // Load initial files, folders and breadcrumbs on the server
-  const initialPath = `user_${userId}`
-  const pathContents = await getPathContents(userId, initialPath)
+    // Load initial files, folders and breadcrumbs on the server using unified RPC
+    const initialPath = `user_${userId}`
+    const { files, folders, breadcrumbs, totalSize, error: loadError } = await getFolderContents(userId, initialPath)
 
-  const { files, folders, breadcrumbs, totalSize, error: loadError } = pathContents
+    if (loadError) {
+        console.error('Error loading initial files:', loadError)
+    }
 
-  if (loadError) {
-    console.error('Error loading initial files:', loadError)
-  }
-
-  return (
-    <CloudStorage
-      userId={userId}
-      initialPath={initialPath}
-      initialFiles={files}
-      initialFolders={folders}
-      initialBreadcrumbs={breadcrumbs}
-      initialTotalSize={totalSize}
-    />
-  )
+    return (
+        <CloudStorage
+            userId={userId}
+            initialPath={initialPath}
+            initialFiles={files}
+            initialFolders={folders}
+            initialBreadcrumbs={breadcrumbs}
+            initialTotalSize={totalSize}
+        />
+    )
 }
 
 export default async function DateienPage() {
-  const supabase = await createClient()
+    const supabase = await createClient()
 
-  // Get user on server side
-  const { data: { user }, error } = await supabase.auth.getUser()
+    // Get user on server side
+    const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (error || !user) {
-    redirect('/auth/login')
-  }
+    if (error || !user) {
+        redirect('/auth/login')
+    }
 
-  return (
-    <Suspense fallback={<DateienLoading />}>
-      <CloudStorageContent userId={user.id} />
-    </Suspense>
-  )
+    return (
+        <Suspense fallback={<DateienLoading />}>
+            <CloudStorageContent userId={user.id} />
+        </Suspense>
+    )
 }
