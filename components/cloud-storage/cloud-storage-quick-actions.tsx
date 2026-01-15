@@ -16,7 +16,8 @@ import {
   SortAsc,
   Image,
   FileText,
-  Plus
+  Plus,
+  Lock
 } from "lucide-react"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,12 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { DeleteConfirmationDialog } from "@/components/modals/delete-confirmation-dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface QuickActionsProps {
   onUpload: () => void
@@ -46,6 +53,8 @@ interface QuickActionsProps {
   onBulkDownload?: () => void
   onBulkDelete?: () => void
   onBulkArchive?: () => void
+  isUploadDisabled?: boolean
+  storageDisabledMessage?: string
 }
 
 export function CloudStorageQuickActions({
@@ -61,7 +70,9 @@ export function CloudStorageQuickActions({
   selectedCount = 0,
   onBulkDownload,
   onBulkDelete,
-  onBulkArchive
+  onBulkArchive,
+  isUploadDisabled = false,
+  storageDisabledMessage = "Speicherlimit erreicht oder nicht in Ihrem Tarif enthalten"
 }: QuickActionsProps) {
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -183,30 +194,46 @@ export function CloudStorageQuickActions({
           </div>
 
           {/* Unified add/upload dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Hinzufügen
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onUpload}>
-                <Upload className="h-4 w-4 mr-2" />
-                Dateien hochladen
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onCreateFolder}>
-                <FolderPlus className="h-4 w-4 mr-2" />
-                Ordner erstellen
-              </DropdownMenuItem>
-              {createFileEnabled && (
-                <DropdownMenuItem onClick={onCreateFile}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Datei erstellen
+          {isUploadDisabled ? (
+            <TooltipProvider>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button className="sm:w-auto opacity-60 cursor-not-allowed">
+                    <Lock className="h-4 w-4 mr-2" />
+                    Hinzufügen
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[250px]">
+                  <p className="text-sm">{storageDisabledMessage}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Hinzufügen
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onUpload}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Dateien hochladen
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem onClick={onCreateFolder}>
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  Ordner erstellen
+                </DropdownMenuItem>
+                {createFileEnabled && (
+                  <DropdownMenuItem onClick={onCreateFile}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Datei erstellen
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 

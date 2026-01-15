@@ -10,6 +10,7 @@ import {
   Info,
   Monitor,
   FlaskConical,
+  Mail,
 } from "lucide-react";
 import { SettingsSidebar } from "../settings/sidebar"
 import type { Tab } from "@/types/settings"
@@ -20,6 +21,7 @@ import SubscriptionSection from "../settings/subscription-section";
 import ExportSection from "../settings/export-section";
 import FeaturePreviewSection from "../settings/feature-preview-section";
 import InformationSection from "../settings/information-section";
+import MailSection from "../settings/mail-section";
 
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
 
@@ -45,6 +47,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Abo",
       icon: CreditCard,
       content: <SubscriptionSection />,
+    },
+    {
+      value: "mail",
+      label: "E-Mail",
+      icon: Mail,
+      content: <MailSection />,
     },
     {
       value: "display",

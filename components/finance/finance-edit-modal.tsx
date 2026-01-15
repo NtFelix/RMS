@@ -27,6 +27,7 @@ import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { createClient } from "@/utils/supabase/client";
 import { FinanceFileUpload } from "@/components/finance/finance-file-upload";
+import { TagInput } from "@/components/ui/tag-input";
 
 import { useModalStore } from "@/hooks/use-modal-store";
 
@@ -40,6 +41,7 @@ interface Finanz {
   ist_einnahmen: boolean;
   notiz?: string | null;
   dokument_id?: string | null;
+  tags?: string[] | null;
   Wohnungen?: {
     name: string;
   };
@@ -79,6 +81,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
     ist_einnahmen: financeInitialData?.ist_einnahmen || false,
     notiz: financeInitialData?.notiz || "",
     dokument_id: financeInitialData?.dokument_id || null,
+    tags: financeInitialData?.tags || [],
   });
 
   // internalWohnungen is now financeModalWohnungen from the store
@@ -100,6 +103,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
         ist_einnahmen: financeInitialData?.ist_einnahmen || false,
         notiz: financeInitialData?.notiz || "",
         dokument_id: financeInitialData?.dokument_id || null,
+        tags: financeInitialData?.tags || [],
       });
       setFinanceModalDirty(false); // Reset dirty state when modal opens or data changes
       setDocumentWasChanged(false); // Reset document change tracking
@@ -175,6 +179,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
       datum: formData.datum || null,
       notiz: formData.notiz || null,
       dokument_id: formData.dokument_id || null,
+      tags: formData.tags.length > 0 ? formData.tags : null,
     };
 
     try {
@@ -231,6 +236,20 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
                 Bezeichnung
               </LabelWithTooltip>
               <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting} />
+            </div>
+            <div className="col-span-1 sm:col-span-2 space-y-2">
+              <LabelWithTooltip htmlFor="tags" infoText="Optionale Tags zur Kategorisierung. Erleichtert die spätere Filterung und Auswertung.">
+                Tags
+              </LabelWithTooltip>
+              <TagInput
+                value={formData.tags}
+                onChange={(tags) => {
+                  setFormData({ ...formData, tags });
+                  setFinanceModalDirty(true);
+                }}
+                disabled={isSubmitting}
+                placeholder="Tags auswählen (optional)..."
+              />
             </div>
             <div className="space-y-2">
               <LabelWithTooltip htmlFor="betrag" infoText="Betrag der Transaktion in Euro.">

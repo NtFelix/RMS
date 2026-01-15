@@ -22,7 +22,7 @@ jest.mock('posthog-js/react', () => ({
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
-  usePathname: () => '/home'
+  usePathname: () => '/dashboard'
 }))
 
 describe('MobileBottomNavigation Accessibility', () => {
@@ -33,14 +33,14 @@ describe('MobileBottomNavigation Accessibility', () => {
 
   it('has proper navigation role and aria-label', () => {
     render(<MobileBottomNavigation />)
-    
+
     const nav = screen.getByRole('navigation')
     expect(nav).toHaveAttribute('aria-label', 'Main mobile navigation')
   })
 
   it('has proper ARIA labels for navigation items', () => {
     render(<MobileBottomNavigation />)
-    
+
     // Check primary navigation items
     expect(screen.getByLabelText(/Navigate to Home/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Navigate to Mieter/)).toBeInTheDocument()
@@ -52,16 +52,16 @@ describe('MobileBottomNavigation Accessibility', () => {
   it('has proper focus management and keyboard navigation', async () => {
     const user = userEvent.setup()
     render(<MobileBottomNavigation />)
-    
+
     // Find and click the More button
     const moreButton = screen.getByLabelText(/Mehr menu/)
     await user.click(moreButton)
-    
+
     // Wait for dropdown to appear
     await waitFor(() => {
       expect(screen.getByRole('menu')).toBeInTheDocument()
     })
-    
+
     // Check dropdown has proper ARIA attributes
     const dropdown = screen.getByRole('menu')
     expect(dropdown).toHaveAttribute('aria-label', 'More navigation options')
@@ -71,19 +71,19 @@ describe('MobileBottomNavigation Accessibility', () => {
   it('supports keyboard navigation in dropdown', async () => {
     const user = userEvent.setup()
     render(<MobileBottomNavigation />)
-    
+
     // Open dropdown
     const moreButton = screen.getByLabelText(/Mehr menu/)
     await user.click(moreButton)
-    
+
     // Wait for dropdown
     await waitFor(() => {
       expect(screen.getByRole('menu')).toBeInTheDocument()
     })
-    
+
     // Test Escape key closes dropdown
     fireEvent.keyDown(document, { key: 'Escape' })
-    
+
     await waitFor(() => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     })
@@ -91,7 +91,7 @@ describe('MobileBottomNavigation Accessibility', () => {
 
   it('has screen reader announcements', () => {
     render(<MobileBottomNavigation />)
-    
+
     // Check for screen reader announcement region
     const announcement = screen.getByRole('status')
     expect(announcement).toHaveAttribute('aria-live', 'polite')
@@ -101,7 +101,7 @@ describe('MobileBottomNavigation Accessibility', () => {
 
   it('has proper button descriptions', () => {
     render(<MobileBottomNavigation />)
-    
+
     // Check for More button description
     const description = screen.getByText(/Opens additional navigation options/)
     expect(description).toHaveClass('sr-only')
@@ -111,15 +111,15 @@ describe('MobileBottomNavigation Accessibility', () => {
   it('has proper aria-expanded state for More button', async () => {
     const user = userEvent.setup()
     render(<MobileBottomNavigation />)
-    
+
     const moreButton = screen.getByLabelText(/Mehr menu/)
-    
+
     // Initially collapsed
     expect(moreButton).toHaveAttribute('aria-expanded', 'false')
-    
+
     // Click to expand
     await user.click(moreButton)
-    
+
     await waitFor(() => {
       expect(moreButton).toHaveAttribute('aria-expanded', 'true')
     })
@@ -127,15 +127,15 @@ describe('MobileBottomNavigation Accessibility', () => {
 
   it('has proper focus indicators', () => {
     render(<MobileBottomNavigation />)
-    
+
     // All interactive elements should have focus styles
     const buttons = screen.getAllByRole('button')
     const links = screen.getAllByRole('link')
-    
+
     buttons.forEach(button => {
       expect(button).toHaveClass('focus:outline-none', 'focus:ring-2', 'focus:ring-accent')
     })
-    
+
     links.forEach(link => {
       expect(link).toHaveClass('focus:outline-none', 'focus:ring-2', 'focus:ring-accent')
     })
@@ -143,15 +143,15 @@ describe('MobileBottomNavigation Accessibility', () => {
 
   it('has minimum touch target sizes', () => {
     render(<MobileBottomNavigation />)
-    
+
     // All interactive elements should have minimum 44px touch targets
     const buttons = screen.getAllByRole('button')
     const links = screen.getAllByRole('link')
-    
+
     buttons.forEach(button => {
       expect(button).toHaveClass('min-h-[44px]', 'min-w-[44px]')
     })
-    
+
     links.forEach(link => {
       expect(link).toHaveClass('min-h-[44px]', 'min-w-[44px]')
     })
@@ -160,10 +160,10 @@ describe('MobileBottomNavigation Accessibility', () => {
   it('has proper aria-current for active states', () => {
     // Test that inactive items don't have aria-current
     render(<MobileBottomNavigation />)
-    
+
     const homeLink = screen.getByLabelText('Navigate to Home')
     expect(homeLink).not.toHaveAttribute('aria-current')
-    
+
     // Test that the component structure supports aria-current
     // (The actual active state would be tested in integration tests)
     expect(homeLink).toBeInTheDocument()

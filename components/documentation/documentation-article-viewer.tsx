@@ -31,6 +31,20 @@ function formatContent(content: string | null): React.ReactNode {
     // Parse markdown content to HTML synchronously
     const htmlContent = marked.parse(content, { async: false }) as string;
 
+    // Server-side: Return unsanitized but parsed markdown for SEO
+    // We trust documentation content as it's admin-managed
+    if (typeof window === 'undefined') {
+      return (
+        <div
+          className="prose prose-sm max-w-none dark:prose-invert prose-headings:scroll-mt-20 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs"
+          dangerouslySetInnerHTML={{
+            __html: htmlContent
+          }}
+        />
+      );
+    }
+
+    // Client-side: Use DOMPurify for extra security
     // Add hook to ensure external links open safely
     DOMPurify.addHook('afterSanitizeAttributes', function (node) {
       // Ensure external links open in new tab with security attributes
@@ -82,8 +96,10 @@ function formatContent(content: string | null): React.ReactNode {
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br/>');
 
-    // Also sanitize the fallback content
-    const sanitizedFallback = DOMPurify.sanitize(`<p>${fallbackContent}</p>`);
+    // Also sanitize the fallback content if on client
+    const sanitizedFallback = typeof window !== 'undefined'
+      ? DOMPurify.sanitize(`<p>${fallbackContent}</p>`)
+      : `<p>${fallbackContent}</p>`;
 
     return (
       <div

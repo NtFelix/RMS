@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertTriangle } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { toast } from "@/hooks/use-toast"
-import { PAYMENT_KEYWORDS } from "@/utils/constants"
+import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from "@/utils/constants"
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -127,7 +127,8 @@ export default function TenantPaymentEditModal() {
           betrag: rentValue,
           datum: today,
           ist_einnahmen: true,
-          notiz: rentNote
+          notiz: rentNote,
+          tags: [PAYMENT_TAGS.RENT]
         })
       }
 
@@ -143,7 +144,8 @@ export default function TenantPaymentEditModal() {
           betrag: nebenkostenValue,
           datum: today,
           ist_einnahmen: true,
-          notiz: nebenkostenNote
+          notiz: nebenkostenNote,
+          tags: [PAYMENT_TAGS.NEBENKOSTEN]
         })
       }
 
@@ -200,8 +202,13 @@ export default function TenantPaymentEditModal() {
     try {
       // Use the fetched missing payment details to create entries
       // This avoids creating duplicates for months that are already paid
+      // Back payments (Nachtrag) get the Nachzahlung tag in addition to the appropriate type tag
       const paymentEntries = missingPaymentDetails.map(detail => {
         const isRent = detail.type === 'rent'
+        // Back payments get both the type tag and Nachzahlung tag
+        const tags = isRent
+          ? [PAYMENT_TAGS.RENT, PAYMENT_TAGS.NACHZAHLUNG]
+          : [PAYMENT_TAGS.NEBENKOSTEN, PAYMENT_TAGS.NACHZAHLUNG]
 
         return {
           wohnung_id: tenantPaymentEditInitialData.apartmentId,
@@ -213,7 +220,8 @@ export default function TenantPaymentEditModal() {
           ist_einnahmen: true,
           notiz: isRent
             ? `${capitalize(PAYMENT_KEYWORDS.RENT)} von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
-            : `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)}-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`
+            : `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)}-Vorauszahlung von ${tenantPaymentEditInitialData.tenant} - Nachtrag`,
+          tags
         }
       })
 
@@ -286,7 +294,7 @@ export default function TenantPaymentEditModal() {
   return (
     <>
       <Dialog open={isTenantPaymentEditModalOpen} onOpenChange={handleClose}>
-        <DialogContent>
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>Zahlungsabweichung erfassen</DialogTitle>
             <DialogDescription>
@@ -398,7 +406,7 @@ export default function TenantPaymentEditModal() {
 
       {showConfirmModal && (
         <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-          <DialogContent>
+          <DialogContent size="md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-5 w-5" />

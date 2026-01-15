@@ -3,6 +3,7 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
+import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
@@ -29,8 +30,41 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+const dialogContentVariants = cva(
+  // Base styles - mobile-first: Full-width drawer from bottom
+  [
+    "fixed z-50 grid w-full gap-4 border bg-background shadow-xl duration-300",
+    // Mobile positioning: bottom sheet style
+    "inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl p-4 pb-6",
+    // Mobile animations: slide up from bottom
+    "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+    "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+    // Tablet and up: centered modal style
+    "sm:inset-auto sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-[2rem] sm:p-6 sm:max-h-[85vh]",
+    "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
+    // Large screens: more padding
+    "md:p-8 md:rounded-[2.5rem]",
+  ],
+  {
+    variants: {
+      size: {
+        default: "", // No max-width, let child components set it
+        sm: "sm:max-w-md",  // 448px - for very small dialogs
+        md: "sm:max-w-lg",  // 512px - for confirmation dialogs
+        lg: "sm:max-w-2xl", // 672px - for medium forms
+        xl: "sm:max-w-4xl", // 896px - for large content
+        full: "sm:max-w-[calc(100%-4rem)]", // Nearly full width with margin
+      },
+    },
+    defaultVariants: {
+      size: "default",
+    },
+  }
+)
+
 interface DialogContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
+  VariantProps<typeof dialogContentVariants> {
   isDirty?: boolean
   onAttemptClose?: () => void // Changed: no event argument needed
   hideCloseButton?: boolean
@@ -39,7 +73,7 @@ interface DialogContentProps
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, isDirty, onAttemptClose, hideCloseButton, ...props }, ref) => {
+>(({ className, children, isDirty, onAttemptClose, hideCloseButton, size, ...props }, ref) => {
 
   const handleInteraction = (
     event: Parameters<NonNullable<React.ComponentProps<typeof DialogPrimitive.Content>['onInteractOutside']>>[0]
@@ -90,21 +124,7 @@ const DialogContent = React.forwardRef<
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
-        className={cn(
-          // Mobile-first: Full-width drawer from bottom, easier to reach on mobile
-          "fixed z-50 grid w-full gap-4 border bg-background shadow-xl duration-300",
-          // Mobile positioning: bottom sheet style
-          "inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl p-4 pb-6",
-          // Mobile animations: slide up from bottom
-          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-          // Tablet and up: centered modal style (no max-width here - let child components set it)
-          "sm:inset-auto sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-[2rem] sm:p-6 sm:max-h-[85vh]",
-          "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
-          // Large screens: more padding
-          "md:p-8 md:rounded-[2.5rem]",
-          className
-        )}
+        className={cn(dialogContentVariants({ size }), className)}
         onInteractOutside={handleInteraction} // Assign the correctly typed handler
         onOpenAutoFocus={(e) => {
           // Prevent auto focus to allow combobox inputs to work

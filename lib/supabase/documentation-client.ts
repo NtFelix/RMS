@@ -10,7 +10,15 @@ export function getDocumentationClient() {
 }
 
 /**
- * Server-side Supabase client for documentation queries
+ * Public server-side Supabase client for documentation queries (no cookies)
+ * Safer for SEO/Metadata generation on Edge runtime
+ */
+export function getPublicDocumentationClient() {
+  return createClient(); // createClient() from @/utils/supabase/client is already cookie-less
+}
+
+/**
+ * Server-side Supabase client for documentation queries (with cookies/auth)
  */
 export async function getDocumentationServerClient() {
   return await createServerClient();
