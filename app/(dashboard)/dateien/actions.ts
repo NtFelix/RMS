@@ -263,64 +263,81 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
         }
 
         const pathSegments = folderPath.split('/')
+        const depth = pathSegments.length
 
-        // Check for protected system folders
-        const protectedFolders = ['Miscellaneous', 'house_documents', 'apartment_documents']
-        const lastSegment = pathSegments[pathSegments.length - 1]
+        // Protect system folders at their specific path depths
+        // Path format: user_uuid/[segment1]/[segment2]/[segment3]
+        // depth 1: user_uuid
+        // depth 2: user_uuid/house_uuid OR user_uuid/Miscellaneous
+        // depth 3: user_uuid/house_uuid/apartment_uuid OR user_uuid/house_uuid/house_documents
+        // depth 4: user_uuid/house_uuid/apartment_uuid/tenant_uuid OR .../apartment_documents
 
-        if (protectedFolders.includes(lastSegment)) {
+        if (depth === 2 && pathSegments[1] === 'Miscellaneous') {
             return {
                 success: false,
-                error: 'Systemordner können nicht gelöscht werden'
+                error: 'Der Ordner "Sonstiges" ist ein Systemordner und kann nicht gelöscht werden.'
+            }
+        }
+        if (depth === 3 && pathSegments[2] === 'house_documents') {
+            return {
+                success: false,
+                error: 'Der Ordner "Hausdokumente" ist ein Systemordner und kann nicht gelöscht werden.'
+            }
+        }
+        if (depth === 4 && pathSegments[3] === 'apartment_documents') {
+            return {
+                success: false,
+                error: 'Der Ordner "Wohnungsdokumente" ist ein Systemordner und kann nicht gelöscht werden.'
             }
         }
 
-        // Check if it's a virtual folder (house/apartment/tenant) that still exists in the database
-        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-        if (uuidPattern.test(lastSegment)) {
-            // Check houses
+        // Check for virtual folders (house/apartment/tenant) based on their expected depth
+        if (depth === 2) {
+            // Potential house folder at user_uuid/house_uuid
+            const houseId = pathSegments[1]
             const { data: house } = await supabase
                 .from('Haeuser')
                 .select('id')
-                .eq('id', lastSegment)
+                .eq('id', houseId)
                 .eq('user_id', userId)
                 .single()
 
             if (house) {
                 return {
                     success: false,
-                    error: 'Hausordner können nicht gelöscht werden, solange das Haus existiert'
+                    error: 'Hausordner können nicht gelöscht werden, solange das Haus existiert.'
                 }
             }
-
-            // Check apartments
+        } else if (depth === 3) {
+            // Potential apartment folder at user_uuid/house_uuid/apartment_uuid
+            const apartmentId = pathSegments[2]
             const { data: apartment } = await supabase
                 .from('Wohnungen')
                 .select('id')
-                .eq('id', lastSegment)
+                .eq('id', apartmentId)
                 .eq('user_id', userId)
                 .single()
 
             if (apartment) {
                 return {
                     success: false,
-                    error: 'Wohnungsordner können nicht gelöscht werden, solange die Wohnung existiert'
+                    error: 'Wohnungsordner können nicht gelöscht werden, solange die Wohnung existiert.'
                 }
             }
-
-            // Check tenants
+        } else if (depth === 4) {
+            // Potential tenant folder at user_uuid/house_uuid/apartment_uuid/tenant_uuid
+            const tenantId = pathSegments[3]
             const { data: tenant } = await supabase
                 .from('Mieter')
                 .select('id')
-                .eq('id', lastSegment)
+                .eq('id', tenantId)
                 .eq('user_id', userId)
                 .single()
 
             if (tenant) {
                 return {
                     success: false,
-                    error: 'Mieterordner können nicht gelöscht werden, solange der Mieter existiert'
+                    error: 'Mieterordner können nicht gelöscht werden, solange der Mieter existiert.'
                 }
             }
         }
@@ -360,10 +377,12 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             .from('documents')
             .remove([`${folderPath}/.keep`])
 
+        // Note: Deletion of metadata from the 'Dokumente_Metadaten' table is handled
+        // automatically by a database trigger that observes deletions from 'storage.objects'.
         return { success: true }
 
     } catch (error) {
-        console.error('Error in deleteFolderUnified:', error)
+        console.error('Error in deleteFolder:', error)
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Unerwarteter Fehler beim Löschen des Ordners'

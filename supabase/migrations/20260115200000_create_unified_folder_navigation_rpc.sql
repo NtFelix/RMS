@@ -140,18 +140,26 @@ BEGIN
   
   -- DEPTH 1: Root level (user_uuid) -> Show Houses + System Folders
   IF v_depth = 1 THEN
-    -- Add virtual house folders
+    -- Add virtual house folders with pre-aggregated file counts
+    -- Using LEFT JOIN instead of correlated subqueries for better performance
     FOR v_folder_record IN
       SELECT 
         h.id::text as id,
         h.name,
         p_current_path || '/' || h.id::text as path,
         'house' as folder_type,
-        (SELECT COUNT(*) FROM "Dokumente_Metadaten" dm 
-         WHERE dm.dateipfad LIKE p_current_path || '/' || h.id::text || '%' 
-         AND dm.user_id = p_user_id 
-         AND dm.dateiname != '.keep') as file_count
+        COALESCE(fc.file_count, 0) as file_count
       FROM "Haeuser" h
+      LEFT JOIN (
+        SELECT 
+          split_part(dateipfad, '/', 2) as entity_id,
+          COUNT(*) as file_count
+        FROM "Dokumente_Metadaten"
+        WHERE dateipfad LIKE p_current_path || '/%'
+          AND user_id = p_user_id 
+          AND dateiname != '.keep'
+        GROUP BY split_part(dateipfad, '/', 2)
+      ) fc ON fc.entity_id = h.id::text
       WHERE h.user_id = p_user_id
       ORDER BY h.name ASC
     LOOP
@@ -217,18 +225,25 @@ BEGIN
         'displayName', 'Hausdokumente'
       );
       
-      -- Add virtual apartment folders
+      -- Add virtual apartment folders with pre-aggregated file counts
       FOR v_folder_record IN
         SELECT 
           w.id::text as id,
           w.name,
           p_current_path || '/' || w.id::text as path,
           'apartment' as folder_type,
-          (SELECT COUNT(*) FROM "Dokumente_Metadaten" dm 
-           WHERE dm.dateipfad LIKE p_current_path || '/' || w.id::text || '%' 
-           AND dm.user_id = p_user_id 
-           AND dm.dateiname != '.keep') as file_count
+          COALESCE(fc.file_count, 0) as file_count
         FROM "Wohnungen" w
+        LEFT JOIN (
+          SELECT 
+            split_part(dateipfad, '/', 3) as entity_id,
+            COUNT(*) as file_count
+          FROM "Dokumente_Metadaten"
+          WHERE dateipfad LIKE p_current_path || '/%'
+            AND user_id = p_user_id 
+            AND dateiname != '.keep'
+          GROUP BY split_part(dateipfad, '/', 3)
+        ) fc ON fc.entity_id = w.id::text
         WHERE w.haus_id = v_house_id AND w.user_id = p_user_id
         ORDER BY w.name ASC
       LOOP
@@ -266,18 +281,25 @@ BEGIN
         'displayName', 'Wohnungsdokumente'
       );
       
-      -- Add virtual tenant folders
+      -- Add virtual tenant folders with pre-aggregated file counts
       FOR v_folder_record IN
         SELECT 
           m.id::text as id,
           m.name,
           p_current_path || '/' || m.id::text as path,
           'tenant' as folder_type,
-          (SELECT COUNT(*) FROM "Dokumente_Metadaten" dm 
-           WHERE dm.dateipfad LIKE p_current_path || '/' || m.id::text || '%' 
-           AND dm.user_id = p_user_id 
-           AND dm.dateiname != '.keep') as file_count
+          COALESCE(fc.file_count, 0) as file_count
         FROM "Mieter" m
+        LEFT JOIN (
+          SELECT 
+            split_part(dateipfad, '/', 4) as entity_id,
+            COUNT(*) as file_count
+          FROM "Dokumente_Metadaten"
+          WHERE dateipfad LIKE p_current_path || '/%'
+            AND user_id = p_user_id 
+            AND dateiname != '.keep'
+          GROUP BY split_part(dateipfad, '/', 4)
+        ) fc ON fc.entity_id = m.id::text
         WHERE m.wohnung_id = v_apartment_id AND m.user_id = p_user_id
         ORDER BY m.name ASC
       LOOP
