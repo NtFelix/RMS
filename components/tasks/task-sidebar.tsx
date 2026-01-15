@@ -10,6 +10,7 @@ import {
     CalendarOff,
     CheckCircle2,
     Circle,
+    GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,8 @@ import {
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { TaskBoardTask as Task } from "@/types/Task";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
 interface TaskSidebarProps {
     tasks: Task[];
@@ -33,24 +36,36 @@ interface TaskItemProps {
     onTaskToggle: (taskId: string, completed: boolean) => void;
 }
 
-function TaskItem({ task, onTaskClick, onTaskToggle }: TaskItemProps) {
+// Basic visual component for the task
+export function TaskItemCard({
+    task,
+    onTaskClick,
+    onTaskToggle,
+    isOverlay,
+    isDragging
+}: TaskItemProps & { isOverlay?: boolean, isDragging?: boolean }) {
     return (
         <div
             className={cn(
-                "flex items-start gap-2 p-2 rounded-lg transition-colors hover:bg-accent/50 cursor-pointer group",
+                "flex items-start gap-2 p-2 rounded-lg transition-colors group border border-transparent",
+                !isOverlay && "hover:bg-accent/50 cursor-grab active:cursor-grabbing",
+                isOverlay && "bg-white dark:bg-[#181818] border-gray-200 dark:border-[#3C4251] shadow-lg rotate-2 scale-105",
+                isDragging && "opacity-30",
                 task.ist_erledigt && "opacity-60"
             )}
+            onClick={() => onTaskClick?.(task)}
         >
+            <div className="mt-1 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity px-0.5">
+                <GripVertical className="h-3 w-3" />
+            </div>
+
             <Checkbox
                 checked={task.ist_erledigt}
-                onCheckedChange={(checked) => onTaskToggle(task.id, checked as boolean)}
+                onCheckedChange={(checked) => onTaskToggle?.(task.id, checked as boolean)}
                 onClick={(e) => e.stopPropagation()}
                 className="mt-0.5 flex-shrink-0"
             />
-            <div
-                className="flex-1 min-w-0"
-                onClick={() => onTaskClick(task)}
-            >
+            <div className="flex-1 min-w-0">
                 <p
                     className={cn(
                         "text-sm font-medium truncate",
@@ -70,6 +85,27 @@ function TaskItem({ task, onTaskClick, onTaskToggle }: TaskItemProps) {
             ) : (
                 <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
             )}
+        </div>
+    );
+}
+
+function TaskItem(props: TaskItemProps) {
+    const { task } = props;
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+        id: `sidebar-${task.id}`,
+        data: {
+            type: "Task",
+            task: task,
+        },
+    });
+
+    const style = {
+        transform: CSS.Translate.toString(transform),
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+            <TaskItemCard {...props} isDragging={isDragging} />
         </div>
     );
 }
@@ -137,6 +173,10 @@ export function TaskSidebar({
 
         return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue };
     }, [tasks, today, nextWeek]);
+
+    const { setNodeRef: setNoDateRef, isOver: isNoDateOver } = useDroppable({
+        id: "remove-date-zone",
+    });
 
     return (
         <div className="h-full flex flex-col gap-4 overflow-y-auto">
@@ -208,7 +248,14 @@ export function TaskSidebar({
 
             {/* No Date Section */}
             <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                <CollapsibleTrigger
+                    ref={setNoDateRef}
+                    className={cn(
+                        "flex items-center justify-between w-full p-2 rounded-lg transition-colors border border-transparent",
+                        !isNoDateOver && "hover:bg-accent/50",
+                        isNoDateOver && "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800"
+                    )}
+                >
                     <div className="flex items-center gap-2">
                         {isNoDateOpen ? (
                             <ChevronDown className="h-4 w-4 text-muted-foreground" />

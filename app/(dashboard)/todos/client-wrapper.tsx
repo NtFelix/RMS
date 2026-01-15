@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
@@ -11,8 +12,19 @@ import { TaskSidebar } from "@/components/tasks/task-sidebar";
 import { TaskDayModal } from "@/components/tasks/task-day-modal";
 import { TaskBoardTask } from "@/types/Task";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { toggleTaskStatusAction, deleteTaskAction } from "@/app/todos-actions";
+import { toggleTaskStatusAction, deleteTaskAction, updateTaskDueDateAction } from "@/app/todos-actions";
 import { toast } from "@/hooks/use-toast";
+import {
+  DndContext,
+  DragOverlay,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  DragStartEvent,
+  DragEndEvent
+} from "@dnd-kit/core";
+import { TaskItemCard } from "@/components/tasks/task-sidebar";
+import { CalendarTaskPill } from "@/components/tasks/task-calendar";
 
 interface TodosClientWrapperProps {
   tasks: TaskBoardTask[];
@@ -25,6 +37,21 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const { openAufgabeModal } = useModalStore();
+  const [activeTask, setActiveTask] = useState<TaskBoardTask | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   // Filter tasks based on search query
   const filteredTasks = useMemo(() => {
@@ -146,105 +173,220 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
     setIsDayModalOpen(true);
   }, []);
 
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+    if (event.active.data.current?.task) {
+      setActiveTask(event.active.data.current.task as TaskBoardTask);
+    }
+  }, []);
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveTask(null);
+    setActiveId(null);
+
+    if (!over) return;
+
+    // Extract task ID securely from data if available, or fallback (though data should be there)
+    const taskData = active.data.current?.task as TaskBoardTask | undefined;
+    const taskId = taskData?.id;
+
+    if (!taskId) return;
+
+    // Handle dropping on "No Date" zone
+    if (over.id === "remove-date-zone") {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task || !task.faelligkeitsdatum) return;
+
+      // Optimistic update
+      const previousTasks = tasks;
+      const updatedTask = { ...task, faelligkeitsdatum: null, aenderungsdatum: new Date().toISOString() };
+      handleTaskUpdated(updatedTask);
+
+      try {
+        const result = await updateTaskDueDateAction(taskId, null);
+        if (!result.success) {
+          setTasks(previousTasks);
+          toast({
+            title: "Fehler",
+            description: result.error?.message || "Datum konnte nicht entfernt werden.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Datum entfernt",
+            description: "Die Fälligkeit der Aufgabe wurde entfernt.",
+          });
+        }
+      } catch (error) {
+        setTasks(previousTasks);
+        toast({
+          title: "Fehler",
+          description: "Datum konnte nicht entfernt werden.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    const dateStr = over.id as string;
+
+    // Validate date string (simple check if it matches yyyy-MM-dd format used in calendar keys)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return;
+
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    // Optimistic update
+    const previousTasks = tasks;
+    const updatedTask = { ...task, faelligkeitsdatum: dateStr, aenderungsdatum: new Date().toISOString() };
+    handleTaskUpdated(updatedTask);
+
+    try {
+      const result = await updateTaskDueDateAction(taskId, dateStr);
+      if (!result.success) {
+        setTasks(previousTasks);
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Datum konnte nicht aktualisiert werden.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Aufgabe verschoben",
+          description: `Fälligkeitsdatum auf ${format(new Date(dateStr), 'dd.MM.yyyy')} geändert.`,
+        });
+      }
+    } catch (error) {
+      setTasks(previousTasks);
+      toast({
+        title: "Fehler",
+        description: "Datum konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      });
+    }
+
+  }, [tasks, handleTaskUpdated]);
+
   const handleMonthChange = useCallback((date: Date) => {
     setCurrentMonth(date);
   }, []);
 
+
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
-      {/* Background gradient */}
-      <div
-        className="absolute inset-0 z-[-1]"
-        style={{
-          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
-        }}
-      />
-
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle>Aufgabenkalender</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">
-                Verwalten Sie hier Ihre Aufgaben und Termine
-              </p>
-            </div>
-            <div className="mt-0 sm:mt-1">
-              <ResponsiveButtonWithTooltip
-                onClick={() => handleAddTask()}
-                icon={<PlusCircle className="h-4 w-4" />}
-                shortText="Hinzufügen"
-              >
-                Aufgabe hinzufügen
-              </ResponsiveButtonWithTooltip>
-            </div>
-          </div>
-        </CardHeader>
-
-        <div className="px-4 sm:px-6">
-          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
-        </div>
-
-        <CardContent className="flex flex-col gap-6 pt-6">
-
-          {/* Calendar and Sidebar Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:h-[calc(100vh-250px)]">
-            {/* Sidebar */}
-            <div className="order-2 lg:order-1 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 h-fit lg:h-full overflow-hidden flex flex-col">
-              <div className="flex flex-col gap-4 mb-4 shrink-0">
-                <div className="flex items-center gap-2">
-                  <List className="h-5 w-5 text-muted-foreground" />
-                  <h3 className="font-medium">Aufgabenliste</h3>
-                </div>
-                <SearchInput
-                  placeholder="Aufgaben suchen..."
-                  className="rounded-full"
-                  wrapperClassName="w-full"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onClear={() => setSearchQuery("")}
-                />
-              </div>
-              <div className="overflow-y-auto flex-1 -mr-2 pr-2">
-                <TaskSidebar
-                  tasks={filteredTasks}
-                  onTaskClick={handleTaskClick}
-                  onTaskToggle={handleTaskToggle}
-                />
-              </div>
-            </div>
-
-            {/* Calendar */}
-            <div className="order-1 lg:order-2 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 flex flex-col h-full overflow-hidden">
-              <div className="flex items-center gap-2 mb-4 shrink-0">
-                <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-                <h3 className="font-medium">Kalender</h3>
-              </div>
-              <TaskCalendar
-                tasks={filteredTasks}
-                currentMonth={currentMonth}
-                onMonthChange={handleMonthChange}
-                onDayClick={handleDayClick}
-                selectedDate={selectedDate}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Day Modal */}
-      {selectedDate && (
-        <TaskDayModal
-          open={isDayModalOpen}
-          onOpenChange={setIsDayModalOpen}
-          date={selectedDate}
-          tasks={filteredTasks}
-          onTaskClick={handleTaskClick}
-          onTaskToggle={handleTaskToggle}
-          onTaskDelete={handleTaskDelete}
-          onAddTask={handleAddTask}
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
+        {/* Background gradient */}
+        <div
+          className="absolute inset-0 z-[-1]"
+          style={{
+            backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
+          }}
         />
-      )}
-    </div>
+
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle>Aufgabenkalender</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1 hidden sm:block">
+                  Verwalten Sie hier Ihre Aufgaben und Termine
+                </p>
+              </div>
+              <div className="mt-0 sm:mt-1">
+                <ResponsiveButtonWithTooltip
+                  onClick={() => handleAddTask()}
+                  icon={<PlusCircle className="h-4 w-4" />}
+                  shortText="Hinzufügen"
+                >
+                  Aufgabe hinzufügen
+                </ResponsiveButtonWithTooltip>
+              </div>
+            </div>
+          </CardHeader>
+
+          <div className="px-4 sm:px-6">
+            <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+          </div>
+
+          <CardContent className="flex flex-col gap-6 pt-6">
+
+            {/* Calendar and Sidebar Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:h-[calc(100vh-250px)]">
+              {/* Sidebar */}
+              <div className="order-2 lg:order-1 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 h-fit lg:h-full overflow-hidden flex flex-col">
+                <div className="flex flex-col gap-4 mb-4 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <List className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="font-medium">Aufgabenliste</h3>
+                  </div>
+                  <SearchInput
+                    placeholder="Aufgaben suchen..."
+                    className="rounded-full"
+                    wrapperClassName="w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onClear={() => setSearchQuery("")}
+                  />
+                </div>
+                <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+                  <TaskSidebar
+                    tasks={filteredTasks}
+                    onTaskClick={handleTaskClick}
+                    onTaskToggle={handleTaskToggle}
+                  />
+                </div>
+              </div>
+
+              {/* Calendar */}
+              <div className="order-1 lg:order-2 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 flex flex-col h-full overflow-hidden">
+                <div className="flex items-center gap-2 mb-4 shrink-0">
+                  <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="font-medium">Kalender</h3>
+                </div>
+                <TaskCalendar
+                  tasks={filteredTasks}
+                  currentMonth={currentMonth}
+                  onMonthChange={handleMonthChange}
+                  onDayClick={handleDayClick}
+                  selectedDate={selectedDate}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Day Modal */}
+        {selectedDate && (
+          <TaskDayModal
+            open={isDayModalOpen}
+            onOpenChange={setIsDayModalOpen}
+            date={selectedDate}
+            tasks={filteredTasks}
+            onTaskClick={handleTaskClick}
+            onTaskToggle={handleTaskToggle}
+            onTaskDelete={handleTaskDelete}
+            onAddTask={handleAddTask}
+          />
+        )}
+
+        {mounted ? createPortal(
+          <DragOverlay>
+            {activeTask ? (
+              activeId?.startsWith("calendar-") ? (
+                <div className="w-[150px]">
+                  <CalendarTaskPill task={activeTask} />
+                </div>
+              ) : (
+                <div className="w-[280px]">
+                  <TaskItemCard task={activeTask} onTaskClick={() => { }} onTaskToggle={() => { }} isOverlay />
+                </div>
+              )
+            ) : null}
+          </DragOverlay>,
+          document.body
+        ) : null}
+      </div>
+    </DndContext>
   );
 }
