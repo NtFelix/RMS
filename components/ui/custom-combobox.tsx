@@ -180,7 +180,7 @@ export function CustomCombobox({
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-label={id ? undefined : (selectedOption ? `Selected: ${selectedOption.label}` : placeholder)}
-          className={cn("justify-between px-3 min-h-[40px] h-auto", width, !value && "text-muted-foreground")}
+          className={cn("justify-between px-3 min-h-[40px] h-auto cursor-pointer", width, !value && "text-muted-foreground")}
           disabled={disabled}
           id={id}
           data-dropdown-trigger
