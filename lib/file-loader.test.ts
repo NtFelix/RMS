@@ -1,5 +1,5 @@
 /**
- * Tests for navigation controller and optimized file loader
+ * Tests for file loader
  */
 
 // Mock server actions before importing
@@ -9,7 +9,7 @@ jest.mock('@/app/(dashboard)/dateien/actions', () => ({
     getTotalStorageUsage: jest.fn(),
 }))
 
-describe('loadFilesOptimized', () => {
+describe('loadFiles', () => {
     beforeEach(() => {
         jest.clearAllMocks()
     })
@@ -20,7 +20,7 @@ describe('loadFilesOptimized', () => {
     })
 
     it('should deduplicate concurrent requests to the same path', async () => {
-        const { loadFilesOptimized } = await import('@/lib/optimized-file-loader')
+        const { loadFiles } = await import('@/lib/file-loader')
         const { getPathContents } = await import('@/app/(dashboard)/dateien/actions')
 
         const mockResult = {
@@ -33,9 +33,9 @@ describe('loadFilesOptimized', () => {
 
         // Make multiple concurrent requests
         const requests = [
-            loadFilesOptimized('123', 'user_123/folder1'),
-            loadFilesOptimized('123', 'user_123/folder1'),
-            loadFilesOptimized('123', 'user_123/folder1'),
+            loadFiles('123', 'user_123/folder1'),
+            loadFiles('123', 'user_123/folder1'),
+            loadFiles('123', 'user_123/folder1'),
         ]
 
         const results = await Promise.all(requests)
@@ -50,12 +50,12 @@ describe('loadFilesOptimized', () => {
     })
 
     it('should cancel pending load when abort signal is triggered', async () => {
-        const { loadFilesOptimized } = await import('@/lib/optimized-file-loader')
+        const { loadFiles } = await import('@/lib/file-loader')
 
         const abortController = new AbortController()
 
         // Start the request
-        const promise = loadFilesOptimized('123', 'user_123/folder1', abortController.signal)
+        const promise = loadFiles('123', 'user_123/folder1', abortController.signal)
 
         // Abort immediately
         abortController.abort()
@@ -66,7 +66,7 @@ describe('loadFilesOptimized', () => {
     })
 
     it('should return cached breadcrumbs when available', async () => {
-        const { getCachedBreadcrumbs, setCachedBreadcrumbs, invalidateBreadcrumbCache } = await import('@/lib/optimized-file-loader')
+        const { getCachedBreadcrumbs, setCachedBreadcrumbs, invalidateBreadcrumbCache } = await import('@/lib/file-loader')
 
         // Clear cache first
         invalidateBreadcrumbCache()
@@ -88,7 +88,7 @@ describe('loadFilesOptimized', () => {
 
 describe('getPreloadPaths', () => {
     it('should include parent path for nested directories', async () => {
-        const { getPreloadPaths } = await import('@/lib/optimized-file-loader')
+        const { getPreloadPaths } = await import('@/lib/file-loader')
 
         const paths = getPreloadPaths('123', 'user_123/house1/apartment1')
 
@@ -97,7 +97,7 @@ describe('getPreloadPaths', () => {
     })
 
     it('should include common system folders for root path', async () => {
-        const { getPreloadPaths } = await import('@/lib/optimized-file-loader')
+        const { getPreloadPaths } = await import('@/lib/file-loader')
 
         const paths = getPreloadPaths('123', 'user_123')
 

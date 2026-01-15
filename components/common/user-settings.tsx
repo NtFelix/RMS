@@ -14,7 +14,7 @@ import { useApartmentUsage } from "@/hooks/use-apartment-usage"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ARIA_LABELS } from "@/lib/accessibility-constants"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { SettingsModal } from "@/components/modals/settings-modal"
 import {
@@ -122,7 +122,6 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
             aria-label="User menu"
           >
             <Avatar className="h-10 w-10">
-              <AvatarImage src={"/placeholder-user.jpg"} alt={userName} />
               <AvatarFallback className="bg-accent text-accent-foreground">
                 {isLoadingUser ? "" : userInitials}
               </AvatarFallback>
