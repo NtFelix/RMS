@@ -5,6 +5,7 @@ import type { ArticleSEO } from '@/types/documentation';
 import ArticlePageClient from './article-page-client';
 import { DocumentationArticleJsonLd } from '@/components/documentation/documentation-json-ld';
 import { BASE_URL } from '@/lib/constants';
+import { notFound } from 'next/navigation';
 
 export const runtime = 'edge';
 
@@ -96,12 +97,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     const article = await getArticle(articleId);
 
     if (!article) {
-      return (
-        <div className="container mx-auto py-20 text-center">
-          <h1 className="text-2xl font-bold">Artikel nicht gefunden</h1>
-          <p className="mt-4 text-muted-foreground">Der angeforderte Artikel konnte nicht gefunden werden.</p>
-        </div>
-      );
+      notFound();
     }
 
     return (
