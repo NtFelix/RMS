@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { logRpcCall, type FolderContentsResult } from '@/app/(dashboard)/dateien/actions'
 
 export const runtime = 'edge'
 
@@ -51,11 +52,8 @@ export async function GET(request: NextRequest) {
             p_current_path: path
         })
 
-        const duration = Math.round(performance.now() - startTime)
-
         if (error) {
-            console.log(`[${new Date().toISOString()}] [ERROR] ❌ API: get_folder_contents | ${duration}ms
-Context: ${JSON.stringify({ path, error: error.message }, null, 2)}`)
+            await logRpcCall('get_folder_contents', path, startTime, false, { error: error.message })
 
             return NextResponse.json(
                 {
@@ -69,22 +67,15 @@ Context: ${JSON.stringify({ path, error: error.message }, null, 2)}`)
             )
         }
 
-        // Log successful call
-        const result = data as {
-            files: unknown[]
-            folders: unknown[]
-            breadcrumbs: unknown[]
-            totalSize: number
-            error: string | null
-        }
+        const result = data as FolderContentsResult
 
-        console.log(`[${new Date().toISOString()}] [INFO] ✅ API: get_folder_contents | ${duration}ms
-Context: ${JSON.stringify({
-            path: path.length > 60 ? '...' + path.slice(-57) : path,
-            folders: result.folders?.length ?? 0,
-            files: result.files?.length ?? 0,
-            executionTime: `${duration}ms`
-        }, null, 2)}`)
+        // Log result using unified logger
+        await logRpcCall('get_folder_contents', path, startTime, true, {
+            folderCount: result.folders?.length ?? 0,
+            fileCount: result.files?.length ?? 0,
+            totalSize: result.totalSize ?? 0,
+            error: result.error
+        })
 
         if (result.error) {
             return NextResponse.json(

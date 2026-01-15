@@ -17,7 +17,7 @@ import { redirect } from 'next/navigation'
  */
 
 // Unified logging for RPC calls (matches the project's logger format)
-function logRpcCall(
+export async function logRpcCall(
     functionName: string,
     path: string,
     startTime: number,
@@ -128,7 +128,7 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         })
 
         if (error) {
-            logRpcCall('get_folder_contents', targetPath, startTime, false, {
+            await logRpcCall('get_folder_contents', targetPath, startTime, false, {
                 error: error.message
             })
             console.error('Error calling get_folder_contents RPC:', error)
@@ -151,7 +151,7 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         }
 
         if (result.error) {
-            logRpcCall('get_folder_contents', targetPath, startTime, false, {
+            await logRpcCall('get_folder_contents', targetPath, startTime, false, {
                 error: result.error
             })
             return {
@@ -164,7 +164,7 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         }
 
         // Log successful RPC call
-        logRpcCall('get_folder_contents', targetPath, startTime, true, {
+        await logRpcCall('get_folder_contents', targetPath, startTime, true, {
             folderCount: result.folders?.length ?? 0,
             fileCount: result.files?.length ?? 0,
             totalSize: result.totalSize ?? 0
@@ -178,7 +178,7 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         }
 
     } catch (error) {
-        logRpcCall('get_folder_contents', targetPath, startTime, false, {
+        await logRpcCall('get_folder_contents', targetPath, startTime, false, {
             error: error instanceof Error ? error.message : 'Unknown error'
         })
         console.error('Unexpected error in getFolderContents:', error)
