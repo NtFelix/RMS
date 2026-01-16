@@ -14,6 +14,41 @@ const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posth
 const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
 
 /**
+ * Global helper to fetch feature flags from PostHog for server-side use.
+ */
+async function fetchPostHogFlags(distinctId: string, cache: RequestCache = 'no-store'): Promise<Record<string, any>> {
+    if (!POSTHOG_API_KEY) {
+        return {}
+    }
+
+    try {
+        const response = await fetch(`${POSTHOG_HOST}/decide?v=3`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            cache,
+            body: JSON.stringify({
+                api_key: POSTHOG_API_KEY,
+                distinct_id: distinctId,
+                groups: {},
+            }),
+        })
+
+        if (!response.ok) {
+            console.warn(`[PostHog] API returned ${response.status}`)
+            return {}
+        }
+
+        const data = await response.json()
+        return data.featureFlags || {}
+    } catch (error) {
+        console.error('[PostHog] Error fetching feature flags:', error)
+        return {}
+    }
+}
+
+/**
  * Feature flags for SEO/sitemap generation
  */
 interface FeatureFlagResult {
@@ -38,54 +73,15 @@ export interface LandingPageFeatureFlags {
  * default/public state of the feature flags, not user-specific overrides.
  */
 export async function getFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
-    const defaultResult: FeatureFlagResult = {
-        showLoesungen: false,
-        showProdukte: false,
+    const flags = await fetchPostHogFlags('seo-build-time-check', 'no-store')
+
+    const result: FeatureFlagResult = {
+        showLoesungen: flags[POSTHOG_FEATURE_FLAGS.SHOW_LOESUNGEN_DROPDOWN] === true,
+        showProdukte: flags[POSTHOG_FEATURE_FLAGS.SHOW_PRODUKTE_DROPDOWN] === true,
     }
 
-    if (!POSTHOG_API_KEY) {
-        console.warn('[SEO] PostHog API key not configured - feature-flag-controlled pages will not be indexed')
-        return defaultResult
-    }
-
-    try {
-        // Use PostHog's /decide endpoint to evaluate feature flags
-        // Use cache: 'no-store' to ensure fresh flags on each build
-        const response = await fetch(`${POSTHOG_HOST}/decide?v=3`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            cache: 'no-store',
-            body: JSON.stringify({
-                api_key: POSTHOG_API_KEY,
-                // Use a fixed distinct_id for build-time evaluation
-                // This gets the "default" feature flag state for new users
-                distinct_id: 'seo-build-time-check',
-                groups: {},
-            }),
-        })
-
-        if (!response.ok) {
-            console.warn(`[SEO] PostHog API returned ${response.status} - using default feature flag values`)
-            return defaultResult
-        }
-
-        const data = await response.json()
-        const featureFlags = data.featureFlags || {}
-
-        const result: FeatureFlagResult = {
-            showLoesungen: featureFlags[POSTHOG_FEATURE_FLAGS.SHOW_LOESUNGEN_DROPDOWN] === true,
-            showProdukte: featureFlags[POSTHOG_FEATURE_FLAGS.SHOW_PRODUKTE_DROPDOWN] === true,
-        }
-
-        console.log('[SEO] Feature flags fetched for sitemap:', result)
-        return result
-
-    } catch (error) {
-        console.error('[SEO] Error fetching feature flags from PostHog:', error)
-        return defaultResult
-    }
+    console.log('[SEO] Feature flags fetched for sitemap:', result)
+    return result
 }
 
 /**
@@ -122,53 +118,13 @@ export function clearFeatureFlagCache(): void {
  * remain static until the next deployment.
  */
 export async function getLandingPageFeatureFlags(): Promise<LandingPageFeatureFlags> {
-    const defaultResult: LandingPageFeatureFlags = {
-        showPricingPreviewLimitNotice: false,
-        showWaitlistButton: false,
+    const flags = await fetchPostHogFlags('landing-page-ssr', 'force-cache')
+
+    const result: LandingPageFeatureFlags = {
+        showPricingPreviewLimitNotice: flags[POSTHOG_FEATURE_FLAGS.PRICING_PAGE_PREVIEW_LIMIT_NOTICE] === true,
+        showWaitlistButton: flags[POSTHOG_FEATURE_FLAGS.SHOW_WAITLIST_BUTTON] === true,
     }
 
-    if (!POSTHOG_API_KEY) {
-        console.warn('[Landing] PostHog API key not configured - using default feature flag values')
-        return defaultResult
-    }
-
-    try {
-        // Use PostHog's /decide endpoint to evaluate feature flags
-        // Use force-cache for true build-time static generation
-        const response = await fetch(`${POSTHOG_HOST}/decide?v=3`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            cache: 'force-cache',
-            body: JSON.stringify({
-                api_key: POSTHOG_API_KEY,
-                // Use a fixed distinct_id for server-side evaluation
-                // This gets the "default" feature flag state for new/anonymous users
-                distinct_id: 'landing-page-ssr',
-                groups: {},
-            }),
-        })
-
-        if (!response.ok) {
-            console.warn(`[Landing] PostHog API returned ${response.status} - using default feature flag values`)
-            return defaultResult
-        }
-
-        const data = await response.json()
-        const featureFlags = data.featureFlags || {}
-
-        const result: LandingPageFeatureFlags = {
-            showPricingPreviewLimitNotice: featureFlags[POSTHOG_FEATURE_FLAGS.PRICING_PAGE_PREVIEW_LIMIT_NOTICE] === true,
-            showWaitlistButton: featureFlags[POSTHOG_FEATURE_FLAGS.SHOW_WAITLIST_BUTTON] === true,
-        }
-
-        console.log('[Landing] Feature flags fetched for SSR:', result)
-        return result
-
-    } catch (error) {
-        console.error('[Landing] Error fetching feature flags from PostHog:', error)
-        return defaultResult
-    }
+    console.log('[Landing] Feature flags fetched for SSR:', result)
+    return result
 }
-

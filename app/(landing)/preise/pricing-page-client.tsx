@@ -72,8 +72,7 @@ function URLParamHandler() {
     return null;
 }
 
-// Main content component that uses the auth modal context
-function PricingPageContent({ serverFeatureFlags }: PricingPageClientProps) {
+export default function PricingPageClient({ serverFeatureFlags }: PricingPageClientProps) {
     const router = useRouter();
     const { toast } = useToast();
     const supabase = createClient();
@@ -261,8 +260,6 @@ function PricingPageContent({ serverFeatureFlags }: PricingPageClientProps) {
         }
     };
 
-
-
     const handleSelectPlan = async (priceId: string) => {
         if (sessionUser) {
             await handleAuthFlow(priceId);
@@ -270,7 +267,6 @@ function PricingPageContent({ serverFeatureFlags }: PricingPageClientProps) {
             openAuthModal('login');
         }
     };
-
 
     return (
         <>
@@ -292,14 +288,7 @@ function PricingPageContent({ serverFeatureFlags }: PricingPageClientProps) {
                         }}
                     />
                 </div>
-
             </div>
         </>
-    );
-}
-
-export default function PricingPageClient({ serverFeatureFlags }: PricingPageClientProps) {
-    return (
-        <PricingPageContent serverFeatureFlags={serverFeatureFlags} />
     );
 }
