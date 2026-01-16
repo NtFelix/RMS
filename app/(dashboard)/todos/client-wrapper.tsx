@@ -6,7 +6,8 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { SearchInput } from "@/components/ui/search-input";
-import { PlusCircle, Calendar as CalendarIcon, List } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, Calendar as CalendarIcon, List, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { TaskCalendar } from "@/components/tasks/task-calendar";
 import { TaskSidebar } from "@/components/tasks/task-sidebar";
 import { TaskDayModal } from "@/components/tasks/task-day-modal";
@@ -14,6 +15,7 @@ import { TaskBoardTask } from "@/types/Task";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { toggleTaskStatusAction, deleteTaskAction, updateTaskDueDateAction } from "@/app/todos-actions";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import {
   DndContext,
   DragOverlay,
@@ -36,6 +38,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
   const { openAufgabeModal } = useModalStore();
   const [activeTask, setActiveTask] = useState<TaskBoardTask | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -312,28 +315,55 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
           <CardContent className="flex flex-col gap-6 pt-6">
 
             {/* Calendar and Sidebar Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:h-[calc(100vh-250px)]">
+            <div className={cn(
+              "grid gap-6 lg:h-[calc(100vh-250px)] transition-all duration-300 ease-in-out",
+              isSidebarOpen ? "grid-cols-1 lg:grid-cols-[280px_1fr]" : "grid-cols-1 lg:grid-cols-[60px_1fr]"
+            )}>
               {/* Sidebar */}
-              <div className="order-2 lg:order-1 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 h-fit lg:h-full overflow-hidden flex flex-col">
-                <div className="flex flex-col gap-4 mb-4 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <List className="h-5 w-5 text-muted-foreground" />
-                    <h3 className="font-medium">Aufgabenliste</h3>
+              <div className={cn(
+                "order-2 lg:order-1 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 h-fit lg:h-full overflow-hidden flex flex-col transition-all duration-300",
+                !isSidebarOpen && "items-center px-2"
+              )}>
+                <div className={cn("flex flex-col gap-4 mb-4 shrink-0", !isSidebarOpen && "gap-2 mb-2")}>
+                  <div className={cn("flex items-center gap-2", !isSidebarOpen && "justify-center")}>
+                    {isSidebarOpen && (
+                      <>
+                        <List className="h-5 w-5 text-muted-foreground" />
+                        <h3 className="font-medium flex-1 whitespace-nowrap overflow-hidden">Aufgabenliste</h3>
+                      </>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      onClick={() => setSidebarOpen(!isSidebarOpen)}
+                    >
+                      {isSidebarOpen ? (
+                        <PanelLeftClose className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <PanelLeftOpen className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
                   </div>
-                  <SearchInput
-                    placeholder="Aufgaben suchen..."
-                    className="rounded-full"
-                    wrapperClassName="w-full"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onClear={() => setSearchQuery("")}
-                  />
+
+                  {isSidebarOpen && (
+                    <SearchInput
+                      placeholder="Aufgaben suchen..."
+                      className="rounded-full"
+                      wrapperClassName="w-full"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onClear={() => setSearchQuery("")}
+                    />
+                  )}
                 </div>
-                <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+
+                <div className={cn("overflow-y-auto flex-1 -mr-2 pr-2", !isSidebarOpen && "overflow-visible")}>
                   <TaskSidebar
                     tasks={filteredTasks}
                     onTaskClick={handleTaskClick}
                     onTaskToggle={handleTaskToggle}
+                    collapsed={!isSidebarOpen}
                   />
                 </div>
               </div>

@@ -28,6 +28,7 @@ interface TaskSidebarProps {
     tasks: Task[];
     onTaskClick: (task: Task) => void;
     onTaskToggle: (taskId: string, completed: boolean) => void;
+    collapsed?: boolean;
 }
 
 interface TaskItemProps {
@@ -117,6 +118,7 @@ export function TaskSidebar({
     tasks,
     onTaskClick,
     onTaskToggle,
+    collapsed,
 }: TaskSidebarProps) {
     const [isUpcomingOpen, setIsUpcomingOpen] = useState(true);
     const [isNoDateOpen, setIsNoDateOpen] = useState(true);
@@ -180,6 +182,54 @@ export function TaskSidebar({
     const { setNodeRef: setNoDateRef, isOver: isNoDateOver } = useDroppable({
         id: "remove-date-zone",
     });
+
+    if (collapsed) {
+        return (
+            <div className="flex flex-col items-center gap-6 py-4">
+                {overdueTasks.length > 0 && (
+                    <div className="relative group/rail cursor-pointer flex flex-col items-center gap-1">
+                        <div className="p-2 rounded-xl bg-red-50 dark:bg-red-950/20 text-red-500 border border-red-100 dark:border-red-900/30">
+                            <Clock className="h-5 w-5" />
+                        </div>
+                        <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 min-w-[1.25rem] px-1 flex items-center justify-center text-[10px] scale-90">
+                            {overdueTasks.length}
+                        </Badge>
+                        <span className="text-[10px] font-medium text-red-600/70 dark:text-red-400/70 hidden group-hover/rail:block absolute left-12 bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-md whitespace-nowrap z-50">
+                            Überfällig
+                        </span>
+                    </div>
+                )}
+
+                <div className="relative group/rail cursor-pointer flex flex-col items-center gap-1">
+                    <div className="p-2 rounded-xl bg-orange-50 dark:bg-orange-950/20 text-orange-500 border border-orange-100 dark:border-orange-900/30">
+                        <Clock className="h-5 w-5" />
+                    </div>
+                    <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 min-w-[1.25rem] px-1 flex items-center justify-center text-[10px] scale-90 bg-orange-500 text-white">
+                        {upcomingTasks.length}
+                    </Badge>
+                    <span className="text-[10px] font-medium text-orange-600/70 dark:text-orange-400/70 hidden group-hover/rail:block absolute left-12 bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-md whitespace-nowrap z-50">
+                        Anstehend
+                    </span>
+                </div>
+
+                <div
+                    ref={setNoDateRef}
+                    className={cn(
+                        "relative group/rail cursor-pointer flex flex-col items-center gap-1 p-2 rounded-xl border transition-all",
+                        isNoDateOver ? "bg-primary/10 border-primary ring-2 ring-primary/20 scale-110" : "bg-gray-50 dark:bg-gray-800/30 text-gray-500 border-gray-100 dark:border-gray-800 shadow-none"
+                    )}
+                >
+                    <CalendarOff className="h-5 w-5" />
+                    <Badge variant="outline" className="absolute -top-2 -right-2 h-5 min-w-[1.25rem] px-1 flex items-center justify-center text-[10px] scale-90 bg-gray-200 dark:bg-gray-700">
+                        {noDateTasks.length}
+                    </Badge>
+                    <span className="text-[10px] font-medium text-gray-600/70 dark:text-gray-400/70 hidden group-hover/rail:block absolute left-12 bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-md whitespace-nowrap z-50">
+                        Ohne Datum
+                    </span>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col gap-4 overflow-y-auto">
