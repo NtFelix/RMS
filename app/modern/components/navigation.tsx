@@ -22,8 +22,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useAuthModal } from "@/components/auth/auth-modal-provider";
 import { useIsOverflowing } from "@/hooks/use-responsive";
+
 import {
   trackNavLinkClicked,
   trackNavDropdownOpened,
@@ -75,7 +75,6 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const { ref: navRef, isOverflowing } = useIsOverflowing();
   const showProdukte = useFeatureFlagEnabled('show-produkte-dropdown');
   const showLoesungen = useFeatureFlagEnabled('show-loesungen-dropdown');
-  const { openAuthModal } = useAuthModal();
 
   useEffect(() => {
     setHasMounted(true);

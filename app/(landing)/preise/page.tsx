@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import Pricing from '@/app/modern/components/pricing';
-import { useAuthModal } from '@/components/auth/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
@@ -33,7 +32,7 @@ function ProfileErrorToastHandler() {
 // Component that handles URL parameters
 function URLParamHandler() {
     const searchParams = useSearchParams();
-    const { openAuthModal } = useAuthModal();
+    const router = useRouter();
     const [sessionUser, setSessionUser] = useState<User | null>(null);
     const [isLoadingUser, setIsLoadingUser] = useState(true);
     const supabase = createClient();
@@ -60,9 +59,9 @@ function URLParamHandler() {
             } catch (e) {
                 console.warn('SessionStorage not available');
             }
-            openAuthModal('login');
+            router.push('/auth/login');
         }
-    }, [searchParams, sessionUser, openAuthModal, isLoadingUser]);
+    }, [searchParams, sessionUser, router, isLoadingUser]);
 
     return null;
 }
@@ -72,7 +71,6 @@ function PricingPageContent() {
     const router = useRouter();
     const { toast } = useToast();
     const supabase = createClient();
-    const { openAuthModal } = useAuthModal();
 
     const [userProfile, setUserProfile] = useState<Profile | null>(null);
     const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
@@ -213,7 +211,7 @@ function PricingPageContent() {
                 variant: 'default',
             });
         } else {
-            openAuthModal('login');
+            router.push('/auth/login');
         }
     };
 
@@ -262,7 +260,7 @@ function PricingPageContent() {
         if (sessionUser) {
             await handleAuthFlow(priceId);
         } else {
-            openAuthModal('login');
+            router.push('/auth/login');
         }
     };
 
