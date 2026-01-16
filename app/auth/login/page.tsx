@@ -57,6 +57,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -66,8 +67,19 @@ export default function LoginPage() {
 
   useEffect(() => {
     const errorParam = searchParams.get("error")
+    const verifiedParam = searchParams.get("verified")
+    const emailParam = searchParams.get("email")
+
     if (errorParam) {
       setError(getUrlErrorMessage(errorParam))
+    }
+
+    // Handle redirect from email verification
+    if (verifiedParam === 'true') {
+      setSuccessMessage('E-Mail erfolgreich bestätigt! Bitte melden Sie sich an.')
+      if (emailParam) {
+        setEmail(emailParam)
+      }
     }
   }, [searchParams])
 
@@ -233,6 +245,17 @@ export default function LoginPage() {
             </p>
 
             <form onSubmit={handleLogin} className="mt-8 space-y-5">
+              {successMessage && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                >
+                  <Alert className="rounded-xl border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400">
+                    <AlertDescription>{successMessage}</AlertDescription>
+                  </Alert>
+                </motion.div>
+              )}
+
               {error && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}

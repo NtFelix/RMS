@@ -119,7 +119,7 @@ export default function RegisterPage() {
       trackRegisterSuccess('email')
     }
 
-    router.push('/auth/verify-email')
+    router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
     setIsLoading(false)
   }
 

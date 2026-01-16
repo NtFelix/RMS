@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import Pricing from '@/app/modern/components/pricing';
 import { useAuthModal } from '@/components/auth/auth-modal-provider';
+import { EmailVerificationNotifier } from '@/components/auth/email-verification-notifier';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
@@ -269,6 +270,9 @@ function PricingPageContent() {
 
     return (
         <>
+            <Suspense fallback={null}>
+                <EmailVerificationNotifier />
+            </Suspense>
             <Suspense fallback={null}>
                 <ProfileErrorToastHandler />
             </Suspense>
