@@ -391,13 +391,15 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
             ref={setNodeRef}
             onClick={() => onDayClick(day)}
             className={cn(
-                "relative w-full h-full p-1 rounded-lg border transition-all hover:bg-accent/50 group/day",
+                "relative w-full h-full p-1 rounded-lg border transition-all duration-200 group/day",
                 "flex flex-col items-start justify-start overflow-hidden",
-                !isCurrentMonth && !isWeekView && "opacity-50 grayscale-[0.5] bg-muted/20",
+                "hover:bg-blue-50/50 hover:border-blue-200/50 hover:shadow-sm hover:scale-[1.01] hover:z-10",
+                "dark:hover:bg-blue-900/10 dark:hover:border-blue-800/30",
+                !isCurrentMonth && !isWeekView && "opacity-50 grayscale-[0.5] bg-muted/20 hover:opacity-100 hover:grayscale-0",
                 (isCurrentMonth || isWeekView) && "bg-card",
                 isSelected && "ring-2 ring-primary bg-primary/5",
-                isDayToday && !isSelected && "border-primary",
-                isOver && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 z-10"
+                isDayToday && !isSelected && "border-primary shadow-sm",
+                isOver && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 z-10 scale-[1.02] shadow-md"
             )}
         >
             {/* Day Number */}
