@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState } from "react";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -16,18 +16,21 @@ import {
     endOfWeek,
     addMonths,
     subMonths,
+    addWeeks,
+    subWeeks,
+    addYears,
+    subYears,
+    startOfYear,
+    endOfYear,
+    eachMonthOfInterval,
 } from "date-fns";
 import { de } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Check, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Clock, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { TaskBoardTask as Task } from "@/types/Task";
 
 interface TaskCalendarProps {
@@ -47,6 +50,9 @@ export function TaskCalendar({
     selectedDate,
     onTaskClick,
 }: TaskCalendarProps) {
+    const [view, setView] = useState<"month" | "week" | "year">("month");
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
     // Group tasks by date for efficient lookup
     const tasksByDate = useMemo(() => {
         const grouped: Record<string, Task[]> = {};
@@ -64,144 +70,225 @@ export function TaskCalendar({
         return grouped;
     }, [tasks]);
 
-    // Calculate calendar days including padding from adjacent months
+    // Calculate calendar days based on view
     const calendarDays = useMemo(() => {
+        if (view === "year") return []; // Handled separately
+
+        if (view === "week") {
+            const start = startOfWeek(currentMonth, { weekStartsOn: 1 });
+            const end = endOfWeek(currentMonth, { weekStartsOn: 1 });
+            return eachDayOfInterval({ start, end });
+        }
+
+        // Month View (Default)
         const monthStart = startOfMonth(currentMonth);
         const monthEnd = endOfMonth(currentMonth);
-        const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 }); // Start on Monday
+        const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
         const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
         return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-    }, [currentMonth]);
+    }, [currentMonth, view]);
 
-    const handlePreviousMonth = useCallback(() => {
-        onMonthChange(subMonths(currentMonth, 1));
-    }, [currentMonth, onMonthChange]);
+    const handlePrevious = useCallback(() => {
+        if (view === "month") onMonthChange(subMonths(currentMonth, 1));
+        else if (view === "week") onMonthChange(subWeeks(currentMonth, 1));
+        else if (view === "year") onMonthChange(subYears(currentMonth, 1));
+    }, [currentMonth, onMonthChange, view]);
 
-    const handleNextMonth = useCallback(() => {
-        onMonthChange(addMonths(currentMonth, 1));
-    }, [currentMonth, onMonthChange]);
+    const handleNext = useCallback(() => {
+        if (view === "month") onMonthChange(addMonths(currentMonth, 1));
+        else if (view === "week") onMonthChange(addWeeks(currentMonth, 1));
+        else if (view === "year") onMonthChange(addYears(currentMonth, 1));
+    }, [currentMonth, onMonthChange, view]);
 
-    const handleMonthSelect = useCallback((value: string) => {
-        const newMonth = parseInt(value, 10);
-        const newDate = new Date(currentMonth);
-        newDate.setMonth(newMonth);
-        onMonthChange(newDate);
-    }, [currentMonth, onMonthChange]);
+    const handleToday = useCallback(() => {
+        onMonthChange(new Date());
+    }, [onMonthChange]);
 
-    const handleYearSelect = useCallback((value: string) => {
-        const newYear = parseInt(value, 10);
-        const newDate = new Date(currentMonth);
-        newDate.setFullYear(newYear);
-        onMonthChange(newDate);
-    }, [currentMonth, onMonthChange]);
+    const handleDateSelect = useCallback((date: Date | undefined) => {
+        if (date) {
+            onMonthChange(date);
+            setIsDatePickerOpen(false);
+        }
+    }, [onMonthChange]);
 
-    const currentYear = currentMonth.getFullYear();
-    const currentMonthNum = currentMonth.getMonth();
+    // Format current period text
+    const periodText = useMemo(() => {
+        if (view === "year") return format(currentMonth, "yyyy");
+        if (view === "week") {
+            const start = startOfWeek(currentMonth, { weekStartsOn: 1 });
+            const end = endOfWeek(currentMonth, { weekStartsOn: 1 });
+            // If same month: "October 2026"
+            // If overlapping months: "Sep - Oct 2026"
+            if (isSameMonth(start, end)) {
+                return format(start, "MMMM yyyy", { locale: de });
+            }
+            if (dateFnsIsSameYear(start, end)) {
+                return `${format(start, "MMM", { locale: de })} - ${format(end, "MMMM yyyy", { locale: de })}`;
+            }
+            return `${format(start, "MMM yyyy", { locale: de })} - ${format(end, "MMM yyyy", { locale: de })}`;
+        }
+        return format(currentMonth, "MMMM yyyy", { locale: de });
+    }, [currentMonth, view]);
 
-    // Generate year options (current year ± 5 years)
-    const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
+    // Helper for year IsSameYear check to avoid import conflict if any
+    function dateFnsIsSameYear(d1: Date, d2: Date) {
+        return d1.getFullYear() === d2.getFullYear();
+    }
 
-    // Generate month options
-    const months = Array.from({ length: 12 }, (_, i) => ({
-        value: i,
-        label: format(new Date(2000, i, 1), "MMMM", { locale: de }),
-    }));
-
-    // Weekday headers
+    const weeks = view === "week" ? 1 : Math.ceil(calendarDays.length / 7);
     const weekDays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-
-    const weeks = Math.ceil(calendarDays.length / 7);
 
     return (
         <div className="w-full h-full flex flex-col">
-            {/* Calendar Header */}
-            <div className="flex items-center justify-between mb-4 px-2 shrink-0">
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handlePreviousMonth}
-                    className="h-8 w-8 rounded-lg"
-                    aria-label="Vorheriger Monat"
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-
-                <div className="flex items-center gap-2">
-                    <Select value={currentMonthNum.toString()} onValueChange={handleMonthSelect}>
-                        <SelectTrigger className="h-8 w-32 text-sm rounded-lg">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {months.map((month) => (
-                                <SelectItem key={month.value} value={month.value.toString()}>
-                                    {month.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={currentYear.toString()} onValueChange={handleYearSelect}>
-                        <SelectTrigger className="h-8 w-20 text-sm rounded-lg">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {years.map((year) => (
-                                <SelectItem key={year} value={year.toString()}>
-                                    {year}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+            {/* Unified Header */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 px-1 shrink-0">
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+                    <Button variant="outline" size="sm" onClick={handleToday} className="mr-2">
+                        Heute
+                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handlePrevious}
+                            className="h-8 w-8"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleNext}
+                            className="h-8 w-8"
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                            <Button variant="ghost" className="text-lg font-semibold hover:bg-transparent px-2 min-w-[140px] justify-center sm:justify-start">
+                                {periodText}
+                                <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={currentMonth}
+                                onSelect={handleDateSelect}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
                 </div>
 
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleNextMonth}
-                    className="h-8 w-8 rounded-lg"
-                    aria-label="Nächster Monat"
-                >
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
+                <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-full sm:w-auto">
+                    <TabsList className="grid w-full grid-cols-3 sm:w-auto">
+                        <TabsTrigger value="week">Woche</TabsTrigger>
+                        <TabsTrigger value="month">Monat</TabsTrigger>
+                        <TabsTrigger value="year">Jahr</TabsTrigger>
+                    </TabsList>
+                </Tabs>
             </div>
 
-            {/* Weekday Headers */}
-            <div className="grid grid-cols-7 gap-1 mb-2 shrink-0">
-                {weekDays.map((day) => (
-                    <div
-                        key={day}
-                        className="text-center text-sm font-medium text-muted-foreground py-2"
-                    >
-                        {day}
+            {/* View Content */}
+            {view === "year" ? (
+                <YearView
+                    currentYear={currentMonth}
+                    tasksByDate={tasksByDate}
+                    onMonthClick={(date) => {
+                        onMonthChange(date);
+                        setView("month");
+                    }}
+                />
+            ) : (
+                <>
+                    {/* Weekday Headers */}
+                    <div className="grid grid-cols-7 gap-1 mb-2 shrink-0">
+                        {weekDays.map((day) => (
+                            <div
+                                key={day}
+                                className="text-center text-sm font-medium text-muted-foreground py-2"
+                            >
+                                {day}
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
 
-            {/* Calendar Grid */}
-            <div
-                className="grid grid-cols-7 gap-1 flex-1 min-h-0"
-                style={{ gridTemplateRows: `repeat(${weeks}, minmax(0, 1fr))` }}
-            >
-                {calendarDays.map((day) => {
-                    const dateKey = format(day, "yyyy-MM-dd");
-                    const dayTasks = tasksByDate[dateKey] || [];
+                    {/* Calendar Grid */}
+                    <div
+                        className="grid grid-cols-7 gap-1 flex-1 min-h-0"
+                        style={{ gridTemplateRows: `repeat(${weeks}, minmax(0, 1fr))` }}
+                    >
+                        {calendarDays.map((day) => {
+                            const dateKey = format(day, "yyyy-MM-dd");
+                            const dayTasks = tasksByDate[dateKey] || [];
 
-                    return (
-                        <CalendarDay
-                            key={dateKey}
-                            day={day}
-                            currentMonth={currentMonth}
-                            selectedDate={selectedDate || undefined}
-                            onDayClick={onDayClick}
-                            tasks={dayTasks}
-                            onTaskClick={onTaskClick}
-                        />
-                    );
-                })}
-            </div>
+                            return (
+                                <CalendarDay
+                                    key={dateKey}
+                                    day={day}
+                                    currentMonth={currentMonth}
+                                    selectedDate={selectedDate || undefined}
+                                    onDayClick={onDayClick}
+                                    tasks={dayTasks}
+                                    onTaskClick={onTaskClick}
+                                    isWeekView={view === "week"}
+                                />
+                            );
+                        })}
+                    </div>
+                </>
+            )}
         </div>
     );
+}
+
+// Year View Component
+function YearView({ currentYear, tasksByDate, onMonthClick }: {
+    currentYear: Date,
+    tasksByDate: Record<string, Task[]>,
+    onMonthClick: (date: Date) => void
+}) {
+    const months = eachMonthOfInterval({
+        start: startOfYear(currentYear),
+        end: endOfYear(currentYear)
+    });
+
+    return (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 overflow-y-auto pr-2">
+            {months.map(month => {
+                const monthStr = format(month, "yyyy-MM");
+                // Count tasks for this month
+                const tasksCount = Object.keys(tasksByDate).reduce((acc, dateKey) => {
+                    if (dateKey.startsWith(monthStr)) return acc + tasksByDate[dateKey].length;
+                    return acc;
+                }, 0);
+
+                const isCurrentMonth = isSameMonth(month, new Date());
+
+                return (
+                    <div
+                        key={monthStr}
+                        onClick={() => onMonthClick(month)}
+                        className={cn(
+                            "flex flex-col p-4 rounded-xl border cursor-pointer transition-all hover:bg-accent/50 hover:border-primary/50",
+                            isCurrentMonth && "bg-primary/5 border-primary"
+                        )}
+                    >
+                        <span className={cn("font-medium mb-2", isCurrentMonth && "text-primary")}>
+                            {format(month, "MMMM", { locale: de })}
+                        </span>
+                        <div className="mt-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <div className={cn("w-2 h-2 rounded-full", tasksCount > 0 ? "bg-primary" : "bg-muted-foreground/30")} />
+                            {tasksCount} Aufgaben
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
 }
 
 interface CalendarDayProps {
@@ -211,6 +298,7 @@ interface CalendarDayProps {
     onDayClick: (date: Date) => void;
     tasks: Task[];
     onTaskClick?: (task: Task) => void;
+    isWeekView?: boolean;
 }
 
 export function CalendarTaskPill({
@@ -269,7 +357,7 @@ function DraggableCalendarTask({ task, onTaskClick }: { task: Task, onTaskClick?
     );
 }
 
-function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTaskClick }: CalendarDayProps) {
+function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTaskClick, isWeekView }: CalendarDayProps) {
     const dateKey = format(day, "yyyy-MM-dd");
     const { isOver, setNodeRef } = useDroppable({
         id: dateKey,
@@ -280,7 +368,7 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
     const isDayToday = isToday(day);
 
     // Limit displayed tasks
-    const MAX_VISIBLE_TASKS = 3;
+    const MAX_VISIBLE_TASKS = isWeekView ? 12 : 3;
     const visibleTasks = tasks.slice(0, MAX_VISIBLE_TASKS);
     const hiddenCount = tasks.length > MAX_VISIBLE_TASKS ? tasks.length - MAX_VISIBLE_TASKS : 0;
 
@@ -291,8 +379,8 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
             className={cn(
                 "relative w-full h-full p-1 rounded-lg border transition-all hover:bg-accent/50 group/day",
                 "flex flex-col items-start justify-start overflow-hidden",
-                !isCurrentMonth && "opacity-50 grayscale-[0.5] bg-muted/20",
-                isCurrentMonth && "bg-card",
+                !isCurrentMonth && !isWeekView && "opacity-50 grayscale-[0.5] bg-muted/20",
+                (isCurrentMonth || isWeekView) && "bg-card",
                 isSelected && "ring-2 ring-primary bg-primary/5",
                 isDayToday && !isSelected && "border-primary",
                 isOver && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 z-10"
