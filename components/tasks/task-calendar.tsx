@@ -1,9 +1,9 @@
 "use client";
 
-
 import { useMemo, useCallback, useState } from "react";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import { motion } from "framer-motion";
 import {
     format,
     startOfMonth,
@@ -183,13 +183,27 @@ export function TaskCalendar({
                     </Popover>
                 </div>
 
-                <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-full sm:w-auto">
-                    <TabsList className="grid w-full grid-cols-3 sm:w-auto">
-                        <TabsTrigger value="week">Woche</TabsTrigger>
-                        <TabsTrigger value="month">Monat</TabsTrigger>
-                        <TabsTrigger value="year">Jahr</TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                <div className="bg-muted/50 p-1 rounded-full flex items-center gap-1">
+                    {(["week", "month", "year"] as const).map((v) => (
+                        <button
+                            key={v}
+                            onClick={() => setView(v)}
+                            className={cn(
+                                "relative px-3 py-1 text-xs font-medium rounded-full transition-colors z-10",
+                                view === v ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            {view === v && (
+                                <motion.div
+                                    layoutId="activeViewPill"
+                                    className="absolute inset-0 bg-background rounded-full shadow-sm border border-border/50 -z-10"
+                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                />
+                            )}
+                            {v === "week" ? "Woche" : v === "month" ? "Monat" : "Jahr"}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* View Content */}
