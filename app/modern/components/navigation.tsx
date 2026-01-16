@@ -143,11 +143,6 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
   const handleOpenLoginModal = () => {
     trackNavLoginClicked();
-    try {
-      sessionStorage.removeItem('authIntent');
-    } catch (e) {
-      console.warn('SessionStorage not available');
-    }
     if (onLogin) {
       onLogin();
     } else {

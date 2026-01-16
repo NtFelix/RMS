@@ -54,11 +54,6 @@ function URLParamHandler() {
 
         const getStarted = searchParams.get('getStarted');
         if (getStarted === 'true' && !sessionUser) {
-            try {
-                sessionStorage.setItem('authIntent', 'get-started');
-            } catch (e) {
-                console.warn('SessionStorage not available');
-            }
             router.push('/auth/login');
         }
     }, [searchParams, sessionUser, router, isLoadingUser]);

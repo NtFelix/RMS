@@ -72,11 +72,6 @@ function URLParamHandler() {
 
     const getStarted = searchParams.get('getStarted');
     if (getStarted === 'true' && !sessionUser) {
-      try {
-        sessionStorage.setItem('authIntent', 'get-started');
-      } catch (e) {
-        console.warn('SessionStorage not available');
-      }
       router.push('/auth/login');
     }
   }, [searchParams, sessionUser, router, isLoadingUser]);
@@ -320,12 +315,6 @@ function LandingPageContent() {
     if (sessionUser) {
       router.push(ROUTES.HOME);
     } else {
-      // Store intent to redirect to dashboard after login
-      try {
-        sessionStorage.setItem('authIntent', 'get-started');
-      } catch (e) {
-        // In browsers without sessionStorage, the redirect intent will be lost
-      }
       // Redirect to login page as per user request
       router.push('/auth/login');
     }
