@@ -58,6 +58,15 @@ interface PricingProps {
   // currentPlanId is now derived from userProfile.stripe_price_id
   showComparison?: boolean;
   showViewAllButton?: boolean;
+  /**
+   * Server-side evaluated feature flags.
+   * When provided, these bypass client-side PostHog evaluation,
+   * ensuring visibility even with adblockers.
+   */
+  serverFeatureFlags?: {
+    showPricingPreviewLimitNotice?: boolean;
+    showWaitlistButton?: boolean;
+  };
 }
 
 interface GroupedPlan {
@@ -303,7 +312,8 @@ export default function Pricing({
   userProfile,
   isLoading: isCheckoutProcessing,
   showComparison = true,
-  showViewAllButton = false
+  showViewAllButton = false,
+  serverFeatureFlags,
 }: PricingProps) {
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
@@ -311,7 +321,9 @@ export default function Pricing({
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const posthog = usePostHog();
   const router = useRouter();
-  const showWaitlistMode = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SHOW_WAITLIST_BUTTON);
+  // Use SSR-evaluated flags when available, otherwise fall back to client-side
+  const clientSideWaitlistFlag = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SHOW_WAITLIST_BUTTON);
+  const showWaitlistMode = serverFeatureFlags?.showWaitlistButton ?? clientSideWaitlistFlag;
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -568,6 +580,7 @@ export default function Pricing({
           <PreviewLimitNoticeBanner
             onGetStarted={handleFreePlanGetStarted}
             isSignedIn={!!userProfile}
+            showBannerSSR={serverFeatureFlags?.showPricingPreviewLimitNotice}
           />
 
           <div className="flex justify-center mb-12">

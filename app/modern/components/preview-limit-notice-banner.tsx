@@ -17,6 +17,16 @@ interface PreviewLimitNoticeBannerProps {
      * Whether the user is currently signed in.
      */
     isSignedIn?: boolean;
+    /**
+     * Server-side evaluated feature flag value.
+     * When provided, this bypasses client-side PostHog evaluation,
+     * ensuring the banner is visible even with adblockers.
+     * 
+     * - true: Show the banner (server confirmed flag is enabled)
+     * - false: Hide the banner (server confirmed flag is disabled)
+     * - undefined: Fall back to client-side PostHog evaluation
+     */
+    showBannerSSR?: boolean;
 }
 
 /**
@@ -24,21 +34,42 @@ interface PreviewLimitNoticeBannerProps {
  * Shows when the 'pricing-page-preview-limit-notice' feature flag is enabled.
  * Informs users that the free plan includes up to 25 apartments during the preview phase.
  * 
+ * Supports two modes:
+ * 1. **Server-Side (recommended)**: Pass `showBannerSSR` prop from server component
+ *    to ensure visibility even with adblockers
+ * 2. **Client-Side (fallback)**: Uses PostHog client SDK when `showBannerSSR` is undefined
+ * 
  * When clicked:
  * - If user is signed in: calls onGetStarted to trigger free plan checkout
  * - If user is not signed in: redirects to register page
  */
-export function PreviewLimitNoticeBanner({ onGetStarted, isSignedIn = false }: PreviewLimitNoticeBannerProps) {
+export function PreviewLimitNoticeBanner({
+    onGetStarted,
+    isSignedIn = false,
+    showBannerSSR,
+}: PreviewLimitNoticeBannerProps) {
     const [isMounted, setIsMounted] = useState(false);
-    const showPreviewLimitNotice = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.PRICING_PAGE_PREVIEW_LIMIT_NOTICE);
+    // Only use client-side feature flag when SSR value is not provided
+    const clientSideFlag = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.PRICING_PAGE_PREVIEW_LIMIT_NOTICE);
     const router = useRouter();
 
     useEffect(() => {
         setIsMounted(true);
     }, []);
 
-    // Only render after mount and when feature flag is enabled
-    if (!isMounted || !showPreviewLimitNotice) {
+    // Determine if banner should be shown based on SSR or client-side flag
+    const shouldShowBanner = showBannerSSR !== undefined
+        ? showBannerSSR
+        : (isMounted && clientSideFlag);
+
+    // When using SSR mode, we don't need to wait for mount
+    // When using client-side mode, we need to wait for mount and flag evaluation
+    if (!shouldShowBanner) {
+        return null;
+    }
+
+    // For client-side mode, wait for mount to prevent hydration mismatch
+    if (showBannerSSR === undefined && !isMounted) {
         return null;
     }
 
