@@ -26,10 +26,7 @@ describe('SettingsModal', () => {
   });
 
   it('shows the Mails tab when the feature flag is enabled', () => {
-    (useFeatureFlagEnabled as jest.Mock).mockImplementation((flag) => {
-      if (flag === POSTHOG_FEATURE_FLAGS.MAILS_TAB) return true;
-      return false;
-    });
+    (useFeatureFlagEnabled as jest.Mock).mockReturnValue(true);
 
     render(<SettingsModal open={true} onOpenChange={mockOnOpenChange} />);
 
@@ -37,10 +34,7 @@ describe('SettingsModal', () => {
   });
 
   it('hides the Mails tab when the feature flag is disabled', () => {
-    (useFeatureFlagEnabled as jest.Mock).mockImplementation((flag) => {
-      if (flag === POSTHOG_FEATURE_FLAGS.MAILS_TAB) return false;
-      return false;
-    });
+    (useFeatureFlagEnabled as jest.Mock).mockReturnValue(false);
 
     render(<SettingsModal open={true} onOpenChange={mockOnOpenChange} />);
 
