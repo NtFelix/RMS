@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { PostHogProvider } from "@/components/providers/posthog-provider"
 import { CookieConsentBanner } from "@/components/common/cookie-consent-banner"
 import { defaultMetadata } from "@/lib/seo"
-import { PWA_IMAGES_URL } from "@/lib/constants"
+import { PWA_IMAGES_URL, FAVICON_URL } from "@/lib/constants"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
       { url: `${PWA_IMAGES_URL}/favicon/favicon-16x16.png`, sizes: '16x16', type: 'image/png' },
       { url: `${PWA_IMAGES_URL}/favicon/favicon-32x32.png`, sizes: '32x32', type: 'image/png' },
       { url: `${PWA_IMAGES_URL}/favicon/favicon-192x192.png`, sizes: '192x192', type: 'image/png' },
-      { url: `${PWA_IMAGES_URL}/favicon/favicon.png`, type: 'image/png' },
+      { url: FAVICON_URL, type: 'image/png' },
     ],
     apple: `${PWA_IMAGES_URL}/apple-icon.png`,
   },
