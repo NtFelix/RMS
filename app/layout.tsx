@@ -17,8 +17,11 @@ export const metadata: Metadata = {
     icon: [
       // Primary: Local favicon for Google crawlability (avoids Supabase x-robots-tag: none)
       { url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
-      // Fallback: Supabase PNG
-      { url: `${PWA_IMAGES_URL}/favicon.png`, type: 'image/png' },
+      // Fallback: Supabase PNGs in various sizes
+      { url: `${PWA_IMAGES_URL}/favicon/favicon-16x16.png`, sizes: '16x16', type: 'image/png' },
+      { url: `${PWA_IMAGES_URL}/favicon/favicon-32x32.png`, sizes: '32x32', type: 'image/png' },
+      { url: `${PWA_IMAGES_URL}/favicon/favicon-192x192.png`, sizes: '192x192', type: 'image/png' },
+      { url: `${PWA_IMAGES_URL}/favicon/favicon.png`, type: 'image/png' },
     ],
     apple: `${PWA_IMAGES_URL}/apple-icon.png`,
   },

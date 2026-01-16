@@ -17,7 +17,7 @@ export const PWA_IMAGES_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/
 export const LOGO_URL = `${PWA_IMAGES_URL}/mascot/normal.avif`;
 
 // SEO Image URLs - using Supabase storage for reliable crawlability
-export const FAVICON_URL = `${PWA_IMAGES_URL}/favicon.png`;
+export const FAVICON_URL = `${PWA_IMAGES_URL}/favicon/favicon.png`;
 export const OG_IMAGE_URL = `${PWA_IMAGES_URL}/cover.avif`;
 
 // Brand Name
