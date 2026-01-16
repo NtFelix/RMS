@@ -47,8 +47,11 @@ export function TaskItemCard({
     return (
         <div
             className={cn(
-                "flex items-start gap-2 p-2 rounded-lg transition-colors group border border-transparent",
-                !isOverlay && "hover:bg-accent/50 cursor-grab active:cursor-grabbing",
+                "flex items-start gap-2 p-2 rounded-lg transition-all duration-200 group border border-transparent",
+                !isOverlay && [
+                    "hover:bg-primary/5 hover:border-primary/20 hover:shadow-sm cursor-grab active:cursor-grabbing",
+                    "dark:hover:bg-primary/10 dark:hover:border-primary/30"
+                ],
                 isOverlay && "bg-white dark:bg-[#181818] border-gray-200 dark:border-[#3C4251] shadow-lg rotate-2 scale-105",
                 isDragging && "opacity-30",
                 task.ist_erledigt && "opacity-60"
@@ -183,7 +186,7 @@ export function TaskSidebar({
             {/* Overdue Section */}
             {overdueTasks.length > 0 && (
                 <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen}>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-red-50/50 hover:border-red-100 hover:shadow-sm dark:hover:bg-red-950/20 dark:hover:border-red-900/30 group/trigger border border-transparent">
                         <div className="flex items-center gap-2">
                             {isOverdueOpen ? (
                                 <ChevronDown className="h-4 w-4 text-red-500" />
@@ -214,7 +217,7 @@ export function TaskSidebar({
 
             {/* Upcoming Section */}
             <Collapsible open={isUpcomingOpen} onOpenChange={setIsUpcomingOpen}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-orange-50/50 hover:border-orange-100 hover:shadow-sm dark:hover:bg-orange-950/20 dark:hover:border-orange-900/30 group/trigger border border-transparent">
                     <div className="flex items-center gap-2">
                         {isUpcomingOpen ? (
                             <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -251,9 +254,9 @@ export function TaskSidebar({
                 <CollapsibleTrigger
                     ref={setNoDateRef}
                     className={cn(
-                        "flex items-center justify-between w-full p-2 rounded-lg transition-colors border border-transparent",
-                        !isNoDateOver && "hover:bg-accent/50",
-                        isNoDateOver && "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800"
+                        "flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 border border-transparent group/trigger",
+                        !isNoDateOver && "hover:bg-gray-100/50 hover:border-gray-200 hover:shadow-sm dark:hover:bg-gray-800/30 dark:hover:border-gray-700/50",
+                        isNoDateOver && "bg-primary/5 border-primary/20 dark:bg-primary/10 dark:border-primary/30"
                     )}
                 >
                     <div className="flex items-center gap-2">

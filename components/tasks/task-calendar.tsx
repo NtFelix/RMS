@@ -330,14 +330,14 @@ export function CalendarTaskPill({
                 "group relative flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all border cursor-grab active:cursor-grabbing w-full shadow-sm",
                 task.ist_erledigt
                     ? "bg-gray-100 text-gray-500 border-transparent line-through dark:bg-gray-800 dark:text-gray-400"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-blue-400 hover:shadow-md dark:bg-[#1e1e1e] dark:text-gray-300 dark:border-gray-700 dark:hover:border-blue-400",
-                isDragging && "opacity-50 ring-2 ring-blue-500 ring-offset-2 z-50"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:shadow-md dark:bg-[#1e1e1e] dark:text-gray-300 dark:border-gray-700 dark:hover:border-primary",
+                isDragging && "opacity-50 ring-2 ring-primary ring-offset-2 z-50"
             )}
             onClick={onClick}
         >
             <div className={cn(
                 "w-1.5 h-1.5 rounded-full shrink-0",
-                task.ist_erledigt ? "bg-gray-400" : "bg-blue-500"
+                task.ist_erledigt ? "bg-gray-400" : "bg-primary"
             )} />
             <span className="truncate">{task.name}</span>
         </div>
@@ -393,13 +393,13 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
             className={cn(
                 "relative w-full h-full p-1 rounded-lg border transition-all duration-200 group/day",
                 "flex flex-col items-start justify-start overflow-hidden",
-                "hover:bg-blue-50/50 hover:border-blue-200/50 hover:shadow-sm hover:scale-[1.01] hover:z-10",
-                "dark:hover:bg-blue-900/10 dark:hover:border-blue-800/30",
+                "hover:bg-primary/5 hover:border-primary/20 hover:shadow-sm hover:scale-[1.01] hover:z-10",
+                "dark:hover:bg-primary/10 dark:hover:border-primary/30",
                 !isCurrentMonth && !isWeekView && "opacity-50 grayscale-[0.5] bg-muted/20 hover:opacity-100 hover:grayscale-0",
                 (isCurrentMonth || isWeekView) && "bg-card",
                 isSelected && "ring-2 ring-primary bg-primary/5",
                 isDayToday && !isSelected && "border-primary shadow-sm",
-                isOver && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 z-10 scale-[1.02] shadow-md"
+                isOver && "ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10 z-10 scale-[1.02] shadow-md"
             )}
         >
             {/* Day Number */}
