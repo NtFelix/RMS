@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Mail, MailCheck, Loader2 } from "lucide-react"
@@ -11,7 +11,7 @@ import { ROUTES } from "@/lib/constants"
 
 type VerificationStatus = 'pending' | 'success'
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const email = searchParams.get('email')
@@ -306,5 +306,17 @@ export default function VerifyEmailPage() {
                 </div>
             </motion.div>
         </div>
+    )
+}
+
+export default function VerifyEmailPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        }>
+            <VerifyEmailContent />
+        </Suspense>
     )
 }

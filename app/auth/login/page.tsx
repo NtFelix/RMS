@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
@@ -22,7 +22,7 @@ import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
@@ -391,5 +391,17 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }
