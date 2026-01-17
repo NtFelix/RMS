@@ -6,8 +6,7 @@
 
 // Supported meter types
 export type ZaehlerTyp =
-    | 'wasser'           // Default for generic water meters
-    | 'kaltwasser'       // Cold water
+    | 'kaltwasser'       // Cold water (default for water meters)
     | 'warmwasser'       // Warm water
     | 'waermemenge'      // Heat meter
     | 'heizkostenverteiler' // Heat cost allocator
@@ -22,12 +21,6 @@ export const ZAEHLER_CONFIG: Record<ZaehlerTyp, {
     icon: 'droplet' | 'thermometer' | 'flame' | 'gauge' | 'zap' | 'fuel';
     color: string;
 }> = {
-    wasser: {
-        label: 'Wasserzähler',
-        einheit: 'm³',
-        icon: 'droplet',
-        color: 'blue',
-    },
     kaltwasser: {
         label: 'Kaltwasserzähler',
         einheit: 'm³',

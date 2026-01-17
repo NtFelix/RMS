@@ -305,13 +305,17 @@ export function AbrechnungModal({
     }
   }, [isOpen, safeTenants, selectedTenantId]);
 
-  // Memoize the price per cubic meter calculation
+  // Memoize the price per cubic meter calculation (using water types from zaehlerkosten/zaehlerverbrauch)
   const pricePerCubicMeter = useMemo(() => {
-    if (!nebenkostenItem?.wasserkosten || !nebenkostenItem?.wasserverbrauch || nebenkostenItem.wasserverbrauch <= 0) {
+    if (!nebenkostenItem?.zaehlerkosten || !nebenkostenItem?.zaehlerverbrauch) {
       return 0;
     }
-    return nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch;
-  }, [nebenkostenItem?.wasserkosten, nebenkostenItem?.wasserverbrauch]);
+    const waterTypes = ['kaltwasser', 'warmwasser'];
+    const totalCost = waterTypes.reduce((sum, typ) => sum + (nebenkostenItem.zaehlerkosten?.[typ] || 0), 0);
+    const totalUsage = waterTypes.reduce((sum, typ) => sum + (nebenkostenItem.zaehlerverbrauch?.[typ] || 0), 0);
+    if (totalUsage <= 0) return 0;
+    return totalCost / totalUsage;
+  }, [nebenkostenItem?.zaehlerkosten, nebenkostenItem?.zaehlerverbrauch]);
 
   // Use the correct house size from database (gesamtFlaeche) with fallback calculation
   const totalHouseArea = useMemo(() => {
@@ -343,8 +347,8 @@ export function AbrechnungModal({
         nebenkostenart,
         betrag,
         berechnungsart,
-        wasserkosten, // Total building water cost
-        wasserverbrauch, // Total building water consumption
+        zaehlerkosten, // JSONB: meter costs by type
+        zaehlerverbrauch, // JSONB: meter usage by type
         gesamtFlaeche,
       } = nebenkostenItem!;
 
@@ -523,20 +527,29 @@ export function AbrechnungModal({
 
       const tenantTotalForRegularItems = costItemsDetails.reduce((sum, item) => sum + item.tenantShare, 0);
 
+      // Calculate total water costs from zaehlerkosten JSONB (sum water types)
+      const waterTypesArr = ['kaltwasser', 'warmwasser'];
+      const totalWaterCost = zaehlerkosten
+        ? waterTypesArr.reduce((sum, typ) => sum + (zaehlerkosten[typ] || 0), 0)
+        : 0;
+      const totalWaterConsumption = zaehlerverbrauch
+        ? waterTypesArr.reduce((sum, typ) => sum + (zaehlerverbrauch[typ] || 0), 0)
+        : 0;
+
       // Use the new water calculation system
       const tenantWaterCostData = getTenantWaterCost(
         tenant.id,
         safeTenants,
         waterMeters,
         waterReadings,
-        wasserkosten || 0,
-        wasserverbrauch || 0, // Total building consumption from Nebenkosten
+        totalWaterCost,
+        totalWaterConsumption, // Total building consumption from Nebenkosten
         itemStartdatum || startdatum,
         itemEnddatum || enddatum
       );
 
       const tenantWaterCost = {
-        totalWaterCostOverall: wasserkosten || 0,
+        totalWaterCostOverall: totalWaterCost,
         calculationType: "nach Verbrauch (Wasserzähler)",
         tenantShare: tenantWaterCostData?.costShare || 0,
         consumption: tenantWaterCostData?.consumption || 0,
@@ -836,8 +849,14 @@ export function AbrechnungModal({
     // Get water cost data for this tenant
     const tenantWaterShare = tenantData.waterCost.tenantShare;
     const tenantWaterConsumption = tenantData.waterCost.consumption || 0;
-    const buildingWaterCost = nebenkostenItem.wasserkosten || 0;
-    const buildingWaterConsumption = nebenkostenItem.wasserverbrauch || 0;
+    // Get building water totals from zaehlerkosten/zaehlerverbrauch JSONB
+    const waterTypesForPdf = ['kaltwasser', 'warmwasser'];
+    const buildingWaterCost = nebenkostenItem.zaehlerkosten
+      ? waterTypesForPdf.reduce((sum, typ) => sum + (nebenkostenItem.zaehlerkosten?.[typ] || 0), 0)
+      : 0;
+    const buildingWaterConsumption = nebenkostenItem.zaehlerverbrauch
+      ? waterTypesForPdf.reduce((sum, typ) => sum + (nebenkostenItem.zaehlerverbrauch?.[typ] || 0), 0)
+      : 0;
     const pricePerCubicMeterCalc = buildingWaterConsumption > 0 ? buildingWaterCost / buildingWaterConsumption : 0;
 
     // Water cost summary with aligned columns

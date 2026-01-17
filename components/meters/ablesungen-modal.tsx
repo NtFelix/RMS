@@ -74,10 +74,9 @@ interface Ablesung {
 // Helper function to get icon component based on meter type
 function getMeterIcon(zaehlerTyp: string | undefined, className?: string) {
   const iconClass = className || "h-5 w-5"
-  const typ = (zaehlerTyp || 'wasser') as ZaehlerTyp
+  const typ = (zaehlerTyp || 'kaltwasser') as ZaehlerTyp
 
   switch (typ) {
-    case 'wasser':
     case 'kaltwasser':
       return <Droplet className={cn(iconClass, "text-blue-500")} />
     case 'warmwasser':
@@ -97,10 +96,9 @@ function getMeterIcon(zaehlerTyp: string | undefined, className?: string) {
 
 // Helper function to get background color based on meter type
 function getMeterBgColor(zaehlerTyp: string | undefined) {
-  const typ = (zaehlerTyp || 'wasser') as ZaehlerTyp
+  const typ = (zaehlerTyp || 'kaltwasser') as ZaehlerTyp
 
   switch (typ) {
-    case 'wasser':
     case 'kaltwasser':
       return "bg-blue-100 dark:bg-blue-900/30"
     case 'warmwasser':

@@ -162,10 +162,6 @@ export function calculateTenantCosts(
   };
 }
 
-/**
- * Calculate water costs for a tenant using the new water meter system
- * Handles multiple meters per apartment and WG cost splitting
- */
 export function calculateWaterCostDistribution(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
@@ -173,8 +169,15 @@ export function calculateWaterCostDistribution(
   waterMeters: WasserZaehler[],
   waterReadings: WasserAblesung[]
 ): WaterCostBreakdown {
-  const totalBuildingWaterCost = nebenkosten.wasserkosten || 0;
-  const totalBuildingConsumption = nebenkosten.wasserverbrauch || 0;
+  // Get water costs from zaehlerkosten JSONB (sum all water-related types)
+  const waterTypes = ['kaltwasser', 'warmwasser'];
+  const totalBuildingWaterCost = nebenkosten.zaehlerkosten
+    ? waterTypes.reduce((sum, typ) => sum + (nebenkosten.zaehlerkosten?.[typ] || 0), 0)
+    : 0;
+  // Get water consumption from zaehlerverbrauch JSONB (sum all water-related types)
+  const totalBuildingConsumption = nebenkosten.zaehlerverbrauch
+    ? waterTypes.reduce((sum, typ) => sum + (nebenkosten.zaehlerverbrauch?.[typ] || 0), 0)
+    : 0;
 
   // Use the new calculation system with official building consumption
   const tenantWaterCost = getTenantWaterCost(
@@ -370,16 +373,18 @@ export function validateCalculationData(
     }
   });
 
-  // Validate water readings if water costs are included
-  if (nebenkosten.wasserkosten && nebenkosten.wasserkosten > 0) {
+  // Validate water readings if water/meter costs are included
+  const waterTypes = ['kaltwasser', 'warmwasser'];
+  const hasWaterCosts = nebenkosten.zaehlerkosten && waterTypes.some(typ => (nebenkosten.zaehlerkosten?.[typ] || 0) > 0);
+  if (hasWaterCosts) {
     if (!waterMeters || waterMeters.length === 0) {
       warnings.push('Wasserkosten sind angegeben, aber keine Wasserzähler vorhanden');
     } else if (!waterReadings || waterReadings.length === 0) {
       warnings.push('Wasserzähler vorhanden, aber keine Ablesungen für den Abrechnungszeitraum');
     } else {
       // Check if all apartments with tenants have water meters
-      const apartmentsWithTenants = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
-      const apartmentsWithMeters = new Set(waterMeters.map(m => m.wohnung_id).filter(Boolean));
+      const apartmentsWithTenants = new Set(tenants.map(t => t.wohnung_id).filter((id): id is string => id !== null));
+      const apartmentsWithMeters = new Set(waterMeters.map(m => m.wohnung_id).filter((id): id is string => id !== null && id !== undefined));
 
       apartmentsWithTenants.forEach(aptId => {
         if (!apartmentsWithMeters.has(aptId)) {

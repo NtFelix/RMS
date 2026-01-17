@@ -1,171 +1,43 @@
 import { createSupabaseServerClient } from "./supabase-server";
 
-export type Wohnung = {
-  id: string;
-  groesse: number;
-  name: string;
-  miete: number;
-  user_id: string;
-  haus_id: string | null;
-};
+// Re-export all types from the types file for backward compatibility
+// Client components should import from "@/lib/types" directly to avoid server imports
+export type {
+  Wohnung,
+  Haus,
+  Mieter,
+  Aufgabe,
+  HausMitFlaeche,
+  Nebenkosten,
+  NebenkostenChartData,
+  NebenkostenChartDatum,
+  Rechnung,
+  RechnungSql,
+  ZaehlerTyp,
+  Zaehler,
+  ZaehlerAblesung,
+  WasserZaehler,
+  WasserAblesung,
+  Wasserzaehler,
+  Finanzen,
+} from "./types";
 
-export type Haus = {
-  id: string;
-  ort: string | null;
-  name: string;
-  user_id: string;
-  strasse: string | null;
-  groesse?: number | null;
-};
+export { ZAEHLER_CONFIG, getZaehlerLabel, getZaehlerEinheit } from "./zaehler-types";
 
-import { NebenkostenEntry } from "../types/Tenant";
-
-export type Mieter = {
-  id: string;
-  wohnung_id: string | null;
-  name: string;
-  einzug: string | null;
-  auszug: string | null;
-  email: string | null;
-  telefonnummer: string | null;
-  notiz: string | null;
-  nebenkosten: NebenkostenEntry[] | null;
-  user_id: string;
-  Wohnungen?: { // Make it optional as not all Mieter queries might join this
-    name: string;
-    groesse: number;
-    // id and miete can be added if consistently selected and needed elsewhere
-  } | null; // Allow it to be null if the join returns no matching Wohnung
-};
-
-export type Aufgabe = {
-  id: string;
-  user_id: string;
-  ist_erledigt: boolean;
-  name: string;
-  beschreibung: string;
-  erstellungsdatum: string;
-  aenderungsdatum: string;
-};
-
-export type HausMitFlaeche = {
-  id: string;
-  name: string;
-  gesamtFlaeche: number;
-  anzahlWohnungen: number;
-  anzahlMieter: number;
-};
-
-export type Nebenkosten = {
-  id: string;
-  startdatum: string; // ISO date string (YYYY-MM-DD)
-  enddatum: string;   // ISO date string (YYYY-MM-DD)
-  nebenkostenart: string[] | null;
-  betrag: number[] | null;
-  berechnungsart: string[] | null;
-  wasserkosten: number | null;
-  wasserverbrauch: number | null; // Changed from optional to required for consistency
-  haeuser_id: string;
-  user_id: string; // Changed from optional to required for consistency
-  Haeuser?: { name: string } | null;
-  Rechnungen?: RechnungSql[] | null;
-  gesamtFlaeche?: number; // Added for total area (calculated field)
-  anzahlWohnungen?: number; // Number of apartments (calculated field)
-  anzahlMieter?: number; // Number of tenants (calculated field)
-};
-
-export type NebenkostenChartData = {
-  year: number;
-  data: {
-    name: string;
-    value: number;
-  }[];
-};
-
-export type NebenkostenChartDatum = {
-  name: string;
-  value: number;
-};
-
-// Added as per subtask
-export interface Rechnung {
-  id: string;
-  user_id: string;
-  nebenkosten_id: string | null;
-  mieter_id: string | null;
-  name: string; // This should correspond to a 'nebenkostenart'
-  betrag: number | null;
-  // Add any other relevant fields from the 'Rechnungen' table
-}
-
-export type RechnungSql = {
-  id: string;
-  nebenkosten_id: string;
-  mieter_id: string;
-  betrag: number;
-  name: string;
-  user_id: string;
-  // Add other fields from your Rechnungen table schema if needed
-};
-
-// Meter type definitions for multi-meter support
-// Re-exported from zaehler-types.ts for backward compatibility
-export type { ZaehlerTyp } from './zaehler-types';
-export { ZAEHLER_CONFIG, getZaehlerLabel, getZaehlerEinheit } from './zaehler-types';
-import type { ZaehlerTyp } from './zaehler-types';
-
-// Generic meter type (using Zaehler table)
-export type Zaehler = {
-  id: string;
-  custom_id: string | null;
-  wohnung_id: string | null;
-  erstellungsdatum: string; // ISO date string
-  eichungsdatum: string | null; // ISO date string
-  user_id: string;
-  ist_aktiv: boolean; // Indicates if meter is active
-  zaehler_typ: ZaehlerTyp; // Type of meter
-  einheit: string; // Unit of measurement
-};
-
-// Backward compatibility alias
-export type WasserZaehler = Zaehler;
-
-export type Ablesung = {
-  id: string;
-  ablese_datum: string; // ISO date string
-  zaehlerstand: number | null;
-  verbrauch: number;
-  user_id: string | null;
-  zaehler_id: string; // Reference to Zaehler table
-  kommentar?: string | null;
-};
-
-// Backward compatibility alias
-export type WasserAblesung = Ablesung;
-
-// Legacy type removed - now using Zaehler + Zaehler_Ablesungen tables
-// This type is kept for backward compatibility in form data structures only
-export type Wasserzaehler = {
-  id: string;
-  nebenkosten_id: string;
-  mieter_id: string;
-  ablese_datum: string;
-  zaehlerstand: number;
-  verbrauch: number;
-  user_id: string;
-};
-
-export type Finanzen = {
-  id: string;
-  wohnung_id: string | null;
-  name: string;
-  datum: string | null;
-  betrag: number;
-  ist_einnahmen: boolean;
-  notiz: string | null;
-  user_id: string;
-  dokument_id: string | null;
-};
+// Import types for use in this file
+import type {
+  Wohnung,
+  Haus,
+  Mieter,
+  Aufgabe,
+  Nebenkosten,
+  NebenkostenChartData,
+  Zaehler,
+  ZaehlerAblesung,
+  Wasserzaehler,
+  Finanzen,
+  RechnungSql,
+} from "./types";
 
 export async function fetchHaeuser() {
   const supabase = createSupabaseServerClient();
@@ -421,8 +293,11 @@ export async function getDashboardSummary() {
 
   const jaehrlicheAusgaben = nebenkosten.reduce((sum, item) => {
     const betraegeSum = item.betrag ? item.betrag.reduce((a, b) => a + b, 0) : 0;
-    const wasserkosten = item.wasserkosten || 0;
-    return sum + betraegeSum + wasserkosten;
+    // Sum all meter costs from zaehlerkosten JSONB
+    const zaehlerSum = item.zaehlerkosten
+      ? Object.values(item.zaehlerkosten).reduce((a, b) => a + b, 0)
+      : 0;
+    return sum + betraegeSum + zaehlerSum;
   }, 0);
 
   return {
