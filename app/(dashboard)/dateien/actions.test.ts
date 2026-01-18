@@ -18,9 +18,23 @@ jest.mock('next/navigation', () => ({
 }));
 
 describe('dateien/actions', () => {
-  let mockSupabase: any;
-  let mockQueryBuilder: any;
-  let mockStorageBuilder: any;
+  let mockSupabase: {
+    auth: { getUser: jest.Mock };
+    rpc: jest.Mock;
+    from: jest.Mock;
+    storage: { from: jest.Mock };
+  };
+  let mockQueryBuilder: {
+    select: jest.Mock;
+    like: jest.Mock;
+    eq: jest.Mock;
+    single: jest.Mock;
+    then: jest.Mock;
+  };
+  let mockStorageBuilder: {
+    createSignedUrl: jest.Mock;
+    remove: jest.Mock;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -34,8 +48,8 @@ describe('dateien/actions', () => {
     };
 
     mockStorageBuilder = {
-        createSignedUrl: jest.fn(),
-        remove: jest.fn(),
+      createSignedUrl: jest.fn(),
+      remove: jest.fn(),
     };
 
     mockSupabase = {
@@ -97,75 +111,81 @@ describe('dateien/actions', () => {
     });
 
     it('should redirect if user is invalid', async () => {
-        mockSupabase.auth.getUser.mockResolvedValue({
-            data: { user: { id: 'otherUser' } },
-            error: null,
-        });
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'otherUser' } },
+        error: null,
+      });
 
-        try {
-            await getFolderContents('user123', 'path/to/folder');
-        } catch (e) {
-            // redirect throws
-        }
+      try {
+        await getFolderContents('user123', 'path/to/folder');
+      } catch (e) {
+        // redirect throws
+      }
 
-        expect(redirect).toHaveBeenCalledWith('/auth/login');
+      expect(redirect).toHaveBeenCalledWith('/auth/login');
     });
   });
 
   describe('getPathContents', () => {
-      it('should alias getFolderContents', async () => {
-           mockSupabase.auth.getUser.mockResolvedValue({
-            data: { user: { id: 'user123' } },
-            error: null,
-          });
-          mockSupabase.rpc.mockResolvedValue({ data: {
-            files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null
-          }, error: null });
-
-          await getPathContents('user123', 'path');
-          expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-            p_user_id: 'user123',
-            p_current_path: 'path',
-          });
+    it('should alias getFolderContents', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
       });
+      mockSupabase.rpc.mockResolvedValue({
+        data: {
+          files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null
+        }, error: null
+      });
+
+      await getPathContents('user123', 'path');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
+        p_user_id: 'user123',
+        p_current_path: 'path',
+      });
+    });
   });
 
   describe('loadFilesForPath', () => {
-      it('should validate path ownership', async () => {
-          const result = await loadFilesForPath('user123', 'user_other/path');
-          expect(result.error).toBe('Ungültiger Pfad');
+    it('should validate path ownership', async () => {
+      const result = await loadFilesForPath('user123', 'user_other/path');
+      expect(result.error).toBe('Ungültiger Pfad');
+    });
+
+    it('should call getFolderContents if valid', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
+      mockSupabase.rpc.mockResolvedValue({
+        data: {
+          files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null
+        }, error: null
       });
 
-      it('should call getFolderContents if valid', async () => {
-           mockSupabase.auth.getUser.mockResolvedValue({
-            data: { user: { id: 'user123' } },
-            error: null,
-          });
-          mockSupabase.rpc.mockResolvedValue({ data: {
-            files: [], folders: [], breadcrumbs: [], totalSize: 0, error: null
-          }, error: null });
-
-          await loadFilesForPath('user123', 'user_user123/path');
-           expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-            p_user_id: 'user123',
-            p_current_path: 'user_user123/path',
-          });
+      await loadFilesForPath('user123', 'user_user123/path');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
+        p_user_id: 'user123',
+        p_current_path: 'user_user123/path',
       });
+    });
   });
 
   describe('getTotalStorageUsage', () => {
-      it('should return total size', async () => {
-           mockSupabase.auth.getUser.mockResolvedValue({
-            data: { user: { id: 'user123' } },
-            error: null,
-          });
-          mockSupabase.rpc.mockResolvedValue({ data: {
-            files: [], folders: [], breadcrumbs: [], totalSize: 500, error: null
-          }, error: null });
-
-          const size = await getTotalStorageUsage('user123');
-          expect(size).toBe(500);
+    it('should return total size', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
       });
+      mockSupabase.rpc.mockResolvedValue({
+        data: {
+          files: [], folders: [], breadcrumbs: [], totalSize: 500, error: null
+        }, error: null
+      });
+
+      const size = await getTotalStorageUsage('user123');
+      expect(size).toBe(500);
+    });
   });
 
   describe('deleteFolder', () => {
@@ -205,14 +225,14 @@ describe('dateien/actions', () => {
     });
 
     it('should prevent deleting system folders', async () => {
-        mockSupabase.auth.getUser.mockResolvedValue({
-            data: { user: { id: 'user123' } },
-            error: null,
-        });
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user123' } },
+        error: null,
+      });
 
-        const result = await deleteFolder('user123', 'user_user123/Miscellaneous');
-        expect(result.success).toBe(false);
-        expect(result.error).toContain('Systemordner');
+      const result = await deleteFolder('user123', 'user_user123/Miscellaneous');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Systemordner');
     });
   });
 });
