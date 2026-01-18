@@ -171,39 +171,66 @@ export function calculateWaterCostDistribution(
   waterMeters: WasserZaehler[],
   waterReadings: WasserAblesung[]
 ): WaterCostBreakdown {
-  // Get water costs from zaehlerkosten JSONB (sum all water-related types)
-  const totalBuildingWaterCost = sumZaehlerValues(nebenkosten.zaehlerkosten);
-  // Get water consumption from zaehlerverbrauch JSONB (sum all water-related types)
-  const totalBuildingConsumption = sumZaehlerValues(nebenkosten.zaehlerverbrauch);
+  // Initialize totals
+  let totalTenantCost = 0;
+  let totalTenantConsumption = 0;
 
-  // Use the new calculation system with official building consumption
-  const tenantWaterCost = getTenantWaterCost(
-    tenant.id,
-    allTenants,
-    waterMeters,
-    waterReadings,
-    totalBuildingWaterCost,
-    totalBuildingConsumption,
-    nebenkosten.startdatum,
-    nebenkosten.enddatum
-  );
+  // We loop through all available meter types in the costs to calculate precise costs per type
+  // This avoids issues where different units (m³ vs kWh) would result in incorrect average prices
+  const costTypes = nebenkosten.zaehlerkosten ? Object.keys(nebenkosten.zaehlerkosten) : [];
 
-  if (!tenantWaterCost) {
-    // Tenant has no water consumption
-    return {
-      totalBuildingWaterCost,
-      totalBuildingConsumption,
-      pricePerCubicMeter: 0,
-      tenantConsumption: 0,
-      totalCost: 0,
-      meterReading: undefined
-    };
+  if (costTypes.length > 0) {
+    costTypes.forEach(typ => {
+      const typeCost = nebenkosten.zaehlerkosten?.[typ] || 0;
+      const typeConsumption = nebenkosten.zaehlerverbrauch?.[typ] || 0;
+
+      if (typeCost <= 0) return;
+
+      // Filter meters for this specific type
+      // If we don't have meters of this type, we can't distribute calculatingly
+      // (Fallback logic could be added here if needed, e.g. per Area if no meters)
+      const typeMeters = waterMeters.filter(m => (m.zaehler_typ || 'kaltwasser') === typ);
+
+      if (typeMeters.length === 0) return;
+
+      // Calculate cost distribution JUST for this meter type
+      const typeTenantCost = getTenantWaterCost(
+        tenant.id,
+        allTenants,
+        typeMeters, // Pass only relevant meters
+        waterReadings,
+        typeCost,
+        typeConsumption,
+        nebenkosten.startdatum,
+        nebenkosten.enddatum
+      );
+
+      if (typeTenantCost) {
+        totalTenantCost += typeTenantCost.costShare;
+        totalTenantConsumption += typeTenantCost.consumption;
+      }
+    });
   }
 
-  // Get meter reading details if available
+  // Calculate building totals (summing mixed units for display - caveat: m³ + kWh)
+  // We use a helper to sum generic values
+  const totalBuildingWaterCost = nebenkosten.zaehlerkosten
+    ? Object.values(nebenkosten.zaehlerkosten).reduce((a, b) => a + b, 0)
+    : 0;
+
+  const totalBuildingConsumption = nebenkosten.zaehlerverbrauch
+    ? Object.values(nebenkosten.zaehlerverbrauch).reduce((a, b) => a + b, 0)
+    : 0;
+
+  // Price per unit is calculated as an average for the breakdown view, though not used for total cost anymore
+  const averagePricePerUnit = totalBuildingConsumption > 0
+    ? totalBuildingWaterCost / totalBuildingConsumption
+    : 0;
+
+  // Get meter reading details for display (taking the most recent active meter reading)
   let meterReading: WaterCostBreakdown['meterReading'];
-  if (tenantWaterCost.consumption > 0 && waterReadings.length > 0) {
-    // Find the most recent reading for this tenant's apartment
+  if (totalTenantConsumption > 0 && waterReadings.length > 0) {
+    // Find the most recent reading for this tenant's apartment across all their meters
     const apartmentMeters = waterMeters.filter(m => m.wohnung_id === tenant.wohnung_id);
     const apartmentMeterIds = apartmentMeters.map(m => m.id);
     const relevantReadings = waterReadings
@@ -224,9 +251,9 @@ export function calculateWaterCostDistribution(
   return {
     totalBuildingWaterCost,
     totalBuildingConsumption,
-    pricePerCubicMeter: tenantWaterCost.pricePerCubicMeter,
-    tenantConsumption: tenantWaterCost.consumption,
-    totalCost: tenantWaterCost.costShare,
+    pricePerCubicMeter: averagePricePerUnit, // Represents weighted average
+    tenantConsumption: totalTenantConsumption,
+    totalCost: totalTenantCost,
     meterReading
   };
 }
