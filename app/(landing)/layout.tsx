@@ -1,4 +1,3 @@
-import AuthModalProvider from '@/components/auth/auth-modal-provider';
 import Navigation from '@/app/modern/components/navigation';
 import Footer from '@/app/modern/components/footer';
 import { Toaster } from '@/components/ui/toaster';
@@ -12,17 +11,15 @@ export default function LandingLayout({
 }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-      <AuthModalProvider>
-        <HomePageJsonLd />
-        <div className="min-h-screen flex flex-col">
-          <Navigation />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-          <Toaster />
-        </div>
-      </AuthModalProvider>
+      <HomePageJsonLd />
+      <div className="min-h-screen flex flex-col">
+        <Navigation />
+        <main className="flex-1">
+          {children}
+        </main>
+        <Footer />
+        <Toaster />
+      </div>
     </ThemeProvider>
   );
 }
