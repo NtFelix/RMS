@@ -13,8 +13,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { motion } from 'framer-motion';
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
+import { m } from 'framer-motion';
+import {
+  LazyPieChart,
+  Pie,
+  Cell,
+  LazyResponsiveContainer,
+  LazyLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  LazyBarChart,
+  Bar
+} from '@/components/charts/lazy-recharts';
 
 export default function FinanceManagementPage() {
   // Mock data for charts
@@ -66,11 +79,11 @@ export default function FinanceManagementPage() {
     const segmentColor = COLORS[index % COLORS.length];
 
     return (
-      <text 
-        x={x} 
-        y={y} 
+      <text
+        x={x}
+        y={y}
         fill={segmentColor}
-        textAnchor={x > cx ? 'start' : 'end'} 
+        textAnchor={x > cx ? 'start' : 'end'}
         dominantBaseline="central"
         className="text-sm font-semibold"
         style={{ fontSize: '12px' }}
@@ -132,7 +145,7 @@ export default function FinanceManagementPage() {
     { id: 6, name: 'Instandhaltung Heizung', wohnung: 'Wohnung C', datum: '08.03.2025', betrag: -450, ist_einnahmen: false, notiz: 'Wartung und Reparatur' },
   ].sort((a, b) => new Date(b.datum.split('.').reverse().join('-')).getTime() - new Date(a.datum.split('.').reverse().join('-')).getTime());
 
-  
+
 
   const handleGetStarted = () => {
     window.location.href = '/?getStarted=true';
@@ -195,7 +208,7 @@ export default function FinanceManagementPage() {
       {/* Chart Cards Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-7xl mx-auto">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -208,11 +221,11 @@ export default function FinanceManagementPage() {
             <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
               Erhalten Sie wertvolle Einblicke durch interaktive Diagramme und detaillierte Analysen Ihrer finanziellen Daten.
             </p>
-          </motion.div>
+          </m.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Einnahmen nach Wohnung Chart Card */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -236,8 +249,8 @@ export default function FinanceManagementPage() {
                   {/* Real Chart for Large Screens */}
                   <div className="hidden lg:block">
                     <div className="h-48 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
+                      <LazyResponsiveContainer width="100%" height="100%">
+                        <PieChart>
                           <Pie
                             data={incomeByApartmentData}
                             cx="50%"
@@ -253,9 +266,9 @@ export default function FinanceManagementPage() {
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip 
+                          <Tooltip
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                            contentStyle={{ 
+                            contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e2e8f0',
                               borderRadius: '0.5rem',
@@ -269,11 +282,11 @@ export default function FinanceManagementPage() {
                               textTransform: 'capitalize'
                             }}
                           />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
+                        </PieChart>
+                      </LazyResponsiveContainer>
                     </div>
                   </div>
-                  
+
                   {/* Fallback Content for Small Screens */}
                   <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -294,10 +307,10 @@ export default function FinanceManagementPage() {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
 
             {/* Monatliche Einnahmen Chart Card */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -321,39 +334,39 @@ export default function FinanceManagementPage() {
                   {/* Real Chart for Large Screens */}
                   <div className="hidden lg:block">
                     <div className="h-48 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={monthlyIncomeData}>
+                      <LazyResponsiveContainer width="100%" height="100%">
+                        <LazyLineChart data={monthlyIncomeData}>
                           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                          <XAxis 
-                            dataKey="month" 
+                          <XAxis
+                            dataKey="month"
                             tick={{ fontSize: 12 }}
                             stroke="hsl(var(--muted-foreground))"
                           />
-                          <YAxis 
+                          <YAxis
                             tick={{ fontSize: 12 }}
                             stroke="hsl(var(--muted-foreground))"
                           />
-                          <Tooltip 
+                          <Tooltip
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                            contentStyle={{ 
+                            contentStyle={{
                               backgroundColor: 'hsl(var(--card))',
                               border: '1px solid hsl(var(--border))',
                               borderRadius: '8px'
                             }}
                           />
-                          <Line 
-                            type="monotone" 
-                            dataKey="einnahmen" 
-                            stroke="#10b981" 
+                          <Line
+                            type="monotone"
+                            dataKey="einnahmen"
+                            stroke="#10b981"
                             strokeWidth={2}
                             dot={{ fill: '#10b981', r: 4 }}
                             activeDot={{ r: 6 }}
                           />
-                        </LineChart>
-                      </ResponsiveContainer>
+                        </LazyLineChart>
+                      </LazyResponsiveContainer>
                     </div>
                   </div>
-                  
+
                   {/* Fallback Content for Small Screens */}
                   <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -378,10 +391,10 @@ export default function FinanceManagementPage() {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
 
             {/* Einnahmen-Ausgaben-Verhältnis Chart Card */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -405,35 +418,35 @@ export default function FinanceManagementPage() {
                   {/* Real Chart for Large Screens */}
                   <div className="hidden lg:block">
                     <div className="h-48 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={incomeExpenseData}>
+                      <LazyResponsiveContainer width="100%" height="100%">
+                        <LazyBarChart data={incomeExpenseData}>
                           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                          <XAxis 
-                            dataKey="name" 
+                          <XAxis
+                            dataKey="name"
                             tick={{ fontSize: 12 }}
                             stroke="hsl(var(--muted-foreground))"
                           />
-                          <YAxis 
+                          <YAxis
                             tick={{ fontSize: 12 }}
                             stroke="hsl(var(--muted-foreground))"
                           />
-                          <Tooltip 
+                          <Tooltip
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                            contentStyle={{ 
+                            contentStyle={{
                               backgroundColor: 'hsl(var(--card))',
                               border: '1px solid hsl(var(--border))',
                               borderRadius: '8px'
                             }}
                           />
-                          <Bar 
-                            dataKey="value" 
+                          <Bar
+                            dataKey="value"
                             radius={[8, 8, 0, 0]}
                           />
-                        </BarChart>
-                      </ResponsiveContainer>
+                        </LazyBarChart>
+                      </LazyResponsiveContainer>
                     </div>
                   </div>
-                  
+
                   {/* Fallback Content for Small Screens */}
                   <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -455,10 +468,10 @@ export default function FinanceManagementPage() {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
 
             {/* Ausgabenkategorien Chart Card */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -482,8 +495,8 @@ export default function FinanceManagementPage() {
                   {/* Real Chart for Large Screens */}
                   <div className="hidden lg:block">
                     <div className="h-48 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
+                      <LazyResponsiveContainer width="100%" height="100%">
+                        <PieChart>
                           <Pie
                             data={expenseCategoriesData}
                             cx="50%"
@@ -499,9 +512,9 @@ export default function FinanceManagementPage() {
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip 
+                          <Tooltip
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                            contentStyle={{ 
+                            contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e2e8f0',
                               borderRadius: '0.5rem',
@@ -515,11 +528,11 @@ export default function FinanceManagementPage() {
                               textTransform: 'capitalize'
                             }}
                           />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
+                        </PieChart>
+                      </LazyResponsiveContainer>
                     </div>
                   </div>
-                  
+
                   {/* Fallback Content for Small Screens */}
                   <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -542,7 +555,7 @@ export default function FinanceManagementPage() {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </div>
@@ -550,7 +563,7 @@ export default function FinanceManagementPage() {
       {/* Datenübersichten Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-7xl mx-auto">
-          <motion.div 
+          <m.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -558,10 +571,10 @@ export default function FinanceManagementPage() {
             className="text-center mb-12"
           >
             <h2 className="text-4xl font-bold">Finanzdaten im Detail</h2>
-          </motion.div>
+          </m.div>
 
           {/* Monatliche Übersicht Section - 2 Column Layout (Table Left, Text Right) */}
-          <motion.div 
+          <m.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -569,7 +582,7 @@ export default function FinanceManagementPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Table in Mac Window */}
-            <motion.div 
+            <m.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
@@ -596,7 +609,7 @@ export default function FinanceManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {mockFinanceData.map((finance) => (
-                        <TableRow 
+                        <TableRow
                           key={finance.id}
                           className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
                         >
@@ -611,10 +624,10 @@ export default function FinanceManagementPage() {
                   </Table>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Right Column - Description */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
@@ -630,7 +643,7 @@ export default function FinanceManagementPage() {
                   Sehen Sie alle Ihre Einnahmen und Ausgaben an einem Ort. Die chronologische Übersicht zeigt jede einzelne Transaktion mit Betrag, Datum und Typ - perfekt für die tägliche Finanzkontrolle und schnelle Entscheidungen.
                 </p>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
@@ -647,11 +660,11 @@ export default function FinanceManagementPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
 
           {/* Search & Filter Section - 2 Column Layout (Content Left, Card Right) */}
-          <motion.div 
+          <m.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
@@ -659,7 +672,7 @@ export default function FinanceManagementPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Search & Filter Description */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: -50 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
@@ -699,10 +712,10 @@ export default function FinanceManagementPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Right Column - Mockup Window */}
-            <motion.div 
+            <m.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.8 }}
@@ -719,21 +732,21 @@ export default function FinanceManagementPage() {
                 <div className="flex-1 text-center text-sm font-medium">Finanzverwaltung</div>
                 <div className="w-16"></div>
               </div>
-              
+
               {/* Search & Filter Bar Mockup */}
               <div className="p-6 space-y-4">
                 <div className="text-sm font-medium text-muted-foreground mb-3">Transaktionen suchen</div>
-                
+
                 {/* Search Bar */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    type="search" 
-                    placeholder="Nebenkostenvorauszahlung..." 
-                    className="pl-10" 
+                  <Input
+                    type="search"
+                    placeholder="Nebenkostenvorauszahlung..."
+                    className="pl-10"
                   />
                 </div>
-                
+
                 {/* Results Table */}
                 <div className="mt-4">
                   <div className="text-xs font-medium text-muted-foreground mb-2">3 Treffer gefunden</div>
@@ -767,11 +780,11 @@ export default function FinanceManagementPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
 
           {/* Financial Summary Section - 2 Column Layout (Cards Left, Content Right) */}
-          <motion.div 
+          <m.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 1.0 }}
@@ -779,7 +792,7 @@ export default function FinanceManagementPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Summary Cards Mockup */}
-            <motion.div 
+            <m.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 1.2 }}
@@ -788,7 +801,7 @@ export default function FinanceManagementPage() {
               <MacWindow className="w-full shadow-none dark:shadow-none">
                 <div className="space-y-4 p-6">
                   {/* Monthly Income Card */}
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 1.2 }}
@@ -800,10 +813,10 @@ export default function FinanceManagementPage() {
                       description="Durchschnittliche monatliche Einnahmen"
                       icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
                     />
-                  </motion.div>
+                  </m.div>
 
                   {/* Monthly Expenses Card */}
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 1.3 }}
@@ -815,10 +828,10 @@ export default function FinanceManagementPage() {
                       description="Durchschnittliche monatliche Ausgaben"
                       icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
                     />
-                  </motion.div>
+                  </m.div>
 
                   {/* Monthly Cashflow Card */}
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 1.4 }}
@@ -830,10 +843,10 @@ export default function FinanceManagementPage() {
                       description="Durchschnittlicher monatlicher Überschuss"
                       icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
                     />
-                  </motion.div>
+                  </m.div>
 
                   {/* Annual Projection Card */}
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 1.5 }}
@@ -845,13 +858,13 @@ export default function FinanceManagementPage() {
                       description="Geschätzter Jahresgewinn"
                       icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
                     />
-                  </motion.div>
+                  </m.div>
                 </div>
               </MacWindow>
-            </motion.div>
+            </m.div>
 
             {/* Right Column - Financial Summary Description */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 1.0 }}
@@ -891,11 +904,11 @@ export default function FinanceManagementPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
 
           {/* Export Section - 2 Column Layout (Text Left, Export Options Right) */}
-          <motion.div 
+          <m.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.8 }}
@@ -903,7 +916,7 @@ export default function FinanceManagementPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Export Description */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 1.2 }}
@@ -919,7 +932,7 @@ export default function FinanceManagementPage() {
                   Exportieren Sie Ihre Finanzdaten als CSV für flexible Analysen, Berichte und externe Systeme. Behalten Sie die volle Kontrolle über Ihre Daten.
                 </p>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
@@ -936,10 +949,10 @@ export default function FinanceManagementPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Right Column - Export Options in Mac Window */}
-            <motion.div 
+            <m.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 1.0 }}
@@ -956,11 +969,11 @@ export default function FinanceManagementPage() {
                 <div className="flex-1 text-center text-sm font-medium">Datenexport</div>
                 <div className="w-16"></div>
               </div>
-              
+
               {/* Export Options */}
               <div className="p-6 space-y-4">
                 <div className="text-sm font-medium text-muted-foreground mb-3">CSV Datenexport</div>
-                
+
                 {/* CSV Export Option */}
                 <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer group">
                   <div className="flex items-center gap-3">
@@ -974,7 +987,7 @@ export default function FinanceManagementPage() {
                     <Download className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                 </div>
-                
+
                 {/* Date Range Selector */}
                 <div className="pt-4 border-t">
                   <div className="text-sm font-medium mb-3">Zeitraum auswählen</div>
@@ -986,13 +999,13 @@ export default function FinanceManagementPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
 
         </div>
       </div>
 
-      <BottomCTA 
+      <BottomCTA
         onGetStarted={handleGetStarted}
         theme="houses"
         title="Starten Sie noch heute mit der"

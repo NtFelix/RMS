@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { m } from "framer-motion"
 import {
   Key, RefreshCw, FileText, Folder, Sparkles,
   ArrowUpRight, CheckCircle2, FileJson,
@@ -33,7 +33,7 @@ const nkFeatures: NKFeature[] = [
             { label: "Einheiten", value: "10%", icon: CheckCircle2, color: "text-amber-500", bg: "bg-amber-500/10" },
             { label: "Sonstiges", value: "5%", icon: Sparkles, color: "text-violet-500", bg: "bg-violet-500/10" }
           ].map((item, i) => (
-            <motion.div
+            <m.div
               key={item.label}
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -45,7 +45,7 @@ const nkFeatures: NKFeature[] = [
               </div>
               <div className="text-xs text-muted-foreground font-medium">{item.label}</div>
               <div className="text-lg font-bold">{item.value}</div>
-            </motion.div>
+            </m.div>
           ))}
         </div>
       </div>
@@ -68,7 +68,7 @@ const nkFeatures: NKFeature[] = [
               fill="transparent"
               className="text-secondary"
             />
-            <motion.circle
+            <m.circle
               cx="64" cy="64" r="58"
               stroke="currentColor"
               strokeWidth="8"
@@ -87,7 +87,7 @@ const nkFeatures: NKFeature[] = [
         </div>
         <div className="w-full space-y-2">
           <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-            <motion.div
+            <m.div
               initial={{ width: 0 }}
               whileInView={{ width: "85%" }}
               className="h-full bg-primary"
@@ -171,7 +171,7 @@ export default function NebenkostenBento() {
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center w-full max-w-3xl mx-auto mb-16 sm:mb-24">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -180,9 +180,9 @@ export default function NebenkostenBento() {
           >
             <Calculator className="w-4 h-4 text-emerald-500" />
             <span className="text-sm font-medium text-emerald-500">Abrechnung</span>
-          </motion.div>
+          </m.div>
 
-          <motion.h2
+          <m.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -190,9 +190,9 @@ export default function NebenkostenBento() {
             className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent"
           >
             Herausforderungen gelöst
-          </motion.h2>
+          </m.h2>
 
-          <motion.p
+          <m.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -201,13 +201,13 @@ export default function NebenkostenBento() {
           >
             Konzentrieren Sie sich auf das Wesentliche. Wir erledigen die Mathematik
             und sorgen für rechtssichere Nebenkostenabrechnungen.
-          </motion.p>
+          </m.p>
         </div>
 
         {/* Bento Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
           {nkFeatures.map((feature, index) => (
-            <motion.div
+            <m.div
               key={feature.title}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -247,7 +247,7 @@ export default function NebenkostenBento() {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           ))}
         </div>
       </div>

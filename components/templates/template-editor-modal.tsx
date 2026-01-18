@@ -34,7 +34,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { TemplateEditor } from '@/components/templates/template-editor';
+import { LazyTemplateEditor as TemplateEditor } from '@/components/templates/lazy-template-editor';
 import { TEMPLATE_CATEGORIES, TemplateCategory, TEMPLATE_TYPE_CONFIGS, TEMPLATE_ICON_MAP } from '@/lib/template-constants';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorModalProps } from '@/types/template';
@@ -50,7 +50,7 @@ import {
   Check,
   ChevronRight
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from "framer-motion";
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -480,7 +480,7 @@ export function TemplateEditorModal({
         <div className="flex-1 overflow-hidden relative">
           <AnimatePresence mode="wait">
             {step === 'category' && (
-              <motion.div
+              <m.div
                 key="category-step"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -507,7 +507,7 @@ export function TemplateEditorModal({
                                 const isSelected = field.value === category;
 
                                 return (
-                                  <motion.div
+                                  <m.div
                                     key={category}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
@@ -544,7 +544,7 @@ export function TemplateEditorModal({
                                         </div>
                                       )}
                                     </button>
-                                  </motion.div>
+                                  </m.div>
                                 );
                               })}
                             </div>
@@ -567,11 +567,11 @@ export function TemplateEditorModal({
                     </form>
                   </Form>
                 </div>
-              </motion.div>
+              </m.div>
             )}
 
             {step === 'editor' && (
-              <motion.div
+              <m.div
                 key="editor-step"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -636,7 +636,7 @@ export function TemplateEditorModal({
                     </div>
                   </form>
                 </Form>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </div>

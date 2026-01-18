@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { m, AnimatePresence } from "framer-motion"
 import { Key, RefreshCw, Gauge, FileText, Folder, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -180,7 +180,7 @@ export function NKCarousel() {
                 <div className="relative cursor-pointer">
 
                   {/* Visual Connection Line (Fade in) */}
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, scale: 0.5 }}
                     animate={{
                       opacity: isActive ? 1 : 0,
@@ -195,9 +195,9 @@ export function NKCarousel() {
                     )}
                       style={{ backgroundColor: isActive ? colorMap[feature.color] : 'transparent' }}
                     />
-                  </motion.div>
+                  </m.div>
 
-                  <motion.button
+                  <m.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                     animate={{
@@ -224,10 +224,10 @@ export function NKCarousel() {
                       style={{ color: isActive ? colorMap[feature.color] : undefined }}
                       strokeWidth={1.5}
                     />
-                  </motion.button>
+                  </m.button>
 
                   {/* Floating Label */}
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{
                       opacity: isActive ? 1 : 0,
@@ -243,7 +243,7 @@ export function NKCarousel() {
                     }}
                   >
                     {feature.title}
-                  </motion.div>
+                  </m.div>
                 </div>
               </div>
             )
@@ -253,7 +253,7 @@ export function NKCarousel() {
           <div className="absolute z-30">
             <AnimatePresence mode="wait">
               {!activeId ? (
-                <motion.div
+                <m.div
                   key="idle"
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -262,9 +262,9 @@ export function NKCarousel() {
                 >
                   <div className="absolute inset-0 rounded-full border border-primary/20 border-dashed animate-[spin_60s_linear_infinite]" />
                   <Sparkles className="w-8 h-8 text-primary/50" />
-                </motion.div>
+                </m.div>
               ) : (
-                <motion.div
+                <m.div
                   key="active"
                   layoutId="hub-core"
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -282,7 +282,7 @@ export function NKCarousel() {
                     style={{ background: `radial-gradient(circle at center, ${colorMap[activeFeature!.color]}, transparent 70%)` }}
                   />
 
-                  <motion.div
+                  <m.div
                     initial={{ scale: 0, opacity: 0, rotate: -45 }}
                     animate={{ scale: 1, opacity: 1, rotate: 0 }}
                     transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
@@ -290,25 +290,25 @@ export function NKCarousel() {
                     style={{ backgroundColor: `${colorMap[activeFeature!.color]}15`, color: colorMap[activeFeature!.color] }}
                   >
                     {React.createElement(activeFeature!.icon, { className: "w-8 h-8" })}
-                  </motion.div>
+                  </m.div>
 
-                  <motion.h3
+                  <m.h3
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.3, duration: 0.5 }}
                     className="text-2xl font-bold mb-3 relative z-10"
                   >
                     {activeFeature?.title}
-                  </motion.h3>
+                  </m.h3>
 
-                  <motion.p
+                  <m.p
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.4, duration: 0.5 }}
                     className="text-sm text-muted-foreground leading-relaxed max-w-[280px] relative z-10"
                   >
                     {activeFeature?.longText}
-                  </motion.p>
+                  </m.p>
 
                   <button
                     onClick={() => setActiveId(null)}
@@ -316,7 +316,7 @@ export function NKCarousel() {
                   >
                     <X className="w-4 h-4 text-muted-foreground" />
                   </button>
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </div>

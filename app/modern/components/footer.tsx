@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { m } from "framer-motion"
 import { /* Github, */ Twitter, /* Linkedin, */ Mail } from "lucide-react"
 import Link from "next/link"
 import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, INFO_EMAIL, SUPPORT_EMAIL, ROUTES } from "@/lib/constants"
@@ -70,7 +70,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-12 mb-16">
           {/* Brand Section */}
           <div className="sm:col-span-2 lg:col-span-2">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
@@ -84,7 +84,7 @@ export default function Footer() {
               </p>
               <div className="flex gap-4">
                 {socialLinks.map((social, index) => (
-                  <motion.a
+                  <m.a
                     key={index}
                     href={social.href}
                     target={social.href.startsWith("http") ? "_blank" : undefined}
@@ -96,17 +96,17 @@ export default function Footer() {
                     onClick={() => trackFooterSocialClicked(social.platform, social.href)}
                   >
                     <social.icon className="w-5 h-5 text-muted-foreground group-hover:text-accent-foreground" />
-                  </motion.a>
+                  </m.a>
                 ))}
               </div>
-            </motion.div>
+            </m.div>
           </div>
 
           {/* Links Sections */}
           {Object.entries(footerLinks)
             .filter(([, links]) => links.length > 0)
             .map(([category, links], categoryIndex) => (
-              <motion.div
+              <m.div
                 key={category}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -141,12 +141,12 @@ export default function Footer() {
                     );
                   })}
                 </ul>
-              </motion.div>
+              </m.div>
             ))}
         </div>
 
         {/* Bottom Section */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
@@ -155,7 +155,7 @@ export default function Footer() {
         >
           <p className="text-muted-foreground text-sm">© {new Date().getFullYear()} {BRAND_NAME}. Alle Rechte vorbehalten.</p>
           <p className="text-muted-foreground/70 text-sm">Entwickelt, um die Mietverwaltung für alle zu vereinfachen.</p>
-        </motion.div>
+        </m.div>
       </div>
     </footer>
   )

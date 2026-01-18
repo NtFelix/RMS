@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight } from "lucide-react"
-import { motion, Variants } from "framer-motion"
+import { m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
@@ -191,7 +191,7 @@ export function DashboardSidebar() {
         onClick={() => setIsOpen(false)}
       />
 
-      <motion.aside
+      <m.aside
         initial="expanded"
         animate={isCollapsed ? "collapsed" : "expanded"}
         variants={sidebarVariants}
@@ -221,7 +221,7 @@ export function DashboardSidebar() {
             iconVariants={iconVariants}
           />
         </div>
-      </motion.aside>
+      </m.aside>
 
       {/* Mobile Drawer */}
       <aside
@@ -288,12 +288,12 @@ function SidebarContent({
             />
           </div>
           {!isMobile && textVariants && (
-            <motion.span
+            <m.span
               variants={textVariants}
               className="text-lg whitespace-nowrap"
             >
               Mietevo
-            </motion.span>
+            </m.span>
           )}
           {isMobile && <span className="text-lg">Mietevo</span>}
         </Link>
@@ -312,17 +312,17 @@ function SidebarContent({
                   )}
                 >
                   {!isMobile && iconVariants ? (
-                    <motion.div
+                    <m.div
                       variants={iconVariants}
                       className="flex-shrink-0"
                     >
                       <Search className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
-                    </motion.div>
+                    </m.div>
                   ) : (
                     <Search className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
                   )}
                   {!isMobile && textVariants && (
-                    <motion.div
+                    <m.div
                       variants={{
                         ...textVariants,
                         expanded: {
@@ -338,7 +338,7 @@ function SidebarContent({
                       <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                         <span className="text-xs">⌘</span>K
                       </kbd>
-                    </motion.div>
+                    </m.div>
                   )}
                   {isMobile && (
                     <>
@@ -380,22 +380,22 @@ function SidebarContent({
                         aria-current={isActive ? "page" : undefined}
                       >
                         {!isMobile && iconVariants ? (
-                          <motion.div
+                          <m.div
                             variants={iconVariants}
                             className="flex-shrink-0"
                           >
                             <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
-                          </motion.div>
+                          </m.div>
                         ) : (
                           <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
                         )}
                         {!isMobile && textVariants && (
-                          <motion.span
+                          <m.span
                             variants={textVariants}
                             className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide"
                           >
                             {item.title}
-                          </motion.span>
+                          </m.span>
                         )}
                         {isMobile && (
                           <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
@@ -424,7 +424,7 @@ function SidebarContent({
           >
             {isCollapsed ? <ChevronRight className="h-4 w-4 flex-shrink-0" /> : <ChevronLeft className="h-4 w-4 flex-shrink-0" />}
             {!isCollapsed && textVariants && (
-              <motion.span variants={textVariants}>Einklappen</motion.span>
+              <m.span variants={textVariants}>Einklappen</m.span>
             )}
           </Button>
         )}

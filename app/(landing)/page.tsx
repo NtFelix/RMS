@@ -3,16 +3,16 @@
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import Hero from '@/app/modern/components/hero';
-import FeatureSections from '@/app/modern/components/feature-sections';
-import ProductShowcase from '@/app/modern/components/product-showcase';
 
-import MoreFeatures from '@/app/modern/components/more-features';
-import CTA from '@/app/modern/components/cta';
-import BottomCTA from '@/components/ui/bottom-cta';
-
-import Pricing from '@/app/modern/components/pricing';
-import NebenkostenSection from '@/app/modern/components/nebenkosten-section';
+const FeatureSections = dynamic(() => import('@/app/modern/components/feature-sections'), { ssr: true });
+const ProductShowcase = dynamic(() => import('@/app/modern/components/product-showcase'), { ssr: true });
+const MoreFeatures = dynamic(() => import('@/app/modern/components/more-features'), { ssr: true });
+const CTA = dynamic(() => import('@/app/modern/components/cta'), { ssr: true });
+const BottomCTA = dynamic(() => import('@/components/ui/bottom-cta'), { ssr: true });
+const Pricing = dynamic(() => import('@/app/modern/components/pricing'), { ssr: true });
+const NebenkostenSection = dynamic(() => import('@/app/modern/components/nebenkosten-section'), { ssr: true });
 import AuthModalProvider, { useAuthModal } from '@/components/auth/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';

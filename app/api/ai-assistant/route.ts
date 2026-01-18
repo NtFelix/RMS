@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+// import { GoogleGenAI } from '@google/genai'; // Removed for bundle optimization
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
@@ -106,10 +106,12 @@ const RETRY_CONFIG: RetryConfig = {
   backoffFactor: 2,
 };
 
-// Initialize Gemini AI
+// Initialized Gemini AI - Removed for bundle optimization, using fetch instead
+/*
 const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || ''
 });
+*/
 
 // Initialize PostHog for Edge Runtime
 let posthogClient: PosthogClient | null = null;
@@ -690,48 +692,122 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate response with streaming using the models API with retry logic
-    const result = await retryWithBackoff(async () => {
-      return await genAI.models.generateContentStream({
-        model: 'gemini-2.5-flash-lite',
-        config: {
-          temperature: 1.1,
-          thinkingConfig: {
-            thinkingBudget: 0,
-          },
-          systemInstruction: [{
-            text: SYSTEM_INSTRUCTION
-          }],
+    const resultResponse = await retryWithBackoff(async () => {
+      const model = 'gemini-2.0-flash'; // Optimized model choice or stick to previous
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${process.env.GEMINI_API_KEY}`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        contents: [{
-          role: 'user',
-          parts: [{ text: fullPrompt }]
-        }]
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [{ text: fullPrompt }]
+          }],
+          systemInstruction: {
+            parts: [{ text: SYSTEM_INSTRUCTION }]
+          },
+          generationConfig: {
+            temperature: 1.1,
+          },
+        })
       });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Gemini API error: ${res.status} ${errorText}`);
+      }
+
+      return res;
     }, {
       ...RETRY_CONFIG,
-      maxAttempts: 2, // Reduce attempts for streaming to avoid long delays
+      maxAttempts: 2,
     }, 'Gemini API streaming request');
 
     // Create a readable stream for the response
     const encoder = new TextEncoder();
+    const reader = resultResponse.body?.getReader();
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
           let fullResponse = '';
+          let buffer = '';
 
-          for await (const chunk of result) {
-            const chunkText = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            if (chunkText) {
-              fullResponse += chunkText;
+          if (!reader) {
+            throw new Error('Response body is null');
+          }
 
-              // Send chunk to client
-              const data = JSON.stringify({
-                type: 'chunk',
-                content: chunkText,
-                sessionId: currentSessionId
-              });
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            const chunkText = new TextDecoder().decode(value);
+            buffer += chunkText;
+
+            // Simple parser for Gemini's JSON stream format
+            // The format is like: [ { "candidates": ... }, { "candidates": ... } ]
+            // Each chunk might be a partial JSON object.
+
+            // This is a basic implementation that tries to find complete JSON objects in the buffer
+            let startIdx = buffer.indexOf('{');
+            while (startIdx !== -1) {
+              let braceCount = 0;
+              let endIdx = -1;
+              let inString = false;
+              let escape = false;
+
+              for (let i = startIdx; i < buffer.length; i++) {
+                const char = buffer[i];
+                if (escape) {
+                  escape = false;
+                  continue;
+                }
+                if (char === '\\') {
+                  escape = true;
+                  continue;
+                }
+                if (char === '"') {
+                  inString = !inString;
+                  continue;
+                }
+                if (!inString) {
+                  if (char === '{') braceCount++;
+                  else if (char === '}') {
+                    braceCount--;
+                    if (braceCount === 0) {
+                      endIdx = i;
+                      break;
+                    }
+                  }
+                }
+              }
+
+              if (endIdx !== -1) {
+                const jsonStr = buffer.substring(startIdx, endIdx + 1);
+                try {
+                  const json = JSON.parse(jsonStr);
+                  const textContent = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+                  if (textContent) {
+                    fullResponse += textContent;
+                    const data = JSON.stringify({
+                      type: 'chunk',
+                      content: textContent,
+                      sessionId: currentSessionId
+                    });
+                    controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                  }
+                } catch (e) {
+                  console.warn('Failed to parse partial JSON chunk', e);
+                }
+                buffer = buffer.substring(endIdx + 1);
+                startIdx = buffer.indexOf('{');
+              } else {
+                break;
+              }
             }
           }
 

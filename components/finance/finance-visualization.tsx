@@ -2,22 +2,22 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import type { PieLabelRenderProps } from "recharts"
 import {
   Bar,
-  BarChart,
   Pie,
-  PieChart,
-  PieLabelRenderProps,
   Line,
-  LineChart,
-  ResponsiveContainer,
   XAxis,
   YAxis,
   CartesianGrid,
   Legend,
   Tooltip,
   Cell,
-} from "recharts"
+  LazyBarChart,
+  LazyPieChart,
+  LazyLineChart,
+  LazyResponsiveContainer
+} from "@/components/charts/lazy-recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -318,8 +318,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                 </CardHeader>
                 <CardContent>
                   <div className="relative w-full h-auto min-h-[400px]">
-                    <ResponsiveContainer width="100%" aspect={16 / 9}>
-                      <PieChart>
+                    <LazyResponsiveContainer width="100%" aspect={16 / 9}>
+                      <LazyPieChart>
                         <Pie
                           data={displayData.incomeByApartment}
                           cx="50%"
@@ -339,8 +339,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                           formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
                           {...chartTooltipStyles}
                         />
-                      </PieChart>
-                    </ResponsiveContainer>
+                      </LazyPieChart>
+                    </LazyResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
@@ -368,16 +368,16 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                         },
                       }}
                     >
-                      <ResponsiveContainer width="100%" aspect={16 / 9}>
-                        <LineChart data={displayData.monthlyIncome}>
+                      <LazyResponsiveContainer width="100%" aspect={16 / 9}>
+                        <LazyLineChart data={displayData.monthlyIncome}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
                           <YAxis />
                           <ChartTooltip content={<ChartTooltipContent />} />
                           <Legend />
                           <Line type="monotone" dataKey="einnahmen" stroke="var(--color-einnahmen)" strokeWidth={2} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                        </LazyLineChart>
+                      </LazyResponsiveContainer>
                     </ChartContainer>
                   </div>
                 </CardContent>
@@ -410,8 +410,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                         },
                       }}
                     >
-                      <ResponsiveContainer width="100%" aspect={16 / 9}>
-                        <BarChart data={displayData.incomeExpenseRatio}>
+                      <LazyResponsiveContainer width="100%" aspect={16 / 9}>
+                        <LazyBarChart data={displayData.incomeExpenseRatio}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="month" />
                           <YAxis />
@@ -419,8 +419,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                           <Legend />
                           <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
                           <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                        </LazyBarChart>
+                      </LazyResponsiveContainer>
                     </ChartContainer>
                   </div>
                 </CardContent>
@@ -441,8 +441,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                 </CardHeader>
                 <CardContent>
                   <div className="relative w-full h-auto min-h-[400px]">
-                    <ResponsiveContainer width="100%" aspect={16 / 9}>
-                      <PieChart>
+                    <LazyResponsiveContainer width="100%" aspect={16 / 9}>
+                      <LazyPieChart>
                         <Pie
                           data={displayData.expenseCategories}
                           cx="50%"
@@ -462,8 +462,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                           formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
                           {...chartTooltipStyles}
                         />
-                      </PieChart>
-                    </ResponsiveContainer>
+                      </LazyPieChart>
+                    </LazyResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
