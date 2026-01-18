@@ -329,6 +329,21 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
+    // Pre-check for better error messages
+    const { data: existingMeter, error: fetchError } = await supabase
+      .from("Zaehler")
+      .select('id, user_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingMeter) {
+      return { success: false, message: "Zähler nicht gefunden." };
+    }
+
+    if (existingMeter.user_id !== user.id) {
+      return { success: false, message: "Keine Berechtigung zum Aktualisieren dieses Zählers." };
+    }
+
     const { data: result, error } = await supabase
       .from("Zaehler")
       .update(data)
@@ -370,6 +385,21 @@ export async function deleteZaehler(id: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, message: "Benutzer nicht authentifiziert." };
+    }
+
+    // Pre-check for better error messages
+    const { data: existingMeter, error: fetchError } = await supabase
+      .from("Zaehler")
+      .select('id, user_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingMeter) {
+      return { success: false, message: "Zähler nicht gefunden." };
+    }
+
+    if (existingMeter.user_id !== user.id) {
+      return { success: false, message: "Keine Berechtigung zum Löschen dieses Zählers." };
     }
 
     const { error } = await supabase

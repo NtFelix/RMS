@@ -145,6 +145,7 @@ export type LegacyWasserzaehler = {
     zaehlerstand: number;
     verbrauch: number;
     user_id: string;
+    zaehler_id?: string;
 };
 
 // Backward compatibility alias
@@ -153,6 +154,7 @@ export type Wasserzaehler = LegacyWasserzaehler;
 export type MeterReadingFormEntry = {
     id: string; // Used as key
     mieter_id: string;
+    zaehler_id?: string;
     mieter_name?: string; // Optional for display
     ablese_datum: string | null;
     zaehlerstand: number;

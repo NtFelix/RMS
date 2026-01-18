@@ -711,7 +711,7 @@ export async function getWasserzaehlerByHausAndYearAction(
  * 2. Finds an active meter for that apartment.
  * 3. Inserts the reading into 'Zaehler_Ablesungen'.
  */
-async function saveMeterReadings(formData: MeterReadingFormData): Promise<{ success: boolean; message?: string; data?: any[] }> {
+export async function saveMeterReadings(formData: MeterReadingFormData): Promise<{ success: boolean; message?: string; data?: any[] }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -723,67 +723,103 @@ async function saveMeterReadings(formData: MeterReadingFormData): Promise<{ succ
   let successCount = 0;
   let errorCount = 0;
 
-  // Manual loop to handle sequential async operations correctly
-  // This could be parallelized if needed, but sequential is safer for creation logic
-  for (const entry of formData.entries) {
+  // 1. Split entries into those with explicit IDs (optimized) and those without (legacy)
+  const entriesWithId = formData.entries.filter(e => e.zaehler_id);
+  const entriesWithoutId = formData.entries.filter(e => !e.zaehler_id);
+
+  // 2. Bulk insert entries with explicit meter IDs
+  if (entriesWithId.length > 0) {
     try {
-      // 1. Get Mieter's Wohnung ID
-      const { data: mieter, error: mieterError } = await supabase
-        .from('Mieter')
-        .select('wohnung_id')
-        .eq('id', entry.mieter_id)
-        .single();
+      const payload = entriesWithId.map(entry => ({
+        zaehler_id: entry.zaehler_id!,
+        user_id: user.id,
+        ablese_datum: entry.ablese_datum || new Date().toISOString().split('T')[0],
+        zaehlerstand: Number(entry.zaehlerstand),
+        verbrauch: Number(entry.verbrauch),
+        kommentar: entry.kommentar
+      }));
 
-      if (mieterError || !mieter?.wohnung_id) {
-        console.warn(`Mieter ${entry.mieter_id} not found or has no apartment.`);
-        errorCount++;
-        continue;
-      }
-
-      // 2. Find existing Meter for this apartment
-      // We look for any meter that is EITHER 'kaltwasser' OR 'warmwasser' (for now, can be extended).
-      const { data: meters, error: meterError } = await supabase
-        .from('Zaehler')
-        .select('id')
-        .eq('wohnung_id', mieter.wohnung_id)
-        .eq('user_id', user.id)
-        .in('zaehler_typ', ['kaltwasser', 'warmwasser', 'waermemengenzaehler', 'strom', 'gas']) // Extended types
-        .eq('ist_aktiv', true)
-        .limit(1);
-
-      let meterId = meters && meters.length > 0 ? meters[0].id : null;
-
-      // 3. Strict Mode: Meter must exist
-      if (!meterId) {
-        console.warn(`No active meter found for wohnung ${mieter.wohnung_id}. Skipping reading.`);
-        errorCount++;
-        continue;
-      }
-
-      // 4. Insert Reading
-      const { data: reading, error: readingError } = await supabase
+      const { data, error } = await supabase
         .from('Zaehler_Ablesungen')
-        .insert({
-          zaehler_id: meterId,
-          user_id: user.id,
-          ablese_datum: entry.ablese_datum || new Date().toISOString().split('T')[0],
-          zaehlerstand: Number(entry.zaehlerstand),
-          verbrauch: Number(entry.verbrauch)
-        })
-        .select()
-        .single();
+        .insert(payload)
+        .select();
 
-      if (readingError) {
-        console.error(`Failed to insert reading for meter ${meterId}:`, readingError);
-        errorCount++;
+      if (error) {
+        console.error("Bulk insert failed for optimized entries:", error);
+        errorCount += entriesWithId.length;
       } else {
-        results.push(reading);
-        successCount++;
+        results.push(...(data || []));
+        successCount += (data || []).length;
       }
-
     } catch (e) {
-      console.error("Unexpected error saving entry:", e);
-      errorCount++;
+      console.error("Unexpected error in bulk insert:", e);
+      errorCount += entriesWithId.length;
+    }
+  }
+
+  // 3. Handle legacy entries (without meter ID) - Resolve Meter ID individually
+  if (entriesWithoutId.length > 0) {
+    for (const entry of entriesWithoutId) {
+      try {
+        // Get Mieter's Wohnung ID
+        const { data: mieter, error: mieterError } = await supabase
+          .from('Mieter')
+          .select('wohnung_id')
+          .eq('id', entry.mieter_id)
+          .single();
+
+        if (mieterError || !mieter?.wohnung_id) {
+          console.warn(`Mieter ${entry.mieter_id} not found or has no apartment.`);
+          errorCount++;
+          continue;
+        }
+
+        // Find existing Meter for this apartment
+        // Improved logic: Fetch all relevant meters and prioritize Kaltwasser -> Warmwasser
+        const { data: meters, error: meterError } = await supabase
+          .from('Zaehler')
+          .select('id, zaehler_typ')
+          .eq('wohnung_id', mieter.wohnung_id)
+          .eq('user_id', user.id)
+          .in('zaehler_typ', ['kaltwasser', 'warmwasser', 'waermemengenzaehler', 'strom', 'gas'])
+          .eq('ist_aktiv', true);
+
+        // Prioritize Kaltwasser, then Warmwasser, then others
+        let meterId = meters?.find(m => m.zaehler_typ === 'kaltwasser')?.id ||
+          meters?.find(m => m.zaehler_typ === 'warmwasser')?.id ||
+          meters?.[0]?.id; // Fallback to first available
+
+        if (!meterId) {
+          console.warn(`No active meter found for wohnung ${mieter.wohnung_id}. Skipping reading.`);
+          errorCount++;
+          continue;
+        }
+
+        const { data: reading, error: readingError } = await supabase
+          .from('Zaehler_Ablesungen')
+          .insert({
+            zaehler_id: meterId,
+            user_id: user.id,
+            ablese_datum: entry.ablese_datum || new Date().toISOString().split('T')[0],
+            zaehlerstand: Number(entry.zaehlerstand),
+            verbrauch: Number(entry.verbrauch),
+            kommentar: entry.kommentar
+          })
+          .select()
+          .single();
+
+        if (readingError) {
+          console.error(`Failed to insert reading for meter ${meterId}:`, readingError);
+          errorCount++;
+        } else {
+          results.push(reading);
+          successCount++;
+        }
+
+      } catch (e) {
+        console.error("Unexpected error saving legacy entry:", e);
+        errorCount++;
+      }
     }
   }
 
@@ -1317,7 +1353,7 @@ export async function getMeterModalDataAction(
           return {
             mieter_id: tenant.id,
             mieter_name: tenant.name,
-            meter_id: currentReading?.zaehler_id || tenant.id, // Fallback ID
+            meter_id: currentReading?.zaehler_id || "", // Fallback to empty string if no reading exists, allowing saveMeterReadings to resolve it
             meter_type: 'Wasserzaehler', // Default type for this legacy function
             custom_id: null,
             wohnung_name: wohnung?.name || 'Unbekannt',

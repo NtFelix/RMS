@@ -494,7 +494,8 @@ export async function fetchMeterReadingsByHausAndDateRange(
               ablese_datum: reading.ablese_datum,
               zaehlerstand: reading.zaehlerstand || 0,
               verbrauch: reading.verbrauch || 0,
-              user_id: reading.user_id
+              user_id: reading.user_id,
+              zaehler_id: reading.zaehler_id
             };
           });
         }

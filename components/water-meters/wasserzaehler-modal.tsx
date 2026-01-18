@@ -153,8 +153,9 @@ export function WasserzaehlerModal() {
         // Use optimized data if available (new approach)
         if (wasserzaehlerOptimizedData && wasserzaehlerOptimizedData.length > 0) {
           newFormData = wasserzaehlerOptimizedData.map((modalData: MeterModalData) => ({
-            id: modalData.mieter_id, // Use mieter_id as key since reading ID isn't in type
+            id: crypto.randomUUID(),
             mieter_id: modalData.mieter_id,
+            zaehler_id: modalData.meter_id, // Explicitly pass meter ID
             mieter_name: modalData.mieter_name,
             wohnung_name: modalData.wohnung_name,
             wohnung_groesse: modalData.wohnung_groesse,
@@ -173,8 +174,9 @@ export function WasserzaehlerModal() {
             );
 
             return {
-              id: existingReadingForMieter?.id || mieter.id, // Use existing ID or mieter_id as fallback
+              id: existingReadingForMieter?.id || crypto.randomUUID(),
               mieter_id: mieter.id,
+              zaehler_id: existingReadingForMieter?.zaehler_id,
               mieter_name: mieter.name,
               wohnung_name: mieter.Wohnungen?.name || 'Unbekannte Wohnung',
               wohnung_groesse: mieter.Wohnungen?.groesse || 0,
@@ -299,6 +301,7 @@ export function WasserzaehlerModal() {
       .map(entry => ({
         id: entry.id, // Preserve ID
         mieter_id: entry.mieter_id,
+        zaehler_id: entry.zaehler_id,
         mieter_name: entry.mieter_name,
         // Date can be empty; server will default to today if missing
         ablese_datum: entry.ablese_datum,
