@@ -49,6 +49,12 @@ import { useRouter } from "next/navigation"
 type OperatingCostsSortKey = "zeitraum" | "haus" | "zaehlerkosten" | ""
 type SortDirection = "asc" | "desc"
 
+// Helper function to sum all meter costs from JSONB
+const sumZaehlerkosten = (kosten: Record<string, number> | null | undefined): number => {
+  if (!kosten) return 0;
+  return Object.values(kosten).reduce((sum, v) => sum + v, 0);
+};
+
 interface OperatingCostsTableProps {
   nebenkosten: OptimizedNebenkosten[];
   onEdit?: (item: OptimizedNebenkosten) => void;
@@ -108,8 +114,8 @@ export function OperatingCostsTable({
           valB = b.haus_name || ''
         } else if (sortKey === 'zaehlerkosten') {
           // Sum all meter costs from JSONB
-          valA = a.zaehlerkosten ? Object.values(a.zaehlerkosten).reduce((sum, v) => sum + v, 0) : 0
-          valB = b.zaehlerkosten ? Object.values(b.zaehlerkosten).reduce((sum, v) => sum + v, 0) : 0
+          valA = sumZaehlerkosten(a.zaehlerkosten)
+          valB = sumZaehlerkosten(b.zaehlerkosten)
         } else {
           return 0
         }
@@ -327,7 +333,7 @@ export function OperatingCostsTable({
         betraege,
         berechnungsarten,
         // Sum zaehlerkosten JSONB values
-        formatCurrency(item.zaehlerkosten ? Object.values(item.zaehlerkosten).reduce((sum, v) => sum + v, 0) : null)
+        formatCurrency(sumZaehlerkosten(item.zaehlerkosten) || null)
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
@@ -515,7 +521,7 @@ export function OperatingCostsTable({
                               </Badge>
                             ) : '-'}
                           </TableCell>
-                          <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(item.zaehlerkosten ? Object.values(item.zaehlerkosten).reduce((sum, v) => sum + v, 0) : null)}</TableCell>
+                          <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(sumZaehlerkosten(item.zaehlerkosten) || null)}</TableCell>
                           <TableCell
                             className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                             onClick={(event) => event.stopPropagation()}

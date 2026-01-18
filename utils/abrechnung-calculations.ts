@@ -383,8 +383,8 @@ export function validateCalculationData(
       warnings.push('Wasserzähler vorhanden, aber keine Ablesungen für den Abrechnungszeitraum');
     } else {
       // Check if all apartments with tenants have water meters
-      const apartmentsWithTenants = new Set(tenants.map(t => t.wohnung_id).filter((id): id is string => id !== null));
-      const apartmentsWithMeters = new Set(waterMeters.map(m => m.wohnung_id).filter((id): id is string => id !== null && id !== undefined));
+      const apartmentsWithTenants = new Set(tenants.map(t => t.wohnung_id).filter((id): id is string => id != null));
+      const apartmentsWithMeters = new Set(waterMeters.map(m => m.wohnung_id).filter((id): id is string => id != null));
 
       apartmentsWithTenants.forEach(aptId => {
         if (!apartmentsWithMeters.has(aptId)) {

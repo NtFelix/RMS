@@ -492,10 +492,9 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
         // Set zaehlerkosten if available (from legacy wasserkosten or new zaehlerkosten)
         if (latest.zaehlerkosten) {
-          const kostenStrings: Record<string, string> = {};
-          Object.entries(latest.zaehlerkosten).forEach(([key, value]) => {
-            kostenStrings[key] = String(value);
-          });
+          const kostenStrings = Object.fromEntries(
+            Object.entries(latest.zaehlerkosten).map(([key, value]) => [key, String(value)])
+          );
           setZaehlerkosten(kostenStrings);
         } else if (latest.wasserkosten) {
           // Fallback to legacy wasserkosten
