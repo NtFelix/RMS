@@ -720,4 +720,200 @@ describe('Water Cost Calculations', () => {
       expect(result!.pricePerCubicMeter).toBe(3); // 540 / 180 = 3 EUR/m³
     });
   });
+
+  describe('Multi-Meter Type Grouping (1 house, 1 apt, 3 meters)', () => {
+    /**
+     * This test suite validates the user's specific scenario:
+     * - 1 house with 1 apartment
+     * - 3 meters: kaltwasser, warmwasser, gas
+     * - Readings should be correctly grouped by meter type (zaehler_typ)
+     * - Sum of readings should match what's stored in zaehlerverbrauch JSONB
+     */
+    const periodStart = '2025-01-01';
+    const periodEnd = '2025-12-31';
+
+    const singleTenant: Mieter = {
+      id: 'single-tenant',
+      name: 'Test User',
+      wohnung_id: 'single-apt',
+      einzug: '2020-01-01',
+      auszug: null,
+      email: null,
+      telefonnummer: null,
+      notiz: null,
+      nebenkosten: null,
+      user_id: 'user-1',
+      Wohnungen: { name: 'Wohnung 1', groesse: 100 },
+    };
+
+    // Meters with different types
+    const kaltwasserMeter: WasserZaehler = {
+      id: 'meter-kw',
+      custom_id: 'KW-001',
+      wohnung_id: 'single-apt',
+      zaehler_typ: 'kaltwasser',
+      einheit: 'm³',
+      erstellungsdatum: '2020-01-01',
+      eichungsdatum: '2028-01-01',
+      user_id: 'user-1',
+      ist_aktiv: true,
+    };
+
+    const warmwasserMeter: WasserZaehler = {
+      id: 'meter-ww',
+      custom_id: 'WW-001',
+      wohnung_id: 'single-apt',
+      zaehler_typ: 'warmwasser',
+      einheit: 'm³',
+      erstellungsdatum: '2020-01-01',
+      eichungsdatum: '2028-01-01',
+      user_id: 'user-1',
+      ist_aktiv: true,
+    };
+
+    const gasMeter: WasserZaehler = {
+      id: 'meter-gas',
+      custom_id: 'GAS-001',
+      wohnung_id: 'single-apt',
+      zaehler_typ: 'gas',
+      einheit: 'm³',
+      erstellungsdatum: '2020-01-01',
+      eichungsdatum: '2028-01-01',
+      user_id: 'user-1',
+      ist_aktiv: true,
+    };
+
+    // Readings for each meter type
+    const kaltwasserReadings: WasserAblesung[] = [
+      { id: 'kw-1', zaehler_id: 'meter-kw', ablese_datum: '2025-04-01', zaehlerstand: 50, verbrauch: 15, user_id: 'user-1' },
+      { id: 'kw-2', zaehler_id: 'meter-kw', ablese_datum: '2025-08-01', zaehlerstand: 65, verbrauch: 15, user_id: 'user-1' },
+      { id: 'kw-3', zaehler_id: 'meter-kw', ablese_datum: '2025-12-01', zaehlerstand: 80, verbrauch: 15, user_id: 'user-1' },
+    ]; // Total: 45 m³
+
+    const warmwasserReadings: WasserAblesung[] = [
+      { id: 'ww-1', zaehler_id: 'meter-ww', ablese_datum: '2025-04-01', zaehlerstand: 25, verbrauch: 7, user_id: 'user-1' },
+      { id: 'ww-2', zaehler_id: 'meter-ww', ablese_datum: '2025-08-01', zaehlerstand: 32, verbrauch: 7, user_id: 'user-1' },
+      { id: 'ww-3', zaehler_id: 'meter-ww', ablese_datum: '2025-12-01', zaehlerstand: 38, verbrauch: 6, user_id: 'user-1' },
+    ]; // Total: 20 m³
+
+    const gasReadings: WasserAblesung[] = [
+      { id: 'gas-1', zaehler_id: 'meter-gas', ablese_datum: '2025-04-01', zaehlerstand: 200, verbrauch: 50, user_id: 'user-1' },
+      { id: 'gas-2', zaehler_id: 'meter-gas', ablese_datum: '2025-08-01', zaehlerstand: 250, verbrauch: 50, user_id: 'user-1' },
+      { id: 'gas-3', zaehler_id: 'meter-gas', ablese_datum: '2025-12-01', zaehlerstand: 300, verbrauch: 50, user_id: 'user-1' },
+    ]; // Total: 150 m³
+
+    it('calculateTenantWaterConsumption includes ALL meter types', () => {
+      const tenants = [singleTenant];
+      const meters = [kaltwasserMeter, warmwasserMeter, gasMeter];
+      const readings = [...kaltwasserReadings, ...warmwasserReadings, ...gasReadings];
+
+      const result = calculateTenantWaterConsumption(
+        tenants,
+        meters,
+        readings,
+        periodStart,
+        periodEnd
+      );
+
+      expect(result).toHaveLength(1);
+      // Total consumption = 45 + 20 + 150 = 215 m³
+      expect(result[0].totalConsumption).toBe(215);
+      expect(result[0].consumptionDetails).toHaveLength(3);
+    });
+
+    it('consumption details correctly group by meter', () => {
+      const tenants = [singleTenant];
+      const meters = [kaltwasserMeter, warmwasserMeter, gasMeter];
+      const readings = [...kaltwasserReadings, ...warmwasserReadings, ...gasReadings];
+
+      const result = calculateTenantWaterConsumption(
+        tenants,
+        meters,
+        readings,
+        periodStart,
+        periodEnd
+      );
+
+      const details = result[0].consumptionDetails;
+
+      const kwDetail = details.find(d => d.meterCustomId === 'KW-001');
+      const wwDetail = details.find(d => d.meterCustomId === 'WW-001');
+      const gasDetail = details.find(d => d.meterCustomId === 'GAS-001');
+
+      expect(kwDetail?.consumption).toBe(45);  // 15 + 15 + 15
+      expect(wwDetail?.consumption).toBe(20);  // 7 + 7 + 6
+      expect(gasDetail?.consumption).toBe(150); // 50 + 50 + 50
+    });
+
+    it('reading sums match expected zaehlerverbrauch JSONB values', () => {
+      // This simulates what the database trigger should produce
+      const expectedZaehlerverbrauch = {
+        kaltwasser: 45,
+        warmwasser: 20,
+        gas: 150,
+      };
+
+      // Calculate actual sums from readings (grouped by meter)
+      const kwSum = kaltwasserReadings.reduce((sum, r) => sum + r.verbrauch, 0);
+      const wwSum = warmwasserReadings.reduce((sum, r) => sum + r.verbrauch, 0);
+      const gasSum = gasReadings.reduce((sum, r) => sum + r.verbrauch, 0);
+
+      expect(kwSum).toBe(expectedZaehlerverbrauch.kaltwasser);
+      expect(wwSum).toBe(expectedZaehlerverbrauch.warmwasser);
+      expect(gasSum).toBe(expectedZaehlerverbrauch.gas);
+
+      // Total should be 215
+      expect(kwSum + wwSum + gasSum).toBe(215);
+    });
+
+    it('cost calculation uses correct price per m³', () => {
+      const tenants = [singleTenant];
+      const meters = [kaltwasserMeter, warmwasserMeter, gasMeter];
+      const readings = [...kaltwasserReadings, ...warmwasserReadings, ...gasReadings];
+
+      // Simulated costs from Nebenkosten
+      const totalBuildingWaterCost = 430; // EUR (mix of all meter types)
+      const totalBuildingConsumption = 215; // m³
+
+      const result = calculateTenantWaterCosts(
+        tenants,
+        meters,
+        readings,
+        totalBuildingWaterCost,
+        totalBuildingConsumption,
+        periodStart,
+        periodEnd
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].consumption).toBe(215);
+      expect(result[0].pricePerCubicMeter).toBeCloseTo(2, 1); // 430 / 215 ≈ 2
+      expect(result[0].costShare).toBeCloseTo(430, 1);
+    });
+
+    it('verifies readings outside period are excluded', () => {
+      const oldReading: WasserAblesung = {
+        id: 'old', zaehler_id: 'meter-kw', ablese_datum: '2024-06-01', zaehlerstand: 10, verbrauch: 10, user_id: 'user-1'
+      };
+      const futureReading: WasserAblesung = {
+        id: 'future', zaehler_id: 'meter-ww', ablese_datum: '2026-01-15', zaehlerstand: 50, verbrauch: 12, user_id: 'user-1'
+      };
+
+      const tenants = [singleTenant];
+      const meters = [kaltwasserMeter, warmwasserMeter];
+      // Include out-of-period readings along with valid ones
+      const readings = [oldReading, futureReading, ...kaltwasserReadings.slice(0, 1), ...warmwasserReadings.slice(0, 1)];
+
+      const result = calculateTenantWaterConsumption(
+        tenants,
+        meters,
+        readings,
+        periodStart,
+        periodEnd
+      );
+
+      // Only readings within 2025 should be counted: kw-1 (15) + ww-1 (7) = 22
+      expect(result[0].totalConsumption).toBe(22);
+    });
+  });
 });
