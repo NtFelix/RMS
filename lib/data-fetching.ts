@@ -20,6 +20,11 @@ export type {
   WasserAblesung,
   Wasserzaehler,
   Finanzen,
+  MeterReadingFormEntry,
+  MeterReadingFormData,
+  // Deprecated aliases
+  WasserzaehlerFormEntry,
+  WasserzaehlerFormData
 } from "./types";
 
 export { ZAEHLER_CONFIG, getZaehlerLabel, getZaehlerEinheit } from "./zaehler-types";
@@ -37,6 +42,8 @@ import type {
   Wasserzaehler,
   Finanzen,
   RechnungSql,
+  MeterReadingFormEntry,
+  MeterReadingFormData
 } from "./types";
 
 export async function fetchHaeuser() {
@@ -381,44 +388,34 @@ export async function fetchUserProfile(): Promise<Profile | null> {
 
 // Wasserzaehler type is defined earlier in the file (line ~132)
 
-export type WasserzaehlerFormEntry = {
-  mieter_id: string;
-  mieter_name: string; // For display purposes in the form
-  ablese_datum: string | null;
-  zaehlerstand: number | string; // string to handle empty input
-  verbrauch: number | string; // string to handle empty input
-  // Optional: Add an existing_wasserzaehler_id if we need to update existing records
-  // existing_wasserzaehler_id?: string | null;
-};
-
-export type WasserzaehlerFormData = {
-  entries: WasserzaehlerFormEntry[];
-  nebenkosten_id: string; // To associate the readings with a Nebenkosten entry
-};
+// Types MeterReadingFormEntry and MeterReadingFormData are now imported from "./types"
 
 /**
- * Fetches Wasserzähler data for a specific house and year (backward compatibility)
+ * Fetches Meter readings for a specific house and year
  * @param hausId The ID of the house
  * @param year The year to fetch data for (e.g., '2024')
  * @returns Object containing mieter list and existing readings for the specified house and year
  */
-export async function fetchWasserzaehlerByHausAndYear(
+export async function fetchMeterReadingsByHausAndYear(
   hausId: string,
   year: string
 ): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   const startdatum = `${year}-01-01`;
   const enddatum = `${year}-12-31`;
-  return fetchWasserzaehlerByHausAndDateRange(hausId, startdatum, enddatum);
+  return fetchMeterReadingsByHausAndDateRange(hausId, startdatum, enddatum);
 }
 
+// Backward compatibility alias
+export const fetchWasserzaehlerByHausAndYear = fetchMeterReadingsByHausAndYear;
+
 /**
- * Fetches Wasserzähler data for a specific house and date range
+ * Fetches Meter readings for a specific house and date range
  * @param hausId The ID of the house
  * @param startdatum The start date of the billing period (YYYY-MM-DD)
  * @param enddatum The end date of the billing period (YYYY-MM-DD)
  * @returns Object containing mieter list and existing readings for the specified house and date range
  */
-export async function fetchWasserzaehlerByHausAndDateRange(
+export async function fetchMeterReadingsByHausAndDateRange(
   hausId: string,
   startdatum: string,
   enddatum: string
@@ -510,17 +507,20 @@ export async function fetchWasserzaehlerByHausAndDateRange(
     };
 
   } catch (error) {
-    console.error('Unexpected error in fetchWasserzaehlerByHausAndDateRange:', error);
+    console.error('Unexpected error in fetchMeterReadingsByHausAndDateRange:', error);
     return { mieterList: [], existingReadings: [] };
   }
 }
 
+// Backward compatibility alias
+export const fetchWasserzaehlerByHausAndDateRange = fetchMeterReadingsByHausAndDateRange;
+
 /**
- * Fetches Wasserzähler data for a specific Nebenkosten entry
+ * Fetches Meter readings for a specific Nebenkosten entry
  * @param nebenkostenId The ID of the Nebenkosten entry
  * @returns Object containing mieter list and existing readings for the specified Nebenkosten
  */
-export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
+export async function fetchMeterReadingsModalData(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   const supabase = createSupabaseServerClient();
 
   try {
@@ -544,7 +544,7 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     }
 
     // 2. Use the new function to get data by house and date range
-    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndDateRange(haeuser_id, startdatum, enddatum);
+    const { mieterList, existingReadings } = await fetchMeterReadingsByHausAndDateRange(haeuser_id, startdatum, enddatum);
 
     // 3. Filter existingReadings to only include those for the current nebenkosten_id
     //    This maintains backward compatibility with the existing code
@@ -556,10 +556,13 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     };
 
   } catch (error) {
-    console.error('Unexpected error in fetchWasserzaehlerModalData:', error);
+    console.error('Unexpected error in fetchMeterReadingsModalData:', error);
     return { mieterList: [], existingReadings: [] };
   }
 }
+
+// Backward compatibility alias
+export const fetchWasserzaehlerModalData = fetchMeterReadingsModalData;
 
 // getAbrechnungModalData function removed - replaced by getAbrechnungModalDataAction in betriebskosten-actions.ts
 // The optimized version uses get_abrechnung_modal_data database function for better performance

@@ -3,14 +3,15 @@
  * Verifies that the optimizations meet performance requirements
  */
 
-import { validateWasserzaehlerFormData, prepareWasserzaehlerDataForSubmission } from '@/utils/wasserzaehler-validation';
-import { WasserzaehlerFormData, WasserzaehlerFormEntry } from '@/lib/data-fetching';
+import { validateMeterReadingFormData, prepareMeterReadingsForSubmission } from '@/utils/wasserzaehler-validation';
+import { MeterReadingFormData, MeterReadingFormEntry } from '@/lib/data-fetching';
 
 describe('Wasserzähler Performance Tests', () => {
   describe('Client-side validation performance', () => {
     it('should validate large datasets within acceptable time limits', () => {
       // Create a large dataset (100 entries)
-      const entries: WasserzaehlerFormEntry[] = Array.from({ length: 100 }, (_, i) => ({
+      const entries: MeterReadingFormEntry[] = Array.from({ length: 100 }, (_, i) => ({
+        id: `entry-${i}`,
         mieter_id: `mieter-${i}`,
         mieter_name: `Mieter ${i}`,
         ablese_datum: '2024-01-15',
@@ -18,13 +19,13 @@ describe('Wasserzähler Performance Tests', () => {
         verbrauch: 50 + (i * 0.1)
       }));
 
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries
       };
 
       const startTime = performance.now();
-      const result = validateWasserzaehlerFormData(formData);
+      const result = validateMeterReadingFormData(formData);
       const endTime = performance.now();
 
       const executionTime = endTime - startTime;
@@ -36,7 +37,8 @@ describe('Wasserzähler Performance Tests', () => {
 
     it('should handle validation of 1000 entries efficiently', () => {
       // Create a very large dataset (1000 entries)
-      const entries: WasserzaehlerFormEntry[] = Array.from({ length: 1000 }, (_, i) => ({
+      const entries: MeterReadingFormEntry[] = Array.from({ length: 1000 }, (_, i) => ({
+        id: `entry-${i}`,
         mieter_id: `mieter-${i}`,
         mieter_name: `Mieter ${i}`,
         ablese_datum: '2024-01-15',
@@ -44,13 +46,13 @@ describe('Wasserzähler Performance Tests', () => {
         verbrauch: 50 + (i * 0.01)
       }));
 
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries
       };
 
       const startTime = performance.now();
-      const result = validateWasserzaehlerFormData(formData);
+      const result = validateMeterReadingFormData(formData);
       const endTime = performance.now();
 
       const executionTime = endTime - startTime;
@@ -62,21 +64,22 @@ describe('Wasserzähler Performance Tests', () => {
 
     it('should efficiently filter invalid entries from large datasets', () => {
       // Create a mixed dataset with 50% invalid entries
-      const entries: WasserzaehlerFormEntry[] = Array.from({ length: 200 }, (_, i) => ({
+      const entries: MeterReadingFormEntry[] = Array.from({ length: 200 }, (_, i) => ({
+        id: `entry-${i}`,
         mieter_id: i % 2 === 0 ? `mieter-${i}` : '', // Every other entry has invalid mieter_id
         mieter_name: `Mieter ${i}`,
         ablese_datum: '2024-01-15',
-        zaehlerstand: i % 2 === 0 ? 1000 + i : 'invalid', // Every other entry has invalid zaehlerstand
+        zaehlerstand: (i % 2 === 0 ? 1000 + i : 'invalid') as any, // Every other entry has invalid zaehlerstand
         verbrauch: 50 + (i * 0.1)
       }));
 
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries
       };
 
       const startTime = performance.now();
-      const result = validateWasserzaehlerFormData(formData);
+      const result = validateMeterReadingFormData(formData);
       const endTime = performance.now();
 
       const executionTime = endTime - startTime;
@@ -90,16 +93,17 @@ describe('Wasserzähler Performance Tests', () => {
 
   describe('Data preparation performance', () => {
     it('should prepare large datasets for submission efficiently', () => {
-      const entries: WasserzaehlerFormEntry[] = Array.from({ length: 500 }, (_, i) => ({
+      const entries: MeterReadingFormEntry[] = Array.from({ length: 500 }, (_, i) => ({
+        id: `entry-${i}`,
         mieter_id: `mieter-${i}`,
         mieter_name: `Mieter ${i}`,
         ablese_datum: '2024-01-15',
-        zaehlerstand: `${1000 + i}`, // String numbers
-        verbrauch: `${50 + (i * 0.1)}` // String numbers
+        zaehlerstand: `${1000 + i}` as any, // String numbers
+        verbrauch: `${50 + (i * 0.1)}` as any // String numbers
       }));
 
       const startTime = performance.now();
-      const prepared = prepareWasserzaehlerDataForSubmission(entries);
+      const prepared = prepareMeterReadingsForSubmission(entries);
       const endTime = performance.now();
 
       const executionTime = endTime - startTime;
@@ -113,7 +117,8 @@ describe('Wasserzähler Performance Tests', () => {
 
   describe('Memory usage optimization', () => {
     it('should not create excessive intermediate objects during validation', () => {
-      const entries: WasserzaehlerFormEntry[] = Array.from({ length: 100 }, (_, i) => ({
+      const entries: MeterReadingFormEntry[] = Array.from({ length: 100 }, (_, i) => ({
+        id: `entry-${i}`,
         mieter_id: `mieter-${i}`,
         mieter_name: `Mieter ${i}`,
         ablese_datum: '2024-01-15',
@@ -121,16 +126,16 @@ describe('Wasserzähler Performance Tests', () => {
         verbrauch: 50 + (i * 0.1)
       }));
 
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries
       };
 
       // Measure memory usage (approximate)
       const initialMemory = process.memoryUsage().heapUsed;
-      
-      const result = validateWasserzaehlerFormData(formData);
-      
+
+      const result = validateMeterReadingFormData(formData);
+
       const finalMemory = process.memoryUsage().heapUsed;
       const memoryIncrease = finalMemory - initialMemory;
 
@@ -142,7 +147,8 @@ describe('Wasserzähler Performance Tests', () => {
   describe('Cloudflare Worker compatibility', () => {
     it('should complete validation within Cloudflare Worker CPU time limits', () => {
       // Cloudflare Workers have CPU time limits, so operations must be fast
-      const entries: WasserzaehlerFormEntry[] = Array.from({ length: 50 }, (_, i) => ({
+      const entries: MeterReadingFormEntry[] = Array.from({ length: 50 }, (_, i) => ({
+        id: `entry-${i}`,
         mieter_id: `mieter-${i}`,
         mieter_name: `Mieter ${i}`,
         ablese_datum: '2024-01-15',
@@ -150,14 +156,14 @@ describe('Wasserzähler Performance Tests', () => {
         verbrauch: 50 + (i * 0.1)
       }));
 
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries
       };
 
       const startTime = performance.now();
-      const result = validateWasserzaehlerFormData(formData);
-      const prepared = prepareWasserzaehlerDataForSubmission(result.validEntries);
+      const result = validateMeterReadingFormData(formData);
+      const prepared = prepareMeterReadingsForSubmission(result.validEntries);
       const endTime = performance.now();
 
       const executionTime = endTime - startTime;
@@ -169,7 +175,8 @@ describe('Wasserzähler Performance Tests', () => {
 
     it('should handle typical production dataset sizes efficiently', () => {
       // Typical production scenario: 20-30 tenants per building
-      const entries: WasserzaehlerFormEntry[] = Array.from({ length: 25 }, (_, i) => ({
+      const entries: MeterReadingFormEntry[] = Array.from({ length: 25 }, (_, i) => ({
+        id: `entry-${i}`,
         mieter_id: `mieter-${i}`,
         mieter_name: `Mieter ${i}`,
         ablese_datum: '2024-01-15',
@@ -177,13 +184,13 @@ describe('Wasserzähler Performance Tests', () => {
         verbrauch: 50 + (i * 0.5)
       }));
 
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries
       };
 
       const startTime = performance.now();
-      const result = validateWasserzaehlerFormData(formData);
+      const result = validateMeterReadingFormData(formData);
       const endTime = performance.now();
 
       const executionTime = endTime - startTime;
@@ -197,30 +204,30 @@ describe('Wasserzähler Performance Tests', () => {
   describe('Database function optimization benefits', () => {
     it('should demonstrate batch operation efficiency over individual operations', () => {
       const batchSize = 50;
-      
+
       // Simulate individual operations (old approach)
       const individualOperationTime = batchSize * 10; // Assume 10ms per individual operation
-      
+
       // Simulate batch operation (new approach)
       const batchOperationTime = 50; // Single database call
-      
+
       const improvementRatio = individualOperationTime / batchOperationTime;
-      
+
       expect(improvementRatio).toBeGreaterThan(5); // At least 5x improvement
       expect(batchOperationTime).toBeLessThan(individualOperationTime);
     });
 
     it('should reduce database round trips significantly', () => {
       const numberOfReadings = 30;
-      
+
       // Old approach: Delete all + Insert each individually + Update total
       const oldApproachCalls = 1 + numberOfReadings + 1; // 32 database calls
-      
+
       // New approach: Single database function call
       const newApproachCalls = 1;
-      
+
       const reductionRatio = oldApproachCalls / newApproachCalls;
-      
+
       expect(reductionRatio).toBe(32);
       expect(newApproachCalls).toBe(1);
     });

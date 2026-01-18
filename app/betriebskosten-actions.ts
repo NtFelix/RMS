@@ -2,14 +2,14 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, WasserzaehlerFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
+import { Nebenkosten, MeterReadingFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
 import { roundToNearest5 } from "@/lib/utils";
 import { logAction } from '@/lib/logging-middleware';
 
 // Import optimized types from centralized location
 import {
   OptimizedNebenkosten,
-  WasserzaehlerModalData,
+  MeterModalData,
   AbrechnungModalData,
   OptimizedActionResponse,
   SafeRpcCallResult,
@@ -470,7 +470,7 @@ async function getPreviousWasserzaehlerRecordAction(
 /**
  * Fetches water meter readings for a list of mieter IDs within a date range
  */
-async function fetchWaterReadingsForMieters(
+async function fetchMeterReadingsForMieters(
   supabase: any,
   userId: string,
   mieterIds: string[],
@@ -553,10 +553,10 @@ async function fetchWaterReadingsForMieters(
 }
 
 /**
- * Batch fetch previous Wasserzaehler records for multiple tenants
+ * Batch fetch previous Meter records for multiple tenants
  * This is much more efficient than individual calls and prevents Cloudflare Worker timeouts
  */
-export async function getBatchPreviousWasserzaehlerRecordsAction(
+export async function getBatchPreviousMeterReadingsAction(
   mieterIds: string[],
   currentYear?: string
 ): Promise<{ success: boolean; data?: Record<string, Wasserzaehler | null>; message?: string }> {
@@ -583,7 +583,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
         const previousYear = (currentYearNum - 1).toString();
 
         // Get readings from previous year
-        const previousYearReadings = await fetchWaterReadingsForMieters(
+        const previousYearReadings = await fetchMeterReadingsForMieters(
           supabase,
           user.id,
           mieterIds,
@@ -603,7 +603,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
       const currentYearStart = currentYear ? `${currentYear}-01-01` : new Date().toISOString().split('T')[0];
 
       // Get all readings before current year for remaining mieters
-      const fallbackReadings = await fetchWaterReadingsForMieters(
+      const fallbackReadings = await fetchMeterReadingsForMieters(
         supabase,
         user.id,
         mieterIdsWithoutPreviousYear,
@@ -701,8 +701,104 @@ export async function getWasserzaehlerByHausAndYearAction(
   }
 }
 
+
 /**
- * Enhanced version of saveWasserzaehlerData with client-side validation
+ * Saves meter readings for a list of tenants.
+ * Replaces the legacy 'save_wasserzaehler_batch' RPC.
+ * 
+ * Logic:
+ * 1. For each entry, finds the tenant's apartment.
+ * 2. Finds an active meter for that apartment.
+ * 3. Inserts the reading into 'Zaehler_Ablesungen'.
+ */
+async function saveMeterReadings(formData: MeterReadingFormData): Promise<{ success: boolean; message?: string; data?: any[] }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
+
+  const results = [];
+  let successCount = 0;
+  let errorCount = 0;
+
+  // Manual loop to handle sequential async operations correctly
+  // This could be parallelized if needed, but sequential is safer for creation logic
+  for (const entry of formData.entries) {
+    try {
+      // 1. Get Mieter's Wohnung ID
+      const { data: mieter, error: mieterError } = await supabase
+        .from('Mieter')
+        .select('wohnung_id')
+        .eq('id', entry.mieter_id)
+        .single();
+
+      if (mieterError || !mieter?.wohnung_id) {
+        console.warn(`Mieter ${entry.mieter_id} not found or has no apartment.`);
+        errorCount++;
+        continue;
+      }
+
+      // 2. Find existing Meter for this apartment
+      // We look for any meter that is EITHER 'kaltwasser' OR 'warmwasser' (for now, can be extended).
+      const { data: meters, error: meterError } = await supabase
+        .from('Zaehler')
+        .select('id')
+        .eq('wohnung_id', mieter.wohnung_id)
+        .eq('user_id', user.id)
+        .in('zaehler_typ', ['kaltwasser', 'warmwasser', 'waermemengenzaehler', 'strom', 'gas']) // Extended types
+        .eq('ist_aktiv', true)
+        .limit(1);
+
+      let meterId = meters && meters.length > 0 ? meters[0].id : null;
+
+      // 3. Strict Mode: Meter must exist
+      if (!meterId) {
+        console.warn(`No active meter found for wohnung ${mieter.wohnung_id}. Skipping reading.`);
+        errorCount++;
+        continue;
+      }
+
+      // 4. Insert Reading
+      const { data: reading, error: readingError } = await supabase
+        .from('Zaehler_Ablesungen')
+        .insert({
+          zaehler_id: meterId,
+          user_id: user.id,
+          ablese_datum: entry.ablese_datum || new Date().toISOString().split('T')[0],
+          zaehlerstand: Number(entry.zaehlerstand),
+          verbrauch: Number(entry.verbrauch)
+        })
+        .select()
+        .single();
+
+      if (readingError) {
+        console.error(`Failed to insert reading for meter ${meterId}:`, readingError);
+        errorCount++;
+      } else {
+        results.push(reading);
+        successCount++;
+      }
+
+    } catch (e) {
+      console.error("Unexpected error saving entry:", e);
+      errorCount++;
+    }
+  }
+
+  revalidatePath('/dashboard/betriebskosten');
+
+  return {
+    success: errorCount === 0,
+    message: `${successCount} Ablesungen erfolgreich gespeichert.${errorCount > 0 ? ` ${errorCount} Fehler aufgetreten.` : ''}`,
+    data: results
+  };
+}
+
+
+/**
+ * Enhanced version of saveMeterReadings with client-side validation
  * 
  * **Performance Enhancement**: Performs comprehensive client-side validation before 
  * submitting data to the server, reducing server load and providing immediate feedback 
@@ -718,10 +814,10 @@ export async function getWasserzaehlerByHausAndYearAction(
  * **Workflow**:
  * 1. Performs client-side validation using wasserzaehler-validation utils
  * 2. Returns validation errors immediately if data is invalid
- * 3. If validation passes, calls the optimized saveWasserzaehlerData function
+ * 3. If validation passes, calls the optimized saveMeterReadings function
  * 4. Provides structured error reporting for UI feedback
  * 
- * @param {WasserzaehlerFormData} formData - The water meter data to validate and save
+ * @param {MeterReadingFormData} formData - The meter data to validate and save
  * 
  * @returns {Promise<{success: boolean; message?: string; data?: any[]; validationErrors?: string[]}>} Promise resolving to:
  *   - `success`: Boolean indicating operation success
@@ -731,7 +827,7 @@ export async function getWasserzaehlerByHausAndYearAction(
  * 
  * @example
  * ```typescript
- * const result = await saveWasserzaehlerDataOptimized(formData);
+ * const result = await saveMeterReadingsOptimized(formData);
  * if (!result.success && result.validationErrors) {
  *   // Handle validation errors in UI
  *   result.validationErrors.forEach(error => {
@@ -742,17 +838,18 @@ export async function getWasserzaehlerByHausAndYearAction(
  * }
  * ```
  * 
- * @see {@link saveWasserzaehlerData} Base save function
+ * @see {@link saveMeterReadings} Base save function
  * @see {@link utils/wasserzaehler-validation.ts} Validation utilities
  */
-export async function saveWasserzaehlerDataOptimized(
-  formData: WasserzaehlerFormData
+export async function saveMeterReadingsOptimized(
+  formData: MeterReadingFormData
 ): Promise<{ success: boolean; message?: string; data?: any[]; validationErrors?: string[] }> {
   // Import validation utilities dynamically to avoid server-side issues
-  const { validateWasserzaehlerFormData, formatValidationErrors, prepareWasserzaehlerDataForSubmission } = await import('@/utils/wasserzaehler-validation');
+  // Note: We might rename this file later, but for now it contains general validation logic acceptable for meters
+  const { validateMeterReadingFormData, formatValidationErrors } = await import('@/utils/wasserzaehler-validation');
 
   // Perform client-side validation
-  const validationResult = validateWasserzaehlerFormData(formData);
+  const validationResult = validateMeterReadingFormData(formData);
 
   if (!validationResult.isValid) {
     const errorMessage = formatValidationErrors(validationResult.errors);
@@ -764,13 +861,13 @@ export async function saveWasserzaehlerDataOptimized(
   }
 
   // If validation passes, prepare optimized data and save
-  const optimizedFormData: WasserzaehlerFormData = {
+  const optimizedFormData: MeterReadingFormData = {
     nebenkosten_id: formData.nebenkosten_id,
     entries: validationResult.validEntries
   };
 
   // Use the existing optimized save function
-  return await saveWasserzaehlerData(optimizedFormData);
+  return await saveMeterReadings(optimizedFormData);
 }
 
 // getMieterForNebenkostenAction removed - replaced by getWasserzaehlerModalDataAction
@@ -1013,9 +1110,9 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
   }
 }
 
-export async function getWasserzaehlerModalDataAction(
+export async function getMeterModalDataAction(
   nebenkostenId: string
-): Promise<OptimizedActionResponse<WasserzaehlerModalData[]>> {
+): Promise<OptimizedActionResponse<MeterModalData[]>> {
   "use server";
 
   if (!nebenkostenId || nebenkostenId.trim() === '') {
@@ -1046,9 +1143,9 @@ export async function getWasserzaehlerModalDataAction(
 
     // Try to use the optimized database function first
     const result = await withRetry(
-      () => safeRpcCall<WasserzaehlerModalData[]>(
+      () => safeRpcCall<MeterModalData[]>(
         supabase,
-        'get_wasserzaehler_modal_data',
+        'get_meter_modal_data',
         {
           nebenkosten_id: nebenkostenId,
           user_id: user.id
@@ -1070,7 +1167,7 @@ export async function getWasserzaehlerModalDataAction(
         logger.warn('Database function not available, using fallback queries', {
           userId: user.id,
           nebenkostenId,
-          functionName: 'get_wasserzaehler_modal_data',
+          functionName: 'get_meter_modal_data',
           originalError
         });
 
@@ -1210,7 +1307,7 @@ export async function getWasserzaehlerModalDataAction(
         }
 
         // Build the response data
-        const modalData: WasserzaehlerModalData[] = (tenants || []).map(tenant => {
+        const modalData: MeterModalData[] = (tenants || []).map(tenant => {
           const currentReading = currentReadings?.find(r => r.mieter_id === tenant.id);
           const previousReading = previousReadings?.find(r => r.mieter_id === tenant.id);
 
@@ -1220,6 +1317,9 @@ export async function getWasserzaehlerModalDataAction(
           return {
             mieter_id: tenant.id,
             mieter_name: tenant.name,
+            meter_id: currentReading?.zaehler_id || tenant.id, // Fallback ID
+            meter_type: 'Wasserzaehler', // Default type for this legacy function
+            custom_id: null,
             wohnung_name: wohnung?.name || 'Unbekannt',
             wohnung_groesse: wohnung?.groesse || 0,
             current_reading: currentReading ? {
@@ -1407,8 +1507,8 @@ export async function getAbrechnungModalDataAction(
         nebenkosten_data: dbResult.nebenkosten_data as Nebenkosten,
         tenants: dbResult.tenants as Mieter[],
         rechnungen: dbResult.rechnungen as Rechnung[],
-        water_meters: dbResult.water_meters as WasserZaehler[] || [],
-        water_readings: dbResult.water_readings as WasserAblesung[] || []
+        meters: (dbResult.meters || dbResult.water_meters) as WasserZaehler[] || [],
+        readings: (dbResult.readings || dbResult.water_readings) as WasserAblesung[] || []
       };
 
       logger.info('Successfully fetched Abrechnung modal data (optimized)', {
@@ -1416,8 +1516,8 @@ export async function getAbrechnungModalDataAction(
         nebenkostenId,
         tenantCount: modalData.tenants.length,
         rechnungenCount: modalData.rechnungen.length,
-        waterMetersCount: modalData.water_meters.length,
-        waterReadingsCount: modalData.water_readings.length
+        metersCount: modalData.meters.length,
+        readingsCount: modalData.readings.length
       });
 
       return { success: true, data: modalData };
@@ -1593,8 +1693,8 @@ async function getAbrechnungModalDataFallback(
     } as Nebenkosten,
     tenants: tenants || [],
     rechnungen: rechnungen || [],
-    water_meters: waterMeters,
-    water_readings: waterReadings
+    meters: waterMeters,
+    readings: waterReadings
   };
 
   logger.info('Successfully fetched Abrechnung modal data (fallback)', {
@@ -1602,8 +1702,8 @@ async function getAbrechnungModalDataFallback(
     nebenkostenId,
     tenantCount: modalData.tenants.length,
     rechnungenCount: modalData.rechnungen.length,
-    waterMetersCount: modalData.water_meters.length,
-    waterReadingsCount: modalData.water_readings.length,
+    metersCount: modalData.meters.length,
+    readingsCount: modalData.readings.length,
     periodStart: nebenkostenData.startdatum,
     periodEnd: nebenkostenData.enddatum
   });
@@ -1712,7 +1812,7 @@ export async function createAbrechnungCalculationAction(
       };
     }
 
-    const { nebenkosten_data, tenants, rechnungen, water_meters, water_readings } = modalDataResult.data;
+    const { nebenkosten_data, tenants, rechnungen, meters, readings } = modalDataResult.data;
 
     // Validate that we have the necessary data
     if (!tenants || tenants.length === 0) {
@@ -1726,14 +1826,14 @@ export async function createAbrechnungCalculationAction(
     const {
       calculateTenantCosts,
       calculateOccupancyPercentage,
-      calculateWaterCostDistribution,
+      calculateMeterCostDistribution,
       calculatePrepayments,
       validateCalculationData,
       calculateRecommendedPrepayment
     } = await import('@/utils/abrechnung-calculations');
 
     // Validate input data
-    const validationResult = validateCalculationData(nebenkosten_data, tenants, water_meters, water_readings);
+    const validationResult = validateCalculationData(nebenkosten_data, tenants, meters, readings);
     if (!validationResult.isValid) {
       logger.error('Validation failed for Abrechnung calculation', undefined, {
         userId: user.id,
@@ -1765,13 +1865,13 @@ export async function createAbrechnungCalculationAction(
           occupancy
         );
 
-        // Calculate water costs
-        const waterCosts = calculateWaterCostDistribution(
+        // Calculate meter costs
+        const meterCosts = calculateMeterCostDistribution(
           tenant,
           nebenkosten_data,
           tenants,
-          water_meters,
-          water_readings
+          meters,
+          readings
         );
 
         // Calculate prepayments
@@ -1783,7 +1883,7 @@ export async function createAbrechnungCalculationAction(
         );
 
         // Calculate totals and settlement
-        const totalCosts = operatingCosts.totalCost + waterCosts.totalCost;
+        const totalCosts = operatingCosts.totalCost + meterCosts.totalCost;
         const finalSettlement = totalCosts - prepayments.totalPrepayments;
 
 
@@ -1797,7 +1897,7 @@ export async function createAbrechnungCalculationAction(
           daysOccupied: occupancy.daysOccupied,
           daysInPeriod: occupancy.daysInPeriod,
           operatingCosts,
-          waterCosts,
+          meterCosts,
           totalCosts,
           prepayments,
           finalSettlement,
@@ -1833,7 +1933,7 @@ export async function createAbrechnungCalculationAction(
     const summary = {
       totalTenants: tenantCalculations.length,
       totalOperatingCosts: tenantCalculations.reduce((sum, t) => sum + t.operatingCosts.totalCost, 0),
-      totalWaterCosts: tenantCalculations.reduce((sum, t) => sum + t.waterCosts.totalCost, 0),
+      totalMeterCosts: tenantCalculations.reduce((sum, t) => sum + t.meterCosts.totalCost, 0),
       totalPrepayments: tenantCalculations.reduce((sum, t) => sum + t.prepayments.totalPrepayments, 0),
       totalSettlements: tenantCalculations.reduce((sum, t) => sum + t.finalSettlement, 0),
       averageSettlement: tenantCalculations.reduce((sum, t) => sum + t.finalSettlement, 0) / tenantCalculations.length,
@@ -2009,7 +2109,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     // Import calculation utilities for final processing
     const {
       calculateTenantCosts,
-      calculateWaterCostDistribution,
+      calculateMeterCostDistribution,
       calculatePrepayments,
       formatCurrency,
       calculateRecommendedPrepayment
@@ -2056,7 +2156,7 @@ export async function createAbrechnungCalculationOptimizedAction(
 
         // Water costs are calculated by the optimized database function get_abrechnung_calculation_data
         // which includes pre-calculated water meter and reading data
-        const waterCosts = calculateWaterCostDistribution(
+        const meterCosts = calculateMeterCostDistribution(
           tenant,
           nebenkosten_data,
           plainTenants,
@@ -2073,7 +2173,7 @@ export async function createAbrechnungCalculationOptimizedAction(
         );
 
         // Calculate totals and settlement
-        const totalCosts = operatingCosts.totalCost + waterCosts.totalCost;
+        const totalCosts = operatingCosts.totalCost + meterCosts.totalCost;
         const finalSettlement = totalCosts - prepayments.totalPrepayments;
 
         const tenantCalculation: TenantCalculationResult = {
@@ -2085,7 +2185,7 @@ export async function createAbrechnungCalculationOptimizedAction(
           daysOccupied: occupancy.daysOccupied,
           daysInPeriod: occupancy.daysInPeriod,
           operatingCosts,
-          waterCosts,
+          meterCosts,
           totalCosts,
           prepayments,
           finalSettlement,
@@ -2121,7 +2221,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     const summary = {
       totalTenants: tenantCalculations.length,
       totalOperatingCosts: tenantCalculations.reduce((sum, t) => sum + t.operatingCosts.totalCost, 0),
-      totalWaterCosts: tenantCalculations.reduce((sum, t) => sum + t.waterCosts.totalCost, 0),
+      totalMeterCosts: tenantCalculations.reduce((sum, t) => sum + t.meterCosts.totalCost, 0),
       totalPrepayments: tenantCalculations.reduce((sum, t) => sum + t.prepayments.totalPrepayments, 0),
       totalSettlements: tenantCalculations.reduce((sum, t) => sum + t.finalSettlement, 0),
       averageSettlement: tenantCalculations.reduce((sum, t) => sum + t.finalSettlement, 0) / tenantCalculations.length,

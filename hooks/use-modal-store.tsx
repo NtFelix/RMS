@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib/data-fetching';
-import { WasserzaehlerModalData } from '@/types/optimized-betriebskosten';
+import { Nebenkosten, Mieter, Wasserzaehler, MeterReadingFormData } from '@/lib/data-fetching';
+import { MeterModalData } from '@/types/optimized-betriebskosten';
 import { Tenant, KautionData } from '@/types/Tenant';
 import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
@@ -287,11 +287,11 @@ export interface ModalState {
   wasserzaehlerNebenkosten?: Nebenkosten;
   wasserzaehlerMieterList: Mieter[];
   wasserzaehlerExistingReadings?: Wasserzaehler[] | null;
-  wasserzaehlerOptimizedData?: WasserzaehlerModalData[] | null;
-  wasserzaehlerOnSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>;
+  wasserzaehlerOptimizedData?: MeterModalData[] | null;
+  wasserzaehlerOnSave?: (data: MeterReadingFormData) => Promise<{ success: boolean; message?: string }>;
   isWasserzaehlerModalDirty: boolean;
-  openWasserzaehlerModal: (nebenkosten?: Nebenkosten, mieterList?: Mieter[], existingReadings?: Wasserzaehler[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>) => void;
-  openWasserzaehlerModalOptimized: (nebenkosten?: Nebenkosten, optimizedData?: WasserzaehlerModalData[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>) => void;
+  openWasserzaehlerModal: (nebenkosten?: Nebenkosten, mieterList?: Mieter[], existingReadings?: Wasserzaehler[] | null, onSave?: (data: MeterReadingFormData) => Promise<{ success: boolean; message?: string }>) => void;
+  openWasserzaehlerModalOptimized: (nebenkosten?: Nebenkosten, optimizedData?: MeterModalData[] | null, onSave?: (data: MeterReadingFormData) => Promise<{ success: boolean; message?: string }>) => void;
   closeWasserzaehlerModal: (options?: CloseModalOptions) => void;
   setWasserzaehlerModalDirty: (isDirty: boolean) => void;
 

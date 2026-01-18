@@ -3,7 +3,7 @@
  * Implements validation before submission to optimize performance
  */
 
-import { WasserzaehlerFormData, WasserzaehlerFormEntry } from '@/lib/data-fetching';
+import { MeterReadingFormData, MeterReadingFormEntry } from '@/lib/data-fetching';
 
 export interface ValidationError {
   field: string;
@@ -14,14 +14,14 @@ export interface ValidationError {
 export interface ValidationResult {
   isValid: boolean;
   errors: ValidationError[];
-  validEntries: WasserzaehlerFormEntry[];
+  validEntries: MeterReadingFormEntry[];
 }
 
 /**
- * Validates a single Wasserzähler form entry
+ * Validates a single Meter form entry
  */
-export function validateWasserzaehlerEntry(
-  entry: WasserzaehlerFormEntry, 
+export function validateMeterReadingEntry(
+  entry: MeterReadingFormEntry,
   index: number
 ): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -36,9 +36,7 @@ export function validateWasserzaehlerEntry(
   }
 
   // Validate zaehlerstand
-  const zaehlerstandValue = typeof entry.zaehlerstand === 'string' 
-    ? entry.zaehlerstand.trim() 
-    : String(entry.zaehlerstand);
+  const zaehlerstandValue = String(entry.zaehlerstand).trim();
 
   if (!zaehlerstandValue || zaehlerstandValue === '') {
     errors.push({
@@ -58,9 +56,10 @@ export function validateWasserzaehlerEntry(
   }
 
   // Validate verbrauch (optional but must be numeric if provided)
-  const verbrauchValue = typeof entry.verbrauch === 'string' 
-    ? entry.verbrauch.trim() 
-    : String(entry.verbrauch);
+  let verbrauchValue = '';
+  if (entry.verbrauch !== undefined && entry.verbrauch !== null) {
+    verbrauchValue = String(entry.verbrauch).trim();
+  }
 
   if (verbrauchValue && verbrauchValue !== '') {
     const numericValue = parseFloat(verbrauchValue);
@@ -100,11 +99,11 @@ export function validateWasserzaehlerEntry(
 }
 
 /**
- * Validates the complete Wasserzähler form data
+ * Validates the complete Meter form data
  */
-export function validateWasserzaehlerFormData(formData: WasserzaehlerFormData): ValidationResult {
+export function validateMeterReadingFormData(formData: MeterReadingFormData): ValidationResult {
   const errors: ValidationError[] = [];
-  const validEntries: WasserzaehlerFormEntry[] = [];
+  const validEntries: MeterReadingFormEntry[] = [];
 
   // Validate nebenkosten_id
   if (!formData.nebenkosten_id || formData.nebenkosten_id.trim() === '') {
@@ -126,7 +125,7 @@ export function validateWasserzaehlerFormData(formData: WasserzaehlerFormData): 
 
   // Validate each entry
   formData.entries.forEach((entry, index) => {
-    const entryErrors = validateWasserzaehlerEntry(entry, index);
+    const entryErrors = validateMeterReadingEntry(entry, index);
     errors.push(...entryErrors);
 
     // If entry has no errors, add to valid entries
@@ -138,7 +137,7 @@ export function validateWasserzaehlerFormData(formData: WasserzaehlerFormData): 
   // Check for duplicate mieter_ids
   const mieterIds = validEntries.map(entry => entry.mieter_id);
   const duplicateIds = mieterIds.filter((id, index) => mieterIds.indexOf(id) !== index);
-  
+
   if (duplicateIds.length > 0) {
     duplicateIds.forEach(id => {
       errors.push({
@@ -162,8 +161,8 @@ export function formatValidationErrors(errors: ValidationError[]): string {
   if (errors.length === 0) return '';
 
   const errorMessages = errors.map(error => {
-    const prefix = error.entryIndex !== undefined 
-      ? `Eintrag ${error.entryIndex + 1}: ` 
+    const prefix = error.entryIndex !== undefined
+      ? `Eintrag ${error.entryIndex + 1}: `
       : '';
     return `${prefix}${error.message}`;
   });
@@ -174,16 +173,16 @@ export function formatValidationErrors(errors: ValidationError[]): string {
 /**
  * Prepares validated data for database submission
  */
-export function prepareWasserzaehlerDataForSubmission(
-  validEntries: WasserzaehlerFormEntry[]
+export function prepareMeterReadingsForSubmission(
+  validEntries: MeterReadingFormEntry[]
 ): any[] {
   return validEntries.map(entry => ({
     mieter_id: entry.mieter_id,
     ablese_datum: entry.ablese_datum || null,
-    zaehlerstand: typeof entry.zaehlerstand === 'string' 
-      ? parseFloat(entry.zaehlerstand) 
+    zaehlerstand: typeof entry.zaehlerstand === 'string'
+      ? parseFloat(entry.zaehlerstand)
       : entry.zaehlerstand,
-    verbrauch: entry.verbrauch 
+    verbrauch: entry.verbrauch
       ? (typeof entry.verbrauch === 'string' ? parseFloat(entry.verbrauch) : entry.verbrauch)
       : 0
   }));
