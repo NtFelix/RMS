@@ -7,6 +7,7 @@
  */
 
 import { Mieter, Nebenkosten, WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
+import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import {
@@ -170,13 +171,12 @@ export function calculateWaterCostDistribution(
   waterReadings: WasserAblesung[]
 ): WaterCostBreakdown {
   // Get water costs from zaehlerkosten JSONB (sum all water-related types)
-  const waterTypes = ['kaltwasser', 'warmwasser'];
   const totalBuildingWaterCost = nebenkosten.zaehlerkosten
-    ? waterTypes.reduce((sum, typ) => sum + (nebenkosten.zaehlerkosten?.[typ] || 0), 0)
+    ? WATER_METER_TYPES.reduce((sum, typ) => sum + (nebenkosten.zaehlerkosten?.[typ] || 0), 0)
     : 0;
   // Get water consumption from zaehlerverbrauch JSONB (sum all water-related types)
   const totalBuildingConsumption = nebenkosten.zaehlerverbrauch
-    ? waterTypes.reduce((sum, typ) => sum + (nebenkosten.zaehlerverbrauch?.[typ] || 0), 0)
+    ? WATER_METER_TYPES.reduce((sum, typ) => sum + (nebenkosten.zaehlerverbrauch?.[typ] || 0), 0)
     : 0;
 
   // Use the new calculation system with official building consumption
@@ -374,8 +374,7 @@ export function validateCalculationData(
   });
 
   // Validate water readings if water/meter costs are included
-  const waterTypes = ['kaltwasser', 'warmwasser'];
-  const hasWaterCosts = nebenkosten.zaehlerkosten && waterTypes.some(typ => (nebenkosten.zaehlerkosten?.[typ] || 0) > 0);
+  const hasWaterCosts = nebenkosten.zaehlerkosten && WATER_METER_TYPES.some(typ => (nebenkosten.zaehlerkosten?.[typ] || 0) > 0);
   if (hasWaterCosts) {
     if (!waterMeters || waterMeters.length === 0) {
       warnings.push('Wasserkosten sind angegeben, aber keine Wasserzähler vorhanden');

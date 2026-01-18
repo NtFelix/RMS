@@ -497,8 +497,8 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
           );
           setZaehlerkosten(kostenStrings);
         } else if (latest.wasserkosten) {
-          // Fallback to legacy wasserkosten
-          setZaehlerkosten({ wasser: latest.wasserkosten.toString() });
+          // Fallback to legacy wasserkosten (map to kaltwasser)
+          setZaehlerkosten({ kaltwasser: latest.wasserkosten.toString() });
         }
 
         // Set the date range if available
@@ -617,11 +617,13 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
               // Load zaehlerkosten (prefer new format, fallback to legacy)
               if (fetchedData.zaehlerkosten) {
-                const kostenStrings: Record<string, string> = {};
-                Object.entries(fetchedData.zaehlerkosten).forEach(([key, value]) => {
-                  kostenStrings[key] = String(value);
-                });
+                const kostenStrings = Object.fromEntries(
+                  Object.entries(fetchedData.zaehlerkosten).map(([key, value]) => [key, String(value)])
+                );
                 setZaehlerkosten(kostenStrings);
+              } else if ((fetchedData as any).wasserkosten) {
+                // Fallback to legacy wasserkosten (map to kaltwasser)
+                setZaehlerkosten({ kaltwasser: String((fetchedData as any).wasserkosten) });
               } else {
                 setZaehlerkosten({});
               }
