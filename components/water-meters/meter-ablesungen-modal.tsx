@@ -41,7 +41,7 @@ import { getMeterIcon, getMeterBgColor } from "@/components/meters/meter-card";
 interface Meter {
   id: string;
   custom_id: string | null;
-  wohnung_id: string; // In UI we expect it to be present if we display it
+  wohnung_id: string;
   erstellungsdatum: string;
   eichungsdatum: string | null;
   zaehler_typ?: ZaehlerTyp;
@@ -108,7 +108,6 @@ export function MeterAblesungenModal({
   hausName,
   startdatum,
   enddatum,
-  nebenkostenId,
 }: MeterAblesungenModalProps) {
   const [meterList, setMeterList] = useState<MeterInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -132,7 +131,6 @@ export function MeterAblesungenModal({
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Use optimized server action to fetch all data in one call
       const { getMeterForHausAction } = await import('@/app/meter-actions');
       const result = await getMeterForHausAction(hausId);
 
@@ -142,31 +140,25 @@ export function MeterAblesungenModal({
 
       const { wohnungen, meters, readings, mieter: allMieter } = result.data;
 
-      // Store raw data for import functionality
       setRawMeters(meters as unknown as SharedMeter[]);
       setRawReadings(readings as unknown as ZaehlerAblesung[]);
 
-      // Count total meters before filtering
       const totalMetersCount = meters.length;
 
-      // Map meters with their apartment info and filter by calibration date
-      const allZaehler: (Meter & { wohnung: Wohnung })[] = meters
+      const allZaehler: (Meter & { wohnung: Wohnung })[] = (meters as any[])
         .filter((z: Meter) => isCalibrationValid(z.eichungsdatum, enddatum))
         .map((z: Meter) => ({
           ...z,
           wohnung: wohnungen.find((w: any) => w.id === z.wohnung_id)!
         }));
 
-      // Track how many meters were filtered out
       const filteredCount = totalMetersCount - allZaehler.length;
       setFilteredOutCount(filteredCount);
 
-      // Build meter info list
       const meterInfoList: MeterInfo[] = allZaehler.map((meter) => {
         const meterReadings = readings.filter((r: any) => r.zaehler_id === meter.id);
         const mieter = allMieter.find((m: any) => m.wohnung_id === meter.wohnung_id);
 
-        // Sort readings by date descending
         const sortedReadings = meterReadings.sort((a: any, b: any) =>
           new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime()
         );
@@ -227,7 +219,6 @@ export function MeterAblesungenModal({
     loadData();
   };
 
-  // Filter and group entries by apartment
   const groupedEntries = useMemo(() => {
     const filteredData = meterList.filter(entry => {
       const matchesSearch = searchQuery === "" ||
@@ -269,7 +260,6 @@ export function MeterAblesungenModal({
           </DialogHeader>
 
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 py-4">
-            {/* Search and Import */}
             {meterList.length > 0 && (
               <div className="flex gap-2 items-center">
                 <SearchInput
@@ -282,12 +272,11 @@ export function MeterAblesungenModal({
                 />
                 <Button
                   variant="outline"
-                  size="default"
-                  className="gap-2 rounded-2xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50"
+                  className="gap-2 flex-shrink-0"
                   onClick={() => setIsImportModalOpen(true)}
                 >
                   <Upload className="h-4 w-4" />
-                  <span>Import</span>
+                  Importieren
                 </Button>
               </div>
             )}
@@ -306,130 +295,128 @@ export function MeterAblesungenModal({
                 </div>
               ) : (
                 groupedEntries.map(([wohnungName, entries]) => (
-                  <Card key={wohnungName} className="border border-gray-100 dark:border-[#3C4251] shadow-sm rounded-[2rem] overflow-hidden bg-white dark:bg-[#22272e]">
-                    <CardContent className="p-0">
-                      <div className="p-5 bg-gradient-to-r from-gray-50 to-transparent dark:from-zinc-800/50 flex items-center justify-between border-b border-gray-50 dark:border-zinc-800/50">
+                  <Card key={wohnungName} className="border border-gray-100 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-[#22272e]">
+                    <div className="p-5 bg-gray-50/50 dark:bg-zinc-800/30 border-b border-gray-100 dark:border-zinc-800/50">
+                      <div className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm flex items-center justify-center border border-gray-100 dark:border-zinc-800">
-                            <Home className="h-5 w-5 text-primary" />
+                          <div className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                            <Home className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <div>
-                            <h3 className="font-bold text-lg leading-none mb-1">{wohnungName}</h3>
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Building2 className="h-3 w-3" />
-                              <span>{entries[0].wohnung_groesse} m²</span>
-                            </div>
+                            <h3 className="font-semibold text-base">{wohnungName}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {entries.length} {entries.length === 1 ? 'Zähler' : 'Zähler'}
+                            </p>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Badge variant="secondary" className="px-3 py-1 bg-white dark:bg-zinc-900 text-foreground border border-gray-100 dark:border-zinc-800">
-                            {entries.length} {entries.length === 1 ? 'Zähler' : 'Zähler'}
-                          </Badge>
-                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="flex items-center gap-1.5 px-3 py-1.5"
+                        >
+                          <Gauge className="h-3.5 w-3.5" />
+                          <span className="font-medium">{entries.length}</span>
+                        </Badge>
                       </div>
+                    </div>
 
-                      {/* Meters in this apartment */}
-                      <div className="p-5 space-y-3">
-                        {entries.map((entry) => {
-                          const consumptionChange = entry.latest_reading && entry.previous_reading
-                            ? ((entry.latest_reading.verbrauch - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch) * 100
-                            : null;
+                    <div className="p-5 space-y-3">
+                      {entries.map((entry) => {
+                        const consumptionChange = entry.latest_reading && entry.previous_reading
+                          ? ((entry.latest_reading.verbrauch - entry.previous_reading.verbrauch) / entry.previous_reading.verbrauch) * 100
+                          : null;
 
-                          return (
-                            <Card
-                              key={entry.zaehler_id}
-                              className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-zinc-800/50 dark:to-zinc-900/50 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[1.5rem] overflow-hidden hover:shadow-md hover:border-primary/50 transition-all duration-300"
-                            >
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                                    <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 border border-primary/10 ${getMeterBgColor(entry.zaehler_typ)}`}>
-                                      {getMeterIcon(entry.zaehler_typ, "h-6 w-6")}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 flex-wrap mb-2">
-                                        <h4 className="font-semibold text-base">
-                                          {entry.custom_id ? `${entry.custom_id}` : 'Unbenannter Zähler'}
-                                        </h4>
-                                        <Badge variant="outline" className="text-xs bg-white dark:bg-zinc-900">
-                                          {ZAEHLER_CONFIG[entry.zaehler_typ]?.label || 'Zähler'}
-                                        </Badge>
-                                        {entry.mieter_name && (
-                                          <Badge variant="outline" className="text-xs">
-                                            <User className="h-3 w-3 mr-1" />
-                                            {entry.mieter_name}
-                                          </Badge>
-                                        )}
-                                      </div>
-
-                                      {/* Meter Statistics */}
-                                      <div className="grid grid-cols-2 gap-2 mb-3">
-                                        <div className="flex items-center gap-1.5">
-                                          <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-                                          <span className="text-xs text-muted-foreground">
-                                            {entry.reading_count} {entry.reading_count === 1 ? 'Ablesung' : 'Ablesungen'}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                                          <span className="text-xs text-muted-foreground">
-                                            {entry.wohnung_groesse} m²
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      {/* Latest Reading Info */}
-                                      {entry.latest_reading ? (
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
-                                            <CalendarIcon className="h-3 w-3" />
-                                            {isoToGermanDate(entry.latest_reading.ablese_datum)}
-                                          </Badge>
-                                          <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
-                                            <Gauge className="h-3 w-3" />
-                                            {formatNumber(entry.latest_reading.zaehlerstand)} {entry.einheit}
-                                          </Badge>
-                                          <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
-                                            {getMeterIcon(entry.zaehler_typ, "h-3 w-3")}
-                                            {formatNumber(entry.latest_reading.verbrauch)} {entry.einheit}
-                                          </Badge>
-                                          {consumptionChange !== null && !isNaN(consumptionChange) && (
-                                            <Badge
-                                              variant={consumptionChange > 20 ? "destructive" : consumptionChange < -10 ? "default" : "secondary"}
-                                              className="text-xs gap-1"
-                                            >
-                                              {consumptionChange > 0 ? (
-                                                <TrendingUp className="h-3 w-3" />
-                                              ) : (
-                                                <TrendingDown className="h-3 w-3" />
-                                              )}
-                                              {consumptionChange > 0 ? '+' : ''}{formatNumber(consumptionChange, 1)}%
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <Badge variant="secondary" className="text-xs">
-                                          Keine Ablesungen vorhanden
+                        return (
+                          <Card
+                            key={entry.zaehler_id}
+                            className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-zinc-800/50 dark:to-zinc-900/50 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[1.5rem] overflow-hidden hover:shadow-md hover:border-primary/50 transition-all duration-300"
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 border border-primary/10 ${getMeterBgColor(entry.zaehler_typ)}`}>
+                                    {getMeterIcon(entry.zaehler_typ, "h-6 w-6")}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                                      <h4 className="font-semibold text-base">
+                                        {entry.custom_id ? `${entry.custom_id}` : 'Unbenannter Zähler'}
+                                      </h4>
+                                      <Badge variant="outline" className="text-xs bg-white dark:bg-zinc-900">
+                                        {ZAEHLER_CONFIG[entry.zaehler_typ]?.label || 'Zähler'}
+                                      </Badge>
+                                      {entry.mieter_name && (
+                                        <Badge variant="outline" className="text-xs">
+                                          <User className="h-3 w-3 mr-1" />
+                                          {entry.mieter_name}
                                         </Badge>
                                       )}
                                     </div>
-                                  </div>
 
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleOpenAblesenModal(entry)}
-                                    className="gap-2 flex-shrink-0"
-                                  >
-                                    {getMeterIcon(entry.zaehler_typ, "h-4 w-4")}
-                                    <span className="hidden sm:inline">Verwalten</span>
-                                  </Button>
+                                    <div className="grid grid-cols-2 gap-2 mb-3">
+                                      <div className="flex items-center gap-1.5">
+                                        <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">
+                                          {entry.reading_count} {entry.reading_count === 1 ? 'Ablesung' : 'Ablesungen'}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">
+                                          {entry.wohnung_groesse} m²
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {entry.latest_reading ? (
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
+                                          <CalendarIcon className="h-3 w-3" />
+                                          {isoToGermanDate(entry.latest_reading.ablese_datum)}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
+                                          <Gauge className="h-3 w-3" />
+                                          {formatNumber(entry.latest_reading.zaehlerstand)} {entry.einheit}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
+                                          {getMeterIcon(entry.zaehler_typ, "h-3 w-3")}
+                                          {formatNumber(entry.latest_reading.verbrauch)} {entry.einheit}
+                                        </Badge>
+                                        {consumptionChange !== null && !isNaN(consumptionChange) && (
+                                          <Badge
+                                            variant={consumptionChange > 20 ? "destructive" : consumptionChange < -10 ? "default" : "secondary"}
+                                            className="text-xs gap-1"
+                                          >
+                                            {consumptionChange > 0 ? (
+                                              <TrendingUp className="h-3 w-3" />
+                                            ) : (
+                                              <TrendingDown className="h-3 w-3" />
+                                            )}
+                                            {consumptionChange > 0 ? '+' : ''}{formatNumber(consumptionChange, 1)}%
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <Badge variant="secondary" className="text-xs">
+                                        Keine Ablesungen vorhanden
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </div>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
+
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleOpenAblesenModal(entry)}
+                                  className="gap-2 flex-shrink-0"
+                                >
+                                  {getMeterIcon(entry.zaehler_typ, "h-4 w-4")}
+                                  <span className="hidden sm:inline">Verwalten</span>
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   </Card>
                 ))
               )
@@ -454,7 +441,6 @@ export function MeterAblesungenModal({
         </DialogContent>
       </Dialog>
 
-      {/* Import Modal */}
       <MeterImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}

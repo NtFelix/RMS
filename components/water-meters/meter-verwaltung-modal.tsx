@@ -140,7 +140,7 @@ export function MeterVerwaltungModal({
                         onClick={() => handleOpenMeterModal(wohnung)}
                         className="gap-2"
                       >
-                        <Gauge className="h-4 w-4" />
+                        <Droplet className="h-4 w-4" />
                         Zähler verwalten
                       </Button>
                     </div>
