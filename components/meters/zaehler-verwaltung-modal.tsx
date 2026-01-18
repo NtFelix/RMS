@@ -11,9 +11,10 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
-import { 
-  Loader2, 
+import {
+  Loader2,
   Building2,
+  Gauge,
   Droplet,
   Home
 } from "lucide-react"
@@ -29,20 +30,20 @@ interface Wohnung {
   miete: number
 }
 
-interface WasserZaehlerVerwaltungModalProps {
+interface ZaehlerVerwaltungModalProps {
   isOpen: boolean
   onClose: () => void
   hausId: string
   hausName: string
 }
 
-export function WasserZaehlerVerwaltungModal({
+export function ZaehlerVerwaltungModal({
   isOpen,
   onClose,
   hausId,
   hausName,
-}: WasserZaehlerVerwaltungModalProps) {
-  const { openWasserZaehlerModal } = useModalStore()
+}: ZaehlerVerwaltungModalProps) {
+  const { openZaehlerModal } = useModalStore()
   const [wohnungen, setWohnungen] = React.useState<Wohnung[]>([])
   const [isLoading, setIsLoading] = React.useState(false)
 
@@ -77,15 +78,15 @@ export function WasserZaehlerVerwaltungModal({
     }
   }
 
-  const handleOpenWasserZaehlerModal = (wohnung: Wohnung) => {
-    openWasserZaehlerModal(wohnung.id, wohnung.name)
+  const handleOpenZaehlerModal = (wohnung: Wohnung) => {
+    openZaehlerModal(wohnung.id, wohnung.name)
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Wasserzähler verwalten</DialogTitle>
+          <DialogTitle>Zähler verwalten</DialogTitle>
           <DialogDescription>
             Haus: <span className="font-medium">{hausName}</span>
           </DialogDescription>
@@ -111,8 +112,8 @@ export function WasserZaehlerVerwaltungModal({
           ) : (
             <div className="grid gap-3">
               {wohnungen.map((wohnung) => (
-                <Card 
-                  key={wohnung.id} 
+                <Card
+                  key={wohnung.id}
                   className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300"
                 >
                   <CardContent className="p-4">
@@ -128,9 +129,9 @@ export function WasserZaehlerVerwaltungModal({
                               {wohnung.groesse} m²
                             </Badge>
                             <Badge variant="outline" className="text-xs">
-                              {new Intl.NumberFormat('de-DE', { 
-                                style: 'currency', 
-                                currency: 'EUR' 
+                              {new Intl.NumberFormat('de-DE', {
+                                style: 'currency',
+                                currency: 'EUR'
                               }).format(wohnung.miete)}
                             </Badge>
                           </div>
@@ -138,10 +139,10 @@ export function WasserZaehlerVerwaltungModal({
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => handleOpenWasserZaehlerModal(wohnung)}
+                        onClick={() => handleOpenZaehlerModal(wohnung)}
                         className="gap-2"
                       >
-                        <Droplet className="h-4 w-4" />
+                        <Gauge className="h-4 w-4" />
                         Zähler verwalten
                       </Button>
                     </div>

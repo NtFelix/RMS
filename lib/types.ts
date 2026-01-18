@@ -150,18 +150,23 @@ export type LegacyWasserzaehler = {
 // Backward compatibility alias
 export type Wasserzaehler = LegacyWasserzaehler;
 
-export type WasserzaehlerFormEntry = {
-    id: string;
+// Generic form entry type
+export type ZaehlerFormEntry = {
+    zaehler_id: string;
     ablese_datum: string;
-    zaehlerstand: number;
-    verbrauch?: number;
+    zaehlerstand: number | string; // string to handle empty input
+    verbrauch?: number | string;
     kommentar?: string;
 };
 
-export type WasserzaehlerFormData = {
-    wasserkosten: number;
-    entries: WasserzaehlerFormEntry[];
+export type ZaehlerFormData = {
+    nebenkosten_id: string;
+    entries: ZaehlerFormEntry[];
 };
+
+// Legacy types for backward compatibility
+export type WasserzaehlerFormEntry = ZaehlerFormEntry;
+export type WasserzaehlerFormData = ZaehlerFormData;
 
 export type Finanzen = {
     id: string;

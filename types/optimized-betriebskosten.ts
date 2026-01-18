@@ -46,15 +46,19 @@ export type OptimizedNebenkosten = {
 };
 
 /**
- * WasserzaehlerModalData represents the structured data returned by the
- * get_wasserzaehler_modal_data database function for efficient modal loading.
+ * ZaehlerModalData represents the structured data returned by the
+ * get_zaehler_modal_data database function for efficient modal loading.
  * This replaces multiple separate server action calls with a single database function call.
  */
-export type WasserzaehlerModalData = {
+export type ZaehlerModalData = {
   mieter_id: string;
   mieter_name: string;
   wohnung_name: string;
   wohnung_groesse: number;
+  zaehler_id: string;
+  zaehler_typ: string;
+  einheit: string;
+  custom_id: string | null;
   current_reading: {
     ablese_datum: string | null;
     zaehlerstand: number | null;
@@ -76,8 +80,8 @@ export type AbrechnungModalData = {
   nebenkosten_data: Nebenkosten;  // From existing Nebenkosten table
   tenants: Mieter[];              // From existing Mieter table
   rechnungen: Rechnung[];         // From existing Rechnungen table
-  water_meters: WasserZaehler[];  // From Zaehler table
-  water_readings: WasserAblesung[]; // From Zaehler_Ablesungen table
+  zaehler: WasserZaehler[];       // From Zaehler table
+  zaehler_ablesungen: WasserAblesung[]; // From Zaehler_Ablesungen table
 };
 
 /**
@@ -97,12 +101,15 @@ export type GetNebenkostenWithMetricsParams = {
 };
 
 /**
- * Parameters for the get_wasserzaehler_modal_data database function
+ * Parameters for the get_zaehler_modal_data database function
  */
-export type GetWasserzaehlerModalDataParams = {
+export type GetZaehlerModalDataParams = {
   nebenkosten_id: string;
   user_id: string;
 };
+
+// Backward compatibility alias
+export type GetWasserzaehlerModalDataParams = GetZaehlerModalDataParams;
 
 /**
  * Parameters for the get_abrechnung_modal_data database function
@@ -163,10 +170,13 @@ export function isOptimizedNebenkosten(data: any): data is OptimizedNebenkosten 
   );
 }
 
+// Backward compatibility aliases
+export type WasserzaehlerModalData = ZaehlerModalData;
+
 /**
- * Type guard to check if data is WasserzaehlerModalData
+ * Type guard to check if data is ZaehlerModalData
  */
-export function isWasserzaehlerModalData(data: any): data is WasserzaehlerModalData {
+export function isZaehlerModalData(data: any): data is ZaehlerModalData {
   return (
     data !== null &&
     data !== undefined &&
@@ -174,9 +184,12 @@ export function isWasserzaehlerModalData(data: any): data is WasserzaehlerModalD
     typeof data.mieter_id === 'string' &&
     typeof data.mieter_name === 'string' &&
     typeof data.wohnung_name === 'string' &&
-    typeof data.wohnung_groesse === 'number'
+    typeof data.wohnung_groesse === 'number' &&
+    typeof data.zaehler_id === 'string'
   );
 }
+
+export const isWasserzaehlerModalData = isZaehlerModalData;
 
 /**
  * Type guard to check if data is AbrechnungModalData
@@ -191,7 +204,7 @@ export function isAbrechnungModalData(data: any): data is AbrechnungModalData {
     typeof data.nebenkosten_data === 'object' &&
     Array.isArray(data.tenants) &&
     Array.isArray(data.rechnungen) &&
-    Array.isArray(data.wasserzaehler_readings)
+    Array.isArray(data.zaehler_ablesungen)
   );
 }
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib/data-fetching';
-import { WasserzaehlerModalData } from '@/types/optimized-betriebskosten';
+import { Nebenkosten, Mieter, Wasserzaehler, ZaehlerFormData } from '@/lib/data-fetching';
+import { ZaehlerModalData } from '@/types/optimized-betriebskosten';
 import { Tenant, KautionData } from '@/types/Tenant';
 import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
@@ -101,18 +101,18 @@ interface ConfirmationModalConfig {
   variant?: ConfirmationDialogVariant;
 }
 
-// Wasser_Zaehler Modal Types
-interface WasserZaehlerData {
+// Apartment Zaehler Management Modal Types
+interface ZaehlerManagementData {
   id?: string;
   custom_id?: string;
   wohnung_id: string;
   wohnungName?: string;
 }
 
-interface WasserZaehlerModalData {
+interface ApartmentZaehlerModalData {
   wohnungId: string;
   wohnungName: string;
-  existingZaehler?: WasserZaehlerData[];
+  existingZaehler?: ZaehlerManagementData[];
 }
 
 // AI Assistant Modal Types
@@ -282,18 +282,18 @@ export interface ModalState {
   closeBetriebskostenModal: (options?: CloseModalOptions) => void;
   setBetriebskostenModalDirty: (isDirty: boolean) => void;
 
-  // Wasserzähler Modal State
-  isWasserzaehlerModalOpen: boolean;
-  wasserzaehlerNebenkosten?: Nebenkosten;
-  wasserzaehlerMieterList: Mieter[];
-  wasserzaehlerExistingReadings?: Wasserzaehler[] | null;
-  wasserzaehlerOptimizedData?: WasserzaehlerModalData[] | null;
-  wasserzaehlerOnSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>;
-  isWasserzaehlerModalDirty: boolean;
-  openWasserzaehlerModal: (nebenkosten?: Nebenkosten, mieterList?: Mieter[], existingReadings?: Wasserzaehler[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>) => void;
-  openWasserzaehlerModalOptimized: (nebenkosten?: Nebenkosten, optimizedData?: WasserzaehlerModalData[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>) => void;
-  closeWasserzaehlerModal: (options?: CloseModalOptions) => void;
-  setWasserzaehlerModalDirty: (isDirty: boolean) => void;
+  // Zaehler Ablese Modal State (period readings)
+  isZaehlerAblesungModalOpen: boolean;
+  zaehlerAblesungNebenkosten?: Nebenkosten;
+  zaehlerAblesungMieterList: Mieter[];
+  zaehlerAblesungExistingReadings?: Wasserzaehler[] | null;
+  zaehlerAblesungOptimizedData?: ZaehlerModalData[] | null;
+  zaehlerAblesungOnSave?: (data: ZaehlerFormData) => Promise<{ success: boolean; message?: string }>;
+  isZaehlerAblesungModalDirty: boolean;
+  openZaehlerAblesungModal: (nebenkosten?: Nebenkosten, mieterList?: Mieter[], existingReadings?: Wasserzaehler[] | null, onSave?: (data: ZaehlerFormData) => Promise<{ success: boolean; message?: string }>) => void;
+  openZaehlerAblesungModalOptimized: (nebenkosten?: Nebenkosten, optimizedData?: ZaehlerModalData[] | null, onSave?: (data: ZaehlerFormData) => Promise<{ success: boolean; message?: string }>) => void;
+  closeZaehlerAblesungModal: (options?: CloseModalOptions) => void;
+  setZaehlerAblesungModalDirty: (isDirty: boolean) => void;
 
   // Kaution Modal State
   isKautionModalOpen: boolean;
@@ -438,13 +438,13 @@ export interface ModalState {
   openTenantMailTemplatesModal: (tenantName?: string, tenantEmail?: string) => void;
   closeTenantMailTemplatesModal: () => void;
 
-  // Wasser_Zaehler Modal State
-  isWasserZaehlerModalOpen: boolean;
-  wasserZaehlerModalData?: WasserZaehlerModalData;
-  isWasserZaehlerModalDirty: boolean;
-  openWasserZaehlerModal: (wohnungId: string, wohnungName: string) => void;
-  closeWasserZaehlerModal: (options?: CloseModalOptions) => void;
-  setWasserZaehlerModalDirty: (isDirty: boolean) => void;
+  // Apartment Zaehler Management Modal State
+  isApartmentZaehlerModalOpen: boolean;
+  apartmentZaehlerModalData?: ApartmentZaehlerModalData;
+  isApartmentZaehlerModalDirty: boolean;
+  openApartmentZaehlerModal: (wohnungId: string, wohnungName: string) => void;
+  closeApartmentZaehlerModal: (options?: CloseModalOptions) => void;
+  setApartmentZaehlerModalDirty: (isDirty: boolean) => void;
 
   // Ablesungen Modal State
   isAblesungenModalOpen: boolean;
@@ -534,14 +534,14 @@ const initialBetriebskostenModalState = {
   isBetriebskostenModalDirty: false,
 };
 
-const initialWasserzaehlerModalState = {
-  isWasserzaehlerModalOpen: false,
-  wasserzaehlerNebenkosten: undefined,
-  wasserzaehlerMieterList: [],
-  wasserzaehlerExistingReadings: undefined,
-  wasserzaehlerOptimizedData: undefined,
-  wasserzaehlerOnSave: undefined,
-  isWasserzaehlerModalDirty: false,
+const initialZaehlerAblesungModalState = {
+  isZaehlerAblesungModalOpen: false,
+  zaehlerAblesungNebenkosten: undefined,
+  zaehlerAblesungMieterList: [],
+  zaehlerAblesungExistingReadings: undefined,
+  zaehlerAblesungOptimizedData: undefined,
+  zaehlerAblesungOnSave: undefined,
+  isZaehlerAblesungModalDirty: false,
 };
 
 const initialKautionModalState = {
@@ -639,10 +639,10 @@ const initialTenantMailTemplatesModalState = {
   tenantMailTemplatesModalData: undefined,
 };
 
-const initialWasserZaehlerModalState = {
-  isWasserZaehlerModalOpen: false,
-  wasserZaehlerModalData: undefined,
-  isWasserZaehlerModalDirty: false,
+const initialApartmentZaehlerModalState = {
+  isApartmentZaehlerModalOpen: false,
+  apartmentZaehlerModalData: undefined,
+  isApartmentZaehlerModalDirty: false,
 };
 
 const initialAblesungenModalState = {
@@ -665,7 +665,7 @@ const createInitialModalState = () => ({
   ...initialAufgabeModalState,
   ...initialTenantPaymentEditModalState,
   ...initialBetriebskostenModalState,
-  ...initialWasserzaehlerModalState,
+  ...initialZaehlerAblesungModalState,
   ...initialKautionModalState,
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
@@ -682,7 +682,7 @@ const createInitialModalState = () => ({
   ...initialMarkdownEditorModalState,
   ...initialTemplatesModalState,
   ...initialTenantMailTemplatesModalState,
-  ...initialWasserZaehlerModalState,
+  ...initialApartmentZaehlerModalState,
   ...initialAblesungenModalState,
   ...initialZaehlerModalState,
   isConfirmationModalOpen: false,
@@ -807,27 +807,27 @@ export const useModalStore = create<ModalState>((set, get) => {
     closeBetriebskostenModal: createCloseHandler('isBetriebskostenModalDirty', initialBetriebskostenModalState),
     setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
 
-    // Wasserzähler Modal
-    openWasserzaehlerModal: (nebenkosten, mieterList, existingReadings, onSave) => set({
-      isWasserzaehlerModalOpen: true,
-      wasserzaehlerNebenkosten: nebenkosten,
-      wasserzaehlerMieterList: mieterList || [],
-      wasserzaehlerExistingReadings: existingReadings,
-      wasserzaehlerOptimizedData: undefined, // Clear optimized data when using legacy method
-      wasserzaehlerOnSave: onSave,
-      isWasserzaehlerModalDirty: false
+    // Zaehler Ablesung Modal
+    openZaehlerAblesungModal: (nebenkosten, mieterList, existingReadings, onSave) => set({
+      isZaehlerAblesungModalOpen: true,
+      zaehlerAblesungNebenkosten: nebenkosten,
+      zaehlerAblesungMieterList: mieterList || [],
+      zaehlerAblesungExistingReadings: existingReadings,
+      zaehlerAblesungOptimizedData: undefined, // Clear optimized data when using legacy method
+      zaehlerAblesungOnSave: onSave,
+      isZaehlerAblesungModalDirty: false
     }),
-    openWasserzaehlerModalOptimized: (nebenkosten, optimizedData, onSave) => set({
-      isWasserzaehlerModalOpen: true,
-      wasserzaehlerNebenkosten: nebenkosten,
-      wasserzaehlerMieterList: [], // Clear legacy data when using optimized method
-      wasserzaehlerExistingReadings: undefined, // Clear legacy data when using optimized method
-      wasserzaehlerOptimizedData: optimizedData,
-      wasserzaehlerOnSave: onSave,
-      isWasserzaehlerModalDirty: false
+    openZaehlerAblesungModalOptimized: (nebenkosten, optimizedData, onSave) => set({
+      isZaehlerAblesungModalOpen: true,
+      zaehlerAblesungNebenkosten: nebenkosten,
+      zaehlerAblesungMieterList: [], // Clear legacy data when using optimized method
+      zaehlerAblesungExistingReadings: undefined, // Clear legacy data when using optimized method
+      zaehlerAblesungOptimizedData: optimizedData,
+      zaehlerAblesungOnSave: onSave,
+      isZaehlerAblesungModalDirty: false
     }),
-    closeWasserzaehlerModal: createCloseHandler('isWasserzaehlerModalDirty', initialWasserzaehlerModalState),
-    setWasserzaehlerModalDirty: (isDirty) => set({ isWasserzaehlerModalDirty: isDirty }),
+    closeZaehlerAblesungModal: createCloseHandler('isZaehlerAblesungModalDirty', initialZaehlerAblesungModalState),
+    setZaehlerAblesungModalDirty: (isDirty) => set({ isZaehlerAblesungModalDirty: isDirty }),
 
     // Kaution Modal
     openKautionModal: (tenant, existingKaution) => set({
@@ -1189,36 +1189,36 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeTenantMailTemplatesModal: () => set(initialTenantMailTemplatesModalState),
 
-    // Wasser_Zaehler Modal
-    openWasserZaehlerModal: async (wohnungId: string, wohnungName: string) => {
+    // Apartment Zaehler Modal
+    openApartmentZaehlerModal: async (wohnungId: string, wohnungName: string) => {
       set({
-        isWasserZaehlerModalOpen: true,
-        wasserZaehlerModalData: {
+        isApartmentZaehlerModalOpen: true,
+        apartmentZaehlerModalData: {
           wohnungId,
           wohnungName,
           existingZaehler: undefined,
         },
-        isWasserZaehlerModalDirty: false,
+        isApartmentZaehlerModalDirty: false,
       });
 
-      // Fetch existing Wasserzähler for this Wohnung
+      // Fetch existing Zaehler for this Wohnung
       try {
         const response = await fetch(`/api/zaehler?wohnung_id=${wohnungId}`);
         if (response.ok) {
           const data = await response.json();
           set((state) => ({
-            wasserZaehlerModalData: state.wasserZaehlerModalData ? {
-              ...state.wasserZaehlerModalData,
+            apartmentZaehlerModalData: state.apartmentZaehlerModalData ? {
+              ...state.apartmentZaehlerModalData,
               existingZaehler: data,
             } : undefined,
           }));
         }
       } catch (error) {
-        console.error('Error fetching Wasserzähler:', error);
+        console.error('Error fetching Zaehler:', error);
       }
     },
-    closeWasserZaehlerModal: createCloseHandler('isWasserZaehlerModalDirty', initialWasserZaehlerModalState),
-    setWasserZaehlerModalDirty: (isDirty) => set({ isWasserZaehlerModalDirty: isDirty }),
+    closeApartmentZaehlerModal: createCloseHandler('isApartmentZaehlerModalDirty', initialApartmentZaehlerModalState),
+    setApartmentZaehlerModalDirty: (isDirty) => set({ isApartmentZaehlerModalDirty: isDirty }),
 
     // Wasser_Ablesungen Modal
     openAblesungenModal: (zaehlerId: string, wohnungName: string, customId?: string, zaehlerTyp?: string, einheit?: string) => set({

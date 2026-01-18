@@ -4,7 +4,7 @@ import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
-// GET - Fetch all Wasserzähler for a specific Wohnung
+// GET - Fetch all Zähler for a specific Wohnung
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Wohnung not found or access denied' }, { status: 404 })
     }
 
-    // Fetch Wasserzähler with latest reading
+    // Fetch Zähler with latest reading
     const { data: zaehlerData, error } = await supabase
       .from('Zaehler')
       .select('*')
@@ -42,8 +42,8 @@ export async function GET(request: NextRequest) {
       .order('erstellungsdatum', { ascending: true })
 
     if (error) {
-      console.error('Error fetching Wasserzähler:', error)
-      return NextResponse.json({ error: 'Failed to fetch Wasserzähler' }, { status: 500 })
+      console.error('Error fetching Zähler:', error)
+      return NextResponse.json({ error: 'Failed to fetch Zähler' }, { status: 500 })
     }
 
     // Get all meter IDs to fetch their latest readings in one go
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new Wasserzähler
+// POST - Create a new Zähler
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -123,15 +123,15 @@ export async function POST(request: NextRequest) {
         wohnung_id,
         eichungsdatum: eichungsdatum || null,
         user_id: user.id,
-        zaehler_typ: zaehler_typ || 'wasser',
+        zaehler_typ: zaehler_typ || 'kaltwasser',
         einheit: einheit || 'm³',
       })
       .select()
       .single()
 
     if (error) {
-      console.error('Error creating Wasserzähler:', error)
-      return NextResponse.json({ error: 'Failed to create Wasserzähler' }, { status: 500 })
+      console.error('Error creating Zähler:', error)
+      return NextResponse.json({ error: 'Failed to create Zähler' }, { status: 500 })
     }
 
     // PostHog Event Tracking

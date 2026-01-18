@@ -154,7 +154,7 @@ export function AblesungenModal() {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/wasser-ablesungen?zaehler_id=${ablesungenModalData.zaehlerId}`)
+      const response = await fetch(`/api/zaehler-ablesungen?zaehler_id=${ablesungenModalData.zaehlerId}`)
       if (response.ok) {
         const data = await response.json()
         // Sort by date descending (newest first)
@@ -285,7 +285,7 @@ export function AblesungenModal() {
 
     setIsSaving(true)
     try {
-      const response = await fetch("/api/wasser-ablesungen", {
+      const response = await fetch("/api/zaehler-ablesungen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -335,7 +335,7 @@ export function AblesungenModal() {
 
     setIsSaving(true)
     try {
-      const response = await fetch(`/api/wasser-ablesungen/${id}`, {
+      const response = await fetch(`/api/zaehler-ablesungen/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -398,7 +398,7 @@ export function AblesungenModal() {
 
     setIsSaving(true)
     try {
-      const response = await fetch(`/api/wasser-ablesungen/${ablesenToDelete}`, {
+      const response = await fetch(`/api/zaehler-ablesungen/${ablesenToDelete}`, {
         method: "DELETE",
       })
 

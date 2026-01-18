@@ -23,6 +23,7 @@ import {
   User,
   Gauge,
   Activity,
+  Flame,
   Search,
   Loader2,
   Calendar as CalendarIcon,
@@ -32,17 +33,20 @@ import {
 import { WaterDropletLoader } from "@/components/ui/water-droplet-loader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { WasserZaehlerImportModal } from "./wasser-zaehler-import-modal";
-import { WasserZaehler as SharedWasserZaehler, WasserAblesung } from "@/lib/data-fetching";
+import { ZaehlerImportModal } from "./zaehler-import-modal";
+import { Zaehler as ApiZaehler, ZaehlerAblesung as Ablesung } from "@/lib/data-fetching";
+import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types";
 import { formatNumber } from "@/utils/format";
 
-// Local interface for UI presentation, compatible with SharedWasserZaehler
-interface WasserZaehler {
+// Local interface for UI presentation, compatible with Zaehler
+interface Zaehler {
   id: string;
   custom_id: string | null;
   wohnung_id: string; // In UI we expect it to be present if we display it
   erstellungsdatum: string;
   eichungsdatum: string | null;
+  zaehler_typ: string;
+  einheit: string;
 }
 
 /**
@@ -79,9 +83,11 @@ interface Mieter {
   wohnung_id: string;
 }
 
-interface WasserZaehlerInfo {
+interface ZaehlerInfo {
   zaehler_id: string;
   custom_id: string | null;
+  zaehler_typ: string;
+  einheit: string;
   wohnung_name: string;
   wohnung_groesse: number;
   mieter_id: string | null;
@@ -99,7 +105,7 @@ interface WasserZaehlerInfo {
   } | null;
 }
 
-interface WasserZaehlerAblesenModalProps {
+interface ZaehlerAblesungenModalProps {
   isOpen: boolean;
   onClose: () => void;
   hausId: string;
@@ -109,7 +115,7 @@ interface WasserZaehlerAblesenModalProps {
   nebenkostenId: string;
 }
 
-export function WasserZaehlerAblesenModal({
+export function ZaehlerAblesungenModal({
   isOpen,
   onClose,
   hausId,
@@ -117,16 +123,16 @@ export function WasserZaehlerAblesenModal({
   startdatum,
   enddatum,
   nebenkostenId,
-}: WasserZaehlerAblesenModalProps) {
-  const [zaehlerList, setZaehlerList] = useState<WasserZaehlerInfo[]>([]);
+}: ZaehlerAblesungenModalProps) {
+  const [zaehlerList, setZaehlerList] = useState<ZaehlerInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Store raw data for import modal
-  const [rawWaterMeters, setRawWaterMeters] = useState<SharedWasserZaehler[]>([]);
-  const [rawWaterReadings, setRawWaterReadings] = useState<WasserAblesung[]>([]);
+  const [rawWaterMeters, setRawWaterMeters] = useState<ApiZaehler[]>([]);
+  const [rawWaterReadings, setRawWaterReadings] = useState<Ablesung[]>([]);
 
   const { toast } = useToast();
   const { openAblesungenModal } = useModalStore();
@@ -141,26 +147,26 @@ export function WasserZaehlerAblesenModal({
     setIsLoading(true);
     try {
       // Use optimized server action to fetch all data in one call
-      const { getWasserZaehlerForHausAction } = await import('@/app/wasser-zaehler-actions');
-      const result = await getWasserZaehlerForHausAction(hausId);
+      const { getZaehlerForHausAction } = await import('@/app/zaehler-actions');
+      const result = await getZaehlerForHausAction(hausId);
 
       if (!result.success || !('data' in result) || !result.data) {
         throw new Error(result.message || "Failed to fetch data");
       }
 
-      const { wohnungen, waterMeters, waterReadings, mieter: allMieter } = result.data;
+      const { wohnungen, meters, readings, mieter: allMieter } = result.data;
 
       // Store raw data for import functionality
-      setRawWaterMeters(waterMeters as unknown as SharedWasserZaehler[]);
-      setRawWaterReadings(waterReadings as unknown as WasserAblesung[]);
+      setRawWaterMeters(meters as unknown as ApiZaehler[]);
+      setRawWaterReadings(readings as unknown as Ablesung[]);
 
       // Count total meters before filtering
-      const totalMetersCount = waterMeters.length;
+      const totalMetersCount = meters.length;
 
       // Map meters with their apartment info and filter by calibration date
-      const allZaehler: (WasserZaehler & { wohnung: Wohnung })[] = waterMeters
-        .filter((z: WasserZaehler) => isCalibrationValid(z.eichungsdatum, enddatum))
-        .map((z: WasserZaehler) => ({
+      const allZaehler: (Zaehler & { wohnung: Wohnung })[] = meters
+        .filter((z: Zaehler) => isCalibrationValid(z.eichungsdatum, enddatum))
+        .map((z: Zaehler) => ({
           ...z,
           wohnung: wohnungen.find((w: any) => w.id === z.wohnung_id)!
         }));
@@ -171,11 +177,11 @@ export function WasserZaehlerAblesenModal({
 
       // Group readings by meter
       const readingsResults = allZaehler.map(zaehler =>
-        waterReadings.filter((r: any) => r.zaehler_id === zaehler.id)
+        readings.filter((r: any) => r.zaehler_id === zaehler.id)
       );
 
       // Build zaehler info list
-      const zaehlerInfoList: WasserZaehlerInfo[] = allZaehler.map((zaehler, index) => {
+      const zaehlerInfoList: ZaehlerInfo[] = allZaehler.map((zaehler, index) => {
         const readings = readingsResults[index] || [];
         const mieter = allMieter.find((m: any) => m.wohnung_id === zaehler.wohnung_id);
 
@@ -190,6 +196,8 @@ export function WasserZaehlerAblesenModal({
         return {
           zaehler_id: zaehler.id,
           custom_id: zaehler.custom_id,
+          zaehler_typ: zaehler.zaehler_typ,
+          einheit: zaehler.einheit,
           wohnung_name: zaehler.wohnung.name,
           wohnung_groesse: zaehler.wohnung.groesse,
           mieter_id: mieter?.id || null,
@@ -221,11 +229,13 @@ export function WasserZaehlerAblesenModal({
     }
   };
 
-  const handleOpenAblesenModal = (zaehler: WasserZaehlerInfo) => {
+  const handleOpenAblesenModal = (zaehler: ZaehlerInfo) => {
     openAblesungenModal(
       zaehler.zaehler_id,
       zaehler.wohnung_name,
-      zaehler.custom_id || undefined
+      zaehler.custom_id || undefined,
+      zaehler.zaehler_typ,
+      zaehler.einheit
     );
   };
 
@@ -262,13 +272,13 @@ export function WasserZaehlerAblesenModal({
         <DialogContent className="sm:max-w-[650px] md:max-w-[750px] max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
-              Wasserzählerstände für {hausName} - {isoToGermanDate(startdatum)} bis {isoToGermanDate(enddatum)}
+              Zählerstände für {hausName} - {isoToGermanDate(startdatum)} bis {isoToGermanDate(enddatum)}
             </DialogTitle>
             <DialogDescription>
-              Geben Sie die Zählerstände für jeden Wasserzähler ein. Der Verbrauch wird automatisch berechnet.
+              Geben Sie die Zählerstände für jeden Zähler ein. Der Verbrauch wird automatisch berechnet.
               {filteredOutCount > 0 && (
                 <span className="block mt-2 text-amber-600 dark:text-amber-500 font-medium">
-                  ⚠️ {filteredOutCount} Wasserzähler {filteredOutCount === 1 ? 'wurde' : 'wurden'} ausgeblendet, da das Eichungsdatum vor dem Abrechnungszeitraum liegt.
+                  ⚠️ {filteredOutCount} Zähler {filteredOutCount === 1 ? 'wurde' : 'wurden'} ausgeblendet, da das Eichungsdatum vor dem Abrechnungszeitraum liegt.
                 </span>
               )}
             </DialogDescription>
@@ -279,7 +289,7 @@ export function WasserZaehlerAblesenModal({
             {zaehlerList.length > 0 && (
               <div className="flex gap-2 items-center">
                 <SearchInput
-                  placeholder="Wohnung, Mieter oder Zähler-ID suchen..."
+                  placeholder="Wohnung, Mieter, Typ oder Zähler-ID suchen..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onClear={() => setSearchQuery("")}
@@ -300,7 +310,7 @@ export function WasserZaehlerAblesenModal({
             {isLoading ? (
               <div className="flex flex-col justify-center items-center h-40 gap-4">
                 <WaterDropletLoader size="md" />
-                <p className="text-sm text-muted-foreground animate-pulse">Lade Wasserzählerdaten...</p>
+                <p className="text-sm text-muted-foreground animate-pulse">Lade Zählerdaten...</p>
               </div>
             ) : zaehlerList.length > 0 ? (
               groupedEntries.length === 0 ? (
@@ -328,7 +338,7 @@ export function WasserZaehlerAblesenModal({
                             <div>
                               <h3 className="font-semibold text-base">{wohnungName}</h3>
                               <p className="text-xs text-muted-foreground">
-                                {entries.length} {entries.length === 1 ? 'Wasserzähler' : 'Wasserzähler'}
+                                {entries.length} {entries.length === 1 ? 'Zähler' : 'Zähler'}
                               </p>
                             </div>
                           </div>
@@ -336,7 +346,7 @@ export function WasserZaehlerAblesenModal({
                             variant="secondary"
                             className="flex items-center gap-1.5 px-3 py-1.5"
                           >
-                            <Droplet className="h-3.5 w-3.5" />
+                            <Gauge className="h-3.5 w-3.5" />
                             <span className="font-medium">{entries.length}</span>
                           </Badge>
                         </div>
@@ -352,18 +362,32 @@ export function WasserZaehlerAblesenModal({
                           return (
                             <Card
                               key={entry.zaehler_id}
-                              className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-zinc-800/50 dark:to-zinc-900/50 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[1.5rem] overflow-hidden hover:shadow-md hover:border-primary/50 transition-all duration-300"
+                              className={`bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-zinc-800/50 dark:to-zinc-900/50 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[1.5rem] overflow-hidden hover:shadow-md transition-all duration-300 ${entry.zaehler_typ === 'kaltwasser' ? 'hover:border-blue-500/50' :
+                                entry.zaehler_typ === 'warmwasser' ? 'hover:border-red-500/50' :
+                                  entry.zaehler_typ === 'strom' ? 'hover:border-yellow-500/50' :
+                                    entry.zaehler_typ === 'gas' ? 'hover:border-cyan-500/50' :
+                                      entry.zaehler_typ === 'waermemenge' ? 'hover:border-orange-500/50' :
+                                        'hover:border-primary/50'}`}
                             >
                               <CardContent className="p-4">
                                 <div className="flex items-start justify-between gap-4">
                                   <div className="flex items-start gap-3 flex-1 min-w-0">
-                                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10">
-                                      <Gauge className="h-6 w-6 text-primary" />
+                                    <div className={`h-12 w-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 border ${entry.zaehler_typ === 'kaltwasser' ? 'from-blue-500/10 to-blue-500/5 border-blue-500/10' :
+                                      entry.zaehler_typ === 'warmwasser' ? 'from-red-500/10 to-red-500/5 border-red-500/10' :
+                                        entry.zaehler_typ === 'strom' ? 'from-yellow-500/10 to-yellow-500/5 border-yellow-500/10' :
+                                          entry.zaehler_typ === 'gas' ? 'from-cyan-500/10 to-cyan-500/5 border-cyan-500/10' :
+                                            entry.zaehler_typ === 'waermemenge' ? 'from-orange-500/10 to-orange-500/5 border-orange-500/10' :
+                                              'from-primary/10 to-primary/5 border-primary/10'}`}>
+                                      {entry.zaehler_typ === 'strom' ? <Activity className={`h-6 w-6 text-yellow-500`} /> :
+                                        entry.zaehler_typ === 'warmwasser' ? <Droplet className={`h-6 w-6 text-red-500`} /> :
+                                          entry.zaehler_typ === 'kaltwasser' ? <Droplet className={`h-6 w-6 text-blue-500`} /> :
+                                            entry.zaehler_typ === 'gas' ? <Flame className={`h-6 w-6 text-cyan-500`} /> :
+                                              <Gauge className={`h-6 w-6 text-primary`} />}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap mb-2">
                                         <h4 className="font-semibold text-base">
-                                          {entry.custom_id ? `Zähler ${entry.custom_id}` : 'Unbenannter Zähler'}
+                                          {entry.custom_id ? `${ZAEHLER_CONFIG[entry.zaehler_typ as ZaehlerTyp]?.label || 'Zähler'} ${entry.custom_id}` : ZAEHLER_CONFIG[entry.zaehler_typ as ZaehlerTyp]?.label || 'Unbenannter Zähler'}
                                         </h4>
                                         {entry.mieter_name && (
                                           <Badge variant="outline" className="text-xs">
@@ -398,11 +422,11 @@ export function WasserZaehlerAblesenModal({
                                           </Badge>
                                           <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
                                             <Gauge className="h-3 w-3" />
-                                            {formatNumber(entry.latest_reading.zaehlerstand)} m³
+                                            {formatNumber(entry.latest_reading.zaehlerstand)} {entry.einheit}
                                           </Badge>
                                           <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
-                                            <Droplet className="h-3 w-3" />
-                                            {formatNumber(entry.latest_reading.verbrauch)} m³
+                                            {entry.zaehler_typ === 'strom' ? <Activity className="h-3 w-3" /> : <Droplet className="h-3 w-3" />}
+                                            {formatNumber(entry.latest_reading.verbrauch)} {entry.einheit}
                                           </Badge>
                                           {consumptionChange !== null && !isNaN(consumptionChange) && (
                                             <Badge
@@ -431,7 +455,7 @@ export function WasserZaehlerAblesenModal({
                                     onClick={() => handleOpenAblesenModal(entry)}
                                     className="gap-2 flex-shrink-0"
                                   >
-                                    <Droplet className="h-4 w-4" />
+                                    <Activity className="h-4 w-4" />
                                     <span className="hidden sm:inline">Verwalten</span>
                                   </Button>
                                 </div>
@@ -447,7 +471,7 @@ export function WasserZaehlerAblesenModal({
             ) : (
               <div className="flex flex-col justify-center items-center h-40 gap-3">
                 <Home className="h-12 w-12 text-muted-foreground/50" />
-                <p className="text-muted-foreground">Keine Wasserzähler für dieses Haus gefunden.</p>
+                <p className="text-muted-foreground">Keine Zähler für dieses Haus gefunden.</p>
               </div>
             )}
           </div>
@@ -466,12 +490,12 @@ export function WasserZaehlerAblesenModal({
       </Dialog>
 
       {/* Import Modal */}
-      <WasserZaehlerImportModal
+      <ZaehlerImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={handleImportSuccess}
-        waterMeters={rawWaterMeters}
-        waterReadings={rawWaterReadings}
+        meters={rawWaterMeters}
+        readings={rawWaterReadings}
       />
     </>
   );

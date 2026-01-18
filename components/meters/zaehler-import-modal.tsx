@@ -11,16 +11,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calendar, Gauge, Droplets } from "lucide-react";
 import { WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
-import { bulkCreateWasserAblesungen } from "@/app/wasser-zaehler-actions";
+import { bulkCreateAblesungen } from "@/app/zaehler-actions";
 import { isoToGermanDate } from "@/utils/date-calculations";
 import { StatCard } from "@/components/common/stat-card";
 
-interface WasserZaehlerImportModalProps {
+interface ZaehlerImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  waterMeters: WasserZaehler[];
-  waterReadings: WasserAblesung[];
+  meters: WasserZaehler[];
+  readings: WasserAblesung[];
 }
 
 type ImportStep = "upload" | "mapping" | "preview";
@@ -47,13 +47,13 @@ interface ProcessedReading {
   message?: string;
 }
 
-export function WasserZaehlerImportModal({
+export function ZaehlerImportModal({
   isOpen,
   onClose,
   onSuccess,
-  waterMeters,
-  waterReadings,
-}: WasserZaehlerImportModalProps) {
+  meters,
+  readings,
+}: ZaehlerImportModalProps) {
   const [step, setStep] = useState<ImportStep>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
@@ -207,7 +207,7 @@ export function WasserZaehlerImportModal({
       }
 
       // Find Meter
-      const meter = waterMeters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
+      const meter = meters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
 
       if (!meter) {
         return {
@@ -249,7 +249,7 @@ export function WasserZaehlerImportModal({
       }
 
       // Check Duplicate
-      const isDuplicate = waterReadings.some(
+      const isDuplicate = readings.some(
         (r) => r.zaehler_id === meter.id && r.ablese_datum === ableseDatum
       );
 
@@ -274,7 +274,7 @@ export function WasserZaehlerImportModal({
         verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
       } else {
         // Otherwise calculate it
-        const meterReadings = waterReadings.filter(r => r.zaehler_id === meter.id);
+        const meterReadings = readings.filter(r => r.zaehler_id === meter.id);
         const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
         previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
 
@@ -319,7 +319,7 @@ export function WasserZaehlerImportModal({
       kommentar: "Importiert"
     }));
 
-    const result = await bulkCreateWasserAblesungen(payload);
+    const result = await bulkCreateAblesungen(payload);
 
     if (result.success) {
       toast({
@@ -348,7 +348,7 @@ export function WasserZaehlerImportModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[800px] max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Wasserzähler-Ablesungen importieren</DialogTitle>
+          <DialogTitle>Zähler-Ablesungen importieren</DialogTitle>
           <DialogDescription>
             {step === "upload" && "Laden Sie eine CSV oder Excel Datei hoch."}
             {step === "mapping" && "Ordnen Sie die Spalten aus Ihrer Datei den Feldern zu."}

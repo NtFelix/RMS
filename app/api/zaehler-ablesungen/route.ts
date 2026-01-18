@@ -4,7 +4,7 @@ import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
-// GET - Fetch all Wasser_Ablesungen for a specific Wasserzähler
+// GET - Fetch all Zaehler_Ablesungen for a specific Zaehler
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -15,29 +15,29 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const wasserZaehlerId = searchParams.get('zaehler_id') || searchParams.get('wasser_zaehler_id')
+    const zaehlerId = searchParams.get('zaehler_id') || searchParams.get('wasser_zaehler_id')
 
-    if (!wasserZaehlerId) {
+    if (!zaehlerId) {
       return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400 })
     }
 
-    // Verify the Wasserzähler belongs to the user
+    // Verify the Zaehler belongs to the user
     const { data: zaehler, error: zaehlerError } = await supabase
       .from('Zaehler')
       .select('id')
-      .eq('id', wasserZaehlerId)
+      .eq('id', zaehlerId)
       .eq('user_id', user.id)
       .single()
 
     if (zaehlerError || !zaehler) {
-      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Zaehler not found or access denied' }, { status: 404 })
     }
 
     // Fetch Zaehler_Ablesungen
     const { data, error } = await supabase
       .from('Zaehler_Ablesungen')
       .select('*')
-      .eq('zaehler_id', wasserZaehlerId)
+      .eq('zaehler_id', zaehlerId)
       .eq('user_id', user.id)
       .order('ablese_datum', { ascending: false })
 
@@ -48,12 +48,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Unexpected error in GET /api/wasser-ablesungen:', error)
+    console.error('Unexpected error in GET /api/zaehler-ablesungen:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// POST - Create a new Wasser_Ablesung
+// POST - Create a new Zaehler_Ablesung
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400 })
     }
 
-    // Verify the Wasserzähler belongs to the user
+    // Verify the Zaehler belongs to the user
     const { data: zaehler, error: zaehlerError } = await supabase
       .from('Zaehler')
       .select('id')
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (zaehlerError || !zaehler) {
-      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Zaehler not found or access denied' }, { status: 404 })
     }
 
     // Create Zaehler_Ablesung
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // PostHog Event Tracking
-    await capturePostHogEventWithContext(user.id, 'water_reading_recorded', {
+    await capturePostHogEventWithContext(user.id, 'zaehler_reading_recorded', {
       reading_id: data?.id,
       meter_id: meterId,
       reading_value: zaehlerstand,
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    console.error('Unexpected error in POST /api/wasser-ablesungen:', error)
+    console.error('Unexpected error in POST /api/zaehler-ablesungen:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

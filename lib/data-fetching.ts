@@ -19,7 +19,10 @@ export type {
   WasserZaehler,
   WasserAblesung,
   Wasserzaehler,
+  LegacyWasserzaehler,
   Finanzen,
+  WasserzaehlerFormEntry,
+  WasserzaehlerFormData,
 } from "./types";
 
 export { ZAEHLER_CONFIG, getZaehlerLabel, getZaehlerEinheit } from "./zaehler-types";
@@ -381,18 +384,17 @@ export async function fetchUserProfile(): Promise<Profile | null> {
 
 // Wasserzaehler type is defined earlier in the file (line ~132)
 
-export type WasserzaehlerFormEntry = {
+export type ZaehlerFormEntry = {
+  zaehler_id: string;
   mieter_id: string;
   mieter_name: string; // For display purposes in the form
   ablese_datum: string | null;
   zaehlerstand: number | string; // string to handle empty input
   verbrauch: number | string; // string to handle empty input
-  // Optional: Add an existing_wasserzaehler_id if we need to update existing records
-  // existing_wasserzaehler_id?: string | null;
 };
 
-export type WasserzaehlerFormData = {
-  entries: WasserzaehlerFormEntry[];
+export type ZaehlerFormData = {
+  entries: ZaehlerFormEntry[];
   nebenkosten_id: string; // To associate the readings with a Nebenkosten entry
 };
 
@@ -402,13 +404,13 @@ export type WasserzaehlerFormData = {
  * @param year The year to fetch data for (e.g., '2024')
  * @returns Object containing mieter list and existing readings for the specified house and year
  */
-export async function fetchWasserzaehlerByHausAndYear(
+export async function fetchZaehlerByHausAndYear(
   hausId: string,
   year: string
 ): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   const startdatum = `${year}-01-01`;
   const enddatum = `${year}-12-31`;
-  return fetchWasserzaehlerByHausAndDateRange(hausId, startdatum, enddatum);
+  return fetchZaehlerByHausAndDateRange(hausId, startdatum, enddatum);
 }
 
 /**
@@ -418,7 +420,7 @@ export async function fetchWasserzaehlerByHausAndYear(
  * @param enddatum The end date of the billing period (YYYY-MM-DD)
  * @returns Object containing mieter list and existing readings for the specified house and date range
  */
-export async function fetchWasserzaehlerByHausAndDateRange(
+export async function fetchZaehlerByHausAndDateRange(
   hausId: string,
   startdatum: string,
   enddatum: string
@@ -510,7 +512,7 @@ export async function fetchWasserzaehlerByHausAndDateRange(
     };
 
   } catch (error) {
-    console.error('Unexpected error in fetchWasserzaehlerByHausAndDateRange:', error);
+    console.error('Unexpected error in fetchZaehlerByHausAndDateRange:', error);
     return { mieterList: [], existingReadings: [] };
   }
 }
@@ -520,7 +522,7 @@ export async function fetchWasserzaehlerByHausAndDateRange(
  * @param nebenkostenId The ID of the Nebenkosten entry
  * @returns Object containing mieter list and existing readings for the specified Nebenkosten
  */
-export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
+export async function fetchZaehlerModalData(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   const supabase = createSupabaseServerClient();
 
   try {
@@ -544,7 +546,7 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     }
 
     // 2. Use the new function to get data by house and date range
-    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndDateRange(haeuser_id, startdatum, enddatum);
+    const { mieterList, existingReadings } = await fetchZaehlerByHausAndDateRange(haeuser_id, startdatum, enddatum);
 
     // 3. Filter existingReadings to only include those for the current nebenkosten_id
     //    This maintains backward compatibility with the existing code
@@ -556,7 +558,7 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     };
 
   } catch (error) {
-    console.error('Unexpected error in fetchWasserzaehlerModalData:', error);
+    console.error('Unexpected error in fetchZaehlerModalData:', error);
     return { mieterList: [], existingReadings: [] };
   }
 }

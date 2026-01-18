@@ -24,22 +24,22 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog"
-import { Nebenkosten, Mieter, Wasserzaehler, Rechnung, Haus } from "@/lib/data-fetching" // Adjusted path, Removed WasserzaehlerFormData
-import { OptimizedNebenkosten, AbrechnungModalData } from "@/types/optimized-betriebskosten"; // Removed WasserzaehlerModalData
+import { Nebenkosten, Mieter, Zaehler, Rechnung, Haus } from "@/lib/data-fetching" // Adjusted path, Removed ZaehlerFormData
+import { OptimizedNebenkosten, AbrechnungModalData } from "@/types/optimized-betriebskosten"; // Removed ZaehlerModalData
 import { isoToGermanDate } from "@/utils/date-calculations"
-import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
+import { Edit, Trash2, FileText, Gauge, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
 
 // Lazy load modals to reduce bundle size
 const AbrechnungModal = dynamic(() => import('@/components/finance/abrechnung-modal').then(mod => mod.AbrechnungModal), { ssr: false })
 const OperatingCostsOverviewModal = dynamic(() => import('@/components/finance/operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
-const WasserZaehlerVerwaltungModal = dynamic(() => import('@/components/water-meters/wasser-zaehler-verwaltung-modal').then(mod => mod.WasserZaehlerVerwaltungModal), { ssr: false })
-const WasserZaehlerAblesenModal = dynamic(() => import('@/components/water-meters/wasser-zaehler-ablesungen-modal').then(mod => mod.WasserZaehlerAblesenModal), { ssr: false })
+const ZaehlerVerwaltungModal = dynamic(() => import('@/components/meters/zaehler-verwaltung-modal').then(mod => mod.ZaehlerVerwaltungModal), { ssr: false })
+import { ZaehlerAblesungenModal } from "@/components/meters/zaehler-ablesungen-modal";
 
 import {
   getAbrechnungModalDataAction,
   deleteNebenkosten as deleteNebenkostenServerAction,
   bulkDeleteNebenkosten
-} from "@/app/betriebskosten-actions" // Removed old wasserzaehler imports
+} from "@/app/betriebskosten-actions" // Removed old zaehler imports
 import { toast } from "@/hooks/use-toast" // For notifications
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
@@ -71,9 +71,9 @@ export function OperatingCostsTable({
 }: OperatingCostsTableProps) {
   const router = useRouter()
 
-  // Old openWasserzaehlerModalOptimized removed - now using new WasserZaehlerAblesenModal
+  // Old openZaehlerModalOptimized removed - now using new ZaehlerAblesenModal
   const [overviewItem, setOverviewItem] = useState<OptimizedNebenkosten | null>(null);
-  // Old wasserzähler modal state removed - now using new WasserZaehlerAblesenModal
+  // Old wasserzähler modal state removed - now using new ZaehlerAblesenModal
   const [isAbrechnungModalOpen, setIsAbrechnungModalOpen] = useState(false);
   const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<OptimizedNebenkosten | null>(null);
   const [abrechnungModalData, setAbrechnungModalData] = useState<AbrechnungModalData | null>(null);
@@ -84,9 +84,9 @@ export function OperatingCostsTable({
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
-  const [isWasserZaehlerVerwaltungOpen, setIsWasserZaehlerVerwaltungOpen] = useState(false)
+  const [isZaehlerVerwaltungOpen, setIsZaehlerVerwaltungOpen] = useState(false)
   const [selectedHausForVerwaltung, setSelectedHausForVerwaltung] = useState<{ id: string; name: string } | null>(null)
-  const [isWasserZaehlerAblesenOpen, setIsWasserZaehlerAblesenOpen] = useState(false)
+  const [isZaehlerAblesenOpen, setIsZaehlerAblesenOpen] = useState(false)
   const [selectedNebenkostenForAblesen, setSelectedNebenkostenForAblesen] = useState<OptimizedNebenkosten | null>(null)
 
   // Use external selection state if provided, otherwise use internal
@@ -195,9 +195,9 @@ export function OperatingCostsTable({
     setOverviewItem(null);
   };
 
-  // Old handleOpenWasserzaehlerModal function removed - now using new WasserZaehlerAblesenModal
+  // Old handleOpenZaehlerModal function removed - now using new ZaehlerAblesenModal
 
-  // Old handleSaveWasserzaehler function removed - now using new WasserZaehlerAblesenModal
+  // Old handleSaveZaehler function removed - now using new ZaehlerAblesenModal
 
   const handleOpenAbrechnungModal = async (item: OptimizedNebenkosten) => {
     setIsLoadingAbrechnungData(true);
@@ -213,8 +213,8 @@ export function OperatingCostsTable({
           nebenkostenId: item.id,
           tenantsCount: Array.isArray(result.data.tenants) ? result.data.tenants.length : 'n/a',
           rechnungenCount: Array.isArray(result.data.rechnungen) ? result.data.rechnungen.length : 'n/a',
-          waterMetersCount: Array.isArray(result.data.water_meters) ? result.data.water_meters.length : 'n/a',
-          waterReadingsCount: Array.isArray(result.data.water_readings) ? result.data.water_readings.length : 'n/a',
+          zaehlerCount: Array.isArray(result.data.zaehler) ? result.data.zaehler.length : 'n/a',
+          zaehlerAblesungenCount: Array.isArray(result.data.zaehler_ablesungen) ? result.data.zaehler_ablesungen.length : 'n/a',
           firstTenant: Array.isArray(result.data.tenants) && result.data.tenants.length > 0 ? {
             id: (result.data.tenants[0] as any).id,
             name: (result.data.tenants[0] as any).name,
@@ -438,7 +438,7 @@ export function OperatingCostsTable({
                 <TableHeaderCell sortKey="" className="w-[140px] dark:text-[#f3f4f6]" icon={FileText} sortable={false}>Kostenarten</TableHeaderCell>
                 <TableHeaderCell sortKey="" className="w-[150px] dark:text-[#f3f4f6]" icon={Euro} sortable={false}>Beträge</TableHeaderCell>
                 <TableHeaderCell sortKey="" className="w-[160px] dark:text-[#f3f4f6]" icon={Calculator} sortable={false}>Berechnungsarten</TableHeaderCell>
-                <TableHeaderCell sortKey="zaehlerkosten" className="w-[130px] dark:text-[#f3f4f6]" icon={Droplets}>Zählerkosten</TableHeaderCell>
+                <TableHeaderCell sortKey="zaehlerkosten" className="w-[130px] dark:text-[#f3f4f6]" icon={Gauge}>Zählerkosten</TableHeaderCell>
                 <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
               </TableRow>
             </TableHeader>
@@ -580,17 +580,17 @@ export function OperatingCostsTable({
                           <Edit className="h-4 w-4" />
                           <span>Bearbeiten</span>
                         </ContextMenuItem>
-                        {/* Old Wasserzähler modal button removed - now using new WasserZaehlerAblesenModal */}
+                        {/* Old Wasserzähler modal button removed - now using new ZaehlerAblesenModal                            */}
                         <ContextMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedNebenkostenForAblesen(item);
-                            setIsWasserZaehlerAblesenOpen(true);
+                            setIsZaehlerAblesenOpen(true);
                           }}
                           className="flex items-center gap-2 cursor-pointer"
                         >
-                          <Droplets className="h-4 w-4" />
-                          <span>Wasserzähler</span>
+                          <Gauge className="h-4 w-4" />
+                          <span>Zählerstände</span>
                         </ContextMenuItem>
                         <ContextMenuItem
                           onClick={(e) => {
@@ -630,7 +630,7 @@ export function OperatingCostsTable({
         />
       )}
 
-      {/* Wasserzaehler Modal is now handled by the modal store */}
+      {/* Zaehler Modal is now handled by the modal store */}
 
       {/* Abrechnung Modal */}
       {selectedNebenkostenForAbrechnung && abrechnungModalData && (
@@ -640,8 +640,8 @@ export function OperatingCostsTable({
           nebenkostenItem={selectedNebenkostenForAbrechnung}
           tenants={abrechnungModalData.tenants ?? []}
           rechnungen={abrechnungModalData.rechnungen ?? []}
-          waterMeters={abrechnungModalData.water_meters ?? []}
-          waterReadings={abrechnungModalData.water_readings ?? []}
+          zaehler={abrechnungModalData.zaehler ?? []}
+          zaehler_ablesungen={abrechnungModalData.zaehler_ablesungen ?? []}
           ownerName={ownerName}
           ownerAddress={(() => {
             const selectedHaus = allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id);
@@ -671,12 +671,12 @@ export function OperatingCostsTable({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Wasser_Zaehler Verwaltung Modal */}
+      {/* Zaehler Verwaltung Modal */}
       {selectedHausForVerwaltung && (
-        <WasserZaehlerVerwaltungModal
-          isOpen={isWasserZaehlerVerwaltungOpen}
+        <ZaehlerVerwaltungModal
+          isOpen={isZaehlerVerwaltungOpen}
           onClose={() => {
-            setIsWasserZaehlerVerwaltungOpen(false);
+            setIsZaehlerVerwaltungOpen(false);
             setSelectedHausForVerwaltung(null);
           }}
           hausId={selectedHausForVerwaltung.id}
@@ -686,16 +686,13 @@ export function OperatingCostsTable({
 
       {/* Wasser_Zaehler Ablesungen Modal (neu) */}
       {selectedNebenkostenForAblesen && (
-        <WasserZaehlerAblesenModal
-          isOpen={isWasserZaehlerAblesenOpen}
-          onClose={() => {
-            setIsWasserZaehlerAblesenOpen(false);
-            setSelectedNebenkostenForAblesen(null);
-          }}
-          hausId={selectedNebenkostenForAblesen.haeuser_id || ''}
-          hausName={selectedNebenkostenForAblesen.haus_name || 'Unbekanntes Haus'}
-          startdatum={selectedNebenkostenForAblesen.startdatum || ''}
-          enddatum={selectedNebenkostenForAblesen.enddatum || ''}
+        <ZaehlerAblesungenModal
+          isOpen={isZaehlerAblesenOpen}
+          onClose={() => setIsZaehlerAblesenOpen(false)}
+          hausId={selectedNebenkostenForAblesen.haeuser_id}
+          hausName={selectedNebenkostenForAblesen.Haeuser?.name || ''}
+          startdatum={selectedNebenkostenForAblesen.startdatum}
+          enddatum={selectedNebenkostenForAblesen.enddatum}
           nebenkostenId={selectedNebenkostenForAblesen.id}
         />
       )}

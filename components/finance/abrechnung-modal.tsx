@@ -22,7 +22,7 @@ import { ExportAbrechnungDropdown } from "@/components/abrechnung/export-abrechn
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/data-fetching"; // Updated imports for new water system
+import { Nebenkosten, Mieter, Wohnung, Rechnung, Zaehler, ZaehlerAblesung as Ablesung } from "@/lib/data-fetching"; // Updated imports for new water system
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { useEffect, useState, useMemo, useRef } from "react"; // Import useEffect, useState, useMemo, and useRef
@@ -152,8 +152,8 @@ interface TenantCostDetails {
     pricePerSqm?: number; // New field added here
     verteiler?: string | number; // Added for distribution basis display
   }>;
-  waterCost: {
-    totalWaterCostOverall: number; // Renamed for clarity
+  zaehlerCost: {
+    totalZaehlerCostOverall: number; // Renamed for clarity
     calculationType: string;
     tenantShare: number;
     consumption?: number;
@@ -175,8 +175,8 @@ interface AbrechnungModalProps {
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
   rechnungen: Rechnung[];
-  waterMeters?: WasserZaehler[]; // Updated to use new water meter type
-  waterReadings?: WasserAblesung[]; // Updated to use new water reading type
+  zaehler?: Zaehler[]; // Updated to use generic zaehler type
+  zaehler_ablesungen?: Ablesung[]; // Updated to use generic zaehler_ablesungen type
   ownerName: string;
   ownerAddress: string;
 }
@@ -187,8 +187,8 @@ export function AbrechnungModal({
   nebenkostenItem,
   tenants,
   rechnungen,
-  waterMeters = [], // Default to empty array
-  waterReadings = [], // Default to empty array
+  zaehler = [], // Default to empty array
+  zaehler_ablesungen = [], // Default to empty array
   ownerName,
   ownerAddress,
 }: AbrechnungModalProps) {
@@ -267,9 +267,9 @@ export function AbrechnungModal({
   // Performance monitoring - log when modal opens with pre-loaded data
   useEffect(() => {
     if (isOpen && nebenkostenItem && tenants?.length > 0) {
-      console.log(`[AbrechnungModal] Opened with pre-loaded data: ${tenants?.length || 0} tenants, ${rechnungen?.length || 0} rechnungen, ${waterMeters?.length || 0} water meters, ${waterReadings?.length || 0} water readings`);
+      console.log(`[AbrechnungModal] Opened with pre-loaded data: ${tenants?.length || 0} tenants, ${rechnungen?.length || 0} rechnungen, ${zaehler?.length || 0} meters, ${zaehler_ablesungen?.length || 0} readings`);
     }
-  }, [isOpen, nebenkostenItem, tenants, rechnungen, waterMeters, waterReadings]);
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, zaehler, zaehler_ablesungen]);
 
   // Debug: Log tenants whenever they change
   useEffect(() => {
@@ -536,8 +536,8 @@ export function AbrechnungModal({
       const tenantWaterCostData = getTenantWaterCost(
         tenant.id,
         safeTenants,
-        waterMeters,
-        waterReadings,
+        zaehler,
+        zaehler_ablesungen,
         totalWaterCost,
         totalWaterConsumption, // Total building consumption from Nebenkosten
         itemStartdatum || startdatum,
@@ -545,8 +545,8 @@ export function AbrechnungModal({
       );
 
       const tenantWaterCost = {
-        totalWaterCostOverall: totalWaterCost,
-        calculationType: "nach Verbrauch (Wasserzähler)",
+        totalZaehlerCostOverall: totalWaterCost,
+        calculationType: "nach Verbrauch (Zähler)",
         tenantShare: tenantWaterCostData?.costShare || 0,
         consumption: tenantWaterCostData?.consumption || 0,
       };
@@ -569,7 +569,7 @@ export function AbrechnungModal({
         apartmentName: apartmentName,
         apartmentSize: apartmentSize,
         costItems: costItemsDetails,
-        waterCost: tenantWaterCost,
+        zaehlerCost: tenantWaterCost,
         totalTenantCost: totalTenantCost,
         vorauszahlungen: totalVorauszahlungen,
         monthlyVorauszahlungen: monthlyVorauszahlungenDetails,
@@ -580,7 +580,7 @@ export function AbrechnungModal({
         recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
       };
     };
-  }, [nebenkostenItem, wgFactors, rechnungen, waterMeters, waterReadings, totalHouseArea, safeTenants, getTenantWaterCost]);
+  }, [nebenkostenItem, wgFactors, rechnungen, zaehler, zaehler_ablesungen, totalHouseArea, safeTenants, getTenantWaterCost]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {
@@ -843,15 +843,15 @@ export function AbrechnungModal({
     doc.setFont("helvetica", "bold");
 
     // Get water cost data for this tenant
-    const tenantWaterShare = tenantData.waterCost.tenantShare;
-    const tenantWaterConsumption = tenantData.waterCost.consumption || 0;
+    const tenantWaterShare = tenantData.zaehlerCost.tenantShare;
+    const tenantWaterConsumption = tenantData.zaehlerCost.consumption || 0;
     // Get building water totals from zaehlerkosten/zaehlerverbrauch JSONB
     const buildingWaterCost = sumZaehlerValues(nebenkostenItem.zaehlerkosten);
     const buildingWaterConsumption = sumZaehlerValues(nebenkostenItem.zaehlerverbrauch);
     const pricePerCubicMeterCalc = buildingWaterConsumption > 0 ? buildingWaterCost / buildingWaterConsumption : 0;
 
     // Water cost summary with aligned columns
-    doc.text("Wasserkosten:", col1Start, startY, { align: 'left' });
+    doc.text("Zählerkosten:", col1Start, startY, { align: 'left' });
     doc.text(`${tenantWaterConsumption} m³`, col3Start + 15.65, startY, { align: 'right' });
     doc.text(`${formatCurrency(pricePerCubicMeterCalc)} / m3`, col4Start + 15, startY, { align: 'right' });
     doc.text(formatCurrency(tenantWaterShare), col5End, startY, { align: 'right' });
@@ -1123,17 +1123,17 @@ export function AbrechnungModal({
               <hr className="my-3 border-border" />
               {/* Container for Info Cards */}
               <div className="flex flex-wrap justify-start gap-4 my-4">
-                {/* Wasserkosten Info Card */}
+                {/* Zählerkosten Info Card */}
                 <HoverCard>
                   <HoverCardTrigger asChild>
                     <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Wasserkosten</CardTitle>
+                        <CardTitle className="text-sm font-medium">Zählerkosten</CardTitle>
                         <Droplet className="h-5 w-5 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-semibold text-foreground">
-                          {formatCurrency(tenantData.waterCost.tenantShare)}
+                          {formatCurrency(tenantData.zaehlerCost.tenantShare)}
                         </div>
                       </CardContent>
                     </Card>
@@ -1141,17 +1141,17 @@ export function AbrechnungModal({
                   <HoverCardContent className="w-80 text-sm">
                     <div className="space-y-1">
                       <div>
-                        <strong>Berechnungsmethode:</strong> {tenantData.waterCost.calculationType}
+                        <strong>Berechnungsmethode:</strong> {tenantData.zaehlerCost.calculationType}
                       </div>
                       <div>
-                        <strong>Gesamte Wasserkosten:</strong> {formatCurrency(tenantData.waterCost.totalWaterCostOverall)}
+                        <strong>Gesamte Zählerkosten:</strong> {formatCurrency(tenantData.zaehlerCost.totalZaehlerCostOverall)}
                       </div>
                       <div>
-                        <strong>Anteil Mieter:</strong> {formatCurrency(tenantData.waterCost.tenantShare)}
+                        <strong>Anteil Mieter:</strong> {formatCurrency(tenantData.zaehlerCost.tenantShare)}
                       </div>
-                      {tenantData.waterCost.consumption != null && ( // Check for null or undefined
+                      {tenantData.zaehlerCost.consumption != null && ( // Check for null or undefined
                         <div>
-                          <strong>Verbrauch:</strong> {tenantData.waterCost.consumption} m³
+                          <strong>Verbrauch:</strong> {tenantData.zaehlerCost.consumption} m³
                         </div>
                       )}
                     </div>
@@ -1275,7 +1275,7 @@ export function AbrechnungModal({
                       <TableCell className="text-right py-0.5 px-3 align-top h-8">{formatCurrency(item.tenantShare)}</TableCell>
                     </TableRow>
                   ))}
-                  {/* Wasserkosten row removed from here */}
+                  {/* Zählerkosten row removed from here */}
                   <TableRow className="font-semibold bg-primary/10 border-t-2 border-border h-10">
                     <TableCell className="py-0.5 px-3 text-primary h-10">Gesamtkosten Mieter</TableCell>
                     <TableCell className="py-0.5 px-3 text-primary h-10"></TableCell> {/* For Abrechnungsart */}

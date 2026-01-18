@@ -2,14 +2,14 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, WasserzaehlerFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
+import { Nebenkosten, ZaehlerFormData, ZaehlerFormEntry, Mieter, WasserZaehler as Zaehler, WasserAblesung as Ablesung, Wasserzaehler, LegacyWasserzaehler, Rechnung, fetchZaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
 import { roundToNearest5 } from "@/lib/utils";
 import { logAction } from '@/lib/logging-middleware';
 
 // Import optimized types from centralized location
 import {
   OptimizedNebenkosten,
-  WasserzaehlerModalData,
+  ZaehlerModalData,
   AbrechnungModalData,
   OptimizedActionResponse,
   SafeRpcCallResult,
@@ -30,12 +30,12 @@ import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { posthogLogger } from '@/lib/posthog-logger';
 
 /**
- * Gets the most recent water reading for each apartment from a list of readings
- * @param readings Array of WasserAblesung records, expected to be sorted by ablese_datum descending
- * @returns Object mapping wohnung_id to their most recent reading
+ * Gets the most recent reading for each meter from a list of readings
+ * @param readings Array of Ablesung records, sorted by ablese_datum descending
+ * @returns Object mapping meter_id to their most recent reading
  */
-function getMostRecentReadingByApartment(readings: WasserAblesung[]): Record<string, WasserAblesung> {
-  const mostRecent: Record<string, WasserAblesung> = {};
+function getMostRecentReadingByMeter(readings: Ablesung[]): Record<string, Ablesung> {
+  const mostRecent: Record<string, Ablesung> = {};
   for (const reading of readings) {
     const meterId = reading.zaehler_id;
     if (meterId && !mostRecent[meterId]) {
@@ -327,24 +327,24 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
   }
 }
 
-// getWasserzaehlerRecordsAction removed - replaced by getWasserzaehlerModalDataAction
-// which uses get_wasserzaehler_modal_data database function for better performance
+// getZaehlerRecordsAction removed - replaced by getZaehlerModalDataAction
+// which uses get_zaehler_modal_data database function for better performance
 
 /**
- * Gets the previous Wasserzaehler record for a specific mieter.
+ * Gets the previous Zaehler record for a specific mieter.
  * If currentYear is provided, it will first try to find a reading from the previous year.
  * If no previous year reading is found, it falls back to the most recent reading regardless of year.
  * 
  * @param mieterId - The ID of the mieter to get the previous reading for
  * @param currentYear - Optional. The current year as a string (e.g., '2024'). If provided, the function will first look for a reading from the previous year.
- * @returns An object containing the success status, the previous Wasserzaehler record (if found), and an optional message
+ * @returns An object containing the success status, the previous Zaehler record (if found), and an optional message
  */
 /**
- * Gets the previous Wasserzaehler record for a specific mieter.
+ * Gets the previous Zaehler record for a specific mieter.
  * If currentYear is provided, it will first try to find a reading from the previous year.
  * If no previous year reading is found, it falls back to the most recent reading regardless of year.
  */
-async function getPreviousWasserzaehlerRecordAction(
+async function getPreviousZaehlerRecordAction(
   mieterId: string,
   currentYear?: string
 ): Promise<{ success: boolean; data?: Wasserzaehler | null; message?: string }> {
@@ -376,17 +376,17 @@ async function getPreviousWasserzaehlerRecordAction(
     }
 
     // Get water meters for this apartment
-    const { data: waterMeters, error: metersError } = await supabase
+    const { data: meters, error: metersError } = await supabase
       .from("Zaehler")
       .select("id")
       .eq("wohnung_id", mieterData.wohnung_id)
       .eq("user_id", user.id);
 
-    if (metersError || !waterMeters?.length) {
+    if (metersError || !meters?.length) {
       return { success: true, data: null };
     }
 
-    const meterIds = waterMeters.map((m: { id: string }) => m.id);
+    const meterIds = meters.map((m: { id: string }) => m.id);
 
     // First, try to find a reading from the previous year if currentYear is provided
     if (currentYear) {
@@ -408,7 +408,7 @@ async function getPreviousWasserzaehlerRecordAction(
           .maybeSingle();
 
         if (previousYearError && previousYearError.code !== 'PGRST116') {
-          console.error(`Error fetching previous year's Wasserzaehler record for mieter_id ${mieterId}:`, previousYearError);
+          console.error(`Error fetching previous year's Zaehler record for mieter_id ${mieterId}:`, previousYearError);
         } else if (previousYearData) {
           return {
             success: true,
@@ -462,15 +462,15 @@ async function getPreviousWasserzaehlerRecordAction(
     return { success: true, data: null };
 
   } catch (error: any) {
-    console.error('Unexpected error in getPreviousWasserzaehlerRecordAction:', error);
+    console.error('Unexpected error in getPreviousZaehlerRecordAction:', error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
 
 /**
- * Fetches water meter readings for a list of mieter IDs within a date range
+ * Fetches meter readings for a list of mieter IDs within a date range
  */
-async function fetchWaterReadingsForMieters(
+async function fetchReadingsForMieters(
   supabase: any,
   userId: string,
   mieterIds: string[],
@@ -495,18 +495,18 @@ async function fetchWaterReadingsForMieters(
   if (wohnungIds.length === 0) return result;
 
   // Get water meters for these apartments
-  const { data: waterMeters, error: metersError } = await supabase
+  const { data: meters, error: metersError } = await supabase
     .from("Zaehler")
     .select("id, wohnung_id")
     .in("wohnung_id", wohnungIds)
     .eq("user_id", userId);
 
-  if (metersError || !waterMeters?.length) {
+  if (metersError || !meters?.length) {
     console.error('Error fetching water meters:', metersError);
     return result;
   }
 
-  const meterIds = waterMeters.map((m: { id: string }) => m.id);
+  const meterIds = meters.map((m: { id: string }) => m.id);
 
   // Build the query
   let query = supabase
@@ -531,8 +531,8 @@ async function fetchWaterReadingsForMieters(
   if (!readings?.length) return result;
 
   // Map readings back to mieter IDs
-  readings.forEach((reading: WasserAblesung) => {
-    const meter = waterMeters.find((m: { id: string }) => m.id === reading.zaehler_id);
+  readings.forEach((reading: Ablesung) => {
+    const meter = meters.find((m: { id: string }) => m.id === reading.zaehler_id);
     if (!meter) return;
 
     const mieter = mieterApartments.find((m: { wohnung_id: string }) => m.wohnung_id === meter.wohnung_id);
@@ -553,10 +553,10 @@ async function fetchWaterReadingsForMieters(
 }
 
 /**
- * Batch fetch previous Wasserzaehler records for multiple tenants
+ * Batch fetch previous Zaehler records for multiple tenants
  * This is much more efficient than individual calls and prevents Cloudflare Worker timeouts
  */
-export async function getBatchPreviousWasserzaehlerRecordsAction(
+export async function getBatchPreviousZaehlerRecordsAction(
   mieterIds: string[],
   currentYear?: string
 ): Promise<{ success: boolean; data?: Record<string, Wasserzaehler | null>; message?: string }> {
@@ -583,7 +583,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
         const previousYear = (currentYearNum - 1).toString();
 
         // Get readings from previous year
-        const previousYearReadings = await fetchWaterReadingsForMieters(
+        const previousYearReadings = await fetchReadingsForMieters(
           supabase,
           user.id,
           mieterIds,
@@ -603,7 +603,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
       const currentYearStart = currentYear ? `${currentYear}-01-01` : new Date().toISOString().split('T')[0];
 
       // Get all readings before current year for remaining mieters
-      const fallbackReadings = await fetchWaterReadingsForMieters(
+      const fallbackReadings = await fetchReadingsForMieters(
         supabase,
         user.id,
         mieterIdsWithoutPreviousYear,
@@ -625,7 +625,7 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
     return { success: true, data: result };
 
   } catch (error: any) {
-    console.error('Unexpected error in getBatchPreviousWasserzaehlerRecordsAction:', error);
+    console.error('Unexpected error in getBatchPreviousZaehlerRecordsAction:', error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
@@ -668,7 +668,7 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
   }
 }
 
-export async function getWasserzaehlerByHausAndYearAction(
+export async function getZaehlerByHausAndYearAction(
   hausId: string,
   year: string
 ): Promise<{ success: boolean; data?: { mieterList: Mieter[]; existingReadings: Wasserzaehler[] }; message?: string }> {
@@ -682,7 +682,7 @@ export async function getWasserzaehlerByHausAndYearAction(
       return { success: false, message: "Ungültiges Jahr. Bitte verwenden Sie das Format YYYY." };
     }
 
-    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(hausId, year);
+    const { mieterList, existingReadings } = await fetchZaehlerByHausAndYear(hausId, year);
 
     return {
       success: true,
@@ -693,35 +693,35 @@ export async function getWasserzaehlerByHausAndYearAction(
     };
 
   } catch (error: any) {
-    console.error('Error in getWasserzaehlerByHausAndYearAction:', error);
+    console.error('Error in getZaehlerByHausAndYearAction:', error);
     return {
       success: false,
-      message: `Ein Fehler ist beim Abrufen der Wasserzählerdaten aufgetreten: ${error.message || 'Unbekannter Fehler'}`
+      message: `Ein Fehler ist beim Abrufen der Zählerdaten aufgetreten: ${error.message || 'Unbekannter Fehler'}`
     };
   }
 }
 
 /**
- * Enhanced version of saveWasserzaehlerData with client-side validation
+ * Enhanced version of saveZaehlerData with client-side validation
  * 
  * **Performance Enhancement**: Performs comprehensive client-side validation before 
  * submitting data to the server, reducing server load and providing immediate feedback 
  * to users for validation errors.
  * 
  * **Validation Features**:
- * - Validates required fields (mieter_id, zaehlerstand)
+ * - Validates required fields (mieter_id, zaehler_id, zaehlerstand)
  * - Checks numeric format and ranges for meter readings
  * - Validates date formats and logical date ranges
  * - Ensures consumption calculations are reasonable
  * - Provides detailed validation error messages in German
  * 
  * **Workflow**:
- * 1. Performs client-side validation using wasserzaehler-validation utils
+ * 1. Performs client-side validation using zaehler-validation utils
  * 2. Returns validation errors immediately if data is invalid
- * 3. If validation passes, calls the optimized saveWasserzaehlerData function
+ * 3. If validation passes, calls the optimized saveZaehlerData function
  * 4. Provides structured error reporting for UI feedback
  * 
- * @param {WasserzaehlerFormData} formData - The water meter data to validate and save
+ * @param {ZaehlerFormData} formData - The meter data to validate and save
  * 
  * @returns {Promise<{success: boolean; message?: string; data?: any[]; validationErrors?: string[]}>} Promise resolving to:
  *   - `success`: Boolean indicating operation success
@@ -731,7 +731,7 @@ export async function getWasserzaehlerByHausAndYearAction(
  * 
  * @example
  * ```typescript
- * const result = await saveWasserzaehlerDataOptimized(formData);
+ * const result = await saveZaehlerDataOptimized(formData);
  * if (!result.success && result.validationErrors) {
  *   // Handle validation errors in UI
  *   result.validationErrors.forEach(error => {
@@ -742,39 +742,92 @@ export async function getWasserzaehlerByHausAndYearAction(
  * }
  * ```
  * 
- * @see {@link saveWasserzaehlerData} Base save function
- * @see {@link utils/wasserzaehler-validation.ts} Validation utilities
+ * @see {@link saveZaehlerData} Base save function
+ * @see {@link utils/zaehler-validation.ts} Validation utilities
  */
-export async function saveWasserzaehlerDataOptimized(
-  formData: WasserzaehlerFormData
+export async function saveZaehlerDataOptimized(
+  formData: ZaehlerFormData
 ): Promise<{ success: boolean; message?: string; data?: any[]; validationErrors?: string[] }> {
   // Import validation utilities dynamically to avoid server-side issues
-  const { validateWasserzaehlerFormData, formatValidationErrors, prepareWasserzaehlerDataForSubmission } = await import('@/utils/wasserzaehler-validation');
+  const { validateZaehlerFormData, formatValidationErrors, prepareZaehlerDataForSubmission } = await import('@/utils/zaehler-validation');
 
   // Perform client-side validation
-  const validationResult = validateWasserzaehlerFormData(formData);
+  const validationResult = validateZaehlerFormData(formData);
 
   if (!validationResult.isValid) {
     const errorMessage = formatValidationErrors(validationResult.errors);
     return {
       success: false,
       message: 'Validierungsfehler gefunden',
-      validationErrors: validationResult.errors.map(e => e.message)
+      validationErrors: validationResult.errors.map((e: { message: string }) => e.message)
     };
   }
 
   // If validation passes, prepare optimized data and save
-  const optimizedFormData: WasserzaehlerFormData = {
+  const optimizedFormData: ZaehlerFormData = {
     nebenkosten_id: formData.nebenkosten_id,
-    entries: validationResult.validEntries
+    entries: validationResult.validEntries as ZaehlerFormEntry[]
   };
 
   // Use the existing optimized save function
-  return await saveWasserzaehlerData(optimizedFormData);
+  return await saveZaehlerData(optimizedFormData);
 }
 
-// getMieterForNebenkostenAction removed - replaced by getWasserzaehlerModalDataAction
-// which uses get_wasserzaehler_modal_data database function for better performance
+/**
+ * Base function to save meter data to the database
+ * Used by saveZaehlerDataOptimized after validation
+ */
+export async function saveZaehlerData(
+  formData: ZaehlerFormData
+): Promise<{ success: boolean; message?: string; data?: any[] }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
+
+  try {
+    const { nebenkosten_id, entries } = formData;
+
+    // Prepare readings for insertion/upsertion
+    const readingsToSave = entries.map((entry: ZaehlerFormEntry) => ({
+      zaehler_id: entry.zaehler_id,
+      ablese_datum: entry.ablese_datum,
+      zaehlerstand: typeof entry.zaehlerstand === 'string' ? parseFloat(entry.zaehlerstand) : entry.zaehlerstand,
+      verbrauch: typeof entry.verbrauch === 'string' ? parseFloat(entry.verbrauch) : entry.verbrauch,
+      user_id: user.id
+    }));
+
+    // Perform upsert based on zaehler_id and ablese_datum if your schema supports it,
+    // otherwise just insert. Assuming insert for now based on usual patterns.
+    const { data, error } = await supabase
+      .from("Zaehler_Ablesungen")
+      .upsert(readingsToSave, {
+        onConflict: 'zaehler_id, ablese_datum'
+      })
+      .select();
+
+    if (error) {
+      console.error('Error saving meter readings:', error);
+      return { success: false, message: `Fehler beim Speichern der Zählerstände: ${error.message}` };
+    }
+
+    revalidatePath("/dashboard/betriebskosten");
+
+    return {
+      success: true,
+      message: "Zählerstände erfolgreich gespeichert",
+      data
+    };
+  } catch (error: any) {
+    console.error('Unexpected error in saveZaehlerData:', error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  }
+}
+
+// getMieterForNebenkostenAction removed - replaced by getZaehlerModalDataAction
+// which uses get_zaehler_modal_data database function for better performance
 
 // ============================================================================
 // OPTIMIZED SERVER ACTIONS USING DATABASE FUNCTIONS
@@ -896,7 +949,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
 }
 
 /**
- * Optimized server action to fetch all Wasserzähler modal data in a single database call
+ * Optimized server action to fetch all Zaehlerzähler modal data in a single database call
  * 
  * **Performance Optimization**: Replaces multiple separate server actions with a single optimized 
  * database function call, eliminating multiple round-trips and reducing modal loading time.
@@ -913,7 +966,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
  * - Handles missing data gracefully with null values
  * - Includes apartment size information for calculations
  * 
- * **Database Function**: `get_wasserzaehler_modal_data(nebenkosten_id, user_id)`
+ * **Database Function**: `get_zaehler_modal_data(nebenkosten_id, user_id)`
  * 
  * **Expected Performance**:
  * - Reduces modal open time from 3-5s to 1-2s
@@ -922,7 +975,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
  * 
  * @param {string} nebenkostenId - The UUID of the Nebenkosten entry to fetch data for
  * 
- * @returns {Promise<OptimizedActionResponse<WasserzaehlerModalData[]>>} Promise resolving to:
+ * @returns {Promise<OptimizedActionResponse<ZaehlerModalData[]>>} Promise resolving to:
  *   - `success`: Boolean indicating operation success
  *   - `data`: Array of tenant data with current and previous readings
  *   - `message`: Error message if operation failed
@@ -931,7 +984,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
  * 
  * @example
  * ```typescript
- * const result = await getWasserzaehlerModalDataAction('nebenkosten-uuid');
+ * const result = await getZaehlerModalDataAction('nebenkosten-uuid');
  * if (result.success && result.data) {
  *   result.data.forEach(tenant => {
  *     console.log(`${tenant.mieter_name}: Current ${tenant.current_reading?.zaehlerstand || 'N/A'}`);
@@ -940,7 +993,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
  * }
  * ```
  * 
- * @see {@link docs/database-functions.md#get_wasserzaehler_modal_data} Database function documentation
+ * @see {@link docs/database-functions.md#get_zaehler_modal_data} Database function documentation
  * @see {@link components/wasserzaehler-modal.tsx} Modal component that consumes this data
  */
 /**
@@ -1013,15 +1066,15 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
   }
 }
 
-export async function getWasserzaehlerModalDataAction(
+export async function getZaehlerModalDataAction(
   nebenkostenId: string
-): Promise<OptimizedActionResponse<WasserzaehlerModalData[]>> {
+): Promise<OptimizedActionResponse<ZaehlerModalData[]>> {
   "use server";
 
   if (!nebenkostenId || nebenkostenId.trim() === '') {
-    logger.warn('Invalid nebenkosten ID provided to getWasserzaehlerModalDataAction', {
+    logger.warn('Invalid nebenkosten ID provided to getZaehlerModalDataAction', {
       nebenkostenId,
-      operation: 'getWasserzaehlerModalDataAction'
+      operation: 'getZaehlerModalDataAction'
     });
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
@@ -1031,24 +1084,24 @@ export async function getWasserzaehlerModalDataAction(
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      logger.warn('Unauthenticated access attempt to getWasserzaehlerModalDataAction', {
+      logger.warn('Unauthenticated access attempt to getZaehlerModalDataAction', {
         nebenkostenId,
-        operation: 'getWasserzaehlerModalDataAction'
+        operation: 'getZaehlerModalDataAction'
       });
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
-    logger.info('Starting Wasserzähler modal data fetch', {
+    logger.info('Starting Zähler modal data fetch', {
       userId: user.id,
       nebenkostenId,
-      operation: 'getWasserzaehlerModalDataAction'
+      operation: 'getZaehlerModalDataAction'
     });
 
     // Try to use the optimized database function first
     const result = await withRetry(
-      () => safeRpcCall<WasserzaehlerModalData[]>(
+      () => safeRpcCall<ZaehlerModalData[]>(
         supabase,
-        'get_wasserzaehler_modal_data',
+        'get_zaehler_modal_data',
         {
           nebenkosten_id: nebenkostenId,
           user_id: user.id
@@ -1070,7 +1123,7 @@ export async function getWasserzaehlerModalDataAction(
         logger.warn('Database function not available, using fallback queries', {
           userId: user.id,
           nebenkostenId,
-          functionName: 'get_wasserzaehler_modal_data',
+          functionName: 'get_zaehler_modal_data',
           originalError
         });
 
@@ -1125,126 +1178,87 @@ export async function getWasserzaehlerModalDataAction(
         let currentReadings: any[] = [];
         let previousReadings: any[] = [];
 
-        if (apartmentIds.length > 0) {
-          // Fetch water meters once for both current and previous readings
-          const { data: waterMeters, error: metersError } = await supabase
-            .from("Zaehler")
-            .select("id, wohnung_id")
-            .in("wohnung_id", apartmentIds)
-            .eq("user_id", user.id);
+        // Fetch water meters once for both current and previous readings
+        const { data: allMeters, error: metersError } = await supabase
+          .from("Zaehler")
+          .select("id, wohnung_id, zaehler_typ, einheit, custom_id")
+          .in("wohnung_id", apartmentIds)
+          .eq("user_id", user.id);
 
-          if (!metersError && waterMeters?.length > 0) {
-            const meterIds = waterMeters.map(m => m.id);
+        if (!metersError && allMeters?.length > 0) {
+          const meterIds = allMeters.map(m => m.id);
 
-            // Fetch current period readings
-            const currentPromise = supabase
-              .from("Zaehler_Ablesungen")
-              .select("*")
-              .in("zaehler_id", meterIds)
-              .eq("user_id", user.id)
-              .gte("ablese_datum", nebenkostenData.startdatum)
-              .lte("ablese_datum", nebenkostenData.enddatum);
-
-            // Fetch previous period readings
-            const previousPromise = supabase
-              .from("Zaehler_Ablesungen")
-              .select("*")
-              .in("zaehler_id", meterIds)
-              .eq("user_id", user.id)
-              .lt("ablese_datum", nebenkostenData.startdatum)
-              .order("ablese_datum", { ascending: false });
-
-            // Execute both queries in parallel
-            const [
-              { data: currentData, error: currentError },
-              { data: previousData, error: previousError }
-            ] = await Promise.all([currentPromise, previousPromise]);
-
-            // Process current readings
-            if (!currentError && currentData) {
-              currentReadings = currentData.map(reading => {
-                const meter = waterMeters.find(m => m.id === reading.zaehler_id);
-                const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
-                return {
-                  ...reading,
-                  mieter_id: tenant?.id || ''
-                };
-              });
-            }
-
-            // Process previous readings
-            if (!previousError && previousData) {
-              previousReadings = previousData.map(reading => {
-                const meter = waterMeters.find(m => m.id === reading.zaehler_id);
-                const tenant = tenants?.find(t => t.wohnung_id === meter?.wohnung_id);
-                return {
-                  ...reading,
-                  mieter_id: tenant?.id || ''
-                };
-              });
-            }
-          }
-        }
-
-        // Get tenant IDs for legacy query
-        const tenantIds = tenants?.map(t => t.id) || [];
-
-        // If no previous readings found in new structure, try legacy table as fallback
-        if (previousReadings.length === 0 && tenantIds.length > 0) {
-          const { data: legacyReadings, error: legacyError } = await supabase
-            .from("Wasserzaehler")
+          // Fetch current period readings
+          const currentPromise = supabase
+            .from("Zaehler_Ablesungen")
             .select("*")
-            .in("mieter_id", tenantIds)
+            .in("zaehler_id", meterIds)
+            .eq("user_id", user.id)
+            .gte("ablese_datum", nebenkostenData.startdatum)
+            .lte("ablese_datum", nebenkostenData.enddatum)
+            .order("ablese_datum", { ascending: false });
+
+          // Fetch previous period readings
+          const previousPromise = supabase
+            .from("Zaehler_Ablesungen")
+            .select("*")
+            .in("zaehler_id", meterIds)
             .eq("user_id", user.id)
             .lt("ablese_datum", nebenkostenData.startdatum)
             .order("ablese_datum", { ascending: false });
 
-          if (legacyError) {
-            logger.error('Failed to fetch previous readings from legacy table', legacyError, {
-              userId: user.id,
-              nebenkostenId
-            });
-          } else if (legacyReadings) {
-            previousReadings = legacyReadings;
+          // Execute both queries in parallel
+          const [
+            { data: currentData, error: currentError },
+            { data: previousData, error: previousError }
+          ] = await Promise.all([currentPromise, previousPromise]);
+
+          // Build the response data - one entry per meter
+          const modalData: ZaehlerModalData[] = [];
+
+          for (const tenant of (tenants || [])) {
+            const tenantMeters = allMeters.filter(m => m.wohnung_id === tenant.wohnung_id);
+
+            for (const meter of tenantMeters) {
+              const currentReading = currentData?.find(r => r.zaehler_id === meter.id);
+              const previousReading = previousData?.find(r => r.zaehler_id === meter.id);
+
+              const wohnung = Array.isArray(tenant.Wohnungen) ? tenant.Wohnungen[0] : tenant.Wohnungen;
+
+              modalData.push({
+                mieter_id: tenant.id,
+                mieter_name: tenant.name,
+                wohnung_name: wohnung?.name || 'Unbekannt',
+                wohnung_groesse: wohnung?.groesse || 0,
+                zaehler_id: meter.id,
+                zaehler_typ: meter.zaehler_typ,
+                einheit: meter.einheit,
+                custom_id: meter.custom_id,
+                current_reading: currentReading ? {
+                  ablese_datum: currentReading.ablese_datum,
+                  zaehlerstand: currentReading.zaehlerstand,
+                  verbrauch: currentReading.verbrauch
+                } : null,
+                previous_reading: previousReading ? {
+                  ablese_datum: previousReading.ablese_datum,
+                  zaehlerstand: previousReading.zaehlerstand,
+                  verbrauch: previousReading.verbrauch
+                } : null
+              });
+            }
           }
+
+          logger.info('Successfully fetched Zähler modal data using fallback', {
+            userId: user.id,
+            nebenkostenId,
+            recordCount: modalData.length
+          });
+
+          return { success: true, data: modalData };
         }
-
-        // Build the response data
-        const modalData: WasserzaehlerModalData[] = (tenants || []).map(tenant => {
-          const currentReading = currentReadings?.find(r => r.mieter_id === tenant.id);
-          const previousReading = previousReadings?.find(r => r.mieter_id === tenant.id);
-
-          // Type assertion for Wohnungen since Supabase join returns it as an object, not array
-          const wohnung = Array.isArray(tenant.Wohnungen) ? tenant.Wohnungen[0] : tenant.Wohnungen;
-
-          return {
-            mieter_id: tenant.id,
-            mieter_name: tenant.name,
-            wohnung_name: wohnung?.name || 'Unbekannt',
-            wohnung_groesse: wohnung?.groesse || 0,
-            current_reading: currentReading ? {
-              ablese_datum: currentReading.ablese_datum,
-              zaehlerstand: currentReading.zaehlerstand,
-              verbrauch: currentReading.verbrauch
-            } : null,
-            previous_reading: previousReading ? {
-              ablese_datum: previousReading.ablese_datum,
-              zaehlerstand: previousReading.zaehlerstand,
-              verbrauch: previousReading.verbrauch
-            } : null
-          };
-        });
-
-        logger.info('Successfully fetched Wasserzähler modal data using fallback', {
-          userId: user.id,
-          nebenkostenId,
-          recordCount: modalData.length
-        });
-
-        return { success: true, data: modalData };
       }
 
-      logger.error('Failed to fetch Wasserzähler modal data', undefined, {
+      logger.error('Failed to fetch Zähler modal data', undefined, {
         userId: user.id,
         nebenkostenId,
         errorMessage: result.message,
@@ -1253,7 +1267,7 @@ export async function getWasserzaehlerModalDataAction(
       return result;
     }
 
-    logger.info('Successfully fetched Wasserzähler modal data using optimized function', {
+    logger.info('Successfully fetched Zähler modal data using optimized function', {
       userId: user.id,
       nebenkostenId,
       recordCount: result.data?.length || 0,
@@ -1263,14 +1277,14 @@ export async function getWasserzaehlerModalDataAction(
     return result;
 
   } catch (error: any) {
-    logger.error('Unexpected error in getWasserzaehlerModalDataAction', error, {
+    logger.error('Unexpected error in getZaehlerModalDataAction', error, {
       nebenkostenId,
-      operation: 'getWasserzaehlerModalDataAction'
+      operation: 'getZaehlerModalDataAction'
     });
 
     const userMessage = generateUserFriendlyErrorMessage(
       error,
-      'Laden der Wasserzählerdaten'
+      'Laden der Zählerdaten'
     );
 
     return {
@@ -1310,23 +1324,23 @@ export async function getWasserzaehlerModalDataAction(
  *     - `nebenkosten_data`: Complete nebenkosten info with house details
  *     - `tenants`: Array of relevant tenants with apartment info
  *     - `rechnungen`: Array of existing bills for this period
- *     - `wasserzaehler_readings`: Array of water meter readings
+ *     - `zaehler_ablesungen`: Array of meter readings
  *   - `message`: Error message if operation failed
  * 
  * @throws {Error} When nebenkosten ID is invalid or user lacks access permissions
- * 
+ *
  * @example
  * ```typescript
  * const result = await getAbrechnungModalDataAction('nebenkosten-uuid');
  * if (result.success && result.data) {
- *   const { nebenkosten_data, tenants, rechnungen, wasserzaehler_readings } = result.data;
- *   console.log(`House: ${nebenkosten_data.Haeuser.name}`);
- *   console.log(`Tenants: ${tenants.length}`);
- *   console.log(`Existing bills: ${rechnungen.length}`);
- *   console.log(`Water readings: ${wasserzaehler_readings.length}`);
+ *   const { nebenkosten_data, tenants, rechnungen, zaehler_ablesungen } = result.data;
+   console.log(`House: ${nebenkosten_data.Haeuser.name}`);
+   console.log(`Tenants: ${tenants.length}`);
+   console.log(`Existing bills: ${rechnungen.length}`);
+   console.log(`Zähler readings: ${zaehler_ablesungen.length}`);
  * }
  * ```
- * 
+ *
  * @see {@link docs/database-functions.md#get_abrechnung_modal_data} Database function documentation
  * @see {@link components/abrechnung-modal.tsx} Modal component that consumes this data
  */
@@ -1407,8 +1421,8 @@ export async function getAbrechnungModalDataAction(
         nebenkosten_data: dbResult.nebenkosten_data as Nebenkosten,
         tenants: dbResult.tenants as Mieter[],
         rechnungen: dbResult.rechnungen as Rechnung[],
-        water_meters: dbResult.water_meters as WasserZaehler[] || [],
-        water_readings: dbResult.water_readings as WasserAblesung[] || []
+        zaehler: dbResult.zaehler || [],
+        zaehler_ablesungen: dbResult.ablesungen || []
       };
 
       logger.info('Successfully fetched Abrechnung modal data (optimized)', {
@@ -1416,8 +1430,8 @@ export async function getAbrechnungModalDataAction(
         nebenkostenId,
         tenantCount: modalData.tenants.length,
         rechnungenCount: modalData.rechnungen.length,
-        waterMetersCount: modalData.water_meters.length,
-        waterReadingsCount: modalData.water_readings.length
+        zaehlerCount: modalData.zaehler.length,
+        zaehlerAblesungenCount: modalData.zaehler_ablesungen.length
       });
 
       return { success: true, data: modalData };
@@ -1533,8 +1547,8 @@ async function getAbrechnungModalDataFallback(
 
   // Fetch water meters for apartments in this house
   const apartmentIds = (tenants || []).map((t: any) => t.wohnung_id).filter(Boolean);
-  let waterMeters: WasserZaehler[] = [];
-  let waterReadings: WasserAblesung[] = [];
+  let meters: Zaehler[] = [];
+  let readings: Ablesung[] = [];
 
   if (apartmentIds.length > 0) {
     // Fetch water meters for these apartments
@@ -1551,10 +1565,10 @@ async function getAbrechnungModalDataFallback(
         apartmentIds
       });
     } else if (metersData) {
-      waterMeters = metersData as WasserZaehler[];
+      meters = metersData as Zaehler[];
 
-      // Fetch water readings for these meters within the billing period
-      const meterIds = waterMeters.map((m: { id: string }) => m.id);
+      // Fetch readings for these meters within the billing period
+      const meterIds = meters.map((m: { id: string }) => m.id);
       if (meterIds.length > 0) {
         const { data: readingsData, error: readingsError } = await supabase
           .from("Zaehler_Ablesungen")
@@ -1573,7 +1587,7 @@ async function getAbrechnungModalDataFallback(
             periodEnd: nebenkostenData.enddatum
           });
         } else if (readingsData) {
-          waterReadings = readingsData as WasserAblesung[];
+          readings = readingsData as Ablesung[];
         }
       }
     }
@@ -1593,8 +1607,8 @@ async function getAbrechnungModalDataFallback(
     } as Nebenkosten,
     tenants: tenants || [],
     rechnungen: rechnungen || [],
-    water_meters: waterMeters,
-    water_readings: waterReadings
+    zaehler: meters,
+    zaehler_ablesungen: readings
   };
 
   logger.info('Successfully fetched Abrechnung modal data (fallback)', {
@@ -1602,8 +1616,8 @@ async function getAbrechnungModalDataFallback(
     nebenkostenId,
     tenantCount: modalData.tenants.length,
     rechnungenCount: modalData.rechnungen.length,
-    waterMetersCount: modalData.water_meters.length,
-    waterReadingsCount: modalData.water_readings.length,
+    zaehlerCount: modalData.zaehler.length,
+    zaehlerAblesungenCount: modalData.zaehler_ablesungen.length,
     periodStart: nebenkostenData.startdatum,
     periodEnd: nebenkostenData.enddatum
   });
@@ -1712,7 +1726,7 @@ export async function createAbrechnungCalculationAction(
       };
     }
 
-    const { nebenkosten_data, tenants, rechnungen, water_meters, water_readings } = modalDataResult.data;
+    const { nebenkosten_data, tenants, rechnungen, zaehler, zaehler_ablesungen } = modalDataResult.data;
 
     // Validate that we have the necessary data
     if (!tenants || tenants.length === 0) {
@@ -1733,7 +1747,7 @@ export async function createAbrechnungCalculationAction(
     } = await import('@/utils/abrechnung-calculations');
 
     // Validate input data
-    const validationResult = validateCalculationData(nebenkosten_data, tenants, water_meters, water_readings);
+    const validationResult = validateCalculationData(nebenkosten_data, tenants, zaehler, zaehler_ablesungen);
     if (!validationResult.isValid) {
       logger.error('Validation failed for Abrechnung calculation', undefined, {
         userId: user.id,
@@ -1770,8 +1784,8 @@ export async function createAbrechnungCalculationAction(
           tenant,
           nebenkosten_data,
           tenants,
-          water_meters,
-          water_readings
+          zaehler,
+          zaehler_ablesungen
         );
 
         // Calculate prepayments

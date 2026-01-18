@@ -4,7 +4,7 @@ import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 
 export const runtime = 'edge'
 
-// PATCH - Update a Wasser_Ablesung
+// PATCH - Update a Zaehler_Ablesung
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -53,7 +53,7 @@ export async function PATCH(
     }
 
     // PostHog Event Tracking
-    await capturePostHogEventWithContext(user.id, 'water_reading_updated', {
+    await capturePostHogEventWithContext(user.id, 'zaehler_reading_updated', {
       reading_id: id,
       meter_id: existing.zaehler_id,
       reading_value: zaehlerstand,
@@ -63,12 +63,12 @@ export async function PATCH(
 
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Unexpected error in PATCH /api/wasser-ablesungen/[id]:', error)
+    console.error('Unexpected error in PATCH /api/zaehler-ablesungen/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// DELETE - Delete a Wasser_Ablesung
+// DELETE - Delete a Zaehler_Ablesung
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -108,7 +108,7 @@ export async function DELETE(
     }
 
     // PostHog Event Tracking
-    await capturePostHogEventWithContext(user.id, 'water_reading_deleted', {
+    await capturePostHogEventWithContext(user.id, 'zaehler_reading_deleted', {
       reading_id: id,
       meter_id: existing.zaehler_id,
       source: 'api_route'
@@ -116,7 +116,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Unexpected error in DELETE /api/wasser-ablesungen/[id]:', error)
+    console.error('Unexpected error in DELETE /api/zaehler-ablesungen/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
