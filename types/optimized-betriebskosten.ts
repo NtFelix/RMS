@@ -27,8 +27,8 @@ export type OptimizedNebenkosten = {
   nebenkostenart: string[] | null;
   betrag: number[] | null;
   berechnungsart: string[] | null;
-  wasserkosten: number | null;
-  wasserverbrauch: number | null;
+  zaehlerkosten: Record<string, number> | null; // JSONB: { [zaehlerTyp]: cost }
+  zaehlerverbrauch: Record<string, number> | null; // JSONB: { [zaehlerTyp]: usage }
   haeuser_id: string;
   user_id: string;
 

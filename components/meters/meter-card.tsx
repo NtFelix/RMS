@@ -74,7 +74,6 @@ interface MeterCardProps {
 export function getMeterIcon(zaehler_typ: ZaehlerTyp, className?: string) {
     const iconClass = className || "h-5 w-5"
     switch (zaehler_typ) {
-        case 'wasser':
         case 'kaltwasser':
             return <Droplet className={cn(iconClass, "text-blue-500")} />
         case 'warmwasser':
@@ -95,7 +94,6 @@ export function getMeterIcon(zaehler_typ: ZaehlerTyp, className?: string) {
 // Helper function to get background color based on meter type
 export function getMeterBgColor(zaehler_typ: ZaehlerTyp) {
     switch (zaehler_typ) {
-        case 'wasser':
         case 'kaltwasser':
             return "bg-blue-100 dark:bg-blue-900/30"
         case 'warmwasser':
@@ -180,7 +178,7 @@ export function MeterCard({
     onOpenAblesungen,
     onEditChange,
 }: MeterCardProps) {
-    const config = ZAEHLER_CONFIG[zaehler.zaehler_typ] || ZAEHLER_CONFIG.wasser
+    const config = ZAEHLER_CONFIG[zaehler.zaehler_typ] || ZAEHLER_CONFIG.kaltwasser
     const einheit = zaehler.einheit || config.einheit
     const isEditing = editingMeter?.id === zaehler.id
 

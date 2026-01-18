@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { FileDown } from "lucide-react"
 import { Nebenkosten } from "@/lib/data-fetching"
+import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types"
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten"
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { SummaryCards } from "@/components/common/summary-cards"
@@ -166,30 +167,36 @@ export function OperatingCostsOverviewModal({
           }
         })
 
-      // Water costs section if available
-      if (nebenkosten.wasserkosten && nebenkosten.wasserkosten > 0) {
-        const finalY = (doc as any).lastAutoTable.finalY + 15
+      // Meter costs section if zaehlerkosten available
+      if (nebenkosten.zaehlerkosten && Object.keys(nebenkosten.zaehlerkosten).length > 0) {
+        let meterY = (doc as any).lastAutoTable.finalY + 15
 
         doc.setFontSize(12)
         doc.setFont("helvetica", "bold")
-        doc.text("Wasserkosten", 20, finalY)
+        doc.text("Zählerkosten", 20, meterY)
+        meterY += 8
 
-        let waterY = finalY + 8
         doc.setFontSize(10)
         doc.setFont("helvetica", "normal")
 
-        if (typeof nebenkosten.wasserverbrauch === 'number') {
-          doc.text(`Gesamtverbrauch: ${nebenkosten.wasserverbrauch} m³`, 20, waterY)
-          waterY += 6
-        }
+        Object.entries(nebenkosten.zaehlerkosten).forEach(([typ, kosten]) => {
+          const config = ZAEHLER_CONFIG[typ as ZaehlerTyp]
+          const label = config?.label || typ
+          const einheit = config?.einheit || 'm³'
+          const verbrauch = nebenkosten.zaehlerverbrauch?.[typ]
 
-        doc.text(`Gesamtkosten: ${formatCurrency(nebenkosten.wasserkosten)}`, 20, waterY)
-        waterY += 6
-
-        if (nebenkosten.wasserverbrauch && nebenkosten.wasserverbrauch > 0) {
-          const costPerCubicMeter = nebenkosten.wasserkosten / nebenkosten.wasserverbrauch
-          doc.text(`Kosten pro m³: ${formatCurrency(costPerCubicMeter)}`, 20, waterY)
-        }
+          doc.text(`${label}: ${formatCurrency(kosten)}`, 20, meterY)
+          meterY += 5
+          if (typeof verbrauch === 'number') {
+            doc.text(`  Verbrauch: ${verbrauch} ${einheit}`, 20, meterY)
+            meterY += 5
+            if (verbrauch > 0) {
+              doc.text(`  Kosten pro ${einheit}: ${formatCurrency(kosten / verbrauch)}`, 20, meterY)
+              meterY += 5
+            }
+          }
+          meterY += 2
+        })
       }
 
       // Generate filename
@@ -280,39 +287,34 @@ export function OperatingCostsOverviewModal({
             </Table>
           </div>
 
-          {/* Water costs section */}
+          {/* Meter costs section */}
           <div className="rounded-2xl border p-4">
-            <h3 className="font-semibold mb-4">Wasserkosten</h3>
-            {(nebenkosten.wasserkosten && nebenkosten.wasserkosten > 0) || typeof nebenkosten.wasserverbrauch === 'number' ? (
+            <h3 className="font-semibold mb-4">Zählerkosten</h3>
+            {(nebenkosten.zaehlerkosten && Object.keys(nebenkosten.zaehlerkosten).length > 0) ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {/* Gesamtverbrauch */}
-                <div>
-                  <p className="text-sm text-muted-foreground">Gesamtverbrauch</p>
-                  <p className="font-medium">
-                    {typeof nebenkosten.wasserverbrauch === 'number'
-                      ? `${nebenkosten.wasserverbrauch} m³`
-                      : '-'}
-                  </p>
-                </div>
-                {/* Gesamtkosten */}
-                <div>
-                  <p className="text-sm text-muted-foreground">Gesamtkosten</p>
-                  <p className="font-medium">
-                    {formatCurrency(nebenkosten.wasserkosten)}
-                  </p>
-                </div>
-                {/* Kosten pro m³ */}
-                <div>
-                  <p className="text-sm text-muted-foreground">Kosten pro m³</p>
-                  <p className="font-medium">
-                    {(nebenkosten.wasserkosten && nebenkosten.wasserkosten > 0 && nebenkosten.wasserverbrauch && nebenkosten.wasserverbrauch > 0)
-                      ? formatCurrency(nebenkosten.wasserkosten / nebenkosten.wasserverbrauch)
-                      : '-'}
-                  </p>
-                </div>
+                {Object.entries(nebenkosten.zaehlerkosten).map(([typ, kosten]) => {
+                  const config = ZAEHLER_CONFIG[typ as ZaehlerTyp]
+                  const label = config?.label || typ
+                  const einheit = config?.einheit || 'm³'
+                  const verbrauch = nebenkosten.zaehlerverbrauch?.[typ]
+                  return (
+                    <div key={typ} className="space-y-1">
+                      <p className="text-sm font-medium">{label}</p>
+                      <p className="text-sm text-muted-foreground">Kosten: {formatCurrency(kosten)}</p>
+                      {typeof verbrauch === 'number' && (
+                        <>
+                          <p className="text-sm text-muted-foreground">Verbrauch: {verbrauch} {einheit}</p>
+                          {verbrauch > 0 && (
+                            <p className="text-sm text-muted-foreground">pro {einheit}: {formatCurrency(kosten / verbrauch)}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             ) : (
-              <p className="text-muted-foreground italic">Keine Wasserdaten erfasst.</p>
+              <p className="text-muted-foreground italic">Keine Zählerdaten erfasst.</p>
             )}
           </div>
         </div>

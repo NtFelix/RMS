@@ -44,9 +44,10 @@ import { toast } from "@/hooks/use-toast" // For notifications
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { useRouter } from "next/navigation"
+import { sumAllZaehlerValues } from "@/lib/zaehler-utils"
 
 // Define sortable fields for operating costs table
-type OperatingCostsSortKey = "zeitraum" | "haus" | "wasserkosten" | ""
+type OperatingCostsSortKey = "zeitraum" | "haus" | "zaehlerkosten" | ""
 type SortDirection = "asc" | "desc"
 
 interface OperatingCostsTableProps {
@@ -106,9 +107,10 @@ export function OperatingCostsTable({
         } else if (sortKey === 'haus') {
           valA = a.haus_name || ''
           valB = b.haus_name || ''
-        } else if (sortKey === 'wasserkosten') {
-          valA = a.wasserkosten || 0
-          valB = b.wasserkosten || 0
+        } else if (sortKey === 'zaehlerkosten') {
+          // Sum all meter costs from JSONB
+          valA = sumAllZaehlerValues(a.zaehlerkosten)
+          valB = sumAllZaehlerValues(b.zaehlerkosten)
         } else {
           return 0
         }
@@ -307,7 +309,7 @@ export function OperatingCostsTable({
     const selectedItemsData = nebenkosten.filter(item => selectedItems.has(item.id))
 
     // Create CSV header
-    const headers = ['Zeitraum', 'Haus', 'Kostenarten', 'Beträge', 'Berechnungsarten', 'Wasserkosten']
+    const headers = ['Zeitraum', 'Haus', 'Kostenarten', 'Beträge', 'Berechnungsarten', 'Zählerkosten']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
 
     // Create CSV rows with proper escaping
@@ -325,7 +327,8 @@ export function OperatingCostsTable({
         kostenarten,
         betraege,
         berechnungsarten,
-        formatCurrency(item.wasserkosten)
+        // Sum zaehlerkosten JSONB values
+        formatCurrency(sumAllZaehlerValues(item.zaehlerkosten) || null)
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
@@ -435,7 +438,7 @@ export function OperatingCostsTable({
                 <TableHeaderCell sortKey="" className="w-[140px] dark:text-[#f3f4f6]" icon={FileText} sortable={false}>Kostenarten</TableHeaderCell>
                 <TableHeaderCell sortKey="" className="w-[150px] dark:text-[#f3f4f6]" icon={Euro} sortable={false}>Beträge</TableHeaderCell>
                 <TableHeaderCell sortKey="" className="w-[160px] dark:text-[#f3f4f6]" icon={Calculator} sortable={false}>Berechnungsarten</TableHeaderCell>
-                <TableHeaderCell sortKey="wasserkosten" className="w-[130px] dark:text-[#f3f4f6]" icon={Droplets}>Wasserkosten</TableHeaderCell>
+                <TableHeaderCell sortKey="zaehlerkosten" className="w-[130px] dark:text-[#f3f4f6]" icon={Droplets}>Zählerkosten</TableHeaderCell>
                 <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
               </TableRow>
             </TableHeader>
@@ -513,7 +516,7 @@ export function OperatingCostsTable({
                               </Badge>
                             ) : '-'}
                           </TableCell>
-                          <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(item.wasserkosten)}</TableCell>
+                          <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(sumAllZaehlerValues(item.zaehlerkosten) || null)}</TableCell>
                           <TableCell
                             className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                             onClick={(event) => event.stopPropagation()}

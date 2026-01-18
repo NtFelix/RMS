@@ -52,7 +52,8 @@ export type NebenkostenFormData = {
   nebenkostenart: string[];
   betrag: number[];
   berechnungsart: string[];
-  wasserkosten?: number | null;
+  wasserkosten?: number | null; // Legacy
+  zaehlerkosten?: Record<string, number> | null; // New JSONB: { [zaehlerTyp]: cost }
   haeuser_id: string;
 };
 
