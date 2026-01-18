@@ -28,7 +28,7 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
     }
 
     // Try to use optimized database function first
-    const { data, error } = await supabase.rpc('get_wasser_zaehler_for_haus', {
+    const { data, error } = await supabase.rpc('get_zaehler_for_haus', {
       haus_id_param: hausId,
       user_id_param: user.id
     });
@@ -47,7 +47,7 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
 
       if (isFunctionNotFound) {
         console.log(`[${new Date().toISOString()}] [WARN] Database function not available, using fallback queries\nContext: ${JSON.stringify({
-          functionName: 'get_wasser_zaehler_for_haus',
+          functionName: 'get_zaehler_for_haus',
           hausId,
           userId: user.id,
           errorCode: error.code,
@@ -76,24 +76,24 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
     const result = data[0];
 
     // Log successful RPC call
-    console.log(`[${new Date().toISOString()}] [INFO] RPC call completed: get_wasser_zaehler_for_haus\nContext: ${JSON.stringify({
-      functionName: 'get_wasser_zaehler_for_haus',
+    console.log(`[${new Date().toISOString()}] [INFO] RPC call completed: get_zaehler_for_haus\nContext: ${JSON.stringify({
+      functionName: 'get_zaehler_for_haus',
       executionTime,
       performanceLevel: executionTime < 200 ? 'fast' : executionTime < 500 ? 'medium' : 'slow',
       success: true,
       hausId,
       userId: user.id,
       wohnungenCount: result.wohnungen?.length || 0,
-      metersCount: result.water_meters?.length || 0,
-      readingsCount: result.water_readings?.length || 0
+      metersCount: result.meters?.length || 0,
+      readingsCount: result.readings?.length || 0
     }, null, 2)}`);
 
     return {
       success: true,
       data: {
         wohnungen: result.wohnungen || [],
-        waterMeters: result.water_meters || [],
-        waterReadings: result.water_readings || [],
+        waterMeters: result.meters || [],
+        waterReadings: result.readings || [],
         mieter: result.mieter || []
       }
     };
@@ -283,10 +283,10 @@ async function getWasserZaehlerForHausFallback(
 }
 
 /**
- * Fetch water meter data for a specific apartment
+ * Fetch meter data for a specific apartment
  * Uses optimized database function for better performance
  */
-export async function getWasserZaehlerDataAction(wohnungId: string) {
+export async function getZaehlerDataAction(wohnungId: string) {
   const supabase = await createClient();
 
   try {
@@ -296,13 +296,13 @@ export async function getWasserZaehlerDataAction(wohnungId: string) {
     }
 
     // Use database function for optimized data fetching
-    const { data, error } = await supabase.rpc('get_wasser_zaehler_data', {
+    const { data, error } = await supabase.rpc('get_zaehler_data', {
       wohnung_id_param: wohnungId,
       user_id_param: user.id
     });
 
     if (error) {
-      console.error("Error fetching water meter data:", error);
+      console.error("Error fetching meter data:", error);
       return { success: false, message: error.message };
     }
 
@@ -316,21 +316,24 @@ export async function getWasserZaehlerDataAction(wohnungId: string) {
       success: true,
       data: {
         wohnung: result.wohnung_data,
-        waterMeters: result.water_meters || [],
-        waterReadings: result.water_readings || []
+        meters: result.meters || [],
+        readings: result.readings || []
       }
     };
   } catch (error: any) {
-    console.error("Unexpected error in getWasserZaehlerDataAction:", error);
+    console.error("Unexpected error in getZaehlerDataAction:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
 
+// Legacy alias for backward compatibility
+export const getWasserZaehlerDataAction = getZaehlerDataAction;
+
 /**
- * Fetch water readings for a specific meter
+ * Fetch readings for a specific meter
  * Uses optimized database function
  */
-export async function getWasserAblesenDataAction(meterId: string) {
+export async function getAblesungenForZaehlerAction(zaehlerId: string) {
   const supabase = await createClient();
 
   try {
@@ -339,13 +342,13 @@ export async function getWasserAblesenDataAction(meterId: string) {
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
-    const { data, error } = await supabase.rpc('get_wasser_ablesungen_for_meter', {
-      meter_id_param: meterId,
+    const { data, error } = await supabase.rpc('get_ablesungen_for_zaehler', {
+      zaehler_id_param: zaehlerId,
       user_id_param: user.id
     });
 
     if (error) {
-      console.error("Error fetching water readings:", error);
+      console.error("Error fetching meter readings:", error);
       return { success: false, message: error.message };
     }
 
@@ -358,15 +361,18 @@ export async function getWasserAblesenDataAction(meterId: string) {
     return {
       success: true,
       data: {
-        meter: result.meter_data,
+        zaehler: result.zaehler_data,
         readings: result.readings || []
       }
     };
   } catch (error: any) {
-    console.error("Unexpected error in getWasserAblesenDataAction:", error);
+    console.error("Unexpected error in getAblesungenForZaehlerAction:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
+
+// Legacy alias for backward compatibility
+export const getWasserAblesenDataAction = getAblesungenForZaehlerAction;
 
 /**
  * Create a new water meter

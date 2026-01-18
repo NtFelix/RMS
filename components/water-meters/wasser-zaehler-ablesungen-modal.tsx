@@ -15,7 +15,6 @@ import { SearchInput } from "@/components/ui/search-input";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import {
-  Droplet,
   Building2,
   TrendingUp,
   TrendingDown,
@@ -35,6 +34,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { WasserZaehlerImportModal } from "./wasser-zaehler-import-modal";
 import { WasserZaehler as SharedWasserZaehler, WasserAblesung } from "@/lib/data-fetching";
 import { formatNumber } from "@/utils/format";
+import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types";
+import { getMeterIcon, getMeterBgColor } from "@/components/meters/meter-card";
 
 // Local interface for UI presentation, compatible with SharedWasserZaehler
 interface WasserZaehler {
@@ -43,6 +44,8 @@ interface WasserZaehler {
   wohnung_id: string; // In UI we expect it to be present if we display it
   erstellungsdatum: string;
   eichungsdatum: string | null;
+  zaehler_typ?: ZaehlerTyp;
+  einheit?: string;
 }
 
 /**
@@ -87,6 +90,8 @@ interface WasserZaehlerInfo {
   mieter_id: string | null;
   mieter_name: string | null;
   reading_count: number;
+  zaehler_typ: ZaehlerTyp;
+  einheit: string;
   latest_reading: {
     ablese_datum: string;
     zaehlerstand: number;
@@ -187,6 +192,9 @@ export function WasserZaehlerAblesenModal({
         const latestReading = sortedReadings[0];
         const previousReading = sortedReadings[1];
 
+        const zaehlerTyp: ZaehlerTyp = (zaehler as any).zaehler_typ || 'kaltwasser';
+        const config = ZAEHLER_CONFIG[zaehlerTyp] || ZAEHLER_CONFIG.kaltwasser;
+
         return {
           zaehler_id: zaehler.id,
           custom_id: zaehler.custom_id,
@@ -195,6 +203,8 @@ export function WasserZaehlerAblesenModal({
           mieter_id: mieter?.id || null,
           mieter_name: mieter?.name || null,
           reading_count: readings.length,
+          zaehler_typ: zaehlerTyp,
+          einheit: (zaehler as any).einheit || config.einheit,
           latest_reading: latestReading ? {
             ablese_datum: latestReading.ablese_datum,
             zaehlerstand: latestReading.zaehlerstand,
@@ -225,7 +235,9 @@ export function WasserZaehlerAblesenModal({
     openAblesungenModal(
       zaehler.zaehler_id,
       zaehler.wohnung_name,
-      zaehler.custom_id || undefined
+      zaehler.custom_id || undefined,
+      zaehler.zaehler_typ,
+      zaehler.einheit
     );
   };
 
@@ -262,13 +274,13 @@ export function WasserZaehlerAblesenModal({
         <DialogContent className="sm:max-w-[650px] md:max-w-[750px] max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
-              Wasserzählerstände für {hausName} - {isoToGermanDate(startdatum)} bis {isoToGermanDate(enddatum)}
+              Zähler für {hausName} - {isoToGermanDate(startdatum)} bis {isoToGermanDate(enddatum)}
             </DialogTitle>
             <DialogDescription>
-              Geben Sie die Zählerstände für jeden Wasserzähler ein. Der Verbrauch wird automatisch berechnet.
+              Verwalten Sie die Zählerstände für alle Zählertypen. Der Verbrauch wird automatisch berechnet.
               {filteredOutCount > 0 && (
                 <span className="block mt-2 text-amber-600 dark:text-amber-500 font-medium">
-                  ⚠️ {filteredOutCount} Wasserzähler {filteredOutCount === 1 ? 'wurde' : 'wurden'} ausgeblendet, da das Eichungsdatum vor dem Abrechnungszeitraum liegt.
+                  ⚠️ {filteredOutCount} Zähler {filteredOutCount === 1 ? 'wurde' : 'wurden'} ausgeblendet, da das Eichungsdatum vor dem Abrechnungszeitraum liegt.
                 </span>
               )}
             </DialogDescription>
@@ -279,7 +291,7 @@ export function WasserZaehlerAblesenModal({
             {zaehlerList.length > 0 && (
               <div className="flex gap-2 items-center">
                 <SearchInput
-                  placeholder="Wohnung, Mieter oder Zähler-ID suchen..."
+                  placeholder="Wohnung, Mieter, Zähler-ID oder Typ suchen..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onClear={() => setSearchQuery("")}
@@ -328,7 +340,7 @@ export function WasserZaehlerAblesenModal({
                             <div>
                               <h3 className="font-semibold text-base">{wohnungName}</h3>
                               <p className="text-xs text-muted-foreground">
-                                {entries.length} {entries.length === 1 ? 'Wasserzähler' : 'Wasserzähler'}
+                                {entries.length} {entries.length === 1 ? 'Zähler' : 'Zähler'}
                               </p>
                             </div>
                           </div>
@@ -336,7 +348,7 @@ export function WasserZaehlerAblesenModal({
                             variant="secondary"
                             className="flex items-center gap-1.5 px-3 py-1.5"
                           >
-                            <Droplet className="h-3.5 w-3.5" />
+                            <Gauge className="h-3.5 w-3.5" />
                             <span className="font-medium">{entries.length}</span>
                           </Badge>
                         </div>
@@ -357,14 +369,17 @@ export function WasserZaehlerAblesenModal({
                               <CardContent className="p-4">
                                 <div className="flex items-start justify-between gap-4">
                                   <div className="flex items-start gap-3 flex-1 min-w-0">
-                                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10">
-                                      <Gauge className="h-6 w-6 text-primary" />
+                                    <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 border border-primary/10 ${getMeterBgColor(entry.zaehler_typ)}`}>
+                                      {getMeterIcon(entry.zaehler_typ, "h-6 w-6")}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap mb-2">
                                         <h4 className="font-semibold text-base">
-                                          {entry.custom_id ? `Zähler ${entry.custom_id}` : 'Unbenannter Zähler'}
+                                          {entry.custom_id ? `${entry.custom_id}` : 'Unbenannter Zähler'}
                                         </h4>
+                                        <Badge variant="outline" className="text-xs bg-white dark:bg-zinc-900">
+                                          {ZAEHLER_CONFIG[entry.zaehler_typ]?.label || 'Zähler'}
+                                        </Badge>
                                         {entry.mieter_name && (
                                           <Badge variant="outline" className="text-xs">
                                             <User className="h-3 w-3 mr-1" />
@@ -398,11 +413,11 @@ export function WasserZaehlerAblesenModal({
                                           </Badge>
                                           <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
                                             <Gauge className="h-3 w-3" />
-                                            {formatNumber(entry.latest_reading.zaehlerstand)} m³
+                                            {formatNumber(entry.latest_reading.zaehlerstand)} {entry.einheit}
                                           </Badge>
                                           <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
-                                            <Droplet className="h-3 w-3" />
-                                            {formatNumber(entry.latest_reading.verbrauch)} m³
+                                            {getMeterIcon(entry.zaehler_typ, "h-3 w-3")}
+                                            {formatNumber(entry.latest_reading.verbrauch)} {entry.einheit}
                                           </Badge>
                                           {consumptionChange !== null && !isNaN(consumptionChange) && (
                                             <Badge
@@ -431,7 +446,7 @@ export function WasserZaehlerAblesenModal({
                                     onClick={() => handleOpenAblesenModal(entry)}
                                     className="gap-2 flex-shrink-0"
                                   >
-                                    <Droplet className="h-4 w-4" />
+                                    {getMeterIcon(entry.zaehler_typ, "h-4 w-4")}
                                     <span className="hidden sm:inline">Verwalten</span>
                                   </Button>
                                 </div>
@@ -446,8 +461,8 @@ export function WasserZaehlerAblesenModal({
               )
             ) : (
               <div className="flex flex-col justify-center items-center h-40 gap-3">
-                <Home className="h-12 w-12 text-muted-foreground/50" />
-                <p className="text-muted-foreground">Keine Wasserzähler für dieses Haus gefunden.</p>
+                <Gauge className="h-12 w-12 text-muted-foreground/50" />
+                <p className="text-muted-foreground">Keine Zähler für dieses Haus gefunden.</p>
               </div>
             )}
           </div>

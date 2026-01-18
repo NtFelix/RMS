@@ -590,7 +590,7 @@ export function OperatingCostsTable({
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <Droplets className="h-4 w-4" />
-                          <span>Wasserzähler</span>
+                          <span>Zähler</span>
                         </ContextMenuItem>
                         <ContextMenuItem
                           onClick={(e) => {
