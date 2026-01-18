@@ -136,7 +136,8 @@ export type WasserZaehler = Zaehler;
 export type WasserAblesung = ZaehlerAblesung;
 
 // Legacy Wasserzaehler type (old structure with nebenkosten_id)
-export type Wasserzaehler = {
+// Named explicitly to avoid confusion with WasserZaehler alias
+export type LegacyWasserzaehler = {
     id: string;
     nebenkosten_id: string;
     mieter_id: string;
@@ -145,6 +146,9 @@ export type Wasserzaehler = {
     verbrauch: number;
     user_id: string;
 };
+
+// Backward compatibility alias
+export type Wasserzaehler = LegacyWasserzaehler;
 
 export type WasserzaehlerFormEntry = {
     id: string;

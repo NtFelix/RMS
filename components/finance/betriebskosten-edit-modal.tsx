@@ -492,10 +492,9 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
         // Set zaehlerkosten if available (from legacy wasserkosten or new zaehlerkosten)
         if (latest.zaehlerkosten) {
-          const kostenStrings: Record<string, string> = {};
-          Object.entries(latest.zaehlerkosten).forEach(([key, value]) => {
-            kostenStrings[key] = String(value);
-          });
+          const kostenStrings = Object.fromEntries(
+            Object.entries(latest.zaehlerkosten).map(([key, value]) => [key, String(value)])
+          );
           setZaehlerkosten(kostenStrings);
         } else if (latest.wasserkosten) {
           // Fallback to legacy wasserkosten
@@ -755,24 +754,19 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       return;
     }
 
-    // Parse all zaehlerkosten values
-    const parsedZaehlerkosten: Record<string, number> = {};
-    let hasInvalidZaehlerkosten = false;
-    Object.entries(zaehlerkosten).forEach(([key, value]) => {
-      if (value && value.trim() !== '') {
-        const parsed = parseFloat(value);
-        if (isNaN(parsed)) {
-          hasInvalidZaehlerkosten = true;
-        } else {
-          parsedZaehlerkosten[key] = parsed;
-        }
-      }
-    });
+    // Parse and validate zaehlerkosten values
+    const nonEmptyEntries = Object.entries(zaehlerkosten).filter(([, value]) => value?.trim());
+    const hasInvalidZaehlerkosten = nonEmptyEntries.some(([, value]) => isNaN(parseFloat(value)));
+
     if (hasInvalidZaehlerkosten) {
       toast({ title: "Ungültige Eingabe", description: "Zählerkosten müssen gültige Zahlen sein.", variant: "destructive" });
       setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
     }
+
+    const parsedZaehlerkosten = Object.fromEntries(
+      nonEmptyEntries.map(([key, value]) => [key, parseFloat(value)])
+    );
 
     if (costItems.length === 0) {
       toast({ title: "Validierungsfehler", description: "Mindestens ein Kostenpunkt muss hinzugefügt werden.", variant: "destructive" });

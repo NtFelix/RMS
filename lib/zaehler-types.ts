@@ -13,6 +13,9 @@ export type ZaehlerTyp =
     | 'strom'            // Electricity
     | 'gas';             // Gas
 
+// Water-related meter types for cost calculations
+export const WATER_METER_TYPES: ZaehlerTyp[] = ['kaltwasser', 'warmwasser'];
+
 // Configuration for each meter type
 export const ZAEHLER_CONFIG: Record<ZaehlerTyp, {
     label: string;
