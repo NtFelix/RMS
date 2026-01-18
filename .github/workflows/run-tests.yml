@@ -43,7 +43,7 @@ jobs:
   
   # BUILD JOB - Compiles Next.js application and caches the result
   build:
-    name: 🏗️ Build App
+    name: Build Application
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -107,7 +107,7 @@ jobs:
 
   # INSTALL PLAYWRIGHT - Runs in parallel with build
   install-playwright:
-    name: 🎭 Setup Playwright
+    name: Install Playwright Browsers
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -155,7 +155,7 @@ jobs:
 
   # TYPE CHECK - Conceptually part of Prep
   type-check:
-    name: 🔍 Type Check
+    name: TypeScript Check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     
@@ -187,7 +187,7 @@ jobs:
 
   # DISCOVERY - Conceptually part of Prep
   setup:
-    name: 📂 Discovery
+    name: Discover & Filter Test Files
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -471,7 +471,7 @@ jobs:
 
   # E2E TESTS - Cleanly aligned after build and setup
   e2e-test:
-    name: 🎭 E2E Test
+    name: E2E Tests
     runs-on: ubuntu-latest
     needs: [build, install-playwright, setup]
     timeout-minutes: 30
@@ -544,7 +544,7 @@ jobs:
 
   # UNIT TESTS - Aligned vertically with E2E
   test:
-    name: 🧪 Unit Test (${{ matrix.test-group }})
+    name: Run Tests (Group ${{ matrix.test-group }})
     runs-on: ubuntu-latest
     needs: [setup, build] # Depends on build to align with e2e-test visually
     if: ${{ needs.setup.outputs.total-files != '0' }}
