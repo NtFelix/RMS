@@ -490,15 +490,12 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
         // Process cost items and rechnungen
         await processCostItems();
 
-        // Set zaehlerkosten if available (from legacy wasserkosten or new zaehlerkosten)
+        // Set zaehlerkosten if available
         if (latest.zaehlerkosten) {
           const kostenStrings = Object.fromEntries(
             Object.entries(latest.zaehlerkosten).map(([key, value]) => [key, String(value)])
           );
           setZaehlerkosten(kostenStrings);
-        } else if (latest.wasserkosten) {
-          // Fallback to legacy wasserkosten
-          setZaehlerkosten({ wasser: latest.wasserkosten.toString() });
         }
 
         // Set the date range if available
@@ -615,12 +612,11 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               setStartdatum(fetchedData.startdatum ? isoToGermanDate(fetchedData.startdatum) : "");
               setEnddatum(fetchedData.enddatum ? isoToGermanDate(fetchedData.enddatum) : "");
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
-              // Load zaehlerkosten (prefer new format, fallback to legacy)
+              // Load zaehlerkosten
               if (fetchedData.zaehlerkosten) {
-                const kostenStrings: Record<string, string> = {};
-                Object.entries(fetchedData.zaehlerkosten).forEach(([key, value]) => {
-                  kostenStrings[key] = String(value);
-                });
+                const kostenStrings = Object.fromEntries(
+                  Object.entries(fetchedData.zaehlerkosten).map(([key, value]) => [key, String(value)])
+                );
                 setZaehlerkosten(kostenStrings);
               } else {
                 setZaehlerkosten({});
