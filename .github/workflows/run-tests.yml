@@ -38,10 +38,12 @@ env:
 
 jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  # BUILD JOB - Compiles Next.js application and caches the result
+  # 1. PREPARATION PHASE (Parallel)
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  # BUILD JOB - Compiles Next.js application and caches the result
   build:
-    name: Build Application
+    name: 🏗️ Build App
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -61,14 +63,11 @@ jobs:
       - name: Generate cache keys
         id: cache-key
         run: |
-          # Content-based build cache key for .next folder
           BUILD_HASH=$(find app components lib hooks types utils public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" -o -name "*.json" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
           PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json', 'tailwind.config.ts') }}"
           
           echo "build-key=build-${{ runner.os }}-${BUILD_HASH}-${PACKAGE_HASH}" >> $GITHUB_OUTPUT
           echo "node-key=${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
-          
-          echo "Build cache key generated"
 
       - name: Restore build cache
         id: build-cache
@@ -94,13 +93,7 @@ jobs:
 
       - name: Build application
         if: steps.build-cache.outputs.cache-hit != 'true'
-        run: |
-          echo "🏗️ Building Next.js application..."
-          START_TIME=$(date +%s)
-          npm run build
-          END_TIME=$(date +%s)
-          BUILD_TIME=$((END_TIME - START_TIME))
-          echo "✅ Build completed in ${BUILD_TIME}s"
+        run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
@@ -112,20 +105,9 @@ jobs:
           path: .next
           key: ${{ steps.cache-key.outputs.build-key }}
 
-      - name: Build summary
-        run: |
-          echo "### 🏗️ Build Status" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Cache | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Build (.next) | ${{ steps.build-cache.outputs.cache-hit == 'true' && '✅ Restored from cache' || '🔨 Built fresh' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| node_modules | ${{ steps.node-cache.outputs.cache-hit == 'true' && '✅ Restored from cache' || '📦 Installed fresh' }} |" >> $GITHUB_STEP_SUMMARY
-
-  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # INSTALL PLAYWRIGHT - Runs in parallel with build
-  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   install-playwright:
-    name: Install Playwright Browsers
+    name: 🎭 Setup Playwright
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -143,8 +125,7 @@ jobs:
 
       - name: Generate Playwright cache key
         id: playwright-key
-        run: |
-          echo "key=${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
+        run: echo "key=${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
 
       - name: Cache Playwright browsers
         id: playwright-cache
@@ -170,24 +151,11 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          echo "🎭 Installing Playwright browsers..."
-          npx playwright install --with-deps
-          echo "✅ Playwright browsers installed"
+        run: npx playwright install --with-deps
 
-      - name: Playwright summary
-        run: |
-          echo "### 🎭 Playwright Status" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Browsers | ${{ steps.playwright-cache.outputs.cache-hit == 'true' && '✅ Restored from cache' || '📥 Downloaded fresh' }} |" >> $GITHUB_STEP_SUMMARY
-
-  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  # TYPE CHECK - Runs in parallel with build (doesn't need build cache)
-  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # TYPE CHECK - Conceptually part of Prep
   type-check:
-    name: TypeScript Check
+    name: 🔍 Type Check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     
@@ -215,27 +183,11 @@ jobs:
         run: npm ci --prefer-offline
 
       - name: Run TypeScript compiler
-        run: |
-          echo "🔍 Running TypeScript type check..."
-          START_TIME=$(date +%s)
-          npx tsc --noEmit --pretty
-          END_TIME=$(date +%s)
-          CHECK_TIME=$((END_TIME - START_TIME))
-          echo "✅ Type check passed in ${CHECK_TIME}s"
+        run: npx tsc --noEmit --pretty
 
-      - name: Type check summary
-        if: always()
-        run: |
-          echo "### 🔍 TypeScript Check" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ **No type errors found**" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Type errors detected** - check the logs above" >> $GITHUB_STEP_SUMMARY
-          fi
-  # Setup job to dynamically discover test files and determine which need to run
+  # DISCOVERY - Conceptually part of Prep
   setup:
-    name: Discover & Filter Test Files
+    name: 📂 Discovery
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -514,12 +466,14 @@ jobs:
           echo "files-to-test=$TEST_FILES_TO_RUN" >> $GITHUB_OUTPUT
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  # E2E TESTS - Depends on build and install-playwright jobs
+  # 2. VERIFICATION PHASE (Sequential to Prep)
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # E2E TESTS - Cleanly aligned after build and setup
   e2e-test:
-    name: E2E Tests
+    name: 🎭 E2E Test
     runs-on: ubuntu-latest
-    needs: [build, install-playwright]
+    needs: [build, install-playwright, setup]
     timeout-minutes: 30
     
     steps:
@@ -558,92 +512,16 @@ jobs:
           key: ${{ needs.install-playwright.outputs.playwright-cache-key }}
           fail-on-cache-miss: true
 
-      - name: Display cache status
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📦 E2E Test Cache Status"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "  Build cache: ✅ Restored from build job"
-          echo "  node_modules: ✅ Restored from build job"
-          echo "  Playwright browsers: ✅ Restored from install-playwright job"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
       # Install system dependencies for Playwright (not included in browser cache)
       - name: Install Playwright system dependencies
         run: npx playwright install-deps
 
       - name: Run Playwright tests
         id: playwright
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🎭 Running Playwright E2E Tests"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "  Browsers: Chromium, Firefox, WebKit"
-          echo "  Base URL: http://localhost:3000"
-          echo "  Workers: 1 (CI mode)"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          START_TIME=$(date +%s)
-          npx playwright test --reporter=list 2>&1 | tee playwright-output.log
-          TEST_EXIT_CODE=${PIPESTATUS[0]}
-          END_TIME=$(date +%s)
-          TEST_TIME=$((END_TIME - START_TIME))
-          echo "test_time=$TEST_TIME" >> $GITHUB_OUTPUT
-          echo "exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
-          
-          # Parse results from output
-          PASSED=$(grep -oP '\d+(?= passed)' playwright-output.log | tail -1 || echo "0")
-          FAILED=$(grep -oP '\d+(?= failed)' playwright-output.log | tail -1 || echo "0")
-          SKIPPED=$(grep -oP '\d+(?= skipped)' playwright-output.log | tail -1 || echo "0")
-          
-          echo "passed=$PASSED" >> $GITHUB_OUTPUT
-          echo "failed=$FAILED" >> $GITHUB_OUTPUT
-          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
-          
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📊 E2E Test Results"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "  ✅ Passed:  $PASSED"
-          echo "  ❌ Failed:  $FAILED"
-          echo "  ⏭️  Skipped: $SKIPPED"
-          echo "  ⏱️  Duration: ${TEST_TIME}s"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
-          exit $TEST_EXIT_CODE
+        run: npx playwright test --reporter=list
         env:
           CI: true
           NODE_ENV: production
-
-      - name: Generate E2E summary
-        if: always()
-        run: |
-          echo "## 🎭 E2E Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ steps.playwright.outputs.exit_code }}" = "0" ]; then
-            echo "### ✅ All E2E tests passed!" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ❌ Some E2E tests failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| ✅ Passed | ${{ steps.playwright.outputs.passed || '0' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ❌ Failed | ${{ steps.playwright.outputs.failed || '0' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⏭️ Skipped | ${{ steps.playwright.outputs.skipped || '0' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⏱️ Test Duration | ${{ steps.playwright.outputs.test_time || '0' }}s |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🏗️ Build | ✅ Restored from build job |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Cache Status" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Cache | Source |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Build (.next) | ✅ build job |" >> $GITHUB_STEP_SUMMARY
-          echo "| node_modules | ✅ build job |" >> $GITHUB_STEP_SUMMARY
-          echo "| Playwright browsers | ✅ install-playwright job |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📎 Download the [Playwright Report](../artifacts) for detailed results and traces." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -664,10 +542,11 @@ jobs:
           if-no-files-found: ignore
 
 
+  # UNIT TESTS - Aligned vertically with E2E
   test:
-    name: Run Tests (Group ${{ matrix.test-group }})
+    name: 🧪 Unit Test (${{ matrix.test-group }})
     runs-on: ubuntu-latest
-    needs: setup
+    needs: [setup, build] # Depends on build to align with e2e-test visually
     if: ${{ needs.setup.outputs.total-files != '0' }}
     strategy:
       fail-fast: false
