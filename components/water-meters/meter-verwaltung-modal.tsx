@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import {
   Building2,
+  Droplet,
   Home,
   Gauge
 } from "lucide-react"
@@ -93,13 +94,17 @@ export function MeterVerwaltungModal({
           {isLoading ? (
             <div className="flex flex-col items-center justify-center p-12 space-y-4">
               <WaterDropletLoader size="md" />
-              <p className="text-sm text-muted-foreground animate-pulse">Lade Wohnungen...</p>
+              <p className="text-sm text-muted-foreground animate-pulse">
+                Lade Wohnungen...
+              </p>
             </div>
           ) : wohnungen.length === 0 ? (
             <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
               <CardContent className="flex flex-col items-center justify-center p-8 text-center">
                 <Home className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                <p className="text-sm text-muted-foreground">Keine Wohnungen gefunden</p>
+                <p className="text-sm text-muted-foreground">
+                  Keine Wohnungen in diesem Haus gefunden
+                </p>
               </CardContent>
             </Card>
           ) : (
@@ -118,7 +123,15 @@ export function MeterVerwaltungModal({
                         <div>
                           <h4 className="font-semibold text-base">{wohnung.name}</h4>
                           <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="secondary" className="text-xs">{wohnung.groesse} m²</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {wohnung.groesse} m²
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {new Intl.NumberFormat('de-DE', {
+                                style: 'currency',
+                                currency: 'EUR'
+                              }).format(wohnung.miete)}
+                            </Badge>
                           </div>
                         </div>
                       </div>
@@ -128,7 +141,7 @@ export function MeterVerwaltungModal({
                         className="gap-2"
                       >
                         <Gauge className="h-4 w-4" />
-                        Zähler
+                        Zähler verwalten
                       </Button>
                     </div>
                   </CardContent>
@@ -139,7 +152,9 @@ export function MeterVerwaltungModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Schließen</Button>
+          <Button variant="outline" onClick={onClose}>
+            Schließen
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
