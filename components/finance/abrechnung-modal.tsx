@@ -24,6 +24,7 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/h
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/data-fetching"; // Updated imports for new water system
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
+import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { useEffect, useState, useMemo, useRef } from "react"; // Import useEffect, useState, useMemo, and useRef
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive } from 'lucide-react'; // Added FileDown and other icon imports
@@ -311,8 +312,8 @@ export function AbrechnungModal({
     if (!nebenkostenItem?.zaehlerkosten || !nebenkostenItem?.zaehlerverbrauch) {
       return 0;
     }
-    const totalCost = WATER_METER_TYPES.reduce((sum, typ) => sum + (nebenkostenItem.zaehlerkosten?.[typ] || 0), 0);
-    const totalUsage = WATER_METER_TYPES.reduce((sum, typ) => sum + (nebenkostenItem.zaehlerverbrauch?.[typ] || 0), 0);
+    const totalCost = sumZaehlerValues(nebenkostenItem.zaehlerkosten);
+    const totalUsage = sumZaehlerValues(nebenkostenItem.zaehlerverbrauch);
     if (totalUsage <= 0) return 0;
     return totalCost / totalUsage;
   }, [nebenkostenItem?.zaehlerkosten, nebenkostenItem?.zaehlerverbrauch]);
@@ -528,12 +529,8 @@ export function AbrechnungModal({
       const tenantTotalForRegularItems = costItemsDetails.reduce((sum, item) => sum + item.tenantShare, 0);
 
       // Calculate total water costs from zaehlerkosten JSONB (sum water types)
-      const totalWaterCost = zaehlerkosten
-        ? WATER_METER_TYPES.reduce((sum, typ) => sum + (zaehlerkosten[typ] || 0), 0)
-        : 0;
-      const totalWaterConsumption = zaehlerverbrauch
-        ? WATER_METER_TYPES.reduce((sum, typ) => sum + (zaehlerverbrauch[typ] || 0), 0)
-        : 0;
+      const totalWaterCost = sumZaehlerValues(zaehlerkosten);
+      const totalWaterConsumption = sumZaehlerValues(zaehlerverbrauch);
 
       // Use the new water calculation system
       const tenantWaterCostData = getTenantWaterCost(
@@ -849,12 +846,8 @@ export function AbrechnungModal({
     const tenantWaterShare = tenantData.waterCost.tenantShare;
     const tenantWaterConsumption = tenantData.waterCost.consumption || 0;
     // Get building water totals from zaehlerkosten/zaehlerverbrauch JSONB
-    const buildingWaterCost = nebenkostenItem.zaehlerkosten
-      ? WATER_METER_TYPES.reduce((sum, typ) => sum + (nebenkostenItem.zaehlerkosten?.[typ] || 0), 0)
-      : 0;
-    const buildingWaterConsumption = nebenkostenItem.zaehlerverbrauch
-      ? WATER_METER_TYPES.reduce((sum, typ) => sum + (nebenkostenItem.zaehlerverbrauch?.[typ] || 0), 0)
-      : 0;
+    const buildingWaterCost = sumZaehlerValues(nebenkostenItem.zaehlerkosten);
+    const buildingWaterConsumption = sumZaehlerValues(nebenkostenItem.zaehlerverbrauch);
     const pricePerCubicMeterCalc = buildingWaterConsumption > 0 ? buildingWaterCost / buildingWaterConsumption : 0;
 
     // Water cost summary with aligned columns

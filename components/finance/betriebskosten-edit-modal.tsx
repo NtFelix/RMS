@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Mieter, Nebenkosten, RechnungSql } from "@/lib/data-fetching";
 import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types";
+import { convertZaehlerkostenToStrings } from "@/lib/zaehler-utils";
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 import { DEFAULT_COST_ITEMS } from "@/lib/constants/betriebskosten";
 import { generateId } from "@/lib/utils/generate-id";
@@ -492,10 +493,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
         // Set zaehlerkosten if available
         if (latest.zaehlerkosten) {
-          const kostenStrings = Object.fromEntries(
-            Object.entries(latest.zaehlerkosten).map(([key, value]) => [key, String(value)])
-          );
-          setZaehlerkosten(kostenStrings);
+          setZaehlerkosten(convertZaehlerkostenToStrings(latest.zaehlerkosten));
         }
 
         // Set the date range if available
@@ -614,10 +612,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
               // Load zaehlerkosten
               if (fetchedData.zaehlerkosten) {
-                const kostenStrings = Object.fromEntries(
-                  Object.entries(fetchedData.zaehlerkosten).map(([key, value]) => [key, String(value)])
-                );
-                setZaehlerkosten(kostenStrings);
+                setZaehlerkosten(convertZaehlerkostenToStrings(fetchedData.zaehlerkosten));
               } else {
                 setZaehlerkosten({});
               }

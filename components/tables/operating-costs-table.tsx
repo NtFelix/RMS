@@ -44,16 +44,11 @@ import { toast } from "@/hooks/use-toast" // For notifications
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { useRouter } from "next/navigation"
+import { sumAllZaehlerValues } from "@/lib/zaehler-utils"
 
 // Define sortable fields for operating costs table
 type OperatingCostsSortKey = "zeitraum" | "haus" | "zaehlerkosten" | ""
 type SortDirection = "asc" | "desc"
-
-// Helper function to sum all meter costs from JSONB
-const sumZaehlerkosten = (kosten: Record<string, number> | null | undefined): number => {
-  if (!kosten) return 0;
-  return Object.values(kosten).reduce((sum, v) => sum + v, 0);
-};
 
 interface OperatingCostsTableProps {
   nebenkosten: OptimizedNebenkosten[];
@@ -114,8 +109,8 @@ export function OperatingCostsTable({
           valB = b.haus_name || ''
         } else if (sortKey === 'zaehlerkosten') {
           // Sum all meter costs from JSONB
-          valA = sumZaehlerkosten(a.zaehlerkosten)
-          valB = sumZaehlerkosten(b.zaehlerkosten)
+          valA = sumAllZaehlerValues(a.zaehlerkosten)
+          valB = sumAllZaehlerValues(b.zaehlerkosten)
         } else {
           return 0
         }
@@ -333,7 +328,7 @@ export function OperatingCostsTable({
         betraege,
         berechnungsarten,
         // Sum zaehlerkosten JSONB values
-        formatCurrency(sumZaehlerkosten(item.zaehlerkosten) || null)
+        formatCurrency(sumAllZaehlerValues(item.zaehlerkosten) || null)
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
@@ -521,7 +516,7 @@ export function OperatingCostsTable({
                               </Badge>
                             ) : '-'}
                           </TableCell>
-                          <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(sumZaehlerkosten(item.zaehlerkosten) || null)}</TableCell>
+                          <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatCurrency(sumAllZaehlerValues(item.zaehlerkosten) || null)}</TableCell>
                           <TableCell
                             className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
                             onClick={(event) => event.stopPropagation()}

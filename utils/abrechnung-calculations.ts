@@ -8,6 +8,7 @@
 
 import { Mieter, Nebenkosten, WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
+import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import {
@@ -171,13 +172,9 @@ export function calculateWaterCostDistribution(
   waterReadings: WasserAblesung[]
 ): WaterCostBreakdown {
   // Get water costs from zaehlerkosten JSONB (sum all water-related types)
-  const totalBuildingWaterCost = nebenkosten.zaehlerkosten
-    ? WATER_METER_TYPES.reduce((sum, typ) => sum + (nebenkosten.zaehlerkosten?.[typ] || 0), 0)
-    : 0;
+  const totalBuildingWaterCost = sumZaehlerValues(nebenkosten.zaehlerkosten);
   // Get water consumption from zaehlerverbrauch JSONB (sum all water-related types)
-  const totalBuildingConsumption = nebenkosten.zaehlerverbrauch
-    ? WATER_METER_TYPES.reduce((sum, typ) => sum + (nebenkosten.zaehlerverbrauch?.[typ] || 0), 0)
-    : 0;
+  const totalBuildingConsumption = sumZaehlerValues(nebenkosten.zaehlerverbrauch);
 
   // Use the new calculation system with official building consumption
   const tenantWaterCost = getTenantWaterCost(
