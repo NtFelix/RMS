@@ -1421,8 +1421,8 @@ export async function getAbrechnungModalDataAction(
         nebenkosten_data: dbResult.nebenkosten_data as Nebenkosten,
         tenants: dbResult.tenants as Mieter[],
         rechnungen: dbResult.rechnungen as Rechnung[],
-        zaehler: dbResult.zaehler || [],
-        zaehler_ablesungen: dbResult.ablesungen || []
+        zaehler: dbResult.water_meters || dbResult.zaehler || [],
+        zaehler_ablesungen: dbResult.water_readings || dbResult.ablesungen || []
       };
 
       logger.info('Successfully fetched Abrechnung modal data (optimized)', {
