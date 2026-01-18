@@ -63,6 +63,7 @@ BEGIN
     FROM "Zaehler_Ablesungen" a
     JOIN "Zaehler" z ON a.zaehler_id = z.id
     WHERE z.wohnung_id = wohnung_id_param
+      AND z.user_id = user_id_param
       AND a.user_id = user_id_param
   )
   SELECT 
@@ -137,6 +138,8 @@ BEGIN
     JOIN "Zaehler" z ON a.zaehler_id = z.id
     JOIN "Wohnungen" w ON z.wohnung_id = w.id
     WHERE w.haus_id = haus_id_param
+      AND w.user_id = user_id_param
+      AND z.user_id = user_id_param
       AND a.user_id = user_id_param
   ),
   tenants AS (
@@ -152,6 +155,7 @@ BEGIN
     FROM "Mieter" m
     JOIN "Wohnungen" w ON m.wohnung_id = w.id
     WHERE w.haus_id = haus_id_param
+      AND w.user_id = user_id_param
       AND m.user_id = user_id_param
   )
   SELECT 

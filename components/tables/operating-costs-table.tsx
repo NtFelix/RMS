@@ -32,8 +32,8 @@ import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, C
 // Lazy load modals to reduce bundle size
 const AbrechnungModal = dynamic(() => import('@/components/finance/abrechnung-modal').then(mod => mod.AbrechnungModal), { ssr: false })
 const OperatingCostsOverviewModal = dynamic(() => import('@/components/finance/operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
-const ZaehlerVerwaltungModal = dynamic(() => import('@/components/water-meters/wasser-zaehler-verwaltung-modal').then(mod => mod.WasserZaehlerVerwaltungModal), { ssr: false })
-const ZaehlerAblesenModal = dynamic(() => import('@/components/water-meters/wasser-zaehler-ablesungen-modal').then(mod => mod.WasserZaehlerAblesenModal), { ssr: false })
+const ZaehlerVerwaltungModal = dynamic(() => import('@/components/water-meters/meter-verwaltung-modal').then(mod => mod.MeterVerwaltungModal), { ssr: false })
+const ZaehlerAblesenModal = dynamic(() => import('@/components/water-meters/meter-ablesungen-modal').then(mod => mod.MeterAblesungenModal), { ssr: false })
 
 import {
   getAbrechnungModalDataAction,

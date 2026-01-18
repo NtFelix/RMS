@@ -2,22 +2,18 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { WasserZaehler, WasserAblesung, Wohnung, Mieter } from "@/lib/data-fetching";
+import { Zaehler, ZaehlerAblesung, Wohnung, Mieter } from "@/lib/data-fetching";
 import { logAction } from '@/lib/logging-middleware';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
 
-
-
 type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
 
-// Type for the Supabase client from our createClient utility
-
 /**
- * Fetch all water meter data for a house
+ * Fetch all meter data for a house
  * Used by the Ablesungen modal - fetches apartments, meters, readings, and tenants in one call
  * Falls back to individual queries if database function is not available
  */
-export async function getWasserZaehlerForHausAction(hausId: string) {
+export async function getMeterForHausAction(hausId: string) {
   const supabase = await createClient();
   const startTime = Date.now();
 
@@ -35,7 +31,6 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
 
     if (error) {
       // Check if error is due to function not existing
-      // Using error code for PostgreSQL function not found (42883) or PostgREST not found (PGRST116)
       const isFunctionNotFound = error.code === '42883' || // PostgreSQL function does not exist
         error.code === 'PGRST116' || // PostgREST resource not found
         error.code === '42P01' || // PostgreSQL undefined_table
@@ -46,25 +41,13 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
         ));
 
       if (isFunctionNotFound) {
-        console.log(`[${new Date().toISOString()}] [WARN] Database function not available, using fallback queries\nContext: ${JSON.stringify({
-          functionName: 'get_zaehler_for_haus',
-          hausId,
-          userId: user.id,
-          errorCode: error.code,
-          errorMessage: error.message,
-          fallbackReason: 'Function not found or not accessible'
-        }, null, 2)}`);
+        console.log(`[${new Date().toISOString()}] [WARN] Database function 'get_zaehler_for_haus' not available, using fallback queries`);
 
         // Fallback to individual queries
-        return await getWasserZaehlerForHausFallback(supabase, hausId, user.id, startTime);
+        return await getMeterForHausFallback(supabase, hausId, user.id, startTime);
       }
 
-      console.error("Error fetching water meter data for house:", {
-        errorCode: error.code,
-        errorMessage: error.message,
-        details: error.details,
-        hint: error.hint
-      });
+      console.error("Error fetching meter data for house:", error);
       return { success: false, message: error.message };
     }
 
@@ -76,39 +59,29 @@ export async function getWasserZaehlerForHausAction(hausId: string) {
     const result = data[0];
 
     // Log successful RPC call
-    console.log(`[${new Date().toISOString()}] [INFO] RPC call completed: get_zaehler_for_haus\nContext: ${JSON.stringify({
-      functionName: 'get_zaehler_for_haus',
-      executionTime,
-      performanceLevel: executionTime < 200 ? 'fast' : executionTime < 500 ? 'medium' : 'slow',
-      success: true,
-      hausId,
-      userId: user.id,
-      wohnungenCount: result.wohnungen?.length || 0,
-      metersCount: result.meters?.length || 0,
-      readingsCount: result.readings?.length || 0
-    }, null, 2)}`);
+    console.log(`[${new Date().toISOString()}] [INFO] RPC call completed: get_zaehler_for_haus, executionTime: ${executionTime}ms`);
 
     return {
       success: true,
       data: {
         wohnungen: result.wohnungen || [],
-        waterMeters: result.meters || [],
-        waterReadings: result.readings || [],
+        meters: result.meters || [],
+        readings: result.readings || [],
         mieter: result.mieter || []
       }
     };
   } catch (error: any) {
-    console.error("Unexpected error in getWasserZaehlerForHausAction:", error);
+    console.error("Unexpected error in getMeterForHausAction:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
 
+// Backward compatibility alias
+export const getWasserZaehlerForHausAction = getMeterForHausAction;
+
 /**
  * Fallback function using individual queries
- * Used when database function is not available
  */
-
-// Define a basic Wohnung interface that matches our database query
 interface WohnungBasic {
   id: string;
   name: string;
@@ -117,32 +90,26 @@ interface WohnungBasic {
   haus_id: string | null;
 }
 
-// Reuse existing types from data-fetching with proper type safety
 interface MieterBasic extends Pick<Mieter, 'id' | 'name' | 'wohnung_id' | 'einzug' | 'auszug'> { }
 
 interface FallbackResult {
   success: boolean;
   data: {
     wohnungen: WohnungBasic[];
-    waterMeters: WasserZaehler[];
-    waterReadings: WasserAblesung[];
+    meters: Zaehler[];
+    readings: ZaehlerAblesung[];
     mieter: MieterBasic[];
   };
   message?: string;
 }
 
-/**
- * Fallback function that executes individual queries when the database function is not available
- * This is a performance fallback and should only be used when the optimized function is not available
- */
-async function getWasserZaehlerForHausFallback(
+async function getMeterForHausFallback(
   supabase: SupabaseClientType,
   hausId: string,
   userId: string,
   startTime: number
 ): Promise<FallbackResult> {
   try {
-    // Fetch apartments for the house with proper type casting
     const { data: wohnungen, error: wohnungenError } = await supabase
       .from("Wohnungen")
       .select("id, name, groesse, miete, haus_id")
@@ -150,47 +117,31 @@ async function getWasserZaehlerForHausFallback(
       .eq("user_id", userId)
       .order('name', { ascending: true });
 
-    if (wohnungenError) {
-      console.error("Error fetching apartments:", wohnungenError);
-      throw wohnungenError;
-    }
+    if (wohnungenError) throw wohnungenError;
 
     const wohnungIds = wohnungen?.map((w: WohnungBasic) => w.id) || [];
     if (wohnungIds.length === 0) {
-      // No apartments found for this house
       return {
         success: true,
-        data: {
-          wohnungen: [],
-          waterMeters: [],
-          waterReadings: [],
-          mieter: []
-        }
+        data: { wohnungen: [], meters: [], readings: [], mieter: [] }
       };
     }
 
-    // Fetch water meters for the apartments with proper type casting
-    const { data: waterMeters, error: metersError } = await supabase
+    const { data: meters, error: metersError } = await supabase
       .from("Zaehler")
       .select("*")
       .in("wohnung_id", wohnungIds)
       .eq("user_id", userId)
       .order('custom_id', { ascending: true });
 
-    if (metersError) {
-      console.error("Error fetching water meters:", metersError);
-      throw metersError;
-    }
+    if (metersError) throw metersError;
 
-    const meterIds = waterMeters?.map((m: WasserZaehler) => m.id) || [];
+    const meterIds = meters?.map((m: Zaehler) => m.id) || [];
 
-    // Execute water readings and tenants queries in parallel
-    // Execute parallel queries with proper type casting
     const [
-      { data: waterReadings, error: readingsError },
+      { data: readings, error: readingsError },
       { data: mieter, error: mieterError }
     ] = await Promise.all([
-      // Fetch water readings for the meters
       meterIds.length > 0
         ? supabase
           .from("Zaehler_Ablesungen")
@@ -200,7 +151,6 @@ async function getWasserZaehlerForHausFallback(
           .order('ablese_datum', { ascending: false })
         : { data: null, error: null },
 
-      // Fetch tenants for the apartments
       supabase
         .from("Mieter")
         .select("id, name, wohnung_id, einzug, auszug")
@@ -209,82 +159,30 @@ async function getWasserZaehlerForHausFallback(
         .order('name', { ascending: true })
     ]);
 
-    // Handle potential errors from parallel queries
-    if (readingsError) {
-      console.error("Error fetching water readings:", readingsError);
-      throw readingsError;
-    }
-
-    if (mieterError) {
-      console.error("Error fetching tenants:", mieterError);
-      throw mieterError;
-    }
-
-    // Type assertions for the query results
-    const typedWaterReadings = (waterReadings || []) as unknown as WasserAblesung[];
-    const typedMieter = (mieter || []) as unknown as MieterBasic[];
-
-    const executionTime = Date.now() - startTime;
-    const performanceLevel = executionTime < 200 ? 'fast' : executionTime < 500 ? 'medium' : 'slow';
-
-    // Log fallback execution with performance metrics
-    console.log(JSON.stringify({
-      timestamp: new Date().toISOString(),
-      level: 'INFO',
-      message: 'Fallback queries completed',
-      method: 'getWasserZaehlerForHausFallback',
-      context: {
-        performance: {
-          executionTime,
-          performanceLevel,
-          queriesExecuted: 4
-        },
-        data: {
-          hausId,
-          userId,
-          wohnungenCount: wohnungen?.length || 0,
-          metersCount: waterMeters?.length || 0,
-          readingsCount: waterReadings?.length || 0,
-          mieterCount: mieter?.length || 0
-        }
-      }
-    }, null, 2));
+    if (readingsError) throw readingsError;
+    if (mieterError) throw mieterError;
 
     return {
       success: true,
       data: {
         wohnungen: (wohnungen || []) as unknown as WohnungBasic[],
-        waterMeters: (waterMeters || []) as unknown as WasserZaehler[],
-        waterReadings: typedWaterReadings,
-        mieter: typedMieter
+        meters: (meters || []) as unknown as Zaehler[],
+        readings: (readings || []) as unknown as ZaehlerAblesung[],
+        mieter: (mieter || []) as unknown as MieterBasic[]
       }
     };
   } catch (error: any) {
-    const errorMessage = error?.message || 'Unknown error in fallback queries';
-    console.error("Error in fallback queries:", {
-      error: errorMessage,
-      stack: error?.stack,
-      code: error?.code,
-      details: error?.details,
-      hint: error?.hint
-    });
-
+    console.error("Error in fallback queries:", error);
     return {
       success: false,
-      message: `Fallback-Fehler: ${errorMessage}`,
-      data: {
-        wohnungen: [],
-        waterMeters: [],
-        waterReadings: [],
-        mieter: []
-      }
+      message: `Fallback-Fehler: ${error.message}`,
+      data: { wohnungen: [], meters: [], readings: [], mieter: [] }
     };
   }
 }
 
 /**
  * Fetch meter data for a specific apartment
- * Uses optimized database function for better performance
  */
 export async function getZaehlerDataAction(wohnungId: string) {
   const supabase = await createClient();
@@ -295,7 +193,6 @@ export async function getZaehlerDataAction(wohnungId: string) {
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
-    // Use database function for optimized data fetching
     const { data, error } = await supabase.rpc('get_zaehler_data', {
       wohnung_id_param: wohnungId,
       user_id_param: user.id
@@ -326,12 +223,11 @@ export async function getZaehlerDataAction(wohnungId: string) {
   }
 }
 
-// Legacy alias for backward compatibility
+// Legacy alias
 export const getWasserZaehlerDataAction = getZaehlerDataAction;
 
 /**
  * Fetch readings for a specific meter
- * Uses optimized database function
  */
 export async function getAblesungenForZaehlerAction(zaehlerId: string) {
   const supabase = await createClient();
@@ -371,14 +267,14 @@ export async function getAblesungenForZaehlerAction(zaehlerId: string) {
   }
 }
 
-// Legacy alias for backward compatibility
+// Legacy alias
 export const getWasserAblesenDataAction = getAblesungenForZaehlerAction;
 
 /**
- * Create a new water meter
+ * Create a new meter
  */
-export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user_id'>) {
-  const actionName = 'createWaterMeter';
+export async function createZaehler(data: Omit<Zaehler, 'id' | 'user_id'>) {
+  const actionName = 'createMeter';
   logAction(actionName, 'start', { apartment_id: data.wohnung_id });
 
   const supabase = await createClient();
@@ -404,13 +300,12 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
     revalidatePath("/betriebskosten");
     logAction(actionName, 'success', { meter_id: result?.id, apartment_id: data.wohnung_id });
 
-    // PostHog Event Tracking
-    await capturePostHogEvent(user.id, 'water_meter_created', {
+    await capturePostHogEvent(user.id, 'meter_created', {
       meter_id: result?.id,
       apartment_id: data.wohnung_id,
+      meter_type: data.zaehler_typ,
       source: 'server_action'
     });
-
 
     return { success: true, data: result };
   } catch (error: any) {
@@ -419,118 +314,90 @@ export async function createWasserZaehler(data: Omit<WasserZaehler, 'id' | 'user
   }
 }
 
+// Legacy alias
+export const createWasserZaehler = createZaehler;
+
 /**
- * Update a water meter
+ * Update a meter
  */
-export async function updateWasserZaehler(id: string, data: Partial<Omit<WasserZaehler, 'id' | 'user_id'>>) {
+export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id' | 'user_id'>>) {
   const supabase = await createClient();
 
   try {
-    // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
-    // First verify the water meter exists and belongs to the user
-    const { data: existingMeter, error: fetchError } = await supabase
-      .from("Zaehler")
-      .select('id, user_id')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !existingMeter) {
-      return { success: false, message: "Wasserzähler nicht gefunden." };
-    }
-
-    if (existingMeter.user_id !== user.id) {
-      return { success: false, message: "Keine Berechtigung zum Aktualisieren dieses Wasserzählers." };
-    }
-
-    // Update the water meter with user_id check
     const { data: result, error } = await supabase
       .from("Zaehler")
       .update(data)
       .eq("id", id)
-      .eq("user_id", user.id) // Ensure the meter belongs to the user
+      .eq("user_id", user.id)
       .select()
       .single();
 
     if (error) {
-      console.error("Error updating water meter:", error);
+      console.error("Error updating meter:", error);
       return { success: false, message: error.message };
     }
 
     revalidatePath("/betriebskosten");
 
-    // PostHog Event Tracking
-    await capturePostHogEvent(user.id, 'water_meter_updated', {
+    await capturePostHogEvent(user.id, 'meter_updated', {
       meter_id: id,
       apartment_id: result?.wohnung_id,
-      ...(data.custom_id !== undefined && { custom_id: data.custom_id }),
-      ...(data.eichungsdatum !== undefined && { eichungsdatum: data.eichungsdatum }),
       source: 'server_action'
     });
 
     return { success: true, data: result };
   } catch (error: any) {
-    console.error("Unexpected error in updateWasserZaehler:", error);
+    console.error("Unexpected error in updateZaehler:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
 
+// Legacy alias
+export const updateWasserZaehler = updateZaehler;
+
 /**
- * Delete a water meter
+ * Delete a meter
  */
-export async function deleteWasserZaehler(id: string) {
+export async function deleteZaehler(id: string) {
   const supabase = await createClient();
 
   try {
-    // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
-    // First verify the water meter exists and belongs to the user
-    const { data: existingMeter, error: fetchError } = await supabase
-      .from("Zaehler")
-      .select('id, user_id')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !existingMeter) {
-      return { success: false, message: "Wasserzähler nicht gefunden." };
-    }
-
-    if (existingMeter.user_id !== user.id) {
-      return { success: false, message: "Keine Berechtigung zum Löschen dieses Wasserzählers." };
-    }
-
-    // Delete the water meter with user_id check
     const { error } = await supabase
       .from("Zaehler")
       .delete()
       .eq("id", id)
-      .eq("user_id", user.id); // Ensure the meter belongs to the user
+      .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error deleting water meter:", error);
+      console.error("Error deleting meter:", error);
       return { success: false, message: error.message };
     }
 
     revalidatePath("/betriebskosten");
     return { success: true };
   } catch (error: any) {
-    console.error("Unexpected error in deleteWasserZaehler:", error);
+    console.error("Unexpected error in deleteZaehler:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
 
+// Legacy alias
+export const deleteWasserZaehler = deleteZaehler;
+
 /**
- * Create a new water reading
+ * Create a new reading
  */
-export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'user_id'>) {
+export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'user_id'>) {
   const supabase = await createClient();
 
   try {
@@ -546,141 +413,109 @@ export async function createWasserAblesung(data: Omit<WasserAblesung, 'id' | 'us
       .single();
 
     if (error) {
-      console.error("Error creating water reading:", error);
+      console.error("Error creating reading:", error);
       return { success: false, message: error.message };
     }
 
     revalidatePath("/betriebskosten");
 
-    // PostHog Event Tracking
-    await capturePostHogEvent(user.id, 'water_reading_recorded', {
+    await capturePostHogEvent(user.id, 'meter_reading_recorded', {
       reading_id: result?.id,
       meter_id: data.zaehler_id,
-      reading_value: data.zaehlerstand,
-      reading_date: data.ablese_datum,
       source: 'server_action'
     });
 
-
     return { success: true, data: result };
   } catch (error: any) {
-    console.error("Unexpected error in createWasserAblesung:", error);
+    console.error("Unexpected error in createAblesung:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
 
+// Legacy alias
+export const createWasserAblesung = createAblesung;
+
 /**
- * Update a water reading
+ * Update a reading
  */
-export async function updateWasserAblesung(id: string, data: Partial<Omit<WasserAblesung, 'id' | 'user_id'>>) {
+export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAblesung, 'id' | 'user_id'>>) {
   const supabase = await createClient();
 
   try {
-    // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
-    // First verify the water reading exists and belongs to the user
-    const { data: existingReading, error: fetchError } = await supabase
-      .from("Zaehler_Ablesungen")
-      .select('id, user_id')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !existingReading) {
-      return { success: false, message: "Wasserablesung nicht gefunden." };
-    }
-
-    if (existingReading.user_id !== user.id) {
-      return { success: false, message: "Keine Berechtigung zum Aktualisieren dieser Wasserablesung." };
-    }
-
-    // Update the water reading with user_id check
     const { data: result, error } = await supabase
       .from("Zaehler_Ablesungen")
       .update(data)
       .eq("id", id)
-      .eq("user_id", user.id) // Ensure the reading belongs to the user
+      .eq("user_id", user.id)
       .select()
       .single();
 
     if (error) {
-      console.error("Error updating water reading:", error);
+      console.error("Error updating reading:", error);
       return { success: false, message: error.message };
     }
 
     revalidatePath("/betriebskosten");
 
-    // PostHog Event Tracking
-    await capturePostHogEvent(user.id, 'water_reading_updated', {
+    await capturePostHogEvent(user.id, 'meter_reading_updated', {
       reading_id: id,
       meter_id: result?.zaehler_id,
-      reading_value: result?.zaehlerstand,
-      reading_date: result?.ablese_datum,
       source: 'server_action'
     });
 
     return { success: true, data: result };
   } catch (error: any) {
-    console.error("Unexpected error in updateWasserAblesung:", error);
+    console.error("Unexpected error in updateAblesung:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
 
+// Legacy alias
+export const updateWasserAblesung = updateAblesung;
+
 /**
- * Delete a water reading
+ * Delete a reading
  */
-export async function deleteWasserAblesung(id: string) {
+export async function deleteAblesung(id: string) {
   const supabase = await createClient();
 
   try {
-    // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
-    // First verify the water reading exists and belongs to the user
-    const { data: existingReading, error: fetchError } = await supabase
-      .from("Zaehler_Ablesungen")
-      .select('id, user_id')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !existingReading) {
-      return { success: false, message: "Wasserablesung nicht gefunden." };
-    }
-
-    if (existingReading.user_id !== user.id) {
-      return { success: false, message: "Keine Berechtigung zum Löschen dieser Wasserablesung." };
-    }
-
-    // Delete the water reading with user_id check
     const { error } = await supabase
       .from("Zaehler_Ablesungen")
       .delete()
       .eq("id", id)
-      .eq("user_id", user.id); // Ensure the reading belongs to the user
+      .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error deleting water reading:", error);
+      console.error("Error deleting reading:", error);
       return { success: false, message: error.message };
     }
 
     revalidatePath("/betriebskosten");
     return { success: true };
   } catch (error: any) {
-    console.error("Unexpected error in deleteWasserAblesung:", error);
+    console.error("Unexpected error in deleteAblesung:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
 
+// Legacy alias
+export const deleteWasserAblesung = deleteAblesung;
+
 /**
- * Bulk create water readings
+ * Bulk create readings
  */
-export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 'id' | 'user_id'>[]) {
+export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' | 'user_id'>[]) {
   const supabase = await createClient();
 
   try {
@@ -693,24 +528,17 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
       return { success: true, data: [] };
     }
 
-    // Extract unique meter IDs from the readings, filtering out any null values
     const meterIds = [...new Set(readings.map(r => r.zaehler_id).filter((id): id is string => !!id))];
 
-    // Verify ownership of all meters
     const { data: meters, error: metersError } = await supabase
       .from("Zaehler")
       .select('id')
       .in('id', meterIds)
       .eq('user_id', user.id);
 
-    if (metersError) {
-      console.error("Error verifying meter ownership:", metersError);
-      return { success: false, message: "Fehler bei der Überprüfung der Zähler." };
-    }
+    if (metersError) throw metersError;
 
     const ownedMeterIds = new Set(meters?.map(m => m.id) || []);
-
-    // Filter readings for owned meters
     const validReadings = readings.filter(r => ownedMeterIds.has(r.zaehler_id))
       .map(r => ({ ...r, user_id: user.id }));
 
@@ -718,33 +546,26 @@ export async function bulkCreateWasserAblesungen(readings: Omit<WasserAblesung, 
       return { success: false, message: "Keine gültigen Zähler gefunden, für die Sie berechtigt sind." };
     }
 
-    if (validReadings.length !== readings.length) {
-      console.warn("Some readings were skipped due to permission issues.");
-    }
-
     const { data: result, error } = await supabase
       .from("Zaehler_Ablesungen")
       .insert(validReadings)
       .select();
 
-    if (error) {
-      console.error("Error bulk creating water readings:", error);
-      return { success: false, message: error.message };
-    }
+    if (error) throw error;
 
     revalidatePath("/betriebskosten");
 
-    // PostHog Event Tracking for Bulk Operation
-    await capturePostHogEvent(user.id, 'water_readings_bulk_created', {
+    await capturePostHogEvent(user.id, 'meter_readings_bulk_created', {
       reading_count: validReadings.length,
-      meter_ids: Array.from(new Set(validReadings.map(r => r.zaehler_id))),
       source: 'server_action'
     });
 
-
     return { success: true, data: result };
   } catch (error: any) {
-    console.error("Unexpected error in bulkCreateWasserAblesungen:", error);
+    console.error("Unexpected error in bulkCreateAblesungen:", error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
+
+// Legacy alias
+export const bulkCreateWasserAblesungen = bulkCreateAblesungen;

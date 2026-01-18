@@ -11,11 +11,10 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
-import { 
-  Loader2, 
+import {
   Building2,
-  Droplet,
-  Home
+  Home,
+  Gauge
 } from "lucide-react"
 import { WaterDropletLoader } from "@/components/ui/water-droplet-loader"
 import { Card, CardContent } from "@/components/ui/card"
@@ -29,19 +28,19 @@ interface Wohnung {
   miete: number
 }
 
-interface WasserZaehlerVerwaltungModalProps {
+interface MeterVerwaltungModalProps {
   isOpen: boolean
   onClose: () => void
   hausId: string
   hausName: string
 }
 
-export function WasserZaehlerVerwaltungModal({
+export function MeterVerwaltungModal({
   isOpen,
   onClose,
   hausId,
   hausName,
-}: WasserZaehlerVerwaltungModalProps) {
+}: MeterVerwaltungModalProps) {
   const { openWasserZaehlerModal } = useModalStore()
   const [wohnungen, setWohnungen] = React.useState<Wohnung[]>([])
   const [isLoading, setIsLoading] = React.useState(false)
@@ -59,7 +58,6 @@ export function WasserZaehlerVerwaltungModal({
       const response = await fetch(`/api/wohnungen`)
       if (response.ok) {
         const data = await response.json()
-        // Filter apartments by house ID on the client side
         const filteredWohnungen = data.filter((w: any) => w.haus_id === hausId)
         setWohnungen(filteredWohnungen)
       } else {
@@ -77,7 +75,7 @@ export function WasserZaehlerVerwaltungModal({
     }
   }
 
-  const handleOpenWasserZaehlerModal = (wohnung: Wohnung) => {
+  const handleOpenMeterModal = (wohnung: Wohnung) => {
     openWasserZaehlerModal(wohnung.id, wohnung.name)
   }
 
@@ -85,7 +83,7 @@ export function WasserZaehlerVerwaltungModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Wasserzähler verwalten</DialogTitle>
+          <DialogTitle>Zähler verwalten</DialogTitle>
           <DialogDescription>
             Haus: <span className="font-medium">{hausName}</span>
           </DialogDescription>
@@ -95,24 +93,20 @@ export function WasserZaehlerVerwaltungModal({
           {isLoading ? (
             <div className="flex flex-col items-center justify-center p-12 space-y-4">
               <WaterDropletLoader size="md" />
-              <p className="text-sm text-muted-foreground animate-pulse">
-                Lade Wohnungen...
-              </p>
+              <p className="text-sm text-muted-foreground animate-pulse">Lade Wohnungen...</p>
             </div>
           ) : wohnungen.length === 0 ? (
             <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
               <CardContent className="flex flex-col items-center justify-center p-8 text-center">
                 <Home className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  Keine Wohnungen in diesem Haus gefunden
-                </p>
+                <p className="text-sm text-muted-foreground">Keine Wohnungen gefunden</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-3">
               {wohnungen.map((wohnung) => (
-                <Card 
-                  key={wohnung.id} 
+                <Card
+                  key={wohnung.id}
                   className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300"
                 >
                   <CardContent className="p-4">
@@ -124,25 +118,17 @@ export function WasserZaehlerVerwaltungModal({
                         <div>
                           <h4 className="font-semibold text-base">{wohnung.name}</h4>
                           <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="secondary" className="text-xs">
-                              {wohnung.groesse} m²
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {new Intl.NumberFormat('de-DE', { 
-                                style: 'currency', 
-                                currency: 'EUR' 
-                              }).format(wohnung.miete)}
-                            </Badge>
+                            <Badge variant="secondary" className="text-xs">{wohnung.groesse} m²</Badge>
                           </div>
                         </div>
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => handleOpenWasserZaehlerModal(wohnung)}
+                        onClick={() => handleOpenMeterModal(wohnung)}
                         className="gap-2"
                       >
-                        <Droplet className="h-4 w-4" />
-                        Zähler verwalten
+                        <Gauge className="h-4 w-4" />
+                        Zähler
                       </Button>
                     </div>
                   </CardContent>
@@ -153,9 +139,7 @@ export function WasserZaehlerVerwaltungModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Schließen
-          </Button>
+          <Button variant="outline" onClick={onClose}>Schließen</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
