@@ -145,23 +145,31 @@ export type LegacyWasserzaehler = {
     zaehlerstand: number;
     verbrauch: number;
     user_id: string;
+    zaehler_id?: string;
 };
 
 // Backward compatibility alias
 export type Wasserzaehler = LegacyWasserzaehler;
 
-export type WasserzaehlerFormEntry = {
-    id: string;
-    ablese_datum: string;
+export type MeterReadingFormEntry = {
+    id: string; // Used as key
+    mieter_id: string;
+    zaehler_id?: string;
+    mieter_name?: string; // Optional for display
+    ablese_datum: string | null;
     zaehlerstand: number;
     verbrauch?: number;
     kommentar?: string;
 };
 
-export type WasserzaehlerFormData = {
-    wasserkosten: number;
-    entries: WasserzaehlerFormEntry[];
+export type MeterReadingFormData = {
+    nebenkosten_id?: string; // Optional to match data-fetching
+    entries: MeterReadingFormEntry[];
 };
+
+// Deprecated aliases
+export type WasserzaehlerFormEntry = MeterReadingFormEntry;
+export type WasserzaehlerFormData = MeterReadingFormData;
 
 export type Finanzen = {
     id: string;

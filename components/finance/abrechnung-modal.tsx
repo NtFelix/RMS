@@ -175,8 +175,8 @@ interface AbrechnungModalProps {
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
   rechnungen: Rechnung[];
-  waterMeters?: WasserZaehler[]; // Updated to use new water meter type
-  waterReadings?: WasserAblesung[]; // Updated to use new water reading type
+  meters?: WasserZaehler[]; // Updated to use new generic meter type
+  readings?: WasserAblesung[]; // Updated to use new generic reading type
   ownerName: string;
   ownerAddress: string;
 }
@@ -187,8 +187,8 @@ export function AbrechnungModal({
   nebenkostenItem,
   tenants,
   rechnungen,
-  waterMeters = [], // Default to empty array
-  waterReadings = [], // Default to empty array
+  meters = [], // Default to empty array
+  readings = [], // Default to empty array
   ownerName,
   ownerAddress,
 }: AbrechnungModalProps) {
@@ -267,9 +267,9 @@ export function AbrechnungModal({
   // Performance monitoring - log when modal opens with pre-loaded data
   useEffect(() => {
     if (isOpen && nebenkostenItem && tenants?.length > 0) {
-      console.log(`[AbrechnungModal] Opened with pre-loaded data: ${tenants?.length || 0} tenants, ${rechnungen?.length || 0} rechnungen, ${waterMeters?.length || 0} water meters, ${waterReadings?.length || 0} water readings`);
+      console.log(`[AbrechnungModal] Opened with pre-loaded data: ${tenants?.length || 0} tenants, ${rechnungen?.length || 0} rechnungen, ${meters?.length || 0} meters, ${readings?.length || 0} readings`);
     }
-  }, [isOpen, nebenkostenItem, tenants, rechnungen, waterMeters, waterReadings]);
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, meters, readings]);
 
   // Debug: Log tenants whenever they change
   useEffect(() => {
@@ -330,8 +330,9 @@ export function AbrechnungModal({
     return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
   }, [nebenkostenItem?.gesamtFlaeche, tenants]);
 
-  // Import water calculation utilities at the top level
-  const { getTenantWaterCost } = require('@/utils/water-cost-calculations');
+  // Import meter calculation utilities at the top level
+  // Note: Using require here as this might be refactored to proper import later
+  const { getTenantMeterCost } = require('@/utils/water-cost-calculations');
 
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
@@ -528,27 +529,27 @@ export function AbrechnungModal({
 
       const tenantTotalForRegularItems = costItemsDetails.reduce((sum, item) => sum + item.tenantShare, 0);
 
-      // Calculate total water costs from zaehlerkosten JSONB (sum water types)
-      const totalWaterCost = sumZaehlerValues(zaehlerkosten);
-      const totalWaterConsumption = sumZaehlerValues(zaehlerverbrauch);
+      // Calculate total meter costs from zaehlerkosten JSONB (sum all types)
+      const totalMeterCost = sumZaehlerValues(zaehlerkosten);
+      const totalMeterConsumption = sumZaehlerValues(zaehlerverbrauch);
 
-      // Use the new water calculation system
-      const tenantWaterCostData = getTenantWaterCost(
+      // Use the new generic meter calculation system
+      const tenantMeterCostData = getTenantMeterCost(
         tenant.id,
         safeTenants,
-        waterMeters,
-        waterReadings,
-        totalWaterCost,
-        totalWaterConsumption, // Total building consumption from Nebenkosten
+        meters,
+        readings,
+        totalMeterCost,
+        totalMeterConsumption, // Total building consumption from Nebenkosten
         itemStartdatum || startdatum,
         itemEnddatum || enddatum
       );
 
       const tenantWaterCost = {
-        totalWaterCostOverall: totalWaterCost,
-        calculationType: "nach Verbrauch (Wasserzähler)",
-        tenantShare: tenantWaterCostData?.costShare || 0,
-        consumption: tenantWaterCostData?.consumption || 0,
+        totalWaterCostOverall: totalMeterCost, // Keeping property name for now to avoid breaking TenantCostDetails
+        calculationType: "nach Verbrauch (Zähler)",
+        tenantShare: tenantMeterCostData?.costShare || 0,
+        consumption: tenantMeterCostData?.totalConsumption || 0, // Updated property name
       };
 
       const totalTenantCost = tenantTotalForRegularItems + tenantWaterCost.tenantShare;
@@ -580,7 +581,7 @@ export function AbrechnungModal({
         recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
       };
     };
-  }, [nebenkostenItem, wgFactors, rechnungen, waterMeters, waterReadings, totalHouseArea, safeTenants, getTenantWaterCost]);
+  }, [nebenkostenItem, wgFactors, rechnungen, meters, readings, totalHouseArea, safeTenants, getTenantMeterCost]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {
