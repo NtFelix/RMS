@@ -59,7 +59,19 @@ export async function getMeterForHausAction(hausId: string) {
     const result = data[0];
 
     // Log successful RPC call
-    console.log(`[${new Date().toISOString()}] [INFO] RPC call completed: get_zaehler_for_haus, executionTime: ${executionTime}ms`);
+    // Log successful RPC call
+    console.log(`[${new Date().toISOString()}] [INFO] RPC call completed: get_zaehler_for_haus
+Context: ${JSON.stringify({
+      functionName: 'get_zaehler_for_haus',
+      executionTime,
+      performanceLevel: executionTime < 200 ? 'fast' : executionTime < 500 ? 'medium' : 'slow',
+      success: true,
+      hausId,
+      userId: user.id,
+      wohnungenCount: result.wohnungen?.length || 0,
+      metersCount: result.meters?.length || 0,
+      readingsCount: result.readings?.length || 0
+    }, null, 2)}`);
 
     return {
       success: true,
@@ -587,6 +599,7 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
 
     await capturePostHogEvent(user.id, 'meter_readings_bulk_created', {
       reading_count: validReadings.length,
+      meter_ids: Array.from(new Set(validReadings.map(r => r.zaehler_id))),
       source: 'server_action'
     });
 

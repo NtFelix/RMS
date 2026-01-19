@@ -141,7 +141,9 @@ describe('meter-actions', () => {
         update: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: { id: 'm1', custom_id: 'New' }, error: null })
+        single: jest.fn()
+          .mockResolvedValueOnce({ data: { id: 'm1', user_id: 'user1' }, error: null }) // For pre-check
+          .mockResolvedValueOnce({ data: { id: 'm1', custom_id: 'New' }, error: null }) // For update result
       };
       mockSupabase.from.mockReturnValue(chain);
 
@@ -149,6 +151,21 @@ describe('meter-actions', () => {
 
       expect(result.success).toBe(true);
       expect(chain.update).toHaveBeenCalled();
+      expect(chain.single).toHaveBeenCalledTimes(2);
+    });
+
+    it('prevents update of another user\'s meter', async () => {
+      const chain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: 'm1', user_id: 'other-user' }, error: null })
+      };
+      mockSupabase.from.mockReturnValue(chain);
+
+      const result = await updateZaehler('m1', { custom_id: 'New' });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Keine Berechtigung');
     });
   });
 
