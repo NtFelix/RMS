@@ -3,13 +3,14 @@
  * Verifies client-side validation and database function integration
  */
 
-import { validateWasserzaehlerFormData, validateWasserzaehlerEntry, formatValidationErrors, prepareWasserzaehlerDataForSubmission } from '@/utils/wasserzaehler-validation';
-import { WasserzaehlerFormData, WasserzaehlerFormEntry } from '@/lib/data-fetching';
+import { validateMeterReadingFormData, validateMeterReadingEntry, formatValidationErrors, prepareMeterReadingsForSubmission } from '@/utils/wasserzaehler-validation';
+import { MeterReadingFormData, MeterReadingFormEntry } from '@/lib/data-fetching';
 
 describe('Wasserzähler Validation', () => {
-  describe('validateWasserzaehlerEntry', () => {
+  describe('validateMeterReadingEntry', () => {
     it('should validate a correct entry', () => {
-      const entry: WasserzaehlerFormEntry = {
+      const entry: MeterReadingFormEntry = {
+        id: 'entry-1', // Added id
         mieter_id: 'test-mieter-id',
         mieter_name: 'Test Mieter',
         ablese_datum: '2024-01-15',
@@ -17,12 +18,13 @@ describe('Wasserzähler Validation', () => {
         verbrauch: 50.2
       };
 
-      const errors = validateWasserzaehlerEntry(entry, 0);
+      const errors = validateMeterReadingEntry(entry, 0);
       expect(errors).toHaveLength(0);
     });
 
     it('should reject entry with missing mieter_id', () => {
-      const entry: WasserzaehlerFormEntry = {
+      const entry: MeterReadingFormEntry = {
+        id: 'entry-1',
         mieter_id: '',
         mieter_name: 'Test Mieter',
         ablese_datum: '2024-01-15',
@@ -30,29 +32,31 @@ describe('Wasserzähler Validation', () => {
         verbrauch: 50.2
       };
 
-      const errors = validateWasserzaehlerEntry(entry, 0);
+      const errors = validateMeterReadingEntry(entry, 0);
       expect(errors).toHaveLength(1);
       expect(errors[0].field).toBe('mieter_id');
       expect(errors[0].message).toBe('Mieter ID ist erforderlich');
     });
 
     it('should reject entry with invalid zaehlerstand', () => {
-      const entry: WasserzaehlerFormEntry = {
+      const entry: MeterReadingFormEntry = {
+        id: 'entry-invalid',
         mieter_id: 'test-mieter-id',
         mieter_name: 'Test Mieter',
         ablese_datum: '2024-01-15',
-        zaehlerstand: 'invalid',
+        zaehlerstand: 'invalid' as any,
         verbrauch: 50.2
       };
 
-      const errors = validateWasserzaehlerEntry(entry, 0);
+      const errors = validateMeterReadingEntry(entry, 0);
       expect(errors).toHaveLength(1);
       expect(errors[0].field).toBe('zaehlerstand');
       expect(errors[0].message).toBe('Zählerstand muss eine positive Zahl sein');
     });
 
     it('should reject entry with negative zaehlerstand', () => {
-      const entry: WasserzaehlerFormEntry = {
+      const entry: MeterReadingFormEntry = {
+        id: 'entry-neg',
         mieter_id: 'test-mieter-id',
         mieter_name: 'Test Mieter',
         ablese_datum: '2024-01-15',
@@ -60,22 +64,23 @@ describe('Wasserzähler Validation', () => {
         verbrauch: 50.2
       };
 
-      const errors = validateWasserzaehlerEntry(entry, 0);
+      const errors = validateMeterReadingEntry(entry, 0);
       expect(errors).toHaveLength(1);
       expect(errors[0].field).toBe('zaehlerstand');
       expect(errors[0].message).toBe('Zählerstand muss eine positive Zahl sein');
     });
 
     it('should reject entry with invalid verbrauch', () => {
-      const entry: WasserzaehlerFormEntry = {
+      const entry: MeterReadingFormEntry = {
+        id: 'entry-inv-verb',
         mieter_id: 'test-mieter-id',
         mieter_name: 'Test Mieter',
         ablese_datum: '2024-01-15',
         zaehlerstand: 1234.5,
-        verbrauch: 'invalid'
+        verbrauch: 'invalid' as any
       };
 
-      const errors = validateWasserzaehlerEntry(entry, 0);
+      const errors = validateMeterReadingEntry(entry, 0);
       expect(errors).toHaveLength(1);
       expect(errors[0].field).toBe('verbrauch');
       expect(errors[0].message).toBe('Verbrauch muss eine positive Zahl sein');
@@ -86,7 +91,8 @@ describe('Wasserzähler Validation', () => {
       futureDate.setDate(futureDate.getDate() + 1);
       const futureDateString = futureDate.toISOString().split('T')[0];
 
-      const entry: WasserzaehlerFormEntry = {
+      const entry: MeterReadingFormEntry = {
+        id: 'entry-future',
         mieter_id: 'test-mieter-id',
         mieter_name: 'Test Mieter',
         ablese_datum: futureDateString,
@@ -94,27 +100,29 @@ describe('Wasserzähler Validation', () => {
         verbrauch: 50.2
       };
 
-      const errors = validateWasserzaehlerEntry(entry, 0);
+      const errors = validateMeterReadingEntry(entry, 0);
       expect(errors).toHaveLength(1);
       expect(errors[0].field).toBe('ablese_datum');
       expect(errors[0].message).toBe('Ablesedatum darf nicht in der Zukunft liegen');
     });
 
     it('should accept entry with empty verbrauch', () => {
-      const entry: WasserzaehlerFormEntry = {
+      const entry: MeterReadingFormEntry = {
+        id: 'entry-empty',
         mieter_id: 'test-mieter-id',
         mieter_name: 'Test Mieter',
         ablese_datum: '2024-01-15',
         zaehlerstand: 1234.5,
-        verbrauch: ''
+        verbrauch: undefined // Or handle empty string if type allows
       };
 
-      const errors = validateWasserzaehlerEntry(entry, 0);
+      const errors = validateMeterReadingEntry(entry, 0);
       expect(errors).toHaveLength(0);
     });
 
     it('should accept entry with null ablese_datum', () => {
-      const entry: WasserzaehlerFormEntry = {
+      const entry: MeterReadingFormEntry = {
+        id: 'entry-null-date',
         mieter_id: 'test-mieter-id',
         mieter_name: 'Test Mieter',
         ablese_datum: null,
@@ -122,17 +130,18 @@ describe('Wasserzähler Validation', () => {
         verbrauch: 50.2
       };
 
-      const errors = validateWasserzaehlerEntry(entry, 0);
+      const errors = validateMeterReadingEntry(entry, 0);
       expect(errors).toHaveLength(0);
     });
   });
 
-  describe('validateWasserzaehlerFormData', () => {
+  describe('validateMeterReadingFormData', () => {
     it('should validate correct form data', () => {
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries: [
           {
+            id: 'entry-1',
             mieter_id: 'mieter-1',
             mieter_name: 'Mieter 1',
             ablese_datum: '2024-01-15',
@@ -140,6 +149,7 @@ describe('Wasserzähler Validation', () => {
             verbrauch: 50.2
           },
           {
+            id: 'entry-2',
             mieter_id: 'mieter-2',
             mieter_name: 'Mieter 2',
             ablese_datum: '2024-01-15',
@@ -149,17 +159,18 @@ describe('Wasserzähler Validation', () => {
         ]
       };
 
-      const result = validateWasserzaehlerFormData(formData);
+      const result = validateMeterReadingFormData(formData);
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
       expect(result.validEntries).toHaveLength(2);
     });
 
     it('should reject form data with missing nebenkosten_id', () => {
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: '',
         entries: [
           {
+            id: 'entry-1',
             mieter_id: 'mieter-1',
             mieter_name: 'Mieter 1',
             ablese_datum: '2024-01-15',
@@ -169,17 +180,18 @@ describe('Wasserzähler Validation', () => {
         ]
       };
 
-      const result = validateWasserzaehlerFormData(formData);
+      const result = validateMeterReadingFormData(formData);
       expect(result.isValid).toBe(false);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].field).toBe('nebenkosten_id');
     });
 
     it('should detect duplicate mieter_ids', () => {
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries: [
           {
+            id: 'entry-1',
             mieter_id: 'mieter-1',
             mieter_name: 'Mieter 1',
             ablese_datum: '2024-01-15',
@@ -187,6 +199,7 @@ describe('Wasserzähler Validation', () => {
             verbrauch: 50.2
           },
           {
+            id: 'entry-2',
             mieter_id: 'mieter-1', // Duplicate
             mieter_name: 'Mieter 1',
             ablese_datum: '2024-01-15',
@@ -196,27 +209,28 @@ describe('Wasserzähler Validation', () => {
         ]
       };
 
-      const result = validateWasserzaehlerFormData(formData);
+      const result = validateMeterReadingFormData(formData);
       expect(result.isValid).toBe(false);
       expect(result.errors.some(e => e.message.includes('Doppelte Einträge'))).toBe(true);
     });
 
     it('should handle empty entries array', () => {
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries: []
       };
 
-      const result = validateWasserzaehlerFormData(formData);
+      const result = validateMeterReadingFormData(formData);
       expect(result.isValid).toBe(true);
       expect(result.validEntries).toHaveLength(0);
     });
 
     it('should filter out invalid entries but keep valid ones', () => {
-      const formData: WasserzaehlerFormData = {
+      const formData: MeterReadingFormData = {
         nebenkosten_id: 'test-nebenkosten-id',
         entries: [
           {
+            id: 'entry-1',
             mieter_id: 'mieter-1',
             mieter_name: 'Mieter 1',
             ablese_datum: '2024-01-15',
@@ -224,6 +238,7 @@ describe('Wasserzähler Validation', () => {
             verbrauch: 50.2
           },
           {
+            id: 'entry-2',
             mieter_id: '', // Invalid
             mieter_name: 'Mieter 2',
             ablese_datum: '2024-01-15',
@@ -231,6 +246,7 @@ describe('Wasserzähler Validation', () => {
             verbrauch: 60.3
           },
           {
+            id: 'entry-3',
             mieter_id: 'mieter-3',
             mieter_name: 'Mieter 3',
             ablese_datum: '2024-01-15',
@@ -240,7 +256,7 @@ describe('Wasserzähler Validation', () => {
         ]
       };
 
-      const result = validateWasserzaehlerFormData(formData);
+      const result = validateMeterReadingFormData(formData);
       expect(result.isValid).toBe(false); // Has errors
       expect(result.validEntries).toHaveLength(2); // But has valid entries
       expect(result.validEntries[0].mieter_id).toBe('mieter-1');
@@ -274,27 +290,29 @@ describe('Wasserzähler Validation', () => {
     });
   });
 
-  describe('prepareWasserzaehlerDataForSubmission', () => {
+  describe('prepareMeterReadingsForSubmission', () => {
     it('should prepare data correctly', () => {
-      const entries: WasserzaehlerFormEntry[] = [
+      const entries: MeterReadingFormEntry[] = [
         {
+          id: 'entry-1',
           mieter_id: 'mieter-1',
           mieter_name: 'Mieter 1',
           ablese_datum: '2024-01-15',
-          zaehlerstand: '1234.5',
-          verbrauch: '50.2'
+          zaehlerstand: 1234.5,
+          verbrauch: 50.2
         },
         {
+          id: 'entry-1',
           mieter_id: 'mieter-2',
           mieter_name: 'Mieter 2',
           ablese_datum: null,
           zaehlerstand: 2345.6,
-          verbrauch: ''
+          verbrauch: 0
         }
       ];
 
-      const prepared = prepareWasserzaehlerDataForSubmission(entries);
-      
+      const prepared = prepareMeterReadingsForSubmission(entries);
+
       expect(prepared).toHaveLength(2);
       expect(prepared[0]).toEqual({
         mieter_id: 'mieter-1',
@@ -315,7 +333,8 @@ describe('Wasserzähler Validation', () => {
 describe('Performance Considerations', () => {
   it('should handle large datasets efficiently', () => {
     // Create a large dataset
-    const entries: WasserzaehlerFormEntry[] = Array.from({ length: 1000 }, (_, i) => ({
+    const entries: MeterReadingFormEntry[] = Array.from({ length: 1000 }, (_, i) => ({
+      id: `entry-${i}`,
       mieter_id: `mieter-${i}`,
       mieter_name: `Mieter ${i}`,
       ablese_datum: '2024-01-15',
@@ -323,13 +342,13 @@ describe('Performance Considerations', () => {
       verbrauch: 50 + i
     }));
 
-    const formData: WasserzaehlerFormData = {
+    const formData: MeterReadingFormData = {
       nebenkosten_id: 'test-nebenkosten-id',
       entries
     };
 
     const startTime = performance.now();
-    const result = validateWasserzaehlerFormData(formData);
+    const result = validateMeterReadingFormData(formData);
     const endTime = performance.now();
 
     expect(result.isValid).toBe(true);
