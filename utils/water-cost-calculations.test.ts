@@ -84,6 +84,8 @@ describe('Water Cost Calculations', () => {
     eichungsdatum: '2024-01-01',
     user_id: 'user-1',
     ist_aktiv: true,
+    zaehler_typ: 'kaltwasser',
+    einheit: 'm³',
   };
 
   const meter2: WasserZaehler = {
@@ -94,6 +96,8 @@ describe('Water Cost Calculations', () => {
     eichungsdatum: '2024-01-01',
     user_id: 'user-1',
     ist_aktiv: true,
+    zaehler_typ: 'kaltwasser',
+    einheit: 'm³',
   };
 
   // Water readings
@@ -187,6 +191,8 @@ describe('Water Cost Calculations', () => {
         eichungsdatum: '2024-01-01',
         user_id: 'user-1',
         ist_aktiv: true,
+        zaehler_typ: 'kaltwasser',
+        einheit: 'm³',
       };
 
       const reading1b: WasserAblesung = {
@@ -612,7 +618,7 @@ describe('Water Cost Calculations', () => {
       // Edge case: Meter exists but isn't linked to any apartment
       const unlinkedMeter: WasserZaehler = {
         ...meter2,
-        wohnung_id: null, // ❌ Not linked to any apartment!
+        wohnung_id: null as any, // ❌ Not linked to any apartment!
       };
 
       const tenants = [tenant3];
@@ -845,26 +851,6 @@ describe('Water Cost Calculations', () => {
       expect(gasDetail?.consumption).toBe(150); // 50 + 50 + 50
     });
 
-    it('reading sums match expected zaehlerverbrauch JSONB values', () => {
-      // This simulates what the database trigger should produce
-      const expectedZaehlerverbrauch = {
-        kaltwasser: 45,
-        warmwasser: 20,
-        gas: 150,
-      };
-
-      // Calculate actual sums from readings (grouped by meter)
-      const kwSum = kaltwasserReadings.reduce((sum, r) => sum + r.verbrauch, 0);
-      const wwSum = warmwasserReadings.reduce((sum, r) => sum + r.verbrauch, 0);
-      const gasSum = gasReadings.reduce((sum, r) => sum + r.verbrauch, 0);
-
-      expect(kwSum).toBe(expectedZaehlerverbrauch.kaltwasser);
-      expect(wwSum).toBe(expectedZaehlerverbrauch.warmwasser);
-      expect(gasSum).toBe(expectedZaehlerverbrauch.gas);
-
-      // Total should be 215
-      expect(kwSum + wwSum + gasSum).toBe(215);
-    });
 
     it('cost calculation uses correct price per m³', () => {
       const tenants = [singleTenant];

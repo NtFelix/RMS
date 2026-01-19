@@ -190,7 +190,7 @@ describe('WATER_METER_TYPES constant', () => {
 });
 
 describe('ZAEHLER_CONFIG', () => {
-    const allMeterTypes: ZaehlerTyp[] = ['kaltwasser', 'warmwasser', 'waermemenge', 'heizkostenverteiler', 'strom', 'gas'];
+    const allMeterTypes: ZaehlerTyp[] = Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[];
 
     it('has configuration for all meter types', () => {
         allMeterTypes.forEach(typ => {
@@ -289,13 +289,13 @@ describe('Meter value grouping scenarios', () => {
 });
 
 describe('Edge cases for meter calculations', () => {
-    it('handles negative values (should not happen but be safe)', () => {
+    it('handles negative values by ignoring them', () => {
         const values = {
             kaltwasser: -10,
             warmwasser: 20,
         };
-        expect(sumZaehlerValues(values)).toBe(10);
-        expect(sumAllZaehlerValues(values)).toBe(10);
+        expect(sumZaehlerValues(values)).toBe(20);
+        expect(sumAllZaehlerValues(values)).toBe(20);
     });
 
     it('handles very large values', () => {

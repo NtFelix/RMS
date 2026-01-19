@@ -15,7 +15,7 @@ export const sumZaehlerValues = (
     types: readonly string[] = WATER_METER_TYPES
 ): number => {
     if (!values) return 0;
-    return types.reduce((sum, typ) => sum + (values[typ] || 0), 0);
+    return types.reduce((sum, typ) => sum + Math.max(0, values[typ] || 0), 0);
 };
 
 /**
@@ -27,7 +27,7 @@ export const sumAllZaehlerValues = (
     values: Record<string, number> | null | undefined
 ): number => {
     if (!values) return 0;
-    return Object.values(values).reduce((sum, v) => sum + v, 0);
+    return Object.values(values).reduce((sum, v) => sum + Math.max(0, v), 0);
 };
 
 /**
