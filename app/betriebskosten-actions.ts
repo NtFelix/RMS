@@ -758,68 +758,89 @@ export async function saveMeterReadings(formData: MeterReadingFormData): Promise
   }
 
   // 3. Handle legacy entries (without meter ID) - Resolve Meter ID individually
+  // 3. Handle legacy entries (without meter ID) - Resolve Meter ID individually
   if (entriesWithoutId.length > 0) {
-    for (const entry of entriesWithoutId) {
-      try {
-        // Get Mieter's Wohnung ID
-        const { data: mieter, error: mieterError } = await supabase
-          .from('Mieter')
-          .select('wohnung_id')
-          .eq('id', entry.mieter_id)
-          .single();
+    // Collect all mieter IDs to fetch apartments in batch
+    const mieterIds = [...new Set(entriesWithoutId.map(e => e.mieter_id))];
 
-        if (mieterError || !mieter?.wohnung_id) {
-          console.warn(`Mieter ${entry.mieter_id} not found or has no apartment.`);
-          errorCount++;
-          continue;
-        }
+    // Batch fetch apartment IDs for these tenants
+    const { data: mieters, error: mieterError } = await supabase
+      .from('Mieter')
+      .select('id, wohnung_id')
+      .in('id', mieterIds);
 
-        // Find existing Meter for this apartment
-        // Improved logic: Fetch all relevant meters and prioritize Kaltwasser -> Warmwasser
+    if (!mieterError && mieters) {
+      // Create a map of mieter_id -> wohnung_id
+      const mieterWohnungMap = new Map(mieters.map(m => [m.id, m.wohnung_id]));
+
+      // Collect valid wohnung IDs ensuring no nulls
+      const wohnungIds = Array.from(new Set(mieters.map(m => m.wohnung_id).filter((id): id is string => !!id)));
+
+      if (wohnungIds.length > 0) {
+        // Batch fetch meters for these apartments
         const { data: meters, error: meterError } = await supabase
           .from('Zaehler')
-          .select('id, zaehler_typ')
-          .eq('wohnung_id', mieter.wohnung_id)
+          .select('id, wohnung_id, zaehler_typ')
+          .in('wohnung_id', wohnungIds)
           .eq('user_id', user.id)
           .in('zaehler_typ', ['kaltwasser', 'warmwasser', 'waermemengenzaehler', 'strom', 'gas'])
           .eq('ist_aktiv', true);
 
-        // Prioritize Kaltwasser, then Warmwasser, then others
-        let meterId = meters?.find(m => m.zaehler_typ === 'kaltwasser')?.id ||
-          meters?.find(m => m.zaehler_typ === 'warmwasser')?.id ||
-          meters?.[0]?.id; // Fallback to first available
+        if (!meterError && meters) {
+          const readingsToInsert = [];
 
-        if (!meterId) {
-          console.warn(`No active meter found for wohnung ${mieter.wohnung_id}. Skipping reading.`);
-          errorCount++;
-          continue;
+          for (const entry of entriesWithoutId) {
+            const wohnungId = mieterWohnungMap.get(entry.mieter_id);
+
+            if (!wohnungId) {
+              console.warn(`Mieter ${entry.mieter_id} has no apartment.`);
+              errorCount++;
+              continue;
+            }
+
+            // Find meters for this specific apartment
+            const apartmentMeters = meters.filter(m => m.wohnung_id === wohnungId);
+
+            // Resolved meter ID using prioritization
+            const meterId = apartmentMeters.find(m => m.zaehler_typ === 'kaltwasser')?.id ||
+              apartmentMeters.find(m => m.zaehler_typ === 'warmwasser')?.id ||
+              apartmentMeters[0]?.id;
+
+            if (meterId) {
+              readingsToInsert.push({
+                zaehler_id: meterId,
+                user_id: user.id,
+                ablese_datum: entry.ablese_datum || new Date().toISOString().split('T')[0],
+                zaehlerstand: Number(entry.zaehlerstand),
+                verbrauch: Number(entry.verbrauch),
+                kommentar: entry.kommentar
+              });
+            } else {
+              console.warn(`No active meter found for wohnung ${wohnungId}`);
+              errorCount++;
+            }
+          }
+
+          if (readingsToInsert.length > 0) {
+            const { data: batchReadings, error: batchError } = await supabase
+              .from('Zaehler_Ablesungen')
+              .insert(readingsToInsert)
+              .select();
+
+            if (batchError) {
+              console.error("Batch insert failed for legacy entries:", batchError);
+              errorCount += readingsToInsert.length;
+            } else {
+              results.push(...(batchReadings || []));
+              successCount += (batchReadings || []).length;
+            }
+          }
         }
-
-        const { data: reading, error: readingError } = await supabase
-          .from('Zaehler_Ablesungen')
-          .insert({
-            zaehler_id: meterId,
-            user_id: user.id,
-            ablese_datum: entry.ablese_datum || new Date().toISOString().split('T')[0],
-            zaehlerstand: Number(entry.zaehlerstand),
-            verbrauch: Number(entry.verbrauch),
-            kommentar: entry.kommentar
-          })
-          .select()
-          .single();
-
-        if (readingError) {
-          console.error(`Failed to insert reading for meter ${meterId}:`, readingError);
-          errorCount++;
-        } else {
-          results.push(reading);
-          successCount++;
-        }
-
-      } catch (e) {
-        console.error("Unexpected error saving legacy entry:", e);
-        errorCount++;
       }
+    } else {
+      // Fallback error handling if batch fetch failed
+      console.error("Failed to batch fetch mieters for legacy entries");
+      errorCount += entriesWithoutId.length;
     }
   }
 
