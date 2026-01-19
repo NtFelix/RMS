@@ -1,0 +1,89 @@
+-- Security Hardening Migration
+-- Addresses audit vulnerabilities including Unauthorized DELETE, GraphQL Introspection, and Row Count Enumeration.
+
+-- 1. HARDEN RLS POLICIES (Fixes Critical Unauthorized DELETE & Spoofed INSERTs)
+-- We ensure every modification operation (INSERT, UPDATE, DELETE) is restricted to the owner by checking auth.uid() against user_id.
+
+DO $$
+DECLARE
+    t text;
+    -- Tables that use 'user_id' for ownership
+    tables_with_user_id text[] := ARRAY[
+        'Aufgaben', 'Finanzen', 'Haeuser', 'Mieter', 'Nebenkosten', 
+        'Rechnungen', 'Wasserzaehler', 'Zaehler', 'Zaehler_Ablesungen',
+        'Dokumente_Metadaten', 'Mail_Accounts', 'Mail_Import_Jobs', 
+        'Mail_Metadaten', 'Mail_Sync_Jobs', 'Vorlagen', 'Wohnungen'
+    ];
+BEGIN
+    FOREACH t IN ARRAY tables_with_user_id LOOP
+        -- Secure DELETE: Ensure users can only delete their own data
+        EXECUTE format('DROP POLICY IF EXISTS "Allow authenticated users to delete their own data" ON public.%I', t);
+        EXECUTE format('DROP POLICY IF EXISTS "Secure DELETE" ON public.%I', t);
+        EXECUTE format('CREATE POLICY "Secure DELETE" ON public.%I FOR DELETE TO authenticated USING (auth.uid() = user_id)', t);
+        
+        -- Secure INSERT: Prevent spoofing user_id on creation
+        EXECUTE format('DROP POLICY IF EXISTS "Allow authenticated users to insert their own data" ON public.%I', t);
+        EXECUTE format('DROP POLICY IF EXISTS "Secure INSERT" ON public.%I', t);
+        EXECUTE format('CREATE POLICY "Secure INSERT" ON public.%I FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id)', t);
+        
+        -- Secure UPDATE: Ensure users can only update their own data
+        EXECUTE format('DROP POLICY IF EXISTS "Allow authenticated users to update their own data" ON public.%I', t);
+        EXECUTE format('DROP POLICY IF EXISTS "Secure UPDATE" ON public.%I', t);
+        EXECUTE format('CREATE POLICY "Secure UPDATE" ON public.%I FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)', t);
+    END LOOP;
+END $$;
+
+-- profiles table uses 'id' instead of 'user_id'
+DROP POLICY IF EXISTS "Can view own profile data" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
+CREATE POLICY "profiles_select_own" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Can update own profile data" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
+CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+
+-- 2. DISABLE GRAPHQL INTROSPECTION (Fixes reconnaissance risk)
+-- This prevents unauthorized users from mapping out your database schema via GraphQL.
+COMMENT ON SCHEMA graphql IS '{"introspection": false}';
+
+-- 3. FIX ROW COUNT ENUMERATION & INFORMATION DISCLOSURE
+-- Setting tight timeouts prevents brute-force data enumeration through expensive queries.
+-- Setting log level to error prevents leaking internal database structure in error messages.
+ALTER ROLE authenticated SET statement_timeout = '10s';
+ALTER ROLE anon SET statement_timeout = '5s';
+ALTER ROLE authenticated SET log_min_messages = 'error';
+
+-- 4. SECURE FUNCTION SEARCH PATHS
+-- Setting the search_path to 'public' for custom functions prevents search-path hijacking attacks.
+DO $$
+DECLARE
+    func_record record;
+BEGIN
+    FOR func_record IN (
+        SELECT quote_ident(n.nspname) || '.' || quote_ident(p.proname) || '(' || pg_get_function_identity_arguments(p.oid) || ')' as func_id
+        FROM pg_proc p
+        JOIN pg_namespace n ON p.pronamespace = n.oid
+        WHERE n.nspname = 'public'
+    ) LOOP
+        EXECUTE 'ALTER FUNCTION ' || func_record.func_id || ' SET search_path = public';
+    EXCEPTION WHEN OTHERS THEN
+        -- Skip for functions that don't support this
+        CONTINUE;
+    END LOOP;
+END $$;
+
+-- 5. MINIMUM PRIVILEGE PRINCIPLE (Fixes API vulnerability 9)
+-- Revoke default public access and grant explicit permissions only to authenticated users.
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM public, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated, service_role;
+
+-- Grant selective public access to the Documentation table if it exists
+DO $$ 
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'Dokumentation') THEN
+        GRANT SELECT ON public."Dokumentation" TO anon;
+        -- Add RLS policy for anonymous access
+        DROP POLICY IF EXISTS "Allow public read access to documentation" ON public."Dokumentation";
+        CREATE POLICY "Allow public read access to documentation" ON public."Dokumentation" FOR SELECT TO anon USING (true);
+    END IF;
+END $$;

@@ -12,6 +12,30 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  // Add security headers
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+
+  // Content Security Policy
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: https://*.supabase.co https://*.stripe.com",
+    "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "frame-src 'self' https://*.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+
+  response.headers.set('Content-Security-Policy', csp);
+
   // Update the session and get the user
   const { response: updatedResponse, user: sessionUser } = await updateSession(request, response)
   response = updatedResponse // Use the response from updateSession
