@@ -72,26 +72,27 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
     } as any);
 
     // Mock successful API responses
-    mockFetch.mockImplementation((url: any) => {
-      if (url.includes('/api/finanzen/years')) {
+    mockFetch.mockImplementation((url: string | Request | URL) => {
+      const urlString = typeof url === 'string' ? url : 'url' in url ? url.url : url.toString();
+      if (urlString.includes('/api/finanzen/years')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve([2023, 2024]),
         } as Response);
       }
-      if (url.includes('/api/finanzen/balance')) {
+      if (urlString.includes('/api/finanzen/balance')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ totalBalance: 9600 }),
         } as Response);
       }
-      if (url.includes('/api/finanzen/summary')) {
+      if (urlString.includes('/api/finanzen/summary')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockSummaryData),
         } as Response);
       }
-      if (url.includes('/api/finanzen')) {
+      if (urlString.includes('/api/finanzen')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockFinances),
@@ -147,12 +148,12 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
           break;
         }
       }
-      
+
       // If we still don't find it, just use the first one's closest card
       if (!saldoCard && saldoCards.length > 0) {
         saldoCard = saldoCards[0].closest('div[class*="Card"], div[class*="card"]');
       }
-      
+
       // Saldo should not be in the summary cards grid
       expect(summaryCards).not.toContainElement(saldoCard as HTMLElement);
     });
@@ -165,7 +166,7 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
 
       // First child should be summary cards grid
       expect(children[0]).toHaveClass('grid', 'gap-4');
-      
+
       // Should have proper gap between sections
       expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8');
     });
@@ -336,9 +337,9 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
   describe('Error Handling', () => {
     it('handles API errors gracefully', async () => {
       mockFetch.mockRejectedValueOnce(new Error('API Error'));
-      
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+
       render(<FinanzenClientWrapper {...defaultProps} />);
 
       await waitFor(() => {
@@ -349,8 +350,9 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
     });
 
     it('handles balance fetch errors', async () => {
-      mockFetch.mockImplementation((url: any) => {
-        if (url.includes('/api/finanzen/balance')) {
+      mockFetch.mockImplementation((url: string | Request | URL) => {
+        const urlString = typeof url === 'string' ? url : 'url' in url ? url.url : url.toString();
+        if (urlString.includes('/api/finanzen/balance')) {
           return Promise.reject(new Error('Balance API Error'));
         }
         return Promise.resolve({
@@ -359,8 +361,8 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
         } as Response);
       });
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+
       render(<FinanzenClientWrapper {...defaultProps} />);
 
       await waitFor(() => {
@@ -371,8 +373,9 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
     });
 
     it('handles summary data fetch errors', async () => {
-      mockFetch.mockImplementation((url: any) => {
-        if (url.includes('/api/finanzen/summary')) {
+      mockFetch.mockImplementation((url: string | Request | URL) => {
+        const urlString = typeof url === 'string' ? url : 'url' in url ? url.url : url.toString();
+        if (urlString.includes('/api/finanzen/summary')) {
           return Promise.reject(new Error('Summary API Error'));
         }
         return Promise.resolve({
@@ -381,8 +384,8 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
         } as Response);
       });
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+
       render(<FinanzenClientWrapper {...defaultProps} />);
 
       // Should still render without crashing
