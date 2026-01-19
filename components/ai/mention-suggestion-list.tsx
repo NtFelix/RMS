@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect, memo } from 'react';
+import React, { forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect, memo, Fragment } from 'react';
 import { Editor, Range } from '@tiptap/react';
 import { MentionVariable, CATEGORY_CONFIGS, getCategoryConfig } from '@/lib/template-constants';
 import { groupMentionVariablesByCategory, getOrderedCategories } from '@/lib/mention-utils';
@@ -342,12 +342,12 @@ export const MentionSuggestionList = forwardRef<
       return parts.map((part, index) => 
         regex.test(part) ? (
           <span 
-            key={index} 
+            key={`match-${index}`} 
             className="bg-primary/20 text-primary px-1 py-0.5 rounded font-semibold"
           >
             {part}
           </span>
-        ) : part
+        ) : <Fragment key={`text-${index}`}>{part}</Fragment>
       );
     } catch (error) {
       // Fallback to plain text if highlighting fails
@@ -501,13 +501,13 @@ export const MentionSuggestionList = forwardRef<
                   
                   {/* Category items */}
                   <div className="px-2 py-1 space-y-0.5">
-                    {categoryItems.map((item) => {
+                    {categoryItems.map((item, itemIndex) => {
                       const flatIndex = getFlatIndex(item);
                       const isSelected = flatIndex === selectedIndex;
                       
                       return (
                         <MemoizedSuggestionItem
-                          key={item.id}
+                          key={item?.id || `item-${itemIndex}`}
                           item={item}
                           isSelected={isSelected}
                           query={query}

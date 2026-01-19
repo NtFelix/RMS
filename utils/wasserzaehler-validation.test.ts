@@ -11,6 +11,7 @@ import { MeterReadingFormEntry, MeterReadingFormData } from '@/lib/data-fetching
 describe('meter-reading-validation', () => {
   // Base valid entry for reuse with spread operator
   const createValidEntry = (overrides: Partial<MeterReadingFormEntry> = {}): MeterReadingFormEntry => ({
+    id: '1',
     mieter_id: 'tenant1',
     mieter_name: 'Test Tenant',
     ablese_datum: '2023-01-01',
@@ -44,13 +45,13 @@ describe('meter-reading-validation', () => {
     });
 
     it('should fail if zaehlerstand is empty string', () => {
-      const entry = createValidEntry({ zaehlerstand: '' });
+      const entry = createValidEntry({ zaehlerstand: '' as any });
       const errors = validateMeterReadingEntry(entry, 0);
       expect(errors).toContainEqual(expect.objectContaining({ field: 'zaehlerstand' }));
     });
 
     it('should accept zaehlerstand as string number', () => {
-      const entry = createValidEntry({ zaehlerstand: '150' });
+      const entry = createValidEntry({ zaehlerstand: '150' as any });
       expect(validateMeterReadingEntry(entry, 0)).toEqual([]);
     });
 
@@ -198,7 +199,7 @@ describe('meter-reading-validation', () => {
 
     it('should convert string values to numbers', () => {
       const entries: MeterReadingFormEntry[] = [
-        createValidEntry({ zaehlerstand: '100', verbrauch: '50' })
+        createValidEntry({ zaehlerstand: '100' as any, verbrauch: '50' as any })
       ];
       const result = prepareMeterReadingsForSubmission(entries);
       expect(result[0].zaehlerstand).toBe(100);
@@ -224,7 +225,7 @@ describe('meter-reading-validation', () => {
 
     it('should default verbrauch to 0 if not provided', () => {
       const entries: MeterReadingFormEntry[] = [
-        createValidEntry({ verbrauch: '' })
+        createValidEntry({ verbrauch: '' as any })
       ];
       const result = prepareMeterReadingsForSubmission(entries);
       expect(result[0].verbrauch).toBe(0);

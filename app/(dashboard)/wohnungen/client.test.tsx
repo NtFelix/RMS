@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import WohnungenClientView from '../client';
+import WohnungenClientView from './client';
 import { useModalStore } from '@/hooks/use-modal-store';
 import type { Wohnung } from '@/types/Wohnung';
 
@@ -51,8 +51,7 @@ describe('WohnungenClientView - Layout Changes', () => {
       miete: 800,
       status: 'frei',
       Haeuser: { name: 'House 1' },
-      haeuser_id: 'h1',
-      user_id: 'u1'
+      haus_id: 'h1'
     },
     {
       id: '2',
@@ -61,8 +60,7 @@ describe('WohnungenClientView - Layout Changes', () => {
       miete: 1200,
       status: 'vermietet',
       Haeuser: { name: 'House 2' },
-      haeuser_id: 'h2',
-      user_id: 'u1'
+      haus_id: 'h2'
     }
   ];
 

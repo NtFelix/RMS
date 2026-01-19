@@ -41,8 +41,8 @@ describe('AI Documentation Context', () => {
   ];
 
   const mockCategories: Category[] = [
-    { id: '1', name: 'Verwaltung', description: 'Allgemeine Verwaltungsfunktionen' },
-    { id: '2', name: 'Mieterverwaltung', description: 'Funktionen zur Mieterverwaltung' }
+    { name: 'Verwaltung', articleCount: 5 },
+    { name: 'Mieterverwaltung', articleCount: 3 }
   ];
 
   const mockDocumentationService = {
@@ -632,8 +632,8 @@ describe('AI Documentation Context', () => {
 
     it('handles null and undefined values gracefully', () => {
       const articlesWithNulls = [
-        { id: '1', titel: 'Test', kategorie: null, seiteninhalt: null },
-        { id: '2', titel: 'Test 2', kategorie: undefined as any, seiteninhalt: undefined as any }
+        { id: '1', titel: 'Test', kategorie: null, seiteninhalt: null, meta: null },
+        { id: '2', titel: 'Test 2', kategorie: undefined as any, seiteninhalt: undefined as any, meta: null }
       ];
 
       const result = extractDocumentationContext(articlesWithNulls, mockCategories);

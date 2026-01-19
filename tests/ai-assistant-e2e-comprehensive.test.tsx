@@ -24,8 +24,8 @@ jest.mock('posthog-js', () => ({
 }));
 
 // Mock fetch for API calls
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+const mockFetch = jest.fn() as any;
+global.fetch = mockFetch as any;
 
 // Mock ReadableStream for Node.js environment
 global.ReadableStream = class ReadableStream {
@@ -65,7 +65,9 @@ global.Response = class Response {
   statusText: string;
   headers: Map<string, string>;
 
-  ok = this.status >= 200 && this.status < 300;
+  get ok() {
+    return this.status >= 200 && this.status < 300;
+  }
 
   async json() {
     return JSON.parse(this.body);

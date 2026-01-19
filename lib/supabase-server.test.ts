@@ -99,9 +99,9 @@ describe('lib/supabase-server', () => {
       expect(cookiesConfig.cookies).toHaveProperty('get');
       expect(cookiesConfig.cookies).toHaveProperty('set');
       expect(cookiesConfig.cookies).toHaveProperty('remove');
-      expect(typeof cookiesConfig.cookies.get).toBe('function');
-      expect(typeof cookiesConfig.cookies.set).toBe('function');
-      expect(typeof cookiesConfig.cookies.remove).toBe('function');
+      expect(typeof (cookiesConfig.cookies as any).get).toBe('function');
+      expect(typeof (cookiesConfig.cookies as any).set).toBe('function');
+      expect(typeof (cookiesConfig.cookies as any).remove).toBe('function');
     });
 
     it('should return the same client instance', () => {
@@ -135,7 +135,7 @@ describe('lib/supabase-server', () => {
       createSupabaseServerClient();
 
       const cookiesConfig = mockCreateServerClient.mock.calls[0][2];
-      const { get, set, remove } = cookiesConfig.cookies;
+      const { get, set, remove } = cookiesConfig.cookies as any;
 
       // Test get function
       const result = await get('test-cookie');

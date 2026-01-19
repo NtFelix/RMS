@@ -104,7 +104,7 @@ describe('TemplateEditor', () => {
       onUpdate: undefined, // Will be set by useEditor
     };
 
-    useEditor.mockImplementation((config) => {
+    useEditor.mockImplementation((config: any) => {
       // Simulate editor update
       setTimeout(() => {
         config.onUpdate?.({ editor: editorWithUpdate });

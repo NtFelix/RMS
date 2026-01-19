@@ -289,7 +289,7 @@ describe('Layout Components', () => {
         <Button>Accessible Button</Button>
       );
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('dialog has no accessibility violations when open', async () => {
@@ -305,7 +305,7 @@ describe('Layout Components', () => {
         </Dialog>
       );
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('card layout has no accessibility violations', async () => {
@@ -326,7 +326,7 @@ describe('Layout Components', () => {
         </Card>
       );
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
   });
 

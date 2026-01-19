@@ -65,7 +65,7 @@ describe('Template API Routes', () => {
         ],
       },
       user_id: 'user-123',
-      kategorie: 'Brief',
+              kategorie: 'Dokumente',
       kontext_anforderungen: [],
       erstellungsdatum: '2024-01-02T00:00:00Z',
       aktualisiert_am: '2024-01-02T00:00:00Z',
@@ -500,7 +500,7 @@ describe('Template API Routes', () => {
             },
           ],
         },
-        kategorie: 'Brief',
+                kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -535,7 +535,7 @@ describe('Template API Routes', () => {
       const updateData: TemplatePayload = {
         titel: 'Updated Template',
         inhalt: { type: 'doc', content: [] },
-        kategorie: 'Brief',
+                kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 

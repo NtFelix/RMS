@@ -195,7 +195,7 @@ describe('Button Modal Integration Tests', () => {
       
       const props = {
         initialTenants: [],
-        initialWohnungen: [{ id: '1', name: 'Test Apartment' }],
+        initialWohnungen: [{ id: '1', name: 'Test Apartment', groesse: 50, miete: 500, status: 'frei' as const, Haeuser: null }],
         serverAction: jest.fn(),
       };
 
@@ -215,8 +215,8 @@ describe('Button Modal Integration Tests', () => {
       const MieterClientView = (await import('@/app/(dashboard)/mieter/client-wrapper')).default;
       
       const mockWohnungen = [
-        { id: '1', name: 'Apartment 1' },
-        { id: '2', name: 'Apartment 2' }
+        { id: '1', name: 'Apartment 1', groesse: 50, miete: 500, status: 'frei' as const, Haeuser: null },
+        { id: '2', name: 'Apartment 2', groesse: 60, miete: 600, status: 'vermietet' as const, Haeuser: null }
       ];
 
       const props = {
@@ -244,7 +244,7 @@ describe('Button Modal Integration Tests', () => {
       
       const props = {
         initialNebenkosten: [],
-        initialHaeuser: [{ id: '1', name: 'Test House' }],
+        initialHaeuser: [{ id: '1', name: 'Test House', ort: 'Test City', strasse: 'Test St', user_id: 'u1' }],
         ownerName: 'Test Owner',
       };
 

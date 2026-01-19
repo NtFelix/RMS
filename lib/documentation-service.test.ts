@@ -84,6 +84,7 @@ describe('DocumentationService', () => {
           kategorie: 'Getting Started',
           seiteninhalt: 'This is a guide...',
           meta: { author: 'John Doe' },
+          seo: null,
         },
         {
           id: '2',
@@ -91,6 +92,7 @@ describe('DocumentationService', () => {
           kategorie: 'Getting Started',
           seiteninhalt: 'How to install...',
           meta: {},
+          seo: null,
         },
       ];
 
@@ -132,6 +134,7 @@ describe('DocumentationService', () => {
           kategorie: 'Getting Started',
           seiteninhalt: 'This guide helps you get started...',
           meta: {},
+          seo: null,
           relevance_score: 0.8,
         },
       ];
@@ -168,6 +171,7 @@ describe('DocumentationService', () => {
           kategorie: 'Test',
           seiteninhalt: 'Test content',
           meta: {},
+          seo: null,
         },
       ];
 
@@ -191,6 +195,7 @@ describe('DocumentationService', () => {
         kategorie: 'Test',
         seiteninhalt: 'Test content',
         meta: { author: 'Test Author' },
+        seo: null,
       };
 
       mockQueryBuilder.getById.mockResolvedValue({
@@ -206,6 +211,7 @@ describe('DocumentationService', () => {
         kategorie: 'Test',
         seiteninhalt: 'Test content',
         meta: { author: 'Test Author' },
+        seo: null,
       });
     });
 
@@ -230,6 +236,7 @@ describe('DocumentationService', () => {
           kategorie: 'Category 1',
           seiteninhalt: 'Content 1',
           meta: {},
+          seo: null,
         },
         {
           id: '2',
@@ -237,6 +244,7 @@ describe('DocumentationService', () => {
           kategorie: 'Category 2',
           seiteninhalt: 'Content 2',
           meta: {},
+          seo: null,
         },
       ];
 
@@ -257,6 +265,7 @@ describe('DocumentationService', () => {
         kategorie: 'Test',
         seiteninhalt: `Content ${i + 1}`,
         meta: {},
+        seo: null,
       }));
 
       mockQueryBuilder.getAll.mockResolvedValue({
@@ -292,6 +301,7 @@ describe('DocumentationService', () => {
         kategorie: null,
         seiteninhalt: null,
         meta: null,
+        seo: null,
       };
 
       const result = transformRecordToArticle(record);
