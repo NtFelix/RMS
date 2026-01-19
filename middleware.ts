@@ -22,7 +22,7 @@ export async function middleware(request: NextRequest) {
   // Content Security Policy
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com",
+    "script-src 'self' 'unsafe-inline' https://*.supabase.co https://*.stripe.com", // 'unsafe-inline' is currently required for Next.js. TODO: Implement Nonce-based CSP.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: https://*.supabase.co https://*.stripe.com",
     "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com",
