@@ -1278,16 +1278,18 @@ export async function getMeterModalDataAction(
 
         let currentReadings: any[] = [];
         let previousReadings: any[] = [];
+        let waterMeters: any[] = [];
 
         if (apartmentIds.length > 0) {
           // Fetch water meters once for both current and previous readings
-          const { data: waterMeters, error: metersError } = await supabase
+          const { data: fetchedMeters, error: metersError } = await supabase
             .from("Zaehler")
-            .select("id, wohnung_id")
+            .select("id, wohnung_id, zaehler_typ, custom_id")
             .in("wohnung_id", apartmentIds)
             .eq("user_id", user.id);
 
-          if (!metersError && waterMeters?.length > 0) {
+          if (!metersError && fetchedMeters && fetchedMeters.length > 0) {
+            waterMeters = fetchedMeters;
             const meterIds = waterMeters.map(m => m.id);
 
             // Fetch current period readings
@@ -1371,12 +1373,25 @@ export async function getMeterModalDataAction(
           // Type assertion for Wohnungen since Supabase join returns it as an object, not array
           const wohnung = Array.isArray(tenant.Wohnungen) ? tenant.Wohnungen[0] : tenant.Wohnungen;
 
+          // Resolve Meter details
+          let meter = null;
+          if (currentReading && currentReading.zaehler_id) {
+            meter = waterMeters.find(m => m.id === currentReading.zaehler_id);
+          } else if (wohnung && wohnung.id) {
+            // Fallback: try to find a meter for this apartment (prioritize generic types)
+            // This mimics the save logic to offer a sensible default
+            const apartmentMeters = waterMeters.filter(m => m.wohnung_id === wohnung.id);
+            meter = apartmentMeters.find(m => m.zaehler_typ === 'kaltwasser') ||
+              apartmentMeters.find(m => m.zaehler_typ === 'warmwasser') ||
+              apartmentMeters[0];
+          }
+
           return {
             mieter_id: tenant.id,
             mieter_name: tenant.name,
-            meter_id: currentReading?.zaehler_id || "", // Fallback to empty string if no reading exists, allowing saveMeterReadings to resolve it
-            meter_type: 'Wasserzaehler', // Default type for this legacy function
-            custom_id: null,
+            meter_id: meter?.id || "",
+            meter_type: meter?.zaehler_typ || 'Wasserzaehler', // Fallback to generic if everything fails
+            custom_id: meter?.custom_id || null,
             wohnung_name: wohnung?.name || 'Unbekannt',
             wohnung_groesse: wohnung?.groesse || 0,
             current_reading: currentReading ? {
