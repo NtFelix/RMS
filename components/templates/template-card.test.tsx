@@ -156,7 +156,7 @@ describe('TemplateCard', () => {
   it('displays category badge correctly', () => {
     const contractTemplate: Template = {
       ...mockTemplate,
-      kategorie: 'Vertrag',
+      kategorie: 'Dokumente',
     };
 
     render(

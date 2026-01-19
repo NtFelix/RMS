@@ -409,7 +409,7 @@ describe('TemplateCard - Comprehensive Tests', () => {
     it('supports screen readers with proper text content', () => {
       const template = createMockTemplate({
         titel: 'Important Contract Template',
-        kategorie: 'Vertrag',
+        kategorie: 'Dokumente',
       });
       
       render(

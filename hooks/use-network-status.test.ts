@@ -38,7 +38,7 @@ Object.defineProperty(window, 'removeEventListener', {
 describe('useNetworkStatus', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    navigator.onLine = true;
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     (fetch as jest.MockedFunction<typeof fetch>).mockClear();
   });
 
@@ -47,7 +47,7 @@ describe('useNetworkStatus', () => {
   });
 
   it('should initialize with correct online status', () => {
-    navigator.onLine = true;
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     const { result } = renderHook(() => useNetworkStatus());
 
     expect(result.current.isOnline).toBe(true);
@@ -55,7 +55,7 @@ describe('useNetworkStatus', () => {
   });
 
   it('should initialize with correct offline status', () => {
-    navigator.onLine = false;
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
     const { result } = renderHook(() => useNetworkStatus());
 
     expect(result.current.isOnline).toBe(false);
@@ -74,7 +74,7 @@ describe('useNetworkStatus', () => {
 
     // Simulate going offline
     act(() => {
-      navigator.onLine = false;
+      Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
       const offlineHandler = mockAddEventListener.mock.calls.find(
         call => call[0] === 'offline'
       )?.[1];
@@ -87,12 +87,12 @@ describe('useNetworkStatus', () => {
   });
 
   it('should update status when coming back online', () => {
-    navigator.onLine = false;
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
     const { result } = renderHook(() => useNetworkStatus());
 
     // Simulate coming back online
     act(() => {
-      navigator.onLine = true;
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
       const onlineHandler = mockAddEventListener.mock.calls.find(
         call => call[0] === 'online'
       )?.[1];

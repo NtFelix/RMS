@@ -66,9 +66,9 @@ describe('/api/search', () => {
       
       // Also make limit return a promise for standard queries
       queryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
+        const result = Promise.resolve({ data: [], error: null }) as any;
         // Add then method to the result for finance queries
-        result.then = jest.fn((resolve) => {
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         });
@@ -509,9 +509,9 @@ describe('/api/search', () => {
 
       // Make limit return a promise that resolves to an error
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: null, error: { message: 'Database connection failed' } });
+        const result = Promise.resolve({ data: null, error: { message: 'Database connection failed' } }) as any;
         // Add then method to the result for finance queries
-        result.then = jest.fn((resolve) => {
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: null, error: { message: 'Database connection failed' } });
           return Promise.resolve({ data: null, error: { message: 'Database connection failed' } });
         });
@@ -520,8 +520,8 @@ describe('/api/search', () => {
 
       // Make or return the same query builder for chaining
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: null, error: { message: 'Database connection failed' } });
-        result.then = jest.fn((resolve) => {
+        const result = Promise.resolve({ data: null, error: { message: 'Database connection failed' } }) as any;
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: null, error: { message: 'Database connection failed' } });
           return Promise.resolve({ data: null, error: { message: 'Database connection failed' } });
         });
@@ -598,8 +598,8 @@ describe('/api/search', () => {
 
       // Make limit return a promise for standard queries
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
+        const result = Promise.resolve({ data: [], error: null }) as any;
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         });
@@ -608,8 +608,8 @@ describe('/api/search', () => {
 
       // Make or return a promise for finance queries
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
+        const result = Promise.resolve({ data: [], error: null }) as any;
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         });
@@ -644,8 +644,8 @@ describe('/api/search', () => {
 
       // Make limit return a promise for standard queries
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
+        const result = Promise.resolve({ data: [], error: null }) as any;
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         });
@@ -654,8 +654,8 @@ describe('/api/search', () => {
 
       // Make or return a promise for finance queries
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
+        const result = Promise.resolve({ data: [], error: null }) as any;
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         });
@@ -744,8 +744,8 @@ describe('/api/search', () => {
 
       // Make limit return a promise for standard queries
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
+        const result = Promise.resolve({ data: [], error: null }) as any;
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         });
@@ -754,8 +754,8 @@ describe('/api/search', () => {
 
       // Make or return a promise for finance queries
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
+        const result = Promise.resolve({ data: [], error: null }) as any;
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         });
@@ -790,8 +790,8 @@ describe('/api/search', () => {
 
       // Make limit return a promise for standard queries
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
+        const result = Promise.resolve({ data: [], error: null }) as any;
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         });
@@ -800,8 +800,8 @@ describe('/api/search', () => {
 
       // Make or return a promise for finance queries
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
+        const result = Promise.resolve({ data: [], error: null }) as any;
+        result.then = jest.fn((resolve: any) => {
           resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         });

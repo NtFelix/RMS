@@ -28,7 +28,7 @@ describe('TemplatesModal', () => {
       titel: 'Test Template 2',
       inhalt: { type: 'doc', content: [] },
       user_id: 'user-1',
-      kategorie: 'Brief' as const,
+      kategorie: 'Dokumente' as const,
       kontext_anforderungen: [],
       erstellungsdatum: '2024-01-02T00:00:00Z',
       aktualisiert_am: '2024-01-02T00:00:00Z',

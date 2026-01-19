@@ -72,7 +72,7 @@ describe('MentionSuggestionErrorHandling', () => {
   describe('logMentionSuggestionError', () => {
     it('should log errors in development mode', () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
 
       const error = createMentionSuggestionError(
         MentionSuggestionErrorType.RENDER_ERROR,
@@ -85,12 +85,12 @@ describe('MentionSuggestionErrorHandling', () => {
       expect(console.error).toHaveBeenCalled();
       expect(console.groupEnd).toHaveBeenCalled();
 
-      process.env.NODE_ENV = originalEnv;
+      Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
     });
 
     it('should log minimal info in production mode', () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
 
       const error = createMentionSuggestionError(
         MentionSuggestionErrorType.RENDER_ERROR,
@@ -109,7 +109,7 @@ describe('MentionSuggestionErrorHandling', () => {
         })
       );
 
-      process.env.NODE_ENV = originalEnv;
+      Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
     });
   });
 

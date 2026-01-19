@@ -6,7 +6,7 @@ import {
   EnhancedMentionVariable,
   FilterOptions
 } from '../../lib/mention-utils';
-import { MentionVariable } from '../lib/template-constants';
+import { MentionVariable } from '../../lib/template-constants';
 
 // Test data
 const mockVariables: EnhancedMentionVariable[] = [
@@ -116,9 +116,9 @@ describe('filterMentionVariables', () => {
   describe('exact match prioritization', () => {
     it('should prioritize exact label matches', () => {
       const testVariables: MentionVariable[] = [
-        { id: 'test1', label: 'Name Test', description: 'Test description', category: 'test' },
-        { id: 'test2', label: 'Name', description: 'Exact match', category: 'test' },
-        { id: 'test3', label: 'Test Name', description: 'Another test', category: 'test' }
+        { id: 'test1', label: 'Name Test', description: 'Test description', category: 'test' as any },
+        { id: 'test2', label: 'Name', description: 'Exact match', category: 'test' as any },
+        { id: 'test3', label: 'Test Name', description: 'Another test', category: 'test' as any }
       ];
       
       const result = filterMentionVariables(testVariables, 'name');
@@ -131,14 +131,14 @@ describe('filterMentionVariables', () => {
           id: 'test1', 
           label: 'Test Label', 
           description: 'Test description', 
-          category: 'test',
+          category: 'test' as any,
           keywords: ['testing', 'sample']
         },
         { 
           id: 'test2', 
           label: 'Another Label', 
           description: 'Another description', 
-          category: 'test',
+          category: 'test' as any,
           keywords: ['test', 'exact']
         }
       ];
@@ -149,8 +149,8 @@ describe('filterMentionVariables', () => {
 
     it('should prioritize label starts with query', () => {
       const testVariables: MentionVariable[] = [
-        { id: 'test1', label: 'Contains Name', description: 'Test description', category: 'test' },
-        { id: 'test2', label: 'Name Starts', description: 'Another test', category: 'test' }
+        { id: 'test1', label: 'Contains Name', description: 'Test description', category: 'test' as any },
+        { id: 'test2', label: 'Name Starts', description: 'Another test', category: 'test' as any }
       ];
       
       const result = filterMentionVariables(testVariables, 'name');
@@ -180,7 +180,7 @@ describe('filterMentionVariables', () => {
 
     it('should handle variables without keywords', () => {
       const variablesWithoutKeywords: MentionVariable[] = [
-        { id: 'test1', label: 'Test Label', description: 'Test description', category: 'test' }
+        { id: 'test1', label: 'Test Label', description: 'Test description', category: 'test' as any }
       ];
       
       const result = filterMentionVariables(variablesWithoutKeywords, 'test');
@@ -242,7 +242,7 @@ describe('getUniqueCategories', () => {
 
   it('should filter out undefined categories', () => {
     const variablesWithUndefined: MentionVariable[] = [
-      { id: 'test1', label: 'Test', description: 'Test', category: 'test' },
+      { id: 'test1', label: 'Test', description: 'Test', category: 'test' as any },
       { id: 'test2', label: 'Test2', description: 'Test2' }
     ];
     

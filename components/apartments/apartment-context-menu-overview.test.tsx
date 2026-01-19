@@ -51,10 +51,10 @@ describe('ApartmentContextMenu', () => {
     
     // Check that the menu items have the correct icons (Lucide React icons render as SVG)
     const editItem = screen.getByText('Bearbeiten').closest('div');
-    expect(editItem).toContainElement(editItem?.querySelector('svg'));
+    expect(editItem).toContainElement(editItem?.querySelector('svg') as SVGElement | null);
     
     const deleteItem = screen.getByText('Löschen').closest('div');
-    expect(deleteItem).toContainElement(deleteItem?.querySelector('svg'));
+    expect(deleteItem).toContainElement(deleteItem?.querySelector('svg') as SVGElement | null);
   });
 
   it('should call onEdit when edit menu item is clicked', () => {

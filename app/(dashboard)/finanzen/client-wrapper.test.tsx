@@ -72,7 +72,7 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
     } as any);
 
     // Mock successful API responses
-    mockFetch.mockImplementation((url: string) => {
+    mockFetch.mockImplementation((url: any) => {
       if (url.includes('/api/finanzen/years')) {
         return Promise.resolve({
           ok: true,
@@ -154,7 +154,7 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
       }
       
       // Saldo should not be in the summary cards grid
-      expect(summaryCards).not.toContainElement(saldoCard);
+      expect(summaryCards).not.toContainElement(saldoCard as HTMLElement);
     });
 
     it('maintains proper layout flow: summary cards -> chart -> saldo -> transactions', () => {
@@ -349,7 +349,7 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
     });
 
     it('handles balance fetch errors', async () => {
-      mockFetch.mockImplementation((url: string) => {
+      mockFetch.mockImplementation((url: any) => {
         if (url.includes('/api/finanzen/balance')) {
           return Promise.reject(new Error('Balance API Error'));
         }
@@ -371,7 +371,7 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
     });
 
     it('handles summary data fetch errors', async () => {
-      mockFetch.mockImplementation((url: string) => {
+      mockFetch.mockImplementation((url: any) => {
         if (url.includes('/api/finanzen/summary')) {
           return Promise.reject(new Error('Summary API Error'));
         }

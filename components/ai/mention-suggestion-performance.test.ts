@@ -198,7 +198,7 @@ describe('Mention Suggestion Performance', () => {
   describe('Optimized Filter', () => {
     it('should create optimized filter with performance monitoring', () => {
       const { filter, cleanup } = createOptimizedFilter(
-        (items, query) => items.filter(item => 
+        (items: any[], query) => items.filter(item => 
           item.label.toLowerCase().includes(query.toLowerCase())
         ),
         { debounceMs: 0, memoize: true }

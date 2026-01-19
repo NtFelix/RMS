@@ -266,7 +266,7 @@ describe('Documentation Performance Benchmarks', () => {
           if (this.cache.size >= this.maxSize) {
             // Remove oldest entry (LRU)
             const firstKey = this.cache.keys().next().value;
-            this.cache.delete(firstKey);
+            this.cache.delete(firstKey!);
           }
           this.cache.set(key, value);
         }

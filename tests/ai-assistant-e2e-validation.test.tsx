@@ -27,8 +27,8 @@ jest.mock('posthog-js', () => ({
 }));
 
 // Mock fetch for API calls
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+const mockFetch = jest.fn() as any;
+global.fetch = mockFetch as any;
 
 // Mock environment variables
 const originalEnv = process.env;

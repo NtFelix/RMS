@@ -29,7 +29,7 @@ describe('getApartmentName', () => {
   });
 
   it('should return undefined for undefined input', () => {
-    expect(getApartmentName(undefined as WohnungData | WohnungData[] | null)).toBeUndefined();
+    expect(getApartmentName(undefined as unknown as WohnungData | WohnungData[] | null)).toBeUndefined();
   });
 
   it('should return apartment name from object format', () => {

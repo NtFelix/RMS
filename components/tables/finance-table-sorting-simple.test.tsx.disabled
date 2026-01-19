@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { FinanceTransactions } from '@/components/finance-transactions'
+import { FinanceTransactions } from '@/components/finance/finance-transactions'
 
 // Mock the context menu component
 jest.mock('@/components/finance/finance-context-menu', () => ({
