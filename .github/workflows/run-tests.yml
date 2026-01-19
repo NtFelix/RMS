@@ -105,55 +105,8 @@ jobs:
           path: .next
           key: ${{ steps.cache-key.outputs.build-key }}
 
-  # INSTALL PLAYWRIGHT - Runs in parallel with build
-  install-playwright:
-    name: Install Playwright Browsers
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Generate Playwright cache key
-        id: playwright-key
-        run: echo "key=${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ steps.playwright-key.outputs.key }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Cache node_modules
-        id: node-cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-modules-
-
-      - name: Install dependencies
-        if: steps.node-cache.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps
-
-  # TYPE CHECK - Conceptually part of Prep
+  # TYPE CHECK - Validates TypeScript types
   type-check:
     name: TypeScript Check
     runs-on: ubuntu-latest
@@ -185,7 +138,7 @@ jobs:
       - name: Run TypeScript compiler
         run: npx tsc --noEmit --pretty
 
-  # DISCOVERY - Conceptually part of Prep
+  # DISCOVERY - Find and filter test files
   setup:
     name: Discover & Filter Test Files
     runs-on: ubuntu-latest
@@ -464,6 +417,54 @@ jobs:
           # Output
           echo "matrix=$(echo "$MATRIX_JSON" | jq -c .)" >> $GITHUB_OUTPUT
           echo "files-to-test=$TEST_FILES_TO_RUN" >> $GITHUB_OUTPUT
+
+  # INSTALL PLAYWRIGHT - Installs browser binaries for E2E tests
+  install-playwright:
+    name: Install Playwright Browsers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Generate Playwright cache key
+        id: playwright-key
+        run: echo "key=${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-key.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Cache node_modules
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # 2. VERIFICATION PHASE (Sequential to Prep)
