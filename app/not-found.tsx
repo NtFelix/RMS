@@ -4,6 +4,8 @@ import Image from "next/image"
 import { Home, Building2, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 
+export const runtime = 'edge'
+
 const quickLinks = [
   {
     title: "Dashboard",
