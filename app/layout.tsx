@@ -27,16 +27,21 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+import { headers } from "next/headers"
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const headersList = await headers()
+  const nonce = headersList.get("x-nonce") || undefined
+
   return (
     <html lang="de" suppressHydrationWarning className="light">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
-          <PostHogProvider>
+          <PostHogProvider nonce={nonce}>
             {children}
             <Toaster />
             <CookieConsentBanner />

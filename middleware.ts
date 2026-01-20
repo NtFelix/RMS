@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, // Keeping unsafe-inline for styles for now as removing it often breaks UI libs
     "img-src 'self' data: https://*.supabase.co https://*.stripe.com https://*.posthog.com",
     "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    "font-src 'self' https://fonts.gstatic.com https://r2cdn.perplexity.ai",
     "frame-src 'self' https://*.stripe.com",
     "object-src 'none'",
     "base-uri 'self'",
