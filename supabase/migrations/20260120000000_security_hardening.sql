@@ -65,10 +65,12 @@ BEGIN
         JOIN pg_namespace n ON p.pronamespace = n.oid
         WHERE n.nspname = 'public'
     ) LOOP
-        EXECUTE 'ALTER FUNCTION ' || func_record.func_id || ' SET search_path = public';
-    EXCEPTION WHEN OTHERS THEN
-        -- Skip for functions that don't support this
-        CONTINUE;
+        BEGIN
+            EXECUTE 'ALTER FUNCTION ' || func_record.func_id || ' SET search_path = public';
+        EXCEPTION WHEN OTHERS THEN
+            -- Skip for functions that don't support this (e.g., aggregate functions)
+            NULL;
+        END;
     END LOOP;
 END $$;
 
