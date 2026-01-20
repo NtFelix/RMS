@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { INFO_EMAIL } from '@/lib/constants';
 
 export default function AGBPage() {
