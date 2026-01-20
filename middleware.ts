@@ -7,14 +7,37 @@ import { ROUTES } from "@/lib/constants"
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Content Security Policy - using 'unsafe-inline' for all pages for now
-  // This is a pragmatic approach to ensure the app works everywhere.
-  // TODO: Re-introduce nonce-based CSP for dashboard pages once deployment is stable
-  // The nonce approach was causing issues with static page prerendering and Edge Runtime
+  // Dynamic pages that require nonce-based CSP (authenticated dashboard routes)
+  // All other pages use 'unsafe-inline' since they are either static or don't handle user input
+  // This approach ensures high security for sensitive areas while maintaining compatibility for static pages
+  const dynamicPagePatterns = [
+    /^\/dashboard/,           // Dashboard pages
+    /^\/betriebskosten/,      // Operating costs
+    /^\/finanzen/,            // Finance
+    /^\/haeuser/,             // Houses
+    /^\/wohnungen/,           // Apartments
+    /^\/mieter/,              // Tenants
+    /^\/todos/,               // Tasks
+    /^\/mails/,               // Mails
+    /^\/dateien/,             // Files
+    /^\/checkout\/success/,   // Checkout success (needs Stripe verification)
+    /^\/hilfe\/dokumentation\/[^/]+$/, // Dynamic documentation article pages (single article)
+  ]
+
+  const isDynamicPage = dynamicPagePatterns.some(pattern => pattern.test(pathname))
+
+  // Create a nonce for CSP (only used for strict dynamic pages)
+  const nonce = crypto.randomUUID()
+
+  // Content Security Policy - nonces for dynamic pages, 'unsafe-inline' for static/landing pages
+  const scriptSrc = isDynamicPage
+    ? `script-src 'self' 'nonce-${nonce}' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+    : `script-src 'self' 'unsafe-inline' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://*.supabase.co https://*.stripe.com https://*.posthog.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    scriptSrc,
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, // Keeping unsafe-inline for styles for now as removing it often breaks UI libs
     "img-src 'self' data: https://*.supabase.co https://*.stripe.com https://*.posthog.com",
     "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com",
     "font-src 'self' https://fonts.gstatic.com https://r2cdn.perplexity.ai",
@@ -25,8 +48,11 @@ export async function middleware(request: NextRequest) {
     "frame-ancestors 'none'",
   ].join('; ');
 
-  // Clone request headers and set CSP
+  // Clone request headers and set nonce (only for dynamic pages) and CSP
   const requestHeaders = new Headers(request.headers)
+  if (isDynamicPage) {
+    requestHeaders.set('x-nonce', nonce)
+  }
   requestHeaders.set('Content-Security-Policy', csp)
 
   // Initialize response
