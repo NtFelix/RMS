@@ -5,13 +5,39 @@ import { ROUTES } from "@/lib/constants"
 
 
 export async function middleware(request: NextRequest) {
-  // Create a nonce for CSP
+  const pathname = request.nextUrl.pathname
+
+  // Static pages that are prerendered - they can't use nonces, so we use 'unsafe-inline'
+  // This is acceptable since static pages have no user-generated content (low XSS risk)
+  const staticPagePatterns = [
+    /^\/$/,                           // Homepage
+    /^\/agb$/,
+    /^\/impressum$/,
+    /^\/datenschutz$/,
+    /^\/preise$/,
+    /^\/subscription-locked$/,
+    /^\/auth\/(login|register|reset-password|update-password|verify-email)$/,
+    /^\/checkout\/cancel$/,
+    /^\/funktionen\//,
+    /^\/loesungen\//,
+    /^\/warteliste\//,
+    /^\/hilfe\/dokumentation$/,       // Not the dynamic [articleId] route
+    /^\/_not-found$/,
+  ]
+
+  const isStaticPage = staticPagePatterns.some(pattern => pattern.test(pathname))
+
+  // Create a nonce for CSP (only used for dynamic pages)
   const nonce = crypto.randomUUID()
 
-  // Content Security Policy
+  // Content Security Policy - different for static vs dynamic pages
+  const scriptSrc = isStaticPage
+    ? `script-src 'self' 'unsafe-inline' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+    : `script-src 'self' 'nonce-${nonce}' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' https://*.supabase.co https://*.stripe.com https://*.posthog.com`, // Removed unsafe-inline and unsafe-eval. Nonce is used.
+    scriptSrc,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, // Keeping unsafe-inline for styles for now as removing it often breaks UI libs
     "img-src 'self' data: https://*.supabase.co https://*.stripe.com https://*.posthog.com",
     "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com",
@@ -23,9 +49,11 @@ export async function middleware(request: NextRequest) {
     "frame-ancestors 'none'",
   ].join('; ');
 
-  // Clone request headers and set nonce and CSP
+  // Clone request headers and set nonce (for dynamic pages) and CSP
   const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-nonce', nonce)
+  if (!isStaticPage) {
+    requestHeaders.set('x-nonce', nonce)
+  }
   requestHeaders.set('Content-Security-Policy', csp)
 
   // Initialize response
@@ -47,8 +75,6 @@ export async function middleware(request: NextRequest) {
   const { response: updatedResponse, user: sessionUser } = await updateSession(request, response)
   response = updatedResponse // Use the response from updateSession
 
-  // Get the pathname from the URL
-  const pathname = request.nextUrl.pathname
 
   // Public routes that don't require authentication
   const publicRoutes = [
