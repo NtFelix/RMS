@@ -11,6 +11,8 @@ import { PWA_IMAGES_URL, FAVICON_URL } from "@/lib/constants"
 
 const inter = Inter({ subsets: ["latin"] })
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = {
   ...defaultMetadata,
   icons: {
