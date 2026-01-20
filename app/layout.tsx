@@ -9,8 +9,6 @@ import { CookieConsentBanner } from "@/components/common/cookie-consent-banner"
 import { defaultMetadata } from "@/lib/seo"
 import { PWA_IMAGES_URL, FAVICON_URL } from "@/lib/constants"
 
-import { headers } from "next/headers"
-
 const inter = Inter({ subsets: ["latin"] })
 
 // Note: runtime = 'edge' removed from root layout to allow landing pages to be static.
@@ -32,18 +30,16 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const nonce = (await headers()).get('x-nonce') ?? undefined
-
   return (
     <html lang="de" suppressHydrationWarning className="light">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
-          <PostHogProvider nonce={nonce}>
+          <PostHogProvider>
             {children}
             <Toaster />
             <CookieConsentBanner />
