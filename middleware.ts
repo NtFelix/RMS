@@ -7,33 +7,33 @@ import { ROUTES } from "@/lib/constants"
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Static pages that are prerendered - they can't use nonces, so we use 'unsafe-inline'
-  // This is acceptable since static pages have no user-generated content (low XSS risk)
-  const staticPagePatterns = [
-    /^\/$/,                           // Homepage
-    /^\/agb$/,
-    /^\/impressum$/,
-    /^\/datenschutz$/,
-    /^\/preise$/,
-    /^\/subscription-locked$/,
-    /^\/auth\/(login|register|reset-password|update-password|verify-email)$/,
-    /^\/checkout\/cancel$/,
-    /^\/funktionen\//,
-    /^\/loesungen\//,
-    /^\/warteliste\//,
-    /^\/hilfe\/dokumentation$/,       // Not the dynamic [articleId] route
-    /^\/_not-found$/,
+  // Dynamic pages that require nonce-based CSP (authenticated dashboard routes)
+  // All other pages use 'unsafe-inline' since they are either static or don't handle user input
+  // This approach is more maintainable since there are fewer dynamic routes to track
+  const dynamicPagePatterns = [
+    /^\/dashboard/,           // Dashboard pages
+    /^\/betriebskosten/,      // Operating costs
+    /^\/finanzen/,            // Finance
+    /^\/haeuser/,             // Houses
+    /^\/wohnungen/,           // Apartments
+    /^\/mieter/,              // Tenants
+    /^\/todos/,               // Tasks
+    /^\/mails/,               // Mails
+    /^\/dateien/,             // Files
+    /^\/checkout\/success/,   // Checkout success (needs Stripe verification)
+    /^\/hilfe\/dokumentation\/[^/]+$/, // Dynamic documentation article pages
   ]
 
-  const isStaticPage = staticPagePatterns.some(pattern => pattern.test(pathname))
+  const isDynamicPage = dynamicPagePatterns.some(pattern => pattern.test(pathname))
 
   // Create a nonce for CSP (only used for dynamic pages)
   const nonce = crypto.randomUUID()
 
-  // Content Security Policy - different for static vs dynamic pages
-  const scriptSrc = isStaticPage
-    ? `script-src 'self' 'unsafe-inline' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
-    : `script-src 'self' 'nonce-${nonce}' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+  // Content Security Policy - nonces for dynamic pages, 'unsafe-inline' for static/landing pages
+  // Using 'unsafe-inline' for static pages is acceptable since they have no user-generated content
+  const scriptSrc = isDynamicPage
+    ? `script-src 'self' 'nonce-${nonce}' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+    : `script-src 'self' 'unsafe-inline' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
 
   const csp = [
     "default-src 'self'",
@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
 
   // Clone request headers and set nonce (for dynamic pages) and CSP
   const requestHeaders = new Headers(request.headers)
-  if (!isStaticPage) {
+  if (isDynamicPage) {
     requestHeaders.set('x-nonce', nonce)
   }
   requestHeaders.set('Content-Security-Policy', csp)
