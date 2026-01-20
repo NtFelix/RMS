@@ -34,6 +34,7 @@ export async function middleware(request: NextRequest) {
     '/api/posthog-config', // Public API route for PostHog
     '/api/dokumentation(.*)?', // Documentation API routes
     '/api/ai-assistant', // AI assistant API route
+    '/api/auth/check-verification', // Email verification status check (for verify-email page)
     '/datenschutz', // Datenschutz page
     '/agb', // AGB page
     '/impressum', // Impressum page
