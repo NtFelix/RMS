@@ -84,7 +84,6 @@ DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'Dokumentation') THEN
         GRANT SELECT ON public."Dokumentation" TO anon;
-        GRANT SELECT ON public."Dokumentation" TO anon;
         -- Add RLS policy for anonymous access
         DROP POLICY IF EXISTS "Allow public read access to documentation" ON public."Dokumentation";
         CREATE POLICY "Allow public read access to documentation" ON public."Dokumentation" FOR SELECT TO anon USING (true);

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { TrendingUp, PieChart, BarChart3, Receipt, Calendar, Download, CheckCircle2, ArrowLeft, ArrowRight, DollarSign, TrendingUp as TrendingUpIcon, FileText, CreditCard, PiggyBank, Home, Search, Filter, Zap } from 'lucide-react';
