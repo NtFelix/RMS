@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+
 
 import { Metadata } from 'next';
 import { CONTACT_EMAIL, WEBSITE_DOMAIN, BASE_URL, ROUTES } from '@/lib/constants';
