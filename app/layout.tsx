@@ -11,7 +11,8 @@ import { PWA_IMAGES_URL, FAVICON_URL } from "@/lib/constants"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const runtime = 'edge'
+// Note: runtime = 'edge' removed from root layout to allow landing pages to be static.
+// Dashboard and API routes have their own edge runtime configuration.
 
 export const metadata: Metadata = {
   ...defaultMetadata,
@@ -29,21 +30,16 @@ export const metadata: Metadata = {
   },
 }
 
-import { headers } from "next/headers"
-
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const headersList = await headers()
-  const nonce = headersList.get("x-nonce") || undefined
-
   return (
     <html lang="de" suppressHydrationWarning className="light">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
-          <PostHogProvider nonce={nonce}>
+          <PostHogProvider>
             {children}
             <Toaster />
             <CookieConsentBanner />
