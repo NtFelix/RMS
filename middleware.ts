@@ -5,10 +5,33 @@ import { ROUTES } from "@/lib/constants"
 
 
 export async function middleware(request: NextRequest) {
+  // Create a nonce for CSP
+  const nonce = crypto.randomUUID()
+
+  // Content Security Policy
+  const csp = [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' https://*.supabase.co https://*.stripe.com https://*.posthog.com`, // Removed unsafe-inline and unsafe-eval. Nonce is used.
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, // Keeping unsafe-inline for styles for now as removing it often breaks UI libs
+    "img-src 'self' data: https://*.supabase.co https://*.stripe.com https://*.posthog.com",
+    "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "frame-src 'self' https://*.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+
+  // Clone request headers and set nonce and CSP
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', csp)
+
   // Initialize response
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   })
 
@@ -18,22 +41,6 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-
-  // Content Security Policy
-  const csp = [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://*.supabase.co https://*.stripe.com", // 'unsafe-inline' is currently required for Next.js. TODO: Implement Nonce-based CSP.
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: https://*.supabase.co https://*.stripe.com",
-    "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "frame-src 'self' https://*.stripe.com",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-  ].join('; ');
-
   response.headers.set('Content-Security-Policy', csp);
 
   // Update the session and get the user
