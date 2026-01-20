@@ -4,7 +4,11 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 
 import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info } from "lucide-react";
-import { FinanceVisualization } from "@/components/finance/finance-visualization";
+import nextDynamic from 'next/dynamic';
+const FinanceVisualization = nextDynamic(() => import("@/components/finance/finance-visualization").then(mod => mod.FinanceVisualization), {
+  ssr: false,
+  loading: () => <div className="h-[400px] w-full animate-pulse bg-muted rounded-xl" />
+});
 import { FinanceTable } from "@/components/tables/finance-table";
 import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
 import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
