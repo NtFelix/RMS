@@ -29,15 +29,16 @@ export async function middleware(request: NextRequest) {
   // Create a nonce for CSP (only used for strict dynamic pages)
   const nonce = crypto.randomUUID()
 
-  // Content Security Policy - nonces for dynamic pages, 'unsafe-inline' for static/landing pages
-  const scriptSrc = isDynamicPage
-    ? `script-src 'self' 'nonce-${nonce}' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
-    : `script-src 'self' 'unsafe-inline' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+  // Content Security Policy
+  // Note: We use 'unsafe-inline' without a nonce for scripts because Next.js 
+  // root-level hydration scripts don't support nonces in a static-root architecture.
+  // This is the standard way to support Next.js on Cloudflare Pages without breaking hydration.
+  const scriptSrc = `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
 
   const csp = [
     "default-src 'self'",
     scriptSrc,
-    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, // Keeping unsafe-inline for styles for now as removing it often breaks UI libs
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.posthog.com`,
     "img-src 'self' data: https://*.supabase.co https://*.stripe.com https://*.posthog.com",
     "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com",
     "font-src 'self' https://fonts.gstatic.com https://r2cdn.perplexity.ai",
@@ -45,7 +46,7 @@ export async function middleware(request: NextRequest) {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    "frame-ancestors 'self'",
   ].join('; ');
 
   // Clone request headers and set nonce (only for dynamic pages) and CSP

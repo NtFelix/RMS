@@ -9,16 +9,18 @@ import posthog from 'posthog-js'
  */
 export function CSPNonceSync({ nonce }: { nonce: string | null | undefined }) {
     useEffect(() => {
-        if (nonce && posthog.__loaded) {
-            // Re-initialize or update PostHog with the server-side nonce
-            // This ensures that when PostHog injects its session recording or heatmaps
-            // they use the correct nonce to avoid being blocked by CSP.
-            const config = posthog.config;
-            if (config) {
-                posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-                    ...config,
-                    nonce: nonce,
-                } as any);
+        // Only attempt to sync if we have a nonce and PostHog is actually loaded
+        if (nonce && typeof window !== 'undefined' && (window as any).posthog) {
+            const ph = (window as any).posthog;
+
+            if (ph.__loaded) {
+                // If PostHog is already loaded, we don't want to call .init() again with a potentially 
+                // missing token. Instead, we just ensure the nonce is updated in the config if supported.
+                // PostHog's persistence and capture logic uses the internal config.
+                if (ph.config) {
+                    ph.config.nonce = nonce;
+                    console.log('PostHog CSP nonce synchronized');
+                }
             }
         }
     }, [nonce]);
