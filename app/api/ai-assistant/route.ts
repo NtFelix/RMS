@@ -108,7 +108,7 @@ const RETRY_CONFIG: RetryConfig = {
 
 // Initialize Gemini AI
 // Initialize Gemini AI lazily
-let genAIInstance: any = null; // Type will be inferred or we can import type only
+let genAIInstance: GoogleGenAI | null = null; // Type will be inferred or we can import type only
 
 const getGenAI = async () => {
   if (genAIInstance) return genAIInstance;
