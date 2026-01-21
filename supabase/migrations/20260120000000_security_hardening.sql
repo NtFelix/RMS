@@ -68,8 +68,8 @@ BEGIN
         BEGIN
             EXECUTE 'ALTER FUNCTION ' || func_record.func_id || ' SET search_path = public';
         EXCEPTION WHEN OTHERS THEN
-            -- Skip for functions that don't support this (e.g., aggregate functions)
-            NULL;
+            -- Log skipped functions for review instead of silently ignoring
+            RAISE WARNING 'Could not set search_path for function %: %', func_record.func_id, SQLERRM;
         END;
     END LOOP;
 END $$;
