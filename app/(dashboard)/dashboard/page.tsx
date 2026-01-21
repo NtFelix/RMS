@@ -28,9 +28,8 @@ import {
   NebenkostenChart
 } from "@/components/dashboard/dashboard-charts-wrapper"
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
-};
+const currencyFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+const formatCurrency = (amount: number) => currencyFormatter.format(amount);
 
 export default async function Dashboard() {
   // Fetch real data from database
