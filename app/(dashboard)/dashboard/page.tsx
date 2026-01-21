@@ -20,11 +20,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { TenantPaymentBento } from "@/components/tenants/tenant-payment-bento"
 import { getDashboardSummary, getNebenkostenChartData } from "@/lib/data-fetching"
-import { RevenueExpensesChart } from "@/components/charts/revenue-expenses-chart"
-import { OccupancyChart } from "@/components/charts/occupancy-chart"
-import { MaintenanceDonutChart } from "@/components/charts/maintenance-donut-chart"
-import { NebenkostenChart } from "@/components/charts/nebenkosten-chart"
 import { LastTransactionsContainer } from "@/components/finance/last-transactions-container"
+import {
+  RevenueExpensesChart,
+  OccupancyChart,
+  MaintenanceDonutChart,
+  NebenkostenChart
+} from "@/components/dashboard/dashboard-charts-wrapper"
 
 export default async function Dashboard() {
   // Fetch real data from database
