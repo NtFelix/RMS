@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { FileDown } from "lucide-react"
-import type { Nebenkosten } from "@/lib/types"
+import type { Nebenkosten } from "@/lib/types";
 import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types"
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten"
 import { isoToGermanDate } from "@/utils/date-calculations"

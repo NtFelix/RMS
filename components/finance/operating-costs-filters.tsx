@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
 import { CustomCombobox } from "@/components/ui/custom-combobox"
-import type { Haus } from "@/lib/types"
+import type { Haus } from "@/lib/types";
 
 const ALL_HOUSES_LABEL = 'Alle Häuser'
 const ALL_HOUSES_VALUE = 'all'

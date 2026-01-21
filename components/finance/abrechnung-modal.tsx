@@ -22,9 +22,10 @@ import { ExportAbrechnungDropdown } from "@/components/abrechnung/export-abrechn
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import type { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/types"; // Updated imports for new water system
+import type { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/types";
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
+import { getTenantMeterCost } from "@/utils/water-cost-calculations";
 import { useEffect, useState, useMemo, useRef } from "react"; // Import useEffect, useState, useMemo, and useRef
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive } from 'lucide-react'; // Added FileDown and other icon imports
@@ -279,9 +280,9 @@ export function AbrechnungModal({
       nebenkostenId: nebenkostenItem?.id,
       tenantsCount: Array.isArray(tenants) ? tenants.length : 'n/a',
       firstTenant: Array.isArray(tenants) && tenants.length > 0 ? {
-        id: (tenants[0] as any).id,
-        name: (tenants[0] as any).name,
-        wohnung_id: (tenants[0] as any).wohnung_id,
+        id: tenants[0].id,
+        name: tenants[0].name,
+        wohnung_id: tenants[0].wohnung_id,
       } : null,
     });
   }, [isOpen, nebenkostenItem?.id, tenants]);
@@ -329,10 +330,6 @@ export function AbrechnungModal({
     if (!tenants || !Array.isArray(tenants) || tenants.length === 0) return 0;
     return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
   }, [nebenkostenItem?.gesamtFlaeche, tenants]);
-
-  // Import meter calculation utilities at the top level
-  // Note: Using require here as this might be refactored to proper import later
-  const { getTenantMeterCost } = require('@/utils/water-cost-calculations');
 
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
@@ -549,7 +546,7 @@ export function AbrechnungModal({
         totalWaterCostOverall: totalMeterCost, // Keeping property name for now to avoid breaking TenantCostDetails
         calculationType: "nach Verbrauch (Zähler)",
         tenantShare: tenantMeterCostData?.costShare || 0,
-        consumption: tenantMeterCostData?.totalConsumption || 0, // Updated property name
+        consumption: tenantMeterCostData?.consumption || 0, // Updated property name
       };
 
       const totalTenantCost = tenantTotalForRegularItems + tenantWaterCost.tenantShare;
@@ -581,7 +578,7 @@ export function AbrechnungModal({
         recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
       };
     };
-  }, [nebenkostenItem, wgFactors, rechnungen, meters, readings, totalHouseArea, safeTenants, getTenantMeterCost]);
+  }, [nebenkostenItem, wgFactors, rechnungen, meters, readings, totalHouseArea, safeTenants]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {

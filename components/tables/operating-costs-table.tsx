@@ -24,7 +24,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog"
-import type { Nebenkosten, Mieter, Wasserzaehler, Rechnung, Haus } from "@/lib/types" // Adjusted path, Removed WasserzaehlerFormData
+import type { Nebenkosten, Mieter, Wasserzaehler, Rechnung, Haus } from "@/lib/types";
 import { OptimizedNebenkosten, AbrechnungModalData } from "@/types/optimized-betriebskosten"; // Removed WasserzaehlerModalData
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
@@ -216,9 +216,9 @@ export function OperatingCostsTable({
           metersCount: Array.isArray(result.data.meters) ? result.data.meters.length : 'n/a',
           readingsCount: Array.isArray(result.data.readings) ? result.data.readings.length : 'n/a',
           firstTenant: Array.isArray(result.data.tenants) && result.data.tenants.length > 0 ? {
-            id: (result.data.tenants[0] as any).id,
-            name: (result.data.tenants[0] as any).name,
-            wohnung_id: (result.data.tenants[0] as any).wohnung_id,
+            id: result.data.tenants[0].id,
+            name: result.data.tenants[0].name,
+            wohnung_id: result.data.tenants[0].wohnung_id,
           } : null,
         });
         setAbrechnungModalData(result.data);

@@ -36,8 +36,7 @@ test.describe('Landing Page', () => {
     // Look for a login button/link - use text matching which is more reliable
     const loginLink = page.getByRole('link', { name: /anmelden/i });
 
-    // Wait a bit for client-side hydration
-    await page.waitForTimeout(2000);
+
 
     if (await loginLink.isVisible({ timeout: 10000 }).catch(() => false)) {
       await loginLink.click();

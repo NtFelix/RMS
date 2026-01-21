@@ -1,6 +1,6 @@
 {
   "name": "mietevo",
-  "version": "2.2.5",
+  "version": "2.2.8",
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
@@ -89,7 +89,7 @@
     "react": "^19.2.3",
     "react-day-picker": "^9.13.0",
     "react-dom": "^19.2.3",
-    "react-hook-form": "^7.68.0",
+    "react-hook-form": "^7.71.1",
     "react-resizable-panels": "^3.0.6",
     "recharts": "3.5.1",
     "stripe": "^19.2.1",
