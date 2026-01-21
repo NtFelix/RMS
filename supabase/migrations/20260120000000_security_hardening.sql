@@ -12,10 +12,15 @@ DECLARE
         'Aufgaben', 'Finanzen', 'Haeuser', 'Mieter', 'Nebenkosten', 
         'Rechnungen', 'Wasserzaehler', 'Zaehler', 'Zaehler_Ablesungen',
         'Dokumente_Metadaten', 'Mail_Accounts', 'Mail_Import_Jobs', 
-        'Mail_Metadaten', 'Mail_Sync_Jobs', 'Vorlagen', 'Wohnungen'
+        'Mail_Metadaten', 'Vorlagen', 'Wohnungen'
     ];
 BEGIN
     FOREACH t IN ARRAY tables_with_user_id LOOP
+        -- Secure SELECT: Ensure users can only read their own data
+        EXECUTE format('DROP POLICY IF EXISTS "Allow authenticated users to select their own data" ON public.%I', t);
+        EXECUTE format('DROP POLICY IF EXISTS "Secure SELECT" ON public.%I', t);
+        EXECUTE format('CREATE POLICY "Secure SELECT" ON public.%I FOR SELECT TO authenticated USING (auth.uid() = user_id)', t);
+        
         -- Secure DELETE: Ensure users can only delete their own data
         EXECUTE format('DROP POLICY IF EXISTS "Allow authenticated users to delete their own data" ON public.%I', t);
         EXECUTE format('DROP POLICY IF EXISTS "Secure DELETE" ON public.%I', t);
@@ -42,9 +47,28 @@ DROP POLICY IF EXISTS "Can update own profile data" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
 CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
--- 2. DISABLE GRAPHQL INTROSPECTION (Fixes reconnaissance risk)
--- This prevents unauthorized users from mapping out your database schema via GraphQL.
-COMMENT ON SCHEMA graphql IS '{"introspection": false}';
+-- Mail_Sync_Jobs uses 'account_id' referencing Mail_Accounts (which has 'user_id')
+-- We verify ownership by joining through Mail_Accounts
+DROP POLICY IF EXISTS "Secure SELECT" ON public."Mail_Sync_Jobs";
+CREATE POLICY "Secure SELECT" ON public."Mail_Sync_Jobs" FOR SELECT TO authenticated 
+    USING (EXISTS (SELECT 1 FROM public."Mail_Accounts" WHERE "Mail_Accounts".id = account_id AND "Mail_Accounts".user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Secure INSERT" ON public."Mail_Sync_Jobs";
+CREATE POLICY "Secure INSERT" ON public."Mail_Sync_Jobs" FOR INSERT TO authenticated 
+    WITH CHECK (EXISTS (SELECT 1 FROM public."Mail_Accounts" WHERE "Mail_Accounts".id = account_id AND "Mail_Accounts".user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Secure UPDATE" ON public."Mail_Sync_Jobs";
+CREATE POLICY "Secure UPDATE" ON public."Mail_Sync_Jobs" FOR UPDATE TO authenticated 
+    USING (EXISTS (SELECT 1 FROM public."Mail_Accounts" WHERE "Mail_Accounts".id = account_id AND "Mail_Accounts".user_id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM public."Mail_Accounts" WHERE "Mail_Accounts".id = account_id AND "Mail_Accounts".user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Secure DELETE" ON public."Mail_Sync_Jobs";
+CREATE POLICY "Secure DELETE" ON public."Mail_Sync_Jobs" FOR DELETE TO authenticated 
+    USING (EXISTS (SELECT 1 FROM public."Mail_Accounts" WHERE "Mail_Accounts".id = account_id AND "Mail_Accounts".user_id = auth.uid()));
+
+-- 2. REMOVE GRAPHQL EXTENSION (Not used, reduces attack surface)
+-- Dropping the extension eliminates the GraphQL API endpoint entirely.
+DROP EXTENSION IF EXISTS pg_graphql CASCADE;
 
 -- 3. FIX ROW COUNT ENUMERATION & INFORMATION DISCLOSURE
 -- Setting tight timeouts prevents brute-force data enumeration through expensive queries.
