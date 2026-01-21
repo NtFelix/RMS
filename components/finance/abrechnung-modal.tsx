@@ -22,7 +22,7 @@ import { ExportAbrechnungDropdown } from "@/components/abrechnung/export-abrechn
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/data-fetching"; // Updated imports for new water system
+import type { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/types"; // Updated imports for new water system
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { useEffect, useState, useMemo, useRef } from "react"; // Import useEffect, useState, useMemo, and useRef

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
 import { CustomCombobox } from "@/components/ui/custom-combobox"
-import { Haus } from "@/lib/data-fetching"
+import type { Haus } from "@/lib/types"
 
 const ALL_HOUSES_LABEL = 'Alle Häuser'
 const ALL_HOUSES_VALUE = 'all'
@@ -18,16 +18,16 @@ interface OperatingCostsFiltersProps {
   searchQuery?: string
 }
 
-export function OperatingCostsFilters({ 
-  onFilterChange, 
-  onSearchChange, 
+export function OperatingCostsFilters({
+  onFilterChange,
+  onSearchChange,
   onHouseChange,
   haeuser = [],
   selectedHouseId = ALL_HOUSES_VALUE,
   searchQuery = ""
 }: OperatingCostsFiltersProps) {
   const [activeFilter, setActiveFilter] = useState("all")
-  
+
   const houseOptions = useMemo(() => [
     { value: ALL_HOUSES_VALUE, label: ALL_HOUSES_LABEL },
     ...haeuser.map((haus) => ({ value: haus.id, label: haus.name }))

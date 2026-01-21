@@ -1,6 +1,6 @@
 "use client";
 
-import type { NebenkostenChartDatum } from "@/lib/data-fetching";
+import type { NebenkostenChartDatum } from "@/lib/types";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -81,9 +81,9 @@ export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProp
               paddingAngle={2}
             >
               {data.map((entry, idx) => (
-                <Cell 
-                  key={`cell-${idx}`} 
-                  fill={colors[idx % colors.length]} 
+                <Cell
+                  key={`cell-${idx}`}
+                  fill={colors[idx % colors.length]}
                 />
               ))}
             </Pie>

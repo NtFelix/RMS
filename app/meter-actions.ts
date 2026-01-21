@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { Zaehler, ZaehlerAblesung, Wohnung, Mieter } from "@/lib/data-fetching";
+import type { Zaehler, ZaehlerAblesung, Wohnung, Mieter } from "@/lib/types";
 import { logAction } from '@/lib/logging-middleware';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
 

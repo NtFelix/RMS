@@ -16,7 +16,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
-import { Nebenkosten, Mieter, MeterReadingFormEntry, MeterReadingFormData, Wasserzaehler } from "@/lib/data-fetching";
+import type { Nebenkosten, Mieter, MeterReadingFormEntry, MeterReadingFormData, Wasserzaehler } from "@/lib/types";
 import { MeterModalData } from "@/types/optimized-betriebskosten";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";

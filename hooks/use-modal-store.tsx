@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Nebenkosten, Mieter, Wasserzaehler, MeterReadingFormData } from '@/lib/data-fetching';
+import type { Nebenkosten, Mieter, Wasserzaehler, MeterReadingFormData } from "@/lib/types";
 import { MeterModalData } from '@/types/optimized-betriebskosten';
 import { Tenant, KautionData } from '@/types/Tenant';
 import { Template } from '@/types/template';

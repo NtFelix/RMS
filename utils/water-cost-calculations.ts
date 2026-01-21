@@ -8,7 +8,7 @@
  * - Prorated water usage for partial periods
  */
 
-import { Mieter, WasserAblesung, WasserZaehler } from "@/lib/data-fetching";
+import type { Mieter, WasserAblesung, WasserZaehler } from "@/lib/types";
 import { calculateTenantOccupancy } from "./date-calculations";
 
 /**
