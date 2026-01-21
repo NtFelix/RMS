@@ -16,6 +16,11 @@ DECLARE
     ];
 BEGIN
     FOREACH t IN ARRAY tables_with_user_id LOOP
+        -- Secure SELECT: Ensure users can only read their own data
+        EXECUTE format('DROP POLICY IF EXISTS "Allow authenticated users to select their own data" ON public.%I', t);
+        EXECUTE format('DROP POLICY IF EXISTS "Secure SELECT" ON public.%I', t);
+        EXECUTE format('CREATE POLICY "Secure SELECT" ON public.%I FOR SELECT TO authenticated USING (auth.uid() = user_id)', t);
+        
         -- Secure DELETE: Ensure users can only delete their own data
         EXECUTE format('DROP POLICY IF EXISTS "Allow authenticated users to delete their own data" ON public.%I', t);
         EXECUTE format('DROP POLICY IF EXISTS "Secure DELETE" ON public.%I', t);
