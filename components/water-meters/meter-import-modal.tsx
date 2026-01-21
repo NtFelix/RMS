@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calendar, Gauge, Droplets } from "lucide-react";
-import { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/data-fetching";
+import type { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/types";
 import { bulkCreateAblesungen } from "@/app/meter-actions";
 import { isoToGermanDate } from "@/utils/date-calculations";
 import { StatCard } from "@/components/common/stat-card";

@@ -6,7 +6,7 @@
  * and data validation.
  */
 
-import { Mieter, Nebenkosten, WasserZaehler, WasserAblesung } from "@/lib/data-fetching";
+import type { Mieter, Nebenkosten, WasserZaehler, WasserAblesung } from "@/lib/types";
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";

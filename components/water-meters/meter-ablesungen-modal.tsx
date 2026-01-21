@@ -32,7 +32,7 @@ import { WaterDropletLoader } from "@/components/ui/water-droplet-loader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { MeterImportModal } from "./meter-import-modal";
-import { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/data-fetching";
+import type { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/types";
 import { formatNumber } from "@/utils/format";
 import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types";
 import { getMeterIcon, getMeterBgColor } from "@/components/meters/meter-card";
