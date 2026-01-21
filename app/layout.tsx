@@ -11,6 +11,9 @@ import { PWA_IMAGES_URL, FAVICON_URL } from "@/lib/constants"
 
 const inter = Inter({ subsets: ["latin"] })
 
+// Note: runtime = 'edge' removed from root layout to allow landing pages to be static.
+// Dashboard and API routes have their own edge runtime configuration.
+
 export const metadata: Metadata = {
   ...defaultMetadata,
   icons: {
