@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import type { GoogleGenAI } from '@google/genai'; // Type-only import
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
@@ -107,9 +107,17 @@ const RETRY_CONFIG: RetryConfig = {
 };
 
 // Initialize Gemini AI
-const genAI = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || ''
-});
+// Initialize Gemini AI lazily
+let genAIInstance: any = null; // Type will be inferred or we can import type only
+
+const getGenAI = async () => {
+  if (genAIInstance) return genAIInstance;
+  const { GoogleGenAI } = await import('@google/genai');
+  genAIInstance = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY || ''
+  });
+  return genAIInstance;
+};
 
 // Initialize PostHog for Edge Runtime
 let posthogClient: PosthogClient | null = null;
@@ -691,7 +699,8 @@ export async function POST(request: NextRequest) {
 
     // Generate response with streaming using the models API with retry logic
     const result = await retryWithBackoff(async () => {
-      return await genAI.models.generateContentStream({
+      const ai = await getGenAI();
+      return await ai.models.generateContentStream({
         model: 'gemini-2.5-flash-lite',
         config: {
           temperature: 1.1,
