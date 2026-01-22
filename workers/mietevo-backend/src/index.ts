@@ -44,16 +44,13 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
     // If no houseCity provided, try to extract from ownerAddress
     if (!displayCity && ownerAddress) {
         const parts = ownerAddress.split(',').map((p: string) => p.trim());
-        if (parts.length > 1) {
-            // Take the last part, and if it starts with a postal code, strip it
-            const lastPart = parts[parts.length - 1];
-            displayCity = lastPart.replace(/^\d{5}\s+/, '').trim();
-        } else {
-            // Try splitting by space and taking the last part
-            const spaceParts = ownerAddress.split(' ').map((p: string) => p.trim());
-            if (spaceParts.length > 1) {
-                displayCity = spaceParts[spaceParts.length - 1];
-            }
+        // Attempt to find a part that looks like a city (e.g., not just a postal code or street number)
+        const potentialCity = parts.find((p: string) => !/^\d{5}$/.test(p) && p.length > 2);
+        if (potentialCity) {
+            displayCity = potentialCity;
+        } else if (parts.length > 0) {
+            // Fallback to the last part if no clear city is found
+            displayCity = parts[parts.length - 1];
         }
     }
 

@@ -622,7 +622,8 @@ export function AbrechnungModal({
     for (const singleTenant of dataForProcessing) {
       const filename = `Abrechnung_${currentPeriod}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
       // Extract city from ownerAddress for houseCity fallback
-      const houseCity = ownerAddress.split(',').pop()?.trim() || '';
+      // The worker will handle robust city extraction from ownerAddress if houseCity is not provided
+      const houseCity = ''; // Pass an empty string, let the worker derive it
 
       const response = await generatePDF({
         tenantData: singleTenant,
@@ -674,7 +675,8 @@ export function AbrechnungModal({
     const { generatePdfZIP } = await import('@/lib/worker-client');
 
     // Extract city from ownerAddress for houseCity fallback
-    const houseCity = ownerAddress.split(',').pop()?.trim() || '';
+    // The worker will handle robust city extraction from ownerAddress if houseCity is not provided
+    const houseCity = ''; // Pass an empty string, let the worker derive it
 
     // Prepare data for the worker: array of { name, data }
     const zipData = tenantDataArray.map(tenant => ({

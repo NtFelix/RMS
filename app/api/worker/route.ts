@@ -1,14 +1,47 @@
 import { NextResponse } from 'next/server';
-
 export const runtime = 'edge';
+
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+
+async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        return response;
+    } catch (err: any) {
+        // Edge runtime primarily throws TypeError for fetch failures or AbortError for timeouts
+        const shouldRetry = retries > 0 && (
+            err.name === 'AbortError' ||
+            err.name === 'TypeError' ||
+            err.message?.toLowerCase().includes('failed')
+        );
+
+        if (shouldRetry) {
+            console.warn(`[WorkerProxy] Fetch failed (${err.name}), retrying... (${MAX_RETRIES - retries + 1}/${MAX_RETRIES})`);
+            await new Promise(resolve => setTimeout(resolve, INITIAL_RETRY_DELAY * (MAX_RETRIES - retries + 1)));
+            return fetchWithRetry(url, options, retries - 1);
+        }
+        throw err;
+    }
+}
 
 export async function POST(request: Request) {
     const backendUrl = (process.env.MIETEVO_BACKEND_URL || process.env.NEXT_PUBLIC_MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim();
 
+    console.log('[WorkerProxy] Proxying request to:', backendUrl);
+
     try {
         const body = await request.json();
 
-        const response = await fetch(backendUrl, {
+        const response = await fetchWithRetry(backendUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -43,7 +76,11 @@ export async function POST(request: Request) {
         });
     } catch (err: any) {
         console.error('[WorkerProxy] Proxy failed:', err);
-        return new NextResponse(JSON.stringify({ error: 'Proxy failed', details: err.message }), {
+        return new NextResponse(JSON.stringify({
+            error: 'Proxy failed',
+            details: err.message,
+            name: err.name
+        }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
         });
