@@ -218,16 +218,27 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
     doc.text(`${displayCity}, den ${today.toLocaleDateString('de-DE')}`, col1Start, startY);
 }
 
+// --- Zähler Config for Labels ---
+const ZAEHLER_CONFIG = {
+    wasser_kalt: { label: 'Kaltwasser', einheit: 'm³' },
+    wasser_warm: { label: 'Warmwasser', einheit: 'm³' },
+    strom: { label: 'Strom', einheit: 'kWh' },
+    gas: { label: 'Gas', einheit: 'kWh' },
+    heizung: { label: 'Heizung', einheit: 'kWh' },
+};
+
 // --- House Overview PDF Generation (Original Logic) ---
 function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     const { nebenkosten, totalArea, totalCosts, costPerSqm } = payload;
     let startY = 20;
 
+    // Title
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text("Kostenaufstellung - Betriebskosten", 20, startY);
     startY += 10;
 
+    // Period and house info
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)}`, 20, startY);
@@ -238,6 +249,7 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     }
     startY += 10;
 
+    // Summary information
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text("Übersicht", 20, startY);
@@ -247,23 +259,109 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     doc.setFont("helvetica", "normal");
     doc.text(`Gesamtfläche: ${totalArea} m²`, 20, startY);
     startY += 6;
+    doc.text(`Anzahl Wohnungen: ${nebenkosten.anzahlWohnungen || 0}`, 20, startY);
+    startY += 6;
+    doc.text(`Anzahl Mieter: ${nebenkosten.anzahlMieter || 0}`, 20, startY);
+    startY += 6;
     doc.text(`Gesamtkosten: ${formatCurrency(totalCosts)}`, 20, startY);
     startY += 6;
     doc.text(`Kosten pro m²: ${formatCurrency(costPerSqm)}`, 20, startY);
     startY += 15;
 
-    if (nebenkosten.nebenkostenart) {
-        const tableData = nebenkosten.nebenkostenart.map((art: string, index: number) => [
-            (index + 1).toString(),
-            art || '-',
-            formatCurrency(nebenkosten.betrag?.[index] || 0),
-            formatCurrency(nebenkosten.betrag?.[index] ? (nebenkosten.betrag[index] / totalArea) : 0)
-        ]);
+    // Cost breakdown table
+    const tableData = nebenkosten.nebenkostenart?.map((art: string, index: number) => [
+        (index + 1).toString(),
+        art || '-',
+        formatCurrency(nebenkosten.betrag?.[index] || null),
+        nebenkosten.betrag?.[index] && totalArea > 0
+            ? formatCurrency((nebenkosten.betrag[index] || 0) / totalArea)
+            : '-'
+    ]) || [];
 
-        autoTable(doc, {
-            head: [['Pos.', 'Leistungsart', 'Gesamtkosten', 'Kosten pro m²']],
-            body: tableData,
-            startY: startY,
+    // Add total row
+    tableData.push([
+        '',
+        'Gesamtkosten',
+        formatCurrency(totalCosts),
+        formatCurrency(costPerSqm)
+    ]);
+
+    autoTable(doc, {
+        head: [['Pos.', 'Leistungsart', 'Gesamtkosten', 'Kosten pro m²']],
+        body: tableData,
+        startY: startY,
+        theme: 'plain',
+        headStyles: {
+            fillColor: [255, 255, 255], // White background instead of gray
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            lineWidth: { bottom: 0.3 }, // Thicker bottom border for header
+            lineColor: [0, 0, 0] // Black color for header bottom border
+        },
+        styles: {
+            fontSize: 9,
+            cellPadding: 3,
+            lineWidth: 0 // Remove all cell borders
+        },
+        bodyStyles: {
+            lineWidth: { bottom: 0.1 }, // Only add thin bottom border for rows
+            lineColor: [0, 0, 0] // Black color for row separators
+        },
+        columnStyles: {
+            0: { halign: 'left' },   // Left align position numbers
+            1: { halign: 'left' },   // Left align service descriptions
+            2: { halign: 'right' },  // Right align total costs
+            3: { halign: 'right' },  // Right align costs per sqm
+        },
+        // Ensure table aligns with left and right content margins
+        tableWidth: doc.internal.pageSize.getWidth() - 40,
+        margin: { left: 20, right: 20 },
+        didParseCell: function (data: any) {
+            // Make the total row bold
+            if (data.row.index === tableData.length - 1) {
+                data.cell.styles.fontStyle = 'bold';
+                data.cell.styles.fillColor = [248, 248, 248];
+            }
+            // Ensure header columns are properly aligned
+            if (data.section === 'head') {
+                if (data.column.index === 2 || data.column.index === 3) {
+                    data.cell.styles.halign = 'right';
+                } else {
+                    data.cell.styles.halign = 'left';
+                }
+            }
+        }
+    });
+
+    // Meter costs section if zaehlerkosten available
+    if (nebenkosten.zaehlerkosten && Object.keys(nebenkosten.zaehlerkosten).length > 0) {
+        let meterY = (doc as any).lastAutoTable?.finalY + 15;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Zählerkosten", 20, meterY);
+        meterY += 8;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+
+        Object.entries(nebenkosten.zaehlerkosten).forEach(([typ, kosten]) => {
+            const config = (ZAEHLER_CONFIG as any)[typ] || { label: typ, einheit: 'm³' };
+            const label = config.label;
+            const einheit = config.einheit;
+            const verbrauch = nebenkosten.zaehlerverbrauch?.[typ];
+
+            doc.text(`${label}: ${formatCurrency(kosten as number)}`, 20, meterY);
+            meterY += 5;
+            if (typeof verbrauch === 'number') {
+                doc.text(`  Verbrauch: ${verbrauch} ${einheit}`, 20, meterY);
+                meterY += 5;
+                if (verbrauch > 0) {
+                    doc.text(`  Kosten pro ${einheit}: ${formatCurrency((kosten as number) / verbrauch)}`, 20, meterY);
+                    meterY += 5;
+                }
+            }
+            meterY += 2;
         });
     }
 }
