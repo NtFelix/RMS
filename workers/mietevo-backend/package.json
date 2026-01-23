@@ -1,0 +1,15 @@
+{
+    "name": "mietevo-backend",
+    "version": "1.0.0",
+    "devDependencies": {
+        "wrangler": "^3.0.0",
+        "typescript": "^5.0.0",
+        "@cloudflare/workers-types": "^4.0.0"
+    },
+    "dependencies": {
+        "jspdf": "^4.0.0",
+        "jspdf-autotable": "^5.0.7",
+        "jszip": "^3.10.1",
+        "papaparse": "^5.4.1"
+    }
+}

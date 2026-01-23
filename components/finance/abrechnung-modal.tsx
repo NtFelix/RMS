@@ -49,19 +49,13 @@ const fetchCustomerBillingAddress = async () => {
   }
 };
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
-import type { jsPDF } from 'jspdf'; // Type import for better type safety
-import type { CellHookData } from 'jspdf-autotable'; // Type import for autoTable hook data
+
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
 import { calculateRecommendedPrepayment } from "@/utils/abrechnung-calculations";
 import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
-// import jsPDF from 'jspdf'; // Removed for dynamic import
-// import autoTable from 'jspdf-autotable'; // Removed for dynamic import
-// import JSZip from 'jszip'; // Removed for dynamic import
 
-// Explicitly register autoTable plugin // Removed as autoTable will be imported dynamically
-// (jsPDF.API as any).autoTable = autoTable;
 
 // Defined in Step 1:
 
@@ -77,6 +71,33 @@ const GERMAN_MONTHS = [
   "Januar", "Februar", "März", "April", "Mai", "Juni",
   "Juli", "August", "September", "Oktober", "November", "Dezember"
 ];
+
+/**
+ * Extracts city from an address string.
+ * Attempts to find a city component by looking for parts that:
+ * - Are not just a German postal code (5 digits)
+ * - Have more than 2 characters
+ * Falls back to the last part of the address if no clear city is found.
+ * Returns empty string if no extraction is possible.
+ * 
+ * NOTE: This logic mirrors the worker's city extraction for consistency.
+ * @see workers/mietevo-backend/src/index.ts - generateSingleTenantPDF
+ */
+const extractCityFromAddress = (address: string | null | undefined): string => {
+  if (!address) return '';
+
+  const parts = address.split(',').map(p => p.trim());
+  // Attempt to find a part that looks like a city (not just a postal code or street number)
+  const potentialCity = parts.find(p => !/^\d{5}$/.test(p) && p.length > 2);
+  if (potentialCity) {
+    return potentialCity;
+  }
+  // Fallback to the last part if no clear city is found
+  if (parts.length > 0) {
+    return parts[parts.length - 1];
+  }
+  return '';
+};
 
 // Financial calculation constants
 const PREPAYMENT_BUFFER_MULTIPLIER = 1.1; // 10% buffer for prepayment calculation
@@ -606,367 +627,133 @@ export function AbrechnungModal({
     }
   }, [isOpen, tenants, selectedTenantId, loadAllRelevantTenants, calculateCostsForTenant, pricePerCubicMeter]);
 
-  // Optimized PDF generation function with better error handling
+  // Optimized PDF generation function with worker offloading
   const generateSettlementPDF = async (
     tenantData: TenantCostDetails | TenantCostDetails[],
     nebenkostenItem: Nebenkosten,
     ownerName: string,
     ownerAddress: string
   ) => {
-    const { default: jsPDF } = await import('jspdf');
-    const autoTableModule = await import('jspdf-autotable');
-    // console.log('jspdf-autotable module:', autoTableModule); // Keep for now
-
-    if (autoTableModule && typeof autoTableModule.applyPlugin === 'function') {
-      autoTableModule.applyPlugin(jsPDF);
-    } else {
-      // Fallback or error if applyPlugin is not found
-      console.error("jspdf-autotable module does not have applyPlugin function!", autoTableModule);
-      // As a deeper fallback, try to attach the default export if it's the autoTable function
-      if (autoTableModule && typeof autoTableModule.default === 'function') {
-        console.log("Attempting to attach autoTableModule.default to jsPDF.API.autoTable");
-        (jsPDF.API as any).autoTable = autoTableModule.default;
-      } else {
-        // If neither works, the PDF generation will likely fail, but this provides some diagnostic.
-        toast({
-          title: "Fehler bei PDF-Initialisierung",
-          description: "Das PDF AutoTable-Plugin konnte nicht initialisiert werden. Die PDF-Generierung schlägt möglicherweise fehl.",
-          variant: "destructive",
-        });
-        return; // Stop further execution if plugin can't be initialized
-      }
-    }
-
-    const doc = new jsPDF();
-    const pageHeight = doc.internal.pageSize.height;
-    let startY = 20; // Initial Y position for content
-
-    // Fetch billing address for the PDF
+    // Fetch billing address for the worker
     const billingAddress = await fetchCustomerBillingAddress();
+    const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`;
 
-    const processTenant = (singleTenantData: TenantCostDetails) => {
-      // Check if new page is needed for multiple tenants
-      if (startY > pageHeight - 50) {
-        doc.addPage();
-        startY = 20;
-      }
+    const { generatePDF } = await import('@/lib/worker-client');
 
-      // Use the reusable PDF generation function and update startY with the returned position
-      startY = generateSingleTenantPDF(doc, singleTenantData, nebenkostenItem, ownerName, ownerAddress, startY, billingAddress);
-    };
+    // Ensure dataForProcessing is an array
+    const dataForProcessing = Array.isArray(tenantData) ? tenantData : [tenantData];
 
-    // Ensure dataForProcessing is definitely an array.
-    const dataForProcessing: TenantCostDetails[] = Array.isArray(tenantData) ? tenantData : [tenantData];
+    let totalPages = 0;
+    const clientStartTime = Date.now();
 
-    if (dataForProcessing.length === 0) {
-      console.error("No tenant data available to generate PDF.");
-      toast({
-        title: "Fehler bei PDF-Generierung",
-        description: "Keine Mieterdaten für den Export vorhanden.",
-        variant: "destructive",
+    for (const singleTenant of dataForProcessing) {
+      const filename = `Abrechnung_${currentPeriod}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
+      // Attempt to extract city from ownerAddress for houseCity
+      // If we can find a valid city, pass it directly; otherwise the worker will derive it
+      const houseCity = extractCityFromAddress(ownerAddress);
+
+      const response = await generatePDF({
+        tenantData: singleTenant,
+        nebenkostenItem,
+        ownerName,
+        ownerAddress,
+        houseCity,
+        billingAddress,
+        filename
       });
-      return;
+
+      // Extract page count from headers
+      const pageCount = parseInt(response.headers.get('X-PDF-Page-Count') || '0', 10);
+      totalPages += pageCount;
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
     }
 
-    let filename = "";
-    const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`; // Use date range for filename
-    if (dataForProcessing.length === 1) {
-      const singleTenant = dataForProcessing[0];
-      processTenant(singleTenant);
-      filename = `Abrechnung_${currentPeriod}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
-    } else { // Multiple tenants
-      dataForProcessing.forEach((td, index) => {
-        processTenant(td);
-        // Add a new page for the next tenant (except for the last one)
-        if (index < dataForProcessing.length - 1) {
-          doc.addPage();
-          startY = 20; // Reset Y position for the new page
-        }
-      });
-      filename = `Abrechnung_${currentPeriod}_Alle_Mieter.pdf`;
-    }
-    doc.save(filename);
+    const clientEndTime = Date.now();
 
     posthog?.capture('pdf_exported', {
-      type: 'settlement',
+      document_type: 'abrechnung',
+      export_method: dataForProcessing.length > 1 ? 'bulk' : 'single',
       tenant_count: dataForProcessing.length,
-      period: currentPeriod
+      period: currentPeriod,
+      page_count: totalPages,
+      processing_time_ms: clientEndTime - clientStartTime
     });
   };
 
-  // Reusable function to generate PDF content for a single tenant
-  const generateSingleTenantPDF = (
-    doc: jsPDF, // jsPDF instance
-    tenantData: TenantCostDetails,
-    nebenkostenItem: Nebenkosten,
-    ownerName: string,
-    ownerAddress: string,
-    initialStartY: number = 20,
-    billingAddress?: any // Optional billing address from Stripe
-  ): number => {
-    let startY = initialStartY;
 
-    // Owner Information & Title
-    doc.setFontSize(10);
-    doc.text(ownerName, 20, startY);
-    startY += 6;
-    doc.text(ownerAddress, 20, startY);
-    startY += 10;
-
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
-    startY += 10;
-
-    // Settlement Period
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
-    startY += 6;
-
-    // Property Details
-    const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
-    doc.text(propertyDetails, 20, startY);
-    startY += 6;
-
-    // Tenant Details
-    const tenantDetails = `Mieter: ${tenantData.tenantName}`;
-    doc.text(tenantDetails, 20, startY);
-    startY += 10;
-
-    // Costs Table
-    const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
-    const tableRows: any[][] = [];
-
-    tenantData.costItems.forEach(item => {
-      const row = [
-        item.costName,
-        formatCurrency(item.totalCostForItem),
-        item.verteiler || '-',
-        item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-',
-        formatCurrency(item.tenantShare)
-      ];
-      tableRows.push(row);
-    });
-
-    (doc as any).autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: startY,
-      theme: 'plain',
-      headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0],
-        fontStyle: 'bold',
-        lineWidth: { bottom: 0.3 },
-        lineColor: [0, 0, 0]
-      },
-      styles: {
-        fontSize: 9,
-        cellPadding: 1.5,
-        lineWidth: 0
-      },
-      bodyStyles: {
-        lineWidth: { bottom: 0.1 },
-        lineColor: [0, 0, 0]
-      },
-      columnStyles: {
-        0: { halign: 'left' }, // Leistungsart - left aligned
-        1: { halign: 'right' }, // Gesamtkosten in € - right aligned
-        2: { halign: 'right' }, // Verteiler - right aligned
-        3: { halign: 'right' }, // Kosten Pro qm - right aligned
-        4: { halign: 'right' }  // Kostenanteil In € - right aligned
-      },
-      willDrawCell: function (data: CellHookData) {
-        // Right-align header text for columns 1-4
-        if (data.section === 'head' && data.column.index >= 1) {
-          data.cell.styles.halign = 'right';
-        }
-      },
-      tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
-      margin: { left: 20, right: 20 }
-    });
-
-    let tableFinalY = (doc as any).lastAutoTable?.finalY;
-    if (typeof tableFinalY === 'number') {
-      startY = tableFinalY + 6;
-    } else {
-      startY += 10;
-    }
-
-    // Draw "Betriebskosten gesamt" summary text aligned with table columns
-    const sumOfTotalCostForItem = tenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
-    const sumOfTenantSharesFromCostItems = tenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
-
-    // Add spacing before summary text
-    startY += 8;
-
-    // Draw "Betriebskosten gesamt" summary - simplified approach
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-
-    // Use fixed positions based on table width and margins to ensure alignment
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const tableWidth = pageWidth - 40; // Same as table margin
-    const leftMargin = 20;
-
-    // Calculate column positions based on typical table layout
-    const col1Start = leftMargin; // Leistungsart
-    const col2Start = leftMargin + (tableWidth * 0.25); // Gesamtkosten (25% of table width)
-    const col3Start = leftMargin + (tableWidth * 0.45); // Verteiler (45% of table width)  
-    const col4Start = leftMargin + (tableWidth * 0.65); // Kosten Pro qm (65% of table width)
-    const col5Start = leftMargin + (tableWidth * 0.85); // Kostenanteil (85% of table width)
-    const col5End = leftMargin + tableWidth; // Right edge of Kostenanteil column
-
-    // No background or borders - just plain text with proper alignment
-
-    // Add the text with proper alignment
-    doc.setTextColor(0, 0, 0);
-
-    // Label in first column
-    doc.text("Betriebskosten gesamt:", col1Start, startY, { align: 'left' });
-
-    // Total cost in Gesamtkosten column (right-aligned within column)
-    doc.text(formatCurrency(sumOfTotalCostForItem), col3Start + 15.65, startY, { align: 'right' });
-
-    // Tenant share in Kostenanteil column (right-aligned within column)
-    doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col5End, startY, { align: 'right' });
-
-    doc.setFont("helvetica", "normal");
-
-    startY += 12;
-
-    // Add water cost summary paragraph
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-
-    // Get water cost data for this tenant
-    const tenantWaterShare = tenantData.waterCost.tenantShare;
-    const tenantWaterConsumption = tenantData.waterCost.consumption || 0;
-    // Get building water totals from zaehlerkosten/zaehlerverbrauch JSONB
-    const buildingWaterCost = sumZaehlerValues(nebenkostenItem.zaehlerkosten);
-    const buildingWaterConsumption = sumZaehlerValues(nebenkostenItem.zaehlerverbrauch);
-    const pricePerCubicMeterCalc = buildingWaterConsumption > 0 ? buildingWaterCost / buildingWaterConsumption : 0;
-
-    // Water cost summary with aligned columns
-    doc.text("Wasserkosten:", col1Start, startY, { align: 'left' });
-    doc.text(`${tenantWaterConsumption} m³`, col3Start + 15.65, startY, { align: 'right' });
-    doc.text(`${formatCurrency(pricePerCubicMeterCalc)} / m3`, col4Start + 15, startY, { align: 'right' });
-    doc.text(formatCurrency(tenantWaterShare), col5End, startY, { align: 'right' });
-
-    startY += 16;
-
-    // Total line - sum of operating costs and water costs
-    const totalTenantCosts = sumOfTenantSharesFromCostItems + tenantWaterShare;
-    doc.text("Gesamt:", col1Start, startY, { align: 'left' });
-    doc.text(formatCurrency(totalTenantCosts), col5End, startY, { align: 'right' });
-
-    startY += 8;
-
-    // Advance payments line
-    doc.text("Vorauszahlungen:", col1Start, startY, { align: 'left' });
-    doc.text(formatCurrency(tenantData.vorauszahlungen), col5End, startY, { align: 'right' });
-
-    startY += 8;
-
-    // Final settlement line (Nachzahlung or Guthaben)
-    const isPositiveSettlement = tenantData.finalSettlement >= 0;
-    const settlementLabel = isPositiveSettlement ? "Nachzahlung:" : "Guthaben:";
-    const settlementAmount = Math.abs(tenantData.finalSettlement);
-    doc.text(settlementLabel, col1Start, startY, { align: 'left' });
-    doc.text(formatCurrency(settlementAmount), col5End, startY, { align: 'right' });
-
-    startY += 8;
-
-    // Suggested monthly Vorauszahlung line (rounded to nearest 5)
-    const suggestedVorauszahlung = tenantData.recommendedPrepayment ? roundToNearest5(tenantData.recommendedPrepayment) : 0;
-    const monthlyVorauszahlung = suggestedVorauszahlung / 12; // Convert annual to monthly
-
-    // Calculate next month start date (at least 14 days from now)
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    const formattedDate = format(nextMonth, 'dd.MM.yy');
-
-    doc.setFont("helvetica", "bold");
-    const label = `Vorauszahlung ab ${formattedDate}`;
-    doc.text(label, col1Start, startY, { align: 'left' });
-    doc.text(formatCurrency(monthlyVorauszahlung), col5End, startY, { align: 'right' });
-
-    doc.setFont("helvetica", "normal");
-
-    startY += 10;
-
-    // Add date and location row at the end
-    startY += 15; // Add some space before the final row
-    const currentDate = new Date();
-    const formattedToday = format(currentDate, 'dd.MM.yyyy');
-
-    // Format location from billing address
-    let location = '';
-    if (billingAddress) {
-      const parts = [];
-      if (billingAddress.city) parts.push(billingAddress.city);
-      location = parts.join(' ');
-    }
-
-    if (location) {
-      doc.setFont("helvetica", "normal");
-      doc.text(`${location}, den ${formattedToday}`, col1Start, startY, { align: 'left' });
-    } else {
-      doc.setFont("helvetica", "normal");
-      doc.text(`den ${formattedToday}`, col1Start, startY, { align: 'left' });
-    }
-
-    return startY; // Return the final Y position
-  };
-
-  // ZIP generation function for multiple PDFs
+  // ZIP generation function for multiple PDFs with worker offloading
   const generateSettlementZIP = async (
     tenantDataArray: TenantCostDetails[],
     nebenkostenItem: Nebenkosten,
     ownerName: string,
     ownerAddress: string
   ) => {
-    const JSZip = (await import('jszip')).default;
-    const { default: jsPDF } = await import('jspdf');
-    const autoTableModule = await import('jspdf-autotable');
-
-    if (autoTableModule && typeof autoTableModule.applyPlugin === 'function') {
-      autoTableModule.applyPlugin(jsPDF);
-    } else if (autoTableModule && typeof autoTableModule.default === 'function') {
-      (jsPDF.API as any).autoTable = autoTableModule.default;
-    }
-
-    const zip = new JSZip();
+    const billingAddress = await fetchCustomerBillingAddress();
     const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`;
 
-    // Generate individual PDFs for each tenant
-    const billingAddress = await fetchCustomerBillingAddress();
+    const { generatePdfZIP } = await import('@/lib/worker-client');
 
-    for (const tenantData of tenantDataArray) {
-      const doc = new jsPDF();
+    // Attempt to extract city from ownerAddress for houseCity
+    // If we can find a valid city, pass it directly; otherwise the worker will derive it
+    const houseCity = extractCityFromAddress(ownerAddress);
 
-      // Use the reusable PDF generation function
-      generateSingleTenantPDF(doc, tenantData, nebenkostenItem, ownerName, ownerAddress, 20, billingAddress);
+    // Prepare data for the worker: array of { name, data }
+    const zipData = tenantDataArray.map(tenant => ({
+      name: `Abrechnung_${currentPeriod}_${tenant.tenantName.replace(/\s+/g, '_')}`,
+      data: {
+        tenantData: tenant,
+        nebenkostenItem,
+        ownerName,
+        ownerAddress,
+        houseCity,
+        billingAddress
+      }
+    }));
 
-      const pdfBlob = doc.output('blob');
-      const filename = `Abrechnung_${currentPeriod}_${tenantData.tenantName.replace(/\s+/g, '_')}.pdf`;
-      zip.file(filename, pdfBlob);
+    try {
+      const clientStartTime = Date.now();
+      const response = await generatePdfZIP(zipData, `Abrechnung_${currentPeriod}_Alle_Mieter.zip`);
+      const clientEndTime = Date.now();
+
+      // Extract page count from headers
+      const pageCount = parseInt(response.headers.get('X-PDF-Page-Count') || '0', 10);
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Abrechnung_${currentPeriod}_Alle_Mieter.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      posthog?.capture('pdf_exported', {
+        document_type: 'abrechnung',
+        export_method: 'zip',
+        tenant_count: tenantDataArray.length,
+        period: currentPeriod,
+        page_count: pageCount,
+        processing_time_ms: clientEndTime - clientStartTime
+      });
+    } catch (error) {
+      console.error('ZIP Worker failed:', error);
+      toast({
+        title: "Fehler",
+        description: "Die ZIP-Generierung über den Worker ist fehlgeschlagen.",
+        variant: "destructive",
+      });
     }
-
-    // Generate and download the ZIP file
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    const zipFilename = `Abrechnung_${currentPeriod}_Alle_Mieter.zip`;
-
-    const url = URL.createObjectURL(zipBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = zipFilename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
+
 
   // Memoize tenant options to avoid recreating on every render
   const tenantOptions: ComboboxOption[] = useMemo(() =>
