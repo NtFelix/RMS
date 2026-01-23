@@ -45,11 +45,7 @@ export default function RegisterPage() {
     setMounted(true)
   }, [])
 
-  const isGoogleLoginEnabled = true
-  const isMicrosoftLoginEnabled = true
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
-
-  const enabledProvidersCount = [isGoogleLoginEnabled, isMicrosoftLoginEnabled].filter(Boolean).length;
 
   const socialProviders = [
     {
@@ -57,7 +53,6 @@ export default function RegisterPage() {
       name: 'Google',
       fullLabel: 'Mit Google anmelden',
       Icon: GoogleIcon,
-      enabled: isGoogleLoginEnabled,
       handler: handleGoogleSignIn,
     },
     {
@@ -65,10 +60,11 @@ export default function RegisterPage() {
       name: 'Microsoft',
       fullLabel: 'Mit Microsoft anmelden',
       Icon: MicrosoftIcon,
-      enabled: isMicrosoftLoginEnabled,
       handler: handleMicrosoftSignIn,
     }
-  ].filter(p => p.enabled);
+  ];
+
+  const enabledProvidersCount = socialProviders.length;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -376,7 +372,7 @@ export default function RegisterPage() {
                 )}
               </Button>
 
-              {mounted && (
+              {mounted &&
                 <div className="pt-4 space-y-4">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
@@ -417,7 +413,7 @@ export default function RegisterPage() {
                     ))}
                   </div>
                 </div>
-              )}
+              }
 
               <p className="text-xs text-center text-muted-foreground pt-2">
                 Mit der Registrierung stimmen Sie unseren{" "}
