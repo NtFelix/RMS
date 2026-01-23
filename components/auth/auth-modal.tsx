@@ -18,8 +18,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { PillTabSwitcher } from "@/components/ui/pill-tab-switcher";
-import { useFeatureFlagEnabled } from 'posthog-js/react'
-import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
@@ -58,8 +56,8 @@ export default function AuthModal({
   const [forgotPasswordIsLoading, setForgotPasswordIsLoading] = useState(false)
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
 
-  const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
-  const isMicrosoftLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MICROSOFT_SOCIAL_LOGIN)
+  const isGoogleLoginEnabled = true
+  const isMicrosoftLoginEnabled = true
   const [socialLoading, setSocialLoading] = useState<string | null>(null) // 'google' | 'microsoft' | null
 
   const enabledProvidersCount = [isGoogleLoginEnabled, isMicrosoftLoginEnabled].filter(Boolean).length;
@@ -396,7 +394,7 @@ export default function AuthModal({
                   {loginIsLoading ? "Wird angemeldet..." : "Anmelden"}
                 </Button>
 
-                {(isGoogleLoginEnabled || isMicrosoftLoginEnabled) && (
+                {true && (
                   <div className="pt-2 space-y-3">
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
@@ -501,7 +499,7 @@ export default function AuthModal({
                     {registerIsLoading ? "Wird registriert..." : "Registrieren"}
                   </Button>
 
-                  {(isGoogleLoginEnabled || isMicrosoftLoginEnabled) && (
+                  {true && (
                     <div className="pt-2 space-y-3">
                       <div className="relative">
                         <div className="absolute inset-0 flex items-center">
