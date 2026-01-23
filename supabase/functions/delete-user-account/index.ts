@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const allowedOrigins = [
   'https://rent-manager.pages.dev',
@@ -10,7 +10,7 @@ const allowedOrigins = [
   'http://localhost:3001'
 ];
 
-async function deleteStorageFolder(supabaseAdmin: any, bucket: string, folderPath: string) {
+async function deleteStorageFolder(supabaseAdmin: SupabaseClient, bucket: string, folderPath: string) {
   console.log(`[Storage] Checking bucket "${bucket}" for folder "${folderPath}"...`);
 
   const { data: files, error } = await supabaseAdmin.storage.from(bucket).list(folderPath, {
@@ -24,7 +24,7 @@ async function deleteStorageFolder(supabaseAdmin: any, bucket: string, folderPat
   }
 
   if (files && files.length > 0) {
-    const filesToRemove = files.map((f: any) => `${folderPath}/${f.name}`);
+    const filesToRemove = files.map((f: { name: string }) => `${folderPath}/${f.name}`);
     console.log(`[Storage] Deleting ${filesToRemove.length} files from "${bucket}"...`);
 
     for (let i = 0; i < filesToRemove.length; i += 100) {

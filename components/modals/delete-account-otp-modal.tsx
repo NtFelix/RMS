@@ -57,6 +57,7 @@ export function DeleteAccountOtpModal({
                             Sicherheitscode
                         </label>
                         <InputOTP
+                            id="otp"
                             maxLength={6}
                             value={otp}
                             onChange={(value) => setOtp(value)}
