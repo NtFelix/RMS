@@ -13,8 +13,16 @@ async function initializePostHog(nonce?: string) {
 
   let config = {
     key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-    host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
+    host: process.env.NEXT_PUBLIC_POSTHOG_HOST || '/ingest' // Default to our proxy
   };
+
+  // If host is a relative path, we need to make it absolute for the init call if needed, 
+  // but posthog-js handles paths starting with / as relative to the current origin.
+  if (config.host.startsWith('/')) {
+    if (typeof window !== 'undefined') {
+      config.host = window.location.origin + config.host;
+    }
+  }
 
   // If client-side env vars are not available, try to fetch from API
   if (!config.key || config.key === 'phc_placeholder_key') {
