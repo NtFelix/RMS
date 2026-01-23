@@ -60,6 +60,7 @@ async function initializePostHog(nonce?: string) {
   // This applies to ALL pages including landing and documentation pages
   posthog.init(config.key, {
     api_host: config.host,
+    ui_host: config.host, // Proxy UI assets and flags as well
     capture_pageview: false, // We'll handle this manually
     persistence: 'localStorage',
     enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
