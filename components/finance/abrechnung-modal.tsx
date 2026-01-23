@@ -72,6 +72,33 @@ const GERMAN_MONTHS = [
   "Juli", "August", "September", "Oktober", "November", "Dezember"
 ];
 
+/**
+ * Extracts city from an address string.
+ * Attempts to find a city component by looking for parts that:
+ * - Are not just a German postal code (5 digits)
+ * - Have more than 2 characters
+ * Falls back to the last part of the address if no clear city is found.
+ * Returns empty string if no extraction is possible.
+ * 
+ * NOTE: This logic mirrors the worker's city extraction for consistency.
+ * @see workers/mietevo-backend/src/index.ts - generateSingleTenantPDF
+ */
+const extractCityFromAddress = (address: string | null | undefined): string => {
+  if (!address) return '';
+
+  const parts = address.split(',').map(p => p.trim());
+  // Attempt to find a part that looks like a city (not just a postal code or street number)
+  const potentialCity = parts.find(p => !/^\d{5}$/.test(p) && p.length > 2);
+  if (potentialCity) {
+    return potentialCity;
+  }
+  // Fallback to the last part if no clear city is found
+  if (parts.length > 0) {
+    return parts[parts.length - 1];
+  }
+  return '';
+};
+
 // Financial calculation constants
 const PREPAYMENT_BUFFER_MULTIPLIER = 1.1; // 10% buffer for prepayment calculation
 
@@ -621,9 +648,9 @@ export function AbrechnungModal({
 
     for (const singleTenant of dataForProcessing) {
       const filename = `Abrechnung_${currentPeriod}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
-      // Extract city from ownerAddress for houseCity fallback
-      // The worker will handle robust city extraction from ownerAddress if houseCity is not provided
-      const houseCity = ''; // Pass an empty string, let the worker derive it
+      // Attempt to extract city from ownerAddress for houseCity
+      // If we can find a valid city, pass it directly; otherwise the worker will derive it
+      const houseCity = extractCityFromAddress(ownerAddress);
 
       const response = await generatePDF({
         tenantData: singleTenant,
@@ -674,9 +701,9 @@ export function AbrechnungModal({
 
     const { generatePdfZIP } = await import('@/lib/worker-client');
 
-    // Extract city from ownerAddress for houseCity fallback
-    // The worker will handle robust city extraction from ownerAddress if houseCity is not provided
-    const houseCity = ''; // Pass an empty string, let the worker derive it
+    // Attempt to extract city from ownerAddress for houseCity
+    // If we can find a valid city, pass it directly; otherwise the worker will derive it
+    const houseCity = extractCityFromAddress(ownerAddress);
 
     // Prepare data for the worker: array of { name, data }
     const zipData = tenantDataArray.map(tenant => ({

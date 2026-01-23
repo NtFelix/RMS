@@ -3,7 +3,19 @@ import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 
-// PDF Helpers from original app logic
+/**
+ * PDF Helper Functions
+ * 
+ * NOTE: These helper functions are intentionally duplicated from the main Next.js application.
+ * The Cloudflare Worker runs in an isolated runtime environment and cannot share code with
+ * the main app. This duplication ensures the worker is fully self-contained and independent.
+ * 
+ * If these functions need to be updated, ensure changes are synchronized with:
+ * - lib/utils.ts (roundToNearest5)
+ * - utils/date-calculations.ts (isoToGermanDate)
+ * - utils/format.ts (formatCurrency equivalent)
+ * - lib/zaehler-utils.ts (sumZaehlerValues)
+ */
 const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-";
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);

@@ -16,20 +16,24 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_R
 
         clearTimeout(timeoutId);
         return response;
-    } catch (err: any) {
+    } catch (err: unknown) {
         // Edge runtime primarily throws TypeError for fetch failures or AbortError for timeouts
+        const error = err instanceof Error ? err : new Error(String(err));
+        const errorName = error.name;
+        const errorMessage = error.message;
+
         const shouldRetry = retries > 0 && (
-            err.name === 'AbortError' ||
-            err.name === 'TypeError' ||
-            err.message?.toLowerCase().includes('failed')
+            errorName === 'AbortError' ||
+            errorName === 'TypeError' ||
+            errorMessage?.toLowerCase().includes('failed')
         );
 
         if (shouldRetry) {
-            console.warn(`[WorkerProxy] Fetch failed (${err.name}), retrying... (${MAX_RETRIES - retries + 1}/${MAX_RETRIES})`);
+            console.warn(`[WorkerProxy] Fetch failed (${errorName}), retrying... (${MAX_RETRIES - retries + 1}/${MAX_RETRIES})`);
             await new Promise(resolve => setTimeout(resolve, INITIAL_RETRY_DELAY * (MAX_RETRIES - retries + 1)));
             return fetchWithRetry(url, options, retries - 1);
         }
-        throw err;
+        throw error;
     }
 }
 
@@ -74,12 +78,13 @@ export async function POST(request: Request) {
             status: response.status,
             headers: responseHeaders,
         });
-    } catch (err: any) {
-        console.error('[WorkerProxy] Proxy failed:', err);
+    } catch (err: unknown) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        console.error('[WorkerProxy] Proxy failed:', error);
         return new NextResponse(JSON.stringify({
             error: 'Proxy failed',
-            details: err.message,
-            name: err.name
+            details: error.message,
+            name: error.name
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
