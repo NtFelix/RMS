@@ -64,7 +64,7 @@ function ConsentContent() {
     }, [clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod]);
 
     // Use environment variable for Supabase URL
-    const supabaseAuthUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/authorize`;
+    const supabaseAuthUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/authorize`;
 
     const handleAllow = () => {
         // Validation already passed - this handler only runs when UI is shown
