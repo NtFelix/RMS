@@ -17,6 +17,9 @@ const ALLOWED_REDIRECT_PATTERNS = [
     // Allow localhost for development
     /^http:\/\/localhost(:\d+)?/,
     /^http:\/\/127\.0\.0\.1(:\d+)?/,
+    // Allow ChatGPT Apps OAuth callbacks (production + app review)
+    /^https:\/\/chatgpt\.com\/connector_platform_oauth_redirect(\?.*)?$/,
+    /^https:\/\/platform\.openai\.com\/apps-manage\/oauth(\?.*)?$/,
 ];
 
 /**
