@@ -64,6 +64,7 @@ function URLParamHandler() {
 // Main content component that uses the auth modal context
 function PricingPageContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const supabase = createClient();
 
@@ -97,6 +98,21 @@ function PricingPageContent() {
             authListener?.subscription.unsubscribe();
         };
     }, [supabase, router]);
+
+    // Handle price selection from URL after redirect back from login
+    useEffect(() => {
+        const priceId = searchParams.get('priceId');
+        if (priceId && sessionUser && userProfile && !isProcessingCheckout) {
+            // Clear the priceId from URL to prevent re-triggering on refresh
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.delete('priceId');
+            const searchStr = newParams.toString();
+            const newUrl = `${window.location.pathname}${searchStr ? '?' + searchStr : ''}`;
+            window.history.replaceState({}, '', newUrl);
+
+            handleAuthFlow(priceId);
+        }
+    }, [searchParams, sessionUser, userProfile, isProcessingCheckout]);
 
     const fetchUserProfile = async (userId: string) => {
         try {
@@ -206,7 +222,9 @@ function PricingPageContent() {
                 variant: 'default',
             });
         } else {
-            router.push('/auth/login');
+            // Preserve plan selection for unauthenticated users by redirecting with context.
+            const redirectPath = `${window.location.pathname}?priceId=${priceId}`;
+            router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
         }
     };
 
@@ -255,7 +273,9 @@ function PricingPageContent() {
         if (sessionUser) {
             await handleAuthFlow(priceId);
         } else {
-            router.push('/auth/login');
+            // Preserve plan selection for unauthenticated users by redirecting with context.
+            const redirectPath = `${window.location.pathname}?priceId=${priceId}`;
+            router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
         }
     };
 
@@ -284,6 +304,8 @@ function PricingPageContent() {
 
 export default function PricingPage() {
     return (
-        <PricingPageContent />
+        <Suspense fallback={null}>
+            <PricingPageContent />
+        </Suspense>
     );
 }
