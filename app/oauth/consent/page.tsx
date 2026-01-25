@@ -171,16 +171,23 @@ function ConsentContent() {
             }
         }
 
-        // Fallback for Dev Flow (only if NO authId present)
+        // Fallback or Initial Flow
+        // Ensure we only send supported scopes to Supabase to match the Worker's initiation
+        const safeScope = 'openid profile email';
+
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: clientId!,
             redirect_uri: redirectUri!,
             state: state!,
-            scope: scope!,
+            scope: safeScope, // Override with safe scopes
             code_challenge: codeChallenge!,
             code_challenge_method: codeChallengeMethod!,
         });
+
+        if (authId) {
+            params.set('authorization_id', authId);
+        }
 
         window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
     };
