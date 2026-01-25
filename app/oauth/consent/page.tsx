@@ -438,8 +438,9 @@ function ConsentContent() {
 
                     <CardFooter className="flex flex-col gap-3 p-8 pt-4">
                         <Button
+                            type="button"
                             className="w-full h-12 rounded-xl text-base font-semibold shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                            onClick={handleAllow}
+                            onClick={(e) => { e.preventDefault(); handleAllow(); }}
                             disabled={isLoading}
                         >
                             {isLoading ? (
