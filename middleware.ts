@@ -117,11 +117,9 @@ export async function middleware(request: NextRequest) {
     } else {
       // For non-API routes, redirect to login
       const url = new URL('/auth/login', request.url);
-      // Only set redirect search param if it's not an auth route and not an _next route
       if (!pathname.startsWith('/_next/')) {
-        // PRESERVE the entire original path including query parameters (like client_id, state, etc.)
-        const fullPath = `${pathname}${request.nextUrl.search}`;
-        url.searchParams.set('redirect', fullPath);
+        // Just send the pathname. The consent page will recover params from session storage.
+        url.searchParams.set('redirect', pathname);
       }
       return NextResponse.redirect(url);
     }
