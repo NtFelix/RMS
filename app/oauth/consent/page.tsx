@@ -137,34 +137,52 @@ function ConsentContent() {
 
     // PROACTIVE RECOVERY: If we have an authorization_id but no state/scope (e.g. fresh page load after login),
     // we must fetch the details from Supabase immediately to populate the UI.
+    // SESSION CHECK & RECOVERY
     useEffect(() => {
-        const authId = searchParams.get('authorization_id');
-        if (authId && !oauthState.state) {
-            const fetchDetails = async () => {
+        const checkSessionAndRecover = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+
+            // 1. Force Login if not authenticated
+            if (!user) {
+                console.log('User not logged in, redirecting to login...');
+                const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                window.location.href = `/auth/login?next=${returnUrl}`;
+                return;
+            }
+
+            // 2. Proactive Recovery: If we have authorization_id but no state, fetch details
+            const authId = searchParams.get('authorization_id');
+            if (authId && !oauthState.state) {
                 try {
-                    const supabase = createClient();
                     // @ts-ignore
                     const { data, error } = await (supabase.auth as any).oauth?.getAuthorizationDetails(authId);
 
                     if (data) {
                         console.log('Proactively recovered details from Supabase:', data);
-                        // Update state with what we have (Supabase might have filtered scopes, but we get the state)
                         setOauthState(prev => ({
                             ...prev,
                             state: data.state || prev.state,
                             client_id: data.client_id || prev.client_id,
                             redirect_uri: data.redirect_uri || prev.redirect_uri,
-                            // If Supabase lost the scopes, we at least have the STATE,
-                            // which triggers the Worker context fetch in the other useEffect!
                             scope: data.scope || prev.scope
                         }));
+
+                        // SHORT-CIRCUIT: If code is already present, forward immediately
+                        if (data.redirect_url && data.redirect_url.includes('code=')) {
+                            console.log("SHORT-CIRCUIT (Mount): Code already present. Forwarding.");
+                            window.location.assign(data.redirect_url);
+                        }
+                    } else if (error) {
+                        console.error('Recover auth details error:', error);
                     }
                 } catch (e) {
                     console.error('Failed to recover auth details on mount:', e);
                 }
-            };
-            fetchDetails();
-        }
+            }
+        };
+
+        checkSessionAndRecover();
     }, [searchParams, oauthState.state]);
 
     const { client_id: clientId, state, redirect_uri: redirectUri, scope, code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod } = oauthState;
