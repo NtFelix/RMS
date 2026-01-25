@@ -47,16 +47,27 @@ const OAUTH_PARAMS_SESSION_KEY = 'mcp_oauth_params';
 function ConsentContent() {
     const searchParams = useSearchParams();
 
-    // Recovery Logic: Try to get parameters from URL, then fallback to sessionStorage
-    // This handles cases where internal redirects (like login or session refresh) strip the URL.
-    const [oauthState] = useState<{
+    const [oauthState, setOauthState] = useState<{
         client_id: string | null;
         state: string | null;
         redirect_uri: string | null;
         scope: string | null;
         code_challenge: string | null;
         code_challenge_method: string | null;
-    }>(() => {
+    }>({
+        client_id: null,
+        state: null,
+        redirect_uri: null,
+        scope: null,
+        code_challenge: null,
+        code_challenge_method: null,
+    });
+
+    // Hydration-safe parameter sync sync using a lazy initializer pattern check
+    // but executed in effect to be safe for hydration
+    useState(() => {
+        if (typeof window === 'undefined') return;
+
         const fromUrl = {
             client_id: searchParams.get('client_id'),
             state: searchParams.get('state'),
@@ -66,28 +77,21 @@ function ConsentContent() {
             code_challenge_method: searchParams.get('code_challenge_method'),
         };
 
-        // If we have all primary params, use them and save them
+        // If URL has params, use them and UPDATE storage
         if (fromUrl.client_id && fromUrl.state) {
-            if (typeof window !== 'undefined') {
-                sessionStorage.setItem(OAUTH_PARAMS_SESSION_KEY, JSON.stringify(fromUrl));
-            }
-            return fromUrl;
-        }
-
-        // Otherwise, try to recover from session storage
-        if (typeof window !== 'undefined') {
+            sessionStorage.setItem(OAUTH_PARAMS_SESSION_KEY, JSON.stringify(fromUrl));
+            setOauthState(fromUrl);
+        } else {
+            // URL is empty (redirect case), try recovery
             const saved = sessionStorage.getItem(OAUTH_PARAMS_SESSION_KEY);
             if (saved) {
                 try {
-                    return JSON.parse(saved);
+                    setOauthState(JSON.parse(saved));
                 } catch (e) {
-                    console.error('Failed to parse OAuth params from sessionStorage:', e);
-                    sessionStorage.removeItem(OAUTH_PARAMS_SESSION_KEY);
+                    console.error('Failed to parse OAuth params:', e);
                 }
             }
         }
-
-        return fromUrl;
     });
 
     const { client_id: clientId, state, redirect_uri: redirectUri, scope, code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod } = oauthState;
