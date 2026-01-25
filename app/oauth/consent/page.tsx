@@ -107,7 +107,10 @@ function ConsentContent() {
 
     // Validate all required OAuth parameters
     const validationError = useMemo(() => {
-        // When Supabase redirects back with authorization_id, we MUST have recovered the params
+        // If we have an authorization_id but haven't recovered params yet, don't show error yet
+        const authId = searchParams.get('authorization_id');
+        if (authId && !clientId) return null; // Wait for useEffect to sync from session storage
+
         if (!clientId) return 'Fehlender Parameter: client_id';
         if (!redirectUri) return 'Fehlender Parameter: redirect_uri';
         if (!state) return 'Fehlender Parameter: state';
@@ -116,7 +119,7 @@ function ConsentContent() {
         if (!codeChallengeMethod) return 'Fehlender Parameter: code_challenge_method';
         if (!isValidRedirectUri(redirectUri)) return 'Ungültige oder nicht autorisierte Weiterleitungs-URL';
         return null;
-    }, [clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod]);
+    }, [clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod, searchParams]);
 
     // Use environment variable for Supabase URL
     const supabaseAuthUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}${SUPABASE_API_PATHS.OAUTH_AUTHORIZE}`;
