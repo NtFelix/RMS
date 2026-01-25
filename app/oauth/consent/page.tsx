@@ -257,10 +257,11 @@ function ConsentContent() {
                         return;
                     }
                 } else {
-                    // Non-MCP flow without Code Challenge? Should theoretically not happen for PKCE clients, 
-                    // but we'll let it proceed if it's not our MCP Worker flow.
-                    params.set('authorization_id', authId); // CRITICAL: Link to existing ID
+                    // Non-MCP flow without Code Challenge? Should theoretically not happen for PKCE clients.
+                    console.warn('Proceeding without PKCE (not an MCP flow?)');
                 }
+
+                params.set('authorization_id', authId); // CRITICAL: Link to existing ID
 
                 const finalRedirectUrl = `${supabaseAuthUrl}?${params.toString()}`;
                 console.log("Approving via Redirect with Recovered PKCE:", finalRedirectUrl);
