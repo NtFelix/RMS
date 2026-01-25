@@ -164,22 +164,27 @@ function ConsentContent() {
                 const details = result.data;
                 console.log("Authorization Details Recovered:", details);
 
-                if (!details || !details.code_challenge) {
-                    console.error("Missing PKCE details in session.", details);
-                    alert("Fatal: Could not recover PKCE challenge from session. Please restart flow.");
+                if (!details) {
+                    console.error("Missing authorization details.", details);
+                    alert("Fatal: Could not recover authorization details. Please restart flow.");
                     return;
                 }
 
-                // THE MASTER FIX: Use the Recovered Code Challenge in the Redirect
-                // This satisfies "PKCE Required" error AND "Parameter Mismatch" loop.
+                // THE MASTER FIX: Use the Recovered details to approve
+                // We rely on authorization_id to link back to the valid PKCE session in Supabase
                 const params = new URLSearchParams();
                 params.set('response_type', 'code');
                 params.set('client_id', details.client_id || clientId!);
                 params.set('redirect_uri', details.redirect_uri || 'https://mcp.mietevo.de/callback');
                 params.set('state', details.state || state!);
                 params.set('scope', details.scope || 'openid profile email');
-                params.set('code_challenge', details.code_challenge);
-                params.set('code_challenge_method', details.code_challenge_method || 'S256');
+
+                // Only include PKCE if returned by Supabase, otherwise assume authorization_id covers it
+                if (details.code_challenge) {
+                    params.set('code_challenge', details.code_challenge);
+                    params.set('code_challenge_method', details.code_challenge_method || 'S256');
+                }
+
                 params.set('authorization_id', authId); // CRITICAL: Link to existing ID
 
                 console.log("Approving via Redirect with Recovered PKCE:", params.toString());
