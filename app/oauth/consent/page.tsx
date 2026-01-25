@@ -205,8 +205,8 @@ function ConsentContent() {
                 const flowState = details.state || state;
 
                 if (!flowState) {
-                    console.error("Critical: OAuth state is missing in both details and URL parameters.");
-                    alert("Fatal: OAuth state lost. Please restart the authentication flow.");
+                    console.error("Critical: OAuth state is missing in both details and URL parameters.", details);
+                    alert(`Fatal: OAuth state lost. \n\nSupabase Return Details:\n${JSON.stringify(details, null, 2)}`);
                     return;
                 }
 
