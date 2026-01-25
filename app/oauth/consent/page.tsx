@@ -200,13 +200,33 @@ function ConsentContent() {
                 params.set('response_type', 'code');
                 params.set('client_id', recoveredClientId);
                 params.set('redirect_uri', recoveredRedirectUri);
-                params.set('state', details.state || state!);
+                // Use the state recovered from Supabase (which should match the one passed by Worker)
+                const flowState = details.state || state!;
+                params.set('state', flowState);
                 params.set('scope', details.scope || 'openid profile email');
 
-                // Only include PKCE if returned by Supabase, otherwise assume authorization_id covers it
+                // Only include PKCE if returned by Supabase, otherwise try to recover from Worker
                 if (details.code_challenge) {
                     params.set('code_challenge', details.code_challenge);
                     params.set('code_challenge_method', details.code_challenge_method || 'S256');
+                } else if (recoveredRedirectUri?.includes('mcp.mietevo.de')) {
+                    // Try to fetch context from Worker
+                    try {
+                        console.log('Fetching PKCE context from Worker...');
+                        const contextRes = await fetch(`https://mcp.mietevo.de/auth/context?state=${flowState}`);
+                        if (contextRes.ok) {
+                            const context = await contextRes.json();
+                            if (context.code_challenge) {
+                                console.log('Recovered PKCE challenge from Worker:', context.code_challenge);
+                                params.set('code_challenge', context.code_challenge);
+                                params.set('code_challenge_method', context.code_challenge_method || 'S256');
+                            }
+                        } else {
+                            console.warn('Failed to fetch context from Worker', contextRes.status);
+                        }
+                    } catch (err) {
+                        console.error('Error fetching Worker context:', err);
+                    }
                 }
 
                 params.set('authorization_id', authId); // CRITICAL: Link to existing ID
