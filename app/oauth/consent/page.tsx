@@ -233,19 +233,33 @@ function ConsentContent() {
                     try {
                         console.log(`Fetching PKCE context from Worker for state: ${flowState}`);
                         const contextRes = await fetch(`https://mcp.mietevo.de/auth/context?state=${flowState}`);
+
                         if (contextRes.ok) {
                             const context = await contextRes.json();
                             if (context.code_challenge) {
                                 console.log('Recovered PKCE challenge from Worker:', context.code_challenge);
                                 params.set('code_challenge', context.code_challenge);
                                 params.set('code_challenge_method', context.code_challenge_method || 'S256');
+                            } else {
+                                console.error('Worker context returned no code_challenge', context);
+                                alert(`Fatal: retrieved context from Worker but code_challenge is missing.\n\nContext: ${JSON.stringify(context)}`);
+                                return;
                             }
                         } else {
                             console.warn('Failed to fetch context from Worker', contextRes.status);
+                            const errText = await contextRes.text();
+                            alert(`Fatal: Failed to recover PKCE context from Worker.\nStatus: ${contextRes.status}\nError: ${errText}`);
+                            return;
                         }
-                    } catch (err) {
+                    } catch (err: any) {
                         console.error('Error fetching Worker context:', err);
+                        alert(`Fatal: Network error fetching PKCE contest.\n${err.message}`);
+                        return;
                     }
+                } else {
+                    // Non-MCP flow without Code Challenge? Should theoretically not happen for PKCE clients, 
+                    // but we'll let it proceed if it's not our MCP Worker flow.
+                    console.warn('Proceeding without PKCE (not an MCP flow?)');
                 }
 
                 params.set('authorization_id', authId); // CRITICAL: Link to existing ID
