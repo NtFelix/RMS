@@ -170,6 +170,15 @@ function ConsentContent() {
                     return;
                 }
 
+                // SHORT-CIRCUIT: If Supabase has already generated the code (auto-approve scenario or existing session),
+                // it returns the final redirect URL in the details. We should just go there.
+                // This fixes the loop where Supabase sends us back to Consent, but Consent sends us back to Supabase.
+                if (details.redirect_url && details.redirect_url.includes('code=')) {
+                    console.log("SHORT-CIRCUIT: Code already present in redirect_url. Forwarding immediately.", details.redirect_url);
+                    window.location.assign(details.redirect_url);
+                    return;
+                }
+
                 // THE MASTER FIX: Use the Recovered details to approve
                 // We rely on authorization_id to link back to the valid PKCE session in Supabase
                 // Robustly extract client_id from possible locations in the response
