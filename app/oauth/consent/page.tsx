@@ -42,12 +42,48 @@ function isValidRedirectUri(uri: string | null): boolean {
 
 function ConsentContent() {
     const searchParams = useSearchParams();
-    const clientId = searchParams.get('client_id');
-    const redirectUri = searchParams.get('redirect_uri');
-    const state = searchParams.get('state');
-    const scope = searchParams.get('scope');
-    const codeChallenge = searchParams.get('code_challenge');
-    const codeChallengeMethod = searchParams.get('code_challenge_method');
+
+    // Recovery Logic: Try to get parameters from URL, then fallback to sessionStorage
+    // This handles cases where internal redirects (like login or session refresh) strip the URL.
+    const [oauthState, setOauthState] = useState<{
+        client_id: string | null;
+        state: string | null;
+        redirect_uri: string | null;
+        scope: string | null;
+        code_challenge: string | null;
+        code_challenge_method: string | null;
+    }>(() => {
+        const fromUrl = {
+            client_id: searchParams.get('client_id'),
+            state: searchParams.get('state'),
+            redirect_uri: searchParams.get('redirect_uri'),
+            scope: searchParams.get('scope'),
+            code_challenge: searchParams.get('code_challenge'),
+            code_challenge_method: searchParams.get('code_challenge_method'),
+        };
+
+        // If we have all primary params, use them and save them
+        if (fromUrl.client_id && fromUrl.state) {
+            if (typeof window !== 'undefined') {
+                sessionStorage.setItem('mcp_oauth_params', JSON.stringify(fromUrl));
+            }
+            return fromUrl;
+        }
+
+        // Otherwise, try to recover from session storage
+        if (typeof window !== 'undefined') {
+            const saved = sessionStorage.getItem('mcp_oauth_params');
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch { }
+            }
+        }
+
+        return fromUrl;
+    });
+
+    const { client_id: clientId, state, redirect_uri: redirectUri, scope, code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod } = oauthState;
 
     const [isLoading, setIsLoading] = useState(false);
 
