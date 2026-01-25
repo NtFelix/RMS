@@ -259,16 +259,20 @@ function ConsentContent() {
                 } else {
                     // Non-MCP flow without Code Challenge? Should theoretically not happen for PKCE clients, 
                     // but we'll let it proceed if it's not our MCP Worker flow.
-                    console.warn('Proceeding without PKCE (not an MCP flow?)');
+                    params.set('authorization_id', authId); // CRITICAL: Link to existing ID
                 }
 
-                console.log("Approving via Redirect with Recovered PKCE:", params.toString());
-                window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
+                const finalRedirectUrl = `${supabaseAuthUrl}?${params.toString()}`;
+                console.log("Approving via Redirect with Recovered PKCE:", finalRedirectUrl);
+
+                // Force navigation
+                window.location.assign(finalRedirectUrl);
                 return;
 
             } catch (e: any) {
                 console.error("Critical Error in Approval Flow:", e);
                 alert(`System Error: ${e.message}`);
+                setIsLoading(false); // Reset loading state on error
                 return;
             }
         } else {
@@ -283,7 +287,7 @@ function ConsentContent() {
             params.set('code_challenge_method', codeChallengeMethod!);
 
             console.log("Redirecting to Supabase:", `${supabaseAuthUrl}?${params.toString()}`);
-            window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
+            window.location.assign(`${supabaseAuthUrl}?${params.toString()}`);
         }
     };
 
