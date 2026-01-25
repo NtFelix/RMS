@@ -265,14 +265,19 @@ function ConsentContent() {
                 const finalRedirectUrl = `${supabaseAuthUrl}?${params.toString()}`;
                 console.log("Approving via Redirect with Recovered PKCE:", finalRedirectUrl);
 
+                // Show a manual link in case automatic redirect fails (e.g. pop-up blocker or strict browser settings)
+                const manualLinkInfo = document.createElement('div');
+                manualLinkInfo.innerHTML = `<p style="margin-top:20px; text-align:center; color: white;">Falls die Weiterleitung nicht funktioniert: <a href="${finalRedirectUrl}" style="text-decoration:underline; font-weight:bold;">Hier klicken</a></p>`;
+                document.querySelector('.relative.z-10')?.appendChild(manualLinkInfo);
+
                 // Force navigation
                 window.location.assign(finalRedirectUrl);
                 return;
 
             } catch (e: any) {
                 console.error("Critical Error in Approval Flow:", e);
-                alert(`System Error: ${e.message}`);
-                setIsLoading(false); // Reset loading state on error
+                alert(`System Error during redirect: ${e.message}`);
+                setIsLoading(false);
                 return;
             }
         } else {
