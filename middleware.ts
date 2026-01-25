@@ -97,7 +97,8 @@ export async function middleware(request: NextRequest) {
     '/loesungen(/.*)?', // All routes under loesungen
     '/funktionen(/.*)?', // All routes under funktionen
     '/warteliste(/.*)?', // All routes under warteliste
-    '/preise' // Pricing page
+    '/preise', // Pricing page
+    '/oauth(.*)?' // OAuth consent and related routes
   ]
 
   // If we're already on the login page, don't redirect
@@ -116,9 +117,11 @@ export async function middleware(request: NextRequest) {
     } else {
       // For non-API routes, redirect to login
       const url = new URL('/auth/login', request.url);
-      // Only set redirect search param if it's not an auth route and not an _next route (already covered by non-API)
-      if (!pathname.startsWith('/_next/')) { // No need to check /api/ here
-        url.searchParams.set('redirect', pathname);
+      // Only set redirect search param if it's not an auth route and not an _next route
+      if (!pathname.startsWith('/_next/')) {
+        // PRESERVE the entire original path including query parameters (like client_id, state, etc.)
+        const fullPath = `${pathname}${request.nextUrl.search}`;
+        url.searchParams.set('redirect', fullPath);
       }
       return NextResponse.redirect(url);
     }
