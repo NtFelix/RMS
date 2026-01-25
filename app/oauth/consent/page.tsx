@@ -202,10 +202,21 @@ function ConsentContent() {
                 params.set('redirect_uri', recoveredRedirectUri);
                 // Use the state recovered from Supabase (which should match the one passed by Worker)
                 // If details.state is missing, fall back to the state from URL params
-                const flowState = details.state || state;
+                let flowState = details.state || state;
+
+                // FALLBACK: Extract state from redirect_url if available (Supabase sometimes puts it there but not in top-level prop)
+                if (!flowState && details.redirect_url) {
+                    try {
+                        const urlObj = new URL(details.redirect_url);
+                        flowState = urlObj.searchParams.get('state');
+                        console.log('Recovered state from redirect_url:', flowState);
+                    } catch (e) {
+                        console.warn('Failed to parse state from redirect_url', e);
+                    }
+                }
 
                 if (!flowState) {
-                    console.error("Critical: OAuth state is missing in both details and URL parameters.", details);
+                    console.error("Critical: OAuth state is missing in details, redirect_url, and URL parameters.", details);
                     alert(`Fatal: OAuth state lost. \n\nSupabase Return Details:\n${JSON.stringify(details, null, 2)}`);
                     return;
                 }
