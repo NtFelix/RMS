@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldAlert, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { LOGO_URL, BRAND_NAME, BASE_URL } from '@/lib/constants';
+import { LOGO_URL, BRAND_NAME, BASE_URL, SUPABASE_API_PATHS } from '@/lib/constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Whitelist of allowed redirect URI patterns for security
@@ -64,7 +64,7 @@ function ConsentContent() {
     }, [clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod]);
 
     // Use environment variable for Supabase URL
-    const supabaseAuthUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/authorize`;
+    const supabaseAuthUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}${SUPABASE_API_PATHS.OAUTH_AUTHORIZE}`;
 
     const handleAllow = () => {
         // Validation already passed - this handler only runs when UI is shown
