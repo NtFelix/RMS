@@ -145,38 +145,50 @@ function ConsentContent() {
                 const { data: { user } } = await supabase.auth.getUser();
 
                 if (!user) {
-                    // ... login redirect logic (already there)
                     const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
                     window.location.href = `/auth/login?next=${returnUrl}`;
                     return;
                 }
 
-                // DEBUG: Check if we can see the authorization details
-                console.log("Debugging: Fetching details for ID:", authId);
+                console.log("Fetching authorization details for:", authId);
                 // @ts-ignore
-                const details = await (supabase.auth as any).oauth?.getAuthorizationDetails(authId);
-                console.log("Authorization Details:", details);
+                const result = await (supabase.auth as any).oauth?.getAuthorizationDetails(authId);
 
-                if (details.error) {
-                    console.error("Cannot fetch details:", details.error);
-                    // If we can't fetch details, we certainly can't approve.
-                    // This confirms the "Session Mismatch" or "Invalid ID" theory.
-                    alert(`Error: ${details.error.message || 'Cannot access authorization session.'}`);
+                if (result.error) {
+                    console.error("Fetch Details Error:", result.error);
+                    alert(`Error: ${result.error.message}`);
                     return;
                 }
 
-                // If we got details, TRY TO APPROVE
-                console.log("Details found. Approving...");
-                // @ts-ignore
-                const { data, error } = await (supabase.auth as any).oauth?.approveAuthorization(authId);
+                // Extracted Details from Supabase Session
+                const details = result.data;
+                console.log("Authorization Details Recovered:", details);
 
-                if (error) throw error;
-                if (data?.url) {
-                    window.location.href = data.url;
+                if (!details || !details.code_challenge) {
+                    console.error("Missing PKCE details in session.", details);
+                    alert("Fatal: Could not recover PKCE challenge from session. Please restart flow.");
                     return;
                 }
-            } catch (e) {
-                console.error("API Error:", e);
+
+                // THE MASTER FIX: Use the Recovered Code Challenge in the Redirect
+                // This satisfies "PKCE Required" error AND "Parameter Mismatch" loop.
+                const params = new URLSearchParams();
+                params.set('response_type', 'code');
+                params.set('client_id', details.client_id || clientId!);
+                params.set('redirect_uri', details.redirect_uri || 'https://mcp.mietevo.de/callback');
+                params.set('state', details.state || state!);
+                params.set('scope', details.scope || 'openid profile email');
+                params.set('code_challenge', details.code_challenge);
+                params.set('code_challenge_method', details.code_challenge_method || 'S256');
+                params.set('authorization_id', authId); // CRITICAL: Link to existing ID
+
+                console.log("Approving via Redirect with Recovered PKCE:", params.toString());
+                window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
+                return;
+
+            } catch (e: any) {
+                console.error("Critical Error in Approval Flow:", e);
+                alert(`System Error: ${e.message}`);
                 return;
             }
         } else {
