@@ -135,13 +135,19 @@ function ConsentContent() {
         // the standard redirect back to Supabase should work without looping.
 
         // Ensure we only send supported scopes to Supabase to match the Worker's initiation
-        // This is critical to avoid 'invalid_scope' errors which cause loops.
+        // Fallback or Initial Flow
+        // Ensure we only send supported scopes to Supabase to match the Worker's initiation
         const safeScope = 'openid profile email';
+
+        // CRITICAL: The redirect_uri sent back to Supabase MUST match the one used to start 
+        // the flow (which was the Worker's callback, NOT ChatGPT's).
+        // If we send ChatGPT's URI here, Supabase rejects the ID and loops.
+        const workerCallbackUri = 'https://mcp.mietevo.de/callback';
 
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: clientId!,
-            redirect_uri: redirectUri!,
+            redirect_uri: workerCallbackUri, // Force the correct callback
             state: state!,
             scope: safeScope,
             code_challenge: codeChallenge!,
