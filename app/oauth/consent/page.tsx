@@ -172,10 +172,21 @@ function ConsentContent() {
 
                 // THE MASTER FIX: Use the Recovered details to approve
                 // We rely on authorization_id to link back to the valid PKCE session in Supabase
+                // Robustly extract client_id from possible locations in the response
+                const recoveredClientId = details.client_id || details.client?.id || details.client_info?.id || clientId;
+                const recoveredRedirectUri = details.redirect_uri || details.redirect_url || 'https://mcp.mietevo.de/callback';
+
+                if (!recoveredClientId) {
+                    console.error("Critical: Could not find client_id in details", details);
+                    alert("Fatal: Missing Client ID in authorization details. Please contact support.");
+                    // Fallback to the one from environment/known client if desperate, but better to fail safely
+                    return;
+                }
+
                 const params = new URLSearchParams();
                 params.set('response_type', 'code');
-                params.set('client_id', details.client_id || clientId!);
-                params.set('redirect_uri', details.redirect_uri || 'https://mcp.mietevo.de/callback');
+                params.set('client_id', recoveredClientId);
+                params.set('redirect_uri', recoveredRedirectUri);
                 params.set('state', details.state || state!);
                 params.set('scope', details.scope || 'openid profile email');
 
