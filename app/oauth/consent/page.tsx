@@ -129,34 +129,49 @@ function ConsentContent() {
         setIsLoading(true);
         const authId = searchParams.get('authorization_id');
 
-        // NEW FLOW: API-based approval (Breaks the redirect loop)
+        // NEW FLOW: API-based approval
         if (authId) {
             try {
                 const supabase = createClient();
-                // @ts-ignore - The oauth namespace is present in recent supabase-js versions but might lack types
-                const { data, error } = await supabase.auth.admin?.approveContext ?
-                    // Try admin if available (rare for client) 
-                    null :
-                    // Try standard namespace
-                    // Note: The exact method in mcp-auth beta might be under 'oauth' or 'mcp'
-                    // We try the documented one: supabase.auth.oauth.approveAuthorization
-                    await (supabase.auth as any).oauth?.approveAuthorization(authId);
 
-                // Fallback: If JS client doesn't have the method, do the redirect method 
-                // BUT with the knowledge that it might loop if session cookies aren't right.
-                // However, let's assume the API call works.
+                // 1. Verify we have a user session for this approval
+                const { data: { user }, error: userError } = await supabase.auth.getUser();
+                if (userError || !user) {
+                    console.log("No user session found, redirecting to login...");
+                    // Redirect to login, preserving the current URL as the next destination
+                    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                    window.location.href = `/auth/login?next=${returnUrl}`;
+                    return;
+                }
 
-                if (error) throw error;
+                console.log("Attempting to approve authorization_id:", authId);
+
+                // @ts-ignore
+                const { data, error } = await (supabase.auth as any).oauth?.approveAuthorization(authId);
+
+                if (error) {
+                    console.error("Supabase API Error:", error);
+                    // If 404, it might mean the ID expired or belongs to another session.
+                    if (error.code === 'oauth_authorization_not_found') {
+                        alert("Session expired. Please try again from ChatGPT.");
+                        return; // Don't redirect loop
+                    }
+                    throw error;
+                }
+
                 if (data?.url) {
                     window.location.href = data.url;
                     return;
                 }
             } catch (e) {
-                console.error('Approval API failed, falling back to redirect:', e);
-                // Proceed to fallback redirect below
+                console.error('Approval API failed:', e);
+                alert("Authorization failed. Check console for details.");
+                setIsLoading(false);
+                return; // Stop execution to prevent loops
             }
         }
 
+        // Fallback for Dev Flow (only if NO authId present)
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: clientId!,
@@ -166,10 +181,6 @@ function ConsentContent() {
             code_challenge: codeChallenge!,
             code_challenge_method: codeChallengeMethod!,
         });
-
-        if (authId) {
-            params.set('authorization_id', authId);
-        }
 
         window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
     };
