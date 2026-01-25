@@ -104,6 +104,37 @@ function ConsentContent() {
         }
     }, [searchParams]);
 
+    // NEW: Fetch full context (including original scopes) from Worker if state is present
+    useEffect(() => {
+        const fetchContext = async () => {
+            // Avoid double-fetching or fetching if no state
+            if (!oauthState.state) return;
+
+            // Only fetch if we suspect we have filtered scopes (standard ones) and want the full list
+            // Or just always fetch to be safe.
+            try {
+                const res = await fetch(`https://mcp.mietevo.de/auth/context?state=${oauthState.state}`);
+                if (res.ok) {
+                    const ctx = await res.json();
+                    if (ctx.scope) {
+                        console.log('Enriching scopes from Worker context:', ctx.scope);
+                        setOauthState(prev => {
+                            // Only update if different to avoid loop
+                            if (prev.scope !== ctx.scope) {
+                                return { ...prev, scope: ctx.scope };
+                            }
+                            return prev;
+                        });
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to fetch background context for scopes:', err);
+            }
+        };
+
+        fetchContext();
+    }, [oauthState.state]);
+
     const { client_id: clientId, state, redirect_uri: redirectUri, scope, code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod } = oauthState;
 
     // Validate all required OAuth parameters
