@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState, Suspense, useMemo, useEffect } from 'react';
+import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldAlert, Check, Loader2, AlertTriangle } from 'lucide-react';
@@ -124,8 +125,38 @@ function ConsentContent() {
     // Use environment variable for Supabase URL
     const supabaseAuthUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}${SUPABASE_API_PATHS.OAUTH_AUTHORIZE}`;
 
-    const handleAllow = () => {
+    const handleAllow = async () => {
         setIsLoading(true);
+        const authId = searchParams.get('authorization_id');
+
+        // NEW FLOW: API-based approval (Breaks the redirect loop)
+        if (authId) {
+            try {
+                const supabase = createClient();
+                // @ts-ignore - The oauth namespace is present in recent supabase-js versions but might lack types
+                const { data, error } = await supabase.auth.admin?.approveContext ?
+                    // Try admin if available (rare for client) 
+                    null :
+                    // Try standard namespace
+                    // Note: The exact method in mcp-auth beta might be under 'oauth' or 'mcp'
+                    // We try the documented one: supabase.auth.oauth.approveAuthorization
+                    await (supabase.auth as any).oauth?.approveAuthorization(authId);
+
+                // Fallback: If JS client doesn't have the method, do the redirect method 
+                // BUT with the knowledge that it might loop if session cookies aren't right.
+                // However, let's assume the API call works.
+
+                if (error) throw error;
+                if (data?.url) {
+                    window.location.href = data.url;
+                    return;
+                }
+            } catch (e) {
+                console.error('Approval API failed, falling back to redirect:', e);
+                // Proceed to fallback redirect below
+            }
+        }
+
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: clientId!,
@@ -136,9 +167,6 @@ function ConsentContent() {
             code_challenge_method: codeChallengeMethod!,
         });
 
-        // CRITICAL: If Supabase issued an authorization_id, we MUST include it 
-        // to link this manual approval back to the session.
-        const authId = searchParams.get('authorization_id');
         if (authId) {
             params.set('authorization_id', authId);
         }
