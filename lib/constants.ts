@@ -86,6 +86,11 @@ export const ROUTES = {
   IMPRESSUM: '/impressum',
 } as const;
 
+// Supabase API paths
+export const SUPABASE_API_PATHS = {
+  OAUTH_AUTHORIZE: '/auth/v1/oauth/authorize',
+} as const;
+
 // Video URLs
 export const HERO_VIDEO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/nebenkosten-overview.mp4';
 
