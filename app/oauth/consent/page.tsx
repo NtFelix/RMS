@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useState, Suspense, useMemo } from 'react';
+import { useState, Suspense, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldAlert, Check, Loader2, AlertTriangle } from 'lucide-react';
@@ -69,11 +69,10 @@ function ConsentContent() {
         code_challenge_method: null,
     });
 
-    // Hydration-safe parameter sync sync using a lazy initializer pattern check
-    // but executed in effect to be safe for hydration
-    useState(() => {
-        if (typeof window === 'undefined') return;
+    const [isLoading, setIsLoading] = useState(false);
 
+    // Initial parameter sync & recovery
+    useEffect(() => {
         const fromUrl = {
             client_id: searchParams.get('client_id'),
             state: searchParams.get('state'),
@@ -83,29 +82,32 @@ function ConsentContent() {
             code_challenge_method: searchParams.get('code_challenge_method'),
         };
 
-        // If URL has params, use them and UPDATE storage
+        // If URL has core params, use them and UPDATE storage
         if (fromUrl.client_id && fromUrl.state) {
             sessionStorage.setItem(OAUTH_PARAMS_SESSION_KEY, JSON.stringify(fromUrl));
             setOauthState(fromUrl);
         } else {
-            // URL is empty (redirect case), try recovery
+            // Check if we are in an authorization_id fallback redirect
+            const authId = searchParams.get('authorization_id');
             const saved = sessionStorage.getItem(OAUTH_PARAMS_SESSION_KEY);
+
             if (saved) {
                 try {
-                    setOauthState(JSON.parse(saved));
+                    const parsed = JSON.parse(saved);
+                    setOauthState(parsed);
+                    console.log('Recovered OAuth params for authId:', authId);
                 } catch (e) {
-                    console.error('Failed to parse OAuth params:', e);
+                    console.error('Failed to parse saved OAuth params:', e);
                 }
             }
         }
-    });
+    }, [searchParams]);
 
     const { client_id: clientId, state, redirect_uri: redirectUri, scope, code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod } = oauthState;
 
-    const [isLoading, setIsLoading] = useState(false);
-
     // Validate all required OAuth parameters
     const validationError = useMemo(() => {
+        // When Supabase redirects back with authorization_id, we MUST have recovered the params
         if (!clientId) return 'Fehlender Parameter: client_id';
         if (!redirectUri) return 'Fehlender Parameter: redirect_uri';
         if (!state) return 'Fehlender Parameter: state';
@@ -120,7 +122,6 @@ function ConsentContent() {
     const supabaseAuthUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}${SUPABASE_API_PATHS.OAUTH_AUTHORIZE}`;
 
     const handleAllow = () => {
-        // Validation already passed - this handler only runs when UI is shown
         setIsLoading(true);
         const params = new URLSearchParams({
             response_type: 'code',
@@ -131,6 +132,14 @@ function ConsentContent() {
             code_challenge: codeChallenge!,
             code_challenge_method: codeChallengeMethod!,
         });
+
+        // CRITICAL: If Supabase issued an authorization_id, we MUST include it 
+        // to link this manual approval back to the session.
+        const authId = searchParams.get('authorization_id');
+        if (authId) {
+            params.set('authorization_id', authId);
+        }
+
         window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
     };
 
