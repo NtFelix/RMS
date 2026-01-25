@@ -262,8 +262,6 @@ function ConsentContent() {
                     console.warn('Proceeding without PKCE (not an MCP flow?)');
                 }
 
-                params.set('authorization_id', authId); // CRITICAL: Link to existing ID
-
                 console.log("Approving via Redirect with Recovered PKCE:", params.toString());
                 window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
                 return;
