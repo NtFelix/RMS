@@ -129,36 +129,37 @@ function ConsentContent() {
         setIsLoading(true);
         const authId = searchParams.get('authorization_id');
 
-        // REVERT TO REDIRECT FLOW (Standard OAuth 2.1)
         // The API call (approveAuthorization) was failing with 404 (session mismatch).
         // Now that we have fixed the Scope Mismatch in the Worker and Consent Page,
         // the standard redirect back to Supabase should work without looping.
 
         // Ensure we only send supported scopes to Supabase to match the Worker's initiation
-        // Fallback or Initial Flow
-        // Ensure we only send supported scopes to Supabase to match the Worker's initiation
-        const safeScope = 'openid profile email';
-
-        // CRITICAL: The redirect_uri sent back to Supabase MUST match the one used to start 
-        // the flow (which was the Worker's callback, NOT ChatGPT's).
-        // If we send ChatGPT's URI here, Supabase rejects the ID and loops.
+        // authorization_id is present, we are finalizing the flow.
         const workerCallbackUri = 'https://mcp.mietevo.de/callback';
 
-        const params = new URLSearchParams({
-            response_type: 'code',
-            client_id: clientId!,
-            redirect_uri: workerCallbackUri, // Force the correct callback
-            state: state!,
-            scope: safeScope,
-            code_challenge: codeChallenge!,
-            code_challenge_method: codeChallengeMethod!,
-        });
+        const params = new URLSearchParams();
 
         if (authId) {
+            // OPTIMIZED FLOW: Send minimal parameters to confirm the existing request
             params.set('authorization_id', authId);
+            params.set('client_id', clientId!);
+            params.set('redirect_uri', workerCallbackUri);
+            params.set('state', state!);
+            // Do NOT send scope/code_challenge again; let Supabase use the saved context.
+            // This prevents "New Request" detection loop.
+            console.log("Finalizing approval with existing context:", authId);
+        } else {
+            // Initial Flow / Fallback
+            params.set('response_type', 'code');
+            params.set('client_id', clientId!);
+            params.set('redirect_uri', workerCallbackUri);
+            params.set('state', state!);
+            params.set('scope', 'openid profile email');
+            params.set('code_challenge', codeChallenge!);
+            params.set('code_challenge_method', codeChallengeMethod!);
         }
 
-        console.log("Redirecting to Supabase to finalize approval:", `${supabaseAuthUrl}?${params.toString()}`);
+        console.log("Redirecting to Supabase:", `${supabaseAuthUrl}?${params.toString()}`);
         window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
     };
 
