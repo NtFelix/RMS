@@ -40,12 +40,14 @@ function isValidRedirectUri(uri: string | null): boolean {
     }
 }
 
+const OAUTH_PARAMS_SESSION_KEY = 'mcp_oauth_params';
+
 function ConsentContent() {
     const searchParams = useSearchParams();
 
     // Recovery Logic: Try to get parameters from URL, then fallback to sessionStorage
     // This handles cases where internal redirects (like login or session refresh) strip the URL.
-    const [oauthState, setOauthState] = useState<{
+    const [oauthState] = useState<{
         client_id: string | null;
         state: string | null;
         redirect_uri: string | null;
@@ -65,18 +67,21 @@ function ConsentContent() {
         // If we have all primary params, use them and save them
         if (fromUrl.client_id && fromUrl.state) {
             if (typeof window !== 'undefined') {
-                sessionStorage.setItem('mcp_oauth_params', JSON.stringify(fromUrl));
+                sessionStorage.setItem(OAUTH_PARAMS_SESSION_KEY, JSON.stringify(fromUrl));
             }
             return fromUrl;
         }
 
         // Otherwise, try to recover from session storage
         if (typeof window !== 'undefined') {
-            const saved = sessionStorage.getItem('mcp_oauth_params');
+            const saved = sessionStorage.getItem(OAUTH_PARAMS_SESSION_KEY);
             if (saved) {
                 try {
                     return JSON.parse(saved);
-                } catch { }
+                } catch (e) {
+                    console.error('Failed to parse OAuth params from sessionStorage:', e);
+                    sessionStorage.removeItem(OAUTH_PARAMS_SESSION_KEY);
+                }
             }
         }
 
