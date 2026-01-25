@@ -201,7 +201,15 @@ function ConsentContent() {
                 params.set('client_id', recoveredClientId);
                 params.set('redirect_uri', recoveredRedirectUri);
                 // Use the state recovered from Supabase (which should match the one passed by Worker)
-                const flowState = details.state || state!;
+                // If details.state is missing, fall back to the state from URL params
+                const flowState = details.state || state;
+
+                if (!flowState) {
+                    console.error("Critical: OAuth state is missing in both details and URL parameters.");
+                    alert("Fatal: OAuth state lost. Please restart the authentication flow.");
+                    return;
+                }
+
                 params.set('state', flowState);
                 params.set('scope', details.scope || 'openid profile email');
 
@@ -212,7 +220,7 @@ function ConsentContent() {
                 } else if (recoveredRedirectUri?.includes('mcp.mietevo.de')) {
                     // Try to fetch context from Worker
                     try {
-                        console.log('Fetching PKCE context from Worker...');
+                        console.log(`Fetching PKCE context from Worker for state: ${flowState}`);
                         const contextRes = await fetch(`https://mcp.mietevo.de/auth/context?state=${flowState}`);
                         if (contextRes.ok) {
                             const context = await contextRes.json();
