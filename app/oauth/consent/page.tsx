@@ -487,9 +487,21 @@ function ConsentContent() {
                     </CardHeader>
 
                     <CardContent className="space-y-6 px-8">
+                        {/* DEBUG SECTION - REMOVE BEFORE PRODUCTION */}
+                        <div className="p-2 bg-black/80 text-green-400 text-xs font-mono rounded mb-4 overflow-auto max-h-32">
+                            <p>AuthId: {searchParams.get('authorization_id') || 'none'}</p>
+                            <p>State: {oauthState.state || 'missing'}</p>
+                            <p>ClientID: {oauthState.client_id || 'missing'}</p>
+                            <p>Scope Count: {formattedScopes.length}</p>
+                            <p>Worker Context: {oauthState.scope ? 'Loaded' : 'Not Loaded'}</p>
+                        </div>
+
                         <div className="rounded-2xl bg-muted/40 border border-border p-5">
                             <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Angeforderte Berechtigungen</h3>
                             <ul className="space-y-4">
+                                {formattedScopes.length === 0 && (
+                                    <li className="text-sm text-muted-foreground italic">Keine Berechtigungen gefunden (Lade...)</li>
+                                )}
                                 {formattedScopes.map((scopeItem, i) => (
                                     <motion.li
                                         key={scopeItem.key}
