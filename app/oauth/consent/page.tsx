@@ -20,6 +20,8 @@ const ALLOWED_REDIRECT_PATTERNS = [
     // Allow ChatGPT Apps OAuth callbacks (production + app review)
     /^https:\/\/chatgpt\.com\/connector_platform_oauth_redirect(\?.*)?$/,
     /^https:\/\/platform\.openai\.com\/apps-manage\/oauth(\?.*)?$/,
+    // Allow MCP Worker callback proxy
+    /^https:\/\/mcp\.mietevo\.de\/callback(\?.*)?$/,
 ];
 
 /**
