@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
     scriptSrc,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.posthog.com`,
     "img-src 'self' data: https://*.supabase.co https://*.stripe.com https://*.posthog.com",
-    "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com",
+    "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com https://mcp.mietevo.de",
     "font-src 'self' https://fonts.gstatic.com https://r2cdn.perplexity.ai",
     "frame-src 'self' https://*.stripe.com",
     "object-src 'none'",
