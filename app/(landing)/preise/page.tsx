@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import Pricing from '@/app/modern/components/pricing';
-import { useAuthModal } from '@/components/auth/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
@@ -33,7 +32,7 @@ function ProfileErrorToastHandler() {
 // Component that handles URL parameters
 function URLParamHandler() {
     const searchParams = useSearchParams();
-    const { openAuthModal } = useAuthModal();
+    const router = useRouter();
     const [sessionUser, setSessionUser] = useState<User | null>(null);
     const [isLoadingUser, setIsLoadingUser] = useState(true);
     const supabase = createClient();
@@ -55,14 +54,9 @@ function URLParamHandler() {
 
         const getStarted = searchParams.get('getStarted');
         if (getStarted === 'true' && !sessionUser) {
-            try {
-                sessionStorage.setItem('authIntent', 'get-started');
-            } catch (e) {
-                console.warn('SessionStorage not available');
-            }
-            openAuthModal('login');
+            router.push('/auth/login');
         }
-    }, [searchParams, sessionUser, openAuthModal, isLoadingUser]);
+    }, [searchParams, sessionUser, router, isLoadingUser]);
 
     return null;
 }
@@ -70,9 +64,9 @@ function URLParamHandler() {
 // Main content component that uses the auth modal context
 function PricingPageContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const supabase = createClient();
-    const { openAuthModal } = useAuthModal();
 
     const [userProfile, setUserProfile] = useState<Profile | null>(null);
     const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
@@ -104,6 +98,21 @@ function PricingPageContent() {
             authListener?.subscription.unsubscribe();
         };
     }, [supabase, router]);
+
+    // Handle price selection from URL after redirect back from login
+    useEffect(() => {
+        const priceId = searchParams.get('priceId');
+        if (priceId && sessionUser && userProfile && !isProcessingCheckout) {
+            // Clear the priceId from URL to prevent re-triggering on refresh
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.delete('priceId');
+            const searchStr = newParams.toString();
+            const newUrl = `${window.location.pathname}${searchStr ? '?' + searchStr : ''}`;
+            window.history.replaceState({}, '', newUrl);
+
+            handleAuthFlow(priceId);
+        }
+    }, [searchParams, sessionUser, userProfile, isProcessingCheckout]);
 
     const fetchUserProfile = async (userId: string) => {
         try {
@@ -213,7 +222,9 @@ function PricingPageContent() {
                 variant: 'default',
             });
         } else {
-            openAuthModal('login');
+            // Preserve plan selection for unauthenticated users by redirecting with context.
+            const redirectPath = `${window.location.pathname}?priceId=${priceId}`;
+            router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
         }
     };
 
@@ -262,7 +273,9 @@ function PricingPageContent() {
         if (sessionUser) {
             await handleAuthFlow(priceId);
         } else {
-            openAuthModal('login');
+            // Preserve plan selection for unauthenticated users by redirecting with context.
+            const redirectPath = `${window.location.pathname}?priceId=${priceId}`;
+            router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
         }
     };
 
@@ -291,6 +304,8 @@ function PricingPageContent() {
 
 export default function PricingPage() {
     return (
-        <PricingPageContent />
+        <Suspense fallback={null}>
+            <PricingPageContent />
+        </Suspense>
     );
 }
