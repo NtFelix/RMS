@@ -174,7 +174,15 @@ function ConsentContent() {
                 // We rely on authorization_id to link back to the valid PKCE session in Supabase
                 // Robustly extract client_id from possible locations in the response
                 let recoveredClientId = details.client_id || details.client?.id || details.client_info?.id || clientId;
-                const recoveredRedirectUri = details.redirect_uri || details.redirect_url || 'https://mcp.mietevo.de/callback';
+
+                // Sanitization: Ensure redirect_uri has no query params, which Supabase rejects
+                let recoveredRedirectUri = details.redirect_uri || details.redirect_url || 'https://mcp.mietevo.de/callback';
+                try {
+                    const url = new URL(recoveredRedirectUri);
+                    recoveredRedirectUri = url.origin + url.pathname;
+                } catch (e) {
+                    console.warn('Could not sanitize redirect_uri:', recoveredRedirectUri);
+                }
 
                 // FALLBACK: If client_id is missing but we recognize the redirect_uri (MCP Worker), use the known ID
                 if (!recoveredClientId && recoveredRedirectUri?.includes('mcp.mietevo.de')) {
