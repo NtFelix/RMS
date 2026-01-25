@@ -140,16 +140,48 @@ function ConsentContent() {
         const params = new URLSearchParams();
 
         if (authId) {
-            // OPTIMIZED FLOW: Send minimal parameters to confirm the existing request
-            params.set('authorization_id', authId);
-            params.set('client_id', clientId!);
-            params.set('redirect_uri', workerCallbackUri);
-            params.set('state', state!);
-            // Do NOT send scope/code_challenge again; let Supabase use the saved context.
-            // This prevents "New Request" detection loop.
-            console.log("Finalizing approval with existing context:", authId);
+            try {
+                const supabase = createClient();
+                const { data: { user } } = await supabase.auth.getUser();
+
+                if (!user) {
+                    // ... login redirect logic (already there)
+                    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                    window.location.href = `/auth/login?next=${returnUrl}`;
+                    return;
+                }
+
+                // DEBUG: Check if we can see the authorization details
+                console.log("Debugging: Fetching details for ID:", authId);
+                // @ts-ignore
+                const details = await (supabase.auth as any).oauth?.getAuthorizationDetails(authId);
+                console.log("Authorization Details:", details);
+
+                if (details.error) {
+                    console.error("Cannot fetch details:", details.error);
+                    // If we can't fetch details, we certainly can't approve.
+                    // This confirms the "Session Mismatch" or "Invalid ID" theory.
+                    alert(`Error: ${details.error.message || 'Cannot access authorization session.'}`);
+                    return;
+                }
+
+                // If we got details, TRY TO APPROVE
+                console.log("Details found. Approving...");
+                // @ts-ignore
+                const { data, error } = await (supabase.auth as any).oauth?.approveAuthorization(authId);
+
+                if (error) throw error;
+                if (data?.url) {
+                    window.location.href = data.url;
+                    return;
+                }
+            } catch (e) {
+                console.error("API Error:", e);
+                return;
+            }
         } else {
             // Initial Flow / Fallback
+            const params = new URLSearchParams();
             params.set('response_type', 'code');
             params.set('client_id', clientId!);
             params.set('redirect_uri', workerCallbackUri);
@@ -157,10 +189,10 @@ function ConsentContent() {
             params.set('scope', 'openid profile email');
             params.set('code_challenge', codeChallenge!);
             params.set('code_challenge_method', codeChallengeMethod!);
-        }
 
-        console.log("Redirecting to Supabase:", `${supabaseAuthUrl}?${params.toString()}`);
-        window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
+            console.log("Redirecting to Supabase:", `${supabaseAuthUrl}?${params.toString()}`);
+            window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
+        }
     };
 
     const handleDeny = () => {
