@@ -173,13 +173,18 @@ function ConsentContent() {
                 // THE MASTER FIX: Use the Recovered details to approve
                 // We rely on authorization_id to link back to the valid PKCE session in Supabase
                 // Robustly extract client_id from possible locations in the response
-                const recoveredClientId = details.client_id || details.client?.id || details.client_info?.id || clientId;
+                let recoveredClientId = details.client_id || details.client?.id || details.client_info?.id || clientId;
                 const recoveredRedirectUri = details.redirect_uri || details.redirect_url || 'https://mcp.mietevo.de/callback';
 
+                // FALLBACK: If client_id is missing but we recognize the redirect_uri (MCP Worker), use the known ID
+                if (!recoveredClientId && recoveredRedirectUri?.includes('mcp.mietevo.de')) {
+                    console.log('Using fallback Client ID for Mietevo MCP');
+                    recoveredClientId = 'b7fee65f-13af-4c19-b749-85fad88253fd';
+                }
+
                 if (!recoveredClientId) {
-                    console.error("Critical: Could not find client_id in details", details);
-                    alert("Fatal: Missing Client ID in authorization details. Please contact support.");
-                    // Fallback to the one from environment/known client if desperate, but better to fail safely
+                    console.error("Critical: Could not find client_id in details", JSON.stringify(details));
+                    alert(`Fatal: Missing Client ID in authorization details. \n\nDebug Info: ${JSON.stringify(details, null, 2)}`);
                     return;
                 }
 
