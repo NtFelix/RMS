@@ -10,33 +10,39 @@ import { LOGO_URL, BRAND_NAME, BASE_URL, SUPABASE_API_PATHS } from '@/lib/consta
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Whitelist of allowed redirect URI patterns for security
-// In production, this should be managed via database or environment config
-const ALLOWED_REDIRECT_PATTERNS = [
-    // Allow redirects to the same domain
-    new RegExp(`^${BASE_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
-    // Allow localhost for development
-    /^http:\/\/localhost(:\d+)?/,
-    /^http:\/\/127\.0\.0\.1(:\d+)?/,
-    // Allow ChatGPT Apps OAuth callbacks (production + app review)
-    /^https:\/\/chatgpt\.com\/connector_platform_oauth_redirect(\?.*)?$/,
-    /^https:\/\/platform\.openai\.com\/apps-manage\/oauth(\?.*)?$/,
-    // Allow MCP Worker callback proxy
-    /^https:\/\/mcp\.mietevo\.de\/callback(\?.*)?$/,
-];
+function getAllowedPatterns() {
+    const patterns = [
+        // Allow ChatGPT Apps OAuth callbacks (production + app review)
+        /^https:\/\/chatgpt\.com\/connector_platform_oauth_redirect(\?.*)?$/,
+        /^https:\/\/platform\.openai\.com\/apps-manage\/oauth(\?.*)?$/,
+        // Allow MCP Worker callback proxy
+        /^https:\/\/mcp\.mietevo\.de\/callback(\?.*)?$/,
+        // Allow localhost for development
+        /^http:\/\/localhost(:\d+)?/,
+        /^http:\/\/127\.0\.0\.1(:\d+)?/,
+    ];
+
+    // DYNAMICALLY allow the current origin (Fixes pages.dev/preview loops)
+    if (typeof window !== 'undefined') {
+        try {
+            const currentOrigin = window.location.origin;
+            patterns.push(new RegExp(`^${currentOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+        } catch { }
+    }
+
+    return patterns;
+}
 
 /**
  * Validates if a redirect URI is in the allowed whitelist.
- * This prevents open redirect vulnerabilities.
  */
 function isValidRedirectUri(uri: string | null): boolean {
     if (!uri) return false;
 
     try {
-        // Ensure it's a valid URL
         new URL(uri);
-
-        // Check against whitelist patterns
-        return ALLOWED_REDIRECT_PATTERNS.some(pattern => pattern.test(uri));
+        const allowed = getAllowedPatterns();
+        return allowed.some(pattern => pattern.test(uri));
     } catch {
         return false;
     }
