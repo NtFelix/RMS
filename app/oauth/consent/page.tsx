@@ -129,50 +129,13 @@ function ConsentContent() {
         setIsLoading(true);
         const authId = searchParams.get('authorization_id');
 
-        // NEW FLOW: API-based approval
-        if (authId) {
-            try {
-                const supabase = createClient();
+        // REVERT TO REDIRECT FLOW (Standard OAuth 2.1)
+        // The API call (approveAuthorization) was failing with 404 (session mismatch).
+        // Now that we have fixed the Scope Mismatch in the Worker and Consent Page,
+        // the standard redirect back to Supabase should work without looping.
 
-                // 1. Verify we have a user session for this approval
-                const { data: { user }, error: userError } = await supabase.auth.getUser();
-                if (userError || !user) {
-                    console.log("No user session found, redirecting to login...");
-                    // Redirect to login, preserving the current URL as the next destination
-                    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-                    window.location.href = `/auth/login?next=${returnUrl}`;
-                    return;
-                }
-
-                console.log("Attempting to approve authorization_id:", authId);
-
-                // @ts-ignore
-                const { data, error } = await (supabase.auth as any).oauth?.approveAuthorization(authId);
-
-                if (error) {
-                    console.error("Supabase API Error:", error);
-                    // If 404, it might mean the ID expired or belongs to another session.
-                    if (error.code === 'oauth_authorization_not_found') {
-                        alert("Session expired. Please try again from ChatGPT.");
-                        return; // Don't redirect loop
-                    }
-                    throw error;
-                }
-
-                if (data?.url) {
-                    window.location.href = data.url;
-                    return;
-                }
-            } catch (e) {
-                console.error('Approval API failed:', e);
-                alert("Authorization failed. Check console for details.");
-                setIsLoading(false);
-                return; // Stop execution to prevent loops
-            }
-        }
-
-        // Fallback or Initial Flow
         // Ensure we only send supported scopes to Supabase to match the Worker's initiation
+        // This is critical to avoid 'invalid_scope' errors which cause loops.
         const safeScope = 'openid profile email';
 
         const params = new URLSearchParams({
@@ -180,7 +143,7 @@ function ConsentContent() {
             client_id: clientId!,
             redirect_uri: redirectUri!,
             state: state!,
-            scope: safeScope, // Override with safe scopes
+            scope: safeScope,
             code_challenge: codeChallenge!,
             code_challenge_method: codeChallengeMethod!,
         });
@@ -189,6 +152,7 @@ function ConsentContent() {
             params.set('authorization_id', authId);
         }
 
+        console.log("Redirecting to Supabase to finalize approval:", `${supabaseAuthUrl}?${params.toString()}`);
         window.location.href = `${supabaseAuthUrl}?${params.toString()}`;
     };
 
