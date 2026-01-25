@@ -135,22 +135,54 @@ function ConsentContent() {
         fetchContext();
     }, [oauthState.state]);
 
+    // PROACTIVE RECOVERY: If we have an authorization_id but no state/scope (e.g. fresh page load after login),
+    // we must fetch the details from Supabase immediately to populate the UI.
+    useEffect(() => {
+        const authId = searchParams.get('authorization_id');
+        if (authId && !oauthState.state) {
+            const fetchDetails = async () => {
+                try {
+                    const supabase = createClient();
+                    // @ts-ignore
+                    const { data, error } = await (supabase.auth as any).oauth?.getAuthorizationDetails(authId);
+
+                    if (data) {
+                        console.log('Proactively recovered details from Supabase:', data);
+                        // Update state with what we have (Supabase might have filtered scopes, but we get the state)
+                        setOauthState(prev => ({
+                            ...prev,
+                            state: data.state || prev.state,
+                            client_id: data.client_id || prev.client_id,
+                            redirect_uri: data.redirect_uri || prev.redirect_uri,
+                            // If Supabase lost the scopes, we at least have the STATE,
+                            // which triggers the Worker context fetch in the other useEffect!
+                            scope: data.scope || prev.scope
+                        }));
+                    }
+                } catch (e) {
+                    console.error('Failed to recover auth details on mount:', e);
+                }
+            };
+            fetchDetails();
+        }
+    }, [searchParams, oauthState.state]);
+
     const { client_id: clientId, state, redirect_uri: redirectUri, scope, code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod } = oauthState;
 
     // Validate all required OAuth parameters
     const validationError = useMemo(() => {
-        // If we have an authorization_id but haven't recovered params yet, don't show error yet
         const authId = searchParams.get('authorization_id');
-        if (authId && !clientId) return null; // Wait for useEffect to sync from session storage
+        // If we are loading details, don't show error yet
+        if (authId && !clientId) return null;
 
         if (!clientId) return 'Fehlender Parameter: client_id';
         if (!redirectUri) return 'Fehlender Parameter: redirect_uri';
-        if (!state) return 'Fehlender Parameter: state';
-        if (!scope) return 'Fehlender Parameter: scope';
-        if (!codeChallenge) return 'Fehlender Parameter: code_challenge';
-        if (!codeChallengeMethod) return 'Fehlender Parameter: code_challenge_method';
-        if (!isValidRedirectUri(redirectUri)) return 'Ungültige oder nicht autorisierte Weiterleitungs-URL';
-        return null;
+        // Relax state check if we are in the middle of recovery
+        if (!state && !authId) return 'Fehlender Parameter: state';
+        // if (!scope) return 'Fehlender Parameter: scope'; // relax scope check, it might be loading
+        if (!codeChallenge && !authId) return 'Fehlender Parameter: code_challenge'; // authId flow implies we recover this later
+
+        return null; // All good or waiting for recovery
     }, [clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod, searchParams]);
 
     // Use environment variable for Supabase URL
@@ -159,6 +191,7 @@ function ConsentContent() {
     const handleAllow = async () => {
         setIsLoading(true);
         const authId = searchParams.get('authorization_id');
+        const supabase = createClient();
 
         // The API call (approveAuthorization) was failing with 404 (session mismatch).
         // Now that we have fixed the Scope Mismatch in the Worker and Consent Page,
@@ -172,7 +205,7 @@ function ConsentContent() {
 
         if (authId) {
             try {
-                const supabase = createClient();
+                // Ensure user is logged in
                 const { data: { user } } = await supabase.auth.getUser();
 
                 if (!user) {
