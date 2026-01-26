@@ -135,6 +135,9 @@ function ConsentContent() {
         fetchContext();
     }, [oauthState.state]);
 
+    // DEBUG: Add user state to debug UI
+    const [debugInfo, setDebugInfo] = useState<{ user?: string; error?: string }>({});
+
     // PROACTIVE RECOVERY: If we have an authorization_id but no state/scope (e.g. fresh page load after login),
     // we must fetch the details from Supabase immediately to populate the UI.
     // SESSION CHECK & RECOVERY
@@ -142,6 +145,8 @@ function ConsentContent() {
         const checkSessionAndRecover = async () => {
             const supabase = createClient();
             const { data: { user } } = await supabase.auth.getUser();
+
+            setDebugInfo(prev => ({ ...prev, user: user?.id || 'none' }));
 
             // 1. Force Login if not authenticated
             if (!user) {
@@ -153,7 +158,7 @@ function ConsentContent() {
 
             // 2. Proactive Recovery: If we have authorization_id but no state, fetch details
             const authId = searchParams.get('authorization_id');
-            if (authId && !oauthState.state) {
+            if (authId) { // Check always if authId exists, not just if state is missing
                 try {
                     // @ts-ignore
                     const { data, error } = await (supabase.auth as any).oauth?.getAuthorizationDetails(authId);
@@ -175,9 +180,11 @@ function ConsentContent() {
                         }
                     } else if (error) {
                         console.error('Recover auth details error:', error);
+                        setDebugInfo(prev => ({ ...prev, error: error.message }));
                     }
-                } catch (e) {
+                } catch (e: any) {
                     console.error('Failed to recover auth details on mount:', e);
+                    setDebugInfo(prev => ({ ...prev, error: e.message }));
                 }
             }
         };
@@ -512,6 +519,8 @@ function ConsentContent() {
                             <p>ClientID: {oauthState.client_id || 'missing'}</p>
                             <p>Scope Count: {formattedScopes.length}</p>
                             <p>Worker Context: {oauthState.scope ? 'Loaded' : 'Not Loaded'}</p>
+                            <p className="text-blue-300">User: {debugInfo.user || 'checking...'}</p>
+                            {debugInfo.error && <p className="text-red-400 font-bold">Error: {debugInfo.error}</p>}
                         </div>
 
                         <div className="rounded-2xl bg-muted/40 border border-border p-5">
