@@ -136,7 +136,7 @@ function ConsentContent() {
     }, [oauthState.state]);
 
     // DEBUG: Add user state to debug UI
-    const [debugInfo, setDebugInfo] = useState<{ user?: string; error?: string; raw?: any }>({});
+    const [debugInfo, setDebugInfo] = useState<{ user?: string; error?: string; raw?: any; diag?: string }>({});
 
     // PROACTIVE RECOVERY: If we have an authorization_id but no state/scope (e.g. fresh page load after login),
     // we must fetch the details from Supabase immediately to populate the UI.
@@ -528,6 +528,7 @@ function ConsentContent() {
                             <p>Scope Count: {formattedScopes.length}</p>
                             <p>Worker Context: {oauthState.scope ? 'Loaded' : 'Not Loaded'}</p>
                             <p className="text-blue-300">User: {debugInfo.user || 'checking...'}</p>
+                            {debugInfo.diag && <p className="text-yellow-300">Diag: {debugInfo.diag}</p>}
                             {debugInfo.error && <p className="text-red-400 font-bold">Error: {debugInfo.error}</p>}
                             <div className="mt-2 pt-2 border-t border-white/10">
                                 <p className="text-[10px] text-gray-400">Raw Response:</p>
