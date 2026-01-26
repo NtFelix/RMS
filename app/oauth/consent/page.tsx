@@ -204,6 +204,27 @@ function ConsentContent() {
                     console.error('Failed to recover auth details on mount:', e);
                     setDebugInfo(prev => ({ ...prev, error: e.message, raw: e }));
                 }
+
+                // FALLBACK: If Supabase failed to give us state (e.g. invalid_grant), 
+                // try to rely on sessionStorage which MAY have been populated by the first useEffect.
+                // We check if oauthState.state is still missing/empty.
+                if (!oauthState.state) {
+                    const saved = sessionStorage.getItem(OAUTH_PARAMS_SESSION_KEY);
+                    if (saved) {
+                        try {
+                            const parsed = JSON.parse(saved);
+                            console.log("Fallback: Recovering state from sessionStorage because Supabase failed", parsed);
+                            setOauthState(prev => ({
+                                ...prev,
+                                state: parsed.state || prev.state,
+                                client_id: parsed.client_id || prev.client_id,
+                                redirect_uri: parsed.redirect_uri || prev.redirect_uri
+                                // scope from storage is likely 'filtered', so we let the worker context fetcher enhance it
+                            }));
+                            setDebugInfo(prev => ({ ...prev, diag: (prev.diag || '') + ' | Recovered from SessionStorage' }));
+                        } catch (e) { }
+                    }
+                }
             }
         };
 
