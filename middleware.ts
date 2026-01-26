@@ -124,8 +124,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If the user is authenticated and trying to access auth routes (except login), redirect to home
-  if (sessionUser && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
+  // If the user is authenticated and trying to access auth routes (except login and consent), redirect to home
+  // We MUST allow /auth/consent so the OAuth flow isn't interrupted
+  if (sessionUser && pathname.startsWith('/auth') &&
+    !pathname.startsWith('/auth/login') &&
+    !pathname.startsWith('/auth/consent') &&
+    !pathname.includes('oauth')) {
     return NextResponse.redirect(new URL(ROUTES.HOME, request.url))
   }
 
