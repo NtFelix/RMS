@@ -558,6 +558,16 @@ function ConsentContent() {
                             >
                                 Force Reload
                             </Button>
+                            {/* Manual Continue Button for Short-Circuit failures */}
+                            {debugInfo.raw && debugInfo.raw.data && debugInfo.raw.data.redirect_url && (
+                                <Button
+                                    size="sm"
+                                    className="w-full h-8 mt-4 bg-green-600 hover:bg-green-700 text-white text-xs"
+                                    onClick={() => window.location.assign(debugInfo.raw.data.redirect_url)}
+                                >
+                                    Continue (Code Found)
+                                </Button>
+                            )}
                         </div>
 
                         <div className="rounded-2xl bg-muted/40 border border-border p-5">
