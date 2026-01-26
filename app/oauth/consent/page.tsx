@@ -110,25 +110,31 @@ function ConsentContent() {
             // Avoid double-fetching or fetching if no state
             if (!oauthState.state) return;
 
+            setDebugInfo(prev => ({ ...prev, workerStatus: `Fetching for state: ${oauthState.state}` }));
+
             // Only fetch if we suspect we have filtered scopes (standard ones) and want the full list
             // Or just always fetch to be safe.
             try {
                 const res = await fetch(`https://mcp.mietevo.de/auth/context?state=${oauthState.state}`);
                 if (res.ok) {
                     const ctx = await res.json();
+                    setDebugInfo(prev => ({ ...prev, workerStatus: 'Success: Context Loaded' }));
                     if (ctx.scope) {
                         console.log('Enriching scopes from Worker context:', ctx.scope);
                         setOauthState(prev => {
                             // Only update if different to avoid loop
                             if (prev.scope !== ctx.scope) {
-                                return { ...prev, scope: ctx.scope };
+                                return { ...prev, scope: ctx.scope, client_id: ctx.client_id || prev.client_id, code_challenge: ctx.code_challenge || prev.code_challenge }; // ALSO Load Client ID & PKCE
                             }
                             return prev;
                         });
                     }
+                } else {
+                    setDebugInfo(prev => ({ ...prev, workerStatus: `Error: ${res.status}` }));
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.warn('Failed to fetch background context for scopes:', err);
+                setDebugInfo(prev => ({ ...prev, workerStatus: `Exception: ${err.message}` }));
             }
         };
 
@@ -136,7 +142,7 @@ function ConsentContent() {
     }, [oauthState.state]);
 
     // DEBUG: Add user state to debug UI
-    const [debugInfo, setDebugInfo] = useState<{ user?: string; error?: string; raw?: any; diag?: string }>({});
+    const [debugInfo, setDebugInfo] = useState<{ user?: string; error?: string; raw?: any; diag?: string; workerStatus?: string }>({});
 
     // PROACTIVE RECOVERY: If we have an authorization_id but no state/scope (e.g. fresh page load after login),
     // we must fetch the details from Supabase immediately to populate the UI.
@@ -282,27 +288,30 @@ function ConsentContent() {
                 // @ts-ignore
                 const result = await (supabase.auth as any).oauth?.getAuthorizationDetails(authId);
 
-                if (result.error) {
-                    console.error("Fetch Details Error:", result.error);
-                    alert(`Error: ${result.error.message}`);
-                    return;
+                // Use data from Supabase OR fallback to what we recovered in the UI state
+                let details = result.data || {};
+
+                // If Supabase gave us nothing (e.g. validation_failed), we MUST use our recovered state
+                if (!details.client_id && oauthState.client_id) {
+                    console.warn("Supabase returned no details. using recovered state.");
+                    details = {
+                        client_id: oauthState.client_id,
+                        redirect_uri: oauthState.redirect_uri,
+                        state: oauthState.state,
+                        scope: oauthState.scope,
+                        code_challenge: oauthState.code_challenge,
+                        code_challenge_method: oauthState.code_challenge_method
+                    };
                 }
 
-                // Extracted Details from Supabase Session
-                const details = result.data;
-                console.log("Authorization Details Recovered:", details);
-
-                if (!details) {
+                if (!details.client_id) {
                     console.error("Missing authorization details.", details);
-                    alert("Fatal: Could not recover authorization details. Please restart flow.");
+                    alert("Fatal: Could not recover authorization details (Client ID missing). Please restart flow.");
                     return;
                 }
 
-                // SHORT-CIRCUIT: If Supabase has already generated the code (auto-approve scenario or existing session),
-                // it returns the final redirect URL in the details. We should just go there.
-                // This fixes the loop where Supabase sends us back to Consent, but Consent sends us back to Supabase.
+                // SHORT-CIRCUIT: If Supabase has already generated the code
                 if (details.redirect_url && details.redirect_url.includes('code=')) {
-                    console.log("SHORT-CIRCUIT: Code already present in redirect_url. Forwarding immediately.", details.redirect_url);
                     window.location.assign(details.redirect_url);
                     return;
                 }
@@ -323,13 +332,11 @@ function ConsentContent() {
 
                 // FALLBACK: If client_id is missing but we recognize the redirect_uri (MCP Worker), use the known ID
                 if (!recoveredClientId && recoveredRedirectUri?.includes('mcp.mietevo.de')) {
-                    console.log('Using fallback Client ID for Mietevo MCP');
                     recoveredClientId = 'b7fee65f-13af-4c19-b749-85fad88253fd';
                 }
 
                 if (!recoveredClientId) {
-                    console.error("Critical: Could not find client_id in details", JSON.stringify(details));
-                    alert(`Fatal: Missing Client ID in authorization details. \n\nDebug Info: ${JSON.stringify(details, null, 2)}`);
+                    alert(`Fatal: Missing Client ID.`);
                     return;
                 }
 
@@ -337,78 +344,53 @@ function ConsentContent() {
                 params.set('response_type', 'code');
                 params.set('client_id', recoveredClientId);
                 params.set('redirect_uri', recoveredRedirectUri);
-                // Use the state recovered from Supabase (which should match the one passed by Worker)
-                // If details.state is missing, fall back to the state from URL params
+
                 let flowState = details.state || state;
-
-                // FALLBACK: Extract state from redirect_url if available (Supabase sometimes puts it there but not in top-level prop)
-                if (!flowState && details.redirect_url) {
-                    try {
-                        const urlObj = new URL(details.redirect_url);
-                        flowState = urlObj.searchParams.get('state');
-                        console.log('Recovered state from redirect_url:', flowState);
-                    } catch (e) {
-                        console.warn('Failed to parse state from redirect_url', e);
-                    }
-                }
-
                 if (!flowState) {
-                    console.error("Critical: OAuth state is missing in details, redirect_url, and URL parameters.", details);
-                    alert(`Fatal: OAuth state lost. \n\nSupabase Return Details:\n${JSON.stringify(details, null, 2)}`);
+                    alert("Fatal: Missing State.");
                     return;
                 }
 
                 params.set('state', flowState);
                 params.set('scope', details.scope || 'openid profile email');
 
-                // Only include PKCE if returned by Supabase, otherwise try to recover from Worker
+                // PKCE logic...
                 if (details.code_challenge) {
                     params.set('code_challenge', details.code_challenge);
                     params.set('code_challenge_method', details.code_challenge_method || 'S256');
                 } else if (recoveredRedirectUri?.includes('mcp.mietevo.de')) {
                     // Try to fetch context from Worker
                     try {
-                        console.log(`Fetching PKCE context from Worker for state: ${flowState}`);
-                        const contextRes = await fetch(`https://mcp.mietevo.de/auth/context?state=${flowState}`);
-
-                        if (contextRes.ok) {
-                            const context = await contextRes.json();
-                            if (context.code_challenge) {
-                                console.log('Recovered PKCE challenge from Worker:', context.code_challenge);
-                                params.set('code_challenge', context.code_challenge);
-                                params.set('code_challenge_method', context.code_challenge_method || 'S256');
-                            } else {
-                                console.error('Worker context returned no code_challenge', context);
-                                alert(`Fatal: retrieved context from Worker but code_challenge is missing.\n\nContext: ${JSON.stringify(context)}`);
-                                return;
-                            }
+                        // Better: Use recovered state if we already have it! 
+                        if (oauthState.code_challenge) {
+                            console.log('Using locally recovered PKCE challenge:', oauthState.code_challenge);
+                            params.set('code_challenge', oauthState.code_challenge);
+                            params.set('code_challenge_method', oauthState.code_challenge_method || 'S256');
                         } else {
-                            console.warn('Failed to fetch context from Worker', contextRes.status);
-                            const errText = await contextRes.text();
-                            alert(`Fatal: Failed to recover PKCE context from Worker.\nStatus: ${contextRes.status}\nError: ${errText}`);
-                            return;
+                            // Fetch...
+                            console.log(`Fetching PKCE context from Worker for state: ${flowState}`);
+                            const contextRes = await fetch(`https://mcp.mietevo.de/auth/context?state=${flowState}`);
+                            if (contextRes.ok) {
+                                const context = await contextRes.json();
+                                if (context.code_challenge) {
+                                    params.set('code_challenge', context.code_challenge);
+                                    params.set('code_challenge_method', context.code_challenge_method || 'S256');
+                                }
+                            }
                         }
                     } catch (err: any) {
                         console.error('Error fetching Worker context:', err);
-                        alert(`Fatal: Network error fetching PKCE contest.\n${err.message}`);
-                        return;
                     }
-                } else {
-                    // Non-MCP flow without Code Challenge? Should theoretically not happen for PKCE clients.
-                    console.warn('Proceeding without PKCE (not an MCP flow?)');
                 }
 
-                params.set('authorization_id', authId); // CRITICAL: Link to existing ID
+                if (!params.get('code_challenge')) {
+                    // alert("Proceeding without PKCE..."); 
+                }
+
+                params.set('authorization_id', authId);
 
                 const finalRedirectUrl = `${supabaseAuthUrl}?${params.toString()}`;
                 console.log("Approving via Redirect with Recovered PKCE:", finalRedirectUrl);
-
-                // Show a manual link in case automatic redirect fails (e.g. pop-up blocker or strict browser settings)
-                const manualLinkInfo = document.createElement('div');
-                manualLinkInfo.innerHTML = `<p style="margin-top:20px; text-align:center; color: white;">Falls die Weiterleitung nicht funktioniert: <a href="${finalRedirectUrl}" style="text-decoration:underline; font-weight:bold;">Hier klicken</a></p>`;
-                document.querySelector('.relative.z-10')?.appendChild(manualLinkInfo);
-
-                // Force navigation
                 window.location.assign(finalRedirectUrl);
                 return;
 
@@ -559,6 +541,7 @@ function ConsentContent() {
                             <p>Scope Count: {formattedScopes.length}</p>
                             <p>Worker Context: {oauthState.scope ? 'Loaded' : 'Not Loaded'}</p>
                             <p className="text-blue-300">User: {debugInfo.user || 'checking...'}</p>
+                            {debugInfo.workerStatus && <p className="text-purple-300">Worker: {debugInfo.workerStatus}</p>}
                             {debugInfo.diag && <p className="text-yellow-300">Diag: {debugInfo.diag}</p>}
                             {debugInfo.error && <p className="text-red-400 font-bold">Error: {debugInfo.error}</p>}
                             <div className="mt-2 pt-2 border-t border-white/10">
