@@ -115,26 +115,35 @@ function ConsentContent() {
             // Only fetch if we suspect we have filtered scopes (standard ones) and want the full list
             // Or just always fetch to be safe.
             try {
-                const res = await fetch(`https://mcp.mietevo.de/auth/context?state=${oauthState.state}`);
+                const proxyUrl = `/api/oauth/context?state=${oauthState.state}&t=${Date.now()}`;
+                console.log('[ConsentPage] Fetching:', proxyUrl);
+                setDebugInfo(prev => ({ ...prev, workerStatus: 'Starting Fetch...' }));
+
+                const res = await fetch(proxyUrl);
+
+                console.log('[ConsentPage] Status:', res.status);
+                setDebugInfo(prev => ({ ...prev, workerStatus: `Response: ${res.status}` }));
+
                 if (res.ok) {
                     const ctx = await res.json();
+                    console.log('[ConsentPage] JSON:', ctx);
                     setDebugInfo(prev => ({ ...prev, workerStatus: 'Success: Context Loaded' }));
+
                     if (ctx.scope) {
-                        console.log('Enriching scopes from Worker context:', ctx.scope);
                         setOauthState(prev => {
-                            // Only update if different to avoid loop
                             if (prev.scope !== ctx.scope) {
-                                return { ...prev, scope: ctx.scope, client_id: ctx.client_id || prev.client_id, code_challenge: ctx.code_challenge || prev.code_challenge }; // ALSO Load Client ID & PKCE
+                                return { ...prev, scope: ctx.scope, client_id: ctx.client_id || prev.client_id, code_challenge: ctx.code_challenge || prev.code_challenge };
                             }
                             return prev;
                         });
                     }
                 } else {
-                    setDebugInfo(prev => ({ ...prev, workerStatus: `Error: ${res.status}` }));
+                    const text = await res.text();
+                    setDebugInfo(prev => ({ ...prev, workerStatus: `Error: ${res.status} - ${text.substring(0, 20)}` }));
                 }
             } catch (err: any) {
-                console.warn('Failed to fetch background context for scopes:', err);
-                setDebugInfo(prev => ({ ...prev, workerStatus: `Exception: ${err.message}` }));
+                console.error('[ConsentPage] Exception:', err);
+                setDebugInfo(prev => ({ ...prev, workerStatus: `Except: ${err.message}` }));
             }
         };
 
@@ -143,6 +152,16 @@ function ConsentContent() {
 
     // DEBUG: Add user state to debug UI
     const [debugInfo, setDebugInfo] = useState<{ user?: string; error?: string; raw?: any; diag?: string; workerStatus?: string }>({});
+
+    // NEW: Auto-Redirect Watcher
+    // If we have a valid redirect URL in debug info (recovered from short-circuit), go there!
+    useEffect(() => {
+        if (debugInfo.raw?.data?.redirect_url?.includes('code=')) {
+            const target = debugInfo.raw.data.redirect_url;
+            console.log("Watcher: Found valid redirect URL. Redirecting...", target);
+            window.location.href = target;
+        }
+    }, [debugInfo.raw]);
 
     // PROACTIVE RECOVERY: If we have an authorization_id but no state/scope (e.g. fresh page load after login),
     // we must fetch the details from Supabase immediately to populate the UI.
@@ -197,14 +216,15 @@ function ConsentContent() {
                         // SHORT-CIRCUIT: If code is already present, forward immediately
                         if (data.redirect_url && data.redirect_url.includes('code=')) {
                             console.log("SHORT-CIRCUIT (Mount): Code already present. Forwarding.");
-                            window.location.assign(data.redirect_url);
+                            window.location.href = data.redirect_url;
+                            return; // Stop execution
                         }
                     } else if (error) {
                         console.error('Recover auth details error:', error);
                         setDebugInfo(prev => ({ ...prev, error: error.message }));
+                        // FALLBACK: Even on error, if we have state in storage, use it next
                     } else {
-                        // Weird case: no data and no error
-                        setDebugInfo(prev => ({ ...prev, error: 'Empty response from Supabase' }));
+                        setDebugInfo(prev => ({ ...prev, error: 'Empty response (data=null, error=null)' }));
                     }
                 } catch (e: any) {
                     console.error('Failed to recover auth details on mount:', e);
@@ -367,19 +387,36 @@ function ConsentContent() {
                             params.set('code_challenge', oauthState.code_challenge);
                             params.set('code_challenge_method', oauthState.code_challenge_method || 'S256');
                         } else {
-                            // Fetch...
-                            console.log(`Fetching PKCE context from Worker for state: ${flowState}`);
-                            const contextRes = await fetch(`https://mcp.mietevo.de/auth/context?state=${flowState}`);
-                            if (contextRes.ok) {
-                                const context = await contextRes.json();
-                                if (context.code_challenge) {
-                                    params.set('code_challenge', context.code_challenge);
-                                    params.set('code_challenge_method', context.code_challenge_method || 'S256');
+                            // Try to fetch context from Worker via Proxy
+                            try {
+                                console.log(`Fetching PKCE context from WorkerProxy for state: ${flowState}`);
+                                const contextRes = await fetch(`/api/oauth/context?state=${flowState}`);
+
+                                if (contextRes.ok) {
+                                    const context = await contextRes.json();
+                                    if (context.code_challenge) {
+                                        console.log('Recovered PKCE challenge from Worker:', context.code_challenge);
+                                        params.set('code_challenge', context.code_challenge);
+                                        params.set('code_challenge_method', context.code_challenge_method || 'S256');
+                                    } else {
+                                        console.error('Worker context returned no code_challenge', context);
+                                        alert(`Fatal: retrieved context from Worker but code_challenge is missing.\n\nContext: ${JSON.stringify(context)}`);
+                                        return;
+                                    }
+                                } else {
+                                    console.warn('Failed to fetch context from WorkerProxy', contextRes.status);
+                                    const errText = await contextRes.text();
+                                    alert(`Fatal: Failed to recover PKCE context from WorkerProxy.\nStatus: ${contextRes.status}\nError: ${errText}`);
+                                    return;
                                 }
+                            } catch (err: any) {
+                                console.error('Error fetching Worker context:', err);
+                                alert(`Fatal: Network error fetching PKCE context.\n${err.message}`);
+                                return;
                             }
                         }
-                    } catch (err: any) {
-                        console.error('Error fetching Worker context:', err);
+                    } catch (err) {
+                        console.error("Outer catch for worker context", err);
                     }
                 }
 
@@ -558,15 +595,17 @@ function ConsentContent() {
                             >
                                 Force Reload
                             </Button>
-                            {/* Manual Continue Button for Short-Circuit failures */}
                             {debugInfo.raw && debugInfo.raw.data && debugInfo.raw.data.redirect_url && (
-                                <Button
-                                    size="sm"
-                                    className="w-full h-8 mt-4 bg-green-600 hover:bg-green-700 text-white text-xs"
-                                    onClick={() => window.location.assign(debugInfo.raw.data.redirect_url)}
-                                >
-                                    Continue (Code Found)
-                                </Button>
+                                <div className="mt-4">
+                                    <p className="text-[10px] text-gray-400 mb-1 break-all">{debugInfo.raw.data.redirect_url}</p>
+                                    <Button
+                                        size="sm"
+                                        className="w-full h-8 bg-green-600 hover:bg-green-700 text-white text-xs"
+                                        onClick={() => window.location.assign(debugInfo.raw.data.redirect_url)}
+                                    >
+                                        Click to Redirect Manualy
+                                    </Button>
+                                </div>
                             )}
                         </div>
 

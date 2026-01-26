@@ -97,7 +97,8 @@ export async function middleware(request: NextRequest) {
     '/loesungen(/.*)?', // All routes under loesungen
     '/funktionen(/.*)?', // All routes under funktionen
     '/warteliste(/.*)?', // All routes under warteliste
-    '/preise' // Pricing page
+    '/preise', // Pricing page
+    '/api/oauth/context' // Allow OAuth context fetch without auth headers
   ]
 
   // If we're already on the login page, don't redirect
