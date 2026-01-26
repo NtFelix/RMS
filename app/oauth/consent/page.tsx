@@ -136,7 +136,7 @@ function ConsentContent() {
     }, [oauthState.state]);
 
     // DEBUG: Add user state to debug UI
-    const [debugInfo, setDebugInfo] = useState<{ user?: string; error?: string }>({});
+    const [debugInfo, setDebugInfo] = useState<{ user?: string; error?: string; raw?: any }>({});
 
     // PROACTIVE RECOVERY: If we have an authorization_id but no state/scope (e.g. fresh page load after login),
     // we must fetch the details from Supabase immediately to populate the UI.
@@ -157,11 +157,16 @@ function ConsentContent() {
             }
 
             // 2. Proactive Recovery: If we have authorization_id but no state, fetch details
+            // 2. Proactive Recovery: If we have authorization_id but no state, fetch details
             const authId = searchParams.get('authorization_id');
             if (authId) { // Check always if authId exists, not just if state is missing
                 try {
                     // @ts-ignore
-                    const { data, error } = await (supabase.auth as any).oauth?.getAuthorizationDetails(authId);
+                    const result = await (supabase.auth as any).oauth?.getAuthorizationDetails(authId);
+                    // Log raw result structure
+                    setDebugInfo(prev => ({ ...prev, raw: result }));
+
+                    const { data, error } = result || {};
 
                     if (data) {
                         console.log('Proactively recovered details from Supabase:', data);
@@ -181,10 +186,13 @@ function ConsentContent() {
                     } else if (error) {
                         console.error('Recover auth details error:', error);
                         setDebugInfo(prev => ({ ...prev, error: error.message }));
+                    } else {
+                        // Weird case: no data and no error
+                        setDebugInfo(prev => ({ ...prev, error: 'Empty response from Supabase' }));
                     }
                 } catch (e: any) {
                     console.error('Failed to recover auth details on mount:', e);
-                    setDebugInfo(prev => ({ ...prev, error: e.message }));
+                    setDebugInfo(prev => ({ ...prev, error: e.message, raw: e }));
                 }
             }
         };
@@ -521,6 +529,20 @@ function ConsentContent() {
                             <p>Worker Context: {oauthState.scope ? 'Loaded' : 'Not Loaded'}</p>
                             <p className="text-blue-300">User: {debugInfo.user || 'checking...'}</p>
                             {debugInfo.error && <p className="text-red-400 font-bold">Error: {debugInfo.error}</p>}
+                            <div className="mt-2 pt-2 border-t border-white/10">
+                                <p className="text-[10px] text-gray-400">Raw Response:</p>
+                                <pre className="text-[8px] whitespace-pre-wrap break-all text-gray-400">
+                                    {JSON.stringify(debugInfo.raw || 'no-response', null, 2)}
+                                </pre>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-[10px] mt-2 bg-transparent border-white/20 text-white hover:bg-white/10"
+                                onClick={() => window.location.reload()}
+                            >
+                                Force Reload
+                            </Button>
                         </div>
 
                         <div className="rounded-2xl bg-muted/40 border border-border p-5">
