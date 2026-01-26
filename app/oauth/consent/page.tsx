@@ -170,9 +170,19 @@ function ConsentContent() {
 
                     if (data) {
                         console.log('Proactively recovered details from Supabase:', data);
+
+                        // Fallback: If state is missing in data but present in redirect_url
+                        let recoveredState = data.state;
+                        if (!recoveredState && data.redirect_url) {
+                            try {
+                                const urlObj = new URL(data.redirect_url);
+                                recoveredState = urlObj.searchParams.get('state');
+                            } catch (e) { }
+                        }
+
                         setOauthState(prev => ({
                             ...prev,
-                            state: data.state || prev.state,
+                            state: recoveredState || prev.state,
                             client_id: data.client_id || prev.client_id,
                             redirect_uri: data.redirect_uri || prev.redirect_uri,
                             scope: data.scope || prev.scope
