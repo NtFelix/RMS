@@ -8,6 +8,7 @@ import { ShieldAlert, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { LOGO_URL, BRAND_NAME, BASE_URL, SUPABASE_API_PATHS } from '@/lib/constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { approveAuthorizationAction } from './actions';
 
 // Whitelist of allowed redirect URI patterns for security
 // In production, this should be managed via database or environment config
@@ -24,6 +25,7 @@ const ALLOWED_REDIRECT_PATTERNS = [
     /^https:\/\/mcp\.mietevo\.de\/callback(\?.*)?$/,
     /^https:\/\/mcp\.mietevo\.de\/oauth\/callback(\?.*)?$/,
 ];
+
 
 /**
  * Validates if a redirect URI is in the allowed whitelist.
@@ -50,34 +52,22 @@ function ConsentContent() {
 
     // Check if we're returning from Supabase with an authorization_id
     const authorizationId = searchParams.get('authorization_id');
-    const [approvalStatus, setApprovalStatus] = useState<'idle' | 'approving' | 'error'>('idle');
+    const [approvalStatus, setApprovalStatus] = useState<'idle' | 'approving' | 'error'>(authorizationId ? 'approving' : 'idle');
     const [approvalError, setApprovalError] = useState<string | null>(null);
 
     // Handle authorization approval when authorization_id is present
     useState(() => {
-        if (authorizationId && approvalStatus === 'idle') {
-            setApprovalStatus('approving');
-
-            // Call the Supabase OAuth approve endpoint
+        if (authorizationId && approvalStatus === 'approving') {
             const approveAuthorization = async () => {
                 try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/authorizations/${authorizationId}/approve`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        credentials: 'include', // Include cookies for session
-                    });
+                    const result = await approveAuthorizationAction(authorizationId);
 
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.error_description || errorData.message || `Approval failed: ${response.status}`);
+                    if (!result.success) {
+                        throw new Error(result.error);
                     }
 
-                    // The response should contain the redirect URL with the authorization code
-                    const data = await response.json();
-                    if (data.redirect_to) {
-                        window.location.href = data.redirect_to;
+                    if (result.redirect_to) {
+                        window.location.href = result.redirect_to;
                     } else {
                         throw new Error('No redirect URL received from authorization approval');
                     }
