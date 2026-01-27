@@ -56,31 +56,50 @@ function ConsentContent() {
     const [approvalError, setApprovalError] = useState<string | null>(null);
 
     // Handle authorization approval when authorization_id is present
+    // Redirect to API route which handles the approval server-side with proper session
     useState(() => {
         if (authorizationId && approvalStatus === 'approving') {
-            const approveAuthorization = async () => {
-                try {
-                    const result = await approveAuthorizationAction(authorizationId);
-
-                    if (!result.success) {
-                        throw new Error(result.error);
-                    }
-
-                    if (result.redirect_to) {
-                        window.location.href = result.redirect_to;
-                    } else {
-                        throw new Error('No redirect URL received from authorization approval');
-                    }
-                } catch (err: unknown) {
-                    console.error('Authorization approval failed:', err);
-                    setApprovalError(err instanceof Error ? err.message : 'Authorization approval failed');
-                    setApprovalStatus('error');
-                }
-            };
-
-            approveAuthorization();
+            // Redirect to API route for approval
+            window.location.href = `/api/oauth/approve?authorization_id=${encodeURIComponent(authorizationId)}`;
         }
     });
+
+    // Check for error from API route redirect
+    const error = searchParams.get('error');
+    const errorMessage = searchParams.get('message');
+
+    if (error && errorMessage) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="relative z-10 w-full max-w-md"
+                >
+                    <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                        <CardHeader className="text-center pt-8">
+                            <div className="mx-auto w-20 h-20 bg-destructive/10 rounded-3xl flex items-center justify-center mb-6 border border-destructive/20 p-4">
+                                <AlertTriangle className="w-10 h-10 text-destructive" />
+                            </div>
+                            <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                                Autorisierung fehlgeschlagen
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="px-8 pb-8">
+                            <Alert variant="destructive" className="rounded-xl">
+                                <AlertDescription>{decodeURIComponent(errorMessage)}</AlertDescription>
+                            </Alert>
+                            <p className="text-sm text-muted-foreground mt-4 text-center">
+                                Bitte schließen Sie dieses Fenster und versuchen Sie es erneut.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </div>
+        );
+    }
 
     // If we're handling authorization approval, show loading or error state
     if (authorizationId) {
