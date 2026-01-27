@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useState, Suspense, useMemo } from 'react';
+import { useState, Suspense, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldAlert, Check, Loader2, AlertTriangle } from 'lucide-react';
@@ -57,12 +57,12 @@ function ConsentContent() {
 
     // Handle authorization approval when authorization_id is present
     // Redirect to API route which handles the approval server-side with proper session
-    useState(() => {
+    useEffect(() => {
         if (authorizationId && approvalStatus === 'approving') {
             // Redirect to API route for approval
             window.location.href = `/api/oauth/approve?authorization_id=${encodeURIComponent(authorizationId)}`;
         }
-    });
+    }, [authorizationId, approvalStatus]);
 
     // Check for error from API route redirect
     const error = searchParams.get('error');
