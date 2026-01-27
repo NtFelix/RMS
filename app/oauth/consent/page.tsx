@@ -22,6 +22,7 @@ const ALLOWED_REDIRECT_PATTERNS = [
     /^https:\/\/platform\.openai\.com\/apps-manage\/oauth(\?.*)?$/,
     // Allow MCP Worker callback proxy
     /^https:\/\/mcp\.mietevo\.de\/callback(\?.*)?$/,
+    /^https:\/\/mcp\.mietevo\.de\/oauth\/callback(\?.*)?$/,
 ];
 
 /**
