@@ -48,6 +48,102 @@ const OAUTH_PARAMS_SESSION_KEY = 'mcp_oauth_params';
 function ConsentContent() {
     const searchParams = useSearchParams();
 
+    // Check if we're returning from Supabase with an authorization_id
+    const authorizationId = searchParams.get('authorization_id');
+    const [approvalStatus, setApprovalStatus] = useState<'idle' | 'approving' | 'error'>('idle');
+    const [approvalError, setApprovalError] = useState<string | null>(null);
+
+    // Handle authorization approval when authorization_id is present
+    useState(() => {
+        if (authorizationId && approvalStatus === 'idle') {
+            setApprovalStatus('approving');
+
+            // Call the Supabase OAuth approve endpoint
+            const approveAuthorization = async () => {
+                try {
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/authorizations/${authorizationId}/approve`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include', // Include cookies for session
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error_description || errorData.message || `Approval failed: ${response.status}`);
+                    }
+
+                    // The response should contain the redirect URL with the authorization code
+                    const data = await response.json();
+                    if (data.redirect_to) {
+                        window.location.href = data.redirect_to;
+                    } else {
+                        throw new Error('No redirect URL received from authorization approval');
+                    }
+                } catch (err: unknown) {
+                    console.error('Authorization approval failed:', err);
+                    setApprovalError(err instanceof Error ? err.message : 'Authorization approval failed');
+                    setApprovalStatus('error');
+                }
+            };
+
+            approveAuthorization();
+        }
+    });
+
+    // If we're handling authorization approval, show loading or error state
+    if (authorizationId) {
+        if (approvalStatus === 'error') {
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                        className="relative z-10 w-full max-w-md"
+                    >
+                        <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                            <CardHeader className="text-center pt-8">
+                                <div className="mx-auto w-20 h-20 bg-destructive/10 rounded-3xl flex items-center justify-center mb-6 border border-destructive/20 p-4">
+                                    <AlertTriangle className="w-10 h-10 text-destructive" />
+                                </div>
+                                <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                                    Autorisierung fehlgeschlagen
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="px-8 pb-8">
+                                <Alert variant="destructive" className="rounded-xl">
+                                    <AlertDescription>{approvalError}</AlertDescription>
+                                </Alert>
+                                <p className="text-sm text-muted-foreground mt-4 text-center">
+                                    Bitte schließen Sie dieses Fenster und versuchen Sie es erneut.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                </div>
+            );
+        }
+
+        // Show loading state while approving
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="relative z-10 w-full max-w-md text-center"
+                >
+                    <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+                    <p className="text-lg text-muted-foreground">Autorisierung wird abgeschlossen...</p>
+                </motion.div>
+            </div>
+        );
+    }
+
     // Recovery Logic: Try to get parameters from URL, then fallback to sessionStorage
     // This handles cases where internal redirects (like login or session refresh) strip the URL.
     const [oauthState] = useState<{
