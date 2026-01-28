@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'invalid_client', error_description: 'Invalid client_secret' }, { status: 401 });
             }
         } else {
-            console.warn('CRITICAL: No OAuth clients configured. Allow-listing is disabled. Please configure ALLOWED_CLIENTS in app/api/oauth/token/route.ts or set OAUTH_CLIENT_ID env var.');
+            console.error('CRITICAL: No OAuth clients configured. Rejecting request. Please configure ALLOWED_CLIENTS in app/api/oauth/token/route.ts or set OAUTH_CLIENT_ID env var.');
+            return NextResponse.json({ error: 'invalid_client', error_description: 'Client authentication failed: server not configured.' }, { status: 500 });
         }
 
         // Proxy to Supabase's token endpoint

@@ -13,8 +13,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Missing authorization_id' }, { status: 400 });
     }
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        throw new Error('Missing Supabase environment variables');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !anonKey) {
+        console.error('Missing Supabase environment variables');
+        return NextResponse.json({ error: 'Configuration error' }, { status: 500 });
     }
 
     try {
@@ -22,8 +26,8 @@ export async function GET(request: NextRequest) {
 
         // Create Supabase server client with cookie handling
         const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+            supabaseUrl,
+            anonKey,
             {
                 cookies: {
                     getAll: async () => cookieStore.getAll(),
@@ -46,11 +50,7 @@ export async function GET(request: NextRequest) {
         console.log('Approving authorization:', authorizationId);
 
         // Try calling the approval endpoint directly with the access token
-        // The SDK might be calling the wrong endpoint, so let's try different API paths
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-        // Try the correct endpoint based on Supabase OAuth Server API
+        // Use the standard Supabase OAuth authorize endpoint
         const approveUrl = `${supabaseUrl}/auth/v1/oauth/authorize`;
 
         console.log('Calling approve URL:', approveUrl);
@@ -70,64 +70,32 @@ export async function GET(request: NextRequest) {
 
         const responseText = await response.text();
         console.log('Approve response status:', response.status);
-        console.log('Approve response body:', responseText);
 
         if (!response.ok) {
-            // Try alternative endpoint
-            console.log('First endpoint failed, trying alternative...');
+            console.error('Approve failed:', responseText);
 
-            const altUrl = `${supabaseUrl}/auth/v1/authorize`;
-            const altResponse = await fetch(altUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': anonKey,
-                    'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                    authorization_id: authorizationId,
-                }),
-            });
-
-            const altResponseText = await altResponse.text();
-            console.log('Alt response status:', altResponse.status);
-            console.log('Alt response body:', altResponseText);
-
-            if (!altResponse.ok) {
-                // If both fail, try the SDK method as fallback
-                console.log('Trying SDK method as fallback...');
-                try {
-                    // Import the type locally if not available globally, or use a custom interface
-                    // interface SupabaseAuthWithOAuth is defined in types/supabase.ts
-                    // but we can also treat it as 'any' safely if we validat, or cast to our interface
-                    const { data: sdkData, error: sdkError } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.approveAuthorization(authorizationId);
-
-                    if (sdkError) {
-                        return NextResponse.redirect(new URL(`/oauth/consent?error=approval_failed&message=${encodeURIComponent(sdkError.message)}`, baseUrl));
-                    }
-
-                    if (sdkData?.redirect_to) {
-                        return NextResponse.redirect(sdkData.redirect_to);
-                    }
-                } catch (sdkErr: any) {
-                    console.error('SDK fallback also failed:', sdkErr);
-                }
-
-                return NextResponse.redirect(new URL(`/oauth/consent?error=approval_failed&message=${encodeURIComponent(`API error: ${response.status}`)}`, baseUrl));
-            }
-
-            // Parse alt response
+            // If the first attempt fails, we can try the SDK method as a robust fallback
+            // This handles potential differences in internal vs public endpoints
+            console.log('API call failed, trying SDK method as fallback...');
             try {
-                const altData = JSON.parse(altResponseText);
-                if (altData.redirect_to) {
-                    return NextResponse.redirect(altData.redirect_to);
+                const { data: sdkData, error: sdkError } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.approveAuthorization(authorizationId);
+
+                if (sdkError) {
+                    throw sdkError;
                 }
-            } catch (e) {
-                console.error("Failed to parse alternative response JSON:", e);
+
+                if (sdkData?.redirect_to) {
+                    return NextResponse.redirect(sdkData.redirect_to);
+                }
+                // If success but no redirect, we might be done or need to guess
+                console.log('SDK success but no explicit redirect_to returned immediately');
+            } catch (sdkErr: any) {
+                console.error('SDK fallback also failed:', sdkErr);
+                return NextResponse.redirect(new URL(`/oauth/consent?error=approval_failed&message=${encodeURIComponent(sdkErr.message || 'Unknown error')}`, baseUrl));
             }
         }
 
-        // Parse response
+        // Parse successful API response
         try {
             const data = JSON.parse(responseText);
             if (data.redirect_to) {

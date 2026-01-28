@@ -250,7 +250,15 @@ export default function ConsentUI({
                         {/* Redirect URI info */}
                         {redirectUri && (
                             <p className="text-xs text-muted-foreground text-center mb-4">
-                                Nach Autorisierung werden Sie zu <span className="font-mono text-foreground/70">{new URL(redirectUri).origin}</span> weitergeleitet
+                                Nach Autorisierung werden Sie zu <span className="font-mono text-foreground/70">
+                                    {(() => {
+                                        try {
+                                            return new URL(redirectUri).origin;
+                                        } catch {
+                                            return redirectUri;
+                                        }
+                                    })()}
+                                </span> weitergeleitet
                             </p>
                         )}
                     </CardContent>
