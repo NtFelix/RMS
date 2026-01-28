@@ -62,11 +62,23 @@ export default function ConsentUI({
             try {
                 const { data, error: detailsError } = await (supabase.auth as any).oauth.getAuthorizationDetails(authorizationId);
 
+                console.log('getAuthorizationDetails response:', data, detailsError);
+
                 if (detailsError) {
                     setLoadError(detailsError.message);
-                } else {
-                    setAuthDetails(data);
+                    setIsLoading(false);
+                    return;
                 }
+
+                // Check if the authorization was auto-approved and has a redirect URL
+                // This happens when the user has previously approved this client
+                if (data?.redirect_to || data?.redirect_url) {
+                    console.log('Auto-approved, redirecting to:', data.redirect_to || data.redirect_url);
+                    window.location.href = data.redirect_to || data.redirect_url;
+                    return; // Keep loading state while redirecting
+                }
+
+                setAuthDetails(data);
             } catch (err: any) {
                 setLoadError(err.message || 'Failed to load authorization details');
             } finally {
