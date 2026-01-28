@@ -13,13 +13,17 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Missing authorization_id' }, { status: 400 });
     }
 
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        throw new Error('Missing Supabase environment variables');
+    }
+
     try {
         const cookieStore = await cookies();
 
         // Create Supabase server client with cookie handling
         const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
             {
                 cookies: {
                     getAll: async () => cookieStore.getAll(),
@@ -43,8 +47,8 @@ export async function GET(request: NextRequest) {
 
         // Try calling the approval endpoint directly with the access token
         // The SDK might be calling the wrong endpoint, so let's try different API paths
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
         // Try the correct endpoint based on Supabase OAuth Server API
         const approveUrl = `${supabaseUrl}/auth/v1/oauth/authorize`;
@@ -93,7 +97,10 @@ export async function GET(request: NextRequest) {
                 // If both fail, try the SDK method as fallback
                 console.log('Trying SDK method as fallback...');
                 try {
-                    const { data: sdkData, error: sdkError } = await (supabase.auth as any).oauth.approveAuthorization(authorizationId);
+                    // Import the type locally if not available globally, or use a custom interface
+                    // interface SupabaseAuthWithOAuth is defined in types/supabase.ts
+                    // but we can also treat it as 'any' safely if we validat, or cast to our interface
+                    const { data: sdkData, error: sdkError } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.approveAuthorization(authorizationId);
 
                     if (sdkError) {
                         return NextResponse.redirect(new URL(`/oauth/consent?error=approval_failed&message=${encodeURIComponent(sdkError.message)}`, baseUrl));
@@ -115,7 +122,9 @@ export async function GET(request: NextRequest) {
                 if (altData.redirect_to) {
                     return NextResponse.redirect(altData.redirect_to);
                 }
-            } catch { }
+            } catch (e) {
+                console.error("Failed to parse alternative response JSON:", e);
+            }
         }
 
         // Parse response
@@ -125,7 +134,9 @@ export async function GET(request: NextRequest) {
                 console.log('Redirecting to:', data.redirect_to);
                 return NextResponse.redirect(data.redirect_to);
             }
-        } catch { }
+        } catch (e) {
+            console.error('Failed to parse approval response JSON:', e);
+        }
 
         return NextResponse.redirect(new URL(`/oauth/consent?error=no_redirect&message=No redirect URL received`, baseUrl));
     } catch (err: any) {

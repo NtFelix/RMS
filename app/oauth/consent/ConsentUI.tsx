@@ -60,7 +60,7 @@ export default function ConsentUI({
             }
 
             try {
-                const { data, error: detailsError } = await (supabase.auth as any).oauth.getAuthorizationDetails(authorizationId);
+                const { data, error: detailsError } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.getAuthorizationDetails(authorizationId);
 
                 console.log('getAuthorizationDetails response:', data, detailsError);
 
@@ -94,17 +94,20 @@ export default function ConsentUI({
     const redirectUri = authDetails?.redirect_uri || initialRedirectUri;
     const scopes = authDetails?.scopes || initialScopes;
 
-    const handleApprove = async () => {
+    const handleDecision = async (decision: 'approve' | 'deny') => {
         if (!authorizationId) return;
 
         setIsProcessing(true);
         setProcessError(null);
 
         try {
-            const { data, error: approveError } = await (supabase.auth as any).oauth.approveAuthorization(authorizationId);
+            const authClient = supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth;
+            const { data, error } = decision === 'approve'
+                ? await authClient.oauth.approveAuthorization(authorizationId)
+                : await authClient.oauth.denyAuthorization(authorizationId);
 
-            if (approveError) {
-                setProcessError(approveError.message);
+            if (error) {
+                setProcessError(error.message);
                 setIsProcessing(false);
                 return;
             }
@@ -116,37 +119,13 @@ export default function ConsentUI({
                 window.location.href = data.redirect_to;
             }
         } catch (err: any) {
-            setProcessError(err.message || 'An error occurred while approving authorization');
+            setProcessError(err.message || `An error occurred while ${decision === 'approve' ? 'approving' : 'denying'} authorization`);
             setIsProcessing(false);
         }
     };
 
-    const handleDeny = async () => {
-        if (!authorizationId) return;
-
-        setIsProcessing(true);
-        setProcessError(null);
-
-        try {
-            const { data, error: denyError } = await (supabase.auth as any).oauth.denyAuthorization(authorizationId);
-
-            if (denyError) {
-                setProcessError(denyError.message);
-                setIsProcessing(false);
-                return;
-            }
-
-            // The SDK should auto-redirect, but check for redirect_url just in case
-            if (data?.redirect_url) {
-                window.location.href = data.redirect_url;
-            } else if (data?.redirect_to) {
-                window.location.href = data.redirect_to;
-            }
-        } catch (err: any) {
-            setProcessError(err.message || 'An error occurred while denying authorization');
-            setIsProcessing(false);
-        }
-    };
+    const handleApprove = () => handleDecision('approve');
+    const handleDeny = () => handleDecision('deny');
 
     // Loading state
     if (isLoading) {

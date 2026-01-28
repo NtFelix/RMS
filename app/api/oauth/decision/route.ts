@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     );
 
     if (decision === 'approve') {
-        const { data, error } = await (supabase.auth as any).oauth.approveAuthorization(authorizationId);
+        const { data, error } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.approveAuthorization(authorizationId);
 
         if (error) {
             console.error('Approval error:', error);
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         // Redirect back to the client with authorization code
         return NextResponse.redirect(data.redirect_to);
     } else {
-        const { data, error } = await (supabase.auth as any).oauth.denyAuthorization(authorizationId);
+        const { data, error } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.denyAuthorization(authorizationId);
 
         if (error) {
             console.error('Denial error:', error);

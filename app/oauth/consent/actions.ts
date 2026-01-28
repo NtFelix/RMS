@@ -38,7 +38,9 @@ export async function approveAuthorizationAction(authorizationId: string) {
             let errorData: any = {};
             try {
                 errorData = JSON.parse(responseText);
-            } catch { }
+            } catch (e) {
+                console.error('Failed to parse error response from Supabase:', e);
+            }
             throw new Error(errorData.error_description || errorData.message || errorData.error || `Approval failed: ${response.status} - ${responseText}`);
         }
 
