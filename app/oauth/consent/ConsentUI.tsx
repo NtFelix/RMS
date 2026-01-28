@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,15 @@ interface ConsentUIProps {
     scopes?: string[];
 }
 
+interface AuthorizationDetails {
+    client?: {
+        name?: string;
+        logo_uri?: string;
+    };
+    redirect_uri?: string;
+    scopes?: string[];
+}
+
 const LOGO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/assets/logo.png';
 const BRAND_NAME = 'Mietevo';
 
@@ -25,19 +34,53 @@ export default function ConsentUI({
     type,
     error,
     authorizationId,
-    clientName,
-    clientIcon,
-    redirectUri,
-    scopes = []
+    clientName: initialClientName,
+    clientIcon: initialClientIcon,
+    redirectUri: initialRedirectUri,
+    scopes: initialScopes = []
 }: ConsentUIProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processError, setProcessError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [authDetails, setAuthDetails] = useState<AuthorizationDetails | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     // Create browser client for consent actions
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
+
+    // Fetch authorization details on mount
+    useEffect(() => {
+        const fetchDetails = async () => {
+            if (!authorizationId || type === 'error') {
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                const { data, error: detailsError } = await (supabase.auth as any).oauth.getAuthorizationDetails(authorizationId);
+
+                if (detailsError) {
+                    setLoadError(detailsError.message);
+                } else {
+                    setAuthDetails(data);
+                }
+            } catch (err: any) {
+                setLoadError(err.message || 'Failed to load authorization details');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchDetails();
+    }, [authorizationId, type]);
+
+    const clientName = authDetails?.client?.name || initialClientName || 'Unknown Application';
+    const clientIcon = authDetails?.client?.logo_uri || initialClientIcon;
+    const redirectUri = authDetails?.redirect_uri || initialRedirectUri;
+    const scopes = authDetails?.scopes || initialScopes;
 
     const handleApprove = async () => {
         if (!authorizationId) return;
@@ -54,8 +97,10 @@ export default function ConsentUI({
                 return;
             }
 
-            // Redirect to the returned URL
-            if (data?.redirect_to) {
+            // The SDK should auto-redirect, but check for redirect_url just in case
+            if (data?.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else if (data?.redirect_to) {
                 window.location.href = data.redirect_to;
             }
         } catch (err: any) {
@@ -79,8 +124,10 @@ export default function ConsentUI({
                 return;
             }
 
-            // Redirect to the returned URL (should be redirect_uri with error)
-            if (data?.redirect_to) {
+            // The SDK should auto-redirect, but check for redirect_url just in case
+            if (data?.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else if (data?.redirect_to) {
                 window.location.href = data.redirect_to;
             }
         } catch (err: any) {
@@ -89,8 +136,30 @@ export default function ConsentUI({
         }
     };
 
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="relative z-10 w-full max-w-md"
+                >
+                    <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                        <CardContent className="flex flex-col items-center justify-center py-16">
+                            <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                            <p className="text-muted-foreground">Laden...</p>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </div>
+        );
+    }
+
     // Error state
-    if (type === 'error' || error) {
+    if (type === 'error' || error || loadError) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
@@ -111,7 +180,7 @@ export default function ConsentUI({
                         </CardHeader>
                         <CardContent className="px-8 pb-8">
                             <Alert variant="destructive" className="rounded-xl">
-                                <AlertDescription>{error}</AlertDescription>
+                                <AlertDescription>{error || loadError}</AlertDescription>
                             </Alert>
                             <p className="text-sm text-muted-foreground mt-4 text-center">
                                 Bitte schließen Sie dieses Fenster und versuchen Sie es erneut.

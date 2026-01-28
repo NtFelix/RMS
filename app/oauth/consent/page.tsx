@@ -60,25 +60,13 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         redirect(`/login?redirect=/oauth/consent?authorization_id=${authorizationId}`);
     }
 
-    // Get authorization details using the authorization_id
-    const { data: authDetails, error: authError } = await (supabase.auth as any).oauth.getAuthorizationDetails(authorizationId);
-
-    if (authError || !authDetails) {
-        return <ConsentUI
-            type="error"
-            error={authError?.message || 'Invalid authorization request. The authorization may have expired.'}
-        />;
-    }
-
-    // Pass the authorization details to the client component for UI rendering
+    // Just pass the authorization_id to the client component
+    // The client will call getAuthorizationDetails and approveAuthorization
+    // This avoids any potential issues with server-side calls consuming the authorization
     return (
         <ConsentUI
             type="consent"
             authorizationId={authorizationId}
-            clientName={authDetails.client?.name || 'Unknown Application'}
-            clientIcon={authDetails.client?.logo_uri}
-            redirectUri={authDetails.redirect_uri}
-            scopes={authDetails.scopes || []}
         />
     );
 }
