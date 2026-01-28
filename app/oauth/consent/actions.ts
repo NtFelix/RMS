@@ -4,6 +4,12 @@ import { cookies } from 'next/headers';
 
 export async function approveAuthorizationAction(authorizationId: string) {
     try {
+        // Validate the authorizationId to prevent SSRF and unexpected paths.
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidPattern.test(authorizationId)) {
+            throw new Error('Invalid authorization identifier format');
+        }
+
         const cookieStore = await cookies();
         const allCookies = cookieStore.getAll();
         const cookieHeader = allCookies.map(c => `${c.name}=${c.value}`).join('; ');
@@ -11,10 +17,11 @@ export async function approveAuthorizationAction(authorizationId: string) {
         console.log('Authorization approval attempt for:', authorizationId);
         console.log('Cookies being sent:', allCookies.map(c => c.name).join(', '));
 
-        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/authorizations/${authorizationId}/approve`;
-        console.log('Calling URL:', url);
+        const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const url = new URL('/auth/v1/oauth/authorizations/' + encodeURIComponent(authorizationId) + '/approve', baseUrl);
+        console.log('Calling URL:', url.toString());
 
-        const response = await fetch(url, {
+        const response = await fetch(url.toString(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
