@@ -11,12 +11,14 @@ import {
   Monitor,
   FlaskConical,
   Mail,
+  Plug,
 } from "lucide-react";
 import { SettingsSidebar } from "../settings/sidebar"
 import type { Tab } from "@/types/settings"
 import ProfileSection from "../settings/profile-section";
 import DisplaySection from "../settings/display-section";
 import SecuritySection from "../settings/security-section";
+import IntegrationsSection from "../settings/integrations-section";
 import SubscriptionSection from "../settings/subscription-section";
 import ExportSection from "../settings/export-section";
 import FeaturePreviewSection from "../settings/feature-preview-section";
@@ -44,6 +46,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Sicherheit",
       icon: Lock,
       content: <SecuritySection />,
+    },
+    {
+      value: "integrations",
+      label: "Integrationen",
+      icon: Plug,
+      content: <IntegrationsSection />,
     },
     {
       value: "subscription",
