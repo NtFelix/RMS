@@ -52,15 +52,15 @@ export async function GET(request: Request) {
       })
     }
 
-    // Successful authentication, redirect based on user status
+    // Successful authentication, redirect to dashboard
     const redirectUrl = new URL(origin)
     if (data?.user) {
       // Pass user info as URL params for client-side PostHog tracking
       redirectUrl.searchParams.set('login_success', 'true')
       redirectUrl.searchParams.set('provider', provider)
       redirectUrl.searchParams.set('is_new_user', String(isNewUser))
-      // Redirect new users to pricing page, existing users to dashboard
-      redirectUrl.pathname = isNewUser ? ROUTES.PRICING : ROUTES.HOME
+      // All users go to dashboard after authentication
+      redirectUrl.pathname = ROUTES.HOME
     }
 
     return NextResponse.redirect(redirectUrl.toString())

@@ -13,6 +13,7 @@ import BottomCTA from '@/components/ui/bottom-cta';
 
 import Pricing from '@/app/modern/components/pricing';
 import NebenkostenSection from '@/app/modern/components/nebenkosten-section';
+import { EmailVerificationNotifier } from '@/components/auth/email-verification-notifier';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
@@ -351,6 +352,9 @@ function LandingPageContent() {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <EmailVerificationNotifier />
+      </Suspense>
       <Suspense fallback={null}>
         <ProfileErrorToastHandler />
       </Suspense>

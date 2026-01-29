@@ -3,48 +3,29 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff, ArrowRight, Loader2, Check, Sparkles } from "lucide-react"
-import { LOGO_URL, ROUTES, BASE_URL } from "@/lib/constants"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
-import { getAuthErrorMessage } from "@/lib/auth-error-handler"
-import { trackRegisterStarted, trackRegisterSuccess, trackRegisterFailed } from '@/lib/posthog-auth-events'
+import { trackLoginStarted, trackLoginSuccess, trackLoginFailed } from '@/lib/posthog-auth-events'
+import { getAuthErrorMessage, getUrlErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
-import { authState } from "@/lib/auth-state"
 
-const benefits = [
-  "14 Tage kostenlos testen",
-  "Keine Kreditkarte erforderlich",
-  "Jederzeit kündbar",
-]
-
-
-export default function RegisterPage() {
+export default function LoginContent() {
   const router = useRouter()
-
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const searchParams = useSearchParams()
+  const redirectParam = searchParams.get('redirect')
+  const redirect = redirectParam || ROUTES.HOME
 
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
 
@@ -67,34 +48,54 @@ export default function RegisterPage() {
 
   const enabledProvidersCount = socialProviders.length;
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error")
+    const verifiedParam = searchParams.get("verified")
+    const emailParam = searchParams.get("email")
+
+    if (errorParam) {
+      setError(getUrlErrorMessage(errorParam))
+    }
+
+    // Handle redirect from email verification
+    if (verifiedParam === 'true') {
+      setSuccessMessage('E-Mail erfolgreich bestätigt! Bitte melden Sie sich an.')
+      if (emailParam) {
+        setEmail(emailParam)
+      }
+    }
+  }, [searchParams])
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
-    setMessage(null)
 
-    if (password !== confirmPassword) {
-      setError("Die Passwörter stimmen nicht überein")
-      setIsLoading(false)
-      return
-    }
+    // Track login started (GDPR-compliant - checks consent internally)
+    trackLoginStarted('email')
 
     const supabase = createClient()
 
-    // Track registration started (GDPR-compliant - checks consent internally)
-    trackRegisterStarted('email')
-
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: {
-        emailRedirectTo: `${BASE_URL}/auth/callback`,
-      },
     })
 
     if (error) {
-      // Track registration failure (GDPR-compliant - checks consent internally)
-      trackRegisterFailed('email', error.code === 'user_already_exists' ? 'user_already_exists' : 'unknown')
+      // Track login failure (GDPR-compliant - checks consent internally)
+      trackLoginFailed('email', error.code === 'invalid_credentials' ? 'invalid_credentials' : 'unknown')
 
       setError(getAuthErrorMessage(error))
       setIsLoading(false)
@@ -106,30 +107,18 @@ export default function RegisterPage() {
       if (posthog.has_opted_in_capturing?.()) {
         posthog.identify(data.user.id, {
           email: data.user.email,
-          signup_date: new Date().toISOString(),
+          name: data.user.user_metadata?.name || '',
+          last_sign_in: data.user.last_sign_in_at,
           user_type: 'authenticated',
           is_anonymous: false,
         })
       }
-      // Track registration success (GDPR-compliant - checks consent internally)
-      trackRegisterSuccess('email')
+      // Track login success (GDPR-compliant - checks consent internally)
+      trackLoginSuccess('email')
     }
 
-    // Store credentials temporarily for auto-login after verification
-    authState.setCredentials(email, password)
-
-    if (data?.user?.id) {
-      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&id=${data.user.id}`)
-    } else {
-      // This case should ideally not happen if signup is successful.
-      // Log this unexpected state and show a generic error to the user.
-      console.error("Registration successful but no user ID returned from Supabase.");
-      setError("Ein unerwarteter Fehler ist bei der Registrierung aufgetreten. Bitte versuchen Sie es erneut.");
-    }
-    setIsLoading(false)
+    window.location.assign(redirect)
   }
-
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden">
@@ -138,22 +127,22 @@ export default function RegisterPage() {
 
       {/* Gradient orbs in background */}
       <motion.div
-        className="hidden md:block absolute top-1/3 right-1/4 w-96 h-96 rounded-full bg-secondary/20 blur-[100px]"
+        className="hidden md:block absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/20 blur-[100px]"
         animate={{
-          x: [0, -50, 0],
-          y: [0, 40, 0],
-          scale: [1, 1.15, 1],
-        }}
-        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="hidden md:block absolute bottom-1/3 left-1/4 w-80 h-80 rounded-full bg-primary/20 blur-[100px]"
-        animate={{
-          x: [0, 30, 0],
-          y: [0, -40, 0],
+          x: [0, 50, 0],
+          y: [0, 30, 0],
           scale: [1, 1.1, 1],
         }}
-        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="hidden md:block absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-secondary/20 blur-[100px]"
+        animate={{
+          x: [0, -40, 0],
+          y: [0, -50, 0],
+          scale: [1, 1.2, 1],
+        }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
 
       {/* Radial spotlight */}
@@ -164,7 +153,7 @@ export default function RegisterPage() {
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="relative z-10 w-full max-w-5xl bg-card rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[650px]"
+        className="relative z-10 w-full max-w-5xl bg-card rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]"
       >
         {/* Left side - Hero/Branding */}
         <div className="hidden lg:flex relative lg:w-1/2 bg-gradient-to-br from-primary via-secondary to-primary p-8 md:p-12 flex-col justify-between overflow-hidden perspective-[1000px]">
@@ -181,7 +170,7 @@ export default function RegisterPage() {
           {/* Logo */}
           <Link href="/" className="relative z-10 flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="p-1 rounded-xl bg-white/10 backdrop-blur-sm">
-              {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN. 
+              {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN.
                   next/image adds unnecessary overhead for small, pre-optimized images. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={LOGO_URL} alt="Mietevo Logo" className="h-8 w-8 object-contain" />
@@ -191,60 +180,38 @@ export default function RegisterPage() {
 
           {/* Hero content */}
           <div className="relative z-10 py-8 lg:py-0">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm mb-6"
-            >
-              <Sparkles className="h-4 w-4 text-white" />
-              <span className="text-white/90 text-sm font-medium">Kostenlos starten</span>
-            </motion.div>
-
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
               className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight"
             >
-              Starten Sie
+              Willkommen
               <br />
-              jetzt mit
+              zurück bei
               <br />
               <span className="text-white/90">Mietevo.</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.5 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
               className="mt-6 text-white/80 text-base md:text-lg max-w-md leading-relaxed"
             >
-              Einfach Immobilien verwalten.
+              Ihr Immobilien-Dashboard.
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+              className="mt-4 text-white/60 text-sm font-medium"
+            >
+              Schön, dass Sie da sind.
             </motion.p>
           </div>
 
-          {/* Benefits list */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
-            className="relative z-10 space-y-3"
-          >
-            {benefits.map((benefit, index) => (
-              <motion.div
-                key={benefit}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 + index * 0.1, duration: 0.4 }}
-                className="flex items-center gap-3"
-              >
-                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
-                  <Check className="h-3 w-3 text-white" />
-                </div>
-                <span className="text-white/80 text-sm">{benefit}</span>
-              </motion.div>
-            ))}
-          </motion.div>
+          {/* Empty space for balance */}
+          <div className="relative z-10" />
         </div>
 
         {/* Right side - Form */}
@@ -266,13 +233,24 @@ export default function RegisterPage() {
             className="max-w-sm mx-auto w-full"
           >
             <h2 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-              REGISTRIEREN
+              ANMELDEN
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Erstellen Sie Ihr Konto, um loszulegen.
+              Geben Sie Ihre Daten ein, um fortzufahren.
             </p>
 
-            <form onSubmit={handleRegister} className="mt-6 space-y-4">
+            <form onSubmit={handleLogin} className="mt-8 space-y-5">
+              {successMessage && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                >
+                  <Alert className="rounded-xl border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400">
+                    <AlertDescription>{successMessage}</AlertDescription>
+                  </Alert>
+                </motion.div>
+              )}
+
               {error && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -280,19 +258,6 @@ export default function RegisterPage() {
                 >
                   <Alert variant="destructive" className="rounded-xl">
                     <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                </motion.div>
-              )}
-              {message && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                >
-                  <Alert variant="success" className="rounded-xl">
-                    <Check className="h-4 w-4" />
-                    <AlertDescription>
-                      {message}
-                    </AlertDescription>
                   </Alert>
                 </motion.div>
               )}
@@ -340,50 +305,31 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password" className="text-sm font-medium text-foreground">
-                  Passwort bestätigen
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="confirm-password"
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="h-12 rounded-xl bg-background border-border focus:border-primary pr-12"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
+              <div className="flex items-center justify-end">
+                <Link
+                  href="/auth/reset-password"
+                  className="text-sm text-foreground hover:text-foreground/80 font-medium transition-colors"
+                >
+                  Passwort vergessen?
+                </Link>
               </div>
 
               <Button
                 type="submit"
-                className="w-full h-12 rounded-xl text-base font-semibold mt-2"
+                className="w-full h-12 rounded-xl text-base font-semibold"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Wird registriert...
+                    Wird angemeldet...
                   </>
                 ) : (
-                  "Kostenlos starten"
+                  "Anmelden"
                 )}
               </Button>
 
-              {mounted &&
+              {mounted && (
                 <div className="pt-4 space-y-4">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
@@ -405,7 +351,7 @@ export default function RegisterPage() {
                           setSocialLoading(provider.id)
                           setError(null)
 
-                          const { error } = await provider.handler('signup')
+                          const { error } = await provider.handler('login')
 
                           if (error) {
                             setError(error)
@@ -424,27 +370,15 @@ export default function RegisterPage() {
                     ))}
                   </div>
                 </div>
-              }
+              )}
 
-              <p className="text-xs text-center text-muted-foreground pt-2">
-                Mit der Registrierung stimmen Sie unseren{" "}
-                <Link href={ROUTES.TERMS} className="text-foreground hover:underline">
-                  Nutzungsbedingungen
-                </Link>{" "}
-                und der{" "}
-                <Link href={ROUTES.PRIVACY} className="text-foreground hover:underline">
-                  Datenschutzerklärung
-                </Link>{" "}
-                zu.
-              </p>
-
-              <p className="text-center text-sm text-muted-foreground pt-2">
-                Bereits ein Konto?{" "}
+              <p className="text-center text-sm text-muted-foreground pt-4">
+                Noch kein Konto?{" "}
                 <Link
-                  href="/auth/login"
+                  href="/auth/register"
                   className="text-foreground font-semibold hover:text-foreground/80 transition-colors"
                 >
-                  Anmelden
+                  Registrieren
                 </Link>
               </p>
             </form>

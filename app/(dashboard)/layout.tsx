@@ -1,4 +1,3 @@
-import type React from "react"
 import { headers } from "next/headers"
 import { CSPNonceSync } from "@/components/providers/csp-nonce-sync"
 import DashboardInnerLayout from "./layout-inner"
@@ -7,16 +6,16 @@ import DashboardInnerLayout from "./layout-inner"
 export const runtime = 'edge'
 
 export default async function DashboardRootLayout({
-    children,
+  children,
 }: Readonly<{
-    children: React.ReactNode
+  children: React.ReactNode
 }>) {
-    const nonce = (await headers()).get('x-nonce')
+  const nonce = (await headers()).get('x-nonce')
 
-    return (
-        <>
-            <CSPNonceSync nonce={nonce} />
-            <DashboardInnerLayout>{children}</DashboardInnerLayout>
-        </>
-    )
+  return (
+    <>
+      <CSPNonceSync nonce={nonce} />
+      <DashboardInnerLayout>{children}</DashboardInnerLayout>
+    </>
+  )
 }

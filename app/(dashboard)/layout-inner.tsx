@@ -1,6 +1,8 @@
 "use client" // Make this a client component
 import type React from "react"
 import { AuthProvider } from "@/components/auth/auth-provider"
+import { EmailVerificationNotifier } from '@/components/auth/email-verification-notifier'
+import { Suspense } from "react"
 import { CommandMenu } from "@/components/search/command-menu"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useModalStore } from "@/hooks/use-modal-store" // Added
@@ -137,6 +139,9 @@ export default function DashboardInnerLayout({
   return (
     <AuthProvider>
       <NestedDialogProvider>
+        <Suspense fallback={null}>
+          <EmailVerificationNotifier />
+        </Suspense>
         {/* <GlobalDragDropProvider> */}
         <CommandMenu />
         <DashboardLayout>{children}</DashboardLayout>
