@@ -189,20 +189,21 @@ export function OnboardingTour() {
             if (isActive) {
                 const step = TOUR_STEPS[currentStepIndex];
                 if (step) {
+                    const buttons: any[] = [];
+                    if (currentStepIndex > 0) {
+                        buttons.push('previous');
+                    }
+
+                    // Add next button
+                    // If it's the last step, driver.js automatically changes logic, but we handle it via store
+                    if (!step.hideNext) {
+                        buttons.push('next');
+                    }
+
+                    // Always show close button since allowClose is false
+                    buttons.push('close');
+
                     try {
-                        const buttons = [];
-                        if (currentStepIndex > 0) {
-                            buttons.push('previous');
-                        }
-
-                        // Add next button
-                        // If it's the last step, driver.js automatically changes logic, but we handle it via store
-                        if (!step.hideNext) {
-                            buttons.push('next');
-                        }
-
-                        // Always show close button since allowClose is false
-                        buttons.push('close');
 
                         // Check if we need to navigate
                         if (step.path && pathname !== step.path) {
