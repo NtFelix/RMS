@@ -47,28 +47,44 @@ export default function VerifyEmailContent() {
         return () => subscription.unsubscribe()
     }, [supabase.auth, router])
 
-    // Listen for cross-tab verification
+    // Listen for cross-tab verification (BroadcastChannel + localStorage fallback)
     useEffect(() => {
         const VERIFICATION_CHANNEL = 'mietevo_email_verified';
 
+        // Handler for BroadcastChannel messages
         const handleMessage = (event: MessageEvent) => {
             if (event.data?.verified) {
                 handleVerificationSuccess();
             }
         };
 
+        // Handler for localStorage changes (fallback for older browsers/Safari private mode)
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.key === VERIFICATION_CHANNEL) {
+                handleVerificationSuccess();
+            }
+        };
+
+        // 1. Try BroadcastChannel
+        let channel: BroadcastChannel | null = null;
         try {
-            const channel = new BroadcastChannel(VERIFICATION_CHANNEL);
+            channel = new BroadcastChannel(VERIFICATION_CHANNEL);
             channel.addEventListener('message', handleMessage);
-            // Clean up the channel on component unmount
-            return () => {
+        } catch (error) {
+            console.warn('BroadcastChannel not supported, falling back to polling/storage.');
+        }
+
+        // 2. Add localStorage listener as backup
+        window.addEventListener('storage', handleStorageChange);
+
+        // Cleanup
+        return () => {
+            if (channel) {
                 channel.removeEventListener('message', handleMessage);
                 channel.close();
-            };
-        } catch (error) {
-            // BroadcastChannel may not be supported in all browsers/contexts (e.g. private tabs in some browsers)
-            console.warn('BroadcastChannel not supported, falling back to polling for email verification.');
-        }
+            }
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, [handleVerificationSuccess]);
 
     // Poll the API to check verification status from Supabase
@@ -121,7 +137,7 @@ export default function VerifyEmailContent() {
         const interval = setInterval(checkVerification, 3000)
 
         return () => clearInterval(interval)
-    }, [email, status, handleVerificationSuccess])
+    }, [email, id, status, handleVerificationSuccess])
 
     // Countdown for success state
     useEffect(() => {
@@ -140,12 +156,24 @@ export default function VerifyEmailContent() {
         return () => clearInterval(timer)
     }, [status])
 
-    // Redirect when countdown reaches 0 - go to dashboard
+    // Redirect when countdown reaches 0
     useEffect(() => {
         if (status === 'success' && countdown === 0) {
-            router.push(ROUTES.HOME)
+            // If auto-login was successful, the onAuthStateChange listener will have already redirected.
+            // This redirect is for cases where auto-login was not possible (e.g. different device/tab).
+            if (isAutoLoggingInRef.current) {
+                router.push(ROUTES.HOME);
+            } else {
+                // Redirect to login with success param
+                const loginUrl = new URL(ROUTES.LOGIN, window.location.origin);
+                loginUrl.searchParams.set('verified', 'true');
+                if (email) {
+                    loginUrl.searchParams.set('email', email);
+                }
+                router.push(loginUrl.toString());
+            }
         }
-    }, [status, countdown, router])
+    }, [status, countdown, router, email])
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden">

@@ -4,15 +4,16 @@ import { NextResponse } from "next/server"
 export const runtime = 'edge'
 
 /**
- * Check if a user's email has been verified by querying Supabase admin API.
+ * Check if a user's email has been verified by querying Supabase admin API using their ID.
+ * Email lookup is no longer supported for performance and security reasons.
  */
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
     const id = searchParams.get('id')
 
-    if (!email && !id) {
-        return NextResponse.json({ confirmed: false, error: 'Email or ID is required' }, { status: 400 })
+    if (!id) {
+        // Return 400 if ID is missing (we strictly require it now)
+        return NextResponse.json({ confirmed: false, error: 'User ID is required' }, { status: 400 })
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -28,31 +29,21 @@ export async function GET(request: Request) {
             auth: { autoRefreshToken: false, persistSession: false }
         })
 
-        let user = null;
+        // Use efficient O(1) getUserById method
+        const { data, error } = await supabase.auth.admin.getUserById(id)
 
-        if (id) {
-            // If ID is provided, use the efficient getUserById method (O(1) lookup)
-            const { data, error } = await supabase.auth.admin.getUserById(id)
-            if (error) {
-                // If user not found or other error, strictly return confirmed: false
-                // to avoid leaking any existence information if not necessary (though ID is hard to guess)
-                if (error.status !== 404) {
-                    console.error('Admin getUserById error:', error)
-                }
-                return NextResponse.json({ confirmed: false })
+        if (error) {
+            // If user not found (404) or other error, strictly return confirmed: false
+            if (error.status !== 404) {
+                console.error('Admin getUserById error:', error)
             }
-            user = data.user
-        } else if (email) {
-            // Fallback to pagination is removed for security and performance reasons.
-            // We require ID for verification checks to ensure O(1) lookup.
-            // If we strictly need email support without ID, we would need a secure RPC or exact match capability,
-            // but for now we enforce using ID which is provided in the registration flow.
-            console.warn('Check verification requested with only email - this is no longer supported for performance reasons.')
-            return NextResponse.json({ confirmed: false, error: 'User ID is required' }, { status: 400 })
+            return NextResponse.json({ confirmed: false })
         }
 
+        const user = data.user
+
         if (!user) {
-            // User not found: Return same structure as unverified to prevent user enumeration
+            // User not found (double check): Return same structure as unverified
             return NextResponse.json({ confirmed: false })
         }
 

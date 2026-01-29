@@ -121,7 +121,10 @@ export default function RegisterPage() {
     if (data?.user?.id) {
       router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&id=${data.user.id}`)
     } else {
-      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
+      // This case should ideally not happen if signup is successful.
+      // Log this unexpected state and show a generic error to the user.
+      console.error("Registration successful but no user ID returned from Supabase.");
+      setError("Ein unerwarteter Fehler ist bei der Registrierung aufgetreten. Bitte versuchen Sie es erneut.");
     }
     setIsLoading(false)
   }
