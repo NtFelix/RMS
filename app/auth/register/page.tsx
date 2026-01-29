@@ -114,7 +114,11 @@ export default function RegisterPage() {
       trackRegisterSuccess('email')
     }
 
-    router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
+    if (data?.user?.id) {
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&id=${data.user.id}`)
+    } else {
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
+    }
     setIsLoading(false)
   }
 

@@ -9,9 +9,10 @@ export const runtime = 'edge'
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const email = searchParams.get('email')
+    const id = searchParams.get('id')
 
-    if (!email) {
-        return NextResponse.json({ confirmed: false, error: 'Email is required' }, { status: 400 })
+    if (!email && !id) {
+        return NextResponse.json({ confirmed: false, error: 'Email or ID is required' }, { status: 400 })
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -27,32 +28,47 @@ export async function GET(request: Request) {
             auth: { autoRefreshToken: false, persistSession: false }
         })
 
-        // Use admin API to list users and find by email
-        // We must paginate because listUsers returns a limited number of results (default 50)
-        let user = null
-        let page = 1
-        const perPage = 1000 // Use max perPage to minimize requests
+        let user = null;
 
-        while (true) {
-            const { data, error: listError } = await supabase.auth.admin.listUsers({ page, perPage })
-
-            if (listError) {
-                console.error('Admin listUsers error:', listError)
-                return NextResponse.json({ confirmed: false, error: 'Failed to query users' }, { status: 500 })
+        if (id) {
+            // If ID is provided, use the efficient getUserById method (O(1) lookup)
+            const { data, error } = await supabase.auth.admin.getUserById(id)
+            if (error) {
+                // If user not found or other error, strictly return confirmed: false
+                // to avoid leaking any existence information if not necessary (though ID is hard to guess)
+                if (error.status !== 404) {
+                    console.error('Admin getUserById error:', error)
+                }
+                return NextResponse.json({ confirmed: false })
             }
+            user = data.user
+        } else if (email) {
+            // Fallback to pagination if only email is provided (legacy behavior)
+            // Use admin API to list users and find by email
+            let page = 1
+            const perPage = 1000 // Use max perPage to minimize requests
 
-            const foundUser = data.users.find(u => u.email === email)
-            if (foundUser) {
-                user = foundUser
-                break
+            while (true) {
+                const { data, error: listError } = await supabase.auth.admin.listUsers({ page, perPage })
+
+                if (listError) {
+                    console.error('Admin listUsers error:', listError)
+                    return NextResponse.json({ confirmed: false, error: 'Failed to query users' }, { status: 500 })
+                }
+
+                const foundUser = data.users.find(u => u.email === email)
+                if (foundUser) {
+                    user = foundUser
+                    break
+                }
+
+                // If we received fewer users than the page limit, we've reached the end
+                if (data.users.length < perPage) {
+                    break
+                }
+
+                page++
             }
-
-            // If we received fewer users than the page limit, we've reached the end
-            if (data.users.length < perPage) {
-                break
-            }
-
-            page++
         }
 
         if (!user) {

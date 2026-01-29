@@ -14,6 +14,7 @@ type VerificationStatus = 'pending' | 'success'
 export default function VerifyEmailContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const id = searchParams.get('id')
     const email = searchParams.get('email')
 
     const [status, setStatus] = useState<VerificationStatus>('pending')
@@ -41,11 +42,17 @@ export default function VerifyEmailContent() {
 
     // Poll the API to check verification status from Supabase
     useEffect(() => {
-        if (!email || status === 'success') return
+        // We need either email or ID to check verification status
+        if ((!email && !id) || status === 'success') return
 
         const checkVerification = async () => {
             try {
-                const response = await fetch(`/api/auth/check-verification?email=${encodeURIComponent(email)}`)
+                // Construct query params
+                const params = new URLSearchParams()
+                if (email) params.append('email', email)
+                if (id) params.append('id', id)
+
+                const response = await fetch(`/api/auth/check-verification?${params.toString()}`)
                 const data = await response.json()
 
                 if (data.confirmed) {
