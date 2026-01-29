@@ -11,3 +11,11 @@ export interface Profile {
   onboarding_completed?: boolean;
   setup_completed?: boolean;
 }
+
+export interface SupabaseAuthWithOAuth {
+  oauth: {
+    approveAuthorization(authorizationId: string): Promise<{ data: any; error: any }>;
+    denyAuthorization(authorizationId: string): Promise<{ data: any; error: any }>;
+    getAuthorizationDetails(authorizationId: string): Promise<{ data: any; error: any }>;
+  };
+}
