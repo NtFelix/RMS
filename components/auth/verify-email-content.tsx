@@ -96,7 +96,6 @@ export default function VerifyEmailContent() {
             try {
                 // Construct query params
                 const params = new URLSearchParams()
-                if (email) params.append('email', email)
                 if (id) params.append('id', id)
 
                 const response = await fetch(`/api/auth/check-verification?${params.toString()}`)
@@ -108,20 +107,22 @@ export default function VerifyEmailContent() {
                         const storedPassword = authState.getPassword(email)
                         if (storedPassword) {
                             try {
-                                isAutoLoggingInRef.current = true
                                 const { error: loginError } = await supabase.auth.signInWithPassword({
                                     email,
                                     password: storedPassword
                                 })
 
                                 if (!loginError) {
+                                    isAutoLoggingInRef.current = true
                                     authState.clear() // Clear password from memory
-                                    // Remove redirect here - let the success screen show for 5s
-                                    // router.push(ROUTES.HOME)
-                                    // return
+                                } else {
+                                    // Auto-login failed, so we will redirect to the login page after the countdown.
+                                    isAutoLoggingInRef.current = false
+                                    console.error('Auto-login failed after verification:', loginError)
                                 }
                             } catch (e) {
-                                console.error('Auto-login failed', e)
+                                isAutoLoggingInRef.current = false
+                                console.error('Auto-login threw an exception:', e)
                             }
                         }
                     }
