@@ -370,6 +370,7 @@ DROP POLICY IF EXISTS "Secure DELETE" ON "Mail_Sync_Jobs";
 DROP POLICY IF EXISTS "Users can view their own sync jobs" ON "Mail_Sync_Jobs";
 DROP POLICY IF EXISTS "Service role can insert sync jobs" ON "Mail_Sync_Jobs";
 DROP POLICY IF EXISTS "Service role can update sync jobs" ON "Mail_Sync_Jobs";
+DROP POLICY IF EXISTS "Service role can manage sync jobs" ON "Mail_Sync_Jobs";
 
 CREATE POLICY "Secure SELECT" ON "Mail_Sync_Jobs"
     FOR SELECT USING (
@@ -414,8 +415,5 @@ CREATE POLICY "Secure DELETE" ON "Mail_Sync_Jobs"
         )
     );
 
-CREATE POLICY "Service role can insert sync jobs" ON "Mail_Sync_Jobs"
-    FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Service role can update sync jobs" ON "Mail_Sync_Jobs"
-    FOR UPDATE USING (true);
+CREATE POLICY "Service role can manage sync jobs" ON "Mail_Sync_Jobs"
+    FOR ALL USING ((SELECT auth.role()) = 'service_role');
