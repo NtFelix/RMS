@@ -10,10 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
-import { LOGO_URL, POSTHOG_FEATURE_FLAGS, ROUTES } from "@/lib/constants"
+import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
-import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { trackLoginStarted, trackLoginSuccess, trackLoginFailed } from '@/lib/posthog-auth-events'
 import { getAuthErrorMessage, getUrlErrorMessage } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
@@ -28,11 +27,7 @@ export default function LoginContent() {
   const redirectParam = searchParams.get('redirect')
   const redirect = redirectParam || ROUTES.HOME
 
-  const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
-  const isMicrosoftLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MICROSOFT_SOCIAL_LOGIN)
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
-
-  const enabledProvidersCount = [isGoogleLoginEnabled, isMicrosoftLoginEnabled].filter(Boolean).length;
 
   const socialProviders = [
     {
@@ -40,7 +35,6 @@ export default function LoginContent() {
       name: 'Google',
       fullLabel: 'Mit Google anmelden',
       Icon: GoogleIcon,
-      enabled: isGoogleLoginEnabled,
       handler: handleGoogleSignIn,
     },
     {
@@ -48,10 +42,11 @@ export default function LoginContent() {
       name: 'Microsoft',
       fullLabel: 'Mit Microsoft anmelden',
       Icon: MicrosoftIcon,
-      enabled: isMicrosoftLoginEnabled,
       handler: handleMicrosoftSignIn,
     }
-  ].filter(p => p.enabled);
+  ];
+
+  const enabledProvidersCount = socialProviders.length;
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -334,7 +329,7 @@ export default function LoginContent() {
                 )}
               </Button>
 
-              {mounted && (isGoogleLoginEnabled || isMicrosoftLoginEnabled) && (
+              {mounted && (
                 <div className="pt-4 space-y-4">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
