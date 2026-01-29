@@ -270,10 +270,10 @@ export default function ConsentUI({
                                 </h3>
                                 <div className="rounded-2xl border border-border/50 bg-card/50 overflow-hidden">
                                     <Accordion type="single" collapsible className="w-full">
-                                        {scopes.map((scope, index) => {
+                                        {scopes.map((scope) => {
                                             const details = getScopeDetails(scope);
                                             return (
-                                                <AccordionItem key={index} value={scope} className="border-border/50 first:border-t-0 last:border-b-0 px-4">
+                                                <AccordionItem key={scope} value={scope} className="border-border/50 first:border-t-0 last:border-b-0 px-4">
                                                     <AccordionTrigger className="hover:no-underline hover:bg-secondary/30 py-4 -mx-4 px-4 transition-colors">
                                                         <div className="flex items-center gap-4 text-left">
                                                             <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
