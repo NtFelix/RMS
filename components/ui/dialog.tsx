@@ -22,7 +22,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-[9999] bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -33,7 +33,7 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const dialogContentVariants = cva(
   // Base styles - mobile-first: Full-width drawer from bottom
   [
-    "fixed z-50 grid w-full gap-4 border bg-background shadow-xl duration-300",
+    "fixed z-[9999] grid w-full gap-4 border bg-background shadow-xl duration-300",
     // Mobile positioning: bottom sheet style
     "inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl p-4 pb-6",
     // Mobile animations: slide up from bottom

@@ -129,6 +129,7 @@ export function ActionMenu({
                 return (
                     <Button
                         key={action.id ?? `${action.label}-${index}`}
+                        id={action.id}
                         variant="ghost"
                         size="icon"
                         onClick={handleClick}

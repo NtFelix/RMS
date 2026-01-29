@@ -10,6 +10,15 @@
     padding: 1.5rem;
     max-width: 400px;
     font-family: inherit;
+    z-index: 100000 !important;
+}
+
+.driver-overlay {
+    z-index: 99999 !important;
+}
+
+.driver-popover-arrow {
+    z-index: 100001 !important;
 }
 
 .driver-popover.driverjs-theme .driver-popover-title {

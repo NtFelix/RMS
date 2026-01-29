@@ -6,6 +6,7 @@ export interface TourStep {
     title: string;
     description: string;
     path?: string;
+    hideNext?: boolean;
 }
 
 export const TOUR_STEPS: TourStep[] = [
@@ -15,6 +16,7 @@ export const TOUR_STEPS: TourStep[] = [
         title: 'Objekt anlegen',
         description: 'Beginnen Sie hier, um Ihre erste Immobilie anzulegen.',
         path: '/haeuser',
+        hideNext: true,
     },
     {
         id: 'create-house-form',
@@ -28,6 +30,7 @@ export const TOUR_STEPS: TourStep[] = [
         title: 'Wohnung hinzufügen',
         description: 'Legen Sie nun eine Einheit in diesem Objekt an.',
         path: '/wohnungen',
+        hideNext: true,
     },
     {
         id: 'create-apartment-form',
@@ -41,12 +44,14 @@ export const TOUR_STEPS: TourStep[] = [
         title: 'Wohnungsoptionen',
         description: 'Klicken Sie auf das Menü, um weitere Optionen für die Wohnung zu sehen.',
         path: '/wohnungen',
+        hideNext: true,
     },
     {
         id: 'create-meter-select',
         element: '#context-menu-meter-item',
         title: 'Zähler hinzufügen',
         description: 'Wählen Sie "Wasserzähler", um die Zählerverwaltung zu öffnen.',
+        hideNext: true,
     },
     {
         id: 'create-meter-form',
@@ -60,6 +65,7 @@ export const TOUR_STEPS: TourStep[] = [
         title: 'Mieter zuweisen',
         description: 'Verknüpfen Sie nun einen Mieter mit der Wohnung.',
         path: '/mieter',
+        hideNext: true,
     },
     {
         id: 'assign-tenant-form',
@@ -73,12 +79,14 @@ export const TOUR_STEPS: TourStep[] = [
         title: 'Abrechnung erstellen',
         description: 'Klicken Sie hier, um das Menü für neue Abrechnungen zu öffnen.',
         path: '/betriebskosten',
+        hideNext: true,
     },
     {
         id: 'create-bill-select',
         element: '#utility-bill-template-option',
         title: 'Standard-Vorlage wählen',
         description: 'Wählen Sie die Standard-Vorlage, um eine neue Betriebskostenabrechnung mit vordefinierten Werten zu erstellen.',
+        hideNext: true,
     },
     {
         id: 'create-bill-form',

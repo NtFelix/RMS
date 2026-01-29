@@ -197,7 +197,9 @@ export function OnboardingTour() {
 
                         // Add next button
                         // If it's the last step, driver.js automatically changes logic, but we handle it via store
-                        buttons.push('next');
+                        if (!step.hideNext) {
+                            buttons.push('next');
+                        }
 
                         // Always show close button since allowClose is false
                         buttons.push('close');
@@ -241,6 +243,19 @@ export function OnboardingTour() {
                         });
                     } catch (e) {
                         console.warn(`Could not find element ${step.element} for step ${step.id}`);
+                        // Fallback: Show popover in the center if element is not found
+                        driverInstance.highlight({
+                            element: undefined as any,
+                            popover: {
+                                title: step.title,
+                                description: step.description,
+                                side: "over",
+                                align: 'center',
+                                showButtons: buttons,
+                                progressText: `${currentStepIndex + 1} von ${TOUR_STEPS.length}`,
+                                nextBtnText: currentStepIndex === TOUR_STEPS.length - 1 ? 'Beenden' : 'Weiter'
+                            }
+                        });
                     }
                 } else {
                     driverInstance.destroy();
