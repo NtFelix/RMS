@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Mail, MailCheck, Loader2 } from "lucide-react"
@@ -19,7 +19,9 @@ export default function VerifyEmailContent() {
     const email = searchParams.get('email')
 
     const [status, setStatus] = useState<VerificationStatus>('pending')
-    const [countdown, setCountdown] = useState(3)
+    const [countdown, setCountdown] = useState(5)
+    // Ref to track if we are performing an auto-login so we can delay the redirect
+    const isAutoLoggingInRef = useRef(false)
 
     const supabase = createClient()
 
@@ -33,7 +35,11 @@ export default function VerifyEmailContent() {
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN' && session) {
-                // User is now logged in - redirect to dashboard immediately
+                // If we are auto-logging in, we want to show the success screen for a few seconds
+                // so we don't redirect here. The countdown effect will handle it.
+                if (isAutoLoggingInRef.current) return
+
+                // Otherwise (e.g. verifying in a new tab), redirect immediately
                 router.push(ROUTES.HOME)
             }
         })
@@ -62,6 +68,7 @@ export default function VerifyEmailContent() {
                         const storedPassword = authState.getPassword(email)
                         if (storedPassword) {
                             try {
+                                isAutoLoggingInRef.current = true
                                 const { error: loginError } = await supabase.auth.signInWithPassword({
                                     email,
                                     password: storedPassword
@@ -69,8 +76,9 @@ export default function VerifyEmailContent() {
 
                                 if (!loginError) {
                                     authState.clear() // Clear password from memory
-                                    router.push(ROUTES.HOME)
-                                    return
+                                    // Remove redirect here - let the success screen show for 5s
+                                    // router.push(ROUTES.HOME)
+                                    // return
                                 }
                             } catch (e) {
                                 console.error('Auto-login failed', e)
@@ -311,7 +319,7 @@ export default function VerifyEmailContent() {
                                                 className="h-full bg-white/80 rounded-full"
                                                 initial={{ width: '0%' }}
                                                 animate={{ width: '100%' }}
-                                                transition={{ duration: 3, ease: "linear" }}
+                                                transition={{ duration: 5, ease: "linear" }}
                                             />
                                         </div>
                                     </motion.div>
