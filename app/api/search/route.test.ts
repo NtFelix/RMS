@@ -1,6 +1,7 @@
 import { GET } from './route';
 import { NextRequest } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Mock Next.js cookies
 jest.mock('next/headers', () => ({
@@ -33,14 +34,51 @@ afterAll(() => {
 });
 
 describe('/api/search', () => {
-  let mockSupabase: any;
+  type MockQueryResult<T = any> = { data: T[] | null; error: any | null };
+
+  interface MockQueryBuilder extends PromiseLike<MockQueryResult> {
+    select: jest.Mock<MockQueryBuilder>;
+    or: jest.Mock<MockQueryBuilder>;
+    order: jest.Mock<MockQueryBuilder>;
+    limit: jest.Mock<MockQueryBuilder | Promise<MockQueryResult>>;
+    not: jest.Mock<MockQueryBuilder>;
+    eq: jest.Mock<MockQueryBuilder>;
+    ilike: jest.Mock<MockQueryBuilder>;
+    then: jest.Mock<any>;
+  }
+
+  let mockSupabase: {
+    from: jest.Mock;
+  };
+
+  /**
+   * Helper to wrap a promise with mock query builder methods
+   */
+  const wrapQueryBuilder = (promise: Promise<MockQueryResult>): MockQueryBuilder => {
+    const builder = promise as unknown as MockQueryBuilder;
+    builder.select = jest.fn().mockReturnThis();
+    builder.or = jest.fn().mockReturnThis();
+    builder.order = jest.fn().mockReturnThis();
+    builder.limit = jest.fn().mockReturnThis();
+    builder.not = jest.fn().mockReturnThis();
+    builder.eq = jest.fn().mockReturnThis();
+    builder.ilike = jest.fn().mockReturnThis();
+
+    // Ensure then is a mock if it wasn't already
+    if (!builder.then || !(builder.then as any)._isMockFunction) {
+      const originalThen = builder.then.bind(builder);
+      builder.then = jest.fn((onfulfilled, onrejected) => originalThen(onfulfilled, onrejected));
+    }
+
+    return builder;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Create a default mock query builder that returns empty results
     // This needs to handle both the standard pattern and the finance pattern
-    const createDefaultMockQueryBuilder = () => {
+    const createDefaultMockQueryBuilder = (): MockQueryBuilder => {
       const queryBuilder = {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
@@ -50,48 +88,33 @@ describe('/api/search', () => {
         eq: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
         then: jest.fn((resolve) => {
-          resolve({ data: [], error: null });
+          if (resolve) resolve({ data: [], error: null });
           return Promise.resolve({ data: [], error: null });
         })
-      };
-      
-      // Make the query builder thenable for finance queries
-      Object.defineProperty(queryBuilder, 'then', {
-        value: jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        }),
-        writable: true
-      });
-      
+      } as unknown as MockQueryBuilder;
+
       // Also make limit return a promise for standard queries
       queryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        // Add then method to the result for finance queries
-        result.then = jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: [], error: null }));
       });
-      
+
       return queryBuilder;
     };
-    
+
     // Default mock that returns empty results for all tables
     mockSupabase = {
       from: jest.fn().mockImplementation(() => createDefaultMockQueryBuilder()),
     };
-    
+
     // createClient is async, so we need to mock it properly
-    mockCreateClient.mockResolvedValue(mockSupabase);
+    mockCreateClient.mockResolvedValue(mockSupabase as unknown as SupabaseClient<any, "public", any>);
   });
 
   describe('Query validation', () => {
     it('should return 400 for empty query', async () => {
       const request = new NextRequest('http://localhost/api/search?q=');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error).toBe('Search query is required');
@@ -100,7 +123,7 @@ describe('/api/search', () => {
     it('should return 400 for missing query parameter', async () => {
       const request = new NextRequest('http://localhost/api/search');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error).toBe('Search query is required');
@@ -110,7 +133,7 @@ describe('/api/search', () => {
       const longQuery = 'a'.repeat(101);
       const request = new NextRequest(`http://localhost/api/search?q=${longQuery}`);
       const response = await GET(request);
-      
+
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error).toBe('Search query too long');
@@ -119,7 +142,7 @@ describe('/api/search', () => {
     it('should return 400 for invalid limit', async () => {
       const request = new NextRequest('http://localhost/api/search?q=test&limit=0');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error).toBe('Limit must be between 1 and 20');
@@ -128,7 +151,7 @@ describe('/api/search', () => {
     it('should return 400 for limit too high', async () => {
       const request = new NextRequest('http://localhost/api/search?q=test&limit=25');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error).toBe('Limit must be between 1 and 20');
@@ -159,9 +182,9 @@ describe('/api/search', () => {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue({ 
-          data: mockTenantData, 
-          error: null 
+        limit: jest.fn().mockResolvedValue({
+          data: mockTenantData,
+          error: null
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -186,19 +209,19 @@ describe('/api/search', () => {
       });
 
       const request = new NextRequest('http://localhost/api/search?q=John&categories=tenant');
-      
+
       try {
         const response = await GET(request);
-        
+
         if (response.status !== 200) {
           const errorData = await response.json();
           console.log('Error response:', errorData);
           console.log('Response status:', response.status);
         }
-        
+
         expect(response.status).toBe(200);
         const data = await response.json();
-        
+
         expect(data.results.tenant).toHaveLength(1);
         expect(data.results.tenant[0].name).toBe('John Doe');
         expect(data.results.tenant[0].status).toBe('active');
@@ -248,10 +271,10 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=House&categories=house');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(200);
       const data = await response.json();
-      
+
       expect(data.results.house).toHaveLength(1);
       expect(data.results.house[0].name).toBe('House 1');
       expect(data.results.house[0].apartment_count).toBe(2);
@@ -309,10 +332,10 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=Apartment&categories=apartment');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(200);
       const data = await response.json();
-      
+
       expect(data.results.apartment).toHaveLength(1);
       expect(data.results.apartment[0].name).toBe('Apartment 1');
       expect(data.results.apartment[0].status).toBe('rented');
@@ -370,10 +393,10 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=Rent&categories=finance');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(200);
       const data = await response.json();
-      
+
       expect(data.results.finance).toHaveLength(1);
       expect(data.results.finance[0].name).toBe('Rent Payment');
       expect(data.results.finance[0].type).toBe('income');
@@ -396,9 +419,9 @@ describe('/api/search', () => {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue({ 
-          data: mockTaskData, 
-          error: null 
+        limit: jest.fn().mockResolvedValue({
+          data: mockTaskData,
+          error: null
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -424,10 +447,10 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=heating&categories=task');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(200);
       const data = await response.json();
-      
+
       expect(data.results.task).toHaveLength(1);
       expect(data.results.task[0].name).toBe('Fix heating');
       expect(data.results.task[0].completed).toBe(false);
@@ -481,10 +504,10 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=800&categories=finance');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(200);
       const data = await response.json();
-      
+
       expect(data.results.finance).toHaveLength(1);
       expect(data.results.finance[0].amount).toBe(800);
     });
@@ -509,30 +532,19 @@ describe('/api/search', () => {
 
       // Make limit return a promise that resolves to an error
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: null, error: { message: 'Database connection failed' } });
-        // Add then method to the result for finance queries
-        result.then = jest.fn((resolve) => {
-          resolve({ data: null, error: { message: 'Database connection failed' } });
-          return Promise.resolve({ data: null, error: { message: 'Database connection failed' } });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: null, error: { message: 'Database connection failed' } }));
       });
 
       // Make or return the same query builder for chaining
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: null, error: { message: 'Database connection failed' } });
-        result.then = jest.fn((resolve) => {
-          resolve({ data: null, error: { message: 'Database connection failed' } });
-          return Promise.resolve({ data: null, error: { message: 'Database connection failed' } });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: null, error: { message: 'Database connection failed' } }));
       });
 
       mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
-      
+
       // Should return error when all searches fail
       expect(response.status).toBe(500);
       const data = await response.json();
@@ -545,7 +557,7 @@ describe('/api/search', () => {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockImplementation(() => 
+        limit: jest.fn().mockImplementation(() =>
           new Promise(resolve => setTimeout(resolve, 20000)) // 20 second delay
         ),
         not: jest.fn().mockReturnThis(),
@@ -556,7 +568,7 @@ describe('/api/search', () => {
       mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test');
-      
+
       // The request should timeout and return an error
       const response = await GET(request);
       expect(response.status).toBe(500); // Timeout is handled as internal server error in this mock
@@ -570,7 +582,7 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(503); // Service unavailable when all searches fail
       const data = await response.json();
       expect(data.error).toBeDefined();
@@ -598,29 +610,19 @@ describe('/api/search', () => {
 
       // Make limit return a promise for standard queries
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: [], error: null }));
       });
 
       // Make or return a promise for finance queries
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: [], error: null }));
       });
 
       mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(500); // Mock causes internal error
       const data = await response.json();
       expect(data.error).toBeDefined();
@@ -644,29 +646,19 @@ describe('/api/search', () => {
 
       // Make limit return a promise for standard queries
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: [], error: null }));
       });
 
       // Make or return a promise for finance queries
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: [], error: null }));
       });
 
       mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(500); // Mock causes internal error
       const data = await response.json();
       expect(data.error).toBeDefined();
@@ -674,15 +666,15 @@ describe('/api/search', () => {
 
     it('should handle partial results with warning headers', async () => {
       let callCount = 0;
-      
+
       // Create successful mock for tenant query builder
       const mockSuccessfulQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue({ 
-          data: [{ id: '1', name: 'John', email: 'john@test.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, Wohnungen: [] }], 
-          error: null 
+        limit: jest.fn().mockResolvedValue({
+          data: [{ id: '1', name: 'John', email: 'john@test.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, Wohnungen: [] }],
+          error: null
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -694,9 +686,9 @@ describe('/api/search', () => {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue({ 
-          data: null, 
-          error: { message: 'Database error' } 
+        limit: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Database error' }
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -713,7 +705,7 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
-      
+
       // Should return partial results with warning headers
       expect([200, 500]).toContain(response.status);
       const data = await response.json();
@@ -744,29 +736,19 @@ describe('/api/search', () => {
 
       // Make limit return a promise for standard queries
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: [], error: null }));
       });
 
       // Make or return a promise for finance queries
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: [], error: null }));
       });
 
       mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test%25_query');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(500); // Mock causes internal error
       const data = await response.json();
       expect(data.error).toBeDefined();
@@ -790,29 +772,19 @@ describe('/api/search', () => {
 
       // Make limit return a promise for standard queries
       mockQueryBuilder.limit = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: [], error: null }));
       });
 
       // Make or return a promise for finance queries
       mockQueryBuilder.or = jest.fn().mockImplementation(() => {
-        const result = Promise.resolve({ data: [], error: null });
-        result.then = jest.fn((resolve) => {
-          resolve({ data: [], error: null });
-          return Promise.resolve({ data: [], error: null });
-        });
-        return result;
+        return wrapQueryBuilder(Promise.resolve({ data: [], error: null }));
       });
 
       mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=nonexistent');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(500); // Mock causes internal error
       const data = await response.json();
       expect(data.error).toBeDefined();
@@ -826,9 +798,9 @@ describe('/api/search', () => {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue({ 
-          data: [{ id: '1', name: 'John', email: 'john@test.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, Wohnungen: [] }], 
-          error: null 
+        limit: jest.fn().mockResolvedValue({
+          data: [{ id: '1', name: 'John', email: 'john@test.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, Wohnungen: [] }],
+          error: null
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -855,10 +827,10 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=test&categories=tenant');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(200);
       const data = await response.json();
-      
+
       // Only tenants should be searched
       expect(data.results.tenant.length).toBeGreaterThan(0);
       expect(data.results.house).toEqual([]);
@@ -873,9 +845,9 @@ describe('/api/search', () => {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue({ 
-          data: [{ id: '1', name: 'Test', email: null, telefonnummer: null, einzug: '2023-01-01', auszug: null, Wohnungen: [] }], 
-          error: null 
+        limit: jest.fn().mockResolvedValue({
+          data: [{ id: '1', name: 'Test', email: null, telefonnummer: null, einzug: '2023-01-01', auszug: null, Wohnungen: [] }],
+          error: null
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -886,9 +858,9 @@ describe('/api/search', () => {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue({ 
-          data: [{ id: '1', name: 'Test', strasse: 'Test St', ort: 'Test City', Wohnungen: [] }], 
-          error: null 
+        limit: jest.fn().mockResolvedValue({
+          data: [{ id: '1', name: 'Test', strasse: 'Test St', ort: 'Test City', Wohnungen: [] }],
+          error: null
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -918,10 +890,10 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=test&categories=tenant,house');
       const response = await GET(request);
-      
+
       expect(response.status).toBe(200);
       const data = await response.json();
-      
+
       expect(data.results.tenant.length).toBeGreaterThan(0);
       expect(data.results.house.length).toBeGreaterThan(0);
       expect(data.results.apartment).toEqual([]);

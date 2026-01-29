@@ -51,7 +51,46 @@ jest.mock('@/hooks/use-retry', () => ({
 }));
 
 // Mock enhanced AI assistant hook
-const mockEnhancedAIAssistant = {
+const mockEnhancedAIAssistant: {
+  state: {
+    messages: { id: string; role: 'user' | 'assistant'; content: string; timestamp: Date }[];
+    isLoading: boolean;
+    error: string | null;
+    inputValue: string;
+    streamingMessageId: string | null;
+    sessionId: string | null;
+    sessionStartTime: Date | null;
+    validationError: string | null;
+    validationWarning: string | null;
+    inputSuggestions: string[];
+    fallbackToSearch: boolean;
+  };
+  actions: {
+    sendMessage: jest.Mock;
+    retryLastMessage: jest.Mock;
+    clearMessages: jest.Mock;
+    setInputValue: jest.Mock;
+    validateInput: jest.Mock;
+    fallbackToDocumentationSearch: jest.Mock;
+    resetFallback: jest.Mock;
+  };
+  networkStatus: {
+    isOnline: boolean;
+    isOffline: boolean;
+    checkConnectivity: jest.Mock;
+    lastOnlineTime: Date;
+    lastOfflineTime: Date | null;
+    connectionType: 'wifi' | '4g' | '3g' | '2g' | 'slow-2g' | 'none';
+    effectiveType: '4g' | '3g' | '2g' | 'slow-2g';
+    downlink: number;
+    rtt: number;
+  };
+  retryState: {
+    isRetrying: boolean;
+    attemptCount: number;
+    nextRetryIn: number;
+  };
+} = {
   state: {
     messages: [],
     isLoading: false,

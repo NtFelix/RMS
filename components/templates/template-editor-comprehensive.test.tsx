@@ -6,7 +6,7 @@ import { JSONContent } from '@tiptap/react';
 // Mock TipTap dependencies
 const mockEditor = {
   getHTML: jest.fn(() => '<p>Test content</p>'),
-  getJSON: jest.fn(() => ({ type: 'doc', content: [] })),
+  getJSON: jest.fn(() => ({ type: 'doc', content: [] } as JSONContent)),
   commands: {
     setContent: jest.fn(),
   },
@@ -25,7 +25,7 @@ const mockEditor = {
     undo: jest.fn(() => true),
     redo: jest.fn(() => true),
   })),
-  isActive: jest.fn(() => false),
+  isActive: jest.fn((...args: any[]) => false),
   isEmpty: false,
 };
 
@@ -231,7 +231,7 @@ describe('TemplateEditor - Comprehensive Tests', () => {
 
   describe('Button States', () => {
     it('shows active state for bold button when text is bold', () => {
-      mockEditor.isActive.mockImplementation((format) => format === 'bold');
+      mockEditor.isActive.mockImplementation((format: any) => format === 'bold');
       
       render(<TemplateEditor onChange={mockOnChange} />);
       
@@ -240,7 +240,7 @@ describe('TemplateEditor - Comprehensive Tests', () => {
     });
 
     it('shows active state for italic button when text is italic', () => {
-      mockEditor.isActive.mockImplementation((format) => format === 'italic');
+      mockEditor.isActive.mockImplementation((format: any) => format === 'italic');
       
       render(<TemplateEditor onChange={mockOnChange} />);
       

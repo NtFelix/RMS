@@ -8,7 +8,7 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams } from 'next/navigation';
-import DocumentationPage from '@/app/documentation/page';
+import DocumentationPage from '@/app/(landing)/hilfe/dokumentation/page';
 import { DocumentationArticleViewer } from '@/components/documentation/documentation-article-viewer';
 import { useToast } from '@/hooks/use-toast';
 

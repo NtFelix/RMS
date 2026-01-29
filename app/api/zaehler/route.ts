@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       apartment_id: wohnung_id,
       custom_id: custom_id || null,
       eichungsdatum: eichungsdatum || null,
-      zaehler_typ: zaehler_typ || 'wasser',
+      zaehler_typ: zaehler_typ || 'kaltwasser',
       source: 'api_route'
     })
 

@@ -6,10 +6,10 @@
 
 import { 
   OptimizedNebenkosten, 
-  WasserzaehlerModalData, 
+  MeterModalData, 
   AbrechnungModalData,
   isOptimizedNebenkosten,
-  isWasserzaehlerModalData,
+  isMeterModalData,
   isAbrechnungModalData
 } from '@/types/optimized-betriebskosten';
 import { createClient } from '@/utils/supabase/client';
@@ -23,9 +23,9 @@ describe('Database Functions Type Definitions', () => {
         enddatum: '2024-12-31',
         nebenkostenart: ['Wasser', 'Heizung'],
         betrag: [100, 200],
-        berechnungsart: ['Verbrauch', 'Fläche'],
-        wasserkosten: 150,
-        wasserverbrauch: 1000,
+        berechnungsart: [],
+        zaehlerkosten: { 'Wasser': 150 },
+        zaehlerverbrauch: { 'Wasser': 1000 },
         haeuser_id: 'house-id',
         user_id: 'user-id',
         haus_name: 'Test House',
@@ -52,8 +52,8 @@ describe('Database Functions Type Definitions', () => {
         nebenkostenart: ['Wasser'],
         betrag: [100],
         berechnungsart: ['Verbrauch'],
-        wasserkosten: 150,
-        wasserverbrauch: 1000,
+        zaehlerkosten: { 'Wasser': 150 },
+        zaehlerverbrauch: { 'Wasser': 1000 },
         haeuser_id: 'house-id',
         user_id: 'user-id',
         haus_name: 'Test House',
@@ -69,12 +69,15 @@ describe('Database Functions Type Definitions', () => {
   });
 
   describe('WasserzaehlerModalData Type', () => {
-    it('should have all required fields for wasserzaehler modal data', () => {
-      const mockData: WasserzaehlerModalData = {
+    it('should have all required fields for meter modal data', () => {
+      const mockData: MeterModalData = {
         mieter_id: 'tenant-id',
         mieter_name: 'Test Tenant',
         wohnung_name: 'Apartment 1',
         wohnung_groesse: 75,
+        meter_id: 'm1',
+        meter_type: 'Wasser',
+        custom_id: null,
         current_reading: {
           ablese_datum: '2024-12-31',
           zaehlerstand: 1500,
@@ -98,11 +101,14 @@ describe('Database Functions Type Definitions', () => {
     });
 
     it('should allow null values for optional readings', () => {
-      const mockData: WasserzaehlerModalData = {
+      const mockData: MeterModalData = {
         mieter_id: 'tenant-id',
         mieter_name: 'Test Tenant',
         wohnung_name: 'Apartment 1',
         wohnung_groesse: 75,
+        meter_id: 'm1',
+        meter_type: 'Wasser',
+        custom_id: null,
         current_reading: null,
         previous_reading: null
       };
@@ -112,34 +118,38 @@ describe('Database Functions Type Definitions', () => {
     });
 
     it('should pass type guard validation', () => {
-      const mockData: WasserzaehlerModalData = {
+      const mockData: MeterModalData = {
         mieter_id: 'tenant-id',
         mieter_name: 'Test Tenant',
         wohnung_name: 'Apartment 1',
         wohnung_groesse: 75,
+        meter_id: 'm1',
+        meter_type: 'Wasser',
+        custom_id: null,
         current_reading: null,
         previous_reading: null
       };
 
-      expect(isWasserzaehlerModalData(mockData)).toBe(true);
-      expect(isWasserzaehlerModalData({})).toBe(false);
-      expect(isWasserzaehlerModalData(null)).toBe(false);
+      expect(isMeterModalData(mockData)).toBe(true);
+      expect(isMeterModalData({})).toBe(false);
+      expect(isMeterModalData(null)).toBe(false);
     });
   });
 
   describe('AbrechnungModalData Type', () => {
     it('should have all required fields for abrechnung modal data', () => {
       const mockData: AbrechnungModalData = {
-        nebenkosten_data: { id: 'test', name: 'Test Nebenkosten' },
-        tenants: [{ id: 'tenant1', name: 'Tenant 1' }],
-        rechnungen: [{ id: 'rechnung1', betrag: 100 }],
-        wasserzaehler_readings: [{ id: 'reading1', verbrauch: 50 }]
+        nebenkosten_data: { id: 'test', startdatum: '2023-01-01', enddatum: '2023-12-31', user_id: 'u1', haeuser_id: 'h1', nebenkostenart: [], betrag: [], berechnungsart: [], zaehlerkosten: {}, zaehlerverbrauch: {} },
+        tenants: [{ id: 'tenant1', user_id: 'u1', name: 'Tenant 1', wohnung_id: 'w1', email: 't@t.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, notiz: null, nebenkosten: [] }],
+        rechnungen: [{ id: 'rechnung1', betrag: 100, name: 'Bill 1', user_id: 'u1', nebenkosten_id: 'nk1', mieter_id: 't1' }],
+        meters: [],
+        readings: [{ id: 'reading1', verbrauch: 50, zaehler_id: 'm1', ablese_datum: '2023-01-01', zaehlerstand: 100, user_id: 'u1' }]
       };
 
       expect(typeof mockData.nebenkosten_data).toBe('object');
       expect(Array.isArray(mockData.tenants)).toBe(true);
       expect(Array.isArray(mockData.rechnungen)).toBe(true);
-      expect(Array.isArray(mockData.wasserzaehler_readings)).toBe(true);
+      expect(Array.isArray(mockData.meters)).toBe(true);
     });
 
     it('should pass type guard validation', () => {
@@ -147,7 +157,8 @@ describe('Database Functions Type Definitions', () => {
         nebenkosten_data: { id: 'test', name: 'Test Nebenkosten' } as any,
         tenants: [],
         rechnungen: [],
-        wasserzaehler_readings: []
+        meters: [],
+        readings: []
       };
 
       expect(isAbrechnungModalData(mockData)).toBe(true);

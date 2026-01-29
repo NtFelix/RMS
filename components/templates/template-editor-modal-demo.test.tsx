@@ -40,7 +40,7 @@ export function TemplateEditorModalDemo() {
       ]
     },
     user_id: 'user1',
-    kategorie: 'Vertrag',
+    kategorie: 'Dokumente',
     kontext_anforderungen: ['mieter.name', 'wohnung.adresse'],
     erstellungsdatum: '2024-01-01',
     aktualisiert_am: '2024-01-01',

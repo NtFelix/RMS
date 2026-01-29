@@ -116,7 +116,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
         }
       ];
 
-      mockWithRetry.mockImplementation((operation) => operation());
+      mockWithRetry.mockImplementation((operation: any) => operation());
       mockSafeRpcCall.mockResolvedValue({
         success: true,
         data: mockData,
@@ -174,7 +174,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
     });
 
     it('should handle database errors with retry logic', async () => {
-      mockWithRetry.mockImplementation((operation) => operation());
+      mockWithRetry.mockImplementation((operation: any) => operation());
       mockSafeRpcCall.mockResolvedValue({
         success: false,
         message: 'Database connection failed',
@@ -248,7 +248,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
         }
       ];
 
-      mockWithRetry.mockImplementation((operation) => operation());
+      mockWithRetry.mockImplementation((operation: any) => operation());
       mockSafeRpcCall.mockResolvedValue({
         success: true,
         data: mockModalData,
@@ -277,7 +277,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
     });
 
     it('should handle modal data loading failures', async () => {
-      mockWithRetry.mockImplementation((operation) => operation());
+      mockWithRetry.mockImplementation((operation: any) => operation());
       mockSafeRpcCall.mockResolvedValue({
         success: false,
         message: 'Data not found',
@@ -315,7 +315,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
         wasserzaehler_readings: [{ id: 'wz-1', zaehlerstand: 1000 }]
       };
 
-      mockWithRetry.mockImplementation((operation) => operation());
+      mockWithRetry.mockImplementation((operation: any) => operation());
       mockSafeRpcCall.mockResolvedValue({
         success: true,
         data: mockAbrechnungData,
@@ -366,7 +366,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
         message: 'Data saved successfully'
       };
 
-      mockWithRetry.mockImplementation((operation) => operation());
+      mockWithRetry.mockImplementation((operation: any) => operation());
       mockSafeRpcCall.mockResolvedValue({
         success: true,
         data: [mockDbResult],
@@ -420,7 +420,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
         ]
       };
 
-      mockWithRetry.mockImplementation((operation) => operation());
+      mockWithRetry.mockImplementation((operation: any) => operation());
       mockSafeRpcCall.mockResolvedValue({
         success: false,
         message: 'Database timeout',
@@ -471,7 +471,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
         message: 'Validation failed: Invalid mieter_id'
       };
 
-      mockWithRetry.mockImplementation((operation) => operation());
+      mockWithRetry.mockImplementation((operation: any) => operation());
       mockSafeRpcCall.mockResolvedValue({
         success: true,
         data: [mockDbResult]
@@ -519,7 +519,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
   describe('Error Recovery Scenarios', () => {
     it('should handle network failures with retry logic', async () => {
       let callCount = 0;
-      mockWithRetry.mockImplementation(async (operation, options) => {
+      mockWithRetry.mockImplementation(async (operation: any, options: any) => {
         // Simulate retry logic
         for (let attempt = 0; attempt <= (options?.maxRetries || 2); attempt++) {
           const result = await operation();
@@ -556,7 +556,7 @@ describe.skip('Betriebskosten Error Recovery Integration', () => {
     });
 
     it('should handle validation errors without retry', async () => {
-      mockWithRetry.mockImplementation((operation) => operation());
+      mockWithRetry.mockImplementation((operation: any) => operation());
       mockSafeRpcCall.mockResolvedValue({
         success: false,
         message: 'Validation error: Invalid data format'

@@ -10,10 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, ArrowRight, Loader2, Check, Sparkles } from "lucide-react"
-import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, BASE_URL } from "@/lib/constants"
+import { LOGO_URL, ROUTES, BASE_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
-import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 import { trackRegisterStarted, trackRegisterSuccess, trackRegisterFailed } from '@/lib/posthog-auth-events'
 import { motion } from "framer-motion"
@@ -46,11 +45,7 @@ export default function RegisterPage() {
     setMounted(true)
   }, [])
 
-  const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
-  const isMicrosoftLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MICROSOFT_SOCIAL_LOGIN)
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
-
-  const enabledProvidersCount = [isGoogleLoginEnabled, isMicrosoftLoginEnabled].filter(Boolean).length;
 
   const socialProviders = [
     {
@@ -58,7 +53,6 @@ export default function RegisterPage() {
       name: 'Google',
       fullLabel: 'Mit Google anmelden',
       Icon: GoogleIcon,
-      enabled: isGoogleLoginEnabled,
       handler: handleGoogleSignIn,
     },
     {
@@ -66,10 +60,11 @@ export default function RegisterPage() {
       name: 'Microsoft',
       fullLabel: 'Mit Microsoft anmelden',
       Icon: MicrosoftIcon,
-      enabled: isMicrosoftLoginEnabled,
       handler: handleMicrosoftSignIn,
     }
-  ].filter(p => p.enabled);
+  ];
+
+  const enabledProvidersCount = socialProviders.length;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -377,7 +372,7 @@ export default function RegisterPage() {
                 )}
               </Button>
 
-              {mounted && (isGoogleLoginEnabled || isMicrosoftLoginEnabled) && (
+              {mounted &&
                 <div className="pt-4 space-y-4">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
@@ -418,7 +413,7 @@ export default function RegisterPage() {
                     ))}
                   </div>
                 </div>
-              )}
+              }
 
               <p className="text-xs text-center text-muted-foreground pt-2">
                 Mit der Registrierung stimmen Sie unseren{" "}

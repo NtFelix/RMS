@@ -28,7 +28,7 @@ describe('useTemplates Hook', () => {
       titel: 'Template 2',
       inhalt: { type: 'doc', content: [] },
       user_id: 'user1',
-      kategorie: 'Brief',
+      kategorie: 'Dokumente',
       kontext_anforderungen: [],
       erstellungsdatum: '2024-01-02T00:00:00Z',
       aktualisiert_am: '2024-01-02T00:00:00Z',
@@ -141,7 +141,7 @@ describe('useTemplates Hook', () => {
     const updateData: TemplatePayload = {
       titel: 'Updated Template',
       inhalt: { type: 'doc', content: [] },
-      kategorie: 'Brief',
+      kategorie: 'Dokumente',
       kontext_anforderungen: [],
     };
 
@@ -171,7 +171,7 @@ describe('useTemplates Hook', () => {
     const updateData: TemplatePayload = {
       titel: 'Updated Template',
       inhalt: { type: 'doc', content: [] },
-      kategorie: 'Brief',
+      kategorie: 'Dokumente',
       kontext_anforderungen: [],
     };
 
@@ -296,7 +296,7 @@ describe('useTemplateFilters Hook', () => {
       titel: 'Brief Template',
       inhalt: { type: 'doc', content: [] },
       user_id: 'user1',
-      kategorie: 'Brief',
+      kategorie: 'Dokumente',
       kontext_anforderungen: [],
       erstellungsdatum: '2024-01-02T00:00:00Z',
       aktualisiert_am: '2024-01-02T00:00:00Z',
@@ -338,12 +338,12 @@ describe('useTemplateFilters Hook', () => {
     const { result } = renderHook(() => useTemplateFilters(mockTemplates));
 
     act(() => {
-      result.current.setSelectedCategory('Brief');
+      result.current.setSelectedCategory('Dokumente');
     });
 
-    expect(result.current.selectedCategory).toBe('Brief');
+    expect(result.current.selectedCategory).toBe('Dokumente');
     expect(result.current.filteredTemplates).toHaveLength(1);
-    expect(result.current.filteredTemplates[0].kategorie).toBe('Brief');
+    expect(result.current.filteredTemplates[0].kategorie).toBe('Dokumente');
   });
 
   it('combines search and category filters', () => {
@@ -373,7 +373,7 @@ describe('useTemplateFilters Hook', () => {
 
     expect(result.current.groupedTemplates).toEqual({
       Mail: [mockTemplates[0], mockTemplates[2]],
-      Brief: [mockTemplates[1]],
+      Dokumente: [mockTemplates[1]],
     });
   });
 
@@ -386,7 +386,7 @@ describe('useTemplateFilters Hook', () => {
 
     expect(result.current.groupedTemplates).toEqual({
       Mail: [mockTemplates[0]],
-      Brief: [mockTemplates[1]],
+      Dokumente: [mockTemplates[1]],
     });
   });
 
@@ -453,7 +453,7 @@ describe('useTemplateFilters Hook', () => {
       kontext_anforderungen: [],
       erstellungsdatum: '2024-01-04T00:00:00Z',
       aktualisiert_am: '2024-01-04T00:00:00Z',
-    }];
+    }] as Template[];
 
     rerender({ templates: newTemplates });
 

@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react'
-import { useCloudStorageNavigationStore, useNavigationState } from '../use-cloud-storage-navigation'
+import { useCloudStorageNavigationStore, useNavigationState } from './use-cloud-storage-navigation'
 
 // Mock the server action
 jest.mock('@/app/(dashboard)/dateien/actions', () => ({

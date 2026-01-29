@@ -1,6 +1,6 @@
 import React from "react"
 import { render, screen, fireEvent } from "@testing-library/react"
-import { NumberInput } from "../number-input"
+import { NumberInput } from "./number-input"
 
 describe("NumberInput", () => {
   it("formats initial value with comma", () => {

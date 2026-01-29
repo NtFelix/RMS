@@ -54,8 +54,6 @@ export const POSTHOG_FEATURE_FLAGS = {
   // Landing page
   SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
   SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
-  GOOGLE_SOCIAL_LOGIN: 'google-social-login',
-  MICROSOFT_SOCIAL_LOGIN: 'microsoft-social-login',
 } as const;
 
 // Application routes - centralized to prevent hardcoded paths
@@ -86,6 +84,11 @@ export const ROUTES = {
   PRIVACY: '/datenschutz',
   TERMS: '/agb',
   IMPRESSUM: '/impressum',
+} as const;
+
+// Supabase API paths
+export const SUPABASE_API_PATHS = {
+  OAUTH_AUTHORIZE: '/auth/v1/oauth/authorize',
 } as const;
 
 // Video URLs

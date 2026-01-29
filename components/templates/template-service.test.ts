@@ -30,8 +30,8 @@ describe('TemplateService', () => {
         {
           id: '1',
           titel: 'Test Template',
-          inhalt: 'Content',
-          kategorie: 'Vertrag',
+          inhalt: { type: 'doc', content: [{ type: 'text', text: 'Content' }] },
+          kategorie: 'Dokumente',
           kontext_anforderungen: [],
           user_id: 'user1',
           erstellungsdatum: '2024-01-01',
@@ -69,8 +69,8 @@ describe('TemplateService', () => {
     it('creates template successfully', async () => {
       const payload: TemplatePayload = {
         titel: 'New Template',
-        inhalt: 'Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -94,8 +94,8 @@ describe('TemplateService', () => {
     it('handles validation error', async () => {
       const payload: TemplatePayload = {
         titel: '',
-        inhalt: 'Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -115,8 +115,8 @@ describe('TemplateService', () => {
     it('updates template successfully', async () => {
       const payload: TemplatePayload = {
         titel: 'Updated Template',
-        inhalt: 'Updated Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Updated Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -140,8 +140,8 @@ describe('TemplateService', () => {
     it('handles not found error', async () => {
       const payload: TemplatePayload = {
         titel: 'Updated Template',
-        inhalt: 'Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -202,8 +202,8 @@ describe('OptimisticTemplateService', () => {
     it('adds optimistic template and replaces with real one', async () => {
       const payload: TemplatePayload = {
         titel: 'New Template',
-        inhalt: 'Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -231,8 +231,8 @@ describe('OptimisticTemplateService', () => {
     it('removes optimistic template on error', async () => {
       const payload: TemplatePayload = {
         titel: 'New Template',
-        inhalt: 'Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -254,8 +254,8 @@ describe('OptimisticTemplateService', () => {
       const existingTemplate: Template = {
         id: '1',
         titel: 'Old Title',
-        inhalt: 'Old Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Old Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
         user_id: 'user1',
         erstellungsdatum: '2024-01-01',
@@ -266,8 +266,8 @@ describe('OptimisticTemplateService', () => {
 
       const payload: TemplatePayload = {
         titel: 'New Title',
-        inhalt: 'New Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'New Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -293,8 +293,8 @@ describe('OptimisticTemplateService', () => {
       const existingTemplate: Template = {
         id: '1',
         titel: 'Old Title',
-        inhalt: 'Old Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Old Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
         user_id: 'user1',
         erstellungsdatum: '2024-01-01',
@@ -305,8 +305,8 @@ describe('OptimisticTemplateService', () => {
 
       const payload: TemplatePayload = {
         titel: 'New Title',
-        inhalt: 'New Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'New Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -328,8 +328,8 @@ describe('OptimisticTemplateService', () => {
       const existingTemplate: Template = {
         id: '1',
         titel: 'Template',
-        inhalt: 'Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
         user_id: 'user1',
         erstellungsdatum: '2024-01-01',
@@ -354,8 +354,8 @@ describe('OptimisticTemplateService', () => {
       const existingTemplate: Template = {
         id: '1',
         titel: 'Template',
-        inhalt: 'Content',
-        kategorie: 'Vertrag',
+        inhalt: { type: 'doc', content: [{ type: 'text', text: 'Content' }] },
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
         user_id: 'user1',
         erstellungsdatum: '2024-01-01',

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import DocumentationPage from '@/app/documentation/page';
-import ArticlePage from '@/app/documentation/[articleId]/page';
+import DocumentationPage from '@/app/(landing)/hilfe/dokumentation/page';
+import ArticlePage from '@/app/(landing)/hilfe/dokumentation/[articleId]/page';
 import { useToast } from '@/hooks/use-toast';
 
 // Mock Next.js navigation
@@ -206,7 +206,7 @@ describe('Documentation Pages Integration', () => {
         json: () => Promise.resolve(mockArticles[0]),
       });
 
-      render(<ArticlePage />);
+      render(await ArticlePage({ params: Promise.resolve({ articleId: '1' }) }));
 
       await waitFor(() => {
         expect(screen.getByText('How to Get Started')).toBeInTheDocument();
@@ -224,7 +224,7 @@ describe('Documentation Pages Integration', () => {
         statusText: 'Not Found',
       });
 
-      render(<ArticlePage />);
+      render(await ArticlePage({ params: Promise.resolve({ articleId: '1' }) }));
 
       await waitFor(() => {
         expect(screen.getByText('Artikel nicht gefunden')).toBeInTheDocument();
@@ -238,7 +238,7 @@ describe('Documentation Pages Integration', () => {
         json: () => Promise.resolve(mockArticles[0]),
       });
 
-      render(<ArticlePage />);
+      render(await ArticlePage({ params: Promise.resolve({ articleId: '1' }) }));
 
       await waitFor(() => {
         const backButton = screen.getByText('Zurück zur Dokumentation');
@@ -248,8 +248,8 @@ describe('Documentation Pages Integration', () => {
       expect(mockRouter.push).toHaveBeenCalledWith('/documentation');
     });
 
-    it('displays loading state', () => {
-      render(<ArticlePage />);
+    it('displays loading state', async () => {
+      render(await ArticlePage({ params: Promise.resolve({ articleId: '1' }) }));
 
       // Should show loading skeleton initially
       expect(screen.getByText('Zurück zur Dokumentation')).toBeInTheDocument();
@@ -259,7 +259,7 @@ describe('Documentation Pages Integration', () => {
       // Mock API error
       (fetch as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
 
-      render(<ArticlePage />);
+      render(await ArticlePage({ params: Promise.resolve({ articleId: '1' }) }));
 
       await waitFor(() => {
         expect(mockToast).toHaveBeenCalledWith({

@@ -4,7 +4,7 @@ import {
   calculateTenantCosts,
   calculatePrepayments,
   validateCalculationData,
-  calculateWaterCostDistribution,
+  calculateMeterCostDistribution,
   calculateRecommendedPrepayment,
   formatCurrency,
   calculateCompleteTenantResult
@@ -15,7 +15,7 @@ import {
   calculateProMieterDistribution,
   calculateProWohnungDistribution
 } from './cost-calculations';
-import { getTenantWaterCost } from './water-cost-calculations';
+import { getTenantMeterCost } from './water-cost-calculations';
 
 // Mock dependencies
 jest.mock('./date-calculations', () => ({
@@ -27,11 +27,11 @@ jest.mock('./cost-calculations', () => ({
   calculateProMieterDistribution: jest.fn(),
   calculateProWohnungDistribution: jest.fn(),
   calculateNachRechnungDistribution: jest.fn(),
-  calculateWaterCostDistribution: jest.fn()
+  calculateMeterCostDistribution: jest.fn()
 }));
 
 jest.mock('./water-cost-calculations', () => ({
-  getTenantWaterCost: jest.fn()
+  getTenantMeterCost: jest.fn()
 }));
 
 describe('abrechnung-calculations', () => {
@@ -202,25 +202,25 @@ describe('abrechnung-calculations', () => {
     });
   });
 
-  describe('calculateWaterCostDistribution', () => {
-    it('returns zero cost if no tenant water cost calculated', () => {
-      (getTenantWaterCost as jest.Mock).mockReturnValue(null);
-      const result = calculateWaterCostDistribution(mockTenant, {} as any, [], [], []);
+  describe('calculateMeterCostDistribution', () => {
+    it('returns zero cost if no tenant meter cost calculated', () => {
+      (getTenantMeterCost as jest.Mock).mockReturnValue(null);
+      const result = calculateMeterCostDistribution(mockTenant, {} as any, [], [], []);
       expect(result.totalCost).toBe(0);
     });
 
     it('returns calculated cost with meter reading', () => {
-      (getTenantWaterCost as jest.Mock).mockReturnValue({
+      (getTenantMeterCost as jest.Mock).mockReturnValue({
         consumption: 10,
         costShare: 50,
-        pricePerCubicMeter: 5
+        pricePerUnit: 5
       });
 
       const waterMeters = [{ id: 'm1', wohnung_id: 'w1' }] as any;
       const waterReadings = [{ zaehler_id: 'm1', zaehlerstand: 100, ablese_datum: '2023-06-01' }] as any;
-      const nebenkosten = { startdatum, enddatum, wasserkosten: 100, wasserverbrauch: 20 } as any;
+      const nebenkosten = { startdatum, enddatum, zaehlerkosten: { kaltwasser: 100 }, zaehlerverbrauch: { kaltwasser: 20 } } as any;
 
-      const result = calculateWaterCostDistribution(mockTenant, nebenkosten, [], waterMeters, waterReadings);
+      const result = calculateMeterCostDistribution(mockTenant, nebenkosten, [], waterMeters, waterReadings);
 
       expect(result.totalCost).toBe(50);
       expect(result.meterReading?.currentReading).toBe(100);
@@ -263,7 +263,7 @@ describe('abrechnung-calculations', () => {
 
       // Mock sub-calculations
       (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 100 } });
-      (getTenantWaterCost as jest.Mock).mockReturnValue(null);
+      (getTenantMeterCost as jest.Mock).mockReturnValue(null);
 
       const result = calculateCompleteTenantResult(mockTenant, nebenkosten, [], [], []);
 
