@@ -43,32 +43,12 @@ export async function GET(request: Request) {
             }
             user = data.user
         } else if (email) {
-            // Fallback to pagination if only email is provided (legacy behavior)
-            // Use admin API to list users and find by email
-            let page = 1
-            const perPage = 1000 // Use max perPage to minimize requests
-
-            while (true) {
-                const { data, error: listError } = await supabase.auth.admin.listUsers({ page, perPage })
-
-                if (listError) {
-                    console.error('Admin listUsers error:', listError)
-                    return NextResponse.json({ confirmed: false, error: 'Failed to query users' }, { status: 500 })
-                }
-
-                const foundUser = data.users.find(u => u.email === email)
-                if (foundUser) {
-                    user = foundUser
-                    break
-                }
-
-                // If we received fewer users than the page limit, we've reached the end
-                if (data.users.length < perPage) {
-                    break
-                }
-
-                page++
-            }
+            // Fallback to pagination is removed for security and performance reasons.
+            // We require ID for verification checks to ensure O(1) lookup.
+            // If we strictly need email support without ID, we would need a secure RPC or exact match capability,
+            // but for now we enforce using ID which is provided in the registration flow.
+            console.warn('Check verification requested with only email - this is no longer supported for performance reasons.')
+            return NextResponse.json({ confirmed: false, error: 'User ID is required' }, { status: 400 })
         }
 
         if (!user) {

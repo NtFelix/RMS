@@ -24,6 +24,13 @@ class AuthFlowState {
     public setCredentials(email: string, password: string) {
         this._email = email;
         this._tempPassword = password;
+
+        // Auto-clear after 10 minutes to reduce security risk window
+        setTimeout(() => {
+            if (this._email === email) {
+                this.clear();
+            }
+        }, 10 * 60 * 1000); // 10 minutes
     }
 
     public getPassword(email: string): string | null {

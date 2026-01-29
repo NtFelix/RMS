@@ -47,6 +47,30 @@ export default function VerifyEmailContent() {
         return () => subscription.unsubscribe()
     }, [supabase.auth, router])
 
+    // Listen for cross-tab verification
+    useEffect(() => {
+        const VERIFICATION_CHANNEL = 'mietevo_email_verified';
+
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data?.verified) {
+                handleVerificationSuccess();
+            }
+        };
+
+        try {
+            const channel = new BroadcastChannel(VERIFICATION_CHANNEL);
+            channel.addEventListener('message', handleMessage);
+            // Clean up the channel on component unmount
+            return () => {
+                channel.removeEventListener('message', handleMessage);
+                channel.close();
+            };
+        } catch (error) {
+            // BroadcastChannel may not be supported in all browsers/contexts (e.g. private tabs in some browsers)
+            console.warn('BroadcastChannel not supported, falling back to polling for email verification.');
+        }
+    }, [handleVerificationSuccess]);
+
     // Poll the API to check verification status from Supabase
     useEffect(() => {
         // We need either email or ID to check verification status
