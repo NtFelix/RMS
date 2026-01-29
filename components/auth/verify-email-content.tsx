@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import { createClient } from "@/utils/supabase/client"
 import { ROUTES } from "@/lib/constants"
+import { authState } from "@/lib/auth-state"
 
 type VerificationStatus = 'pending' | 'success'
 
@@ -56,6 +57,27 @@ export default function VerifyEmailContent() {
                 const data = await response.json()
 
                 if (data.confirmed) {
+                    // Try to auto-login if we have the password stored
+                    if (email) {
+                        const storedPassword = authState.getPassword(email)
+                        if (storedPassword) {
+                            try {
+                                const { error: loginError } = await supabase.auth.signInWithPassword({
+                                    email,
+                                    password: storedPassword
+                                })
+
+                                if (!loginError) {
+                                    authState.clear() // Clear password from memory
+                                    router.push(ROUTES.HOME)
+                                    return
+                                }
+                            } catch (e) {
+                                console.error('Auto-login failed', e)
+                            }
+                        }
+                    }
+
                     handleVerificationSuccess()
                 }
             } catch (error) {

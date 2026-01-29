@@ -20,6 +20,7 @@ import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
+import { authState } from "@/lib/auth-state"
 
 const benefits = [
   "14 Tage kostenlos testen",
@@ -113,6 +114,9 @@ export default function RegisterPage() {
       // Track registration success (GDPR-compliant - checks consent internally)
       trackRegisterSuccess('email')
     }
+
+    // Store credentials temporarily for auto-login after verification
+    authState.setCredentials(email, password)
 
     if (data?.user?.id) {
       router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&id=${data.user.id}`)
