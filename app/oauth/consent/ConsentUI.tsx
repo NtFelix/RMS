@@ -7,6 +7,46 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ShieldAlert, Check, Loader2, AlertTriangle, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
+// Scope descriptions mapping
+const SCOPE_DETAILS: Record<string, { title: string; description: string }> = {
+    'profile:read': {
+        title: 'Benutzerprofil',
+        description: 'Lesezugriff auf Ihren Namen und Avatar.'
+    },
+    'email': {
+        title: 'E-Mail-Adresse',
+        description: 'Lesezugriff auf Ihre verifizierte E-Mail-Adresse.'
+    },
+    'offline_access': {
+        title: 'Offline-Zugriff',
+        description: 'Zugriff auf Ihre Daten, auch wenn Sie die Anwendung gerade nicht verwenden (Refresh Token).'
+    },
+    'properties:write': {
+        title: 'Immobilien verwalten',
+        description: 'Erlaubt das Erstellen, Bearbeiten und Löschen von Immobilien.'
+    },
+    'properties:read': {
+        title: 'Immobilien ansehen',
+        description: 'Lesezugriff auf Ihre gespeicherten Immobilien.'
+    },
+    'tenants:read': {
+        title: 'Mieter ansehen',
+        description: 'Lesezugriff auf Ihre gespeicherten Mieterdaten.'
+    },
+    'tenants:write': {
+        title: 'Mieter verwalten',
+        description: 'Erlaubt das Erstellen, Bearbeiten und Löschen von Mieterdaten.'
+    }
+};
+
+const getScopeDetails = (scope: string) => {
+    return SCOPE_DETAILS[scope] || {
+        title: scope.replace(/[_:-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        description: `Zugriff auf den Bereich "${scope}".`
+    };
+};
 
 interface ConsentUIProps {
     type: 'consent' | 'error' | 'loading';
@@ -27,8 +67,7 @@ interface AuthorizationDetails {
     scopes?: string[];
 }
 
-const LOGO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/assets/logo.png';
-const BRAND_NAME = 'Mietevo';
+import { LOGO_URL, BRAND_NAME } from '@/lib/constants';
 
 export default function ConsentUI({
     type,
@@ -225,18 +264,36 @@ export default function ConsentUI({
                     <CardContent className="px-8 pb-4">
                         {/* Scopes */}
                         {scopes.length > 0 && (
-                            <div className="mb-6">
-                                <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                                    Diese Anwendung erhält Zugriff auf:
+                            <div className="mb-8">
+                                <h3 className="text-sm font-medium text-muted-foreground mb-4 text-center">
+                                    Diese Anwendung darf:
                                 </h3>
-                                <ul className="space-y-2">
-                                    {scopes.map((scope, index) => (
-                                        <li key={index} className="flex items-center gap-3 text-sm">
-                                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                            <span className="text-foreground capitalize">{scope}</span>
-                                        </li>
-                                    ))}
-                                </ul>
+                                <div className="rounded-2xl border border-border/50 bg-card/50 overflow-hidden">
+                                    <Accordion type="single" collapsible className="w-full">
+                                        {scopes.map((scope) => {
+                                            const details = getScopeDetails(scope);
+                                            return (
+                                                <AccordionItem key={scope} value={scope} className="border-border/50 first:border-t-0 last:border-b-0 px-4">
+                                                    <AccordionTrigger className="hover:no-underline hover:bg-secondary/30 py-4 -mx-4 px-4 transition-colors">
+                                                        <div className="flex items-center gap-4 text-left">
+                                                            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                                                                <Check className="w-4 h-4 text-green-600" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium text-foreground truncate">
+                                                                    {details.title}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </AccordionTrigger>
+                                                    <AccordionContent className="text-muted-foreground px-1 pl-12">
+                                                        {details.description}
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            );
+                                        })}
+                                    </Accordion>
+                                </div>
                             </div>
                         )}
 
