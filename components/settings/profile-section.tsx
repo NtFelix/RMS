@@ -144,15 +144,32 @@ const ProfileSection = () => {
   const handleConfirmDeleteAccount = async (otp: string) => {
     setIsDeleting(true);
     try {
-      // Step 1: Verify OTP with reauthenticate
-      // Passing the token as a string (the OTP code)
-      const { error: reauthError } = await supabase.auth.verifyOtp({
-        email: profile?.email || '',
-        token: otp,
-        type: 'reauthentication' as any
+      // Fetch current user to ensure we have the correct email
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user || !user.email) {
+        console.error("Error fetching user for account deletion verification:", userError);
+        toast({
+          title: "Fehler",
+          description: "Benutzer konnte nicht identifiziert werden.",
+          variant: "destructive",
+        });
+        setIsDeleting(false);
+        return;
+      }
+
+      // Step 1: Verify OTP using reauthentication nonce via updateUser
+      const userEmail = user.email.trim().toLowerCase();
+
+
+      // reauthenticate() sends a nonce that is consumed by updateUser to authorize changes.
+      // We call updateUser with the nonce to verify it. If it succeeds, the nonce was valid.
+      const { error: reauthError } = await supabase.auth.updateUser({
+        nonce: otp.trim()
       });
 
       if (reauthError) {
+        console.error("Reauth Verification Error details:", JSON.stringify(reauthError, null, 2));
         toast({
           title: "Fehler",
           description: `Ungültiger Bestätigungscode: ${reauthError.message}`,
@@ -198,11 +215,14 @@ const ProfileSection = () => {
   };
 
   const handleDeleteAccountInitiation = async () => {
+    if (isDeleting) return;
     setIsDeleting(true);
     setShowOtpModal(false);
     try {
       const { error } = await supabase.auth.reauthenticate();
+
       if (error) {
+        console.error("Reauthentication Initiation Error:", error);
         toast({
           title: "Fehler",
           description: `Fehler bei der erneuten Authentifizierung: ${error.message}`,
@@ -597,6 +617,7 @@ const ProfileSection = () => {
         title="Konto wirklich löschen?"
         description="Sind Sie sicher, dass Sie Ihr Konto endgültig löschen möchten? Dieser Schritt startet den Prozess zur sicheren Entfernung Ihrer Daten. Sie erhalten anschließend eine E-Mail zur Bestätigung."
         onConfirm={handleDeleteAccountInitiation}
+        isDeleting={isDeleting}
         confirmButtonText="Löschen einleiten"
         cancelButtonText="Abbrechen"
         confirmButtonVariant="destructive"
