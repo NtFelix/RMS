@@ -1,104 +1,23 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import Pricing from '@/app/modern/components/pricing';
 import { EmailVerificationNotifier } from '@/components/auth/email-verification-notifier';
-import { createClient } from '@/utils/supabase/client';
-import { User } from '@supabase/supabase-js';
-import { Profile } from '@/types/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { useSubscriptionUser } from '@/hooks/use-subscription-user';
+import { useSubscriptionCheckout } from '@/hooks/use-subscription-checkout';
+import { useAuthRedirects } from '@/hooks/use-auth-redirect-handler';
 
-function ProfileErrorToastHandler() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const errorParam = searchParams.get('error');
-        if (errorParam === 'profile_fetch_failed') {
-            toast({
-                title: "Error",
-                description: "Could not retrieve your user details. Please try logging in again or contact support if the issue persists.",
-                variant: "destructive",
-            });
-            router.replace('/preise', { scroll: false });
-        }
-    }, [searchParams, router, toast]);
-
-    return null;
-}
-
-// Component that handles URL parameters
-function URLParamHandler() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const [sessionUser, setSessionUser] = useState<User | null>(null);
-    const [isLoadingUser, setIsLoadingUser] = useState(true);
-    const supabase = createClient();
-
-    useEffect(() => {
-        const fetchUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setSessionUser(user);
-            setIsLoadingUser(false);
-        };
-        fetchUser();
-    }, [supabase]);
-
-    // Handle URL parameter for "get started" flow
-    useEffect(() => {
-        if (isLoadingUser) {
-            return; // Wait until we've checked the user's auth status
-        }
-
-        const getStarted = searchParams.get('getStarted');
-        if (getStarted === 'true' && !sessionUser) {
-            router.push('/auth/login');
-        }
-    }, [searchParams, sessionUser, router, isLoadingUser]);
-
-    return null;
-}
-
-// Main content component that uses the auth modal context
 function PricingPageContent() {
-    const router = useRouter();
     const searchParams = useSearchParams();
-    const { toast } = useToast();
-    const supabase = createClient();
 
-    const [userProfile, setUserProfile] = useState<Profile | null>(null);
-    const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-    const [sessionUser, setSessionUser] = useState<User | null>(null);
+    // Use custom hooks
+    const { user: sessionUser, profile: userProfile, isLoading: isLoadingUser } = useSubscriptionUser();
+    const { isProcessingCheckout, handleAuthFlow } = useSubscriptionCheckout();
 
-    useEffect(() => {
-        const fetchInitialUserAndProfile = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setSessionUser(user);
-            if (user) {
-                fetchUserProfile(user.id);
-            } else {
-                setUserProfile(null);
-            }
-        };
-
-        fetchInitialUserAndProfile();
-
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-            setSessionUser(session?.user ?? null);
-            if (event === 'SIGNED_IN' && session?.user) {
-                fetchUserProfile(session.user.id);
-            } else if (event === 'SIGNED_OUT') {
-                setUserProfile(null);
-            }
-        });
-
-        return () => {
-            authListener?.subscription.unsubscribe();
-        };
-    }, [supabase, router]);
+    // Handle redirects and errors
+    useAuthRedirects(sessionUser, isLoadingUser);
 
     // Handle price selection from URL after redirect back from login
     useEffect(() => {
@@ -111,186 +30,30 @@ function PricingPageContent() {
             const newUrl = `${window.location.pathname}${searchStr ? '?' + searchStr : ''}`;
             window.history.replaceState({}, '', newUrl);
 
-            handleAuthFlow(priceId);
+            handleAuthFlow(
+                sessionUser,
+                userProfile,
+                priceId,
+                window.location.pathname,
+                `${window.location.origin}/preise`
+            );
         }
-    }, [searchParams, sessionUser, userProfile, isProcessingCheckout]);
-
-    const fetchUserProfile = async (userId: string) => {
-        try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('id, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_price_id')
-                .eq('id', userId)
-                .single();
-
-            if (error && error.code !== 'PGRST116') {
-                throw error;
-            }
-            setUserProfile(data as Profile | null);
-        } catch (error) {
-            console.error('Error fetching user profile:', error);
-            setUserProfile(null);
-        }
-    };
-
-    const proceedToCheckout = async (priceId: string) => {
-        setIsProcessingCheckout(true);
-        if (!sessionUser) {
-            console.error('User not logged in for proceedToCheckout');
-            toast({ title: 'Authentication Required', description: 'Please log in to proceed with checkout.', variant: 'default' });
-            setIsProcessingCheckout(false);
-            return;
-        }
-
-        if (!sessionUser.email || !sessionUser.id) {
-            console.error('User details missing in proceedToCheckout');
-            toast({ title: 'Error', description: 'User information not fully available. Please try logging in again.', variant: 'destructive' });
-            setIsProcessingCheckout(false);
-            return;
-        }
-
-        const customerEmail = sessionUser.email;
-        const userId = sessionUser.id;
-
-        try {
-            const response = await fetch('/api/stripe/checkout-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    priceId: priceId,
-                    customerEmail: customerEmail,
-                    userId: userId,
-                }),
-            });
-
-            if (response.status === 409) {
-                const errorData = await response.json();
-                toast({
-                    title: 'Subscription Information',
-                    description: errorData.message || 'You are already subscribed.',
-                    variant: 'default',
-                });
-                return;
-            }
-
-            if (!response.ok) {
-                let errorMessage = `HTTP error ${response.status}`;
-                try {
-                    const errorBody = await response.json();
-                    errorMessage = errorBody.error || errorBody.message || JSON.stringify(errorBody);
-                } catch (e) {
-                    try {
-                        const textError = await response.text();
-                        errorMessage = textError.substring(0, 100);
-                    } catch (textE) {
-                        errorMessage = response.statusText || `HTTP error ${response.status}`;
-                    }
-                }
-                throw new Error(`Failed to create checkout session: ${errorMessage}`);
-            }
-
-            const { url } = await response.json();
-
-            if (url) {
-                router.push(url);
-            } else {
-                throw new Error('URL missing from checkout session response.');
-            }
-        } catch (error) {
-            console.error('Subscription error:', error);
-            toast({ title: 'Subscription Error', description: (error as Error).message || 'Could not initiate subscription.', variant: 'destructive' });
-        } finally {
-            setIsProcessingCheckout(false);
-        }
-    };
-
-    const handleAuthFlow = async (priceId: string) => {
-        if (isProcessingCheckout) return;
-
-        if (sessionUser && userProfile) {
-            const hasActiveSubscription = userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing';
-            if (hasActiveSubscription) {
-                await redirectToCustomerPortal();
-            } else {
-                await proceedToCheckout(priceId);
-            }
-        } else if (sessionUser && !userProfile) {
-            toast({
-                title: 'Please wait',
-                description: 'User details are still loading. Please try again shortly.',
-                variant: 'default',
-            });
-        } else {
-            // Preserve plan selection for unauthenticated users by redirecting with context.
-            const redirectPath = `${window.location.pathname}?priceId=${priceId}`;
-            router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
-        }
-    };
-
-    const redirectToCustomerPortal = async () => {
-        setIsProcessingCheckout(true);
-        if (!sessionUser || !sessionUser.id) {
-            toast({ title: 'Error', description: 'User not found. Please log in again.', variant: 'destructive' });
-            setIsProcessingCheckout(false);
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/stripe/customer-portal', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: sessionUser.id,
-                    return_url: `${window.location.origin}/preise`,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to create customer portal session.');
-            }
-
-            const { url } = await response.json();
-            if (url) {
-                window.location.href = url;
-            } else {
-                throw new Error('Customer portal URL not found in response.');
-            }
-        } catch (error) {
-            console.error('Error redirecting to customer portal:', error);
-            toast({ title: 'Error', description: (error as Error).message || 'Could not redirect to customer portal.', variant: 'destructive' });
-        } finally {
-            setIsProcessingCheckout(false);
-        }
-    };
-
-
+    }, [searchParams, sessionUser, userProfile, isProcessingCheckout, handleAuthFlow]);
 
     const handleSelectPlan = async (priceId: string) => {
-        if (sessionUser) {
-            await handleAuthFlow(priceId);
-        } else {
-            // Preserve plan selection for unauthenticated users by redirecting with context.
-            const redirectPath = `${window.location.pathname}?priceId=${priceId}`;
-            router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
-        }
+        await handleAuthFlow(
+            sessionUser,
+            userProfile,
+            priceId,
+            window.location.pathname,
+            `${window.location.origin}/preise`
+        );
     };
-
 
     return (
         <>
             <Suspense fallback={null}>
                 <EmailVerificationNotifier />
-            </Suspense>
-            <Suspense fallback={null}>
-                <ProfileErrorToastHandler />
-            </Suspense>
-            <Suspense fallback={null}>
-                <URLParamHandler />
             </Suspense>
             <div className="min-h-screen overflow-x-hidden pt-20">
                 <div id="pricing">
@@ -300,7 +63,6 @@ function PricingPageContent() {
                         isLoading={isProcessingCheckout}
                     />
                 </div>
-
             </div>
         </>
     );
