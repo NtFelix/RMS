@@ -57,7 +57,12 @@ export function useSubscriptionCheckout() {
                     const errorBody = await response.json();
                     errorMessage = errorBody.error || errorBody.message || JSON.stringify(errorBody);
                 } catch (e) {
-                    // ignore
+                    try {
+                        const textError = await response.text();
+                        errorMessage = textError.substring(0, 100);
+                    } catch (textE) {
+                        errorMessage = response.statusText || `HTTP error ${response.status}`;
+                    }
                 }
                 throw new Error(`Failed to create checkout session: ${errorMessage}`);
             }
