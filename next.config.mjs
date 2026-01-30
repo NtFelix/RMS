@@ -1,7 +1,13 @@
-import { withPostHogConfig } from "@posthog/nextjs-config";
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { version } = require('./package.json');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: version,
+  },
   reactStrictMode: true,
   // swcMinify is now enabled by default in Next.js 15
   productionBrowserSourceMaps: false,
@@ -42,27 +48,11 @@ const nextConfig = {
       '@radix-ui/react-dropdown-menu',
     ],
   },
-  webpack: (config, { webpack }) => {
-    // Stub and ignore 'ws' module in all builds
-    config.resolve = {
-      ...(config.resolve || {}),
-      alias: {
-        ...(config.resolve.alias || {}),
-        ws: false,
-      },
-      fallback: {
-        ...(config.resolve.fallback || {}),
-        ws: false,
-      },
-    };
-    config.plugins = config.plugins || [];
-    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
-    return config;
+  turbopack: {
+    resolveAlias: {
+      ws: './utils/empty-module.ts',
+    },
   },
 };
 
-export default withPostHogConfig(nextConfig, {
-  personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY,
-  envId: process.env.POSTHOG_ENV_ID,
-  host: process.env.POSTHOG_HOST,
-});
+export default nextConfig;
