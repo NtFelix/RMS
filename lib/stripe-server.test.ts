@@ -5,9 +5,15 @@
 // Mock Stripe before importing
 jest.mock('stripe');
 
+// Mock next/cache
+jest.mock('next/cache', () => ({
+  unstable_cache: jest.fn((cb) => cb),
+}));
+
 import { getPlanDetails, parseStorageString } from './stripe-server';
 import { STRIPE_API_VERSION } from './constants/stripe';
 import Stripe from 'stripe';
+import { unstable_cache } from 'next/cache';
 
 const mockStripe = Stripe as jest.MockedClass<typeof Stripe>;
 
