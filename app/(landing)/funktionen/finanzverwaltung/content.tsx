@@ -14,7 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
+import { useRouter } from 'next/navigation';
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, PieLabelRenderProps } from 'recharts';
 
 export default function FinanceManagementPage() {
   // Mock data for charts
@@ -48,7 +49,7 @@ export default function FinanceManagementPage() {
   const COLORS = ["#2c3e50", "#34495e", "#16a34a", "#ca8a04", "#dc2626", "#2563eb"];
 
   // Custom label renderer for pie charts - positions labels outside with percentage
-  const renderCustomLabel = (props: any) => {
+  const renderCustomLabel = (props: PieLabelRenderProps) => {
     const cx = props.cx || 0;
     const cy = props.cy || 0;
     const midAngle = props.midAngle || 0;
@@ -66,11 +67,11 @@ export default function FinanceManagementPage() {
     const segmentColor = COLORS[index % COLORS.length];
 
     return (
-      <text 
-        x={x} 
-        y={y} 
+      <text
+        x={x}
+        y={y}
         fill={segmentColor}
-        textAnchor={x > cx ? 'start' : 'end'} 
+        textAnchor={x > cx ? 'start' : 'end'}
         dominantBaseline="central"
         className="text-sm font-semibold"
         style={{ fontSize: '12px' }}
@@ -132,10 +133,12 @@ export default function FinanceManagementPage() {
     { id: 6, name: 'Instandhaltung Heizung', wohnung: 'Wohnung C', datum: '08.03.2025', betrag: -450, ist_einnahmen: false, notiz: 'Wartung und Reparatur' },
   ].sort((a, b) => new Date(b.datum.split('.').reverse().join('-')).getTime() - new Date(a.datum.split('.').reverse().join('-')).getTime());
 
-  
+
+
+  const router = useRouter();
 
   const handleGetStarted = () => {
-    window.location.href = '/?getStarted=true';
+    router.push('/?getStarted=true');
   };
 
   return (
@@ -253,9 +256,9 @@ export default function FinanceManagementPage() {
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip 
+                          <Tooltip
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                            contentStyle={{ 
+                            contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e2e8f0',
                               borderRadius: '0.5rem',
@@ -273,7 +276,7 @@ export default function FinanceManagementPage() {
                       </ResponsiveContainer>
                     </div>
                   </div>
-                  
+
                   {/* Fallback Content for Small Screens */}
                   <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -324,27 +327,27 @@ export default function FinanceManagementPage() {
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={monthlyIncomeData}>
                           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                          <XAxis 
-                            dataKey="month" 
+                          <XAxis
+                            dataKey="month"
                             tick={{ fontSize: 12 }}
                             stroke="hsl(var(--muted-foreground))"
                           />
-                          <YAxis 
+                          <YAxis
                             tick={{ fontSize: 12 }}
                             stroke="hsl(var(--muted-foreground))"
                           />
-                          <Tooltip 
+                          <Tooltip
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                            contentStyle={{ 
+                            contentStyle={{
                               backgroundColor: 'hsl(var(--card))',
                               border: '1px solid hsl(var(--border))',
                               borderRadius: '8px'
                             }}
                           />
-                          <Line 
-                            type="monotone" 
-                            dataKey="einnahmen" 
-                            stroke="#10b981" 
+                          <Line
+                            type="monotone"
+                            dataKey="einnahmen"
+                            stroke="#10b981"
                             strokeWidth={2}
                             dot={{ fill: '#10b981', r: 4 }}
                             activeDot={{ r: 6 }}
@@ -353,7 +356,7 @@ export default function FinanceManagementPage() {
                       </ResponsiveContainer>
                     </div>
                   </div>
-                  
+
                   {/* Fallback Content for Small Screens */}
                   <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -408,32 +411,32 @@ export default function FinanceManagementPage() {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={incomeExpenseData}>
                           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                          <XAxis 
-                            dataKey="name" 
+                          <XAxis
+                            dataKey="name"
                             tick={{ fontSize: 12 }}
                             stroke="hsl(var(--muted-foreground))"
                           />
-                          <YAxis 
+                          <YAxis
                             tick={{ fontSize: 12 }}
                             stroke="hsl(var(--muted-foreground))"
                           />
-                          <Tooltip 
+                          <Tooltip
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                            contentStyle={{ 
+                            contentStyle={{
                               backgroundColor: 'hsl(var(--card))',
                               border: '1px solid hsl(var(--border))',
                               borderRadius: '8px'
                             }}
                           />
-                          <Bar 
-                            dataKey="value" 
+                          <Bar
+                            dataKey="value"
                             radius={[8, 8, 0, 0]}
                           />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
-                  
+
                   {/* Fallback Content for Small Screens */}
                   <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -499,9 +502,9 @@ export default function FinanceManagementPage() {
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip 
+                          <Tooltip
                             formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
-                            contentStyle={{ 
+                            contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e2e8f0',
                               borderRadius: '0.5rem',
@@ -519,7 +522,7 @@ export default function FinanceManagementPage() {
                       </ResponsiveContainer>
                     </div>
                   </div>
-                  
+
                   {/* Fallback Content for Small Screens */}
                   <div className="lg:hidden space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -550,7 +553,7 @@ export default function FinanceManagementPage() {
       {/* Datenübersichten Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-7xl mx-auto">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -561,7 +564,7 @@ export default function FinanceManagementPage() {
           </motion.div>
 
           {/* Monatliche Übersicht Section - 2 Column Layout (Table Left, Text Right) */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -569,7 +572,7 @@ export default function FinanceManagementPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Table in Mac Window */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
@@ -596,7 +599,7 @@ export default function FinanceManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {mockFinanceData.map((finance) => (
-                        <TableRow 
+                        <TableRow
                           key={finance.id}
                           className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-gray-800/50"
                         >
@@ -630,7 +633,7 @@ export default function FinanceManagementPage() {
                   Sehen Sie alle Ihre Einnahmen und Ausgaben an einem Ort. Die chronologische Übersicht zeigt jede einzelne Transaktion mit Betrag, Datum und Typ - perfekt für die tägliche Finanzkontrolle und schnelle Entscheidungen.
                 </p>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
@@ -651,7 +654,7 @@ export default function FinanceManagementPage() {
           </motion.div>
 
           {/* Search & Filter Section - 2 Column Layout (Content Left, Card Right) */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
@@ -702,7 +705,7 @@ export default function FinanceManagementPage() {
             </motion.div>
 
             {/* Right Column - Mockup Window */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.8 }}
@@ -719,21 +722,21 @@ export default function FinanceManagementPage() {
                 <div className="flex-1 text-center text-sm font-medium">Finanzverwaltung</div>
                 <div className="w-16"></div>
               </div>
-              
+
               {/* Search & Filter Bar Mockup */}
               <div className="p-6 space-y-4">
                 <div className="text-sm font-medium text-muted-foreground mb-3">Transaktionen suchen</div>
-                
+
                 {/* Search Bar */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    type="search" 
-                    placeholder="Nebenkostenvorauszahlung..." 
-                    className="pl-10" 
+                  <Input
+                    type="search"
+                    placeholder="Nebenkostenvorauszahlung..."
+                    className="pl-10"
                   />
                 </div>
-                
+
                 {/* Results Table */}
                 <div className="mt-4">
                   <div className="text-xs font-medium text-muted-foreground mb-2">3 Treffer gefunden</div>
@@ -771,7 +774,7 @@ export default function FinanceManagementPage() {
           </motion.div>
 
           {/* Financial Summary Section - 2 Column Layout (Cards Left, Content Right) */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 1.0 }}
@@ -779,7 +782,7 @@ export default function FinanceManagementPage() {
             className="grid md:grid-cols-2 gap-12 items-start mb-24"
           >
             {/* Left Column - Summary Cards Mockup */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 1.2 }}
@@ -895,7 +898,7 @@ export default function FinanceManagementPage() {
           </motion.div>
 
           {/* Export Section - 2 Column Layout (Text Left, Export Options Right) */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.8 }}
@@ -919,7 +922,7 @@ export default function FinanceManagementPage() {
                   Exportieren Sie Ihre Finanzdaten als CSV für flexible Analysen, Berichte und externe Systeme. Behalten Sie die volle Kontrolle über Ihre Daten.
                 </p>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary mt-1 shrink-0" />
@@ -939,7 +942,7 @@ export default function FinanceManagementPage() {
             </motion.div>
 
             {/* Right Column - Export Options in Mac Window */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 1.0 }}
@@ -956,11 +959,11 @@ export default function FinanceManagementPage() {
                 <div className="flex-1 text-center text-sm font-medium">Datenexport</div>
                 <div className="w-16"></div>
               </div>
-              
+
               {/* Export Options */}
               <div className="p-6 space-y-4">
                 <div className="text-sm font-medium text-muted-foreground mb-3">CSV Datenexport</div>
-                
+
                 {/* CSV Export Option */}
                 <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer group">
                   <div className="flex items-center gap-3">
@@ -974,7 +977,7 @@ export default function FinanceManagementPage() {
                     <Download className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                 </div>
-                
+
                 {/* Date Range Selector */}
                 <div className="pt-4 border-t">
                   <div className="text-sm font-medium mb-3">Zeitraum auswählen</div>
@@ -992,7 +995,7 @@ export default function FinanceManagementPage() {
         </div>
       </div>
 
-      <BottomCTA 
+      <BottomCTA
         onGetStarted={handleGetStarted}
         theme="houses"
         title="Starten Sie noch heute mit der"

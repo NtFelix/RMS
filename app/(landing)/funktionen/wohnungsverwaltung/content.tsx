@@ -1,6 +1,7 @@
 "use client"
 
 import { Building2, Users, FileText, Calendar, MapPin, TrendingUp, CheckCircle2, ArrowLeft, Home, MoreHorizontal, ArrowRight, DollarSign } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import { CTAButton } from '@/components/ui/cta-button';
@@ -35,8 +36,10 @@ export default function ApartmentManagementPage() {
     { id: 3, name: 'Haus C', city: 'Hamburg', size: '8 Wohnungen', occupancy: '50%' },
   ];
 
+  const router = useRouter();
+
   const handleGetStarted = () => {
-    window.location.href = '/?getStarted=true';
+    router.push('/?getStarted=true');
   };
 
   return (

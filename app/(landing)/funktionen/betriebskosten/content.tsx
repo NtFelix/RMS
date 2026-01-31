@@ -1,6 +1,7 @@
 'use client';
 
 import { Calculator, Droplets, Zap, Flame, FileText, Users, CheckCircle2, ArrowRight, DollarSign, Search, Filter, PieChart, BarChart3, Receipt, Download, FileDown } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
@@ -38,8 +39,10 @@ export default function UtilityCostPage() {
     { id: 3, tenant: 'John Doe', unit: 'Wohnung C', period: '2024', result: 'Guthaben', amount: '85,30 €' },
   ];
 
+  const router = useRouter();
+
   const handleGetStarted = () => {
-    window.location.href = '/?getStarted=true';
+    router.push('/?getStarted=true');
   };
 
   return (
