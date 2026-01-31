@@ -423,87 +423,65 @@ export async function fetchMeterReadingsByHausAndDateRange(
   const supabase = createSupabaseServerClient();
 
   try {
-    // 1. Fetch Wohnungen for the specified house
-    const { data: wohnungenInHaus, error: wohnungenError } = await supabase
-      .from('Wohnungen')
-      .select('id')
-      .eq('haus_id', hausId);
+    // Optimized: Run queries in parallel using joins instead of waterfall
+    const [mieterResult, readingsResult] = await Promise.all([
+      // 1. Fetch Mieter for the house, filtered by date range
+      supabase
+        .from('Mieter')
+        .select('*, Wohnungen!inner(id)')
+        .eq('Wohnungen.haus_id', hausId)
+        .lte('einzug', enddatum)
+        .or(`auszug.gte.${startdatum},auszug.is.null`),
 
-    if (wohnungenError || !wohnungenInHaus) {
-      console.error(`Error fetching Wohnungen for Haus ID ${hausId}:`, wohnungenError);
-      return { mieterList: [], existingReadings: [] };
-    }
+      // 2. Fetch Readings for the house (via Zaehler), filtered by date range
+      // We join Zaehler to filter by house and get wohnung_id for mapping
+      supabase
+        .from('Zaehler_Ablesungen')
+        .select('*, zaehler_id, Zaehler!inner(id, wohnung_id, Wohnungen!inner(id))')
+        .eq('Zaehler.Wohnungen.haus_id', hausId)
+        .gte('ablese_datum', startdatum)
+        .lte('ablese_datum', enddatum)
+    ]);
 
-    if (wohnungenInHaus.length === 0) {
-      return { mieterList: [], existingReadings: [] };
-    }
-
-    const wohnungIds = wohnungenInHaus.map(w => w.id);
-
-    // 2. Fetch Mieter for these Wohnungen, filtered by date range
-    const { data: relevantMieter, error: mieterError } = await supabase
-      .from('Mieter')
-      .select('*')
-      .in('wohnung_id', wohnungIds)
-      .lte('einzug', enddatum)
-      .or(`auszug.gte.${startdatum},auszug.is.null`);
+    const { data: relevantMieter, error: mieterError } = mieterResult;
+    const { data: readingsWithRelations, error: readingsError } = readingsResult;
 
     if (mieterError) {
       console.error(`Error fetching Mieter for Wohnungen in Haus ID ${hausId}:`, mieterError);
+      // If fetching tenants fails, we can't do much, so return empty
       return { mieterList: [], existingReadings: [] };
     }
 
-    if (!relevantMieter) {
-      return { mieterList: [], existingReadings: [] };
+    if (readingsError) {
+      console.error('Error fetching Zaehler_Ablesungen for Haus %s in date range %s to %s:', hausId, startdatum, enddatum, readingsError);
+      // If fetching readings fails, we still want to return the tenant list
     }
 
-    // 3. Fetch water meter readings from new Zaehler + Zaehler_Ablesungen tables
+    const mieterList = (relevantMieter as Mieter[]) || [];
     let existingReadings: Wasserzaehler[] = [];
-    if (relevantMieter.length > 0) {
-      // Get water meters for these apartments
-      const { data: waterMeters, error: metersError } = await supabase
-        .from('Zaehler')
-        .select('id, wohnung_id')
-        .in('wohnung_id', wohnungIds);
 
-      if (metersError) {
-        console.error('Error fetching Zaehler for Haus %s:', hausId, metersError);
-      } else if (waterMeters && waterMeters.length > 0) {
-        const meterIds = waterMeters.map(m => m.id);
+    if (!readingsError && readingsWithRelations) {
+      // Transform new structure to legacy format for compatibility
+      existingReadings = readingsWithRelations.map((reading: any) => {
+        // reading.Zaehler is available due to the join
+        const meter = reading.Zaehler;
+        const mieter = mieterList.find(m => m.wohnung_id === meter?.wohnung_id);
 
-        // Get readings for these meters in the date range
-        const { data: readings, error: readingsError } = await supabase
-          .from('Zaehler_Ablesungen')
-          .select('*, zaehler_id')
-          .in('zaehler_id', meterIds)
-          .gte('ablese_datum', startdatum)
-          .lte('ablese_datum', enddatum);
-
-        if (readingsError) {
-          console.error('Error fetching Zaehler_Ablesungen for Haus %s in date range %s to %s:', hausId, startdatum, enddatum, readingsError);
-        } else if (readings) {
-          // Transform new structure to legacy format for compatibility
-          existingReadings = readings.map(reading => {
-            const meter = waterMeters.find(m => m.id === reading.zaehler_id);
-            const mieter = relevantMieter.find(m => m.wohnung_id === meter?.wohnung_id);
-
-            return {
-              id: reading.id,
-              nebenkosten_id: '', // Not applicable in new structure
-              mieter_id: mieter?.id || '',
-              ablese_datum: reading.ablese_datum,
-              zaehlerstand: reading.zaehlerstand || 0,
-              verbrauch: reading.verbrauch || 0,
-              user_id: reading.user_id,
-              zaehler_id: reading.zaehler_id
-            };
-          });
-        }
-      }
+        return {
+          id: reading.id,
+          nebenkosten_id: '', // Not applicable in new structure
+          mieter_id: mieter?.id || '',
+          ablese_datum: reading.ablese_datum,
+          zaehlerstand: reading.zaehlerstand || 0,
+          verbrauch: reading.verbrauch || 0,
+          user_id: reading.user_id,
+          zaehler_id: reading.zaehler_id
+        };
+      });
     }
 
     return {
-      mieterList: relevantMieter,
+      mieterList,
       existingReadings
     };
 
