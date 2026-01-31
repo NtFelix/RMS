@@ -9,7 +9,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff, ArrowRight, Loader2, Check, Sparkles } from "lucide-react"
+import { Eye, EyeOff, Loader2, Check, Sparkles } from "lucide-react"
 import { LOGO_URL, ROUTES, BASE_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
