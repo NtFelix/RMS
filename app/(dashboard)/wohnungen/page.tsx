@@ -72,8 +72,19 @@ export default async function WohnungenPage() {
   if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
 
   const today = new Date();
+
+  type Tenant = NonNullable<typeof tenants>[number];
+  const tenantMap = new Map<string, Tenant>();
+  if (tenants) {
+    for (const t of tenants) {
+      if (t.wohnung_id && !tenantMap.has(t.wohnung_id)) {
+        tenantMap.set(t.wohnung_id, t);
+      }
+    }
+  }
+
   const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt) => {
-    const tenant = tenants?.find((t: any) => t.wohnung_id === apt.id);
+    const tenant = tenantMap.get(apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
     if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
       status = 'vermietet';
