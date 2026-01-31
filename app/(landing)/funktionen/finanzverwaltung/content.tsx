@@ -81,47 +81,7 @@ export default function FinanceManagementPage() {
     );
   };
 
-  const features = [
-    {
-      icon: Receipt,
-      title: 'Einnahmen & Ausgaben',
-      description: 'Erfassen Sie alle Einnahmen und Ausgaben übersichtlich und kategorisiert.',
-    },
-    {
-      icon: PieChart,
-      title: 'Finanzübersicht',
-      description: 'Visualisieren Sie Ihre Finanzen mit interaktiven Diagrammen und Grafiken.',
-    },
-    {
-      icon: BarChart3,
-      title: 'Detaillierte Berichte',
-      description: 'Erstellen Sie umfassende Finanzberichte für Ihre Buchhaltung.',
-    },
-    {
-      icon: Calendar,
-      title: 'Zeitraumanalyse',
-      description: 'Analysieren Sie Ihre Finanzen nach Monaten, Quartalen oder Jahren.',
-    },
-    {
-      icon: TrendingUp,
-      title: 'Prognosen',
-      description: 'Erhalten Sie Prognosen basierend auf historischen Daten.',
-    },
-    {
-      icon: Download,
-      title: 'Export-Funktionen',
-      description: 'Exportieren Sie Ihre Daten als PDF oder CSV für Ihre Buchhaltung.',
-    },
-  ];
 
-  const benefits = [
-    'Automatische Berechnung von Mieteinnahmen',
-    'Kategorisierung von Einnahmen und Ausgaben',
-    'Echtzeit-Übersicht über Ihre finanzielle Situation',
-    'Steuerrelevante Auswertungen',
-    'Vergleich verschiedener Zeiträume',
-    'Integration mit Ihrer Buchhaltungssoftware',
-  ];
 
   // Mock data for Finance table - matching real finance table structure
   const mockFinanceData = [
