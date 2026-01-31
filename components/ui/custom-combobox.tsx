@@ -132,15 +132,14 @@ export function CustomCombobox({
       setIsKeyboardNavigation(false)
 
       // Focus the input when opening
-      if (inputRef.current) {
-        setTimeout(() => {
-          if (inputRef.current && open) {
-            inputRef.current.focus({ preventScroll: true })
-          }
-        }, 50)
-      }
+      // Use requestAnimationFrame to ensure the element is mounted and ready
+      requestAnimationFrame(() => {
+        if (inputRef.current) {
+          inputRef.current.focus({ preventScroll: true })
+        }
+      })
     }
-  }, [open])
+  }, [open, value, filteredOptions]) // Added missing dependencies
 
 
 
@@ -170,7 +169,7 @@ export function CustomCombobox({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           ref={buttonRef}
@@ -190,10 +189,12 @@ export function CustomCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className={cn("p-2 border border-border rounded-2xl shadow-2xl backdrop-blur-sm bg-popover", width)}
+        className={cn("p-2 border border-border rounded-2xl shadow-2xl backdrop-blur-sm bg-popover z-[100]", width)}
         align="start"
         sideOffset={8}
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        // Removed onOpenAutoFocus prevention to allow natural focus behavior
+        // Also added data attribute for dialog interaction handling
+        data-combobox-dropdown=""
       >
         <div className="flex flex-col gap-2">
           {/* Custom search input with aggressive focus management */}
