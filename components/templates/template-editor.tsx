@@ -59,11 +59,33 @@ export function TemplateEditor({
 
   // Error handling state
   const [suggestionError, setSuggestionError] = useState<Error | null>(null);
-  const [fallbackMode, setFallbackMode] = useState(false);
+  const [fallbackMode, setFallbackMode] = useState(mentionSuggestionErrorRecovery.isInFallbackMode());
   const fallback = useRef(createGracefulFallback()).current;
 
   // Resource cleanup tracker
   const cleanupTracker = useMemo(() => createResourceCleanupTracker(), []);
+
+  // Initialization check for suggestion system
+  const checkInitialization = useCallback(async () => {
+    const result = await safeExecute(
+      async () => {
+        if (!Array.isArray(MENTION_VARIABLES)) {
+          throw new Error('Mention variables system failed to load');
+        }
+        return true;
+      },
+      MentionSuggestionErrorType.INITIALIZATION_FAILED
+    );
+
+    if (!result.success) {
+      setSuggestionError(result.error?.originalError || new Error(result.error?.message));
+      if (mentionSuggestionErrorRecovery.recordError(result.error!)) {
+        setFallbackMode(true);
+      }
+    } else {
+      setSuggestionError(null);
+    }
+  }, []);
 
   // Debounced filtering function for better performance
   const debouncedFilter = useMemo(() => {
@@ -106,39 +128,38 @@ export function TemplateEditor({
           char: '@',
           allowSpaces: false,
           startOfLine: false,
-          items: ({ query }) => {
+          items: async ({ query }) => {
             // Use safe execution for filtering with error handling and performance monitoring
             const endTiming = suggestionPerformanceMonitor.startTiming('suggestion-items');
 
-            try {
-              // For empty queries, return immediate results
-              if (!query.trim()) {
-                endTiming();
-                return MENTION_VARIABLES.slice(0, 10);
-              }
+            const result = await safeExecute(
+              async () => {
+                // For empty queries, return immediate results
+                if (!query.trim()) {
+                  return MENTION_VARIABLES.slice(0, 10);
+                }
 
-              // Use synchronous filtering to avoid Promise handling issues
-              const filteredItems = filterMentionVariables(MENTION_VARIABLES, query, {
-                prioritizeExactMatches: true,
-              }).slice(0, 10);
+                return filterMentionVariables(MENTION_VARIABLES, query, {
+                  prioritizeExactMatches: true,
+                }).slice(0, 10);
+              },
+              MentionSuggestionErrorType.FILTER_ERROR,
+              { query }
+            );
 
-              endTiming();
-              return filteredItems;
-            } catch (error) {
-              endTiming();
+            endTiming();
+
+            if (result.success) {
+              setSuggestionError(null);
+              return result.result;
+            } else {
+              const error = result.error!;
               console.error('Error in suggestion items:', error);
 
-              // Record error for fallback mode tracking
-              const suggestionError = handleFilterError(
-                error instanceof Error ? error : new Error('Filter operation failed'),
-                query,
-                MENTION_VARIABLES.length
-              );
-
-              setSuggestionError(suggestionError.originalError || new Error(suggestionError.message));
+              setSuggestionError(error.originalError || new Error(error.message));
 
               // Check if we should enter fallback mode
-              if (mentionSuggestionErrorRecovery.recordError(suggestionError)) {
+              if (mentionSuggestionErrorRecovery.recordError(error)) {
                 setFallbackMode(true);
               }
 
@@ -297,6 +318,11 @@ export function TemplateEditor({
       cleanupTracker.cleanup();
     };
   }, [cleanupTracker]);
+
+  // Initialization check for suggestion system
+  useEffect(() => {
+    checkInitialization();
+  }, [checkInitialization]);
 
   const toggleBold = useCallback(() => {
     editor?.chain().focus().toggleBold().run();
@@ -499,7 +525,7 @@ export function TemplateEditor({
           )}
         </div>
 
-        {/* Error notification for suggestion failures */}
+        {/* Error notification for suggestion failures - Integrated with safeExecute */}
         {suggestionError && !fallbackMode && (
           <div className="border-t border-destructive/20 bg-destructive/5 p-2 text-xs text-destructive-foreground">
             <div className="flex items-center justify-between">
@@ -510,6 +536,7 @@ export function TemplateEditor({
                   setSuggestionError(null);
                   mentionSuggestionErrorRecovery.reset();
                   setFallbackMode(false);
+                  checkInitialization();
                 }}
                 className="text-xs underline hover:no-underline"
               >
@@ -519,6 +546,7 @@ export function TemplateEditor({
           </div>
         )}
 
+        {/* Fallback mode notification - allows switching back to full mode */}
         {fallbackMode && (
           <div className="border-t border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
             <div className="flex items-center justify-between">
@@ -529,6 +557,7 @@ export function TemplateEditor({
                   setFallbackMode(false);
                   setSuggestionError(null);
                   mentionSuggestionErrorRecovery.reset();
+                  checkInitialization();
                 }}
                 className="text-xs underline hover:no-underline"
               >
