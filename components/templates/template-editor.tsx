@@ -151,7 +151,7 @@ export function TemplateEditor({
 
             if (result.success) {
               setSuggestionError(null);
-              return result.result;
+              return result.result ?? [];
             } else {
               const error = result.error!;
               console.error('Error in suggestion items:', error);
