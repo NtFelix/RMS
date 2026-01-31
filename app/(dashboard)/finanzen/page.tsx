@@ -98,24 +98,35 @@ function determineInitialYear(
 export default async function FinanzenPage() {
   const supabase = await createClient();
 
-  // Wohnungen laden
-  const { data: wohnungenData } = await supabase.from('Wohnungen').select('id,name');
-  const wohnungen = wohnungenData ?? [];
-
-  // Initial Finanzen laden (nur die erste Seite für die Transaktionsliste)
-  const { data: finanzenData } = await supabase
-    .from('Finanzen')
-    .select('*, Wohnungen(name)')
-    .order('datum', { ascending: false })
-    .range(0, PAGINATION.DEFAULT_PAGE_SIZE - 1);
-  const finances = finanzenData ?? [];
-
-  // Available years laden (needed for fallback logic)
-  const availableYears = await getAvailableYears();
-
-  // Summary-Daten für das aktuelle Jahr laden
   const currentYear = new Date().getFullYear();
-  let summaryData = await getSummaryData(currentYear);
+
+  // Load all initial data in parallel
+  const [
+    { data: wohnungenData },
+    { data: finanzenData },
+    availableYears,
+    initialSummaryData
+  ] = await Promise.all([
+    // Wohnungen laden
+    supabase.from('Wohnungen').select('id,name'),
+
+    // Initial Finanzen laden (nur die erste Seite für die Transaktionsliste)
+    supabase
+      .from('Finanzen')
+      .select('*, Wohnungen(name)')
+      .order('datum', { ascending: false })
+      .range(0, PAGINATION.DEFAULT_PAGE_SIZE - 1),
+
+    // Available years laden (needed for fallback logic)
+    getAvailableYears(),
+
+    // Summary-Daten für das aktuelle Jahr laden
+    getSummaryData(currentYear)
+  ]);
+
+  const wohnungen = wohnungenData ?? [];
+  const finances = finanzenData ?? [];
+  let summaryData = initialSummaryData;
 
   // Determine the best year to display and potentially reload summary for that year
   const initialYear = determineInitialYear(currentYear, availableYears, summaryData);
