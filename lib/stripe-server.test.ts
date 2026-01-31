@@ -5,15 +5,9 @@
 // Mock Stripe before importing
 jest.mock('stripe');
 
-// Mock next/cache
-jest.mock('next/cache', () => ({
-  unstable_cache: jest.fn((cb) => cb),
-}));
-
 import { getPlanDetails, parseStorageString } from './stripe-server';
 import { STRIPE_API_VERSION } from './constants/stripe';
 import Stripe from 'stripe';
-import { unstable_cache } from 'next/cache';
 
 const mockStripe = Stripe as jest.MockedClass<typeof Stripe>;
 
@@ -41,16 +35,19 @@ describe('lib/stripe-server', () => {
 
   describe('getPlanDetails', () => {
     it('should throw error when STRIPE_SECRET_KEY is not set', async () => {
+      // Use a unique ID to avoid cache hit
+      const uniqueId = 'price_' + Math.random();
       process.env = { ...originalEnv, STRIPE_SECRET_KEY: undefined };
 
-      await expect(getPlanDetails('price_123')).rejects.toThrow('STRIPE_SECRET_KEY is not set');
+      await expect(getPlanDetails(uniqueId)).rejects.toThrow('STRIPE_SECRET_KEY is not set');
     });
 
     it('should retrieve plan details successfully', async () => {
       process.env = { ...originalEnv, STRIPE_SECRET_KEY: 'sk_test_123' };
+      const uniqueId = 'price_123_' + Math.random();
 
       const mockPrice = {
-        id: 'price_123',
+        id: uniqueId,
         nickname: 'Premium Plan',
         unit_amount: 2999,
         currency: 'eur',
@@ -74,17 +71,17 @@ describe('lib/stripe-server', () => {
 
       mockStripe.mockImplementation(() => mockStripeInstance as any);
 
-      const result = await getPlanDetails('price_123');
+      const result = await getPlanDetails(uniqueId);
 
       expect(mockStripe).toHaveBeenCalledWith('sk_test_123', {
         apiVersion: STRIPE_API_VERSION
       });
-      expect(mockStripeInstance.prices.retrieve).toHaveBeenCalledWith('price_123', {
+      expect(mockStripeInstance.prices.retrieve).toHaveBeenCalledWith(uniqueId, {
         expand: ['product']
       });
 
       expect(result).toEqual({
-        priceId: 'price_123',
+        priceId: uniqueId,
         name: 'Premium Plan',
         productName: 'Premium Plan',
         description: 'Premium subscription plan',
@@ -100,6 +97,7 @@ describe('lib/stripe-server', () => {
 
     it('should handle Stripe API errors', async () => {
       process.env = { ...originalEnv, STRIPE_SECRET_KEY: 'sk_test_123' };
+      const uniqueId = 'invalid_price_' + Math.random();
 
       const mockError = new Error('Price not found');
       const mockStripeInstance = {
@@ -110,14 +108,15 @@ describe('lib/stripe-server', () => {
 
       mockStripe.mockImplementation(() => mockStripeInstance as any);
 
-      await expect(getPlanDetails('invalid_price')).rejects.toThrow('Price not found');
+      await expect(getPlanDetails(uniqueId)).rejects.toThrow('Price not found');
     });
 
     it('should pass correct parameters to Stripe API', async () => {
       process.env = { ...originalEnv, STRIPE_SECRET_KEY: 'sk_test_123' };
+      const uniqueId = 'price_456_' + Math.random();
 
       const mockPrice = {
-        id: 'price_456',
+        id: uniqueId,
         nickname: 'Basic Plan',
         unit_amount: 1999,
         currency: 'eur',
@@ -137,14 +136,17 @@ describe('lib/stripe-server', () => {
 
       mockStripe.mockImplementation(() => mockStripeInstance as any);
 
-      await getPlanDetails('price_456');
+      await getPlanDetails(uniqueId);
 
-      expect(mockStripeInstance.prices.retrieve).toHaveBeenCalledWith('price_456', {
+      expect(mockStripeInstance.prices.retrieve).toHaveBeenCalledWith(uniqueId, {
         expand: ['product']
       });
     });
 
     it('should handle empty price ID', async () => {
+      // Empty string might be a valid cache key, but let's assume valid ID check comes first or handled by Stripe
+      // The original code passed it to Stripe, which would fail.
+      // We need to ensure we don't return cached empty result if Stripe throws.
       process.env = { ...originalEnv, STRIPE_SECRET_KEY: 'sk_test_123' };
 
       const mockStripeInstance = {
@@ -155,6 +157,8 @@ describe('lib/stripe-server', () => {
 
       mockStripe.mockImplementation(() => mockStripeInstance as any);
 
+      // Unique ID approach doesn't apply to empty string constant, but
+      // since the implementation throws, it won't cache the error result.
       await expect(getPlanDetails('')).rejects.toThrow('Invalid price ID');
     });
 

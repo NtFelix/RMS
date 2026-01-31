@@ -5,23 +5,7 @@
 // Mock Stripe before importing
 jest.mock('stripe');
 
-// Mock next/cache to simulate caching behavior
-jest.mock('next/cache', () => {
-  const cache = new Map();
-  return {
-    unstable_cache: jest.fn((fn, keyParts, options) => {
-      return async (...args: any[]) => {
-        const key = JSON.stringify(args); // Simple cache key based on arguments
-        if (cache.has(key)) {
-          return cache.get(key);
-        }
-        const result = await fn(...args);
-        cache.set(key, result);
-        return result;
-      };
-    }),
-  };
-});
+// NO mocking of next/cache needed anymore as we removed it
 
 import { getPlanDetails } from './stripe-server';
 import Stripe from 'stripe';
@@ -84,10 +68,18 @@ describe('lib/stripe-server benchmark', () => {
     const start = Date.now();
 
     // First call - should hit the "API"
-    await getPlanDetails('price_benchmark');
+    // Use a unique ID to avoid interference from other tests if any
+    const uniqueId = 'price_' + Date.now();
+
+    // Since we can't easily reset the global variable cache without exposing it,
+    // we just test the behavior that a second call with same ID hits cache.
+    // Ideally we would export a way to clear cache for testing, but for this benchmark
+    // using a unique ID is enough to simulate "fresh" state.
+
+    await getPlanDetails(uniqueId);
 
     // Second call - should be cached
-    await getPlanDetails('price_benchmark');
+    await getPlanDetails(uniqueId);
 
     const end = Date.now();
     const duration = end - start;
@@ -98,9 +90,6 @@ describe('lib/stripe-server benchmark', () => {
     expect(retrieveMock).toHaveBeenCalledTimes(1);
 
     // The duration should be close to delayMs (1 call), not 2 * delayMs
-    // We allow some overhead, but it should definitely be less than 2 calls
-    // E.g. delayMs * 1.5 is a safe upper bound if we account for test overhead
-    // But since we want to prove it's NOT 2 calls, expect < 1.8 * delayMs
     expect(duration).toBeLessThan(delayMs * 1.8);
   });
 });
