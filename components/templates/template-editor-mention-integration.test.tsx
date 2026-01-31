@@ -10,6 +10,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { TemplateEditor } from '@/components/templates/template-editor';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
+import { ARIA_LABELS } from '@/lib/accessibility-constants';
 
 // Mock TipTap dependencies
 const mockEditor = {
@@ -510,15 +511,14 @@ describe('TemplateEditor - Mention Integration Tests', () => {
       expect(editorContainer).toHaveAttribute('aria-describedby', 'editor-help');
     });
 
-    // TODO: Fix toolbar accessibility assertion - label may differ
-    it.skip('should have proper toolbar accessibility', () => {
+    it('should have proper toolbar accessibility', () => {
       render(<TemplateEditor onChange={mockOnChange} />);
 
       const toolbar = screen.getByRole('toolbar');
-      expect(toolbar).toHaveAttribute('aria-label', 'Editor-Symbolleiste');
+      expect(toolbar).toHaveAttribute('aria-label', ARIA_LABELS.editorToolbar);
 
       // Check button accessibility
-      const boldButton = screen.getByLabelText(/fett/i);
+      const boldButton = screen.getByLabelText(ARIA_LABELS.boldButton);
       expect(boldButton).toHaveAttribute('aria-pressed', 'false');
     });
 
