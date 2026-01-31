@@ -17,6 +17,8 @@ export const defaultMetadata: Metadata = {
         'Nebenkostenabrechnung Software',
         'Mietverwaltung',
         'Betriebskostenabrechnung',
+        'Betriebskostenabrechnung erstellen',
+        'Betriebskostenabrechnung Software',
         'Immobilienverwaltung',
         'Vermieter Software',
         'Hausverwaltung',
@@ -111,6 +113,7 @@ export const pageMetadata = {
         keywords: [
             'Hausverwaltungssoftware',
             'Nebenkostenabrechnung erstellen',
+            'Betriebskostenabrechnung erstellen',
             'Mietverwaltung Software',
             'Betriebskostenabrechnung Software',
             'Immobilienverwaltung',
