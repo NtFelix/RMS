@@ -118,20 +118,18 @@ export function CustomCombobox({
     }
   }, [filteredOptions, highlightedIndex, value, onChange, closeCombobox])
 
-  // Reset input and highlighted index when opening/closing
+  // Effect 1: Handle Open/Close state and input focus
   React.useEffect(() => {
     if (!open) {
       setInputValue("")
       setHighlightedIndex(-1)
       setIsKeyboardNavigation(false)
     } else {
-      // Set initial highlighted index to current selection or first option
-      const currentIndex = filteredOptions.findIndex(option => option.value === value)
-      setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
+      // When opening:
       // Start in mouse mode by default
       setIsKeyboardNavigation(false)
 
-      // Focus the input when opening
+      // Focus the input
       // Use requestAnimationFrame to ensure the element is mounted and ready
       requestAnimationFrame(() => {
         if (inputRef.current) {
@@ -139,7 +137,20 @@ export function CustomCombobox({
         }
       })
     }
-  }, [open, value, filteredOptions]) // Added missing dependencies
+  }, [open])
+
+  // Effect 2: Handle Highlighting synchronization
+  React.useEffect(() => {
+    if (open) {
+      // Only update highlight based on value if we are NOT actively searching (inputValue is empty)
+      // If the user is typing (inputValue !== ""), the onChange handler takes care of setting the index to 0 (top result)
+      // and we shouldn't override that with the currently selected value's index.
+      if (inputValue === "") {
+        const currentIndex = filteredOptions.findIndex(option => option.value === value)
+        setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
+      }
+    }
+  }, [open, value, filteredOptions, inputValue])
 
 
 
