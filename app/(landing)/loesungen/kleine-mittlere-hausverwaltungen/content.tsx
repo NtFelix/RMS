@@ -1,7 +1,7 @@
 'use client';
 
 
-import { Building2, Users, BarChart3, Zap, Shield, HeadphonesIcon, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Building2, Users, BarChart3, Zap, Shield, HeadphonesIcon, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useFeatureFlagRedirect } from '@/hooks/use-feature-flag-redirect';

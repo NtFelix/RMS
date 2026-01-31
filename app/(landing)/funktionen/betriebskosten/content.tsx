@@ -1,6 +1,6 @@
 'use client';
 
-import { Calculator, Droplets, Zap, Flame, FileText, Users, CheckCircle2, ArrowRight, DollarSign, Search, Filter, PieChart, BarChart3, Receipt, Download, FileDown } from 'lucide-react';
+import { Calculator, FileText, CheckCircle2, ArrowRight, DollarSign, Receipt, Download, FileDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { MacWindow } from '@/components/ui/mac-window';
@@ -10,7 +10,6 @@ import BottomCTA from '@/components/ui/bottom-cta';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { Input } from '@/components/ui/input';
 import { EXAMPLE_BILL_PDF_URL } from '@/lib/constants';
 
 export default function UtilityCostPage() {

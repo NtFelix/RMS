@@ -1,7 +1,7 @@
 'use client';
 
 
-import { Home, Users, TrendingUp, Clock, Shield, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Home, Users, TrendingUp, Clock, Shield, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useFeatureFlagRedirect } from '@/hooks/use-feature-flag-redirect';
