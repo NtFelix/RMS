@@ -164,8 +164,8 @@ export default function Hero({ onGetStarted }: HeroProps) {
         </motion.div>
 
         {/* Updated Main Title (Reverted Text) */}
-        <motion.div style={{ opacity, scale }} className="mb-14 max-w-5xl">
-          <h1 className="text-6xl sm:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-foreground mb-8">
+        <motion.div style={{ opacity, scale }} className="mb-14 max-w-5xl px-2">
+          <h1 className="text-5xl sm:text-7xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-foreground mb-8">
             Abrechnung. <br />
             <span className="relative inline-block z-10">
               <span className="absolute inset-x-0 bottom-2 sm:bottom-4 h-6 sm:h-10 bg-blue-500/20 -skew-x-6 -z-10 rounded-sm" />
@@ -232,7 +232,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
             </div>
 
             {/* --- WORKSPACE CONTENT --- */}
-            <div className="relative rounded-2xl overflow-hidden bg-background border border-border/50 aspect-[16/9] sm:aspect-[2/1] shadow-inner flex">
+            <div className="relative rounded-2xl overflow-hidden bg-background border border-border/50 w-full min-h-[600px] sm:min-h-0 aspect-[9/16] sm:aspect-[2/1] shadow-inner flex">
 
               {/* STAGE 1: INPUT COST (Belege) */}
               <AnimatePresence mode="wait">
@@ -241,7 +241,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                     key="input"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="w-full h-full flex flex-col p-8 relative"
+                    className="w-full h-full flex flex-col p-4 sm:p-8 relative"
                   >
                     <div className="flex justify-between items-end mb-8">
                       <div>
@@ -299,7 +299,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                     key="keys"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="w-full h-full flex flex-col p-8 relative"
+                    className="w-full h-full flex flex-col p-4 sm:p-8 relative"
                   >
                     <div className="flex justify-between items-end mb-8">
                       <div>
@@ -308,7 +308,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="col-span-1 p-5 rounded-2xl border border-primary bg-primary/5 relative overflow-hidden transition-all">
                         <div className="flex items-center gap-3 mb-4">
                           <Droplets className="text-primary" size={20} />
@@ -359,7 +359,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                     key="calc"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="w-full h-full flex flex-col p-8 items-center justify-center"
+                    className="w-full h-full flex flex-col p-4 sm:p-8 items-center justify-center"
                   >
                     <div className="w-full max-w-md space-y-4">
                       <div className="flex justify-between text-sm">
@@ -412,7 +412,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                     key="pdf"
                     initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.8 }}
-                    className="w-full h-full flex flex-col items-center justify-center relative p-8"
+                    className="w-full h-full flex flex-col items-center justify-center relative p-4 sm:p-8"
                   >
                     <motion.div
                       initial="rest"
