@@ -1,8 +1,10 @@
+
 // app/checkout/cancel/page.tsx
 "use client";
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button'; // Assuming Button component exists
+import { ROUTES } from '@/lib/constants';
 
 export default function CheckoutCancelPage() {
   return (
@@ -19,7 +21,7 @@ export default function CheckoutCancelPage() {
         <Link href="/preise">View Subscription Options</Link>
       </Button>
       <Button variant="link" asChild className="mt-4">
-        <Link href="/home">Back to Dashboard</Link>
+        <Link href={ROUTES.HOME}>Back to Dashboard</Link>
       </Button>
     </div>
   );

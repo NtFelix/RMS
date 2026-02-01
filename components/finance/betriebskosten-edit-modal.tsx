@@ -37,7 +37,9 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Mieter, Nebenkosten, RechnungSql } from "@/lib/data-fetching";
+import type { Mieter, Nebenkosten, RechnungSql } from "@/lib/types";
+import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types";
+import { convertZaehlerkostenToStrings } from "@/lib/zaehler-utils";
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 import { DEFAULT_COST_ITEMS } from "@/lib/constants/betriebskosten";
 import { generateId } from "@/lib/utils/generate-id";
@@ -78,7 +80,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
   const [startdatum, setStartdatum] = useState("");
   const [enddatum, setEnddatum] = useState("");
-  const [wasserkosten, setWasserkosten] = useState("");
+  const [zaehlerkosten, setZaehlerkosten] = useState<Record<string, string>>({});
   const [hausId, setHausId] = useState("");
   const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -489,9 +491,9 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
         // Process cost items and rechnungen
         await processCostItems();
 
-        // Set wasserkosten if available
-        if (latest.wasserkosten) {
-          setWasserkosten(latest.wasserkosten.toString());
+        // Set zaehlerkosten if available
+        if (latest.zaehlerkosten) {
+          setZaehlerkosten(convertZaehlerkostenToStrings(latest.zaehlerkosten));
         }
 
         // Set the date range if available
@@ -559,7 +561,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
         setStartdatum("");
         setEnddatum("");
       }
-      setWasserkosten("");
+      setZaehlerkosten({});
       const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
       setHausId(initialHausId);
 
@@ -608,7 +610,12 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               setStartdatum(fetchedData.startdatum ? isoToGermanDate(fetchedData.startdatum) : "");
               setEnddatum(fetchedData.enddatum ? isoToGermanDate(fetchedData.enddatum) : "");
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
-              setWasserkosten(fetchedData.wasserkosten?.toString() || "");
+              // Load zaehlerkosten
+              if (fetchedData.zaehlerkosten) {
+                setZaehlerkosten(convertZaehlerkostenToStrings(fetchedData.zaehlerkosten));
+              } else {
+                setZaehlerkosten({});
+              }
 
               const newCostItems: CostItem[] = (fetchedData.nebenkostenart || []).map((art, idx) => ({
                 id: generateId(),
@@ -738,12 +745,19 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       return;
     }
 
-    const parsedWasserkosten = wasserkosten ? parseFloat(wasserkosten) : null;
-    if (wasserkosten.trim() !== '' && isNaN(parsedWasserkosten as number)) {
-      toast({ title: "Ungültige Eingabe", description: "Wasserkosten müssen eine gültige Zahl sein.", variant: "destructive" });
+    // Parse and validate zaehlerkosten values
+    const nonEmptyEntries = Object.entries(zaehlerkosten).filter(([, value]) => value?.trim());
+    const hasInvalidZaehlerkosten = nonEmptyEntries.some(([, value]) => isNaN(parseFloat(value)));
+
+    if (hasInvalidZaehlerkosten) {
+      toast({ title: "Ungültige Eingabe", description: "Zählerkosten müssen gültige Zahlen sein.", variant: "destructive" });
       setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
     }
+
+    const parsedZaehlerkosten = Object.fromEntries(
+      nonEmptyEntries.map(([key, value]) => [key, parseFloat(value)])
+    );
 
     if (costItems.length === 0) {
       toast({ title: "Validierungsfehler", description: "Mindestens ein Kostenpunkt muss hinzugefügt werden.", variant: "destructive" });
@@ -808,7 +822,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       nebenkostenart: nebenkostenartArray,
       betrag: betragArray,
       berechnungsart: berechnungsartArray,
-      wasserkosten: parsedWasserkosten,
+      zaehlerkosten: Object.keys(parsedZaehlerkosten).length > 0 ? parsedZaehlerkosten : null,
       haeuser_id: hausId,
     };
 
@@ -915,8 +929,8 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     setBetriebskostenModalDirty(true);
   };
 
-  const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setWasserkosten(e.target.value);
+  const handleZaehlerkostenChange = (zaehlerTyp: string, value: string) => {
+    setZaehlerkosten(prev => ({ ...prev, [zaehlerTyp]: value }));
     setBetriebskostenModalDirty(true);
   };
 
@@ -1049,13 +1063,36 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                 )}
               </div>
 
-              {/* Water Costs */}
-              <div className="space-y-2">
-                <LabelWithTooltip htmlFor="formWasserkosten" infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Abrechnungszeitraum.">
-                  Wasserkosten (€)
+              {/* Meter Costs / Zählerkosten */}
+              <div className="space-y-3">
+                <LabelWithTooltip htmlFor="formZaehlerkosten" infoText="Die Kosten je Zählertyp für das ausgewählte Haus in diesem Abrechnungszeitraum.">
+                  Zählerkosten (€)
                 </LabelWithTooltip>
-                {isFormLoading ? <Skeleton className="h-10 w-full" /> : (
-                  <NumberInput id="formWasserkosten" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving || isFormLoading} />
+                {isFormLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {Array.from({ length: 4 }).map((_, idx) => (
+                      <Skeleton key={`skel-zaehler-${idx}`} className="h-10 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[]).map((typ) => (
+                      <div key={typ} className="flex items-center gap-2">
+                        <Label htmlFor={`zaehlerkosten-${typ}`} className="min-w-[120px] text-sm">
+                          {ZAEHLER_CONFIG[typ].label}
+                        </Label>
+                        <NumberInput
+                          id={`zaehlerkosten-${typ}`}
+                          value={zaehlerkosten[typ] || ''}
+                          onChange={(e) => handleZaehlerkostenChange(typ, e.target.value)}
+                          placeholder="0.00"
+                          step="0.01"
+                          disabled={isSaving || isFormLoading}
+                          className="flex-1"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

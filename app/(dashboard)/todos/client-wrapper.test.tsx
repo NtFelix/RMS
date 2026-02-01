@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import TodosClientWrapper from '../client-wrapper';
+import TodosClientWrapper from './client-wrapper';
 import { useModalStore } from '@/hooks/use-modal-store';
 import type { TaskBoardTask } from '@/types/Task';
 
@@ -27,25 +27,33 @@ describe('TodosClientWrapper - Layout Changes', () => {
   const mockTasks: TaskBoardTask[] = [
     {
       id: '1',
-      title: 'Fix leaky faucet',
+      name: 'Fix leaky faucet',
+      beschreibung: 'Repair the kitchen faucet',
+      ist_erledigt: false,
+      erstellungsdatum: '2023-01-01',
+      aenderungsdatum: '2023-01-01',
       description: 'Repair the kitchen faucet',
       status: 'todo',
-      priority: 'high',
-      dueDate: '2023-12-31',
-      assignee: 'John Doe',
-      category: 'maintenance',
+
+
+
+
       createdAt: '2023-01-01',
       updatedAt: '2023-01-01'
     },
     {
       id: '2',
-      title: 'Paint apartment',
+      name: 'Paint apartment',
+      beschreibung: 'Paint the living room walls',
+      ist_erledigt: false,
+      erstellungsdatum: '2023-01-02',
+      aenderungsdatum: '2023-01-02',
       description: 'Paint the living room walls',
       status: 'in_progress',
-      priority: 'medium',
-      dueDate: '2023-12-15',
-      assignee: 'Jane Smith',
-      category: 'renovation',
+
+
+
+
       createdAt: '2023-01-02',
       updatedAt: '2023-01-02'
     }
@@ -286,14 +294,17 @@ describe('TodosClientWrapper - Layout Changes', () => {
 
     it('handles task list with various statuses', () => {
       const mixedStatusTasks: TaskBoardTask[] = [
-        { ...mockTasks[0], status: 'todo' },
-        { ...mockTasks[1], status: 'in_progress' },
+        { ...mockTasks[0], ist_erledigt: false },
+        { ...mockTasks[1], ist_erledigt: false },
         { 
           id: '3', 
-          title: 'Completed task', 
+          name: 'Completed task', 
+          ist_erledigt: true,
+          erstellungsdatum: '2023-01-03',
+          aenderungsdatum: '2023-01-03',
           status: 'completed',
-          priority: 'low',
-          category: 'maintenance',
+
+
           createdAt: '2023-01-03',
           updatedAt: '2023-01-03'
         }

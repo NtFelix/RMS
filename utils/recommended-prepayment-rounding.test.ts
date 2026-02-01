@@ -24,10 +24,10 @@ describe('Recommended Prepayment Rounding', () => {
       costItems: [],
       totalCost: totalCosts
     },
-    waterCosts: {
-      totalBuildingWaterCost: 0,
+    meterCosts: {
+      totalBuildingMeterCost: 0,
       totalBuildingConsumption: 0,
-      pricePerCubicMeter: 0,
+      pricePerUnit: 0,
       tenantConsumption: 0,
       totalCost: 0
     },

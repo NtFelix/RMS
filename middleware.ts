@@ -1,22 +1,80 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
 import { createServerClient } from "@supabase/ssr"
+import { ROUTES } from "@/lib/constants"
 
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // Dynamic pages that require nonce-based CSP (authenticated dashboard routes)
+  // All other pages use 'unsafe-inline' since they are either static or don't handle user input
+  // This approach ensures high security for sensitive areas while maintaining compatibility for static pages
+  const dynamicPagePatterns = [
+    /^\/dashboard/,           // Dashboard pages
+    /^\/betriebskosten/,      // Operating costs
+    /^\/finanzen/,            // Finance
+    /^\/haeuser/,             // Houses
+    /^\/wohnungen/,           // Apartments
+    /^\/mieter/,              // Tenants
+    /^\/todos/,               // Tasks
+    /^\/mails/,               // Mails
+    /^\/dateien/,             // Files
+    /^\/checkout\/success/,   // Checkout success (needs Stripe verification)
+    /^\/hilfe\/dokumentation\/[^/]+$/, // Dynamic documentation article pages (single article)
+  ]
+
+  const isDynamicPage = dynamicPagePatterns.some(pattern => pattern.test(pathname))
+
+  // Create a nonce for CSP (only used for strict dynamic pages)
+  const nonce = crypto.randomUUID()
+
+  // Content Security Policy
+  // Note: We use 'unsafe-inline' without a nonce for scripts because Next.js 
+  // root-level hydration scripts don't support nonces in a static-root architecture.
+  // This is the standard way to support Next.js on Cloudflare Pages without breaking hydration.
+  const scriptSrc = `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+
+  const csp = [
+    "default-src 'self'",
+    scriptSrc,
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.posthog.com`,
+    "img-src 'self' data: https://*.supabase.co https://*.stripe.com https://*.posthog.com",
+    "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com",
+    "font-src 'self' https://fonts.gstatic.com https://r2cdn.perplexity.ai",
+    "frame-src 'self' https://*.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+  ].join('; ');
+
+  // Clone request headers and set nonce (only for dynamic pages) and CSP
+  const requestHeaders = new Headers(request.headers)
+  if (isDynamicPage) {
+    requestHeaders.set('x-nonce', nonce)
+  }
+  requestHeaders.set('Content-Security-Policy', csp)
+
   // Initialize response
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   })
+
+  // Add security headers
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  response.headers.set('Content-Security-Policy', csp);
 
   // Update the session and get the user
   const { response: updatedResponse, user: sessionUser } = await updateSession(request, response)
   response = updatedResponse // Use the response from updateSession
 
-  // Get the pathname from the URL
-  const pathname = request.nextUrl.pathname
 
   // Public routes that don't require authentication
   const publicRoutes = [
@@ -33,13 +91,15 @@ export async function middleware(request: NextRequest) {
     '/api/posthog-config', // Public API route for PostHog
     '/api/dokumentation(.*)?', // Documentation API routes
     '/api/ai-assistant', // AI assistant API route
+    '/api/auth/check-verification', // Email verification status check (for verify-email page)
     '/datenschutz', // Datenschutz page
     '/agb', // AGB page
     '/impressum', // Impressum page
     '/loesungen(/.*)?', // All routes under loesungen
     '/funktionen(/.*)?', // All routes under funktionen
     '/warteliste(/.*)?', // All routes under warteliste
-    '/preise' // Pricing page
+    '/preise', // Pricing page
+    '/oauth(.*)?' // OAuth consent and related routes
   ]
 
   // If we're already on the login page, don't redirect
@@ -58,9 +118,11 @@ export async function middleware(request: NextRequest) {
     } else {
       // For non-API routes, redirect to login
       const url = new URL('/auth/login', request.url);
-      // Only set redirect search param if it's not an auth route and not an _next route (already covered by non-API)
-      if (!pathname.startsWith('/_next/')) { // No need to check /api/ here
-        url.searchParams.set('redirect', pathname);
+      // Only set redirect search param if it's not an auth route and not an _next route
+      if (!pathname.startsWith('/_next/')) {
+        // PRESERVE the entire original path including query parameters (like client_id, state, etc.)
+        const fullPath = `${pathname}${request.nextUrl.search}`;
+        url.searchParams.set('redirect', fullPath);
       }
       return NextResponse.redirect(url);
     }
@@ -68,7 +130,7 @@ export async function middleware(request: NextRequest) {
 
   // If the user is authenticated and trying to access auth routes (except login), redirect to home
   if (sessionUser && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
-    return NextResponse.redirect(new URL('/home', request.url))
+    return NextResponse.redirect(new URL(ROUTES.HOME, request.url))
   }
 
   // Subscription check

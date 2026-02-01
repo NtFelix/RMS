@@ -349,7 +349,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
           </div>
         </div>
       )}
-      <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <div className="overflow-x-auto -mx-4 sm:mx-0 min-h-[600px]">
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
@@ -375,7 +375,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
             <TableBody>
               {sortedAndFilteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-[400px] text-center">
                     Keine Mieter gefunden.
                   </TableCell>
                 </TableRow>

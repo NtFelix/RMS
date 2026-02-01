@@ -81,8 +81,7 @@ describe('Template Mention Extension', () => {
       isEmpty: false,
     };
 
-    useEditor.mockImplementation((config) => {
-      // Capture mention configuration
+    useEditor.mockImplementation((config: any) => {
       const mentionExtension = config.extensions.find((ext: any) => ext.name === 'mention');
       if (mentionExtension) {
         mentionConfig = mentionExtension.config;
@@ -90,7 +89,7 @@ describe('Template Mention Extension', () => {
       return mockEditor;
     });
 
-    Mention.configure.mockImplementation((config) => ({
+    Mention.configure.mockImplementation((config: any) => ({
       name: 'mention',
       config,
     }));
@@ -264,7 +263,7 @@ describe('Template Mention Extension', () => {
   it('calls onChange with mention content', async () => {
     const mockOnChange = jest.fn();
     
-    useEditor.mockImplementation((config) => {
+    useEditor.mockImplementation((config: any) => {
       // Simulate editor update with mention content
       setTimeout(() => {
         config.onUpdate?.({ editor: mockEditor });

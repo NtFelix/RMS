@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { LabelWithTooltip } from '../label-with-tooltip';
+import { LabelWithTooltip } from './label-with-tooltip';
 
 describe('LabelWithTooltip', () => {
   it('renders label with correct text and htmlFor attribute', () => {

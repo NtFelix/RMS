@@ -70,7 +70,7 @@ interface NewMeterState {
 const INITIAL_NEW_METER_STATE: NewMeterState = {
     customId: "",
     eichungsdatum: undefined,
-    zaehlerTyp: "wasser",
+    zaehlerTyp: "kaltwasser",
 }
 
 export function ZaehlerModal() {
@@ -117,7 +117,7 @@ export function ZaehlerModal() {
                 const data: RawZaehlerFromApi[] = await response.json()
                 // Ensure each meter has zaehler_typ and einheit (for backward compatibility)
                 const normalizedData: Zaehler[] = data.map((z) => {
-                    const typ: ZaehlerTyp = z.zaehler_typ || 'wasser'
+                    const typ: ZaehlerTyp = z.zaehler_typ || 'kaltwasser'
                     return {
                         ...z,
                         zaehler_typ: typ,
@@ -279,7 +279,7 @@ export function ZaehlerModal() {
             id: zaehler.id,
             customId: zaehler.custom_id || "",
             eichungsdatum: zaehler.eichungsdatum ? new Date(zaehler.eichungsdatum) : undefined,
-            zaehlerTyp: zaehler.zaehler_typ || "wasser",
+            zaehlerTyp: zaehler.zaehler_typ || "kaltwasser",
         })
     }, [])
 
@@ -320,7 +320,7 @@ export function ZaehlerModal() {
         if (
             newMeter.customId.trim() ||
             newMeter.eichungsdatum ||
-            newMeter.zaehlerTyp !== "wasser"
+            newMeter.zaehlerTyp !== "kaltwasser"
         ) {
             return true
         }
@@ -331,7 +331,7 @@ export function ZaehlerModal() {
             if (originalZaehler) {
                 const customIdChanged = editingMeter.customId !== (originalZaehler.custom_id || "")
                 const dateChanged = (editingMeter.eichungsdatum ? format(editingMeter.eichungsdatum, 'yyyy-MM-dd') : null) !== originalZaehler.eichungsdatum
-                const typeChanged = editingMeter.zaehlerTyp !== (originalZaehler.zaehler_typ || "wasser")
+                const typeChanged = editingMeter.zaehlerTyp !== (originalZaehler.zaehler_typ || "kaltwasser")
                 return customIdChanged || dateChanged || typeChanged
             }
         }

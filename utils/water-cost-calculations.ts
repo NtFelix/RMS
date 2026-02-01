@@ -8,7 +8,7 @@
  * - Prorated water usage for partial periods
  */
 
-import { Mieter, WasserAblesung, WasserZaehler } from "@/lib/data-fetching";
+import type { Mieter, WasserAblesung, WasserZaehler } from "@/lib/types";
 import { calculateTenantOccupancy } from "./date-calculations";
 
 /**
@@ -22,13 +22,13 @@ export interface WaterReadingWithContext {
 }
 
 /**
- * Represents water consumption for a specific tenant during a period
+ * Represents meter consumption for a specific tenant during a period
  */
-export interface TenantWaterConsumption {
+export interface TenantMeterConsumption {
   tenantId: string;
   tenantName: string;
   apartmentId: string;
-  totalConsumption: number; // Total m³ consumed
+  totalConsumption: number; // Total units consumed (m³, kWh, etc.)
   consumptionDetails: Array<{
     meterId: string;
     meterCustomId: string | null;
@@ -40,15 +40,15 @@ export interface TenantWaterConsumption {
 }
 
 /**
- * Represents water cost allocation for a tenant
+ * Represents meter cost allocation for a tenant
  */
-export interface TenantWaterCost {
+export interface TenantMeterCost {
   tenantId: string;
   tenantName: string;
   apartmentId: string;
-  consumption: number; // m³
+  consumption: number; // units
   costShare: number; // EUR
-  pricePerCubicMeter: number; // EUR/m³
+  pricePerUnit: number; // EUR/unit
   isWGMember: boolean; // True if apartment has multiple tenants
   wgSplitDetails?: {
     totalApartmentConsumption: number;
@@ -117,24 +117,24 @@ function getApartmentTenantsInPeriod(
 }
 
 /**
- * Calculate water consumption for each tenant based on meter readings
+ * Calculate meter consumption for each tenant based on meter readings
  * Handles complex scenarios:
  * - Multiple meters per apartment
  * - Tenant move-ins/move-outs during billing period
  * - WG cost splitting based on occupancy
  */
-export function calculateTenantWaterConsumption(
+export function calculateTenantMeterConsumption(
   tenants: Mieter[],
-  waterMeters: WasserZaehler[],
-  waterReadings: WasserAblesung[],
+  meters: WasserZaehler[],
+  readings: WasserAblesung[],
   periodStart: string,
   periodEnd: string
-): TenantWaterConsumption[] {
-  const consumptionByTenant: Map<string, TenantWaterConsumption> = new Map();
+): TenantMeterConsumption[] {
+  const consumptionByTenant: Map<string, TenantMeterConsumption> = new Map();
 
   // Group meters by apartment
   const metersByApartment = new Map<string, WasserZaehler[]>();
-  waterMeters.forEach(meter => {
+  meters.forEach(meter => {
     if (!meter.wohnung_id) return;
 
     const meters = metersByApartment.get(meter.wohnung_id) || [];
@@ -160,22 +160,22 @@ export function calculateTenantWaterConsumption(
 
     meters.forEach(meter => {
       // Find readings for this meter within the period
-      const meterReadings = waterReadings.filter(reading =>
+      const meterReadings = readings.filter(reading =>
         reading.zaehler_id === meter.id &&
         reading.ablese_datum >= periodStart &&
         reading.ablese_datum <= periodEnd
       );
 
       // Debug logging for troubleshooting
-      if (process.env.NODE_ENV === 'development' && waterReadings.length > 0) {
-        console.log('[Water Calculation Debug]', {
+      if (process.env.NODE_ENV === 'development' && readings.length > 0) {
+        console.log('[Meter Calculation Debug]', {
           meterId: meter.id,
           meterCustomId: meter.custom_id,
-          totalReadings: waterReadings.length,
+          totalReadings: readings.length,
           matchingReadings: meterReadings.length,
           periodStart,
           periodEnd,
-          readingDates: waterReadings.map(r => r.ablese_datum)
+          readingDates: readings.map(r => r.ablese_datum)
         });
       }
 
@@ -239,33 +239,33 @@ export function calculateTenantWaterConsumption(
 }
 
 /**
- * Calculate water costs for each tenant
+ * Calculate meter costs for each tenant
  * Includes WG splitting logic and detailed cost breakdown
  */
-export function calculateTenantWaterCosts(
+export function calculateTenantMeterCosts(
   tenants: Mieter[],
-  waterMeters: WasserZaehler[],
-  waterReadings: WasserAblesung[],
-  totalBuildingWaterCost: number,
+  meters: WasserZaehler[],
+  readings: WasserAblesung[],
+  totalBuildingCost: number,
   totalBuildingConsumption: number,
   periodStart: string,
   periodEnd: string
-): TenantWaterCost[] {
+): TenantMeterCost[] {
   // First, calculate consumption for each tenant
-  const tenantConsumptions = calculateTenantWaterConsumption(
+  const tenantConsumptions = calculateTenantMeterConsumption(
     tenants,
-    waterMeters,
-    waterReadings,
+    meters,
+    readings,
     periodStart,
     periodEnd
   );
 
-  // Calculate price per cubic meter using the official building consumption from Nebenkosten
+  // Calculate price per unit using the official building consumption from Nebenkosten (or other source)
   // This ensures the price is based on the actual total, not the sum of individual readings
-  const pricePerCubicMeter = totalBuildingConsumption > 0 ? totalBuildingWaterCost / totalBuildingConsumption : 0;
+  const pricePerUnit = totalBuildingConsumption > 0 ? totalBuildingCost / totalBuildingConsumption : 0;
 
   // Group tenants by apartment to identify WGs
-  const tenantsByApartment = new Map<string, TenantWaterConsumption[]>();
+  const tenantsByApartment = new Map<string, TenantMeterConsumption[]>();
   tenantConsumptions.forEach(tc => {
     const apartmentTenants = tenantsByApartment.get(tc.apartmentId) || [];
     apartmentTenants.push(tc);
@@ -273,18 +273,18 @@ export function calculateTenantWaterCosts(
   });
 
   // Calculate costs for each tenant
-  const tenantCosts: TenantWaterCost[] = tenantConsumptions.map(tc => {
-    const costShare = tc.totalConsumption * pricePerCubicMeter;
+  const tenantCosts: TenantMeterCost[] = tenantConsumptions.map(tc => {
+    const costShare = tc.totalConsumption * pricePerUnit;
     const apartmentTenants = tenantsByApartment.get(tc.apartmentId) || [];
     const isWGMember = apartmentTenants.length > 1;
 
-    const cost: TenantWaterCost = {
+    const cost: TenantMeterCost = {
       tenantId: tc.tenantId,
       tenantName: tc.tenantName,
       apartmentId: tc.apartmentId,
       consumption: tc.totalConsumption,
       costShare: costShare,
-      pricePerCubicMeter: pricePerCubicMeter,
+      pricePerUnit: pricePerUnit,
       isWGMember: isWGMember
     };
 
@@ -317,24 +317,24 @@ export function calculateTenantWaterCosts(
 }
 
 /**
- * Get water consumption for a specific tenant
+ * Get meter consumption for a specific tenant
  * Helper function for modal display
  */
-export function getTenantWaterCost(
+export function getTenantMeterCost(
   tenantId: string,
   tenants: Mieter[],
-  waterMeters: WasserZaehler[],
-  waterReadings: WasserAblesung[],
-  totalBuildingWaterCost: number,
+  meters: WasserZaehler[],
+  readings: WasserAblesung[],
+  totalBuildingCost: number,
   totalBuildingConsumption: number,
   periodStart: string,
   periodEnd: string
-): TenantWaterCost | null {
-  const allCosts = calculateTenantWaterCosts(
+): TenantMeterCost | null {
+  const allCosts = calculateTenantMeterCosts(
     tenants,
-    waterMeters,
-    waterReadings,
-    totalBuildingWaterCost,
+    meters,
+    readings,
+    totalBuildingCost,
     totalBuildingConsumption,
     periodStart,
     periodEnd

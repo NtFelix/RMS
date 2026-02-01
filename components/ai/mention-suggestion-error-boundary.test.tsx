@@ -111,7 +111,7 @@ describe('MentionSuggestionErrorBoundary', () => {
 
   it('should show error details in development mode', () => {
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
 
     render(
       <MentionSuggestionErrorBoundary>
@@ -121,12 +121,12 @@ describe('MentionSuggestionErrorBoundary', () => {
 
     expect(screen.getByText('Error Details (Development)')).toBeInTheDocument();
 
-    process.env.NODE_ENV = originalEnv;
+    Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
   });
 
   it('should hide error details in production mode', () => {
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
 
     render(
       <MentionSuggestionErrorBoundary>
@@ -136,7 +136,7 @@ describe('MentionSuggestionErrorBoundary', () => {
 
     expect(screen.queryByText('Error Details (Development)')).not.toBeInTheDocument();
 
-    process.env.NODE_ENV = originalEnv;
+    Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
   });
 });
 

@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import React from 'react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TemplatesModal } from '@/components/templates/templates-modal';
 import { Template } from '@/types/template';
@@ -89,9 +90,9 @@ const createMockTemplate = (overrides: Partial<Template> = {}): Template => ({
 
 const mockTemplates: Template[] = [
   createMockTemplate({ id: '1', titel: 'Welcome Email', kategorie: 'Mail' }),
-  createMockTemplate({ id: '2', titel: 'Contract Template', kategorie: 'Vertrag' }),
-  createMockTemplate({ id: '3', titel: 'Invoice Template', kategorie: 'Rechnung' }),
-  createMockTemplate({ id: '4', titel: 'Reminder Letter', kategorie: 'Mahnung' }),
+  createMockTemplate({ id: '2', titel: 'Contract Template', kategorie: 'Dokumente' }),
+  createMockTemplate({ id: '3', titel: 'Invoice Template', kategorie: 'Dokumente' }),
+  createMockTemplate({ id: '4', titel: 'Reminder Letter', kategorie: 'Dokumente' }),
 ];
 
 describe('TemplatesModal - Comprehensive Tests', () => {

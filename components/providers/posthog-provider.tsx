@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, Suspense, useState } from 'react'
 
 // Initialize PostHog with configuration
-async function initializePostHog() {
+async function initializePostHog(nonce?: string) {
   if (typeof window === 'undefined' || posthog.__loaded) {
     return;
   }
@@ -36,6 +36,7 @@ async function initializePostHog() {
   }
 
   if (!config.key || config.key === 'phc_placeholder_key') {
+    // ... logic same as before ...
     console.warn('PostHog is not initialized. Environment check:', {
       hasWindow: typeof window !== 'undefined',
       posthogKey: config.key ? config.key.substring(0, 10) + '...' : 'undefined',
@@ -56,20 +57,21 @@ async function initializePostHog() {
     enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
     // GDPR: Always opt-out by default, require explicit consent
     opt_out_capturing_by_default: true,
+    nonce: nonce, // Add nonce for CSP
     // Enable early access features
     bootstrap: {
       distinctID: undefined, // Will be set when user is identified
     },
     // Ensure feature flags are loaded
-    loaded: function (posthog) {
+    loaded: function (posthog: any) {
       console.log('PostHog loaded successfully, reloading feature flags...');
       posthog.reloadFeatureFlags?.();
     }
-  });
+  } as any);
 
   // Apply stored consent on load - respects user choice on ALL pages
   const consent = localStorage.getItem('cookieConsent');
-
+  // ... rest of consent logic same ...
   if (consent === 'all' && posthog.has_opted_out_capturing?.()) {
     console.log('Applying stored consent: opting in to PostHog tracking');
     posthog.opt_in_capturing();
@@ -82,10 +84,7 @@ async function initializePostHog() {
   }
 }
 
-// Initialize PostHog when the module loads (client-side only)
-if (typeof window !== 'undefined') {
-  initializePostHog();
-}
+// Global initialization removed to support nonce passing from server
 
 function PostHogTracking({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -217,7 +216,7 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-export function PostHogProvider({ children }: { children: React.ReactNode }) {
+export function PostHogProvider({ children, nonce }: { children: React.ReactNode, nonce?: string }) {
   const [isPostHogReady, setIsPostHogReady] = useState(false);
 
   useEffect(() => {
@@ -228,8 +227,8 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Try to initialize if not already done
-      await initializePostHog();
+      // Try to initialize if not already done, passing nonce
+      await initializePostHog(nonce);
 
       // Check again after initialization attempt
       if (posthog.__loaded) {
@@ -245,7 +244,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     };
 
     checkPostHogReady();
-  }, []);
+  }, [nonce]); // Re-run if nonce changes (unlikely)
 
   return (
     <PHProvider client={posthog}>

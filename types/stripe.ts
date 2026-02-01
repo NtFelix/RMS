@@ -10,6 +10,7 @@ export interface StripePlan {
   interval_count: number | null;
   currency: string;
   limit_wohnungen: number | null;
+  storage_limit: number; // Storage limit in bytes, 0 means no storage access
   features: string[];
   mostPopular?: boolean;
   description: string;

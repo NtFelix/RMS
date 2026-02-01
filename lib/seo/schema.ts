@@ -223,7 +223,8 @@ export function getArticleSchema(
     description: string,
     url: string,
     datePublished: string,
-    dateModified?: string
+    dateModified?: string,
+    image?: string
 ) {
     return {
         '@context': 'https://schema.org',
@@ -231,6 +232,7 @@ export function getArticleSchema(
         headline: title,
         description,
         url,
+        image: image || OG_IMAGE_URL,
         datePublished,
         dateModified: dateModified || datePublished,
         author: {
@@ -261,13 +263,15 @@ export function getArticleSchema(
 export function getHowToSchema(
     name: string,
     description: string,
-    steps: Array<{ name: string; text: string }>
+    steps: Array<{ name: string; text: string }>,
+    image?: string
 ) {
     return {
         '@context': 'https://schema.org',
         '@type': 'HowTo',
         name,
         description,
+        image: image || OG_IMAGE_URL,
         step: steps.map((step, index) => ({
             '@type': 'HowToStep',
             position: index + 1,

@@ -1,4 +1,4 @@
-import { Mieter } from "@/lib/data-fetching";
+import type { Mieter } from "@/lib/types";
 
 // Get all occupants of an apartment by its ID
 export function getApartmentOccupants(tenants: Mieter[], apartmentId: string | null): Mieter[] {
@@ -34,7 +34,7 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
   // Handle both year-based (backward compatibility) and date-range based calls
   let startDate: Date;
   let endDate: Date;
-  
+
   if (typeof yearOrStartdatum === 'number') {
     // Year-based call (backward compatibility)
     const year = yearOrStartdatum;
@@ -68,12 +68,12 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
     for (let day = 0; day < totalDays; day++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + day);
-      
+
       const activeTenants = group.filter((t) => isTenantActiveOnDate(t, currentDate));
       const count = activeTenants.length;
-      
+
       if (count === 0) continue;
-      
+
       const shareEach = 1 / count;
       for (const t of activeTenants) {
         tenantShares[t.id] += shareEach;
@@ -92,6 +92,6 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
 function isTenantActiveOnDate(tenant: Mieter, date: Date): boolean {
   const einzugDate = tenant.einzug ? new Date(tenant.einzug) : new Date('1900-01-01');
   const auszugDate = tenant.auszug ? new Date(tenant.auszug) : new Date('9999-12-31'); // Far future date for active tenants
-  
+
   return date >= einzugDate && date <= auszugDate;
 }

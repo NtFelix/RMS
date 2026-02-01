@@ -17,7 +17,7 @@ export const PWA_IMAGES_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/
 export const LOGO_URL = `${PWA_IMAGES_URL}/mascot/normal.avif`;
 
 // SEO Image URLs - using Supabase storage for reliable crawlability
-export const FAVICON_URL = `${PWA_IMAGES_URL}/favicon.png`;
+export const FAVICON_URL = `${PWA_IMAGES_URL}/favicon/favicon.png`;
 export const OG_IMAGE_URL = `${PWA_IMAGES_URL}/cover.avif`;
 
 // Brand Name
@@ -54,8 +54,6 @@ export const POSTHOG_FEATURE_FLAGS = {
   // Landing page
   SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
   SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
-  GOOGLE_SOCIAL_LOGIN: 'google-social-login',
-  MICROSOFT_SOCIAL_LOGIN: 'microsoft-social-login',
 } as const;
 
 // Application routes - centralized to prevent hardcoded paths
@@ -65,8 +63,10 @@ export const ROUTES = {
   REGISTER: '/auth/register',
   RESET_PASSWORD: '/auth/reset-password',
   UPDATE_PASSWORD: '/auth/update-password',
+  // API - OAuth callbacks
+  API_OUTLOOK_CALLBACK: '/api/auth/outlook/callback',
   // Dashboard
-  HOME: '/home',
+  HOME: '/dashboard',
   PROPERTIES: '/objekte',
   TENANTS: '/mieter',
   FINANCES: '/finanzen',
@@ -84,6 +84,11 @@ export const ROUTES = {
   PRIVACY: '/datenschutz',
   TERMS: '/agb',
   IMPRESSUM: '/impressum',
+} as const;
+
+// Supabase API paths
+export const SUPABASE_API_PATHS = {
+  OAUTH_AUTHORIZE: '/auth/v1/oauth/authorize',
 } as const;
 
 // Video URLs

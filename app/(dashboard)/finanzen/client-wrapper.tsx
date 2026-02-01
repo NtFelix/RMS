@@ -3,9 +3,20 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 
+import dynamic from "next/dynamic";
 import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info } from "lucide-react";
-import { FinanceVisualization } from "@/components/finance/finance-visualization";
-import { FinanceTable } from "@/components/tables/finance-table";
+
+// Dynamically import heavy components
+const FinanceVisualization = dynamic(
+  () => import("@/components/finance/finance-visualization").then((mod) => mod.FinanceVisualization),
+  { ssr: false } // Charts are client-side only
+);
+
+const FinanceTable = dynamic(
+  () => import("@/components/tables/finance-table").then((mod) => mod.FinanceTable),
+  { ssr: true } // Table benefits from SSR for SEO/initial paint
+);
+
 import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
 import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
 import { SummaryCard } from "@/components/common/summary-card";
@@ -15,6 +26,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/common/stat-card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { CustomCombobox } from "@/components/ui/custom-combobox";
+import { TagInput, ALL_FINANCE_TAGS } from "@/components/ui/tag-input";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -29,6 +41,7 @@ interface Finanz {
   betrag: number;
   ist_einnahmen: boolean;
   notiz?: string;
+  tags?: string[] | null;
   Wohnungen?: { name: string };
 }
 
@@ -93,6 +106,7 @@ export default function FinanzenClientWrapper({
     selectedApartment: 'Alle Wohnungen',
     selectedYear: 'Alle Jahre',
     selectedType: 'Alle Transaktionen',
+    selectedTags: [] as string[],
     sortKey: 'datum',
     sortDirection: 'desc'
   });
@@ -134,6 +148,11 @@ export default function FinanzenClientWrapper({
         sortKey: filtersRef.current.sortKey,
         sortDirection: filtersRef.current.sortDirection
       });
+
+      // Add selected tags as a comma-separated list
+      if (filtersRef.current.selectedTags.length > 0) {
+        params.set('selectedTags', filtersRef.current.selectedTags.join(','));
+      }
 
       const response = await fetch(`/api/finanzen?${params.toString()}`);
       if (!response.ok) {
@@ -178,7 +197,8 @@ export default function FinanzenClientWrapper({
         search_query: debouncedSearchQueryRef.current,
         apartment_name: filtersRef.current.selectedApartment,
         target_year: filtersRef.current.selectedYear,
-        transaction_type: filtersRef.current.selectedType
+        transaction_type: filtersRef.current.selectedType,
+        filter_tags: filtersRef.current.selectedTags
       });
 
       if (error) {
@@ -471,7 +491,7 @@ export default function FinanzenClientWrapper({
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [filters.selectedApartment, filters.selectedYear, filters.selectedType, filters.sortKey, filters.sortDirection, debouncedSearchQuery]);
+  }, [filters.selectedApartment, filters.selectedYear, filters.selectedType, filters.selectedTags, filters.sortKey, filters.sortDirection, debouncedSearchQuery]);
 
 
   return (
@@ -626,7 +646,7 @@ export default function FinanzenClientWrapper({
           <div className="flex flex-col gap-4 mt-4 sm:mt-6">
             {/* Filter Controls */}
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full md:flex-1">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 w-full md:flex-1">
                 <CustomCombobox
                   options={apartmentOptions}
                   value={filters.selectedApartment}
@@ -658,6 +678,13 @@ export default function FinanzenClientWrapper({
                   emptyText="Kein Typ gefunden"
                   width="w-full"
                 />
+                <div className="col-span-1 sm:col-span-2 md:col-span-1">
+                  <TagInput
+                    value={filters.selectedTags}
+                    onChange={(tags) => setFilters({ ...filters, selectedTags: tags })}
+                    placeholder="Tags filtern..."
+                  />
+                </div>
                 <SearchInput
                   placeholder="Transaktion suchen..."
                   wrapperClassName="col-span-1 sm:col-span-2 md:col-span-1"
@@ -666,11 +693,7 @@ export default function FinanzenClientWrapper({
                   onClear={() => handleFilterChange('searchQuery', '')}
                 />
               </div>
-              <div className="flex items-center gap-2 md:flex-shrink-0">
-                <ResponsiveButtonWithTooltip variant="outline" onClick={handleExportCsv} icon={<Download className="h-4 w-4" />} shortText="Exportieren">
-                  Als CSV exportieren
-                </ResponsiveButtonWithTooltip>
-              </div>
+
             </div>
 
             <FinanceBulkActionBar

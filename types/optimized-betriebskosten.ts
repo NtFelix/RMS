@@ -12,7 +12,7 @@
  * @see .kiro/specs/betriebskosten-performance-optimization/design.md
  */
 
-import { Nebenkosten, Mieter, WasserZaehler, WasserAblesung, Rechnung } from "@/lib/data-fetching";
+import type { Nebenkosten, Mieter, WasserZaehler, WasserAblesung, Rechnung } from "@/lib/types";
 
 /**
  * OptimizedNebenkosten extends the existing Nebenkosten type with calculated fields
@@ -27,8 +27,8 @@ export type OptimizedNebenkosten = {
   nebenkostenart: string[] | null;
   betrag: number[] | null;
   berechnungsart: string[] | null;
-  wasserkosten: number | null;
-  wasserverbrauch: number | null;
+  zaehlerkosten: Record<string, number> | null; // JSONB: { [zaehlerTyp]: cost }
+  zaehlerverbrauch: Record<string, number> | null; // JSONB: { [zaehlerTyp]: usage }
   haeuser_id: string;
   user_id: string;
 
@@ -46,15 +46,18 @@ export type OptimizedNebenkosten = {
 };
 
 /**
- * WasserzaehlerModalData represents the structured data returned by the
- * get_wasserzaehler_modal_data database function for efficient modal loading.
+ * MeterModalData represents the structured data returned by the
+ * get_meter_modal_data database function for efficient modal loading.
  * This replaces multiple separate server action calls with a single database function call.
  */
-export type WasserzaehlerModalData = {
+export type MeterModalData = {
   mieter_id: string;
   mieter_name: string;
   wohnung_name: string;
   wohnung_groesse: number;
+  meter_id: string;
+  meter_type: string;
+  custom_id: string | null;
   current_reading: {
     ablese_datum: string | null;
     zaehlerstand: number | null;
@@ -76,8 +79,8 @@ export type AbrechnungModalData = {
   nebenkosten_data: Nebenkosten;  // From existing Nebenkosten table
   tenants: Mieter[];              // From existing Mieter table
   rechnungen: Rechnung[];         // From existing Rechnungen table
-  water_meters: WasserZaehler[];  // From Zaehler table
-  water_readings: WasserAblesung[]; // From Zaehler_Ablesungen table
+  meters: WasserZaehler[];        // From Zaehler table (generic)
+  readings: WasserAblesung[];     // From Zaehler_Ablesungen table (generic)
 };
 
 /**
@@ -97,11 +100,12 @@ export type GetNebenkostenWithMetricsParams = {
 };
 
 /**
- * Parameters for the get_wasserzaehler_modal_data database function
+ * Parameters for the get_meter_modal_data database function
  */
-export type GetWasserzaehlerModalDataParams = {
+export type GetMeterModalDataParams = {
   nebenkosten_id: string;
   user_id: string;
+  meter_types?: string[];
 };
 
 /**
@@ -164,9 +168,9 @@ export function isOptimizedNebenkosten(data: any): data is OptimizedNebenkosten 
 }
 
 /**
- * Type guard to check if data is WasserzaehlerModalData
+ * Type guard to check if data is MeterModalData
  */
-export function isWasserzaehlerModalData(data: any): data is WasserzaehlerModalData {
+export function isMeterModalData(data: any): data is MeterModalData {
   return (
     data !== null &&
     data !== undefined &&
@@ -174,7 +178,8 @@ export function isWasserzaehlerModalData(data: any): data is WasserzaehlerModalD
     typeof data.mieter_id === 'string' &&
     typeof data.mieter_name === 'string' &&
     typeof data.wohnung_name === 'string' &&
-    typeof data.wohnung_groesse === 'number'
+    typeof data.wohnung_groesse === 'number' &&
+    typeof data.meter_id === 'string'
   );
 }
 
@@ -191,7 +196,8 @@ export function isAbrechnungModalData(data: any): data is AbrechnungModalData {
     typeof data.nebenkosten_data === 'object' &&
     Array.isArray(data.tenants) &&
     Array.isArray(data.rechnungen) &&
-    Array.isArray(data.wasserzaehler_readings)
+    Array.isArray(data.meters) && // Updated check
+    Array.isArray(data.readings) // Updated check
   );
 }
 
@@ -215,12 +221,12 @@ export type OperatingCostBreakdown = {
 };
 
 /**
- * Water cost calculation details
+ * Meter cost calculation details
  */
-export type WaterCostBreakdown = {
-  totalBuildingWaterCost: number;
+export type MeterCostBreakdown = {
+  totalBuildingMeterCost: number;
   totalBuildingConsumption: number;
-  pricePerCubicMeter: number;
+  pricePerUnit: number;
   tenantConsumption: number;
   totalCost: number;
   meterReading?: {
@@ -269,7 +275,7 @@ export type TenantCalculationResult = {
   daysOccupied: number;
   daysInPeriod: number;
   operatingCosts: OperatingCostBreakdown;
-  waterCosts: WaterCostBreakdown;
+  meterCosts: MeterCostBreakdown;
   totalCosts: number;
   prepayments: PrepaymentBreakdown;
   finalSettlement: number;
@@ -282,7 +288,7 @@ export type TenantCalculationResult = {
 export type AbrechnungSummary = {
   totalTenants: number;
   totalOperatingCosts: number;
-  totalWaterCosts: number;
+  totalMeterCosts: number;
   totalPrepayments: number;
   totalSettlements: number;
   averageSettlement: number;
@@ -347,7 +353,7 @@ export function isTenantCalculationResult(data: any): data is TenantCalculationR
     typeof data.totalCosts === 'number' &&
     typeof data.finalSettlement === 'number' &&
     data.operatingCosts !== null &&
-    data.waterCosts !== null &&
+    data.meterCosts !== null &&
     data.prepayments !== null
   );
 }

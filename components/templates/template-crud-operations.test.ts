@@ -198,7 +198,7 @@ describe('TemplateService', () => {
       const templateData: TemplatePayload = {
         titel: 'Updated Template',
         inhalt: { type: 'doc', content: [] },
-        kategorie: 'Brief',
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -229,7 +229,7 @@ describe('TemplateService', () => {
       const templateData: TemplatePayload = {
         titel: 'Updated Template',
         inhalt: { type: 'doc', content: [] },
-        kategorie: 'Brief',
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -406,7 +406,7 @@ describe('OptimisticTemplateService', () => {
       const updateData: TemplatePayload = {
         titel: 'Updated',
         inhalt: { type: 'doc', content: [] },
-        kategorie: 'Brief',
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -445,7 +445,7 @@ describe('OptimisticTemplateService', () => {
       const updateData: TemplatePayload = {
         titel: 'Updated',
         inhalt: { type: 'doc', content: [] },
-        kategorie: 'Brief',
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 
@@ -468,7 +468,7 @@ describe('OptimisticTemplateService', () => {
       const updateData: TemplatePayload = {
         titel: 'Updated',
         inhalt: { type: 'doc', content: [] },
-        kategorie: 'Brief',
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
       };
 

@@ -2,12 +2,30 @@
  * TypeScript interfaces for the Dokumentation table and related types
  */
 
+export interface ArticleSEO {
+  title?: string;
+  description?: string;
+  keywords?: string[];
+  og?: {
+    title?: string;
+    description?: string;
+    image?: string;
+  };
+  structuredData?: {
+    type: 'Article' | 'HowTo' | 'FAQ';
+    steps?: Array<{ name: string; text: string }>;
+    faqs?: Array<{ question: string; answer: string }>;
+  };
+  noIndex?: boolean;
+}
+
 export interface DokumentationRecord {
   id: string;
   titel: string;
   kategorie: string | null;
   seiteninhalt: string | null;
   meta: Record<string, any> | null;
+  seo: ArticleSEO | null;
 }
 
 export interface Category {
@@ -21,6 +39,7 @@ export interface Article {
   kategorie: string | null;
   seiteninhalt: string | null;
   meta: Record<string, any> | null;
+  seo?: ArticleSEO | null;
 }
 
 export interface SearchResult extends Article {

@@ -207,7 +207,7 @@ describe('TemplateEditorModal - Comprehensive Tests', () => {
     it('populates form with existing template data', () => {
       const template = createMockTemplate({
         titel: 'Existing Template Title',
-        kategorie: 'Vertrag',
+        kategorie: 'Dokumente',
       });
       
       render(
@@ -710,7 +710,7 @@ describe('TemplateEditorModal - Comprehensive Tests', () => {
     it('handles template with all possible fields', () => {
       const complexTemplate = createMockTemplate({
         titel: 'Complex Template with Special Characters äöü',
-        kategorie: 'Kündigung',
+        kategorie: 'Dokumente',
         kontext_anforderungen: ['mieter', 'wohnung', 'haus'],
         inhalt: {
           type: 'doc',

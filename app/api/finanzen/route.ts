@@ -13,10 +13,10 @@ async function fetchPaginatedData(
 ) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
-  
+
   // Apply sorting
   const ascending = sortDirection === 'asc';
-  
+
   switch (sortKey) {
     case 'name':
       query = query.order('name', { ascending });
@@ -36,16 +36,16 @@ async function fetchPaginatedData(
       query = query.order('datum', { ascending });
       break;
   }
-  
+
   // Apply pagination
   query = query.range(from, to);
-  
+
   const { data, error, count } = await query;
-  
+
   if (error) {
     throw error;
   }
-  
+
   return { data, count: count || 0 };
 }
 
@@ -60,9 +60,9 @@ export async function GET(request: Request) {
     const selectedType = searchParams.get('selectedType') || '';
     const sortKey = searchParams.get('sortKey') || 'datum';
     const sortDirection = searchParams.get('sortDirection') as 'asc' | 'desc' || 'desc';
-    
+
     const supabase = await createClient();
-    
+
     // Base query with only the fields we need
     let query = supabase
       .from('Finanzen')
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
         .select('id')
         .eq('name', selectedApartment)
         .single();
-      
+
       if (apartmentData) {
         query = query.eq('wohnung_id', apartmentData.id);
       }
@@ -96,7 +96,17 @@ export async function GET(request: Request) {
       const isEinnahme = selectedType === 'Einnahme';
       query = query.eq('ist_einnahmen', isEinnahme);
     }
-    
+
+    // Filter by tags using array overlap
+    const selectedTags = searchParams.get('selectedTags');
+    if (selectedTags) {
+      const tagsArray = selectedTags.split(',').filter(t => t.trim());
+      if (tagsArray.length > 0) {
+        // Use overlaps to check if the tags array contains any of the selected tags
+        query = query.overlaps('tags', tagsArray);
+      }
+    }
+
     // Fetch paginated data
     const { data: transactions, count } = await fetchPaginatedData(
       query,
@@ -105,12 +115,12 @@ export async function GET(request: Request) {
       sortKey,
       sortDirection
     );
-    
+
     if (!transactions) {
       return NextResponse.json([], { status: 200 });
     }
-    
-    return NextResponse.json(transactions, { 
+
+    return NextResponse.json(transactions, {
       status: 200,
       headers: {
         'X-Total-Count': count?.toString() || '0', // Add total count to headers
@@ -126,22 +136,22 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient();
     const data = await request.json();
-    
+
     const { error, data: result } = await supabase
       .from('Finanzen')
       .insert(data)
       .select('*, Wohnungen(name)')
       .single();
-      
+
     if (error) {
       console.error('POST /api/finanzen error:', error);
       return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: 400 });
     }
-    
+
     if (!result) {
       return NextResponse.json({ error: 'Transaktion konnte nicht erstellt werden' }, { status: 500 });
     }
-    
+
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
     console.error('Server error POST /api/finanzen:', e);
@@ -155,22 +165,22 @@ export async function PUT(request: Request) {
     const id = url.searchParams.get('id');
     const supabase = await createClient();
     const data = await request.json();
-    
+
     const { error, data: result } = await supabase
       .from('Finanzen')
       .update(data)
       .match({ id })
       .select();
-      
+
     if (error) {
       console.error('PUT /api/finanzen error:', error);
       return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: 400 });
     }
-    
+
     if (!result || result.length === 0) {
       return NextResponse.json({ error: 'Transaktion nicht gefunden.' }, { status: 404 });
     }
-    
+
     return NextResponse.json(result[0], { status: 200 });
   } catch (e) {
     console.error('Server error PUT /api/finanzen:', e);
@@ -182,19 +192,19 @@ export async function DELETE(request: Request) {
   try {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
-    
+
     if (!id) {
       return NextResponse.json({ error: 'Transaktions-ID erforderlich.' }, { status: 400 });
     }
-    
+
     const supabase = await createClient();
     const { error } = await supabase.from('Finanzen').delete().match({ id });
-    
+
     if (error) {
       console.error('DELETE /api/finanzen error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    
+
     return NextResponse.json({ message: 'Transaktion gelöscht' }, { status: 200 });
   } catch (e) {
     console.error('Server error DELETE /api/finanzen:', e);

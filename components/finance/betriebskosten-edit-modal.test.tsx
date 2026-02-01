@@ -61,13 +61,13 @@ describe('BetriebskostenEditModal', () => {
     mockUseModalStore.mockReturnValue(defaultStoreState);
 
     // Mock toast
-    mockToast.mockReturnValue({ toast: mockToastFn });
+    mockToast.mockReturnValue({ toast: mockToastFn, dismiss: jest.fn(), toasts: [] });
 
     // Mock server actions with default successful responses
     mockCreateNebenkosten.mockResolvedValue({ success: true, data: { id: 'new-id' } });
-    mockUpdateNebenkosten.mockResolvedValue({ success: true });
+    mockUpdateNebenkosten.mockResolvedValue({ success: true, data: null });
     mockGetNebenkostenDetailsAction.mockResolvedValue({ success: true, data: null });
-    mockCreateRechnungenBatch.mockResolvedValue({ success: true });
+    mockCreateRechnungenBatch.mockResolvedValue({ success: true, data: [] });
     mockDeleteRechnungenByNebenkostenId.mockResolvedValue({ success: true });
     mockGetMieterByHausIdAction.mockResolvedValue({ success: true, data: [] });
   });
@@ -197,6 +197,8 @@ describe('BetriebskostenEditModal', () => {
         betrag: [100, 50],
         berechnungsart: ['pro Flaeche', 'pro Mieter'],
         wasserkosten: 20,
+        zaehlerkosten: {},
+        zaehlerverbrauch: {},
         Haeuser: { name: 'Haus A' },
         user_id: 'u1',
         Rechnungen: [],
@@ -508,6 +510,8 @@ describe('BetriebskostenEditModal', () => {
         betrag: [100],
         berechnungsart: ['pauschal'],
         wasserkosten: 20,
+        zaehlerkosten: {},
+        zaehlerverbrauch: {},
         Haeuser: { name: 'Haus A' },
         user_id: 'u1',
         Rechnungen: [],
@@ -550,6 +554,8 @@ describe('BetriebskostenEditModal', () => {
         berechnungsart: ['pauschal', 'pro Flaeche'],
         wasserkosten: 20,
         wasserverbrauch: 0,
+        zaehlerkosten: {},
+        zaehlerverbrauch: {},
         Haeuser: { name: 'Haus A' },
         user_id: 'u1',
         Rechnungen: [],
@@ -608,7 +614,8 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       mockCreateNebenkosten.mockResolvedValueOnce({
         success: false,
-        message: 'Database error'
+        message: 'Database error',
+        data: null
       });
 
       render(<BetriebskostenEditModal />);
@@ -642,7 +649,7 @@ describe('BetriebskostenEditModal', () => {
       const createPromise = new Promise(resolve => {
         resolveCreateNebenkosten = resolve;
       });
-      mockCreateNebenkosten.mockReturnValue(createPromise);
+      mockCreateNebenkosten.mockReturnValue(createPromise as any);
 
       render(<BetriebskostenEditModal />);
 
@@ -663,7 +670,7 @@ describe('BetriebskostenEditModal', () => {
       expect(screen.getByRole('button', { name: 'Speichern...' })).toBeDisabled();
       expect(startdatumInput).toBeDisabled();
 
-      resolveCreateNebenkosten!({ success: true });
+      resolveCreateNebenkosten!({ success: true, data: { id: 'new-id' } });
     });
   });
 

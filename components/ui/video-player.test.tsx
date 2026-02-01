@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { VideoPlayer } from '../video-player'
+import { VideoPlayer } from './video-player'
 
 // Mock navigator.userAgent for mobile detection
 Object.defineProperty(navigator, 'userAgent', {

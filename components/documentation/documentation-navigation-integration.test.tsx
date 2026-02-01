@@ -8,8 +8,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import DocumentationPage from '@/app/documentation/page';
-import ArticlePageClient from '@/app/documentation/[articleId]/article-page-client';
+import DocumentationPage from '@/app/(landing)/hilfe/dokumentation/page';
+import ArticleDetailPage from '@/app/(landing)/hilfe/dokumentation/[articleId]/page';
+import ArticlePageClient from '@/app/(landing)/hilfe/dokumentation/[articleId]/article-page-client';
 import { DocumentationBreadcrumb } from '@/components/documentation/documentation-breadcrumb';
 
 // Mock Next.js navigation
@@ -272,7 +273,8 @@ describe('Documentation Navigation Integration', () => {
 
   describe('Deep Linking', () => {
     test('supports direct links to articles', async () => {
-      render(<ArticlePageClient articleId="1" />);
+      const page = await ArticleDetailPage({ params: Promise.resolve({ articleId: '1' }) });
+      render(page);
 
       await waitFor(() => {
         expect(fetch).toHaveBeenCalledWith('/api/documentation/1');
@@ -322,7 +324,12 @@ describe('Documentation Navigation Integration', () => {
         return Promise.reject(new Error('Unknown URL'));
       });
 
-      render(<ArticlePageClient articleId="invalid" />);
+      try {
+        const page = await ArticleDetailPage({ params: Promise.resolve({ articleId: 'invalid' }) });
+        render(page);
+      } catch (e) {
+        // Ignore error if it throws, we check screen content
+      }
 
       await waitFor(() => {
         expect(screen.getByText(/Artikel nicht gefunden/)).toBeInTheDocument();

@@ -44,7 +44,7 @@ jest.mock('posthog-js/react', () => ({
 // Mock hooks
 jest.mock('@/hooks/use-active-state-manager', () => ({
   useSidebarActiveState: () => ({
-    isRouteActive: jest.fn((route: string) => route === '/home'),
+    isRouteActive: jest.fn((route: string) => route === '/dashboard'),
   }),
 }))
 
@@ -90,7 +90,7 @@ const simulateResize = (width: number, height: number = 800) => {
       configurable: true,
       value: height,
     })
-    
+
     // Trigger resize event
     const resizeEvent = new Event('resize')
     window.dispatchEvent(resizeEvent)
@@ -109,11 +109,11 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
   const mockPathname = usePathname as jest.Mock
 
   beforeEach(() => {
-    mockPathname.mockReturnValue('/home')
-    
+    mockPathname.mockReturnValue('/dashboard')
+
     // Reset window size to mobile by default
     mockMatchMedia(375)
-    
+
     // Mock navigator.vibrate for touch feedback tests
     Object.defineProperty(navigator, 'vibrate', {
       writable: true,
@@ -128,13 +128,13 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
   describe('Requirement 4.1: Navigation switching at 768px breakpoint', () => {
     it('should render mobile navigation below 768px', async () => {
       mockMatchMedia(767)
-      
+
       render(<MobileBottomNavigation />)
 
       await waitFor(() => {
         // Mobile navigation should be visible
         expect(screen.getByRole('navigation', { name: /main mobile navigation/i })).toBeInTheDocument()
-        
+
         // Should have all 5 primary navigation items
         expect(screen.getByLabelText(/navigate to home/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/navigate to mieter/i)).toBeInTheDocument()
@@ -146,7 +146,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
 
     it('should not render mobile navigation at 768px and above', async () => {
       mockMatchMedia(768)
-      
+
       render(<MobileBottomNavigation />)
 
       await waitFor(() => {
@@ -158,7 +158,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
     it('should handle breakpoint transition properly', async () => {
       // Start with mobile
       mockMatchMedia(767)
-      
+
       const { rerender } = render(<MobileBottomNavigation />)
 
       await waitFor(() => {
@@ -194,26 +194,26 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
     mobileScreenSizes.forEach(({ name, width, height }) => {
       it(`should render properly on ${name} (${width}x${height})`, async () => {
         mockMatchMedia(width)
-        
+
         render(<MobileBottomNavigation />)
 
         await waitFor(() => {
           const mobileNav = screen.getByRole('navigation', { name: /main mobile navigation/i })
           expect(mobileNav).toBeInTheDocument()
-          
+
           // Check that navigation is positioned correctly
           expect(mobileNav).toHaveClass('fixed', 'bottom-0', 'left-0', 'right-0')
-          
+
           // Verify all navigation items are present
           const navItems = screen.getAllByRole('link').concat(screen.getAllByRole('button'))
-          const navigationButtons = navItems.filter(item => 
+          const navigationButtons = navItems.filter(item =>
             item.getAttribute('aria-label')?.includes('Navigate to') ||
             item.getAttribute('aria-label')?.includes('menu') ||
             item.getAttribute('aria-label')?.includes('search')
           )
-          
+
           expect(navigationButtons.length).toBeGreaterThanOrEqual(5)
-          
+
           // Check that navigation has proper responsive classes
           expect(mobileNav).toHaveClass('mobile-nav-responsive')
           expect(mobileNav).toHaveClass('hydration-safe-mobile')
@@ -223,25 +223,25 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
 
     it('should maintain proper spacing on narrow screens (320px)', async () => {
       mockMatchMedia(320)
-      
+
       render(<MobileBottomNavigation />)
 
       await waitFor(() => {
         const mobileNav = screen.getByRole('navigation', { name: /main mobile navigation/i })
         expect(mobileNav).toBeInTheDocument()
-        
+
         // Check that navigation container has proper flex layout
         const navContainer = mobileNav.querySelector('.flex.items-center.justify-around')
         expect(navContainer).toBeInTheDocument()
-        
+
         // Verify navigation items don't overflow
         const navItems = screen.getAllByRole('link').concat(screen.getAllByRole('button'))
-        const navigationButtons = navItems.filter(item => 
+        const navigationButtons = navItems.filter(item =>
           item.getAttribute('aria-label')?.includes('Navigate to') ||
           item.getAttribute('aria-label')?.includes('menu') ||
           item.getAttribute('aria-label')?.includes('search')
         )
-        
+
         // Should have exactly 5 primary navigation items
         expect(navigationButtons).toHaveLength(5)
       })
@@ -261,7 +261,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
     tabletScreenSizes.forEach(({ name, width, height }) => {
       it(`should not render mobile navigation on ${name} (${width}x${height})`, async () => {
         mockMatchMedia(width)
-        
+
         render(<MobileBottomNavigation />)
 
         await waitFor(() => {
@@ -274,7 +274,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
     it('should handle tablet landscape orientations properly', async () => {
       // Tablet in landscape (width > height)
       mockMatchMedia(1024)
-      
+
       render(<MobileBottomNavigation />)
 
       await waitFor(() => {
@@ -288,7 +288,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
     it('should handle smooth transition from mobile to desktop', async () => {
       // Start with mobile
       mockMatchMedia(375)
-      
+
       const { rerender } = render(<MobileBottomNavigation />)
 
       await waitFor(() => {
@@ -310,7 +310,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
     it('should handle smooth transition from desktop to mobile', async () => {
       // Start with desktop
       mockMatchMedia(1024)
-      
+
       const { rerender } = render(<MobileBottomNavigation />)
 
       await waitFor(() => {
@@ -334,15 +334,15 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
 
       // Rapidly change screen sizes
       const sizes = [375, 768, 1024, 600, 320, 1200, 767, 769]
-      
+
       for (const size of sizes) {
         simulateResize(size)
         await act(async () => {
           await new Promise(resolve => setTimeout(resolve, 50))
         })
-        
+
         rerender(<MobileBottomNavigation />)
-        
+
         // Navigation should be appropriate for screen size
         if (size < 768) {
           await waitFor(() => {
@@ -359,7 +359,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
     it('should maintain dropdown state during screen transitions', async () => {
       // Start with mobile and open dropdown
       mockMatchMedia(375)
-      
+
       const { rerender } = render(<MobileBottomNavigation />)
 
       await waitFor(() => {
@@ -394,7 +394,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
       await waitFor(() => {
         // Mobile navigation should be back
         expect(screen.getByRole('navigation', { name: /main mobile navigation/i })).toBeInTheDocument()
-        
+
         // Dropdown should be closed (proper state reset)
         expect(screen.queryByRole('menu', { name: /more navigation options/i })).not.toBeInTheDocument()
       })
@@ -403,12 +403,12 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
     it('should prevent layout shift during hydration', async () => {
       // Test hydration safety by checking CSS classes
       mockMatchMedia(375)
-      
+
       render(<MobileBottomNavigation />)
 
       await waitFor(() => {
         const mobileNav = screen.getByRole('navigation', { name: /main mobile navigation/i })
-        
+
         // Should have hydration-safe classes
         expect(mobileNav).toHaveClass('hydration-safe-mobile')
         expect(mobileNav).toHaveClass('prevent-layout-shift')
@@ -418,7 +418,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
     it('should handle CSS-only fallbacks properly', async () => {
       // Test that CSS classes provide proper fallback behavior
       mockMatchMedia(375)
-      
+
       render(<MobileBottomNavigation />)
 
       await waitFor(() => {
@@ -434,7 +434,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
   describe('Edge Cases and Error Handling', () => {
     it('should handle window resize events with debouncing', async () => {
       mockMatchMedia(375)
-      
+
       const { rerender } = render(<MobileBottomNavigation />)
 
       // Simulate multiple rapid resize events
@@ -455,7 +455,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
 
     it('should handle safe area insets on mobile devices', async () => {
       mockMatchMedia(375)
-      
+
       render(<MobileBottomNavigation />)
 
       await waitFor(() => {
@@ -466,7 +466,7 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
 
     it('should handle dropdown functionality on mobile', async () => {
       mockMatchMedia(375)
-      
+
       render(<MobileBottomNavigation />)
 
       await waitFor(() => {
@@ -491,13 +491,13 @@ describe('Mobile Navigation Responsive Behavior - Simplified', () => {
 
     it('should handle active state highlighting correctly', async () => {
       mockMatchMedia(375)
-      
+
       render(<MobileBottomNavigation />)
 
       await waitFor(() => {
         const homeLink = screen.getByLabelText(/navigate to home/i)
         expect(homeLink).toHaveClass('bg-primary/10', 'text-primary')
-        
+
         const mieterLink = screen.getByLabelText(/navigate to mieter/i)
         expect(mieterLink).toHaveClass('text-muted-foreground')
       })

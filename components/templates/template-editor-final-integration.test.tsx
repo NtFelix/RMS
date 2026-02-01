@@ -10,11 +10,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 
 // Mock the template editor components to prevent complex dependencies
 jest.mock('@/components/templates/template-editor', () => ({
-  TemplateEditor: ({ onChange, onSave }: any) => (
+  TemplateEditor: ({ onChange }: any) => (
     <div data-testid="template-editor">
       <div>Template Editor</div>
       <button onClick={() => onChange?.('test content')}>Change Content</button>
-      <button onClick={() => onSave?.('test content')}>Save</button>
     </div>
   )
 }));
@@ -53,7 +52,6 @@ describe('Template Editor - Simplified Integration Tests', () => {
         <TemplateEditor
           content=""
           onChange={mockOnChange}
-          onSave={mockOnSave}
         />
       );
 
@@ -66,7 +64,6 @@ describe('Template Editor - Simplified Integration Tests', () => {
         <TemplateEditor
           content=""
           onChange={mockOnChange}
-          onSave={mockOnSave}
         />
       );
 
@@ -76,20 +73,7 @@ describe('Template Editor - Simplified Integration Tests', () => {
       expect(mockOnChange).toHaveBeenCalledWith('test content');
     });
 
-    it('should handle save action', () => {
-      render(
-        <TemplateEditor
-          content=""
-          onChange={mockOnChange}
-          onSave={mockOnSave}
-        />
-      );
 
-      const saveButton = screen.getByText('Save');
-      fireEvent.click(saveButton);
-
-      expect(mockOnSave).toHaveBeenCalledWith('test content');
-    });
   });
 
   describe('Template Editor Modal', () => {
@@ -98,6 +82,7 @@ describe('Template Editor - Simplified Integration Tests', () => {
         <TemplateEditorModal
           isOpen={true}
           onClose={jest.fn()}
+          onSave={jest.fn()}
         />
       );
 
@@ -110,6 +95,7 @@ describe('Template Editor - Simplified Integration Tests', () => {
         <TemplateEditorModal
           isOpen={false}
           onClose={jest.fn()}
+          onSave={jest.fn()}
         />
       );
 
@@ -123,6 +109,7 @@ describe('Template Editor - Simplified Integration Tests', () => {
         <TemplateEditorModal
           isOpen={true}
           onClose={mockOnClose}
+          onSave={jest.fn()}
         />
       );
 

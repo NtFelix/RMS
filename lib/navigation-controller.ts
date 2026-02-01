@@ -1,10 +1,12 @@
 /**
- * Navigation Controller - Centralized navigation state management
+ * Navigation Controller - Unified Version
+ * 
+ * Centralized navigation state management using the unified RPC approach.
  * 
  * This module provides a robust, reliable navigation system with:
+ * - Single RPC call for all navigation needs
  * - Request deduplication and cancellation
  * - Optimistic updates
- * - Request queuing and prioritization
  * - Automatic retry with exponential backoff
  * - Navigation state machine
  */
@@ -264,7 +266,7 @@ export const useNavigationController = create<NavigationControllerState>()(
     }))
 )
 
-// Process navigation request with retry logic
+// Process navigation request with retry logic - uses unified loader
 async function processNavigationRequest(
     request: NavigationRequest,
     timeout: number,
@@ -293,8 +295,8 @@ async function processNavigationRequest(
             })
         })
 
-        // Import and call the optimized file loader
-        const { loadFilesOptimized } = await import('@/lib/optimized-file-loader')
+        // Import and call the file loader
+        const { loadFiles } = await import('@/lib/file-loader')
 
         // Extract userId from path - handle both user_ID and user_ID/subpath formats
         const userIdMatch = request.path.match(/^user_([^/]+)/)
@@ -304,7 +306,7 @@ async function processNavigationRequest(
         const userId = userIdMatch[1]
 
         // Execute the request with timeout and abort handling
-        const dataPromise = loadFilesOptimized(userId, request.path, request.abortController.signal)
+        const dataPromise = loadFiles(userId, request.path, request.abortController.signal)
         const result = await Promise.race([dataPromise, timeoutPromise, abortPromise])
 
         const loadTime = performance.now() - startTime
@@ -370,13 +372,27 @@ async function processNavigationRequest(
             !errorMessage.includes('cancelled') &&
             !request.abortController.signal.aborted
         ) {
-            request.retryCount++
-            const retryDelay = get().retryDelay * Math.pow(2, request.retryCount - 1)
+            const newRetryCount = request.retryCount + 1
+            const retryDelay = get().retryDelay * Math.pow(2, newRetryCount - 1)
 
-            console.warn(`Navigation retry ${request.retryCount}/${request.maxRetries} for ${request.path} in ${retryDelay}ms`)
+            console.warn(`Navigation retry ${newRetryCount}/${request.maxRetries} for ${request.path} in ${retryDelay}ms`)
+
+            // Create a new request object with updated retryCount instead of mutating
+            const retryRequest: NavigationRequest = {
+                ...request,
+                retryCount: newRetryCount,
+            }
+
+            // Update the pending request in the store
+            set((draft) => {
+                draft.pendingRequests.set(request.path, retryRequest)
+                if (draft.activeRequest?.id === request.id) {
+                    draft.activeRequest = retryRequest
+                }
+            })
 
             await new Promise(resolve => setTimeout(resolve, retryDelay))
-            return processNavigationRequest(request, timeout, get, set)
+            return processNavigationRequest(retryRequest, timeout, get, set)
         }
 
         // Final failure

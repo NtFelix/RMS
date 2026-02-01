@@ -71,8 +71,20 @@ export function OnboardingTour() {
         setShowCloseConfirmRef.current = setShowCloseConfirm;
     }, [pathname, router, setShowCloseConfirm]);
 
+    // Helper to check if we're on a mobile device
+    const isMobileDevice = () => {
+        if (typeof window === 'undefined') return false;
+        return window.innerWidth < 768;
+    };
+
     useEffect(() => {
         const checkOnboardingStatus = async () => {
+            // Skip onboarding on mobile devices without marking as completed
+            // Users will see it when they return on desktop
+            if (isMobileDevice()) {
+                return;
+            }
+
             try {
                 // First check if setup wizard needs to be shown
                 const setupResponse = await fetch('/api/user/setup');
