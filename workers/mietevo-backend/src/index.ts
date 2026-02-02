@@ -498,9 +498,22 @@ async function handleAIRequest(request: Request, env: Env): Promise<Response> {
         });
 
     } catch (e: any) {
-        return new Response(JSON.stringify({ error: e.message }), {
-            status: 500,
-            headers: { 'Access-Control-Allow-Origin': '*' }
+        console.error("AI Request Error:", e);
+        const errorMessage = e.message || "An unexpected error occurred.";
+        const statusCode = e.status || 500;
+
+        return new Response(JSON.stringify({
+            error: {
+                message: errorMessage,
+                code: statusCode,
+                type: 'AI_PROCESSING_ERROR'
+            }
+        }), {
+            status: statusCode,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Content-Type': 'application/json'
+            }
         });
     }
 }
@@ -539,10 +552,16 @@ export default {
                 return new Response('Invalid JSON', { status: 400, headers: corsHeaders });
             }
 
-            // Route based on payload
-            if (body.message && (body.sessionId || !body.type)) {
-                // Assume AI request if 'message' is present
-                // Reconstruct request with body
+            // Route based on URL path first (more robust)
+            const url = new URL(request.url);
+
+            // Handle AI requests via path (preferred) or payload detection (fallback)
+            if (url.pathname === '/ai' || (body.message && (body.sessionId || !body.type))) {
+                // Reconstruct request with parsed body if needed, but here we just pass the original request
+                // effectively, assuming handleAIRequest will parse it from the clone or we just pass the body.
+                // However, our handleAIRequest expects a Request object and calls .json() on it.
+                // Since we already read the body as rawBody, we cannot read it again from the original request.
+                // We must create a new Request with the body.
                 const newRequest = new Request(request.url, {
                     method: request.method,
                     headers: request.headers,

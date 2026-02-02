@@ -128,7 +128,7 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
         traceId
       });
 
-      const response = await fetch('https://backend.mietevo.de', {
+      const response = await fetch(process.env.NEXT_PUBLIC_WORKER_URL!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
