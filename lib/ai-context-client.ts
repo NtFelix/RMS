@@ -165,7 +165,7 @@ export async function sendAIRequest(payload: AIRequestPayload): Promise<Response
     throw new Error(`Invalid request: ${errors.join(', ')}`);
   }
 
-  const response = await fetch('/api/ai-assistant', {
+  const response = await fetch('https://backend.mietevo.de', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -201,7 +201,7 @@ export async function processStreamingResponse(
   try {
     while (true) {
       const { done, value } = await reader.read();
-      
+
       if (done) break;
 
       const chunk = decoder.decode(value, { stream: true });
@@ -211,7 +211,7 @@ export async function processStreamingResponse(
         if (line.startsWith('data: ')) {
           try {
             const data = JSON.parse(line.slice(6));
-            
+
             if (data.type === 'chunk' && data.content) {
               fullResponse += data.content;
               onChunk(data.content);

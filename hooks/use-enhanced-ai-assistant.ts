@@ -74,10 +74,10 @@ export function useEnhancedAIAssistant(
   const { retry, state: retryState, reset: resetRetry } = useRetry();
   const { cacheResponse, getCachedResponse, hasCachedResponse, stats: cacheStats } = useAICacheClient();
   const { preloadFrequentQueries } = useAICacheWarming();
-  
+
   // Performance monitoring
   const performanceMonitor = useRef(createAIPerformanceMonitor(posthog));
-  
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastUserMessageRef = useRef<string>('');
   const contextHashRef = useRef<string>('');
@@ -97,7 +97,7 @@ export function useEnhancedAIAssistant(
   useEffect(() => {
     if (documentationContext.length > 0 && networkStatus.isOnline) {
       const contextHash = generateContextHash(documentationContext);
-      
+
       // Preload common queries in the background
       preloadFrequentQueries(contextHash, async (query: string) => {
         try {
@@ -110,7 +110,7 @@ export function useEnhancedAIAssistant(
               sessionId: state.sessionId || generateSessionId()
             })
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             return data.response || '';
@@ -162,7 +162,7 @@ export function useEnhancedAIAssistant(
   // Update input value with validation
   const setInputValue = useCallback((value: string) => {
     setState(prev => ({ ...prev, inputValue: value }));
-    
+
     // Validate input in real-time for better UX
     if (value.trim().length > 0) {
       validateInput(value);
@@ -218,10 +218,10 @@ export function useEnhancedAIAssistant(
     const cachedResponse = getCachedResponse(sanitizedMessage, contextHash);
     if (cachedResponse) {
       console.log('Using cached AI response');
-      
+
       // Update performance tracking for cache hit
       performanceMonitor.current.completeRequest(sessionId, true);
-      
+
       // Track cache hit
       if (posthog && posthog.has_opted_in_capturing?.()) {
         posthog.capture('ai_response_cache_hit', {
@@ -331,7 +331,7 @@ export function useEnhancedAIAssistant(
           throw new Error('Network connectivity check failed');
         }
 
-        const response = await fetch('/api/ai-assistant', {
+        const response = await fetch('https://backend.mietevo.de', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -360,10 +360,10 @@ export function useEnhancedAIAssistant(
           // Fallback to regular JSON response
           const data = await response.json();
           updateAssistantMessage(assistantMessageId, data.response || 'Entschuldigung, ich konnte keine Antwort generieren.');
-          
+
           // Complete performance tracking
           performanceMonitor.current.completeRequest(sessionId, true);
-          
+
           // Track successful response
           if (posthog && posthog.has_opted_in_capturing?.()) {
             const responseTime = Date.now() - requestStartTime;
@@ -388,20 +388,20 @@ export function useEnhancedAIAssistant(
 
     } catch (error) {
       console.error('AI Assistant Error:', error);
-      
+
       // Categorize error for proper handling
       const errorDetails = categorizeAIError(error instanceof Error ? error : String(error), {
         sessionId: sessionId,
         failureStage: 'client_request'
       });
-      
+
       // Track error in performance monitor
       performanceMonitor.current.trackError(sessionId, {
         type: errorDetails.errorType,
         message: errorDetails.errorMessage,
         retryable: errorDetails.retryable
       });
-      
+
       // Complete performance tracking with error
       performanceMonitor.current.completeRequest(sessionId, false);
 
@@ -410,10 +410,10 @@ export function useEnhancedAIAssistant(
       let shouldFallback = false;
 
       // Determine if we should suggest fallback to documentation search
-      if (errorDetails.errorType === 'network_error' || 
-          errorDetails.errorType === 'timeout_error' ||
-          errorDetails.errorType === 'server_error' ||
-          errorDetails.errorType === 'model_overloaded') {
+      if (errorDetails.errorType === 'network_error' ||
+        errorDetails.errorType === 'timeout_error' ||
+        errorDetails.errorType === 'server_error' ||
+        errorDetails.errorType === 'model_overloaded') {
         shouldFallback = true;
         errorMessage += ' Sie können stattdessen die normale Dokumentationssuche verwenden.';
       }
@@ -421,7 +421,7 @@ export function useEnhancedAIAssistant(
       // Track failed response
       if (posthog && posthog.has_opted_in_capturing?.()) {
         const responseTime = Date.now() - requestStartTime;
-        
+
         trackAIRequestFailure(posthog, errorDetails, {
           sessionId: sessionId,
           responseTimeMs: responseTime,
@@ -431,7 +431,7 @@ export function useEnhancedAIAssistant(
           messageCount: state.messages.length + 1
         });
       }
-      
+
       // Remove the placeholder assistant message and show error
       setState(prev => ({
         ...prev,
@@ -439,7 +439,7 @@ export function useEnhancedAIAssistant(
         error: errorMessage,
         fallbackToSearch: shouldFallback
       }));
-      
+
     } finally {
       setState(prev => ({
         ...prev,
@@ -449,14 +449,14 @@ export function useEnhancedAIAssistant(
       resetRetry();
     }
   }, [
-    validateInput, 
-    networkStatus, 
-    state.sessionId, 
-    state.messages.length, 
+    validateInput,
+    networkStatus,
+    state.sessionId,
+    state.messages.length,
     state.validationWarning,
-    documentationContext, 
-    posthog, 
-    retry, 
+    documentationContext,
+    posthog,
+    retry,
     resetRetry
   ]);
 
@@ -499,8 +499,8 @@ export function useEnhancedAIAssistant(
   const updateAssistantMessage = useCallback((messageId: string, content: string) => {
     setState(prev => ({
       ...prev,
-      messages: prev.messages.map(msg => 
-        msg.id === messageId 
+      messages: prev.messages.map(msg =>
+        msg.id === messageId
           ? { ...msg, content }
           : msg
       )
@@ -511,8 +511,8 @@ export function useEnhancedAIAssistant(
   const appendToAssistantMessage = useCallback((messageId: string, chunk: string) => {
     setState(prev => ({
       ...prev,
-      messages: prev.messages.map(msg => 
-        msg.id === messageId 
+      messages: prev.messages.map(msg =>
+        msg.id === messageId
           ? { ...msg, content: msg.content + chunk }
           : msg
       )
@@ -521,9 +521,9 @@ export function useEnhancedAIAssistant(
 
   // Handle streaming response
   const handleStreamingResponse = useCallback(async (
-    response: Response, 
-    messageId: string, 
-    sessionId: string, 
+    response: Response,
+    messageId: string,
+    sessionId: string,
     requestStartTime: number,
     sanitizedMessage: string
   ) => {
@@ -540,7 +540,7 @@ export function useEnhancedAIAssistant(
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           if (!hasReceivedContent) {
             updateAssistantMessage(messageId, 'Entschuldigung, ich konnte keine Antwort generieren.');
@@ -552,20 +552,20 @@ export function useEnhancedAIAssistant(
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
-        
+
         for (const line of lines) {
           const trimmedLine = line.trim();
-          
+
           if (!trimmedLine || trimmedLine.startsWith(':')) {
             continue;
           }
-          
+
           if (trimmedLine.startsWith('data: ')) {
             const dataStr = trimmedLine.slice(6);
-            
+
             try {
               const data = JSON.parse(dataStr);
-              
+
               if (data.type === 'chunk' && data.content) {
                 if (!hasReceivedContent) {
                   performanceMonitor.current.trackFirstChunk(sessionId);
@@ -578,7 +578,7 @@ export function useEnhancedAIAssistant(
                   updateAssistantMessage(messageId, data.content);
                   hasReceivedContent = true;
                 }
-                
+
                 // Cache the response
                 if (data.content) {
                   cacheResponse(sanitizedMessage, data.content, contextHashRef.current);

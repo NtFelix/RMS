@@ -8,3 +8,6 @@ custom_domain = true
 
 [vars]
 # API_KEY = "your-secret-key"
+# GEMINI_API_KEY = "your-gemini-api-key"
+# SUPABASE_URL = "your-supabase-url"
+# SUPABASE_KEY = "your-supabase-key"

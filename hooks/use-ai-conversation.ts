@@ -128,7 +128,7 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
         traceId
       });
 
-      const response = await fetch('/api/ai-assistant', {
+      const response = await fetch('https://backend.mietevo.de', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
