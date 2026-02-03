@@ -62,6 +62,9 @@ export class WorkerLogger {
     constructor(env: Env, ctx: ExecutionContext) {
         this.env = env;
         this.ctx = ctx;
+        if (!this.env.POSTHOG_API_KEY) {
+            console.warn('[WorkerLogger] POSTHOG_API_KEY not set. Logs will not be sent to PostHog.');
+        }
     }
 
     private buildResourceAttributes() {
@@ -73,6 +76,9 @@ export class WorkerLogger {
     }
 
     log(severity: 'debug' | 'info' | 'warn' | 'error', message: string, attributes: LogAttributes = {}) {
+        // Console log for local debugging / real-time logs in dashboard
+        console.log(`[${severity.toUpperCase()}] ${message}`, JSON.stringify(attributes));
+
         const apiKey = this.env.POSTHOG_API_KEY;
         if (!apiKey) return;
 
@@ -84,9 +90,6 @@ export class WorkerLogger {
             'log.timestamp': timestamp,
             'service.name': SERVICE_NAME,
         };
-
-        // Console log for local debugging / real-time logs in dashboard
-        console.log(`[${severity.toUpperCase()}] ${message}`, JSON.stringify(attributes));
 
         this.logs.push({
             timeUnixNano: String(Date.now() * 1000000),
