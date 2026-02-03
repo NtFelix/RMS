@@ -4,6 +4,7 @@ import JSZip from 'jszip';
 import Papa from 'papaparse';
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
+import { WorkerLogger } from './logger';
 
 // --- Type Definitions ---
 
@@ -11,6 +12,8 @@ interface Env {
     GEMINI_API_KEY: string;
     SUPABASE_URL: string;
     SUPABASE_KEY: string;
+    POSTHOG_API_KEY?: string;
+    POSTHOG_HOST?: string;
     RATE_LIMITER: any; // Using 'any' for now to avoid compilation errors with unknown binding type
 }
 
@@ -424,13 +427,18 @@ async function fetchDocumentationContext(supabase: any, query: string): Promise<
     }
 }
 
-async function handleAIRequest(request: Request, env: Env): Promise<Response> {
+async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Response> {
+    const logger = new WorkerLogger(env, ctx);
     try {
         const body = await request.json() as AIRequest;
         const { message, sessionId } = body;
 
+        logger.info('AI Request received', { sessionId });
+
         // Check for API key
         if (!env.GEMINI_API_KEY) {
+            logger.error('Gemini API key not configured');
+            logger.flush();
             return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500 });
         }
 
@@ -439,6 +447,8 @@ async function handleAIRequest(request: Request, env: Env): Promise<Response> {
         if (env.RATE_LIMITER) {
             const { success } = await env.RATE_LIMITER.limit({ key: ip });
             if (!success) {
+                logger.warn('Rate limit exceeded', { ip });
+                logger.flush();
                 return new Response(JSON.stringify({
                     error: {
                         message: "Too many requests. Please try again later.",
@@ -530,6 +540,14 @@ async function handleAIRequest(request: Request, env: Env): Promise<Response> {
             }
         });
 
+
+
+        // Note: logs will be flushed by waitUntil in logger if ctx is provided, 
+        // but we can also explicitly flush here if we want to be sure, though synchronous flush might delay response.
+        // Better to rely on ctx.waitUntil which WorkerLogger handles in flush().
+        logger.info('AI Request stream started', { sessionId });
+        logger.flush();
+
         return new Response(readableStream, {
             headers: {
                 'Content-Type': 'text/event-stream',
@@ -542,7 +560,8 @@ async function handleAIRequest(request: Request, env: Env): Promise<Response> {
         });
 
     } catch (e: any) {
-        console.error("AI Request Error:", e);
+        logger.error('AI Request Error', { error: e.message });
+        logger.flush();
         const errorMessage = e.message || "An unexpected error occurred.";
         const statusCode = e.status || 500;
 
@@ -583,6 +602,12 @@ export default {
             return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
         }
 
+        // Instantiating logger at the top level of fetch would be ideal, but we need to handle the try-catch block scope.
+        // Given the structure, we'll initialize it at the beginning of the try block.
+        // However, since we are inside `export default { async fetch(...) }`, we can initialize it right at the start of `fetch`.
+
+        const logger = new WorkerLogger(env, ctx);
+
         try {
             // Clone request to read body multiple times if needed, 
             // or just peek at the body to determine type.
@@ -611,8 +636,16 @@ export default {
                     headers: request.headers,
                     body: rawBody
                 });
-                return handleAIRequest(newRequest, env);
+                // We don't need to pass env and ctx again if handleAIRequest uses the logger passed to it, 
+                // but handleAIRequest instantiates its own logger currently. 
+                // Let's refactor handleAIRequest to accept a logger or instantiate it internally consistently.
+                // For this refactor step, we'll leave handleAIRequest's internal logger for now as it's a separate function,
+                // but strictly for the `fetch` handler part:
+                return handleAIRequest(newRequest, env, ctx);
             }
+
+            // Log worker request using the single instance
+            logger.info('Worker request received', { type: body?.type, template: body?.template, filename: body?.filename });
 
             // Existing logic for PDF/ZIP
             const { type, template, data, filename } = body;
@@ -693,6 +726,14 @@ export default {
                 totalPages = doc.getNumberOfPages();
                 const pdfBuffer = doc.output('arraybuffer');
                 const endTime = Date.now();
+                logger.info('PDF generated successfully', {
+                    type: 'pdf',
+                    template: template || 'standard',
+                    pageCount: totalPages,
+                    durationMs: endTime - startTime
+                });
+                logger.flush();
+
                 return new Response(new Uint8Array(pdfBuffer), {
                     headers: {
                         ...corsHeaders,
@@ -705,8 +746,13 @@ export default {
                 });
             }
 
+            logger.flush();
             return new Response('Invalid Request Type', { status: 400, headers: corsHeaders });
         } catch (error: any) {
+            // Re-use existing logger instance
+            logger.error('Worker Error', { error: error.message });
+            logger.flush();
+
             return new Response(`Error: ${error.message}`, { status: 500, headers: corsHeaders });
         }
     },
