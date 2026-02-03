@@ -438,7 +438,7 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
         // Check for API key
         if (!env.GEMINI_API_KEY) {
             logger.error('Gemini API key not configured');
-            await logger.flush();
+            logger.flush();
             return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500 });
         }
 
@@ -448,7 +448,7 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
             const { success } = await env.RATE_LIMITER.limit({ key: ip });
             if (!success) {
                 logger.warn('Rate limit exceeded', { ip });
-                await logger.flush();
+                logger.flush();
                 return new Response(JSON.stringify({
                     error: {
                         message: "Too many requests. Please try again later.",
@@ -546,7 +546,7 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
         // but we can also explicitly flush here if we want to be sure, though synchronous flush might delay response.
         // Better to rely on ctx.waitUntil which WorkerLogger handles in flush().
         logger.info('AI Request stream started', { sessionId });
-        await logger.flush();
+        logger.flush();
 
         return new Response(readableStream, {
             headers: {
@@ -563,7 +563,7 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
         console.error("AI Request Error:", e);
         if (logger) {
             logger.error('AI Request Error', { error: e.message });
-            await logger.flush();
+            logger.flush();
         }
         const errorMessage = e.message || "An unexpected error occurred.";
         const statusCode = e.status || 500;
@@ -725,7 +725,7 @@ export default {
                     pageCount: totalPages,
                     durationMs: endTime - startTime
                 });
-                await logger.flush();
+                logger.flush();
 
                 return new Response(new Uint8Array(pdfBuffer), {
                     headers: {
@@ -739,7 +739,7 @@ export default {
                 });
             }
 
-            await logger.flush();
+            logger.flush();
             return new Response('Invalid Request Type', { status: 400, headers: corsHeaders });
         } catch (error: any) {
             // We need to instantiate logger here if it wasn't already or ensure we have access to it.
@@ -747,7 +747,7 @@ export default {
             // For now, let's just use console.error as fallback, but if we want PostHog:
             const logger = new WorkerLogger(env, ctx);
             logger.error('Worker Error', { error: error.message });
-            await logger.flush();
+            logger.flush();
 
             return new Response(`Error: ${error.message}`, { status: 500, headers: corsHeaders });
         }
