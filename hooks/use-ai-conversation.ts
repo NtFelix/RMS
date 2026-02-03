@@ -128,7 +128,13 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
         traceId
       });
 
-      const response = await fetch(process.env.NEXT_PUBLIC_WORKER_URL!, {
+      const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL;
+      if (!workerUrl) {
+        console.error("NEXT_PUBLIC_WORKER_URL environment variable is not defined");
+        throw new Error("AI Service configuration error: missing backend URL");
+      }
+
+      const response = await fetch(workerUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -593,8 +593,8 @@ export default {
             // Route based on URL path first (more robust)
             const url = new URL(request.url);
 
-            // Handle AI requests via path (preferred) or payload detection (fallback)
-            if (url.pathname === '/ai' || (body.message && (body.sessionId || !body.type))) {
+            // Handle AI requests via strict path routing (robust and preferred)
+            if (url.pathname === '/ai') {
                 // Reconstruct request with parsed body if needed, but here we just pass the original request
                 // effectively, assuming handleAIRequest will parse it from the clone or we just pass the body.
                 // However, our handleAIRequest expects a Request object and calls .json() on it.
