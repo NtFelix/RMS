@@ -41,12 +41,25 @@ function getSeverityNumber(severity: string): number {
     return map[severity.toLowerCase()] || 9;
 }
 
-export class WorkerLogger {
-    private logs: any[] = [];
-    private env: Env;
-    private ctx: any;
+// Minimal interface for Cloudflare Worker ExecutionContext
+export interface ExecutionContext {
+    waitUntil(promise: Promise<any>): void;
+}
 
-    constructor(env: Env, ctx: any) {
+interface LogRecord {
+    timeUnixNano: string;
+    severityNumber: number;
+    severityText: string;
+    body: { stringValue: string };
+    attributes: { key: string; value: Record<string, unknown> }[];
+}
+
+export class WorkerLogger {
+    private logs: LogRecord[] = [];
+    private env: Env;
+    private ctx: ExecutionContext;
+
+    constructor(env: Env, ctx: ExecutionContext) {
         this.env = env;
         this.ctx = ctx;
     }

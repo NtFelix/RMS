@@ -560,11 +560,8 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
         });
 
     } catch (e: any) {
-        console.error("AI Request Error:", e);
-        if (logger) {
-            logger.error('AI Request Error', { error: e.message });
-            logger.flush();
-        }
+        logger.error('AI Request Error', { error: e.message });
+        logger.flush();
         const errorMessage = e.message || "An unexpected error occurred.";
         const statusCode = e.status || 500;
 
@@ -605,6 +602,12 @@ export default {
             return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
         }
 
+        // Instantiating logger at the top level of fetch would be ideal, but we need to handle the try-catch block scope.
+        // Given the structure, we'll initialize it at the beginning of the try block.
+        // However, since we are inside `export default { async fetch(...) }`, we can initialize it right at the start of `fetch`.
+
+        const logger = new WorkerLogger(env, ctx);
+
         try {
             // Clone request to read body multiple times if needed, 
             // or just peek at the body to determine type.
@@ -633,11 +636,15 @@ export default {
                     headers: request.headers,
                     body: rawBody
                 });
+                // We don't need to pass env and ctx again if handleAIRequest uses the logger passed to it, 
+                // but handleAIRequest instantiates its own logger currently. 
+                // Let's refactor handleAIRequest to accept a logger or instantiate it internally consistently.
+                // For this refactor step, we'll leave handleAIRequest's internal logger for now as it's a separate function,
+                // but strictly for the `fetch` handler part:
                 return handleAIRequest(newRequest, env, ctx);
             }
 
-            // Init logger for other requests
-            const logger = new WorkerLogger(env, ctx);
+            // Log worker request using the single instance
             logger.info('Worker request received', { type: body?.type, template: body?.template, filename: body?.filename });
 
             // Existing logic for PDF/ZIP
@@ -742,10 +749,7 @@ export default {
             logger.flush();
             return new Response('Invalid Request Type', { status: 400, headers: corsHeaders });
         } catch (error: any) {
-            // We need to instantiate logger here if it wasn't already or ensure we have access to it.
-            // Simplified: create new instance if needed, but better to structure code to reuse.
-            // For now, let's just use console.error as fallback, but if we want PostHog:
-            const logger = new WorkerLogger(env, ctx);
+            // Re-use existing logger instance
             logger.error('Worker Error', { error: error.message });
             logger.flush();
 
