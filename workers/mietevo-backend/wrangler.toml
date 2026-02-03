@@ -11,3 +11,10 @@ custom_domain = true
 # GEMINI_API_KEY = "your-gemini-api-key"
 # SUPABASE_URL = "your-supabase-url"
 # SUPABASE_KEY = "your-supabase-key"
+# SUPABASE_KEY = "your-supabase-key"
+
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001" # Unique ID for this limiter
+simple = { limit = 10, period = 60 } # 10 requests per 60 seconds

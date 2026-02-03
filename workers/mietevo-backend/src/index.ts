@@ -11,6 +11,7 @@ interface Env {
     GEMINI_API_KEY: string;
     SUPABASE_URL: string;
     SUPABASE_KEY: string;
+    RATE_LIMITER: any; // Using 'any' for now to avoid compilation errors with unknown binding type
 }
 
 interface AIRequest {
@@ -19,26 +20,6 @@ interface AIRequest {
     context?: any; // Allow passing context directly if needed, though we prefer fetching it here
 }
 
-// --- Rate Limiting (Simple In-Memory for now, use KV/DO for production) ---
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 10;
-const requestLog: Map<string, number[]> = new Map();
-
-function checkRateLimit(ip: string): boolean {
-    const now = Date.now();
-    const timestamps = requestLog.get(ip) || [];
-
-    // Filter out old timestamps
-    const validTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW);
-
-    if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
-        return false;
-    }
-
-    validTimestamps.push(now);
-    requestLog.set(ip, validTimestamps);
-    return true;
-}
 
 // --- Helper Functions (Duplicated for Worker Independence) ---
 
@@ -455,14 +436,17 @@ async function handleAIRequest(request: Request, env: Env): Promise<Response> {
 
         // Rate Limiting
         const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-        if (!checkRateLimit(ip)) {
-            return new Response(JSON.stringify({
-                error: {
-                    message: "Too many requests. Please try again later.",
-                    code: 429,
-                    type: 'RATE_LIMIT_EXCEEDED'
-                }
-            }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } });
+        if (env.RATE_LIMITER) {
+            const { success } = await env.RATE_LIMITER.limit({ key: ip });
+            if (!success) {
+                return new Response(JSON.stringify({
+                    error: {
+                        message: "Too many requests. Please try again later.",
+                        code: 429,
+                        type: 'RATE_LIMIT_EXCEEDED'
+                    }
+                }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } });
+            }
         }
 
         // Initialize Supabase if credentials exist
