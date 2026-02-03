@@ -19,6 +19,27 @@ interface AIRequest {
     context?: any; // Allow passing context directly if needed, though we prefer fetching it here
 }
 
+// --- Rate Limiting (Simple In-Memory for now, use KV/DO for production) ---
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 10;
+const requestLog: Map<string, number[]> = new Map();
+
+function checkRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const timestamps = requestLog.get(ip) || [];
+
+    // Filter out old timestamps
+    const validTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW);
+
+    if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+        return false;
+    }
+
+    validTimestamps.push(now);
+    requestLog.set(ip, validTimestamps);
+    return true;
+}
+
 // --- Helper Functions (Duplicated for Worker Independence) ---
 
 const formatCurrency = (value: number | null | undefined) => {
@@ -432,6 +453,18 @@ async function handleAIRequest(request: Request, env: Env): Promise<Response> {
             return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500 });
         }
 
+        // Rate Limiting
+        const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+        if (!checkRateLimit(ip)) {
+            return new Response(JSON.stringify({
+                error: {
+                    message: "Too many requests. Please try again later.",
+                    code: 429,
+                    type: 'RATE_LIMIT_EXCEEDED'
+                }
+            }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } });
+        }
+
         // Initialize Supabase if credentials exist
         let contextText = "";
         if (env.SUPABASE_URL && env.SUPABASE_KEY) {
@@ -441,14 +474,35 @@ async function handleAIRequest(request: Request, env: Env): Promise<Response> {
 
         // Initialize Gemini
         const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-
         const fullPrompt = `${SYSTEM_INSTRUCTION}\n\nUser Message: ${message}\n${contextText}`;
 
-        // Stream response
-        const stream = await client.models.generateContentStream({
-            model: 'models/gemini-2.5-flash-lite',
-            contents: [{ role: 'user', parts: [{ text: fullPrompt }] }]
-        });
+        // Retry logic with exponential backoff
+        const maxRetries = 3;
+        let attempt = 0;
+        let stream: any;
+        let lastError: any;
+
+        while (attempt < maxRetries) {
+            try {
+                stream = await client.models.generateContentStream({
+                    model: 'models/gemini-2.5-flash-lite',
+                    contents: [{ role: 'user', parts: [{ text: fullPrompt }] }]
+                });
+                break; // Success
+            } catch (err: any) {
+                lastError = err;
+                attempt++;
+                if (attempt >= maxRetries) break; // Failed after max retries
+
+                // Wait before retrying (exponential backoff: 1s, 2s, 4s...)
+                const delay = Math.pow(2, attempt - 1) * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+
+        if (!stream) {
+            throw new Error(lastError?.message || "Failed to connect to AI service after multiple attempts.");
+        }
 
         // Create stream for response
         const encoder = new TextEncoder();
