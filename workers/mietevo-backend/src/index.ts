@@ -2,20 +2,27 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
+import { GoogleGenAI } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
 
-/**
- * PDF Helper Functions
- * 
- * NOTE: These helper functions are intentionally duplicated from the main Next.js application.
- * The Cloudflare Worker runs in an isolated runtime environment and cannot share code with
- * the main app. This duplication ensures the worker is fully self-contained and independent.
- * 
- * If these functions need to be updated, ensure changes are synchronized with:
- * - lib/utils.ts (roundToNearest5)
- * - utils/date-calculations.ts (isoToGermanDate)
- * - utils/format.ts (formatCurrency equivalent)
- * - lib/zaehler-utils.ts (sumZaehlerValues)
- */
+// --- Type Definitions ---
+
+interface Env {
+    GEMINI_API_KEY: string;
+    SUPABASE_URL: string;
+    SUPABASE_KEY: string;
+    RATE_LIMITER: any; // Using 'any' for now to avoid compilation errors with unknown binding type
+}
+
+interface AIRequest {
+    message: string;
+    sessionId?: string;
+    context?: any; // Allow passing context directly if needed, though we prefer fetching it here
+}
+
+
+// --- Helper Functions (Duplicated for Worker Independence) ---
+
 const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-";
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
@@ -44,24 +51,21 @@ const roundToNearest5 = (value: number) => {
     return Math.round(value / 5) * 5;
 };
 
-// --- Single Tenant PDF Generation (Restored Original Logic) ---
+// --- PDF Generation Functions (Preserved) ---
+
 function generateSingleTenantPDF(doc: jsPDF, payload: any) {
     const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload;
     let startY = 20;
 
-    // Determine display name and address
     let displayAddress = ownerAddress || '';
     let displayCity = houseCity || '';
 
-    // If no houseCity provided, try to extract from ownerAddress
     if (!displayCity && ownerAddress) {
         const parts = ownerAddress.split(',').map((p: string) => p.trim());
-        // Attempt to find a part that looks like a city (e.g., not just a postal code or street number)
         const potentialCity = parts.find((p: string) => !/^\d{5}$/.test(p) && p.length > 2);
         if (potentialCity) {
             displayCity = potentialCity;
         } else if (parts.length > 0) {
-            // Fallback to the last part if no clear city is found
             displayCity = parts[parts.length - 1];
         }
     }
@@ -76,7 +80,6 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
         }
     }
 
-    // Owner Information & Title
     doc.setFontSize(10);
     doc.text(ownerName || '', 20, startY);
     startY += 6;
@@ -88,23 +91,19 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
     doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
     startY += 10;
 
-    // Settlement Period
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
     startY += 6;
 
-    // Property Details
     const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
     doc.text(propertyDetails, 20, startY);
     startY += 6;
 
-    // Tenant Details
     const tenantDetails = `Mieter: ${tenantData.tenantName}`;
     doc.text(tenantDetails, 20, startY);
     startY += 10;
 
-    // Costs Table
     const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
     const tableRows: any[][] = [];
 
@@ -227,7 +226,6 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
     doc.text(`${displayCity}, den ${today.toLocaleDateString('de-DE')}`, col1Start, startY);
 }
 
-// --- Zähler Config for Labels ---
 const ZAEHLER_CONFIG = {
     wasser_kalt: { label: 'Kaltwasser', einheit: 'm³' },
     wasser_warm: { label: 'Warmwasser', einheit: 'm³' },
@@ -236,18 +234,15 @@ const ZAEHLER_CONFIG = {
     heizung: { label: 'Heizung', einheit: 'kWh' },
 };
 
-// --- House Overview PDF Generation (Original Logic) ---
 function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     const { nebenkosten, totalArea, totalCosts, costPerSqm } = payload;
     let startY = 20;
 
-    // Title
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text("Kostenaufstellung - Betriebskosten", 20, startY);
     startY += 10;
 
-    // Period and house info
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)}`, 20, startY);
@@ -258,7 +253,6 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     }
     startY += 10;
 
-    // Summary information
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text("Übersicht", 20, startY);
@@ -277,7 +271,6 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     doc.text(`Kosten pro m²: ${formatCurrency(costPerSqm)}`, 20, startY);
     startY += 15;
 
-    // Cost breakdown table
     const tableData = nebenkosten.nebenkostenart?.map((art: string, index: number) => [
         (index + 1).toString(),
         art || '-',
@@ -287,7 +280,6 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
             : '-'
     ]) || [];
 
-    // Add total row
     tableData.push([
         '',
         'Gesamtkosten',
@@ -301,37 +293,34 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
         startY: startY,
         theme: 'plain',
         headStyles: {
-            fillColor: [255, 255, 255], // White background instead of gray
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            lineWidth: { bottom: 0.3 }, // Thicker bottom border for header
-            lineColor: [0, 0, 0] // Black color for header bottom border
+            lineWidth: { bottom: 0.3 },
+            lineColor: [0, 0, 0]
         },
         styles: {
             fontSize: 9,
             cellPadding: 3,
-            lineWidth: 0 // Remove all cell borders
+            lineWidth: 0
         },
         bodyStyles: {
-            lineWidth: { bottom: 0.1 }, // Only add thin bottom border for rows
-            lineColor: [0, 0, 0] // Black color for row separators
+            lineWidth: { bottom: 0.1 },
+            lineColor: [0, 0, 0]
         },
         columnStyles: {
-            0: { halign: 'left' },   // Left align position numbers
-            1: { halign: 'left' },   // Left align service descriptions
-            2: { halign: 'right' },  // Right align total costs
-            3: { halign: 'right' },  // Right align costs per sqm
+            0: { halign: 'left' },
+            1: { halign: 'left' },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
         },
-        // Ensure table aligns with left and right content margins
         tableWidth: doc.internal.pageSize.getWidth() - 40,
         margin: { left: 20, right: 20 },
         didParseCell: function (data: any) {
-            // Make the total row bold
             if (data.row.index === tableData.length - 1) {
                 data.cell.styles.fontStyle = 'bold';
                 data.cell.styles.fillColor = [248, 248, 248];
             }
-            // Ensure header columns are properly aligned
             if (data.section === 'head') {
                 if (data.column.index === 2 || data.column.index === 3) {
                     data.cell.styles.halign = 'right';
@@ -342,7 +331,6 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
         }
     });
 
-    // Meter costs section if zaehlerkosten available
     if (nebenkosten.zaehlerkosten && Object.keys(nebenkosten.zaehlerkosten).length > 0) {
         let meterY = (doc as any).lastAutoTable?.finalY + 15;
 
@@ -375,8 +363,209 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     }
 }
 
+// --- AI Logic Implementation ---
+
+const SYSTEM_INSTRUCTION = `Stelle dir vor du bist ein hilfreicher Assistent der für Mietevo arbeitet. 
+Deine Aufgabe ist den Nutzer zu helfen seine Frage zu dem Programm zu beantworten. 
+Das Programm zu dem du fragen beantworten sollst ist Mietevo, ein 
+Immobilienverwaltungsprogramm das Benutzern ermöglicht einfach ihre Immobilien 
+zu verwalten, indem Nebenkosten/Betriebskostenabrechnungen vereinfach werden 
+und viele weitere Funktionen.
+
+Wenn du Dokumentationskontext erhältst, nutze diesen um präzise und hilfreiche Antworten zu geben.
+Antworte immer auf Deutsch und sei freundlich und professionell.`;
+
+async function fetchDocumentationContext(supabase: any, query: string): Promise<string> {
+    if (!query) return "";
+
+    try {
+        // Use Supabase text search on 'Dokumentation' table
+        // Note: This relies on the 'search_documentation' RPC function existing or using simple textSearch
+        // We will try simple text search first as it's safer if RPC isn't deployed
+
+        // Option 1: RPC call (Preferred if exists)
+        const { data: rpcData, error: rpcError } = await supabase.rpc('search_documentation', {
+            search_query: query
+        });
+
+        let records = [];
+        if (!rpcError && rpcData) {
+            records = rpcData;
+        } else {
+            // Option 2: Fallback to simple text search
+            const { data, error } = await supabase
+                .from('Dokumentation')
+                .select('titel, kategorie, seiteninhalt')
+                .textSearch('titel,seiteninhalt', query, {
+                    type: 'websearch',
+                    config: 'german'
+                })
+                .limit(5);
+
+            if (!error && data) {
+                records = data;
+            }
+        }
+
+        if (records.length === 0) return "";
+
+        let contextText = '\n\nDokumentationskontext:\n';
+        records.slice(0, 5).forEach((record: any) => {
+            if (record.seiteninhalt) {
+                contextText += `\n**${record.titel}** (Kategorie: ${record.kategorie || 'Allgemein'}):\n${record.seiteninhalt.substring(0, 1000)}\n`;
+            }
+        });
+
+        return contextText;
+
+    } catch (e) {
+        console.error("Error fetching context:", e);
+        return "";
+    }
+}
+
+async function handleAIRequest(request: Request, env: Env): Promise<Response> {
+    try {
+        const body = await request.json() as AIRequest;
+        const { message, sessionId } = body;
+
+        // Check for API key
+        if (!env.GEMINI_API_KEY) {
+            return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500 });
+        }
+
+        // Rate Limiting
+        const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+        if (env.RATE_LIMITER) {
+            const { success } = await env.RATE_LIMITER.limit({ key: ip });
+            if (!success) {
+                return new Response(JSON.stringify({
+                    error: {
+                        message: "Too many requests. Please try again later.",
+                        code: 429,
+                        type: 'RATE_LIMIT_EXCEEDED'
+                    }
+                }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } });
+            }
+        }
+
+        // Initialize Supabase if credentials exist
+        let contextText = "";
+        if (env.SUPABASE_URL && env.SUPABASE_KEY) {
+            const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
+            contextText = await fetchDocumentationContext(supabase, message);
+        }
+
+        // Initialize Gemini
+        const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+        const fullPrompt = `${SYSTEM_INSTRUCTION}\n\nUser Message: ${message}\n${contextText}`;
+
+        // Retry logic with exponential backoff
+        const maxRetries = 3;
+        let attempt = 0;
+        let stream: any;
+        let lastError: any;
+
+        while (attempt < maxRetries) {
+            try {
+                stream = await client.models.generateContentStream({
+                    model: 'models/gemini-2.5-flash-lite',
+                    contents: [{ role: 'user', parts: [{ text: fullPrompt }] }]
+                });
+                break; // Success
+            } catch (err: any) {
+                lastError = err;
+                attempt++;
+                if (attempt >= maxRetries) break; // Failed after max retries
+
+                // Wait before retrying (exponential backoff: 1s, 2s, 4s...)
+                const delay = Math.pow(2, attempt - 1) * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+
+        if (!stream) {
+            throw new Error(lastError?.message || "Failed to connect to AI service after multiple attempts.");
+        }
+
+        // Create stream for response
+        const encoder = new TextEncoder();
+        const readableStream = new ReadableStream({
+            async start(controller) {
+                try {
+                    for await (const chunk of stream) {
+                        let chunkText = '';
+                        if (typeof chunk.text === 'function') {
+                            chunkText = chunk.text();
+                        } else if (typeof chunk.text === 'string') {
+                            chunkText = chunk.text;
+                        }
+
+                        if (chunkText) {
+                            const data = JSON.stringify({
+                                type: 'chunk',
+                                content: chunkText,
+                                sessionId
+                            });
+                            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                        }
+                    }
+
+                    const doneData = JSON.stringify({
+                        type: 'complete',
+                        content: '', // Or accumulator if we tracked it
+                        sessionId
+                    });
+                    controller.enqueue(encoder.encode(`data: ${doneData}\n\n`));
+                    controller.close();
+                } catch (e: any) {
+                    const errorData = JSON.stringify({
+                        type: 'error',
+                        error: e.message,
+                        sessionId
+                    });
+                    controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+                    controller.close();
+                }
+            }
+        });
+
+        return new Response(readableStream, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            }
+        });
+
+    } catch (e: any) {
+        console.error("AI Request Error:", e);
+        const errorMessage = e.message || "An unexpected error occurred.";
+        const statusCode = e.status || 500;
+
+        return new Response(JSON.stringify({
+            error: {
+                message: errorMessage,
+                code: statusCode,
+                type: 'AI_PROCESSING_ERROR'
+            }
+        }), {
+            status: statusCode,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Content-Type': 'application/json'
+            }
+        });
+    }
+}
+
+// --- Main Handler ---
+
 export default {
-    async fetch(request: Request, env: any, ctx: any): Promise<Response> {
+    async fetch(request: Request, env: Env | any, ctx: any): Promise<Response> {
         const origin = request.headers.get('Origin') || '*';
         const corsHeaders: Record<string, string> = {
             'Access-Control-Allow-Origin': origin,
@@ -395,7 +584,37 @@ export default {
         }
 
         try {
-            const body = await request.json() as any;
+            // Clone request to read body multiple times if needed, 
+            // or just peek at the body to determine type.
+            // Since we consume the body, we need to be careful.
+            // We can read the body as text first.
+            const rawBody = await request.text();
+            let body: any;
+            try {
+                body = JSON.parse(rawBody);
+            } catch {
+                return new Response('Invalid JSON', { status: 400, headers: corsHeaders });
+            }
+
+            // Route based on URL path first (more robust)
+            const url = new URL(request.url);
+
+            // Handle AI requests via strict path routing (robust and preferred)
+            if (url.pathname === '/ai') {
+                // Reconstruct request with parsed body if needed, but here we just pass the original request
+                // effectively, assuming handleAIRequest will parse it from the clone or we just pass the body.
+                // However, our handleAIRequest expects a Request object and calls .json() on it.
+                // Since we already read the body as rawBody, we cannot read it again from the original request.
+                // We must create a new Request with the body.
+                const newRequest = new Request(request.url, {
+                    method: request.method,
+                    headers: request.headers,
+                    body: rawBody
+                });
+                return handleAIRequest(newRequest, env);
+            }
+
+            // Existing logic for PDF/ZIP
             const { type, template, data, filename } = body;
             const startTime = Date.now();
             let totalPages = 0;
