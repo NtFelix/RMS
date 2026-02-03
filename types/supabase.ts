@@ -17,5 +17,20 @@ export interface SupabaseAuthWithOAuth {
     approveAuthorization(authorizationId: string): Promise<{ data: any; error: any }>;
     denyAuthorization(authorizationId: string): Promise<{ data: any; error: any }>;
     getAuthorizationDetails(authorizationId: string): Promise<{ data: any; error: any }>;
+    listGrants(): Promise<{ data: OAuthGrant[] | null; error: any }>;
+    revokeGrant(options: { clientId: string }): Promise<{ data: {}; error: any }>;
   };
 }
+
+export type OAuthGrant = {
+  client: OAuthAuthorizationClient;
+  scopes: string[];
+  granted_at: string;
+};
+
+export type OAuthAuthorizationClient = {
+  id: string;
+  name: string;
+  uri: string;
+  logo_uri: string;
+};

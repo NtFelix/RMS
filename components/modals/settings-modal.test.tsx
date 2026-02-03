@@ -11,6 +11,7 @@ jest.mock('posthog-js/react', () => ({
 // Mock child components to simplify testing
 jest.mock('../settings/profile-section', () => () => <div data-testid="profile-section">Profile Section</div>);
 jest.mock('../settings/security-section', () => () => <div data-testid="security-section">Security Section</div>);
+jest.mock('../settings/oauth-apps-section', () => () => <div data-testid="oauth-apps-section">OAuth Apps Section</div>);
 jest.mock('../settings/subscription-section', () => () => <div data-testid="subscription-section">Subscription Section</div>);
 jest.mock('../settings/mail-section', () => () => <div data-testid="mail-section">Mail Section</div>);
 jest.mock('../settings/display-section', () => () => <div data-testid="display-section">Display Section</div>);

@@ -10,6 +10,7 @@ import {
   Info,
   Monitor,
   FlaskConical,
+  AppWindow,
   Mail,
 } from "lucide-react";
 import { SettingsSidebar } from "../settings/sidebar"
@@ -17,6 +18,7 @@ import type { Tab } from "@/types/settings"
 import ProfileSection from "../settings/profile-section";
 import DisplaySection from "../settings/display-section";
 import SecuritySection from "../settings/security-section";
+import OAuthAppsSection from "../settings/oauth-apps-section";
 import SubscriptionSection from "../settings/subscription-section";
 import ExportSection from "../settings/export-section";
 import FeaturePreviewSection from "../settings/feature-preview-section";
@@ -44,6 +46,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Sicherheit",
       icon: Lock,
       content: <SecuritySection />,
+    },
+    {
+      value: "oauth-apps",
+      label: "OAuth-Apps",
+      icon: AppWindow,
+      content: <OAuthAppsSection />,
     },
     {
       value: "subscription",
