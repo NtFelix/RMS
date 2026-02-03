@@ -1,6 +1,6 @@
 {
   "name": "mietevo",
-  "version": "2.2.34",
+  "version": "2.2.36",
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
@@ -81,7 +81,7 @@
     "pako": "^2.1.0",
     "papaparse": "^5.4.1",
     "posthog-js": "^1.310.1",
-    "posthog-node": "^5.19.0",
+    "posthog-node": "^5.24.7",
     "react": "^19.2.3",
     "react-day-picker": "^9.13.0",
     "react-dom": "^19.2.3",
