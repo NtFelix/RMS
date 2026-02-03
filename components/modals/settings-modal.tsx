@@ -11,6 +11,7 @@ import {
   Monitor,
   FlaskConical,
   Mail,
+  Plug,
 } from "lucide-react";
 import { SettingsSidebar } from "../settings/sidebar"
 import type { Tab } from "@/types/settings"
@@ -22,6 +23,7 @@ import ExportSection from "../settings/export-section";
 import FeaturePreviewSection from "../settings/feature-preview-section";
 import InformationSection from "../settings/information-section";
 import MailSection from "../settings/mail-section";
+import OAuthAppsSection from "../settings/oauth-apps-section";
 import { useFeatureFlagEnabled } from "posthog-js/react";
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants";
 
@@ -44,6 +46,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Sicherheit",
       icon: Lock,
       content: <SecuritySection />,
+    },
+    {
+      value: "oauth-apps",
+      label: "OAuth-Apps",
+      icon: Plug,
+      content: <OAuthAppsSection />,
     },
     {
       value: "subscription",
