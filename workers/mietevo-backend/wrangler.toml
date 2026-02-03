@@ -11,7 +11,6 @@ custom_domain = true
 # GEMINI_API_KEY = "your-gemini-api-key"
 # SUPABASE_URL = "your-supabase-url"
 # SUPABASE_KEY = "your-supabase-key"
-# SUPABASE_KEY = "your-supabase-key"
 
 [[unsafe.bindings]]
 name = "RATE_LIMITER"
