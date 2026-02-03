@@ -617,7 +617,9 @@ export default {
             let body: any;
             try {
                 body = JSON.parse(rawBody);
-            } catch {
+            } catch (e: any) {
+                logger.warn('Invalid JSON body', { error: e.message });
+                logger.flush();
                 return new Response('Invalid JSON', { status: 400, headers: corsHeaders });
             }
 
@@ -655,6 +657,13 @@ export default {
             if (type === 'csv') {
                 const csv = Papa.unparse(data);
                 const endTime = Date.now();
+
+                logger.info('CSV export generated', {
+                    filename,
+                    durationMs: endTime - startTime
+                });
+                logger.flush();
+
                 return new Response(csv, {
                     headers: {
                         ...corsHeaders,
@@ -682,6 +691,14 @@ export default {
                 }
                 const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
                 const endTime = Date.now();
+
+                logger.info('ZIP export generated', {
+                    filename,
+                    type: 'csv-zip',
+                    durationMs: endTime - startTime
+                });
+                logger.flush();
+
                 return new Response(zipBuffer, {
                     headers: {
                         ...corsHeaders,
@@ -704,6 +721,15 @@ export default {
                 }
                 const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
                 const endTime = Date.now();
+
+                logger.info('PDF ZIP export generated', {
+                    filename,
+                    type: 'pdf-zip',
+                    pageCount: totalPages,
+                    durationMs: endTime - startTime
+                });
+                logger.flush();
+
                 return new Response(zipBuffer, {
                     headers: {
                         ...corsHeaders,
@@ -746,6 +772,8 @@ export default {
                 });
             }
 
+            logger.warn('Invalid Request Type', { type, template });
+            logger.warn('Invalid Request Type', { type, template });
             logger.flush();
             return new Response('Invalid Request Type', { status: 400, headers: corsHeaders });
         } catch (error: any) {
