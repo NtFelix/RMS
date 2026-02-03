@@ -171,7 +171,12 @@ export async function sendAIRequest(payload: AIRequestPayload): Promise<Response
     throw new Error("AI Service configuration error: missing backend URL");
   }
 
-  const response = await fetch(workerUrl, {
+  // Ensure we target the /ai endpoint
+  const targetUrl = workerUrl.endsWith('/ai')
+    ? workerUrl
+    : `${workerUrl.replace(/\/$/, '')}/ai`;
+
+  const response = await fetch(targetUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
