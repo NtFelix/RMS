@@ -494,7 +494,13 @@ async function handleAIRequest(request: Request, env: Env): Promise<Response> {
             async start(controller) {
                 try {
                     for await (const chunk of stream) {
-                        const chunkText = chunk.text();
+                        let chunkText = '';
+                        if (typeof chunk.text === 'function') {
+                            chunkText = chunk.text();
+                        } else if (typeof chunk.text === 'string') {
+                            chunkText = chunk.text;
+                        }
+
                         if (chunkText) {
                             const data = JSON.stringify({
                                 type: 'chunk',
