@@ -15,9 +15,10 @@ import { deleteTenantAction } from "@/app/mieter-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
-import type { Tenant } from "@/types/Tenant";
+import type { Tenant, TenantStatus } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
 // Props for the main client view component
@@ -45,6 +46,8 @@ function AddTenantButton({ onAdd }: { onAdd: () => void }) {
 }
 
 // This is the new main client component, previously MieterPageClientComponent in page.tsx
+import { useFeatureFlagEnabled } from "posthog-js/react";
+
 export default function MieterClientView({
   initialTenants,
   initialWohnungen,
@@ -52,21 +55,38 @@ export default function MieterClientView({
 }: MieterClientViewProps) {
   const router = useRouter()
   const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
+  const [currentTab, setCurrentTab] = useState<TenantStatus>("mieter");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const { openTenantModal } = useModalStore();
+  const showTenantTabs = useFeatureFlagEnabled('show-tenant-tabs');
 
-  // Summary calculation for StatCards
+  // Filter tenants based on tab
+  const filteredTenantsByTab = useMemo(() => {
+    return initialTenants.filter(t => {
+      // Default to "mieter" if status is missing (migration fallback)
+      const status = t.status || 'mieter';
+      return status === currentTab;
+    });
+  }, [initialTenants, currentTab]);
+
+  // Calculate stats based on the CURRENT TAB
   const summary = useMemo(() => {
-    const total = initialTenants.length;
+    const tenantsInTab = filteredTenantsByTab;
+    const total = tenantsInTab.length;
     const today = new Date();
-    const activeCount = initialTenants.filter(t => !t.auszug || new Date(t.auszug) > today).length;
+
+    // For "mieter" tab, we distinguish active vs former
+    // For "bewerber" tab, activeCount/formerCount doesn't make as much sense with current definitions,
+    // so we might just show Total and maybe "With Email" or similar.
+    // But to keep it simple, we reuse the logic:
+    const activeCount = tenantsInTab.filter(t => !t.auszug || new Date(t.auszug) > today).length;
     const formerCount = total - activeCount;
 
     // Average utility cost (use last nebenkosten entry of each tenant if available)
-    const utilityValues = initialTenants
+    const utilityValues = tenantsInTab
       .map(t => {
         if (!t.nebenkosten || t.nebenkosten.length === 0) return undefined;
 
@@ -81,7 +101,7 @@ export default function MieterClientView({
     const avgUtilities = utilityValues.length ? utilityValues.reduce((s, v) => s + v, 0) / utilityValues.length : 0;
 
     return { total, activeCount, formerCount, avgUtilities };
-  }, [initialTenants]);
+  }, [filteredTenantsByTab]);
 
   // Remove local state for dialogOpen and editingId, as store will manage modal state
   // const [dialogOpen, setDialogOpen] = useState(false);
@@ -90,11 +110,14 @@ export default function MieterClientView({
   const handleAddTenant = useCallback(() => {
     try {
       // Pass initialWohnungen. The serverAction is passed to TenantEditModal in layout.tsx
-      openTenantModal(undefined, initialWohnungen);
+      // We want to pass the current tab as the default status for the new tenant
+      // We do this by passing a partial object with just the status
+      const defaultStatus = { status: currentTab };
+      openTenantModal(defaultStatus, initialWohnungen);
     } catch (error) {
       console.error('Error opening tenant modal:', error);
     }
-  }, [openTenantModal, initialWohnungen]);
+  }, [openTenantModal, initialWohnungen, currentTab]);
 
   const handleEditTenantInTable = useCallback((tenant: Tenant) => {
     // Find the full tenant data if only partial data is passed by the table event
@@ -111,6 +134,7 @@ export default function MieterClientView({
         telefonnummer: tenantToEdit.telefonnummer || "",
         notiz: tenantToEdit.notiz || "",
         nebenkosten: tenantToEdit.nebenkosten || [],
+        status: tenantToEdit.status || "mieter",
       };
       try {
         openTenantModal(formattedInitialData, initialWohnungen);
@@ -145,7 +169,7 @@ export default function MieterClientView({
     const selectedTenantsData = initialTenants.filter(t => selectedTenants.has(t.id))
 
     // Create CSV header
-    const headers = ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug']
+    const headers = ['Name', 'Email', 'Telefon', 'Wohnung', 'Einzug', 'Auszug', 'Status']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
 
     // Create CSV rows with proper escaping
@@ -156,7 +180,8 @@ export default function MieterClientView({
         t.telefonnummer || '',
         t.wohnung_id ? wohnungsMap[t.wohnung_id] || '' : '',
         t.einzug || '',
-        t.auszug || ''
+        t.auszug || '',
+        t.status || 'mieter'
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
@@ -171,7 +196,7 @@ export default function MieterClientView({
 
     toast({
       title: "Export erfolgreich",
-      description: `${selectedTenants.size} Mieter exportiert.`,
+      description: `${selectedTenants.size} Einträge exportiert.`,
       variant: "success",
     })
   }, [selectedTenants, initialTenants, wohnungsMap, escapeCsvValue])
@@ -179,8 +204,8 @@ export default function MieterClientView({
   const handleBulkDelete = useCallback(async () => {
     if (selectedTenants.size === 0) {
       toast({
-        title: "Keine Mieter ausgewählt",
-        description: "Bitte wählen Sie mindestens einen Mieter zum Löschen aus.",
+        title: "Keine Einträge ausgewählt",
+        description: "Bitte wählen Sie mindestens einen Eintrag zum Löschen aus.",
         variant: "destructive",
       })
       return
@@ -202,7 +227,7 @@ export default function MieterClientView({
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Fehler beim Löschen der Mieter')
+        throw new Error(result.error || 'Fehler beim Löschen der Einträge')
       }
 
       setShowBulkDeleteConfirm(false)
@@ -210,7 +235,7 @@ export default function MieterClientView({
 
       toast({
         title: "Erfolg",
-        description: `${result.successCount} Mieter erfolgreich gelöscht.`,
+        description: `${result.successCount} Einträge erfolgreich gelöscht.`,
         variant: "success",
       })
 
@@ -219,7 +244,7 @@ export default function MieterClientView({
       console.error('Bulk delete error:', error)
       toast({
         title: "Fehler",
-        description: error instanceof Error ? error.message : "Fehler beim Löschen der Mieter",
+        description: error instanceof Error ? error.message : "Fehler beim Löschen der Einträge",
         variant: "destructive",
       })
     } finally {
@@ -229,103 +254,169 @@ export default function MieterClientView({
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
-        <StatCard
-          title="Mieter gesamt"
-          value={summary.total}
-          icon={<Users className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
-        />
-        <StatCard
-          title="Aktiv / Ehemalig"
-          value={`${summary.activeCount} / ${summary.formerCount}`}
-          icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
-        />
-        <StatCard
-          title="Ø Nebenkosten"
-          value={summary.avgUtilities}
-          unit="€"
-          decimals
-          icon={<Euro className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
-        />
-      </div>
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle>Mieterverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Mieter</p>
-            </div>
-            <div className="mt-0 sm:mt-1">
-              <AddTenantButton onAdd={handleAddTenant} />
-            </div>
-          </div>
-        </CardHeader>
-        <div className="px-6">
-          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
-        </div>
-        <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                {[
-                  { value: "current" as const, shortLabel: "Aktuelle", fullLabel: "Aktuelle Mieter" },
-                  { value: "previous" as const, shortLabel: "Vorherige", fullLabel: "Vorherige Mieter" },
-                  { value: "all" as const, shortLabel: "Alle", fullLabel: "Alle Mieter" },
-                ].map(({ value, shortLabel, fullLabel }) => (
-                  <ResponsiveFilterButton
-                    key={value}
-                    shortLabel={shortLabel}
-                    fullLabel={fullLabel}
-                    isActive={filter === value}
-                    onClick={() => setFilter(value)}
-                  />
-                ))}
-              </div>
-              <SearchInput
-                placeholder="Suchen..."
-                className="rounded-full"
-                mode="table"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onClear={() => setSearchQuery("")}
-              />
-            </div>
-            <TenantBulkActionBar
-              selectedTenants={selectedTenants}
-              tenants={initialTenants}
-              wohnungsMap={wohnungsMap}
-              onClearSelection={() => setSelectedTenants(new Set())}
-              onExport={handleBulkExport}
-              onDelete={() => setShowBulkDeleteConfirm(true)}
+
+      {/* Tab Selector */}
+      <Tabs value={currentTab} onValueChange={(v) => {
+        setCurrentTab(v as TenantStatus);
+        // Reset filter to 'current' when switching tabs, although 'current' applies to both mostly
+        setFilter("current");
+        setSelectedTenants(new Set()); // Clear selection on tab change
+      }} className="w-full">
+
+        <div className="flex flex-col gap-6">
+          {showTenantTabs && (
+            <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+              <TabsTrigger value="mieter">Mieter</TabsTrigger>
+              <TabsTrigger value="bewerber">Bewerber</TabsTrigger>
+            </TabsList>
+          )}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
+            <StatCard
+              title={currentTab === 'mieter' ? "Mieter gesamt" : "Bewerber gesamt"}
+              value={summary.total}
+              icon={<Users className="h-4 w-4 text-muted-foreground" />}
+              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
             />
+            {currentTab === 'mieter' && (
+              <>
+                <StatCard
+                  title="Aktiv / Ehemalig"
+                  value={`${summary.activeCount} / ${summary.formerCount}`}
+                  icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
+                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+                />
+                <StatCard
+                  title="Ø Nebenkosten"
+                  value={summary.avgUtilities}
+                  unit="€"
+                  decimals
+                  icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+                />
+              </>
+            )}
           </div>
-          <TenantTable
-            tenants={initialTenants}
-            wohnungen={initialWohnungen}
-            filter={filter}
-            searchQuery={searchQuery}
-            onEdit={handleEditTenantInTable}
-            selectedTenants={selectedTenants}
-            onSelectionChange={setSelectedTenants}
-          />
-        </CardContent>
-      </Card>
+
+          <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>{currentTab === 'mieter' ? 'Mieterverwaltung' : 'Bewerberverwaltung'}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1 hidden sm:block">
+                    {currentTab === 'mieter' ? 'Verwalten Sie hier alle Ihre Mieter' : 'Verwalten Sie hier potenzielle Mieter und Interessenten'}
+                  </p>
+                </div>
+                <div className="mt-0 sm:mt-1">
+                  <AddTenantButton onAdd={handleAddTenant} />
+                </div>
+              </div>
+            </CardHeader>
+            <div className="px-6">
+              <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+            </div>
+
+            <TabsContent value="mieter" className="mt-0">
+              <CardContent className="flex flex-col gap-6">
+                <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      {[
+                        { value: "current" as const, shortLabel: "Aktuelle", fullLabel: "Aktuelle Mieter" },
+                        { value: "previous" as const, shortLabel: "Vorherige", fullLabel: "Vorherige Mieter" },
+                        { value: "all" as const, shortLabel: "Alle", fullLabel: "Alle Mieter" },
+                      ].map(({ value, shortLabel, fullLabel }) => (
+                        <ResponsiveFilterButton
+                          key={value}
+                          shortLabel={shortLabel}
+                          fullLabel={fullLabel}
+                          isActive={filter === value}
+                          onClick={() => setFilter(value)}
+                        />
+                      ))}
+                    </div>
+                    <SearchInput
+                      placeholder="Mieter suchen..."
+                      className="rounded-full"
+                      mode="table"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onClear={() => setSearchQuery("")}
+                    />
+                  </div>
+                  <TenantBulkActionBar
+                    selectedTenants={selectedTenants}
+                    tenants={filteredTenantsByTab}
+                    wohnungsMap={wohnungsMap}
+                    onClearSelection={() => setSelectedTenants(new Set())}
+                    onExport={handleBulkExport}
+                    onDelete={() => setShowBulkDeleteConfirm(true)}
+                  />
+                </div>
+                <TenantTable
+                  tenants={filteredTenantsByTab}
+                  wohnungen={initialWohnungen}
+                  filter={filter}
+                  searchQuery={searchQuery}
+                  onEdit={handleEditTenantInTable}
+                  selectedTenants={selectedTenants}
+                  onSelectionChange={setSelectedTenants}
+                />
+              </CardContent>
+            </TabsContent>
+
+            <TabsContent value="bewerber" className="mt-0">
+              <CardContent className="flex flex-col gap-6">
+                <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {/* No filter buttons for applicants for now, just search */}
+                    <div className="flex-1"></div>
+                    <SearchInput
+                      placeholder="Bewerber suchen..."
+                      className="rounded-full"
+                      mode="table"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onClear={() => setSearchQuery("")}
+                    />
+                  </div>
+                  <TenantBulkActionBar
+                    selectedTenants={selectedTenants}
+                    tenants={filteredTenantsByTab}
+                    wohnungsMap={wohnungsMap}
+                    onClearSelection={() => setSelectedTenants(new Set())}
+                    onExport={handleBulkExport}
+                    onDelete={() => setShowBulkDeleteConfirm(true)}
+                  />
+                </div>
+                <TenantTable
+                  tenants={filteredTenantsByTab}
+                  wohnungen={initialWohnungen}
+                  filter="all" // Apply "all" filter so checking dates doesn't hide applicants without dates
+                  searchQuery={searchQuery}
+                  onEdit={handleEditTenantInTable}
+                  selectedTenants={selectedTenants}
+                  onSelectionChange={setSelectedTenants}
+                />
+              </CardContent>
+            </TabsContent>
+
+          </Card>
+        </div>
+      </Tabs>
 
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mehrere Mieter löschen?</AlertDialogTitle>
+            <AlertDialogTitle>Mehrere Einträge löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Möchten Sie wirklich {selectedTenants.size} Mieter löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+              Möchten Sie wirklich {selectedTenants.size} Einträge löschen? Diese Aktion kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-              {isBulkDeleting ? "Lösche..." : `${selectedTenants.size} Mieter löschen`}
+              {isBulkDeleting ? "Lösche..." : `${selectedTenants.size} Einträge löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

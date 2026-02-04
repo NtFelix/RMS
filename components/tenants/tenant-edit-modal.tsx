@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
-import { Trash2, GripVertical } from "lucide-react";
+import { Trash2, GripVertical, BadgeCheck } from "lucide-react";
+import { useFeatureFlagEnabled } from "posthog-js/react";
 import { createClient } from "@/utils/supabase/client" // Added
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -17,7 +18,7 @@ import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox"
 import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker import
 import { Textarea } from "@/components/ui/textarea" // New import
 
-import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
+import { Tenant, NebenkostenEntry, TenantStatus } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
 import { cn } from "@/lib/utils"; // Import cn utility
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
@@ -47,6 +48,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     setTenantModalDirty,
     openConfirmationModal,
   } = useModalStore();
+
+  const showTenantTabs = useFeatureFlagEnabled('show-tenant-tabs');
 
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -121,6 +124,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     email: tenantInitialData?.email || "",
     telefonnummer: tenantInitialData?.telefonnummer || "",
     notiz: tenantInitialData?.notiz || "",
+    status: (tenantInitialData?.status || "mieter") as TenantStatus,
   });
 
   const getSortedNebenkostenEntries = (entries: NebenkostenEntry[]): NebenkostenEntry[] => {
@@ -146,6 +150,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         email: tenantInitialData?.email || "",
         telefonnummer: tenantInitialData?.telefonnummer || "",
         notiz: tenantInitialData?.notiz || "",
+        status: (tenantInitialData?.status || "mieter") as TenantStatus,
       });
 
       if (tenantInitialData?.nebenkosten) {
@@ -276,6 +281,29 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     closeTenantModal({ force: true }); // Force close for "Abbrechen" button
   };
 
+  // Check if current tenant is an applicant
+  const isApplicant = formData.status === 'bewerber';
+
+  const handleStatusChange = (value: string) => {
+    setFormData({ ...formData, status: value as TenantStatus });
+    setTenantModalDirty(true);
+  };
+
+  const convertToTenant = () => {
+    // Set status to 'mieter' and set today as move-in date if not set
+    const today = format(new Date(), "yyyy-MM-dd");
+    setFormData(prev => ({
+      ...prev,
+      status: 'mieter',
+      einzug: prev.einzug || today
+    }));
+    setTenantModalDirty(true);
+    toast({
+      title: "Status geändert",
+      description: "Bewerber wurde als Mieter markiert. Bitte ergänzen Sie die Einzugsdaten.",
+    });
+  };
+
   if (!isTenantModalOpen) return null;
 
   return (
@@ -287,8 +315,23 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         onAttemptClose={attemptClose}
       >
         <DialogHeader>
-          <DialogTitle>{tenantInitialData?.id ? "Mieter bearbeiten" : "Mieter hinzufügen"}</DialogTitle>
-          <DialogDescription>Füllen Sie alle Pflichtfelder aus.</DialogDescription>
+          <div className="flex items-center justify-between pr-8">
+            <div className="space-y-1">
+              <DialogTitle>{tenantInitialData?.id ? "Mieter bearbeiten" : "Mieter hinzufügen"}</DialogTitle>
+              <DialogDescription>Füllen Sie alle Pflichtfelder aus.</DialogDescription>
+            </div>
+            {isApplicant && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={convertToTenant}
+                className="hidden sm:flex"
+              >
+                <BadgeCheck className="mr-2 h-4 w-4" />
+                Als Mieter übernehmen
+              </Button>
+            )}
+          </div>
         </DialogHeader>
         <form onSubmit={async e => {
           e.preventDefault();
@@ -296,33 +339,47 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
           let currentNkErrors: Record<string, { amount?: string; date?: string }> = {};
           let hasValidationErrors = false;
-          for (const entry of nebenkostenEntries) {
-            if (entry.amount.trim() === "" && entry.date.trim() === "") {
-              if (nebenkostenValidationErrors[entry.id]) {
-                setNebenkostenValidationErrors(prev => {
-                  const newErrors = { ...prev }; delete newErrors[entry.id]; return newErrors;
-                });
-              }
-              continue;
-            }
-            const entryErrors = validateNebenkostenEntry(entry);
-            if (Object.keys(entryErrors).length > 0) {
-              currentNkErrors[entry.id] = entryErrors; hasValidationErrors = true;
-            }
-          }
-          setNebenkostenValidationErrors(currentNkErrors);
 
-          if (hasValidationErrors) {
-            toast({ title: "Validierungsfehler", description: "Bitte überprüfen Sie die Nebenkosten Einträge.", variant: "destructive" });
-            setIsSubmitting(false); return;
+          // Only validate nebenkosten if not applicant
+          if (!isApplicant) {
+            for (const entry of nebenkostenEntries) {
+              if (entry.amount.trim() === "" && entry.date.trim() === "") {
+                if (nebenkostenValidationErrors[entry.id]) {
+                  setNebenkostenValidationErrors(prev => {
+                    const newErrors = { ...prev }; delete newErrors[entry.id]; return newErrors;
+                  });
+                }
+                continue;
+              }
+              const entryErrors = validateNebenkostenEntry(entry);
+              if (Object.keys(entryErrors).length > 0) {
+                currentNkErrors[entry.id] = entryErrors; hasValidationErrors = true;
+              }
+            }
+            setNebenkostenValidationErrors(currentNkErrors);
+
+            if (hasValidationErrors) {
+              toast({ title: "Validierungsfehler", description: "Bitte überprüfen Sie die Nebenkosten Einträge.", variant: "destructive" });
+              setIsSubmitting(false); return;
+            }
           }
 
           try {
             const currentFormData = new FormData(e.currentTarget as HTMLFormElement); // Cast to HTMLFormElement
-            const finalNebenkostenEntries = nebenkostenEntries.filter(entry => entry.amount.trim() !== "");
-            currentFormData.set('nebenkosten', JSON.stringify(finalNebenkostenEntries));
+
+            // Only include nebenkosten if not applicant
+            if (!isApplicant) {
+              const finalNebenkostenEntries = nebenkostenEntries.filter(entry => entry.amount.trim() !== "");
+              currentFormData.set('nebenkosten', JSON.stringify(finalNebenkostenEntries));
+            } else {
+              currentFormData.set('nebenkosten', JSON.stringify([]));
+            }
+
             if (formData.wohnung_id) currentFormData.set('wohnung_id', formData.wohnung_id);
             else currentFormData.set('wohnung_id', '');
+
+            // Explicitly set status from state
+            currentFormData.set('status', formData.status);
 
             // Add id if editing
             if (tenantInitialData?.id) {
@@ -356,6 +413,29 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         }} className="grid gap-3 sm:gap-4">
           {/* Removed hidden id input, it's added to FormData directly if editing */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+            {/* Status Field - Full width - Only show if feature flag is enabled */}
+            {showTenantTabs && (
+              <div className="col-span-1 sm:col-span-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="status">Status</Label>
+                  <InfoTooltip infoText="Wählen Sie 'Bewerber' für Interessenten oder 'Mieter' für aktive Vertragsverhältnisse." />
+                </div>
+                <Select
+                  value={formData.status}
+                  onValueChange={handleStatusChange}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Status auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mieter">Mieter</SelectItem>
+                    <SelectItem value="bewerber">Bewerber</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="wohnung_id">Wohnung</Label>
@@ -380,10 +460,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               </div>
               <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting} />
             </div>
+
+            {/* Only show dates if not applicant or if explicitly set */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Label htmlFor="einzug">Einzug</Label>
-                <InfoTooltip infoText="Einzugsdatum im Format TT.MM.JJJJ. Wird für Mietbeginn und Abrechnungen verwendet." />
+                <Label htmlFor="einzug">{isApplicant ? 'Geplanter Einzug' : 'Einzug'}</Label>
+                <InfoTooltip infoText="Datum im Format TT.MM.JJJJ." />
               </div>
               <DatePicker
                 id="einzug"
@@ -394,20 +476,24 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               />
               <input type="hidden" name="einzug" value={formData.einzug} />
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="auszug">Auszug</Label>
-                <InfoTooltip infoText="Auszugsdatum (optional). Leer lassen, wenn der Mietvertrag noch aktiv ist." />
+
+            {!isApplicant && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="auszug">Auszug</Label>
+                  <InfoTooltip infoText="Auszugsdatum (optional). Leer lassen, wenn der Mietvertrag noch aktiv ist." />
+                </div>
+                <DatePicker
+                  id="auszug"
+                  value={formData.auszug}
+                  onChange={(date) => handleDateChange('auszug', date)}
+                  placeholder="TT.MM.JJJJ"
+                  disabled={isSubmitting}
+                />
+                <input type="hidden" name="auszug" value={formData.auszug} />
               </div>
-              <DatePicker
-                id="auszug"
-                value={formData.auszug}
-                onChange={(date) => handleDateChange('auszug', date)}
-                placeholder="TT.MM.JJJJ"
-                disabled={isSubmitting}
-              />
-              <input type="hidden" name="auszug" value={formData.auszug} />
-            </div>
+            )}
+
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="email">E-Mail</Label>
@@ -445,86 +531,104 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 </div>
               </div>
             </div>
-            <div className="col-span-1 sm:col-span-2 space-y-3">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Nebenkosten Vorauszahlungen
-                </h3>
-                <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
-              </div>
-              <div className="bg-white dark:bg-card rounded-2xl sm:rounded-3xl border border-border/50 shadow-sm">
-                <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
-                  <div className="p-3 space-y-3 sm:p-4 sm:space-y-4">
-                    {nebenkostenEntries.length === 0 ? (
-                      <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
-                        Keine Nebenkosten-Vorauszahlungen vorhanden
-                      </div>
-                    ) : nebenkostenEntries.map((entry) => (
-                      <div key={entry.id} className="grid gap-2 grid-cols-[1fr_auto] sm:gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
-                        <div className="space-y-1">
-                          <NumberInput
-                            step="0.01"
-                            placeholder="Betrag (€)"
-                            value={entry.amount}
-                            onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
-                            className={`${nebenkostenValidationErrors[entry.id]?.amount ? 'border-red-500' : ''}`}
-                            disabled={isSubmitting}
-                          />
-                          {nebenkostenValidationErrors[entry.id]?.amount && (
-                            <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
-                          )}
+
+            {/* Hide Utility Costs for Applicants */}
+            {!isApplicant && (
+              <div className="col-span-1 sm:col-span-2 space-y-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Nebenkosten Vorauszahlungen
+                  </h3>
+                  <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
+                </div>
+                <div className="bg-white dark:bg-card rounded-2xl sm:rounded-3xl border border-border/50 shadow-sm">
+                  <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
+                    <div className="p-3 space-y-3 sm:p-4 sm:space-y-4">
+                      {nebenkostenEntries.length === 0 ? (
+                        <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
+                          Keine Nebenkosten-Vorauszahlungen vorhanden
                         </div>
-                        <div className="space-y-1">
-                          <DatePicker
-                            value={entry.date}
-                            onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
-                            placeholder="Datum (TT.MM.JJJJ)"
-                            className={`${nebenkostenValidationErrors[entry.id]?.date ? '!border-red-500' : ''}`}
+                      ) : nebenkostenEntries.map((entry) => (
+                        <div key={entry.id} className="grid gap-2 grid-cols-[1fr_auto] sm:gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
+                          <div className="space-y-1">
+                            <NumberInput
+                              step="0.01"
+                              placeholder="Betrag (€)"
+                              value={entry.amount}
+                              onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
+                              className={`${nebenkostenValidationErrors[entry.id]?.amount ? 'border-red-500' : ''}`}
+                              disabled={isSubmitting}
+                            />
+                            {nebenkostenValidationErrors[entry.id]?.amount && (
+                              <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <DatePicker
+                              value={entry.date}
+                              onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
+                              placeholder="Datum (TT.MM.JJJJ)"
+                              className={`${nebenkostenValidationErrors[entry.id]?.date ? '!border-red-500' : ''}`}
+                              disabled={isSubmitting}
+                            />
+                            {nebenkostenValidationErrors[entry.id]?.date && (
+                              <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.date}</p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeNebenkostenEntry(entry.id)}
                             disabled={isSubmitting}
-                          />
-                          {nebenkostenValidationErrors[entry.id]?.date && (
-                            <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.date}</p>
-                          )}
+                            className="justify-self-end"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeNebenkostenEntry(entry.id)}
-                          disabled={isSubmitting}
-                          className="justify-self-end"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-border/40 p-3 sm:p-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addNebenkostenEntry}
+                      disabled={isSubmitting}
+                      className="w-full mt-1"
+                    >
+                      Eintrag hinzufügen
+                    </Button>
                   </div>
                 </div>
-                <div className="border-t border-border/40 p-3 sm:p-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addNebenkostenEntry}
-                    disabled={isSubmitting}
-                    className="w-full mt-1"
-                  >
-                    Eintrag hinzufügen
-                  </Button>
-                </div>
               </div>
-            </div>
+            )}
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
-              Abbrechen
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || isLoadingWohnungen || Object.values(nebenkostenValidationErrors).some(err => err.amount || err.date)}
-            >
-              {isSubmitting ? "Wird gespeichert..." : (tenantInitialData?.id ? "Aktualisieren" : "Speichern")}
-            </Button>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            {isApplicant && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={convertToTenant}
+                className="w-full sm:w-auto sm:mr-auto flex sm:hidden"
+              >
+                <BadgeCheck className="mr-2 h-4 w-4" />
+                Als Mieter übernehmen
+              </Button>
+            )}
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting} className="flex-1 sm:flex-none">
+                Abbrechen
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 sm:flex-none"
+                disabled={isSubmitting || isLoadingWohnungen || (!isApplicant && Object.values(nebenkostenValidationErrors).some(err => err.amount || err.date))}
+              >
+                {isSubmitting ? "Wird gespeichert..." : (tenantInitialData?.id ? "Aktualisieren" : "Speichern")}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
