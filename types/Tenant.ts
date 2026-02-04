@@ -31,4 +31,7 @@ export interface Tenant {
   notiz?: string;
   nebenkosten?: NebenkostenEntry[];
   kaution?: KautionData;    // New optional kaution field
+  status?: TenantStatus;
 }
+
+export type TenantStatus = 'bewerber' | 'mieter';

@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
-import { KautionData, KautionStatus } from "@/types/Tenant";
+import { KautionData, KautionStatus, TenantStatus } from "@/types/Tenant";
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
@@ -26,6 +26,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
       email: formData.get('email') || null,
       telefonnummer: formData.get('telefonnummer') || null,
       notiz: formData.get('notiz') || null,
+      status: (formData.get('status') as TenantStatus) || 'mieter',
       nebenkosten: (() => {
         const nebenkostenRaw = formData.get('nebenkosten');
         if (nebenkostenRaw && typeof nebenkostenRaw === 'string' && nebenkostenRaw.length > 0) {
@@ -75,6 +76,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
             has_property: !!payload.wohnung_id,
             property_id: payload.wohnung_id,
             has_email: !!payload.email,
+            status: payload.status,
             source: 'server_action'
           }
         });
