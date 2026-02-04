@@ -141,7 +141,7 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
                                     <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[450px] p-0">
+                            <PopoverContent className="w-full p-0 sm:max-w-[450px]">
                                 <Command shouldFilter={false}>
                                     <CommandInput
                                         placeholder="E-Mail oder Name eingeben..."

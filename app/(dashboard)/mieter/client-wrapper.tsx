@@ -11,7 +11,7 @@ import { TenantTable } from "@/components/tables/tenant-table";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
 import { SearchInput } from "@/components/ui/search-input";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { deleteTenantAction, handleSubmit } from "@/app/mieter-actions";
+import { deleteTenantAction } from "@/app/mieter-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
@@ -33,21 +33,7 @@ interface MieterClientViewProps {
 }
 
 // Internal AddTenantButton (could be kept from previous step if preferred)
-function AddTenantButton({ onAdd }: { onAdd: () => void }) {
-  return (
-    <ResponsiveButtonWithTooltip
-      id="add-tenant-btn"
-      onClick={() => {
-        useOnboardingStore.getState().completeStep('assign-tenant-start');
-        onAdd();
-      }}
-      icon={<PlusCircle className="h-4 w-4" />}
-      shortText="Hinzufügen"
-    >
-      Mieter hinzufügen
-    </ResponsiveButtonWithTooltip>
-  );
-}
+
 
 // This is the new main client component, previously MieterPageClientComponent in page.tsx
 import { useFeatureFlagEnabled } from "posthog-js/react";

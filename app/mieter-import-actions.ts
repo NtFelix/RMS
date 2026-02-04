@@ -74,7 +74,7 @@ export async function createApplicantsFromMails(mailIds: string[]) {
 
         return {
             name: name,
-            email: mail.absender.includes('<') ? mail.absender.match(/<([^>]+)>/)?.[1] || null : null, // primitive extraction
+            email: mail.absender.includes('<') ? mail.absender.match(/<([^>]+)>/)?.[1] || mail.absender : mail.absender,
             status: 'bewerber',
             bewerbung_mail_id: mail.id,
             // bewerbung_metadaten left empty for now, to be filled by AI later
