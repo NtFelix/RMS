@@ -114,7 +114,11 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
 
         setIsSubmitting(true);
         try {
-            const result = await createApplicantsFromMails(Array.from(selectedMails));
+            const mailsToImport = mails
+                .filter((mail) => selectedMails.has(mail.id))
+                .map((mail) => ({ id: mail.id, absender: mail.absender }));
+
+            const result = await createApplicantsFromMails(mailsToImport);
             if (result.success) {
                 toast({
                     title: "Import erfolgreich",

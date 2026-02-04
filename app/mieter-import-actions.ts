@@ -59,49 +59,60 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
     return data;
 }
 
-export async function createApplicantsFromMails(mailIds: string[]) {
+export async function createApplicantsFromMails(mails: { id: string, absender: string }[]) {
     const supabase = await createClient();
 
-    // 1. Fetch the mails to get details for the applicant record (like name from sender?) 
-    // For now, let's just create a basic record.
-    const { data: mails, error: fetchError } = await supabase
-        .from('Mail_Metadaten')
-        .select('id, absender')
-        .in('id', mailIds);
-
-    if (fetchError || !mails) {
-        return { success: false, error: fetchError?.message || "Failed to fetch mails" };
+    if (!mails || mails.length === 0) {
+        return { success: false, error: "No mails provided" };
     }
 
-    // 2. Prepare applicant data
-    // Logic: Extract a name from the email sender if possible, otherwise use the email string
-    const newApplicants = mails.map(mail => {
-        // Simple heuristic: if sender format is "Name <email>", extract Name.
-        // Otherwise use the whole string.
-        let name = mail.absender;
-        const match = mail.absender.match(/^([^<]+)/);
-        if (match && match[1].trim()) {
-            name = match[1].trim().replace(/"/g, '');
+    // Process in chunks to avoid any potential batch size limits on insert
+    const CHUNK_SIZE = 100;
+    let successCount = 0;
+    let errors: string[] = [];
+
+    for (let i = 0; i < mails.length; i += CHUNK_SIZE) {
+        const chunk = mails.slice(i, i + CHUNK_SIZE);
+
+        const newApplicants = chunk.map(mail => {
+            // Simple heuristic: if sender format is "Name <email>", extract Name.
+            // Otherwise use the whole string.
+            let name = mail.absender;
+            const match = mail.absender.match(/^([^<]+)/);
+            if (match && match[1].trim()) {
+                name = match[1].trim().replace(/"/g, '');
+            }
+
+            return {
+                name: name,
+                email: mail.absender.includes('<') ? mail.absender.match(/<([^>]+)>/)?.[1] || mail.absender : mail.absender,
+                status: 'bewerber',
+                bewerbung_mail_id: mail.id,
+                // bewerbung_metadaten left empty for now, to be filled by AI later
+            };
+        });
+
+        const { error: insertError } = await supabase
+            .from('Mieter')
+            .insert(newApplicants);
+
+        if (insertError) {
+            console.error("Error inserting applicants chunk:", insertError);
+            errors.push(insertError.message);
+        } else {
+            successCount += newApplicants.length;
         }
-
-        return {
-            name: name,
-            email: mail.absender.includes('<') ? mail.absender.match(/<([^>]+)>/)?.[1] || mail.absender : mail.absender,
-            status: 'bewerber',
-            bewerbung_mail_id: mail.id,
-            // bewerbung_metadaten left empty for now, to be filled by AI later
-        };
-    });
-
-    // 3. Insert into Mieter table
-    const { error: insertError } = await supabase
-        .from('Mieter')
-        .insert(newApplicants);
-
-    if (insertError) {
-        return { success: false, error: insertError.message };
     }
 
     revalidatePath('/mieter');
-    return { success: true, count: newApplicants.length };
+
+    if (errors.length > 0) {
+        return {
+            success: successCount > 0, // Partial success
+            count: successCount,
+            error: `Import partially failed: ${errors.join(', ')}`
+        };
+    }
+
+    return { success: true, count: successCount };
 }
