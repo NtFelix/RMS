@@ -11,7 +11,7 @@ import { TenantTable } from "@/components/tables/tenant-table";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
 import { SearchInput } from "@/components/ui/search-input";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { deleteTenantAction } from "@/app/mieter-actions";
+import { deleteTenantAction, deleteAllApplicantsAction } from "@/app/mieter-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
@@ -22,6 +22,7 @@ import { ApplicantImportModal } from "@/components/tenants/applicant-import-moda
 import { ChevronDown, UserPlus, Mail } from "lucide-react";
 
 
+import { Trash2 } from "lucide-react";
 import type { Tenant, TenantStatus } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
@@ -50,6 +51,8 @@ export default function MieterClientView({
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const { openTenantModal } = useModalStore();
   const showTenantTabs = useFeatureFlagEnabled('show-tenant-tabs');
@@ -243,6 +246,32 @@ export default function MieterClientView({
     }
   }, [selectedTenants, router]);
 
+  const handleDeleteAllApplicants = async () => {
+    setIsDeletingAll(true);
+    try {
+      const result = await deleteAllApplicantsAction();
+      if (!result.success) {
+        throw new Error(result.error?.message || "Fehler beim Löschen aller Bewerber");
+      }
+      setShowDeleteAllConfirm(false);
+      toast({
+        title: "Erfolg",
+        description: "Alle Bewerber wurden gelöscht.",
+        variant: "success",
+      });
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Fehler beim Löschen",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
 
@@ -389,7 +418,17 @@ export default function MieterClientView({
                 <div className="flex flex-col gap-4 mt-4 sm:mt-6">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     {/* No filter buttons for applicants for now, just search */}
-                    <div className="flex-1"></div>
+                    <div className="flex-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDeleteAllConfirm(true)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Alle Bewerber löschen
+                      </Button>
+                    </div>
                     <SearchInput
                       placeholder="Bewerber suchen..."
                       className="rounded-full"
@@ -416,6 +455,7 @@ export default function MieterClientView({
                   onEdit={handleEditTenantInTable}
                   selectedTenants={selectedTenants}
                   onSelectionChange={setSelectedTenants}
+                  mode="applicants"
                 />
               </CardContent>
             </TabsContent>
@@ -436,6 +476,23 @@ export default function MieterClientView({
             <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
               {isBulkDeleting ? "Lösche..." : `${selectedTenants.size} Einträge löschen`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteAllConfirm} onOpenChange={setShowDeleteAllConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Alle Bewerber löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie wirklich ALLE Bewerber unwiderruflich löschen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingAll}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAllApplicants} disabled={isDeletingAll} className="bg-red-600 hover:bg-red-700">
+              {isDeletingAll ? "Lösche..." : "Alle löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

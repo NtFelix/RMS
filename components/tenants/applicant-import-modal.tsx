@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { searchMailSenders, getMailsBySender, createApplicantsFromMails } from "@/app/mieter-import-actions";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface ApplicantImportModalProps {
     open: boolean;
@@ -29,6 +30,8 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
     const [isSearching, setIsSearching] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [comboboxOpen, setComboboxOpen] = useState(false);
+    const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+    const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
     // Search senders debounced
     useEffect(() => {
@@ -55,12 +58,13 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
         setSelectedSender(sender);
         setComboboxOpen(false);
         setIsLoading(true);
+        // Reset dates on new sender selection
+        setStartDate(undefined);
+        setEndDate(undefined);
+
         try {
             const results = await getMailsBySender(sender);
             setMails(results || []);
-            // Auto-select all by default? Or none? Let's do none for safety, or all for convenience.
-            // User said: "these mails should then be listed and processed".
-            // Let's select all initially for convenience.
             setSelectedMails(new Set(results?.map((m: any) => m.id) || []));
             setStep(2);
         } catch (e) {
@@ -72,6 +76,28 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
             setIsLoading(false);
         }
     };
+
+    // Re-fetch when dates change
+    useEffect(() => {
+        const fetchMails = async () => {
+            if (step === 2 && selectedSender) {
+                setIsLoading(true);
+                try {
+                    const results = await getMailsBySender(selectedSender, startDate, endDate);
+                    setMails(results || []);
+                    // Update selection to match new results? Or keep existing?
+                    // User probably wants to select from the filtered list.
+                    // Let's reset selection to all filtered IDs for convenience, like in handleSenderSelect
+                    setSelectedMails(new Set(results?.map((m: any) => m.id) || []));
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        };
+        fetchMails();
+    }, [startDate, endDate, step, selectedSender]);
 
     const toggleMail = (id: string) => {
         const next = new Set(selectedMails);
@@ -179,9 +205,25 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
 
                 {step === 2 && (
                     <div className="py-4">
-                        <div className="mb-2 flex justify-between items-center text-sm text-muted-foreground">
-                            <span>{selectedMails.size} ausgewählt</span>
-                            <Button variant="ghost" size="sm" onClick={() => setStep(1)}>Anderer Absender</Button>
+                        <div className="mb-4 flex flex-col gap-3">
+                            <div className="flex gap-2">
+                                <DatePicker
+                                    value={startDate}
+                                    onChange={setStartDate}
+                                    placeholder="Startdatum"
+                                    className="flex-1"
+                                />
+                                <DatePicker
+                                    value={endDate}
+                                    onChange={setEndDate}
+                                    placeholder="Enddatum (optional)"
+                                    className="flex-1"
+                                />
+                            </div>
+                            <div className="flex justify-between items-center text-sm text-muted-foreground">
+                                <span>{selectedMails.size} ausgewählt</span>
+                                <Button variant="ghost" size="sm" onClick={() => setStep(1)}>Anderer Absender</Button>
+                            </div>
                         </div>
                         <ScrollArea className="h-[300px] rounded-md border p-2">
                             {mails.length === 0 ? (

@@ -31,11 +31,12 @@ interface TenantTableProps {
   onDelete?: (id: string) => void;
   selectedTenants?: Set<string>;
   onSelectionChange?: (selected: Set<string>) => void;
+  mode?: "tenants" | "applicants";
 }
 
 
 
-export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange }: TenantTableProps) {
+export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange, mode = "tenants" }: TenantTableProps) {
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
@@ -96,11 +97,16 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
           valA = a.wohnung_id ? wohnungsMap[a.wohnung_id] || '' : ''
           valB = b.wohnung_id ? wohnungsMap[b.wohnung_id] || '' : ''
         } else if (sortKey === 'nebenkosten') {
-          // Calculate total utility costs for sorting
-          const totalA = a.nebenkosten?.reduce((sum, n) => sum + parseFloat(n.amount || '0'), 0) || 0
-          const totalB = b.nebenkosten?.reduce((sum, n) => sum + parseFloat(n.amount || '0'), 0) || 0
-          valA = totalA
-          valB = totalB
+          if (mode === 'applicants') {
+            valA = a.bewerbung_score || 0;
+            valB = b.bewerbung_score || 0;
+          } else {
+            // Calculate total utility costs for sorting
+            const totalA = a.nebenkosten?.reduce((sum, n) => sum + parseFloat(n.amount || '0'), 0) || 0
+            const totalB = b.nebenkosten?.reduce((sum, n) => sum + parseFloat(n.amount || '0'), 0) || 0
+            valA = totalA
+            valB = totalB
+          }
         } else {
           valA = a[sortKey]
           valB = b[sortKey]
@@ -368,7 +374,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                 <TableHeaderCell sortKey="email" className="dark:text-[#f3f4f6]" icon={Mail}>E-Mail</TableHeaderCell>
                 <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone}>Telefon</TableHeaderCell>
                 <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
-                <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText}>Nebenkosten</TableHeaderCell>
+                <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText}>{mode === 'applicants' ? 'Score' : 'Nebenkosten'}</TableHeaderCell>
                 <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
               </TableRow>
             </TableHeader>
@@ -428,12 +434,28 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.telefonnummer}</TableCell>
                         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
                         <TableCell className={`py-4`}>
-                          {tenant.nebenkosten && tenant.nebenkosten.length > 0
-                            ? tenant.nebenkosten
-                              .slice(0, 3)
-                              .map((n: NebenkostenEntry) => `${n.amount} €`)
-                              .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
-                            : '-'}
+                          {mode === 'applicants' ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-blue-500"
+                                  style={{ width: `${Math.min(tenant.bewerbung_score || 0, 100)}%` }}
+                                />
+                              </div>
+                              <span className="text-sm font-medium">
+                                {tenant.bewerbung_score !== undefined
+                                  ? (tenant.bewerbung_score / 10).toFixed(1)
+                                  : '-'}
+                              </span>
+                            </div>
+                          ) : (
+                            tenant.nebenkosten && tenant.nebenkosten.length > 0
+                              ? tenant.nebenkosten
+                                .slice(0, 3)
+                                .map((n: NebenkostenEntry) => `${n.amount} €`)
+                                .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
+                              : '-'
+                          )}
                         </TableCell>
                         <TableCell
                           className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}

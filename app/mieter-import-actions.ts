@@ -30,14 +30,26 @@ export async function searchMailSenders(query: string) {
     return uniqueSenders;
 }
 
-export async function getMailsBySender(sender: string) {
+export async function getMailsBySender(sender: string, startDate?: Date, endDate?: Date) {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    let query = supabase
         .from('Mail_Metadaten')
         .select('id, betreff, absender, datum_erhalten')
         .eq('absender', sender)
         .order('datum_erhalten', { ascending: false });
+
+    if (startDate) {
+        query = query.gte('datum_erhalten', startDate.toISOString());
+    }
+    if (endDate) {
+        // Set end date to end of day
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('datum_erhalten', endOfDay.toISOString());
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         console.error("Error fetching mails by sender:", error);
