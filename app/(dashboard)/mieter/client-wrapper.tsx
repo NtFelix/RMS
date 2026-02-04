@@ -11,11 +11,15 @@ import { TenantTable } from "@/components/tables/tenant-table";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
 import { SearchInput } from "@/components/ui/search-input";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { deleteTenantAction } from "@/app/mieter-actions";
+import { deleteTenantAction, handleSubmit } from "@/app/mieter-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ApplicantImportModal } from "@/components/tenants/applicant-import-modal";
+import { ChevronDown, UserPlus, Mail } from "lucide-react";
 
 
 import type { Tenant, TenantStatus } from "@/types/Tenant";
@@ -60,6 +64,7 @@ export default function MieterClientView({
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const { openTenantModal } = useModalStore();
   const showTenantTabs = useFeatureFlagEnabled('show-tenant-tabs');
 
@@ -308,7 +313,35 @@ export default function MieterClientView({
                   </p>
                 </div>
                 <div className="mt-0 sm:mt-1">
-                  <AddTenantButton onAdd={handleAddTenant} />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button className="w-full sm:w-auto gap-2">
+                        <PlusCircle className="h-4 w-4" />
+                        Hinzufügen
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                      <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                        <div className="flex items-center font-medium">
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Manuell hinzufügen
+                        </div>
+                        <span className="text-xs text-muted-foreground ml-6">
+                          Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
+                        </span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                        <div className="flex items-center font-medium">
+                          <Mail className="mr-2 h-4 w-4" />
+                          Aus E-Mails importieren
+                        </div>
+                        <span className="text-xs text-muted-foreground ml-6">
+                          Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </CardHeader>
@@ -421,6 +454,10 @@ export default function MieterClientView({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <ApplicantImportModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+      />
     </div>
   );
 }

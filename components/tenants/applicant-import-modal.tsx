@@ -1,0 +1,228 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Search, Check } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { searchMailSenders, getMailsBySender, createApplicantsFromMails } from "@/app/mieter-import-actions";
+import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+interface ApplicantImportModalProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}
+
+export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModalProps) {
+    const [step, setStep] = useState<1 | 2>(1); // 1: Search Sender, 2: Select Mails
+    const [senderQuery, setSenderQuery] = useState("");
+    const [senders, setSenders] = useState<string[]>([]);
+    const [selectedSender, setSelectedSender] = useState<string | null>(null);
+    const [mails, setMails] = useState<any[]>([]);
+    const [selectedMails, setSelectedMails] = useState<Set<string>>(new Set());
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [comboboxOpen, setComboboxOpen] = useState(false);
+
+    // Search senders debounced
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            if (senderQuery.length >= 2) {
+                setIsSearching(true);
+                try {
+                    const results = await searchMailSenders(senderQuery);
+                    setSenders(results);
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    setIsSearching(false);
+                }
+            } else {
+                setSenders([]);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [senderQuery]);
+
+    const handleSenderSelect = async (sender: string) => {
+        setSelectedSender(sender);
+        setComboboxOpen(false);
+        setIsLoading(true);
+        try {
+            const results = await getMailsBySender(sender);
+            setMails(results || []);
+            // Auto-select all by default? Or none? Let's do none for safety, or all for convenience.
+            // User said: "these mails should then be listed and processed".
+            // Let's select all initially for convenience.
+            setSelectedMails(new Set(results?.map((m: any) => m.id) || []));
+            setStep(2);
+        } catch (e) {
+            toast({
+                title: "Fehler beim Laden der E-Mails",
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const toggleMail = (id: string) => {
+        const next = new Set(selectedMails);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
+        setSelectedMails(next);
+    };
+
+    const handleImport = async () => {
+        if (selectedMails.size === 0) return;
+
+        setIsSubmitting(true);
+        try {
+            const result = await createApplicantsFromMails(Array.from(selectedMails));
+            if (result.success) {
+                toast({
+                    title: "Import erfolgreich",
+                    description: `${result.count} Bewerber wurden angelegt.`,
+                    variant: "success",
+                });
+                onOpenChange(false);
+                // Reset state
+                setStep(1);
+                setSelectedSender(null);
+                setMails([]);
+                setSelectedMails(new Set());
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (e: any) {
+            toast({
+                title: "Import fehlgeschlagen",
+                description: e.message || "Ein unbekannter Fehler ist aufgetreten.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>Bewerber importieren</DialogTitle>
+                    <DialogDescription>
+                        {step === 1
+                            ? "Suchen Sie nach dem Absender der Bewerbungs-E-Mails."
+                            : `Wählen Sie die zu importierenden E-Mails von "${selectedSender}".`}
+                    </DialogDescription>
+                </DialogHeader>
+
+                {step === 1 && (
+                    <div className="py-4">
+                        <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={comboboxOpen}
+                                    className="w-full justify-between"
+                                >
+                                    {selectedSender || "Absender suchen..."}
+                                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[450px] p-0">
+                                <Command shouldFilter={false}>
+                                    <CommandInput
+                                        placeholder="E-Mail oder Name eingeben..."
+                                        value={senderQuery}
+                                        onValueChange={setSenderQuery}
+                                    />
+                                    <CommandList>
+                                        {isSearching && <div className="py-6 text-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-2" />Suche...</div>}
+                                        {!isSearching && senders.length === 0 && senderQuery.length >= 2 && (
+                                            <CommandEmpty>Kein Absender gefunden.</CommandEmpty>
+                                        )}
+                                        <CommandGroup heading="Gefundene Absender">
+                                            {senders.map((sender) => (
+                                                <CommandItem
+                                                    key={sender}
+                                                    value={sender}
+                                                    onSelect={() => handleSenderSelect(sender)}
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            selectedSender === sender ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    {sender}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                )}
+
+                {step === 2 && (
+                    <div className="py-4">
+                        <div className="mb-2 flex justify-between items-center text-sm text-muted-foreground">
+                            <span>{selectedMails.size} ausgewählt</span>
+                            <Button variant="ghost" size="sm" onClick={() => setStep(1)}>Anderer Absender</Button>
+                        </div>
+                        <ScrollArea className="h-[300px] rounded-md border p-2">
+                            {mails.length === 0 ? (
+                                <div className="text-center py-8 text-muted-foreground">Keine E-Mails gefunden.</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {mails.map((mail) => (
+                                        <div key={mail.id} className="flex items-start space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+                                            <Checkbox
+                                                id={mail.id}
+                                                checked={selectedMails.has(mail.id)}
+                                                onCheckedChange={() => toggleMail(mail.id)}
+                                            />
+                                            <div className="grid gap-1.5 leading-none">
+                                                <label
+                                                    htmlFor={mail.id}
+                                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                                >
+                                                    {mail.betreff || "(Kein Betreff)"}
+                                                </label>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {new Date(mail.datum_erhalten).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </ScrollArea>
+                    </div>
+                )}
+
+                <DialogFooter>
+                    {step === 2 && (
+                        <Button onClick={handleImport} disabled={isSubmitting || selectedMails.size === 0}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Importieren & KI-Analyse starten
+                        </Button>
+                    )}
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
