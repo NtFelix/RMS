@@ -9,9 +9,9 @@
  */
 
 import {
-  calculateTenantWaterConsumption,
-  calculateTenantWaterCosts,
-  getTenantWaterCost,
+  calculateTenantMeterConsumption,
+  calculateTenantMeterCosts,
+  getTenantMeterCost,
 } from '@/utils/water-cost-calculations';
 import { Mieter, WasserZaehler, WasserAblesung } from '@/lib/data-fetching';
 
@@ -83,9 +83,9 @@ describe('Water Cost Calculations', () => {
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
     user_id: 'user-1',
-    ist_aktiv: true,
     zaehler_typ: 'kaltwasser',
     einheit: 'm³',
+    ist_aktiv: true,
   };
 
   const meter2: WasserZaehler = {
@@ -95,9 +95,9 @@ describe('Water Cost Calculations', () => {
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
     user_id: 'user-1',
-    ist_aktiv: true,
     zaehler_typ: 'kaltwasser',
     einheit: 'm³',
+    ist_aktiv: true,
   };
 
   // Water readings
@@ -128,13 +128,13 @@ describe('Water Cost Calculations', () => {
     zaehler_id: 'meter-2',
   };
 
-  describe('calculateTenantWaterConsumption', () => {
+  describe('calculateTenantMeterConsumption', () => {
     it('should calculate consumption for single tenant in apartment', () => {
       const tenants = [tenant3];
       const meters = [meter2];
       const readings = [reading3];
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         readings,
@@ -152,7 +152,7 @@ describe('Water Cost Calculations', () => {
       const meters = [meter1];
       const readings = [reading1, reading2];
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         readings,
@@ -190,9 +190,9 @@ describe('Water Cost Calculations', () => {
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
         user_id: 'user-1',
-        ist_aktiv: true,
         zaehler_typ: 'kaltwasser',
         einheit: 'm³',
+        ist_aktiv: true,
       };
 
       const reading1b: WasserAblesung = {
@@ -208,7 +208,7 @@ describe('Water Cost Calculations', () => {
       const meters = [meter1, meter1b];
       const readings = [reading1, reading2, reading1b];
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         readings,
@@ -233,7 +233,7 @@ describe('Water Cost Calculations', () => {
       const meters = [meter1];
       const readings = [reading1, reading2];
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         readings,
@@ -247,7 +247,7 @@ describe('Water Cost Calculations', () => {
     });
   });
 
-  describe('calculateTenantWaterCosts', () => {
+  describe('calculateTenantMeterCosts', () => {
     it('should calculate costs correctly with price per cubic meter', () => {
       const tenants = [tenant3];
       const meters = [meter2];
@@ -255,7 +255,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 540; // 540 EUR for 180 m³ = 3 EUR/m³
       const totalBuildingConsumption = 180; // Official building consumption
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -267,7 +267,7 @@ describe('Water Cost Calculations', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].consumption).toBe(180);
-      expect(result[0].pricePerCubicMeter).toBe(3);
+      expect(result[0].pricePerUnit).toBe(3);
       expect(result[0].costShare).toBe(540);
       expect(result[0].isWGMember).toBe(false);
     });
@@ -279,7 +279,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 600; // 600 EUR for 200 m³ = 3 EUR/m³
       const totalBuildingConsumption = 200;
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -313,7 +313,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 600; // 3 EUR/m³
       const totalBuildingConsumption = 200;
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -340,7 +340,7 @@ describe('Water Cost Calculations', () => {
     });
   });
 
-  describe('getTenantWaterCost', () => {
+  describe('getTenantMeterCost', () => {
     it('should return cost for specific tenant', () => {
       const tenants = [tenant1, tenant2, tenant3];
       const meters = [meter1, meter2];
@@ -348,7 +348,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 1140; // 380 m³ total * 3 EUR/m³
       const totalBuildingConsumption = 380;
 
-      const result = getTenantWaterCost(
+      const result = getTenantMeterCost(
         'tenant-3',
         tenants,
         meters,
@@ -372,7 +372,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 300;
       const totalBuildingConsumption = 100;
 
-      const result = getTenantWaterCost(
+      const result = getTenantMeterCost(
         'non-existent',
         tenants,
         meters,
@@ -395,7 +395,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 0;
       const totalBuildingConsumption = 0;
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -418,7 +418,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 100;
       const totalBuildingConsumption = 0;
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -454,7 +454,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 300;
       const totalBuildingConsumption = 100;
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -498,7 +498,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 0; // ❌ No water cost entered!
       const totalBuildingConsumption = 180;
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -510,7 +510,7 @@ describe('Water Cost Calculations', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].consumption).toBe(180); // Consumption is calculated
-      expect(result[0].pricePerCubicMeter).toBe(0); // Price is 0 because cost is 0
+      expect(result[0].pricePerUnit).toBe(0); // Price is 0 because cost is 0
       expect(result[0].costShare).toBe(0); // Cost share is 0
     });
 
@@ -522,7 +522,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 540;
       const totalBuildingConsumption = 0; // ❌ No building consumption entered!
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -534,7 +534,7 @@ describe('Water Cost Calculations', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].consumption).toBe(180); // Individual consumption is still calculated
-      expect(result[0].pricePerCubicMeter).toBe(0); // Price is 0 because can't divide by 0
+      expect(result[0].pricePerUnit).toBe(0); // Price is 0 because can't divide by 0
       expect(result[0].costShare).toBe(0); // Cost share is 0
     });
 
@@ -550,7 +550,7 @@ describe('Water Cost Calculations', () => {
       const meters = [meter2];
       const readings = [oldReading]; // Reading from wrong period
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         readings,
@@ -572,7 +572,7 @@ describe('Water Cost Calculations', () => {
       const tenants = [tenant3]; // tenant3 is in apartment2Id
       const meters = [wrongMeter]; // meter is linked to non-existent apartment
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         [reading3],
@@ -599,7 +599,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 540;
       const totalBuildingConsumption = 180;
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -618,13 +618,13 @@ describe('Water Cost Calculations', () => {
       // Edge case: Meter exists but isn't linked to any apartment
       const unlinkedMeter: WasserZaehler = {
         ...meter2,
-        wohnung_id: null as any, // ❌ Not linked to any apartment!
+        wohnung_id: '', // Empty string instead of null to satisfy type
       };
 
       const tenants = [tenant3];
       const meters = [unlinkedMeter];
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         [reading3],
@@ -659,7 +659,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 540;
       const totalBuildingConsumption = 180;
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -676,7 +676,7 @@ describe('Water Cost Calculations', () => {
     });
   });
 
-  describe('getTenantWaterCost with edge cases', () => {
+  describe('getTenantMeterCost with edge cases', () => {
     it('should return null when tenant has no water meter in their apartment', () => {
       // Tenant exists but their apartment has no water meter
       const tenantWithoutMeter: Mieter = {
@@ -689,7 +689,7 @@ describe('Water Cost Calculations', () => {
       const meters = [meter2]; // Only meter for tenant3's apartment
       const readings = [reading3];
 
-      const result = getTenantWaterCost(
+      const result = getTenantMeterCost(
         'tenant-no-meter',
         tenants,
         meters,
@@ -709,7 +709,7 @@ describe('Water Cost Calculations', () => {
       const meters = [meter2];
       const readings = [reading3];
 
-      const result = getTenantWaterCost(
+      const result = getTenantMeterCost(
         'tenant-3',
         tenants,
         meters,
@@ -723,7 +723,7 @@ describe('Water Cost Calculations', () => {
       expect(result).not.toBeNull();
       expect(result!.consumption).toBe(180);
       expect(result!.costShare).toBe(540);
-      expect(result!.pricePerCubicMeter).toBe(3); // 540 / 180 = 3 EUR/m³
+      expect(result!.pricePerUnit).toBe(3); // 540 / 180 = 3 EUR/m³
     });
   });
 
@@ -813,7 +813,7 @@ describe('Water Cost Calculations', () => {
       const meters = [kaltwasserMeter, warmwasserMeter, gasMeter];
       const readings = [...kaltwasserReadings, ...warmwasserReadings, ...gasReadings];
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         readings,
@@ -832,7 +832,7 @@ describe('Water Cost Calculations', () => {
       const meters = [kaltwasserMeter, warmwasserMeter, gasMeter];
       const readings = [...kaltwasserReadings, ...warmwasserReadings, ...gasReadings];
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         readings,
@@ -861,7 +861,7 @@ describe('Water Cost Calculations', () => {
       const totalBuildingWaterCost = 430; // EUR (mix of all meter types)
       const totalBuildingConsumption = 215; // m³
 
-      const result = calculateTenantWaterCosts(
+      const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
@@ -873,7 +873,7 @@ describe('Water Cost Calculations', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].consumption).toBe(215);
-      expect(result[0].pricePerCubicMeter).toBeCloseTo(2, 1); // 430 / 215 ≈ 2
+      expect(result[0].pricePerUnit).toBeCloseTo(2, 1); // 430 / 215 ≈ 2
       expect(result[0].costShare).toBeCloseTo(430, 1);
     });
 
@@ -890,7 +890,7 @@ describe('Water Cost Calculations', () => {
       // Include out-of-period readings along with valid ones
       const readings = [oldReading, futureReading, ...kaltwasserReadings.slice(0, 1), ...warmwasserReadings.slice(0, 1)];
 
-      const result = calculateTenantWaterConsumption(
+      const result = calculateTenantMeterConsumption(
         tenants,
         meters,
         readings,

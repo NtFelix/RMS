@@ -3,9 +3,20 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 
+import dynamic from "next/dynamic";
 import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info } from "lucide-react";
-import { FinanceVisualization } from "@/components/finance/finance-visualization";
-import { FinanceTable } from "@/components/tables/finance-table";
+
+// Dynamically import heavy components
+const FinanceVisualization = dynamic(
+  () => import("@/components/finance/finance-visualization").then((mod) => mod.FinanceVisualization),
+  { ssr: false } // Charts are client-side only
+);
+
+const FinanceTable = dynamic(
+  () => import("@/components/tables/finance-table").then((mod) => mod.FinanceTable),
+  { ssr: true } // Table benefits from SSR for SEO/initial paint
+);
+
 import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
 import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
 import { SummaryCard } from "@/components/common/summary-card";

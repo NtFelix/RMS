@@ -41,7 +41,7 @@ export default function BetriebskostenClientView({
   const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
   const { openBetriebskostenModal } = useModalStore(); // Get the action to open modal
   const { toast } = useToast();
-   // Define router for potential refresh, though modal might handle it
+  // Define router for potential refresh, though modal might handle it
   const router = useRouter();
   const tableRef = useRef<HTMLDivElement | null>(null);
   const [showGuide, setShowGuide] = useState(true);
@@ -64,14 +64,14 @@ export default function BetriebskostenClientView({
       const currentYear = new Date().getFullYear();
       const currentYearStart = `${currentYear}-01-01`;
       const currentYearEnd = `${currentYear}-12-31`;
-      result = result.filter(item => 
+      result = result.filter(item =>
         item.startdatum && item.enddatum &&
         item.startdatum <= currentYearEnd && item.enddatum >= currentYearStart
       );
     } else if (filter === "previous") {
       const currentYear = new Date().getFullYear();
       const currentYearStart = `${currentYear}-01-01`;
-      result = result.filter(item => 
+      result = result.filter(item =>
         item.enddatum && item.enddatum < currentYearStart
       );
     }
@@ -81,15 +81,15 @@ export default function BetriebskostenClientView({
   const handleOpenCreateModal = useCallback((templateType: 'blank' | 'previous' | 'default' = 'blank') => {
     // Pass initialHaeuser and a success callback (e.g., to refresh data)
     openBetriebskostenModal(
-      templateType !== 'blank' ? { useTemplate: templateType } : null, 
-      initialHaeuser, 
+      templateType !== 'blank' ? { useTemplate: templateType } : null,
+      initialHaeuser,
       () => {
         // This callback is called on successful save from the modal
         router.refresh();
       }
     );
   }, [openBetriebskostenModal, initialHaeuser, router]);
-  
+
   const handleOpenBlankModal = useCallback(() => handleOpenCreateModal('blank'), [handleOpenCreateModal]);
   const handleOpenPreviousTemplateModal = useCallback(() => handleOpenCreateModal('previous'), [handleOpenCreateModal]);
   const handleOpenDefaultTemplateModal = useCallback(() => handleOpenCreateModal('default'), [handleOpenCreateModal]);
@@ -126,8 +126,8 @@ export default function BetriebskostenClientView({
     if (!selectedItemIdForDelete) return;
     const result = await deleteNebenkostenServerAction(selectedItemIdForDelete);
     if (result.success) {
-      toast({ 
-        title: "Erfolg", 
+      toast({
+        title: "Erfolg",
         description: "Nebenkosten-Eintrag erfolgreich gelöscht.",
         variant: "success"
       });
@@ -191,8 +191,8 @@ export default function BetriebskostenClientView({
     },
     {
       id: 3,
-      title: 'Wasserzähler eintragen',
-      description: 'Wähle "Wasserzähler" aus dem Menü und erfasse die Zählerstände.',
+      title: 'Zähler eintragen',
+      description: 'Wähle "Zähler" aus dem Menü und erfasse die Zählerstände.',
     },
     {
       id: 4,
@@ -225,10 +225,10 @@ export default function BetriebskostenClientView({
                   Folge diesen Schritten, um eine vollständige Betriebskostenabrechnung zu erstellen
                 </p>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleDismissGuide} 
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDismissGuide}
                 className="text-muted-foreground -mt-1"
               >
                 <X className="h-4 w-4 mr-1" /> Ausblenden
@@ -257,8 +257,8 @@ export default function BetriebskostenClientView({
                 className="flex-1"
                 buttonText="Neue Abrechnung erstellen"
               />
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={scrollToTable}
                 className="flex-1"
               >

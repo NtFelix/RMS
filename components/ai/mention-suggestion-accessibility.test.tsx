@@ -47,13 +47,13 @@ jest.mock('@/hooks/use-keyboard-navigation', () => ({
     
     const selectNext = React.useCallback(() => {
       if (itemCount > 0) {
-        setSelectedIndex((prev) => (prev + 1) % itemCount);
+        setSelectedIndex((prev: number) => (prev + 1) % itemCount);
       }
     }, [itemCount]);
     
     const selectPrevious = React.useCallback(() => {
       if (itemCount > 0) {
-        setSelectedIndex((prev) => (prev - 1 + itemCount) % itemCount);
+        setSelectedIndex((prev: number) => (prev - 1 + itemCount) % itemCount);
       }
     }, [itemCount]);
     

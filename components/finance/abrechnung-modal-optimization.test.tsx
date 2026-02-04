@@ -114,8 +114,8 @@ describe('AbrechnungModal Optimization', () => {
     nebenkostenart: ['Heizung', 'Wasser'],
     betrag: [1000, 500],
     berechnungsart: ['pro qm', 'nach Verbrauch'],
-    wasserkosten: 500,
-    wasserverbrauch: 100,
+    zaehlerkosten: { 'Wasser': 500 },
+    zaehlerverbrauch: { 'Wasser': 100 },
     haeuser_id: 'house-1',
     user_id: 'user-1',
     Haeuser: { name: 'Test House' },
@@ -130,7 +130,7 @@ describe('AbrechnungModal Optimization', () => {
       name: 'John Doe',
       wohnung_id: 'apt-1',
       einzug: '2024-01-01',
-      auszug: undefined,
+      auszug: null,
       email: 'john@example.com',
       telefonnummer: '123456789',
       notiz: '',
@@ -139,7 +139,6 @@ describe('AbrechnungModal Optimization', () => {
       Wohnungen: {
         name: 'Apartment 1',
         groesse: 50,
-        miete: 800,
       },
     },
     {
@@ -147,7 +146,7 @@ describe('AbrechnungModal Optimization', () => {
       name: 'Jane Smith',
       wohnung_id: 'apt-2',
       einzug: '2024-01-01',
-      auszug: undefined,
+      auszug: null,
       email: 'jane@example.com',
       telefonnummer: '987654321',
       notiz: '',
@@ -156,7 +155,6 @@ describe('AbrechnungModal Optimization', () => {
       Wohnungen: {
         name: 'Apartment 2',
         groesse: 60,
-        miete: 900,
       },
     },
   ];

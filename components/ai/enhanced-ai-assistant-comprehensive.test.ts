@@ -23,7 +23,7 @@ jest.mock('posthog-js/react', () => ({
 }));
 
 // Mock fetch
-const mockFetch = jest.fn();
+const mockFetch = jest.fn() as any;
 global.fetch = mockFetch;
 
 const mockUseNetworkStatus = useNetworkStatus as jest.MockedFunction<typeof useNetworkStatus>;
@@ -48,7 +48,8 @@ describe('Enhanced AI Assistant Hook', () => {
   const defaultRetryState = {
     isRetrying: false,
     attemptCount: 0,
-    nextRetryIn: 0
+    nextRetryIn: 0,
+    lastError: null
   };
 
   const mockRetryFunction = jest.fn();
@@ -65,7 +66,8 @@ describe('Enhanced AI Assistant Hook', () => {
     mockUseRetry.mockReturnValue({
       retry: mockRetryFunction,
       state: defaultRetryState,
-      reset: mockResetRetry
+      reset: mockResetRetry,
+      cancel: jest.fn()
     });
 
     // Default validation mocks
@@ -257,7 +259,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Test response' })
-      } as Response);
+      } as unknown as Response);
 
       const { result } = renderHook(() => useEnhancedAIAssistant([]));
 
@@ -296,7 +298,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'AI response' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
@@ -347,7 +349,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'text/event-stream' }),
         body: mockStream
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
@@ -390,7 +392,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Response' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
@@ -416,7 +418,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Response' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
@@ -522,7 +524,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'text/event-stream' }),
         body: mockStream
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
@@ -573,7 +575,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Retry success' })
-      } as Response);
+      } as unknown as Response);
 
       // Manual retry
       await act(async () => {
@@ -588,7 +590,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Success' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
@@ -693,7 +695,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Response' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
@@ -744,7 +746,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'text/event-stream' }),
         body: mockStream
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
@@ -765,7 +767,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'text/event-stream' }),
         body: null
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();

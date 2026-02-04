@@ -25,7 +25,7 @@ const mockTemplate = {
   id: '1',
   titel: 'Test Template',
   inhalt: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Test content' }] }] },
-  kategorie: 'Mail',
+  kategorie: 'Mail' as const,
   user_id: 'user1',
   kontext_anforderungen: [],
   erstellungsdatum: '2024-01-01T00:00:00Z',
@@ -65,7 +65,7 @@ describe('Template System Accessibility', () => {
       );
 
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('should have proper ARIA labels and roles', () => {
@@ -151,7 +151,7 @@ describe('Template System Accessibility', () => {
       );
 
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('should have proper ARIA labels and structure', () => {
@@ -226,7 +226,7 @@ describe('Template System Accessibility', () => {
       );
 
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('should have proper form structure and labels', () => {
@@ -299,7 +299,7 @@ describe('Template System Accessibility', () => {
       );
 
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('should have proper toolbar structure', () => {

@@ -26,7 +26,10 @@ describe('MobileBottomNavigation Feature Flags', () => {
     })
     
     mockUseSidebarActiveState.mockReturnValue({
-      isRouteActive: jest.fn(() => false)
+      isRouteActive: jest.fn(() => false),
+      getActiveStateClasses: jest.fn(),
+      currentRoute: '',
+      isCloudStorageActive: false
     })
   })
 

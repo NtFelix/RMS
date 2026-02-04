@@ -51,7 +51,7 @@ const mockEditor = {
 const mockUseEditor = jest.fn(() => mockEditor);
 
 jest.mock('@tiptap/react', () => ({
-  useEditor: (...args: any[]) => mockUseEditor(...args),
+  useEditor: (...args: any[]) => (mockUseEditor as any)(...args),
   EditorContent: ({ editor }: any) => (
     <div data-testid="editor-content">
       {editor ? 'Editor loaded' : 'Loading...'}

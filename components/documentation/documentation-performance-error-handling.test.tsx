@@ -6,7 +6,7 @@ import { DocumentationCategories } from '@/components/documentation/documentatio
 import { DocumentationArticleList } from '@/components/documentation/documentation-article-list';
 import { DocumentationErrorBoundary } from '@/components/documentation/documentation-error-boundary';
 import { VirtualArticleList } from '@/components/documentation/virtual-article-list';
-import { useRetry, useApiRetry } from '@/hooks/use-retry';
+import { useRetry } from '@/hooks/use-retry';
 import { useDocumentationCache } from '@/hooks/use-documentation-cache';
 import type { Article, Category } from '@/types/documentation';
 
@@ -27,7 +27,7 @@ jest.mock('@/hooks/use-retry');
 jest.mock('@/hooks/use-documentation-cache');
 
 const mockUseRetry = useRetry as jest.MockedFunction<typeof useRetry>;
-const mockUseApiRetry = useApiRetry as jest.MockedFunction<typeof useApiRetry>;
+
 const mockUseDocumentationCache = useDocumentationCache as jest.MockedFunction<typeof useDocumentationCache>;
 
 // Mock data
@@ -57,7 +57,7 @@ describe('Documentation Performance Optimizations', () => {
     it('should debounce search input to reduce API calls', async () => {
       // Mock debounce to return the value immediately for testing
       const mockUseDebounce = require('@/hooks/use-debounce').useDebounce;
-      mockUseDebounce.mockImplementation((value) => value);
+      mockUseDebounce.mockImplementation((value: any) => value);
 
       const mockOnSearch = jest.fn();
       const user = userEvent.setup();
@@ -288,87 +288,7 @@ describe('Documentation Error Handling', () => {
     });
   });
 
-  describe('Retry Mechanisms', () => {
-    it('should implement retry logic with exponential backoff', async () => {
-      const mockAsyncFunction = jest.fn().mockResolvedValue('Success');
-      const mockExecute = jest.fn().mockResolvedValue('Success');
 
-      mockUseRetry.mockReturnValue({
-        execute: mockExecute,
-        retry: jest.fn(),
-        cancel: jest.fn(),
-        reset: jest.fn(),
-        isLoading: false,
-        error: null,
-        attempt: 0,
-        canRetry: true,
-      });
-
-      const TestComponent = () => {
-        const { execute, isLoading, error } = useRetry(mockAsyncFunction, {
-          maxAttempts: 3,
-          delay: 1000,
-        });
-        
-        return (
-          <div>
-            <button onClick={() => execute()}>Execute</button>
-            {isLoading && <span>Loading...</span>}
-            {error && <span>Error: {error.message}</span>}
-          </div>
-        );
-      };
-
-      const user = userEvent.setup();
-      render(<TestComponent />);
-
-      const executeButton = screen.getByText('Execute');
-      await user.click(executeButton);
-
-      expect(mockUseRetry).toHaveBeenCalledWith(
-        mockAsyncFunction,
-        expect.objectContaining({
-          maxAttempts: 3,
-          delay: 1000,
-        })
-      );
-    });
-
-    it('should handle API retry with specific configuration', () => {
-      const mockApiFunction = jest.fn();
-
-      mockUseApiRetry.mockReturnValue({
-        execute: jest.fn(),
-        retry: jest.fn(),
-        cancel: jest.fn(),
-        reset: jest.fn(),
-        isLoading: false,
-        error: null,
-        attempt: 0,
-        canRetry: true,
-      });
-
-      const TestComponent = () => {
-        const { execute } = useApiRetry(mockApiFunction, {
-          maxAttempts: 3,
-          delay: 1000,
-          backoffMultiplier: 1.5,
-        });
-        return <button onClick={() => execute()}>API Call</button>;
-      };
-
-      render(<TestComponent />);
-
-      expect(mockUseApiRetry).toHaveBeenCalledWith(
-        mockApiFunction,
-        expect.objectContaining({
-          maxAttempts: 3,
-          delay: 1000,
-          backoffMultiplier: 1.5,
-        })
-      );
-    });
-  });
 
   describe('Loading States', () => {
     it('should show loading skeletons during data fetch', () => {

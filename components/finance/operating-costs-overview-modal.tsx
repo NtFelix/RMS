@@ -5,12 +5,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { FileDown } from "lucide-react"
-import { Nebenkosten } from "@/lib/data-fetching"
+import type { Nebenkosten } from "@/lib/types";
 import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types"
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten"
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { SummaryCards } from "@/components/common/summary-cards"
 import { toast } from "@/hooks/use-toast"
+import { usePostHog } from "posthog-js/react"
 
 export function OperatingCostsOverviewModal({
   isOpen,
@@ -22,6 +23,7 @@ export function OperatingCostsOverviewModal({
   nebenkosten: OptimizedNebenkosten
 }) {
   const [isExporting, setIsExporting] = useState(false)
+  const posthog = usePostHog()
   if (!nebenkosten) return null
 
   // Helper function to format currency
@@ -35,7 +37,7 @@ export function OperatingCostsOverviewModal({
   const totalArea = nebenkosten.gesamtFlaeche || 1 // Default to 1 to avoid division by zero
   const costPerSqm = totalArea > 0 ? totalCosts / totalArea : 0
 
-  // PDF export function
+  // PDF export function with worker offloading
   const exportToPDF = async () => {
     setIsExporting(true)
     toast({
@@ -45,173 +47,50 @@ export function OperatingCostsOverviewModal({
     })
 
     try {
-      const { default: jsPDF } = await import('jspdf')
-      const autoTableModule = await import('jspdf-autotable')
+      const { generateHouseOverviewPDF } = await import('@/lib/worker-client')
 
-      // Initialize autoTable plugin
-      if (autoTableModule && typeof autoTableModule.applyPlugin === 'function') {
-        autoTableModule.applyPlugin(jsPDF)
-      } else if (autoTableModule && typeof autoTableModule.default === 'function') {
-        (jsPDF.API as any).autoTable = autoTableModule.default
-      } else {
-        console.error("Could not initialize jspdf-autotable plugin")
-        toast({
-          title: "Fehler",
-          description: "PDF-Plugin konnte nicht initialisiert werden",
-          variant: "destructive"
-        })
-        return
-      }
-
-      const doc = new jsPDF()
-      let startY = 20
-
-      // Title
-      doc.setFontSize(16)
-      doc.setFont("helvetica", "bold")
-      doc.text("Kostenaufstellung - Betriebskosten", 20, startY)
-      startY += 10
-
-      // Period and house info
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "normal")
-      doc.text(`Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)}`, 20, startY)
-      startY += 6
-      if (nebenkosten.haus_name) {
-        doc.text(`Haus: ${nebenkosten.haus_name}`, 20, startY)
-        startY += 6
-      }
-      startY += 10
-
-      // Summary information
-      doc.setFontSize(12)
-      doc.setFont("helvetica", "bold")
-      doc.text("Übersicht", 20, startY)
-      startY += 8
-
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "normal")
-      doc.text(`Gesamtfläche: ${totalArea} m²`, 20, startY)
-      startY += 6
-      doc.text(`Anzahl Wohnungen: ${nebenkosten.anzahlWohnungen || 0}`, 20, startY)
-      startY += 6
-      doc.text(`Anzahl Mieter: ${nebenkosten.anzahlMieter || 0}`, 20, startY)
-      startY += 6
-      doc.text(`Gesamtkosten: ${formatCurrency(totalCosts)}`, 20, startY)
-      startY += 6
-      doc.text(`Kosten pro m²: ${formatCurrency(costPerSqm)}`, 20, startY)
-      startY += 15
-
-      // Cost breakdown table
-      const tableData = nebenkosten.nebenkostenart?.map((art, index) => [
-        (index + 1).toString(),
-        art || '-',
-        formatCurrency(nebenkosten.betrag?.[index] || null),
-        nebenkosten.betrag?.[index] && totalArea > 0
-          ? formatCurrency((nebenkosten.betrag[index] || 0) / totalArea)
-          : '-'
-      ]) || []
-
-      // Add total row
-      tableData.push([
-        '',
-        'Gesamtkosten',
-        formatCurrency(totalCosts),
-        formatCurrency(costPerSqm)
-      ])
-
-        ; (doc as any).autoTable({
-          head: [['Pos.', 'Leistungsart', 'Gesamtkosten', 'Kosten pro m²']],
-          body: tableData,
-          startY: startY,
-          theme: 'plain',
-          headStyles: {
-            fillColor: [255, 255, 255], // White background instead of gray
-            textColor: [0, 0, 0],
-            fontStyle: 'bold',
-            lineWidth: { bottom: 0.3 }, // Thicker bottom border for header
-            lineColor: [0, 0, 0] // Black color for header bottom border
-          },
-          styles: {
-            fontSize: 9,
-            cellPadding: 3,
-            lineWidth: 0 // Remove all cell borders
-          },
-          bodyStyles: {
-            lineWidth: { bottom: 0.1 }, // Only add thin bottom border for rows
-            lineColor: [0, 0, 0] // Black color for row separators
-          },
-          columnStyles: {
-            0: { halign: 'left' },   // Left align position numbers
-            1: { halign: 'left' },   // Left align service descriptions
-            2: { halign: 'right' },  // Right align total costs
-            3: { halign: 'right' },  // Right align costs per sqm
-          },
-          // Ensure table aligns with left and right content margins
-          tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
-          margin: { left: 20, right: 20 },
-          didParseCell: function (data: any) {
-            // Make the total row bold
-            if (data.row.index === tableData.length - 1) {
-              data.cell.styles.fontStyle = 'bold'
-              data.cell.styles.fillColor = [248, 248, 248]
-            }
-            // Ensure header columns are properly aligned
-            if (data.section === 'head') {
-              if (data.column.index === 2 || data.column.index === 3) {
-                data.cell.styles.halign = 'right'
-              } else {
-                data.cell.styles.halign = 'left'
-              }
-            }
-          }
-        })
-
-      // Meter costs section if zaehlerkosten available
-      if (nebenkosten.zaehlerkosten && Object.keys(nebenkosten.zaehlerkosten).length > 0) {
-        let meterY = (doc as any).lastAutoTable.finalY + 15
-
-        doc.setFontSize(12)
-        doc.setFont("helvetica", "bold")
-        doc.text("Zählerkosten", 20, meterY)
-        meterY += 8
-
-        doc.setFontSize(10)
-        doc.setFont("helvetica", "normal")
-
-        Object.entries(nebenkosten.zaehlerkosten).forEach(([typ, kosten]) => {
-          const config = ZAEHLER_CONFIG[typ as ZaehlerTyp]
-          const label = config?.label || typ
-          const einheit = config?.einheit || 'm³'
-          const verbrauch = nebenkosten.zaehlerverbrauch?.[typ]
-
-          doc.text(`${label}: ${formatCurrency(kosten)}`, 20, meterY)
-          meterY += 5
-          if (typeof verbrauch === 'number') {
-            doc.text(`  Verbrauch: ${verbrauch} ${einheit}`, 20, meterY)
-            meterY += 5
-            if (verbrauch > 0) {
-              doc.text(`  Kosten pro ${einheit}: ${formatCurrency(kosten / verbrauch)}`, 20, meterY)
-              meterY += 5
-            }
-          }
-          meterY += 2
-        })
-      }
-
-      // Generate filename
       const startDate = isoToGermanDate(nebenkosten.startdatum)?.replace(/\./g, '-') || 'unbekannt'
       const endDate = isoToGermanDate(nebenkosten.enddatum)?.replace(/\./g, '-') || 'unbekannt'
       const houseName = nebenkosten.haus_name?.replace(/[^a-zA-Z0-9äöüÄÖÜß]/g, '_') || 'Haus'
       const filename = `Kostenaufstellung_${houseName}_${startDate}_bis_${endDate}.pdf`
 
-      // Save the PDF
-      doc.save(filename)
+      const clientStartTime = Date.now();
+      const response = await generateHouseOverviewPDF({
+        nebenkosten,
+        totalArea,
+        totalCosts,
+        costPerSqm,
+        filename
+      })
+      const clientEndTime = Date.now();
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
       toast({
         title: "Export erfolgreich",
         description: "PDF erfolgreich erstellt und heruntergeladen!",
         variant: "success"
       })
+
+      // Extract metrics from headers
+      const pageCount = parseInt(response.headers.get('X-PDF-Page-Count') || '0', 10);
+
+      posthog?.capture('pdf_exported', {
+        document_type: 'overview',
+        export_method: 'single',
+        period: `${nebenkosten.startdatum}_${nebenkosten.enddatum}`,
+        house_name: nebenkosten.haus_name,
+        page_count: pageCount,
+        processing_time_ms: clientEndTime - clientStartTime
+      });
 
     } catch (error) {
       console.error("PDF export error:", error)
