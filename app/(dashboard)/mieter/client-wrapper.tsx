@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ApplicantImportModal } from "@/components/tenants/applicant-import-modal";
+import { ApplicantScoreModal } from "@/components/tenants/applicant-score-modal";
+import { MailPreviewModal } from "@/components/mail-preview-modal";
 import { ChevronDown, UserPlus, Mail } from "lucide-react";
 
 
@@ -501,6 +503,8 @@ export default function MieterClientView({
         open={showImportModal}
         onOpenChange={setShowImportModal}
       />
+      <ApplicantScoreModal />
+      <MailPreviewModal />
     </div>
   );
 }

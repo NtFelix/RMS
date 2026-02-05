@@ -186,6 +186,17 @@ interface KautionModalData {
   suggestedAmount?: number;
 }
 
+interface ApplicantScoreModalData {
+  tenant: {
+    id: string;
+    name: string;
+    email?: string;
+    bewerbung_score?: number;
+    bewerbung_metadaten?: any;
+    bewerbung_mail_id?: string;
+  };
+}
+
 export interface ModalState {
   // Tenant Modal State
   isTenantModalOpen: boolean;
@@ -470,6 +481,18 @@ export interface ModalState {
   openZaehlerModal: (wohnungId: string, wohnungName: string) => void;
   closeZaehlerModal: (options?: CloseModalOptions) => void;
   setZaehlerModalDirty: (isDirty: boolean) => void;
+
+  // Applicant Score Modal State
+  isApplicantScoreModalOpen: boolean;
+  applicantScoreModalData?: ApplicantScoreModalData;
+  openApplicantScoreModal: (data: ApplicantScoreModalData) => void;
+  closeApplicantScoreModal: () => void;
+
+  // Mail Preview Modal State
+  isMailPreviewModalOpen: boolean;
+  mailPreviewId?: string;
+  openMailPreviewModal: (mailId: string) => void;
+  closeMailPreviewModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -657,6 +680,16 @@ const initialZaehlerModalState = {
   isZaehlerModalDirty: false,
 };
 
+const initialApplicantScoreModalState = {
+  isApplicantScoreModalOpen: false,
+  applicantScoreModalData: undefined,
+};
+
+const initialMailPreviewModalState = {
+  isMailPreviewModalOpen: false,
+  mailPreviewId: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -685,6 +718,8 @@ const createInitialModalState = () => ({
   ...initialWasserZaehlerModalState,
   ...initialAblesungenModalState,
   ...initialZaehlerModalState,
+  ...initialApplicantScoreModalState,
+  ...initialMailPreviewModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -806,6 +841,23 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeBetriebskostenModal: createCloseHandler('isBetriebskostenModalDirty', initialBetriebskostenModalState),
     setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
+
+    // Applicant Score Modal
+    openApplicantScoreModal: (data) => set({
+      isApplicantScoreModalOpen: true,
+      applicantScoreModalData: data,
+    }),
+    closeApplicantScoreModal: () => set(initialApplicantScoreModalState),
+
+    // Mail Preview Modal
+    openMailPreviewModal: (mailId: string) => set({
+      isMailPreviewModalOpen: true,
+      mailPreviewId: mailId,
+    }),
+    closeMailPreviewModal: () => set(initialMailPreviewModalState),
+
+
+
 
     // Wasserzähler Modal
     openWasserzaehlerModal: (nebenkosten, mieterList, existingReadings, onSave) => set({

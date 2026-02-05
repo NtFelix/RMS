@@ -17,7 +17,7 @@ export default async function MieterPage() {
 
   const { data: rawMieter, error: mieterError } = await supabase
     .from('Mieter')
-    .select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score');
+    .select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
   if (mieterError) console.error('Fehler beim Laden der Mieter:', mieterError);
 
   const today = new Date();

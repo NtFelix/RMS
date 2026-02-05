@@ -889,13 +889,27 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
                     score: aiScore || 0
                 });
 
-                // Update DB
+                // Update DB with Top-Level fields for easier access/sorting
+                const updates: any = {
+                    bewerbung_metadaten: aiResult,
+                    bewerbung_score: aiScore
+                };
+
+                if (aiResult?.personalInfo) {
+                    if (aiResult.personalInfo.firstName || aiResult.personalInfo.lastName) {
+                        updates.name = `${aiResult.personalInfo.firstName || ''} ${aiResult.personalInfo.lastName || ''}`.trim();
+                    }
+                    if (aiResult.personalInfo.email) {
+                        updates.email = aiResult.personalInfo.email;
+                    }
+                    if (aiResult.personalInfo.phone) {
+                        updates.telefonnummer = aiResult.personalInfo.phone;
+                    }
+                }
+
                 const { error: updateError } = await supabase
                     .from('Mieter')
-                    .update({
-                        bewerbung_metadaten: aiResult,
-                        bewerbung_score: aiScore
-                    })
+                    .update(updates)
                     .eq('bewerbung_mail_id', mail_id);
 
                 if (updateError) throw updateError;

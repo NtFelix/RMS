@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2, Euro, MoreVertical, X, Download } from "lucide-react"
+import { ChevronsUpDown, ArrowUp, ArrowDown, User, Mail, Phone, Home, FileText, Pencil, Trash2, Euro, MoreVertical, X, Download, Sparkles, ExternalLink } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ActionMenu } from "@/components/ui/action-menu"
 
@@ -47,6 +47,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
+  const { openApplicantScoreModal, openMailPreviewModal } = useModalStore()
 
   // Use external selection state if provided, otherwise use internal
   const selectedTenants = externalSelectedTenants ?? internalSelectedTenants
@@ -470,6 +471,29 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                                 onClick: () => onEdit?.(tenant),
                                 variant: 'primary',
                               },
+                              ...(tenant.bewerbung_metadaten ? [{
+                                id: `ai-score-${tenant.id}`,
+                                icon: Sparkles,
+                                label: "Datenblatt (AI)",
+                                onClick: () => openApplicantScoreModal({
+                                  tenant: {
+                                    id: tenant.id,
+                                    name: tenant.name,
+                                    email: tenant.email || undefined,
+                                    bewerbung_score: tenant.bewerbung_score,
+                                    bewerbung_metadaten: tenant.bewerbung_metadaten,
+                                    bewerbung_mail_id: tenant.bewerbung_mail_id
+                                  }
+                                }),
+                                variant: 'default' as const,
+                              }] : []),
+                              ...(tenant.bewerbung_mail_id ? [{
+                                id: `mail-link-${tenant.id}`,
+                                icon: ExternalLink,
+                                label: "Zur E-Mail",
+                                onClick: () => openMailPreviewModal(tenant.bewerbung_mail_id!),
+                                variant: 'default' as const,
+                              }] : []),
                               {
                                 id: `kaution-${tenant.id}`,
                                 icon: Euro,

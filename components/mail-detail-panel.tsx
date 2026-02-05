@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { fetchEmailById, fetchEmailBody, listEmailAttachments, downloadAttachment, updateEmailReadStatus, toggleEmailFavorite, moveEmailToFolder } from "@/lib/email-utils"
 import type { EmailBody, EmailAttachment } from "@/lib/email-utils"
 import DOMPurify from 'dompurify'
@@ -27,7 +28,7 @@ interface Mail {
 }
 
 interface MailDetailPanelProps {
-  mail: Mail;
+  mail: Partial<Mail> & { id: string };
   onClose: () => void;
   userId?: string;
 }
@@ -61,6 +62,10 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
   const [isClosing, setIsClosing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Metadata state (internal copy to override partial props)
+  const [internalMail, setInternalMail] = useState<Mail | null>(mail.subject ? (mail as Mail) : null);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(!mail.subject);
+
   // Email content state
   const [emailBody, setEmailBody] = useState<EmailBody | null>(null);
   const [attachments, setAttachments] = useState<EmailAttachment[]>([]);
@@ -83,7 +88,26 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
     const loadEmailContent = async () => {
       try {
         // Fetch full email metadata
+        setIsLoadingMetadata(true);
         const emailMetadata = await fetchEmailById(mail.id);
+
+        // Convert and set internal mail
+        const converted: Mail = {
+          id: emailMetadata.id,
+          date: emailMetadata.datum_erhalten,
+          subject: emailMetadata.betreff || '(Kein Betreff)',
+          sender: emailMetadata.absender,
+          status: (emailMetadata.ordner === 'archive' ? 'archiv' : emailMetadata.ordner === 'drafts' ? 'draft' : 'sent') as any,
+          type: (emailMetadata.ordner === 'sent' ? 'outbox' : 'inbox') as any,
+          hasAttachment: emailMetadata.hat_anhang,
+          source: (emailMetadata.quelle.charAt(0).toUpperCase() + emailMetadata.quelle.slice(1)) as any,
+          read: emailMetadata.ist_gelesen,
+          favorite: emailMetadata.ist_favorit
+        };
+        setInternalMail(converted);
+        setIsFavorite(converted.favorite);
+        setIsRead(converted.read);
+        setIsLoadingMetadata(false);
 
         // Mark as read if not already
         if (!emailMetadata.ist_gelesen) {
@@ -131,7 +155,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
     };
 
     loadEmailContent();
-  }, [mail.id, userId, router]);
+  }, [mail.id, userId, router, mail.subject]);
 
   // Handle initial animation
   useEffect(() => {
@@ -200,9 +224,10 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
 
   const handleDownloadAttachment = useCallback(async (attachment: EmailAttachment) => {
     try {
+      const source = (internalMail?.source || mail.source || 'Mietevo').toLowerCase();
       await downloadAttachment(
         mail.id,
-        mail.source.toLowerCase(),
+        source,
         attachment.path,
         attachment.name,
         attachment.id
@@ -211,7 +236,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
     } catch (error) {
       toast({ title: 'Fehler beim Herunterladen', variant: 'destructive' });
     }
-  }, [mail.id, mail.source]);
+  }, [mail.id, internalMail?.source, mail.source]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -327,16 +352,29 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
         <div className="p-6 space-y-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h3 className="text-xl font-semibold dark:text-[#f3f4f6] mb-2">{mail.subject}</h3>
-              <div className="flex items-center gap-2">
-                {getStatusBadge(mail.status)}
-                <Badge variant="outline" className="dark:text-[#f3f4f6]">
-                  {mail.type === 'inbox' ? 'Posteingang' : 'Postausgang'}
-                </Badge>
-                <Badge variant="outline" className="dark:text-[#f3f4f6]">
-                  {mail.source}
-                </Badge>
-              </div>
+              {isLoadingMetadata ? (
+                <div className="space-y-2 mb-2">
+                  <Skeleton className="h-7 w-3/4" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-xl font-semibold dark:text-[#f3f4f6] mb-2">{internalMail?.subject || mail.subject}</h3>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(internalMail?.status || mail.status || 'sent')}
+                    <Badge variant="outline" className="dark:text-[#f3f4f6]">
+                      {(internalMail?.type || mail.type) === 'inbox' ? 'Posteingang' : 'Postausgang'}
+                    </Badge>
+                    <Badge variant="outline" className="dark:text-[#f3f4f6]">
+                      {internalMail?.source || mail.source || 'Mietevo'}
+                    </Badge>
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -372,12 +410,16 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
             <div className="flex items-center gap-3 text-sm">
               <User className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">Absender:</span>
-              <span className="font-medium dark:text-[#f3f4f6]">{mail.sender}</span>
+              {isLoadingMetadata ? <Skeleton className="h-4 w-48" /> : (
+                <span className="font-medium dark:text-[#f3f4f6]">{internalMail?.sender || mail.sender}</span>
+              )}
             </div>
             <div className="flex items-center gap-3 text-sm">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">Datum:</span>
-              <span className="font-medium dark:text-[#f3f4f6]">{formatDate(mail.date)}</span>
+              {isLoadingMetadata ? <Skeleton className="h-4 w-32" /> : (
+                <span className="font-medium dark:text-[#f3f4f6]">{formatDate(internalMail?.date || mail.date || '')}</span>
+              )}
             </div>
             {mail.hasAttachment && (
               <div className="space-y-2">
@@ -447,6 +489,16 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
                   {emailBody.plain || 'Kein Inhalt verfügbar'}
                 </div>
               )}
+            </div>
+          ) : isLoadingMetadata ? (
+            <div className="space-y-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+              <div className="pt-4 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+              </div>
             </div>
           ) : (
             <div className="text-center text-muted-foreground py-8">

@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, User, Trash2, Euro, FileText } from "lucide-react"
+import { Edit, User, Trash2, Euro, FileText, Sparkles } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,7 +41,8 @@ export function TenantContextMenu({
 }: TenantContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
-  const { openKautionModal, openTenantMailTemplatesModal } = useModalStore()
+
+  const { openKautionModal, openTenantMailTemplatesModal, openApplicantScoreModal } = useModalStore()
   const templatesEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   const handleKaution = () => {
@@ -52,21 +53,21 @@ export function TenantContextMenu({
         name: tenant.name,
         wohnung_id: tenant.wohnung_id
       };
-      
+
       // Prepare kaution data if it exists
       let kautionData = undefined;
-      
+
       if (tenant.kaution) {
         // Ensure amount is a number
-        const amount = typeof tenant.kaution.amount === 'string' 
+        const amount = typeof tenant.kaution.amount === 'string'
           ? parseFloat(tenant.kaution.amount)
           : tenant.kaution.amount;
-          
+
         // Ensure we have valid data
         if (isNaN(amount)) {
           throw new Error('Ungültiger Kautionbetrag');
         }
-        
+
         kautionData = {
           amount,
           paymentDate: tenant.kaution.paymentDate || '',
@@ -75,10 +76,10 @@ export function TenantContextMenu({
           updatedAt: tenant.kaution.updatedAt
         };
       }
-      
+
       // Open the modal with the prepared data
       openKautionModal(cleanTenant, kautionData);
-      
+
     } catch (error) {
       toast({
         title: 'Fehler',
@@ -127,6 +128,19 @@ export function TenantContextMenu({
     openTenantMailTemplatesModal(tenant.name, tenant.email);
   };
 
+  const handleScoreDetails = () => {
+    openApplicantScoreModal({
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        email: tenant.email || undefined,
+        bewerbung_score: tenant.bewerbung_score,
+        bewerbung_metadaten: tenant.bewerbung_metadaten,
+        bewerbung_mail_id: tenant.bewerbung_mail_id
+      }
+    });
+  };
+
   return (
     <>
       <ContextMenu>
@@ -140,6 +154,12 @@ export function TenantContextMenu({
             <Euro className="h-4 w-4" />
             <span>Kaution</span>
           </ContextMenuItem>
+          {tenant.bewerbung_metadaten && (
+            <ContextMenuItem onClick={handleScoreDetails} className="flex items-center gap-2 cursor-pointer text-indigo-600 dark:text-indigo-400 focus:text-indigo-600 focus:bg-indigo-50 dark:focus:bg-indigo-950">
+              <Sparkles className="h-4 w-4" />
+              <span>Datenblatt (AI)</span>
+            </ContextMenuItem>
+          )}
           {templatesEnabled && (
             <ContextMenuItem onClick={handleTemplates} className="flex items-center gap-2 cursor-pointer">
               <FileText className="h-4 w-4" />
@@ -147,7 +167,7 @@ export function TenantContextMenu({
             </ContextMenuItem>
           )}
           <ContextMenuSeparator />
-          <ContextMenuItem 
+          <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
