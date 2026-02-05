@@ -520,6 +520,12 @@ describe('TemplateEditor - Mention Integration Tests', () => {
       // Check button accessibility
       const boldButton = screen.getByLabelText(ARIA_LABELS.boldButton);
       expect(boldButton).toHaveAttribute('aria-pressed', 'false');
+
+      const italicButton = screen.getByLabelText(ARIA_LABELS.italicButton);
+      expect(italicButton).toHaveAttribute('aria-pressed', 'false');
+
+      const bulletListButton = screen.getByLabelText(ARIA_LABELS.bulletListButton);
+      expect(bulletListButton).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('should handle keyboard shortcuts', () => {
