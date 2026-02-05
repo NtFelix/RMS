@@ -20,16 +20,13 @@ export default async function HaeuserPage() {
     supabase.from('Mieter').select('wohnung_id,einzug,auszug')
   ]);
 
-  if (housesError) {
-    console.error('Fehler beim Laden der Häuser:', housesError);
-    return <div>Fehler beim Laden der Häuser</div>; // Or a more user-friendly error component
+  if (housesError || apartmentsError || tenantsError) {
+    console.error('Fehler beim Laden der Daten:', { housesError, apartmentsError, tenantsError });
+    return <div>Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.</div>;
   }
+
   const houses = housesData ?? [];
-
-  if (apartmentsError) console.error('Fehler beim Laden der Wohnungen:', apartmentsError);
   const apartments = apartmentsData ?? [];
-
-  if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
   const tenants = tenantsData ?? [];
 
   // Enrich houses with stats
