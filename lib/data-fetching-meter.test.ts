@@ -19,6 +19,16 @@ describe('fetchMeterReadingsByHausAndDateRange', () => {
     (createSupabaseServerClient as jest.Mock).mockReturnValue(mockSupabase);
   });
 
+  const createChain = (data: any, error: any = null) => {
+    const chain: any = {};
+    const methods = ['select', 'eq', 'in', 'lte', 'gte', 'or', 'limit', 'single', 'order'];
+    methods.forEach(method => {
+      chain[method] = jest.fn().mockReturnThis();
+    });
+    chain.then = (resolve: any) => resolve({ data, error });
+    return chain;
+  };
+
   it('should fetch readings using optimized parallel queries', async () => {
     const hausId = 'haus-1';
     const start = '2024-01-01';
@@ -48,17 +58,6 @@ describe('fetchMeterReadingsByHausAndDateRange', () => {
         Zaehler: { id: 'z2', wohnung_id: 'w2', Wohnungen: { id: 'w2' } }
       }
     ];
-
-    // Mock Chains
-    const createChain = (data: any) => {
-      const chain: any = {};
-      const methods = ['select', 'eq', 'in', 'lte', 'gte', 'or', 'limit', 'single', 'order'];
-      methods.forEach(method => {
-        chain[method] = jest.fn().mockReturnThis();
-      });
-      chain.then = (resolve: any) => resolve({ data, error: null });
-      return chain;
-    };
 
     const mieterChain = createChain(mieter);
     const readingsChain = createChain(readings);
@@ -105,18 +104,11 @@ describe('fetchMeterReadingsByHausAndDateRange', () => {
     const start = '2024-01-01';
     const end = '2024-12-31';
 
-    const errorChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        lte: jest.fn().mockReturnThis(),
-        or: jest.fn().mockReturnThis(),
-        gte: jest.fn().mockReturnThis(),
-        then: (resolve: any) => resolve({ data: null, error: { message: 'DB Error' } })
-    };
+    const errorChain = createChain(null, { message: 'DB Error' });
 
     mockSupabase.from.mockReturnValue(errorChain);
 
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
     const result = await fetchMeterReadingsByHausAndDateRange(hausId, start, end);
 
@@ -134,29 +126,16 @@ describe('fetchMeterReadingsByHausAndDateRange', () => {
 
     const mieterData = [{ id: 'm1', wohnung_id: 'w1' }];
 
-    const mieterChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        lte: jest.fn().mockReturnThis(),
-        or: jest.fn().mockReturnThis(),
-        then: (resolve: any) => resolve({ data: mieterData, error: null })
-    };
-
-    const readingsErrorChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        gte: jest.fn().mockReturnThis(),
-        lte: jest.fn().mockReturnThis(),
-        then: (resolve: any) => resolve({ data: null, error: { message: 'Readings Error' } })
-    };
+    const mieterChain = createChain(mieterData);
+    const readingsErrorChain = createChain(null, { message: 'Readings Error' });
 
     mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'Mieter') return mieterChain;
-        if (table === 'Zaehler_Ablesungen') return readingsErrorChain;
-        return { select: jest.fn().mockReturnThis(), then: (r: any) => r({ data: [], error: null }) };
+      if (table === 'Mieter') return mieterChain;
+      if (table === 'Zaehler_Ablesungen') return readingsErrorChain;
+      return createChain([]);
     });
 
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
     const result = await fetchMeterReadingsByHausAndDateRange(hausId, start, end);
 

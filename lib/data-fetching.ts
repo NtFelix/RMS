@@ -45,6 +45,7 @@ import type {
   MeterReadingFormEntry,
   MeterReadingFormData
 } from "./types";
+import { type SupabaseClient } from "@supabase/supabase-js";
 
 export async function fetchHaeuser() {
   const supabase = createSupabaseServerClient();
@@ -461,11 +462,30 @@ export async function fetchMeterReadingsByHausAndDateRange(
     let existingReadings: Wasserzaehler[] = [];
 
     if (!readingsError && readingsWithRelations) {
-      // Transform new structure to legacy format for compatibility
-      existingReadings = readingsWithRelations.map((reading: any) => {
+      // 3. Create a lookup map for faster mieter access: O(M) complexity
+      const wohnungIdToMieterMap = new Map<string, Mieter>(
+        mieterList
+          .filter(mieter => mieter.wohnung_id)
+          .map(mieter => [mieter.wohnung_id!, mieter])
+      );
+
+      // Define interface for the joined query result for type safety
+      interface DBReadingWithRelations extends ZaehlerAblesung {
+        Zaehler: {
+          id: string;
+          wohnung_id: string;
+          Wohnungen: {
+            id: string;
+          };
+        } | null;
+      }
+
+      // Transform new structure to legacy format for compatibility: O(N) complexity
+      // Total complexity reduced from O(N*M) to O(N+M)
+      existingReadings = (readingsWithRelations as unknown as DBReadingWithRelations[]).map((reading) => {
         // reading.Zaehler is available due to the join
         const meter = reading.Zaehler;
-        const mieter = mieterList.find(m => m.wohnung_id === meter?.wohnung_id);
+        const mieter = meter?.wohnung_id ? wohnungIdToMieterMap.get(meter.wohnung_id) : undefined;
 
         return {
           id: reading.id,
@@ -476,7 +496,7 @@ export async function fetchMeterReadingsByHausAndDateRange(
           verbrauch: reading.verbrauch || 0,
           user_id: reading.user_id,
           zaehler_id: reading.zaehler_id
-        };
+        } satisfies Wasserzaehler;
       });
     }
 
@@ -546,7 +566,7 @@ export const fetchWasserzaehlerModalData = fetchMeterReadingsModalData;
 // getAbrechnungModalData function removed - replaced by getAbrechnungModalDataAction in betriebskosten-actions.ts
 // The optimized version uses get_abrechnung_modal_data database function for better performance
 
-export async function getCurrentWohnungenCount(supabaseClient: any, userId: string): Promise<number> {
+export async function getCurrentWohnungenCount(supabaseClient: SupabaseClient, userId: string): Promise<number> {
   if (!userId) {
     console.error("getCurrentWohnungenCount: userId is required");
     return 0;
