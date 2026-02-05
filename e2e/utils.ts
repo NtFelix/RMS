@@ -27,19 +27,20 @@ export const login = async (page: Page) => {
   await expect(page.locator('form')).toBeVisible();
 
   // Fill in credentials using IDs with form context to avoid potential duplicates
-  const form = page.locator('form');
-  await form.locator('#email').fill(TEST_EMAIL!);
-  await form.locator('#password').fill(TEST_PASSWORD!);
+  const form = page.locator('form').first();
+  await form.locator('#email').first().fill(TEST_EMAIL!);
+  await form.locator('#password').first().fill(TEST_PASSWORD!);
 
   // Submit
-  await page.getByRole('button', { name: /anmelden/i }).click();
+  await page.getByRole('button', { name: /anmelden/i }).first().click();
 
   // Wait for navigation to dashboard or check for errors
   try {
     await expect(page).toHaveURL(/\/dashboard|^\/$/, { timeout: 15000 });
   } catch (e) {
     // If navigation failed, check if there's an error message visible
-    const errorAlert = page.locator('[role="alert"]');
+    // We filter for alerts that aren't the hidden route announcer
+    const errorAlert = page.locator('[role="alert"]').filter({ hasNotText: /^$/ }).first();
     if (await errorAlert.isVisible()) {
       const errorText = await errorAlert.innerText();
       throw new Error(`Login failed with error: ${errorText}`);

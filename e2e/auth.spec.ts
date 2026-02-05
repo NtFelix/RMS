@@ -9,10 +9,10 @@ test.describe('Authentication Flows', () => {
     await expect(page.getByRole('heading', { name: /ANMELDEN/i })).toBeVisible({ timeout: 10000 });
 
     // Check inputs by ID as fallback or direct label, scoped to the form
-    const form = page.locator('form');
-    await expect(form.locator('#email')).toBeVisible();
-    await expect(form.locator('#password')).toBeVisible();
-    await expect(page.getByRole('button', { name: /anmelden/i })).toBeVisible();
+    const form = page.locator('form').first();
+    await expect(form.locator('#email').first()).toBeVisible();
+    await expect(form.locator('#password').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /anmelden/i }).first()).toBeVisible();
   });
 
   test('Registration page should render correctly', async ({ page }) => {
@@ -20,11 +20,11 @@ test.describe('Authentication Flows', () => {
     // Wait for potential animation/loading
     await expect(page.getByRole('heading', { name: /REGISTRIEREN/i })).toBeVisible({ timeout: 10000 });
 
-    const form = page.locator('form');
-    await expect(form.locator('#email')).toBeVisible();
-    await expect(form.locator('#password')).toBeVisible();
+    const form = page.locator('form').first();
+    await expect(form.locator('#email').first()).toBeVisible();
+    await expect(form.locator('#password').first()).toBeVisible();
     // Register button text might vary
-    await expect(page.getByRole('button', { name: /registrieren|konto erstellen|kostenlos starten/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /registrieren|konto erstellen|kostenlos starten/i }).first()).toBeVisible();
   });
 
   // Conditional test: Only runs if credentials are provided
