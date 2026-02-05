@@ -102,8 +102,8 @@ export default async function FinanzenPage() {
 
   // Load all initial data in parallel
   const [
-    { data: wohnungenData },
-    { data: finanzenData },
+    wohnungenResult,
+    finanzenResult,
     availableYears,
     initialSummaryData
   ] = await Promise.all([
@@ -118,14 +118,25 @@ export default async function FinanzenPage() {
       .range(0, PAGINATION.DEFAULT_PAGE_SIZE - 1),
 
     // Available years laden (needed for fallback logic)
-    getAvailableYears(),
+    getAvailableYears().catch((error) => {
+      console.error('Failed to fetch available years:', error);
+      return []; // Fallback to an empty array to prevent page crash.
+    }),
 
     // Summary-Daten für das aktuelle Jahr laden
     getSummaryData(currentYear)
   ]);
 
-  const wohnungen = wohnungenData ?? [];
-  const finances = finanzenData ?? [];
+  if (wohnungenResult.error) {
+    console.error('Error fetching Wohnungen:', wohnungenResult.error.message);
+  }
+  const wohnungen = wohnungenResult.data ?? [];
+
+  if (finanzenResult.error) {
+    console.error('Error fetching Finanzen:', finanzenResult.error.message);
+  }
+  const finances = finanzenResult.data ?? [];
+
   let summaryData = initialSummaryData;
 
   // Determine the best year to display and potentially reload summary for that year
