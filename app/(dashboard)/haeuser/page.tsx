@@ -9,22 +9,24 @@ import { House } from "@/components/tables/house-table"; // Type for enrichedHae
 export default async function HaeuserPage() {
   const supabase = await createClient();
 
-  // Load houses
-  const { data: housesData, error: housesError } = await supabase.from('Haeuser').select('*');
-  if (housesError) {
-    console.error('Fehler beim Laden der Häuser:', housesError);
-    return <div>Fehler beim Laden der Häuser</div>; // Or a more user-friendly error component
+  // Load data in parallel
+  const [
+    { data: housesData, error: housesError },
+    { data: apartmentsData, error: apartmentsError },
+    { data: tenantsData, error: tenantsError }
+  ] = await Promise.all([
+    supabase.from('Haeuser').select('*'),
+    supabase.from('Wohnungen').select('*'),
+    supabase.from('Mieter').select('wohnung_id,einzug,auszug')
+  ]);
+
+  if (housesError || apartmentsError || tenantsError) {
+    console.error('Fehler beim Laden der Daten:', { housesError, apartmentsError, tenantsError });
+    return <div>Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.</div>;
   }
+
   const houses = housesData ?? [];
-
-  // Load apartments for stats
-  const { data: apartmentsData, error: apartmentsError } = await supabase.from('Wohnungen').select('*');
-  if (apartmentsError) console.error('Fehler beim Laden der Wohnungen:', apartmentsError);
   const apartments = apartmentsData ?? [];
-
-  // Load tenants for stats
-  const { data: tenantsData, error: tenantsError } = await supabase.from('Mieter').select('wohnung_id,einzug,auszug');
-  if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
   const tenants = tenantsData ?? [];
 
   // Enrich houses with stats
