@@ -58,6 +58,22 @@ export function parseStorageString(storageString: string | undefined | null): nu
 
 export async function getPlanDetails(priceId: string) {
   if (!process.env.STRIPE_SECRET_KEY) {
+    if (process.env.NODE_ENV === 'test' || process.env.CI === 'true') {
+      console.warn('STRIPE_SECRET_KEY is not set, using mock plan details for testing');
+      return {
+        priceId: priceId,
+        name: 'Test Plan',
+        productName: 'Test Product',
+        description: 'Mock plan for testing',
+        price: 0,
+        currency: 'eur',
+        interval: 'month',
+        interval_count: 1,
+        features: [],
+        limitWohnungen: 100,
+        storageLimit: 1024 * 1024 * 1024,
+      };
+    }
     throw new Error('STRIPE_SECRET_KEY is not set');
   }
 

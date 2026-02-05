@@ -57,7 +57,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Generate cache keys
@@ -97,6 +97,8 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
 
       - name: Save build cache
         if: steps.build-cache.outputs.cache-hit != 'true'
@@ -119,7 +121,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Cache node_modules
@@ -433,7 +435,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Generate Playwright cache key
@@ -484,7 +486,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Restore node_modules from the build job
       - name: Restore node_modules
@@ -527,6 +529,8 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -567,7 +571,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Cache node_modules (shared with Lighthouse workflow)
       - name: Cache node_modules
@@ -628,6 +632,9 @@ jobs:
       # Run tests for this group
       - name: Run test group ${{ matrix.test-group }}
         timeout-minutes: 5
+        env:
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
         run: |
           # Clean any previous coverage data
           rm -rf coverage/ .nyc_output/

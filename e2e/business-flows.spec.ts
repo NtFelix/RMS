@@ -63,9 +63,13 @@ test.describe('Business Logic Flows', () => {
     // Open modal
     const addBtn = page.getByRole('button', { name: /Wohnung hinzufügen/i });
     if (await addBtn.isVisible()) {
+        // Wait for it to be enabled (might be disabled while loading plan details)
+        await expect(addBtn).toBeEnabled({ timeout: 15000 });
         await addBtn.click();
     } else {
-        await page.locator('#create-object-btn').click();
+        const createBtn = page.locator('#create-object-btn');
+        await expect(createBtn).toBeEnabled({ timeout: 15000 });
+        await createBtn.click();
     }
 
     const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#miete') }).first();

@@ -45,37 +45,38 @@ test.describe('Authentication Flows', () => {
 
     await login(page);
     await acceptCookieConsent(page);
+    await page.waitForTimeout(1000);
 
     // Try to find logout button.
     // It might be in a sidebar or user menu.
     
-    // First, try to open user menu if it exists
-    const userMenuTrigger = page.locator('button').filter({ has: page.locator('svg.lucide-user, .avatar, svg.lucide-settings') }).first();
+    // First, try to open user menu if it exists (using aria-label from UserSettings component)
+    const userMenuTrigger = page.getByLabel('User menu').first();
+    const fallbackTrigger = page.locator('button').filter({ has: page.locator('svg.lucide-user, .avatar, svg.lucide-settings') }).first();
+    
     if (await userMenuTrigger.isVisible()) {
         await userMenuTrigger.click();
+    } else if (await fallbackTrigger.isVisible()) {
+        await fallbackTrigger.click();
     }
 
-    // Now look for logout button
-    const logoutBtn = page.getByRole('button', { name: /abmelden|logout/i }).first();
+    // Now look for logout button in the dropdown
+    const logoutBtn = page.getByRole('menuitem', { name: /abmelden|logout/i }).first();
+    const logoutBtnAlt = page.getByRole('button', { name: /abmelden|logout/i }).first();
     const logoutLink = page.getByRole('link', { name: /abmelden|logout/i }).first();
     const logoutText = page.getByText(/abmelden|logout/i).first();
 
     if (await logoutBtn.isVisible()) {
       await logoutBtn.click();
+    } else if (await logoutBtnAlt.isVisible()) {
+      await logoutBtnAlt.click();
     } else if (await logoutLink.isVisible()) {
       await logoutLink.click();
     } else if (await logoutText.isVisible()) {
       await logoutText.click();
     } else {
-      // Fallback: try to find any button with "Abmelden" text even if not in menu
-      const fallbackBtn = page.locator('button:has-text("Abmelden")').first();
-      if (await fallbackBtn.isVisible()) {
-          await fallbackBtn.click();
-      } else {
-          console.log('Could not find logout button or user menu trigger');
-          // Take screenshot for debugging if logout fails
-          await page.screenshot({ path: 'logout-failure.png' });
-      }
+      console.log('Could not find logout button or user menu trigger');
+      await page.screenshot({ path: 'logout-failure.png' });
     }
 
     // After logout, should be redirected to login or home

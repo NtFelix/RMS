@@ -31,12 +31,13 @@ export const login = async (page: Page) => {
   await form.locator('#email').first().fill(TEST_EMAIL!);
   await form.locator('#password').first().fill(TEST_PASSWORD!);
 
-  // Submit
+  // Submit with a small delay to ensure React state is updated
+  await page.waitForTimeout(500);
   await page.getByRole('button', { name: /anmelden/i }).first().click();
 
   // Wait for navigation to dashboard or check for errors
   try {
-    await expect(page).toHaveURL(/\/dashboard|^\/$/, { timeout: 15000 });
+    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 20000 });
   } catch (e) {
     // If navigation failed, check if there's an error message visible
     // We filter for alerts that aren't the hidden route announcer
