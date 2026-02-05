@@ -26,13 +26,30 @@ export const login = async (page: Page) => {
   // Wait for the form to be ready
   await expect(page.locator('form')).toBeVisible();
 
-  // Fill in credentials using IDs which are often more stable than labels if labels have complex DOM
-  await page.fill('#email', TEST_EMAIL!);
-  await page.fill('#password', TEST_PASSWORD!);
+  // Fill in credentials using IDs with form context to avoid potential duplicates
+  const form = page.locator('form');
+  await form.locator('#email').fill(TEST_EMAIL!);
+  await form.locator('#password').fill(TEST_PASSWORD!);
 
   // Submit
   await page.getByRole('button', { name: /anmelden/i }).click();
 
-  // Wait for navigation to dashboard
-  await expect(page).toHaveURL(/\/dashboard|^\/$/, { timeout: 30000 });
+  // Wait for navigation to dashboard or check for errors
+  try {
+    await expect(page).toHaveURL(/\/dashboard|^\/$/, { timeout: 15000 });
+  } catch (e) {
+    // If navigation failed, check if there's an error message visible
+    const errorAlert = page.locator('[role="alert"]');
+    if (await errorAlert.isVisible()) {
+      const errorText = await errorAlert.innerText();
+      throw new Error(`Login failed with error: ${errorText}`);
+    }
+    
+    // Check if we are still on the login page
+    if (page.url().includes('/auth/login')) {
+       throw new Error(`Login failed: Still on login page after timeout. URL: ${page.url()}`);
+    }
+    
+    throw e;
+  }
 };

@@ -8,9 +8,10 @@ test.describe('Authentication Flows', () => {
     // Wait for animation/loading
     await expect(page.getByRole('heading', { name: /ANMELDEN/i })).toBeVisible({ timeout: 10000 });
 
-    // Check inputs by ID as fallback or direct label
-    await expect(page.locator('#email')).toBeVisible();
-    await expect(page.locator('#password')).toBeVisible();
+    // Check inputs by ID as fallback or direct label, scoped to the form
+    const form = page.locator('form');
+    await expect(form.locator('#email')).toBeVisible();
+    await expect(form.locator('#password')).toBeVisible();
     await expect(page.getByRole('button', { name: /anmelden/i })).toBeVisible();
   });
 
@@ -19,8 +20,9 @@ test.describe('Authentication Flows', () => {
     // Wait for potential animation/loading
     await expect(page.getByRole('heading', { name: /REGISTRIEREN/i })).toBeVisible({ timeout: 10000 });
 
-    await expect(page.locator('#email')).toBeVisible();
-    await expect(page.locator('#password')).toBeVisible();
+    const form = page.locator('form');
+    await expect(form.locator('#email')).toBeVisible();
+    await expect(form.locator('#password')).toBeVisible();
     // Register button text might vary
     await expect(page.getByRole('button', { name: /registrieren|konto erstellen|kostenlos starten/i })).toBeVisible();
   });
