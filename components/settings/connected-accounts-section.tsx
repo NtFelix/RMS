@@ -13,12 +13,12 @@ import { Badge } from "@/components/ui/badge"
 interface Identity {
     id: string
     user_id: string
-    identity_data: {
+    identity_data?: {
         [key: string]: any
     }
     provider: string
-    created_at: string
-    last_sign_in_at: string
+    created_at?: string
+    last_sign_in_at?: string
     updated_at?: string
 }
 
@@ -48,10 +48,10 @@ const ConnectedAccountsSection = () => {
         fetchIdentities()
     }, [])
 
-    const handleUnlink = async (identityId: string) => {
-        setActionLoading(identityId)
+    const handleUnlink = async (identity: Identity) => {
+        setActionLoading(identity.id)
         try {
-            const { error } = await supabase.auth.unlinkIdentity(identityId)
+            const { error } = await supabase.auth.unlinkIdentity(identity as any)
             if (error) throw error
 
             toast({
@@ -155,7 +155,7 @@ const ConnectedAccountsSection = () => {
                                             variant="ghost"
                                             size="sm"
                                             className="text-muted-foreground hover:text-destructive h-8 px-2"
-                                            onClick={() => identity && handleUnlink(identity.id)}
+                                            onClick={() => identity && handleUnlink(identity)}
                                             disabled={actionLoading === identity?.id}
                                             title="Verknüpfung aufheben"
                                         >
@@ -198,7 +198,7 @@ const ConnectedAccountsSection = () => {
                                     variant="ghost"
                                     size="sm"
                                     className="text-muted-foreground hover:text-destructive h-8 px-2"
-                                    onClick={() => handleUnlink(identity.id)}
+                                    onClick={() => handleUnlink(identity)}
                                     disabled={actionLoading === identity.id}
                                     title="Verknüpfung aufheben"
                                 >
