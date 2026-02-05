@@ -54,3 +54,11 @@ export const login = async (page: Page) => {
     throw e;
   }
 };
+
+export const acceptCookieConsent = async (page: Page) => {
+  const consentBtn = page.getByRole('button', { name: /Alle akzeptieren|Akzeptieren/i }).first();
+  if (await consentBtn.isVisible()) {
+    await consentBtn.click();
+    await expect(consentBtn).toBeHidden();
+  }
+};

@@ -15,6 +15,7 @@ test.describe('Business Logic Flows', () => {
       test.skip();
     }
     await login(page);
+    await acceptCookieConsent(page);
   });
 
   test('Create a House', async ({ page }) => {
@@ -28,7 +29,8 @@ test.describe('Business Logic Flows', () => {
         await page.locator('#create-object-btn').click();
     }
 
-    await expect(page.getByRole('dialog')).toBeVisible();
+    const modal = page.locator('#house-form-container, [role="dialog"]').filter({ has: page.locator('#name') }).first();
+    await expect(modal).toBeVisible();
 
     // Fill form using IDs
     await page.fill('#name', houseName);
@@ -49,10 +51,10 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Speichern|Aktualisieren/i }).click();
 
     // Wait for modal to close
-    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(modal).toBeHidden();
 
     // Verify in table
-    await expect(page.getByText(houseName)).toBeVisible();
+    await expect(page.getByText(houseName).first()).toBeVisible();
   });
 
   test('Create an Apartment linked to the House', async ({ page }) => {
@@ -66,7 +68,8 @@ test.describe('Business Logic Flows', () => {
         await page.locator('#create-object-btn').click();
     }
 
-    await expect(page.getByRole('dialog')).toBeVisible();
+    const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#miete') }).first();
+    await expect(modal).toBeVisible();
 
     // Fill form using IDs
     await page.fill('#name', aptName);
@@ -74,7 +77,6 @@ test.describe('Business Logic Flows', () => {
     await page.fill('#miete', '1200');
 
     // Select House (Combobox)
-    const modal = page.getByRole('dialog');
     // Click the combobox trigger. It usually has aria-expanded or role combobox.
     await modal.getByRole('combobox').click();
 
@@ -87,10 +89,10 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Wohnung erstellen|Speichern/i }).click();
 
     // Wait for modal to close
-    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(modal).toBeHidden();
 
     // Verify
-    await expect(page.getByText(aptName)).toBeVisible();
+    await expect(page.getByText(aptName).first()).toBeVisible();
   });
 
   test('Create a Tenant linked to the Apartment', async ({ page }) => {
@@ -104,7 +106,8 @@ test.describe('Business Logic Flows', () => {
         await page.locator('#create-object-btn').click();
     }
 
-    await expect(page.getByRole('dialog')).toBeVisible();
+    const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#einzug') }).first();
+    await expect(modal).toBeVisible();
 
     // Fill form using IDs
     await page.fill('#name', tenantName);
@@ -112,7 +115,6 @@ test.describe('Business Logic Flows', () => {
     // Select Apartment
     // It's a CustomCombobox. ID might be on the hidden input, not the trigger.
     // We look for the combobox trigger again.
-    const modal = page.getByRole('dialog');
     await modal.getByRole('combobox').first().click();
 
     await page.keyboard.type(aptName);
@@ -151,10 +153,10 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Speichern/i }).click();
 
     // Wait for modal to close
-    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(modal).toBeHidden();
 
     // Verify
-    await expect(page.getByText(tenantName)).toBeVisible();
+    await expect(page.getByText(tenantName).first()).toBeVisible();
   });
 
   test('Cleanup (Delete Entities)', async ({ page }) => {

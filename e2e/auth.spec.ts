@@ -32,38 +32,49 @@ test.describe('Authentication Flows', () => {
     test.skip(!hasTestCredentials(), 'Skipping login test: No credentials provided in environment variables');
 
     await login(page);
+    await acceptCookieConsent(page);
 
     // Verify we are on the dashboard
-    // Check for common dashboard elements
-    await expect(page.getByText('Dashboard')).toBeVisible();
-    await expect(page.getByText('Häuser')).toBeVisible();
+    // Check for common dashboard elements using more specific locators
+    await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /Häuser|Objekte/i }).first()).toBeVisible();
   });
 
   test('Should be able to log out', async ({ page }) => {
     test.skip(!hasTestCredentials(), 'Skipping logout test: No credentials provided');
 
     await login(page);
+    await acceptCookieConsent(page);
 
     // Try to find logout button.
     // It might be in a sidebar or user menu.
-    // Based on typical sidebar navigation:
+    
+    // First, try to open user menu if it exists
+    const userMenuTrigger = page.locator('button').filter({ has: page.locator('svg.lucide-user, .avatar, svg.lucide-settings') }).first();
+    if (await userMenuTrigger.isVisible()) {
+        await userMenuTrigger.click();
+    }
 
-    // Check for a visible logout button first (e.g. in sidebar bottom)
-    const logoutBtn = page.getByText(/abmelden|logout/i);
+    // Now look for logout button
+    const logoutBtn = page.getByRole('button', { name: /abmelden|logout/i }).first();
+    const logoutLink = page.getByRole('link', { name: /abmelden|logout/i }).first();
+    const logoutText = page.getByText(/abmelden|logout/i).first();
 
     if (await logoutBtn.isVisible()) {
       await logoutBtn.click();
+    } else if (await logoutLink.isVisible()) {
+      await logoutLink.click();
+    } else if (await logoutText.isVisible()) {
+      await logoutText.click();
     } else {
-      // If not visible, check for user menu trigger
-      // Try finding an avatar or user icon button
-      const userMenuTrigger = page.locator('button').filter({ has: page.locator('svg.lucide-user, .avatar') }).first();
-
-      if (await userMenuTrigger.isVisible()) {
-        await userMenuTrigger.click();
-        await expect(page.getByText(/abmelden|logout/i)).toBeVisible();
-        await page.getByText(/abmelden|logout/i).click();
+      // Fallback: try to find any button with "Abmelden" text even if not in menu
+      const fallbackBtn = page.locator('button:has-text("Abmelden")').first();
+      if (await fallbackBtn.isVisible()) {
+          await fallbackBtn.click();
       } else {
-        console.log('Could not find logout button or user menu trigger');
+          console.log('Could not find logout button or user menu trigger');
+          // Take screenshot for debugging if logout fails
+          await page.screenshot({ path: 'logout-failure.png' });
       }
     }
 
