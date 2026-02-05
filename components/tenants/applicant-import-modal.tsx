@@ -116,15 +116,47 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
         try {
             const mailsToImport = mails
                 .filter((mail) => selectedMails.has(mail.id))
-                .map((mail) => ({ id: mail.id, absender: mail.absender }));
+                .map((mail) => ({ id: mail.id, absender: mail.absender, dateipfad: mail.dateipfad }));
 
             const result = await createApplicantsFromMails(mailsToImport);
             if (result.success) {
                 toast({
                     title: "Import erfolgreich",
-                    description: `${result.count} Bewerber wurden angelegt.`,
+                    description: (result.queued ?? 0) > 0
+                        ? `${result.count} Bewerber angelegt. AI Analyse gestartet...`
+                        : `${result.count} Bewerber wurden angelegt.`,
                     variant: "success",
                 });
+
+                // If items were queued, start client-side polling
+                if (result.hasMore) {
+                    const workerUrl = 'https://backend.mietevo.de'; // Fallsback
+                    const userId = result.userId;
+
+                    // Run polling in background
+                    (async () => {
+                        let hasMore = true;
+                        let processed = 0;
+                        while (hasMore && processed < 100) {
+                            try {
+                                const res = await fetch(`${workerUrl}/process-queue`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ user_id: userId })
+                                });
+                                if (!res.ok) break;
+                                const data = await res.json() as { hasMore: boolean };
+                                hasMore = data.hasMore;
+                                processed++;
+                                if (hasMore) await new Promise(r => setTimeout(r, 1000));
+                            } catch (err) {
+                                console.error("Polling error:", err);
+                                break;
+                            }
+                        }
+                    })();
+                }
+
                 onOpenChange(false);
                 // Reset state
                 setStep(1);

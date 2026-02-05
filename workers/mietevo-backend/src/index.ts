@@ -5,13 +5,15 @@ import Papa from 'papaparse';
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 import { WorkerLogger } from './logger';
+import pako from 'pako';
+import { PostHog } from 'posthog-node';
 
 // --- Type Definitions ---
 
 interface Env {
     GEMINI_API_KEY: string;
     SUPABASE_URL: string;
-    SUPABASE_KEY: string;
+    SUPABASE_SERVICE_ROLE_KEY: string;
     POSTHOG_API_KEY?: string;
     POSTHOG_HOST?: string;
     RATE_LIMITER: any; // Using 'any' for now to avoid compilation errors with unknown binding type
@@ -21,6 +23,19 @@ interface AIRequest {
     message: string;
     sessionId?: string;
     context?: any; // Allow passing context directly if needed, though we prefer fetching it here
+}
+
+interface QueueTask {
+    msg_id: number;
+    read_ct: number;
+    enqueued_at: string;
+    vt: string;
+    message: {
+        mail_id: string;
+        user_id: string;
+        created_at: string;
+        dateipfad?: string | null;
+    };
 }
 
 
@@ -461,8 +476,8 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
 
         // Initialize Supabase if credentials exist
         let contextText = "";
-        if (env.SUPABASE_URL && env.SUPABASE_KEY) {
-            const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
+        if (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
+            const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
             contextText = await fetchDocumentationContext(supabase, message);
         }
 
@@ -581,6 +596,346 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
     }
 }
 
+// --- Queue Processing Implementation ---
+
+async function downloadAndDecompressEmail(supabase: any, dateipfad: string): Promise<string> {
+    const { data: bodyBlob, error: downloadError } = await supabase.storage
+        .from('mails')
+        .download(dateipfad);
+
+    if (downloadError || !bodyBlob) {
+        throw new Error('Failed to download email body: ' + (downloadError?.message || 'Unknown error'));
+    }
+
+    const arrayBuffer = await bodyBlob.arrayBuffer();
+    // Assuming pako is used, but we see 'import pako from "pako"' at top.
+    // However, if we need to support both gzip and plain text, we might need checking.
+    // But usually body is gzipped if in storage.
+    // Let's try/catch decompression.
+    try {
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const decompressed = pako.ungzip(uint8Array, { to: 'string' });
+        const emailBody = JSON.parse(decompressed);
+        // Return plain text content preferably, or html if plain is missing
+        return emailBody.plain || emailBody.html || JSON.stringify(emailBody);
+    } catch (e) {
+        // If it fails, maybe it wasn't gzipped or was just text?
+        // But RMS implementation always gzips using pako.
+        throw new Error('Failed to decompress email body: ' + e);
+    }
+}
+
+// Helper for exponential backoff delay
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Retry wrapper for rate-limited API calls
+async function withRetry<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelayMs: number = 2000
+): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error: any) {
+            lastError = error;
+
+            // Check if it's a rate limit error (429)
+            const isRateLimit = error?.message?.includes('429') ||
+                error?.message?.includes('RESOURCE_EXHAUSTED') ||
+                error?.status === 429;
+
+            if (isRateLimit && attempt < maxRetries) {
+                const delay = baseDelayMs * Math.pow(2, attempt); // Exponential backoff: 2s, 4s, 8s
+                console.log(`Rate limited. Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
+                await sleep(delay);
+            } else {
+                throw error;
+            }
+        }
+    }
+
+    throw lastError;
+}
+
+async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
+    result: any;
+    prompt: string;
+    usage: { model: string; inputTokens?: number; outputTokens?: number; totalTokens?: number; latencyMs: number; };
+}> {
+    const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+    const model = 'gemini-2.5-flash-lite'; // Latest high-speed, cost-efficient model for batch tasks
+    const startTime = Date.now();
+    // Using a more lightweight model strictly for JSON extraction if possible, 
+    // but gemini-1.5-flash is good. 'models/gemini-2.5-flash-lite' was used in existing code.
+    // Let's stick to that.
+
+    const schema = `
+    {
+      "personalInfo": {
+        "salutation": "string (Herr/Frau/Divers)",
+        "firstName": "string",
+        "lastName": "string",
+        "email": "string",
+        "phone": "string",
+        "address": { "street": "string", "city": "string", "zip": "string" },
+        "dateOfBirth": "string (ISO)",
+        "nationality": "string"
+      },
+      "financials": {
+        "status": "string (employed/self-employed/unemployed/student/pensioner/other/unknown)",
+        "employer": "string",
+        "profession": "string",
+        "netIncome": "number",
+        "hasSchufa": "boolean",
+        "schufaScore": "string"
+      },
+      "household": {
+        "personCount": "number",
+        "childrenCount": "number",
+        "pets": "boolean",
+        "petsDescription": "string",
+        "smoker": "boolean",
+        "instruments": "boolean",
+        "instrumentDetails": "string"
+      },
+      "application": {
+        "desiredMoveInDate": "string (ISO)",
+        "reasonForMoving": "string",
+        "messageSummary": "string",
+        "sentiment": "string (positive/neutral/negative/urgent)",
+        "completenessScore": "number (0-100)"
+      },
+      "redFlags": ["string"],
+      "missingInformation": ["string"]
+    }
+    `;
+
+    const prompt = `
+    Analyze the following email application for a rental property and extract the data into the requested JSON format.
+    Return ONLY valid JSON.
+
+    Email Content:
+    ${emailContent.substring(0, 30000)} -- Truncate to prevent token limits
+
+    Output Schema:
+    ${schema}
+    `;
+
+    const apiResult = await client.models.generateContent({
+        model: model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+    });
+
+    const latencyMs = Date.now() - startTime;
+    const resultAny = apiResult as any;
+    const usageMetadata = resultAny.usageMetadata || resultAny.usage || {};
+
+    // Check if result has text directly or via response
+    // Based on lint error: 'Property response does not exist on type GenerateContentResponse'
+    // For @google/genai SDK v1.x+, result has .text as a getter property (not a method)
+    // Access as property, not function call
+
+    let responseText: string;
+
+    if (typeof resultAny.text === 'string') {
+        // Direct .text property (v1.x SDK)
+        responseText = resultAny.text;
+    } else if (typeof resultAny.text === 'function') {
+        // .text() method (older SDK versions)
+        responseText = resultAny.text();
+    } else if (resultAny.response?.text) {
+        // Nested response structure
+        responseText = typeof resultAny.response.text === 'function'
+            ? resultAny.response.text()
+            : resultAny.response.text;
+    } else if (resultAny.candidates?.[0]?.content?.parts?.[0]?.text) {
+        // Raw candidate structure
+        responseText = resultAny.candidates[0].content.parts[0].text;
+    } else {
+        responseText = JSON.stringify(apiResult);
+    }
+
+    // Parse the JSON result
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const parsedResult = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(responseText);
+
+    return {
+        result: parsedResult,
+        prompt,
+        usage: {
+            model,
+            inputTokens: usageMetadata.promptTokenCount || usageMetadata.input_tokens,
+            outputTokens: usageMetadata.candidatesTokenCount || usageMetadata.output_tokens,
+            totalTokens: usageMetadata.totalTokenCount || usageMetadata.total_tokens,
+            latencyMs
+        }
+    };
+}
+
+
+async function processQueue(request: Request, env: Env, ctx: any): Promise<Response> {
+    const logger = new WorkerLogger(env, ctx);
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    // Get user_id from body if available for ownership tracking
+    let userIdForTracking = 'system';
+    try {
+        const clonedReq = request.clone();
+        const body = await clonedReq.json() as any;
+        if (body.user_id) userIdForTracking = body.user_id;
+    } catch (e) {
+        // Ignore parsing errors for requests without a body
+    }
+
+    try {
+        // 1. Read from Queue
+        // vt: 60 seconds visibility timeout
+        const { data: messages, error: readError } = await supabase.rpc('pgmq_read', {
+            queue_name: 'applicant_ai_processing',
+            vt: 60,
+            qty: 1
+        });
+
+        if (readError) {
+            logger.error('PGMQ Read Error', { error: readError.message });
+            logger.flush();
+            return new Response('Queue Read Error', { status: 500 });
+        }
+
+        if (!messages || messages.length === 0) {
+            // Queue is empty, stop the chain
+            logger.info('Queue Empty', {});
+            logger.flush();
+            return new Response(JSON.stringify({ status: 'done', message: 'Queue empty', hasMore: false }), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const task = messages[0] as QueueTask;
+        const msgId = task.msg_id;
+        const { mail_id, user_id } = task.message;
+        let { dateipfad } = task.message;
+
+        logger.info('Processing Queue Item', { msgId, mailId: mail_id });
+
+        // 2. Fetch dateipfad from Mail_Metadaten if not provided
+        if (!dateipfad && mail_id) {
+            const { data: mailData, error: mailError } = await supabase
+                .from('Mail_Metadaten')
+                .select('dateipfad')
+                .eq('id', mail_id)
+                .single();
+
+            if (mailError) {
+                logger.error('Failed to fetch mail metadata', { mailId: mail_id, error: mailError.message });
+            } else if (mailData?.dateipfad) {
+                dateipfad = mailData.dateipfad;
+                logger.info('Fetched dateipfad from DB', { mailId: mail_id, dateipfad });
+            }
+        }
+
+        // 3. Process Item
+        let aiResult = null;
+        let aiScore = null;
+
+        if (dateipfad) {
+            try {
+                // Download & AI with retry for rate limits
+                const emailContent = await downloadAndDecompressEmail(supabase, dateipfad);
+                const aiResponse = await withRetry(() => analyzeApplicantWithAI(env, emailContent));
+                aiResult = aiResponse.result;
+                aiScore = aiResult.application?.completenessScore || null;
+
+                // Log LLM generation to PostHog for LLM Analytics dashboard
+                if (env.POSTHOG_API_KEY) {
+                    const posthog = new PostHog(env.POSTHOG_API_KEY, {
+                        host: env.POSTHOG_HOST || 'https://eu.i.posthog.com',
+                        flushAt: 1,
+                        flushInterval: 0,
+                    });
+
+                    const traceId = crypto.randomUUID();
+                    await posthog.capture({
+                        distinctId: userIdForTracking, // Use the actual user if provided
+                        event: '$ai_generation',
+                        properties: {
+                            $ai_trace_id: traceId,
+                            $ai_span_name: 'applicant_analysis',
+                            $ai_model: aiResponse.usage.model,
+                            $ai_provider: 'google',
+                            $ai_input: [{ role: 'user', content: aiResponse.prompt }],
+                            $ai_input_tokens: aiResponse.usage.inputTokens || 0,
+                            $ai_output_choices: [{ role: 'assistant', content: JSON.stringify(aiResult).substring(0, 1000) }],
+                            $ai_output_tokens: aiResponse.usage.outputTokens || 0,
+                            $ai_latency: aiResponse.usage.latencyMs / 1000,
+                            // User visibility
+                            user_id: userIdForTracking,
+                            mail_id: mail_id,
+                            completeness_score: aiScore || 0,
+                        }
+                    });
+                    await posthog.shutdown();
+                }
+
+                logger.info('LLM Analysis Complete', {
+                    model: aiResponse.usage.model,
+                    latencyMs: aiResponse.usage.latencyMs,
+                    mailId: mail_id,
+                    score: aiScore || 0
+                });
+
+                // Update DB
+                const { error: updateError } = await supabase
+                    .from('Mieter')
+                    .update({
+                        bewerbung_metadaten: aiResult,
+                        bewerbung_score: aiScore
+                    })
+                    .eq('bewerbung_mail_id', mail_id);
+
+                if (updateError) throw updateError;
+
+            } catch (processError: any) {
+                logger.error('Processing Failed', { msgId, error: processError.message });
+                // We might want to keep it in queue or move to DLQ? 
+                // For now, we delete it to strictly avoid infinite loops, or you could increment failure count.
+                // Let's delete it but log error.
+            }
+        } else {
+            logger.warn('No dateipfad available for task', { msgId, mailId: mail_id });
+        }
+
+        // 3. Delete from Queue
+        await supabase.rpc('pgmq_delete', {
+            queue_name: 'applicant_ai_processing',
+            msg_id: msgId
+        });
+
+        logger.info('Queue Item Processed', { msgId });
+        logger.flush();
+
+        // Return hasMore: true so client can trigger next processing.
+        // The next call will return hasMore: false if the queue is actually empty.
+        return new Response(JSON.stringify({
+            status: 'processed',
+            msgId,
+            hasMore: true
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (e: any) {
+        logger.error('Queue Handler Error', { error: e.message });
+        logger.flush();
+        return new Response(JSON.stringify({ error: e.message, hasMore: false }), { status: 500 });
+    }
+}
+
 // --- Main Handler ---
 
 export default {
@@ -594,12 +949,13 @@ export default {
             'Access-Control-Max-Age': '86400',
         };
 
-        if (request.method === 'OPTIONS') {
-            return new Response(null, { headers: corsHeaders });
-        }
+        const url = new URL(request.url);
 
-        if (request.method !== 'POST') {
-            return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+        // Handle CORS preflight requests
+        if (request.method === "OPTIONS") {
+            return new Response(null, {
+                headers: corsHeaders
+            });
         }
 
         // Instantiating logger at the top level of fetch would be ideal, but we need to handle the try-catch block scope.
@@ -609,45 +965,50 @@ export default {
         const logger = new WorkerLogger(env, ctx);
 
         try {
-            // Clone request to read body multiple times if needed, 
-            // or just peek at the body to determine type.
-            // Since we consume the body, we need to be careful.
-            // We can read the body as text first.
-            const rawBody = await request.text();
-            let body: any;
-            try {
-                body = JSON.parse(rawBody);
-            } catch (e: any) {
-                logger.warn('Invalid JSON body', { error: e.message });
-                logger.flush();
-                return new Response('Invalid JSON', { status: 400, headers: corsHeaders });
+            // Route based on URL path first (more robust)
+            let response: Response;
+            if (url.pathname === '/ai') {
+                response = await handleAIRequest(request, env, ctx);
+            } else if (url.pathname === '/process-queue') {
+                response = await processQueue(request, env, ctx);
+            } else {
+                // Default response or logging logic
+                const status = 404;
+                response = new Response(JSON.stringify({ error: 'Not Found' }), { status, headers: { 'Content-Type': 'application/json' } });
             }
 
-            // Route based on URL path first (more robust)
-            const url = new URL(request.url);
+            // Append CORS headers to every response
+            const newHeaders = new Headers(response.headers);
+            Object.entries(corsHeaders).forEach(([key, value]) => {
+                newHeaders.set(key, value);
+            });
 
-            // Handle AI requests via strict path routing (robust and preferred)
-            if (url.pathname === '/ai') {
-                // Reconstruct request with parsed body if needed, but here we just pass the original request
-                // effectively, assuming handleAIRequest will parse it from the clone or we just pass the body.
-                // However, our handleAIRequest expects a Request object and calls .json() on it.
-                // Since we already read the body as rawBody, we cannot read it again from the original request.
-                // We must create a new Request with the body.
-                const newRequest = new Request(request.url, {
-                    method: request.method,
-                    headers: request.headers,
-                    body: rawBody
-                });
-                // We don't need to pass env and ctx again if handleAIRequest uses the logger passed to it, 
-                // but handleAIRequest instantiates its own logger currently. 
-                // Let's refactor handleAIRequest to accept a logger or instantiate it internally consistently.
-                // For this refactor step, we'll leave handleAIRequest's internal logger for now as it's a separate function,
-                // but strictly for the `fetch` handler part:
-                return handleAIRequest(newRequest, env, ctx);
+            return new Response(response.body, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: newHeaders
+            });
+
+            // Try to parse body for logging other requests, but be safe
+            let body: any = {};
+            try {
+                // Clone request to not consume body stream for downstream logic if needed 
+                // (though for now we return above for known paths)
+                if (request.method !== 'GET' && request.method !== 'HEAD') {
+                    const clonedReq = request.clone();
+                    body = await clonedReq.json();
+                }
+            } catch (e) {
+                // Ignore JSON parse errors (e.g. empty body)
             }
 
             // Log worker request using the single instance
-            logger.info('Worker request received', { type: body?.type, template: body?.template, filename: body?.filename });
+            logger.info('Worker request received', {
+                type: body?.type,
+                template: body?.template,
+                filename: body?.filename,
+                path: url.pathname
+            });
 
             // Existing logic for PDF/ZIP
             const { type, template, data, filename } = body;
