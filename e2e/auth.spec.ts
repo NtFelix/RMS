@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, hasTestCredentials } from './utils';
+import { login, hasTestCredentials, acceptCookieConsent } from './utils';
 
 test.describe('Authentication Flows', () => {
 

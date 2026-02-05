@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, hasTestCredentials, generateRandomString } from './utils';
+import { login, hasTestCredentials, generateRandomString, acceptCookieConsent } from './utils';
 
 test.describe('Business Logic Flows', () => {
   // Use serial mode because we are creating dependencies (House -> Apt -> Tenant)
