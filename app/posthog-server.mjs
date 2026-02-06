@@ -8,6 +8,8 @@ const dummyPostHog = {
   alias: () => { },
 }
 
+let posthogInstance = null
+
 export function getPostHogServer() {
   if (!posthogInstance) {
     const apiKey = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY
