@@ -56,12 +56,30 @@ export function parseStorageString(storageString: string | undefined | null): nu
   return Math.round(value * multipliers[unit]);
 }
 
+import { isTestEnv, isStripeMocked } from './test-utils';
+
 export async function getPlanDetails(priceId: string) {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  if (isStripeMocked()) {
+    if (isTestEnv()) {
+      console.warn('STRIPE_SECRET_KEY is not set or is a mock key, using mock plan details');
+      return {
+        priceId: priceId,
+        name: 'Test Plan',
+        productName: 'Test Product',
+        description: 'Mock plan for testing',
+        price: 0,
+        currency: 'eur',
+        interval: 'month',
+        interval_count: 1,
+        features: [],
+        limitWohnungen: 100,
+        storageLimit: 1024 * 1024 * 1024,
+      };
+    }
     throw new Error('STRIPE_SECRET_KEY is not set');
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   try {
     const price = await stripe.prices.retrieve(priceId, {

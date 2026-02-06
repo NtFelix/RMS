@@ -5,7 +5,23 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { logApiRoute } from '@/lib/logging-middleware';
 
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
+
 export async function POST(req: Request) {
+  if (isStripeMocked()) {
+    if (isTestEnv()) {
+      const origin = req.headers.get('origin') || 'http://localhost:3000';
+      return NextResponse.json({
+        sessionId: 'cs_mock_123',
+        url: `${origin}/checkout/success?session_id=cs_mock_123`
+      });
+    }
+    return new NextResponse(JSON.stringify({ error: 'Stripe secret key not configured.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   logApiRoute('/api/stripe/checkout-session', 'POST', 'request', {});

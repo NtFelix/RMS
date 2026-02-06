@@ -9,6 +9,7 @@ import { createClient as createSupabaseClient } from '@/utils/supabase/server';
 import { fetchUserProfile } from '@/lib/data-fetching';
 
 import { getPlanDetails } from '@/lib/stripe-server';
+import { isTestEnv } from '@/lib/test-utils';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
 
@@ -29,6 +30,8 @@ export default async function WohnungenPage() {
       const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
       const isEffectivelyInTrial = isStripeTrial;
       const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
+
+
 
       if (isEffectivelyInTrial) {
         userIsEligibleToAdd = true;
@@ -59,6 +62,13 @@ export default async function WohnungenPage() {
         } catch (error) { console.error('WohnungenPage: Error fetching plan details:', error); userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
       } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
     } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
+
+    // Bypass limits for E2E tests in CI environment
+    if (isTestEnv()) {
+      userIsEligibleToAdd = true;
+      effectiveApartmentLimit = 100;
+      limitReason = 'subscription';
+    }
 
     const { count, error: countError } = await supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
     if (countError) console.error('Error fetching apartment count:', countError.message);

@@ -5,12 +5,52 @@ import { createClient } from '@/utils/supabase/server';
 
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
+
 export async function GET() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  if (isStripeMocked()) {
+    if (isTestEnv()) {
+      return NextResponse.json({
+        customer: {
+          id: 'cus_mock_123',
+          name: 'Max Mustermann',
+          email: 'test@example.com',
+          phone: '+49 123 456789',
+          address: {
+            line1: 'Musterstraße 1',
+            line2: null,
+            city: 'Musterstadt',
+            state: null,
+            postal_code: '12345',
+            country: 'DE',
+          },
+        },
+        payment_method: {
+          id: 'pm_mock_123',
+          type: 'card',
+          card: {
+            brand: 'visa',
+            last4: '4242',
+            exp_month: 12,
+            exp_year: 2025,
+          },
+          billing_details: {
+            address: {
+              line1: 'Musterstraße 1',
+              line2: null,
+              city: 'Musterstadt',
+              state: null,
+              postal_code: '12345',
+              country: 'DE',
+            },
+          },
+        },
+      });
+    }
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   try {
     const supabase = await createClient();

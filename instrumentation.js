@@ -1,4 +1,17 @@
 export async function register() {
+  // Add global error handler for uncaught exceptions to prevent server crashes on ECONNRESET
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    process.on('uncaughtException', (err) => {
+      if (err.message === 'aborted' && err['code'] === 'ECONNRESET') {
+        // Ignore ECONNRESET errors which are common in Next.js/Node during client aborts
+        // console.warn('Ignored ECONNRESET error'); 
+        return;
+      }
+      console.error('Uncaught Exception:', err);
+      // For other errors, we might want to let the process exit or log them
+    });
+  }
+
   // Initialize PostHog logging (OpenTelemetry-based)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { initLogger, posthogLogger } = await import('./lib/posthog-logger');
