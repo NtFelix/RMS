@@ -26,7 +26,7 @@ test.describe('Business Logic Flows', () => {
   });
 
   test('Create a House', async ({ page }) => {
-    await page.goto('/haeuser', { waitUntil: 'networkidle' });
+    await page.goto('/haeuser', { waitUntil: 'domcontentloaded' });
 
     // Wait for the page content to fully load (look for a key element)
     await expect(page.getByText('Hausverwaltung').first()).toBeVisible({ timeout: 15000 });
@@ -83,7 +83,7 @@ test.describe('Business Logic Flows', () => {
   });
 
   test('Create an Apartment linked to the House', async ({ page }) => {
-    await page.goto('/wohnungen', { waitUntil: 'networkidle' });
+    await page.goto('/wohnungen', { waitUntil: 'domcontentloaded' });
 
     // Wait for the page content to fully load (card with title)
     await expect(page.getByText('Wohnungsverwaltung').first()).toBeVisible({ timeout: 15000 });
@@ -148,7 +148,7 @@ test.describe('Business Logic Flows', () => {
   });
 
   test('Create a Tenant linked to the Apartment', async ({ page }) => {
-    await page.goto('/mieter', { waitUntil: 'networkidle' });
+    await page.goto('/mieter', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
 
     // Open modal
@@ -212,7 +212,7 @@ test.describe('Business Logic Flows', () => {
 
   test('Cleanup (Delete Entities)', async ({ page }) => {
     // Delete Tenant
-    await page.goto('/mieter', { waitUntil: 'networkidle' });
+    await page.goto('/mieter', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
 
     const searchInput = page.getByPlaceholder('Suchen...');
@@ -244,7 +244,7 @@ test.describe('Business Logic Flows', () => {
     }
 
     // Delete Apartment
-    await page.goto('/wohnungen', { waitUntil: 'networkidle' });
+    await page.goto('/wohnungen', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
 
     const aptSearch = page.getByPlaceholder('Suchen...');
@@ -272,7 +272,7 @@ test.describe('Business Logic Flows', () => {
     }
 
     // Delete House
-    await page.goto('/haeuser', { waitUntil: 'networkidle' });
+    await page.goto('/haeuser', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
 
     const houseSearch = page.getByPlaceholder('Suchen...');
