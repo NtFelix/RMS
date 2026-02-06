@@ -27,7 +27,7 @@ export async function PATCH(
       .select('id, zaehler_id')
       .eq('id', id)
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (fetchError || !existing) {
       return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404 })
@@ -89,7 +89,7 @@ export async function DELETE(
       .select('id, zaehler_id')
       .eq('id', id)
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (fetchError || !existing) {
       return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404 })
