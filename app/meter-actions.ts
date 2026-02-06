@@ -301,6 +301,11 @@ export async function getReadingsForMetersAction(meterIds: string[]) {
 
     // Limit to 1000 IDs to stay within safe bounds, though array method handles this largely well
     // If needed, we could chunk requests, but standard usage won't exceed this.
+    if (meterIds.length > 1000) {
+      console.warn("Too many meter IDs provided to getReadingsForMetersAction. Processing first 1000 IDs only.");
+      meterIds = meterIds.slice(0, 1000);
+    }
+
     const { data, error } = await supabase
       .from("Zaehler_Ablesungen")
       .select("*")
@@ -310,9 +315,9 @@ export async function getReadingsForMetersAction(meterIds: string[]) {
     if (error) throw error;
 
     return { success: true, data: data as ZaehlerAblesung[] };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching readings for meters:", error);
-    return { success: false, message: error.message };
+    return { success: false, message: error instanceof Error ? error.message : "An unknown error occurred." };
   }
 }
 

@@ -207,7 +207,7 @@ export function MeterImportModal({
         if (result.success && result.data) {
           freshReadings = result.data as ZaehlerAblesung[];
         } else {
-          console.warn("Could not fetch fresh readings, falling back to props data", result.message);
+          console.warn("Could not fetch fresh readings, falling back to props data. Error:", result.message);
         }
       }
 
@@ -362,9 +362,9 @@ export function MeterImportModal({
 
       setProcessedData(processed);
       setStep("preview");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error validating data:", error);
-      toast({ title: "Fehler", description: "Fehler bei der Validierung der Daten.", variant: "destructive" });
+      toast({ title: "Fehler", description: error instanceof Error ? error.message : "Fehler bei der Validierung der Daten.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
