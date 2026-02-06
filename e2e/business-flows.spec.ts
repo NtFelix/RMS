@@ -67,7 +67,7 @@ test.describe('Business Logic Flows', () => {
         await expect(addBtn).toBeEnabled({ timeout: 15000 });
         await addBtn.click();
     } else {
-        const createBtn = page.locator('#create-object-btn');
+        const createBtn = page.locator('#create-unit-btn');
         await expect(createBtn).toBeEnabled({ timeout: 15000 });
         await createBtn.click();
     }

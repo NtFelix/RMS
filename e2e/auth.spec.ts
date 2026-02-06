@@ -79,6 +79,7 @@ test.describe('Authentication Flows', () => {
 
     // After logout, should be redirected to login or home
     // UserSettings uses window.location.href = '/'
-    await expect(page).toHaveURL(/\/auth\/login|^\/$/, { timeout: 15000 });
+    // We check for URL ending in /auth/login or just / (root)
+    await expect(page).toHaveURL(/(\/auth\/login$)|(\/$)/, { timeout: 15000 });
   });
 });
