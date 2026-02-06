@@ -50,11 +50,11 @@ test.describe('Authentication Flows', () => {
 
     // Try to find logout button.
     // It is in a sidebar user menu (UserSettings component).
-    
+
     // The UserSettings component has aria-label="User menu" on the trigger div
     // CustomDropdown wraps it and adds data-dropdown-trigger
     const userMenuTrigger = page.locator('[aria-label="User menu"], [data-dropdown-trigger]').first();
-    
+
     await expect(userMenuTrigger).toBeVisible({ timeout: 10000 });
     await userMenuTrigger.click();
     await page.waitForTimeout(300);
@@ -85,7 +85,7 @@ test.describe('Authentication Flows', () => {
 
     // After logout, should be redirected to login or home
     // UserSettings uses window.location.href = '/'
-    // We check for URL ending in /auth/login or just / (root)
-    await expect(page).toHaveURL(/(\/auth\/login$)|(\/$)/, { timeout: 15000 });
+    // We check for URL containing /auth/login (with optional query params) or just / (root)
+    await expect(page).toHaveURL(/(\/auth\/login(\?.*)?$)|(\/$)/, { timeout: 15000 });
   });
 });
