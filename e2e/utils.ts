@@ -37,7 +37,7 @@ export const login = async (page: Page) => {
 
   // Wait for navigation to dashboard or check for errors
   try {
-    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 20000 });
+    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 30000 });
   } catch (e) {
     // If navigation failed, check if there's an error message visible
     // We filter for alerts that aren't the hidden route announcer

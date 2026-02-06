@@ -107,7 +107,7 @@ test.describe('Business Logic Flows', () => {
     if (await addBtn.isVisible()) {
         await addBtn.click();
     } else {
-        await page.locator('#create-object-btn').click();
+        await page.locator('#add-tenant-btn').click();
     }
 
     const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#einzug') }).first();
