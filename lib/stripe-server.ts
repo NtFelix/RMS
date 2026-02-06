@@ -56,7 +56,26 @@ export function parseStorageString(storageString: string | undefined | null): nu
   return Math.round(value * multipliers[unit]);
 }
 
+// Simple in-memory cache
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+
+// Use a global variable to persist cache across module reloads in development
+// and across invocations in serverless/edge environments (if container is reused)
+const globalCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 3600 * 1000; // 1 hour
+
 export async function getPlanDetails(priceId: string) {
+  // Check cache
+  const cacheKey = `plan-details-${priceId}`;
+  const cached = globalCache.get(cacheKey);
+
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+    return cached.data;
+  }
+
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY is not set');
   }
@@ -107,6 +126,12 @@ export async function getPlanDetails(priceId: string) {
       limitWohnungen: limitWohnungenValue, // Now a number or null
       storageLimit: storageLimitValue, // Storage limit in bytes or null for unlimited
     };
+
+    // Set cache
+    globalCache.set(cacheKey, {
+      data: planDetails,
+      timestamp: Date.now(),
+    });
 
     return planDetails;
   } catch (error) {
