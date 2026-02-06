@@ -208,7 +208,8 @@ export function MeterImportModal({
         }
       }
 
-      const processed: ProcessedReading[] = parsedData.map((row) => {
+      // 3. Phase 1: Parse and perform basic validation (Pre-Check)
+      let processed: ProcessedReading[] = parsedData.map((row) => {
         const customIdRaw = row[mapping.custom_id];
         const customId = customIdRaw ? String(customIdRaw).trim() : "";
         const dateRaw = row[mapping.ablese_datum];
@@ -271,7 +272,7 @@ export function MeterImportModal({
           };
         }
 
-        // Use freshReadings for duplicate check
+        // Duplicate check (against DB only for now)
         const isDuplicate = freshReadings.some(
           (r) => r.zaehler_id === meter.id && r.ablese_datum === ableseDatum
         );
@@ -289,19 +290,10 @@ export function MeterImportModal({
           };
         }
 
+        // Init usage
         let verbrauch = 0;
         if (mapping.verbrauch && row[mapping.verbrauch]) {
           verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
-        } else {
-          // Use freshReadings for consumption calculation too
-          const meterReadings = freshReadings.filter(r => r.zaehler_id === meter.id);
-          const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
-          previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
-
-          const previousReading = previousReadings[0];
-          verbrauch = previousReading && previousReading.zaehlerstand !== null
-            ? Math.max(0, zaehlerstand - previousReading.zaehlerstand)
-            : 0;
         }
 
         return {
@@ -313,6 +305,56 @@ export function MeterImportModal({
           original_row: row,
           status: "valid",
         };
+      });
+
+      // 4. Phase 2: Calculate Usage (Inter-row + DB)
+      processed = processed.map(item => {
+        if (item.status !== "valid") return item;
+
+        // If user explicitly mapped consumption and it has a value, we trust it or use it.
+        // But if they just mapped the column and it's empty, we might want to calculate?
+        // Current logic: if usage was found in the row (non-zero or zero but present), we keep it.
+        // Actually, previous logic set verbrauch=0 if not found.
+        // Let's refine: if the mapped value was present in the row, we use it.
+        if (mapping.verbrauch && item.original_row[mapping.verbrauch]) {
+          return item;
+        }
+
+        const currentMeterId = item.zaehler_id;
+        const currentJsDate = new Date(item.ablese_datum).getTime();
+
+        // 1. DB candidates (normalized)
+        const dbCandidates = freshReadings
+          .filter(r => r.zaehler_id === currentMeterId)
+          .map(r => ({
+            date: new Date(r.ablese_datum).getTime(),
+            value: r.zaehlerstand
+          }));
+
+        // 2. File candidates (other valid rows in this batch) -- enable chaining!
+        const fileCandidates = processed
+          .filter(r => r.status === 'valid' && r.zaehler_id === currentMeterId && r !== item)
+          .map(r => ({
+            date: new Date(r.ablese_datum).getTime(),
+            value: r.zaehlerstand
+          }));
+
+        const allCandidates = [...dbCandidates, ...fileCandidates];
+
+        // Find predecessors (Strictly before current date)
+        const predecessors = allCandidates.filter(c => c.date < currentJsDate);
+
+        // Sort by date DESC (closest previous date first)
+        predecessors.sort((a, b) => b.date - a.date);
+
+        const prev = predecessors[0];
+
+        let calculatedUsage = 0;
+        if (prev) {
+          calculatedUsage = Math.max(0, item.zaehlerstand - prev.value);
+        }
+
+        return { ...item, verbrauch: calculatedUsage };
       });
 
       setProcessedData(processed);
