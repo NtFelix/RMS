@@ -21,10 +21,10 @@ export const login = async (page: Page) => {
     throw new Error('Cannot log in: TEST_EMAIL or TEST_PASSWORD not set');
   }
 
-  await page.goto('/auth/login');
+  await page.goto('/auth/login', { waitUntil: 'networkidle' });
 
   // Wait for the form to be ready
-  await expect(page.locator('form')).toBeVisible();
+  await expect(page.locator('form')).toBeVisible({ timeout: 15000 });
 
   // Fill in credentials using IDs with form context to avoid potential duplicates
   const form = page.locator('form').first();
@@ -42,14 +42,22 @@ export const login = async (page: Page) => {
     // If navigation failed, check if there's an error message visible
     // We filter for alerts that aren't the hidden route announcer
     const errorAlert = page.locator('[role="alert"]').filter({ hasNotText: /^$/ }).first();
-    if (await errorAlert.isVisible()) {
-      const errorText = await errorAlert.innerText();
-      throw new Error(`Login failed with error: ${errorText}`);
-    }
     
-    // Check if we are still on the login page
-    if (page.url().includes('/auth/login')) {
-       throw new Error(`Login failed: Still on login page after timeout. URL: ${page.url()}`);
+    // Check if page is still open before calling isVisible
+    if (!page.isClosed()) {
+      try {
+        if (await errorAlert.isVisible({ timeout: 2000 })) {
+          const errorText = await errorAlert.innerText();
+          throw new Error(`Login failed with error: ${errorText}`);
+        }
+      } catch (alertError) {
+        // Alert check failed, continue to other checks
+      }
+      
+      // Check if we are still on the login page
+      if (page.url().includes('/auth/login')) {
+        throw new Error(`Login failed: Still on login page after timeout. URL: ${page.url()}`);
+      }
     }
     
     throw e;

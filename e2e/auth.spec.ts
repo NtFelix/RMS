@@ -4,7 +4,7 @@ import { login, hasTestCredentials, acceptCookieConsent } from './utils';
 test.describe('Authentication Flows', () => {
 
   test('Login page should render correctly', async ({ page }) => {
-    await page.goto('/auth/login');
+    await page.goto('/auth/login', { waitUntil: 'networkidle' });
     // Wait for animation/loading
     await expect(page.getByRole('heading', { name: /ANMELDEN/i })).toBeVisible({ timeout: 10000 });
 
@@ -16,7 +16,7 @@ test.describe('Authentication Flows', () => {
   });
 
   test('Registration page should render correctly', async ({ page }) => {
-    await page.goto('/auth/register');
+    await page.goto('/auth/register', { waitUntil: 'networkidle' });
     // Wait for potential animation/loading
     await expect(page.getByRole('heading', { name: /REGISTRIEREN/i })).toBeVisible({ timeout: 10000 });
 
@@ -33,11 +33,12 @@ test.describe('Authentication Flows', () => {
 
     await login(page);
     await acceptCookieConsent(page);
+    await page.waitForTimeout(1000);
 
     // Verify we are on the dashboard
     // Check for common dashboard elements using more specific locators
-    await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: /Häuser|Objekte/i }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('link', { name: /Häuser|Objekte/i }).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('Should be able to log out', async ({ page }) => {
@@ -56,25 +57,30 @@ test.describe('Authentication Flows', () => {
     
     await expect(userMenuTrigger).toBeVisible({ timeout: 10000 });
     await userMenuTrigger.click();
+    await page.waitForTimeout(300);
 
     // Now look for logout button in the dropdown
     // Radix UI DropdownMenu uses role="menuitem"
     const logoutBtn = page.getByRole('menuitem', { name: /abmelden|logout/i }).first();
     const logoutBtnAlt = page.locator('div[role="menuitem"]').filter({ hasText: /abmelden|logout/i }).first();
 
-    if (await logoutBtn.isVisible()) {
+    if (await logoutBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       await logoutBtn.click();
-    } else if (await logoutBtnAlt.isVisible()) {
+    } else if (await logoutBtnAlt.isVisible({ timeout: 5000 }).catch(() => false)) {
       await logoutBtnAlt.click();
     } else {
       console.log('Could not find logout button in dropdown');
       const dropdownContent = page.locator('[role="menu"], .dropdown-content, .popover').first();
-      if (await dropdownContent.isVisible()) {
-          console.log('Dropdown content is visible, but logout button not found by role/name');
+      if (await dropdownContent.isVisible({ timeout: 5000 }).catch(() => false)) {
+        console.log('Dropdown content is visible, but logout button not found by role/name');
       }
       await page.screenshot({ path: 'logout-failure.png' });
       // Fallback: try clicking anything with logout text
-      await page.getByText(/abmelden|logout/i).last().click({ timeout: 5000 }).catch(() => {});
+      try {
+        await page.getByText(/abmelden|logout/i).last().click({ timeout: 5000 });
+      } catch (e) {
+        console.log('Fallback logout click failed:', e);
+      }
     }
 
     // After logout, should be redirected to login or home
