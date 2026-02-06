@@ -79,7 +79,7 @@ export async function getPlanDetails(priceId: string) {
     throw new Error('STRIPE_SECRET_KEY is not set');
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   try {
     const price = await stripe.prices.retrieve(priceId, {

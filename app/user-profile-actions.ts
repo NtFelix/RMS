@@ -135,7 +135,7 @@ export async function getBillingAddress(stripeCustomerId: string): Promise<Billi
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
     // First get the customer without expanding metadata
     const customer = await stripe.customers.retrieve(stripeCustomerId);
@@ -217,7 +217,7 @@ export async function updateBillingAddress(
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
     const updateData: Stripe.CustomerUpdateParams = {
       name: details.name,
@@ -257,7 +257,7 @@ export async function createSetupIntent(stripeCustomerId: string): Promise<{ cli
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
     const setupIntent = await stripe.setupIntents.create({
       customer: stripeCustomerId,
       payment_method_types: ['card'],

@@ -50,7 +50,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   try {
     const supabase = await createClient();
