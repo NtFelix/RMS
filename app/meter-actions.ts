@@ -282,6 +282,40 @@ export async function getAblesungenForZaehlerAction(zaehlerId: string) {
 // Legacy alias
 export const getWasserAblesenDataAction = getAblesungenForZaehlerAction;
 
+
+/**
+ * Fetch readings for multiple meters
+ */
+export async function getReadingsForMetersAction(meterIds: string[]) {
+  const supabase = await createClient();
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, message: "Benutzer nicht authentifiziert." };
+    }
+
+    if (!meterIds || meterIds.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    // Limit to 1000 IDs to stay within safe bounds, though array method handles this largely well
+    // If needed, we could chunk requests, but standard usage won't exceed this.
+    const { data, error } = await supabase
+      .from("Zaehler_Ablesungen")
+      .select("*")
+      .in("zaehler_id", meterIds)
+      .eq("user_id", user.id);
+
+    if (error) throw error;
+
+    return { success: true, data: data as ZaehlerAblesung[] };
+  } catch (error: any) {
+    console.error("Error fetching readings for meters:", error);
+    return { success: false, message: error.message };
+  }
+}
+
 /**
  * Create a new meter
  */

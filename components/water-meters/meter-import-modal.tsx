@@ -171,119 +171,158 @@ export function MeterImportModal({
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  const validateAndProcessData = () => {
+  const validateAndProcessData = async () => {
     if (!mapping.custom_id || !mapping.ablese_datum || !mapping.zaehlerstand) {
       toast({ title: "Fehler", description: "Bitte ordnen Sie alle Felder zu.", variant: "destructive" });
       return;
     }
 
-    const processed: ProcessedReading[] = parsedData.map((row) => {
-      const customIdRaw = row[mapping.custom_id];
-      const customId = customIdRaw ? String(customIdRaw).trim() : "";
-      const dateRaw = row[mapping.ablese_datum];
-      const valueRaw = row[mapping.zaehlerstand];
+    setIsSubmitting(true);
 
-      const ableseDatum = parseDateString(dateRaw as string | number | Date);
-      const zaehlerstand = parseGermanNumber(valueRaw as string | number);
+    try {
+      // 1. Identify relevant meters from the parsed data
+      const meterIdsToFetch = new Set<string>();
 
-      if (!customId) {
-        return {
-          zaehler_id: "",
-          custom_id: "",
-          ablese_datum: ableseDatum || "",
-          zaehlerstand: zaehlerstand,
-          verbrauch: 0,
-          original_row: row,
-          status: "missing_meter",
-          message: "Keine Zähler-ID",
-        };
+      parsedData.forEach(row => {
+        const customIdRaw = row[mapping.custom_id];
+        const customId = customIdRaw ? String(customIdRaw).trim() : "";
+        if (customId) {
+          const meter = meters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
+          if (meter) {
+            meterIdsToFetch.add(meter.id);
+          }
+        }
+      });
+
+      // 2. Fetch LATEST readings for these meters from the server
+      // This ensures we don't think a deleted reading still exists
+      let freshReadings = [...readings]; // Start with props as fallback
+      if (meterIdsToFetch.size > 0) {
+        const { getReadingsForMetersAction } = await import("@/app/meter-actions");
+        const result = await getReadingsForMetersAction(Array.from(meterIdsToFetch));
+
+        if (result.success && result.data) {
+          freshReadings = result.data as ZaehlerAblesung[];
+        } else {
+          console.warn("Could not fetch fresh readings, falling back to props data", result.message);
+        }
       }
 
-      const meter = meters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
+      const processed: ProcessedReading[] = parsedData.map((row) => {
+        const customIdRaw = row[mapping.custom_id];
+        const customId = customIdRaw ? String(customIdRaw).trim() : "";
+        const dateRaw = row[mapping.ablese_datum];
+        const valueRaw = row[mapping.zaehlerstand];
 
-      if (!meter) {
-        return {
-          zaehler_id: "",
-          custom_id: customId,
-          ablese_datum: ableseDatum || "",
-          zaehlerstand: zaehlerstand,
-          verbrauch: 0,
-          original_row: row,
-          status: "missing_meter",
-          message: `Zähler '${customId}' nicht gefunden`
-        };
-      }
+        const ableseDatum = parseDateString(dateRaw as string | number | Date);
+        const zaehlerstand = parseGermanNumber(valueRaw as string | number);
 
-      if (!ableseDatum) {
-        return {
-          zaehler_id: meter.id,
-          custom_id: customId,
-          ablese_datum: "",
-          zaehlerstand: zaehlerstand,
-          verbrauch: 0,
-          original_row: row,
-          status: "invalid_date",
-          message: "Ungültiges Datum"
-        };
-      }
+        if (!customId) {
+          return {
+            zaehler_id: "",
+            custom_id: "",
+            ablese_datum: ableseDatum || "",
+            zaehlerstand: zaehlerstand,
+            verbrauch: 0,
+            original_row: row,
+            status: "missing_meter",
+            message: "Keine Zähler-ID",
+          };
+        }
 
-      if (isNaN(zaehlerstand)) {
-        return {
-          zaehler_id: meter.id,
-          custom_id: customId,
-          ablese_datum: ableseDatum,
-          zaehlerstand: 0,
-          verbrauch: 0,
-          original_row: row,
-          status: "invalid_value",
-          message: "Ungültiger Zählerstand"
-        };
-      }
+        const meter = meters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
 
-      const isDuplicate = readings.some(
-        (r) => r.zaehler_id === meter.id && r.ablese_datum === ableseDatum
-      );
+        if (!meter) {
+          return {
+            zaehler_id: "",
+            custom_id: customId,
+            ablese_datum: ableseDatum || "",
+            zaehlerstand: zaehlerstand,
+            verbrauch: 0,
+            original_row: row,
+            status: "missing_meter",
+            message: `Zähler '${customId}' nicht gefunden`
+          };
+        }
 
-      if (isDuplicate) {
+        if (!ableseDatum) {
+          return {
+            zaehler_id: meter.id,
+            custom_id: customId,
+            ablese_datum: "",
+            zaehlerstand: zaehlerstand,
+            verbrauch: 0,
+            original_row: row,
+            status: "invalid_date",
+            message: "Ungültiges Datum"
+          };
+        }
+
+        if (isNaN(zaehlerstand)) {
+          return {
+            zaehler_id: meter.id,
+            custom_id: customId,
+            ablese_datum: ableseDatum,
+            zaehlerstand: 0,
+            verbrauch: 0,
+            original_row: row,
+            status: "invalid_value",
+            message: "Ungültiger Zählerstand"
+          };
+        }
+
+        // Use freshReadings for duplicate check
+        const isDuplicate = freshReadings.some(
+          (r) => r.zaehler_id === meter.id && r.ablese_datum === ableseDatum
+        );
+
+        if (isDuplicate) {
+          return {
+            zaehler_id: meter.id,
+            custom_id: customId,
+            ablese_datum: ableseDatum,
+            zaehlerstand,
+            verbrauch: 0,
+            original_row: row,
+            status: "duplicate",
+            message: "Ablesung existiert bereits"
+          };
+        }
+
+        let verbrauch = 0;
+        if (mapping.verbrauch && row[mapping.verbrauch]) {
+          verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
+        } else {
+          // Use freshReadings for consumption calculation too
+          const meterReadings = freshReadings.filter(r => r.zaehler_id === meter.id);
+          const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
+          previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
+
+          const previousReading = previousReadings[0];
+          verbrauch = previousReading && previousReading.zaehlerstand !== null
+            ? Math.max(0, zaehlerstand - previousReading.zaehlerstand)
+            : 0;
+        }
+
         return {
           zaehler_id: meter.id,
           custom_id: customId,
           ablese_datum: ableseDatum,
           zaehlerstand,
-          verbrauch: 0,
+          verbrauch,
           original_row: row,
-          status: "duplicate",
-          message: "Ablesung existiert bereits"
+          status: "valid",
         };
-      }
+      });
 
-      let verbrauch = 0;
-      if (mapping.verbrauch && row[mapping.verbrauch]) {
-        verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
-      } else {
-        const meterReadings = readings.filter(r => r.zaehler_id === meter.id);
-        const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
-        previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
-
-        const previousReading = previousReadings[0];
-        verbrauch = previousReading && previousReading.zaehlerstand !== null
-          ? Math.max(0, zaehlerstand - previousReading.zaehlerstand)
-          : 0;
-      }
-
-      return {
-        zaehler_id: meter.id,
-        custom_id: customId,
-        ablese_datum: ableseDatum,
-        zaehlerstand,
-        verbrauch,
-        original_row: row,
-        status: "valid",
-      };
-    });
-
-    setProcessedData(processed);
-    setStep("preview");
+      setProcessedData(processed);
+      setStep("preview");
+    } catch (error) {
+      console.error("Error validating data:", error);
+      toast({ title: "Fehler", description: "Fehler bei der Validierung der Daten.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = async () => {
