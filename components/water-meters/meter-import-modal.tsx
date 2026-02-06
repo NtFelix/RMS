@@ -180,6 +180,9 @@ export function MeterImportModal({
     setIsSubmitting(true);
 
     try {
+      // Create efficient lookup map
+      const metersByCustomId = new Map(meters.map(m => [m.custom_id?.toLowerCase(), m]));
+
       // 1. Identify relevant meters from the parsed data
       const meterIdsToFetch = new Set<string>();
 
@@ -187,7 +190,7 @@ export function MeterImportModal({
         const customIdRaw = row[mapping.custom_id];
         const customId = customIdRaw ? String(customIdRaw).trim() : "";
         if (customId) {
-          const meter = meters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
+          const meter = metersByCustomId.get(customId.toLowerCase());
           if (meter) {
             meterIdsToFetch.add(meter.id);
           }
@@ -231,7 +234,7 @@ export function MeterImportModal({
           };
         }
 
-        const meter = meters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
+        const meter = metersByCustomId.get(customId.toLowerCase());
 
         if (!meter) {
           return {
