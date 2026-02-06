@@ -472,12 +472,16 @@ jobs:
   # 2. VERIFICATION PHASE (Sequential to Prep)
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  # E2E TESTS - Cleanly aligned after build and setup
+  # E2E TESTS - Matrix strategy for parallel browser testing
   e2e-test:
-    name: E2E Tests
+    name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
     needs: [build, install-playwright, setup, type-check]
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     
     steps:
       - name: Checkout code
@@ -519,9 +523,9 @@ jobs:
       - name: Install Playwright system dependencies
         run: npx playwright install-deps
 
-      - name: Run Playwright tests
+      - name: Run Playwright tests (${{ matrix.browser }})
         id: playwright
-        run: npx playwright test --reporter=list
+        run: npx playwright test --project=${{ matrix.browser }} --reporter=list
         env:
           CI: true
           NODE_ENV: production
@@ -532,20 +536,20 @@ jobs:
           STRIPE_SECRET_KEY: mock-stripe-key
           NEXT_PUBLIC_BASE_URL: http://localhost:3000
 
-      - name: Upload Playwright report
+      - name: Upload Playwright report (${{ matrix.browser }})
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.browser }}
           path: playwright-report/
           retention-days: 30
           if-no-files-found: ignore
 
-      - name: Upload Playwright test results
+      - name: Upload Playwright test results (${{ matrix.browser }})
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-test-results
+          name: playwright-test-results-${{ matrix.browser }}
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
@@ -888,12 +892,13 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      # Download Playwright report
-      - name: Download Playwright report
+      # Download Playwright reports from all browser matrix jobs
+      - name: Download Playwright reports
         uses: actions/download-artifact@v4
         with:
-          name: playwright-report
-          path: playwright-report
+          pattern: playwright-report-*
+          path: playwright-reports
+          merge-multiple: true
         continue-on-error: true
 
       # Download passing tests data from all groups
