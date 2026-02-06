@@ -38,11 +38,13 @@ export const login = async (page: Page) => {
   // Wait for navigation to dashboard or check for errors
   try {
     await page.waitForURL(/\/dashboard|^\/$/, { timeout: 30000 });
+    // Wait for page to stabilize after login (auth cookies to be fully set)
+    await page.waitForTimeout(500);
   } catch (e) {
     // If navigation failed, check if there's an error message visible
     // We filter for alerts that aren't the hidden route announcer
     const errorAlert = page.locator('[role="alert"]').filter({ hasNotText: /^$/ }).first();
-    
+
     // Check if page is still open before calling isVisible
     if (!page.isClosed()) {
       try {
@@ -53,13 +55,13 @@ export const login = async (page: Page) => {
       } catch (alertError) {
         // Alert check failed, continue to other checks
       }
-      
+
       // Check if we are still on the login page
       if (page.url().includes('/auth/login')) {
         throw new Error(`Login failed: Still on login page after timeout. URL: ${page.url()}`);
       }
     }
-    
+
     throw e;
   }
 };
