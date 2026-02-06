@@ -14,7 +14,7 @@ export async function GET() {
       console.error('Stripe secret key not configured or is a mock key');
     }
 
-    if (isTestEnv() || isStripeMocked()) {
+    if (isTestEnv()) {
       return NextResponse.json([{
         id: 'price_mock_starter',
         priceId: 'price_mock_starter',

@@ -152,7 +152,7 @@ test.describe('Business Logic Flows', () => {
 
     // Wait for the page content to fully load (look for a key element)
     await expect(page.getByText('Mieterverwaltung').first()).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(500); // Short wait for React hydration
+
 
     // Open modal - button shows "Hinzufügen" on mobile, "Mieter hinzufügen" on desktop
     const createBtn = page.locator('#add-tenant-btn');

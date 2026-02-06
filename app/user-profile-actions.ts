@@ -112,7 +112,7 @@ import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
 export async function getBillingAddress(stripeCustomerId: string): Promise<BillingAddress | { error: string; details?: any }> {
   if (isStripeMocked()) {
-    if (isTestEnv() || isStripeMocked()) {
+    if (isTestEnv()) {
       return {
         name: 'Max Mustermann',
         companyName: 'Muster GmbH',
@@ -207,7 +207,7 @@ export async function updateBillingAddress(
   details: UpdateBillingAddressParams
 ): Promise<{ success: boolean; error?: string }> {
   if (isStripeMocked()) {
-    if (isTestEnv() || isStripeMocked()) {
+    if (isTestEnv()) {
       return { success: true };
     }
     return { success: false, error: 'Stripe secret key is not configured' };
@@ -247,7 +247,7 @@ export async function updateBillingAddress(
 
 export async function createSetupIntent(stripeCustomerId: string): Promise<{ clientSecret: string } | { error: string }> {
   if (isStripeMocked()) {
-    if (isTestEnv() || isStripeMocked()) {
+    if (isTestEnv()) {
       return { clientSecret: 'seti_mock_secret_123' };
     }
     return { error: 'Stripe secret key is not configured' };

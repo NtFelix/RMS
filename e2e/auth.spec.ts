@@ -33,7 +33,9 @@ test.describe('Authentication Flows', () => {
 
     await login(page);
     await acceptCookieConsent(page);
-    await page.waitForTimeout(1000);
+    // Wait for the page content to stabilize (React hydration)
+    // We can just rely on the next assertion to wait for the element
+
 
     // Verify we are on the dashboard
     // Check for common dashboard elements using more specific locators
@@ -46,7 +48,9 @@ test.describe('Authentication Flows', () => {
 
     await login(page);
     await acceptCookieConsent(page);
-    await page.waitForTimeout(1000);
+    // Wait for the page content to stabilize (React hydration)
+    // We can just rely on the next assertion to wait for the element
+
 
     // Try to find logout button.
     // It is in a sidebar user menu (UserSettings component).
@@ -57,7 +61,9 @@ test.describe('Authentication Flows', () => {
 
     await expect(userMenuTrigger).toBeVisible({ timeout: 10000 });
     await userMenuTrigger.click();
-    await page.waitForTimeout(300);
+    // Wait for dropdown animation
+    // But checking for visibility is better practice than fixed timeout
+
 
     // Now look for logout button in the dropdown
     // Radix UI DropdownMenu uses role="menuitem"
