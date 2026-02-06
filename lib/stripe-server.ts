@@ -56,12 +56,11 @@ export function parseStorageString(storageString: string | undefined | null): nu
   return Math.round(value * multipliers[unit]);
 }
 
-export async function getPlanDetails(priceId: string) {
-  const isMockKey = process.env.STRIPE_SECRET_KEY?.startsWith('mock-');
-  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
+import { isTestEnv, isStripeMocked } from './test-utils';
 
-  if (!process.env.STRIPE_SECRET_KEY || isMockKey) {
-    if (isTestEnv || isMockKey) {
+export async function getPlanDetails(priceId: string) {
+  if (isStripeMocked()) {
+    if (isTestEnv()) {
       console.warn('STRIPE_SECRET_KEY is not set or is a mock key, using mock plan details');
       return {
         priceId: priceId,

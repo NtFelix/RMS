@@ -108,12 +108,11 @@ interface BillingAddress {
   phone?: string | null;
 }
 
-export async function getBillingAddress(stripeCustomerId: string): Promise<BillingAddress | { error: string; details?: any }> {
-  const isMockKey = process.env.STRIPE_SECRET_KEY?.startsWith('mock-');
-  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
-  if (!process.env.STRIPE_SECRET_KEY || isMockKey) {
-    if (isTestEnv || isMockKey) {
+export async function getBillingAddress(stripeCustomerId: string): Promise<BillingAddress | { error: string; details?: any }> {
+  if (isStripeMocked()) {
+    if (isTestEnv() || isStripeMocked()) {
       return {
         name: 'Max Mustermann',
         companyName: 'Muster GmbH',
@@ -207,11 +206,8 @@ export async function updateBillingAddress(
   stripeCustomerId: string,
   details: UpdateBillingAddressParams
 ): Promise<{ success: boolean; error?: string }> {
-  const isMockKey = process.env.STRIPE_SECRET_KEY?.startsWith('mock-');
-  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
-
-  if (!process.env.STRIPE_SECRET_KEY || isMockKey) {
-    if (isTestEnv || isMockKey) {
+  if (isStripeMocked()) {
+    if (isTestEnv() || isStripeMocked()) {
       return { success: true };
     }
     return { success: false, error: 'Stripe secret key is not configured' };
@@ -250,11 +246,8 @@ export async function updateBillingAddress(
 }
 
 export async function createSetupIntent(stripeCustomerId: string): Promise<{ clientSecret: string } | { error: string }> {
-  const isMockKey = process.env.STRIPE_SECRET_KEY?.startsWith('mock-');
-  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
-
-  if (!process.env.STRIPE_SECRET_KEY || isMockKey) {
-    if (isTestEnv || isMockKey) {
+  if (isStripeMocked()) {
+    if (isTestEnv() || isStripeMocked()) {
       return { clientSecret: 'seti_mock_secret_123' };
     }
     return { error: 'Stripe secret key is not configured' };

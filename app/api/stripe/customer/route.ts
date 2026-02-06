@@ -5,12 +5,11 @@ import { createClient } from '@/utils/supabase/server';
 
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 
-export async function GET() {
-  const isMockKey = process.env.STRIPE_SECRET_KEY?.startsWith('mock-');
-  const isTestEnv = process.env.CI === 'true' || process.env.NODE_ENV === 'test';
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
-  if (!process.env.STRIPE_SECRET_KEY || isMockKey) {
-    if (isTestEnv || isMockKey) {
+export async function GET() {
+  if (isStripeMocked()) {
+    if (isTestEnv()) {
       return NextResponse.json({
         customer: {
           id: 'cus_mock_123',

@@ -69,17 +69,12 @@ test.describe('Authentication Flows', () => {
     } else if (await logoutBtnAlt.isVisible({ timeout: 5000 }).catch(() => false)) {
       await logoutBtnAlt.click();
     } else {
-      console.log('Could not find logout button in dropdown');
-      const dropdownContent = page.locator('[role="menu"], .dropdown-content, .popover').first();
-      if (await dropdownContent.isVisible({ timeout: 5000 }).catch(() => false)) {
-        console.log('Dropdown content is visible, but logout button not found by role/name');
-      }
       await page.screenshot({ path: 'logout-failure.png' });
       // Fallback: try clicking anything with logout text
       try {
-        await page.getByText(/abmelden|logout/i).last().click({ timeout: 5000 });
+        await page.getByText(/abmelden|logout/i).last().click({ timeout: 10000 });
       } catch (e) {
-        console.log('Fallback logout click failed:', e);
+        // Fallback failed too
       }
     }
 

@@ -5,16 +5,15 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { logApiRoute } from '@/lib/logging-middleware';
 
-export async function POST(req: Request) {
-  const isMockKey = process.env.STRIPE_SECRET_KEY?.startsWith('mock-');
-  const isTestEnv = process.env.CI === 'true' || process.env.NODE_ENV === 'test';
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
-  if (!process.env.STRIPE_SECRET_KEY || isMockKey) {
-    if (isTestEnv || isMockKey) {
+export async function POST(req: Request) {
+  if (isStripeMocked()) {
+    if (isTestEnv()) {
       const origin = req.headers.get('origin') || 'http://localhost:3000';
-      return NextResponse.json({ 
-        sessionId: 'cs_mock_123', 
-        url: `${origin}/checkout/success?session_id=cs_mock_123` 
+      return NextResponse.json({
+        sessionId: 'cs_mock_123',
+        url: `${origin}/checkout/success?session_id=cs_mock_123`
       });
     }
     return new NextResponse(JSON.stringify({ error: 'Stripe secret key not configured.' }), {

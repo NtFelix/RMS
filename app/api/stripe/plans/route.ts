@@ -5,17 +5,16 @@ import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { StripePlan } from '@/types/stripe';
 import { parseStorageString } from '@/lib/stripe-server';
 
-export async function GET() {
-  const isMockKey = process.env.STRIPE_SECRET_KEY?.startsWith('mock-');
-  const isTestEnv = process.env.CI === 'true' || process.env.NODE_ENV === 'test';
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
-  if (!process.env.STRIPE_SECRET_KEY || isMockKey) {
+export async function GET() {
+  if (isStripeMocked()) {
     // Only log in non-CI environments to avoid cluttering test output
-    if (process.env.CI !== 'true' && !isMockKey) {
+    if (process.env.CI !== 'true' && !process.env.STRIPE_SECRET_KEY?.startsWith('mock-')) {
       console.error('Stripe secret key not configured or is a mock key');
     }
 
-    if (isTestEnv || isMockKey) {
+    if (isTestEnv() || isStripeMocked()) {
       return NextResponse.json([{
         id: 'price_mock_starter',
         priceId: 'price_mock_starter',
