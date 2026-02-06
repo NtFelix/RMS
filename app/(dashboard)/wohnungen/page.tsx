@@ -74,14 +74,12 @@ export default async function WohnungenPage() {
   const today = new Date();
 
   type Tenant = NonNullable<typeof tenants>[number];
-  const tenantMap = new Map<string, Tenant>();
-  if (tenants) {
-    for (const t of tenants) {
-      if (t.wohnung_id && !tenantMap.has(t.wohnung_id)) {
-        tenantMap.set(t.wohnung_id, t);
-      }
+  const tenantMap = (tenants ?? []).reduce((map, t) => {
+    if (t.wohnung_id && !map.has(t.wohnung_id)) {
+      map.set(t.wohnung_id, t);
     }
-  }
+    return map;
+  }, new Map<string, Tenant>());
 
   const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt) => {
     const tenant = tenantMap.get(apt.id);
