@@ -348,9 +348,35 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
     const suggestedAmount = wohnung.miete * 3;
 
     return { success: true, suggestedAmount };
-
   } catch (e) {
     console.error("Unexpected error in getSuggestedKautionAmount:", e);
     return { success: false, error: { message: (e as Error).message } };
+  }
+}
+
+export async function deleteAllApplicantsAction(): Promise<{ success: boolean; error?: { message: string } }> {
+  const supabase = await createClient();
+
+  try {
+    const { error } = await supabase
+      .from('Mieter')
+      .delete()
+      .eq('status', 'bewerber');
+
+    if (error) {
+      console.error('Error deleting all applicants:', error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/mieter');
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error deleting all applicants:', error);
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      }
+    };
   }
 }
