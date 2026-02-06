@@ -57,9 +57,12 @@ export function parseStorageString(storageString: string | undefined | null): nu
 }
 
 export async function getPlanDetails(priceId: string) {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    if (process.env.NODE_ENV === 'test' || process.env.CI === 'true') {
-      console.warn('STRIPE_SECRET_KEY is not set, using mock plan details for testing');
+  const isMockKey = process.env.STRIPE_SECRET_KEY?.startsWith('mock-');
+  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
+
+  if (!process.env.STRIPE_SECRET_KEY || isMockKey) {
+    if (isTestEnv || isMockKey) {
+      console.warn('STRIPE_SECRET_KEY is not set or is a mock key, using mock plan details');
       return {
         priceId: priceId,
         name: 'Test Plan',
