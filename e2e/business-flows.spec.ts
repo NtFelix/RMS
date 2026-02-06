@@ -149,16 +149,26 @@ test.describe('Business Logic Flows', () => {
 
   test('Create a Tenant linked to the Apartment', async ({ page }) => {
     await page.goto('/mieter', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1000);
 
-    // Open modal
-    const addBtn = page.getByRole('button', { name: /Mieter hinzufügen/i });
-    if (await addBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    // Wait for the page content to fully load (look for a key element)
+    await expect(page.getByText('Mieterverwaltung').first()).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(500); // Short wait for React hydration
+
+    // Open modal - button shows "Hinzufügen" on mobile, "Mieter hinzufügen" on desktop
+    const createBtn = page.locator('#add-tenant-btn');
+    const addBtn = page.getByRole('button', { name: /Mieter hinzufügen|Hinzufügen/i });
+
+    // Wait for button to be present in DOM first
+    await expect(createBtn.or(addBtn)).toBeVisible({ timeout: 15000 });
+
+    if (await createBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await createBtn.click();
+    } else if (await addBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await addBtn.click();
     } else {
-      const createBtn = page.locator('#add-tenant-btn');
-      await expect(createBtn).toBeVisible({ timeout: 10000 });
-      await createBtn.click();
+      // Final fallback
+      const fallbackBtn = page.locator('button').filter({ hasText: /hinzufügen/i }).first();
+      await fallbackBtn.click();
     }
 
     const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#einzug') }).first();
