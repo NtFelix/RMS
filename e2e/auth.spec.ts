@@ -48,38 +48,37 @@ test.describe('Authentication Flows', () => {
     await page.waitForTimeout(1000);
 
     // Try to find logout button.
-    // It might be in a sidebar or user menu.
+    // It is in a sidebar user menu (UserSettings component).
     
-    // First, try to open user menu if it exists (using aria-label from UserSettings component)
-    const userMenuTrigger = page.getByLabel('User menu').first();
-    const fallbackTrigger = page.locator('button').filter({ has: page.locator('svg.lucide-user, .avatar, svg.lucide-settings') }).first();
+    // The UserSettings component has aria-label="User menu" on the trigger div
+    // CustomDropdown wraps it and adds data-dropdown-trigger
+    const userMenuTrigger = page.locator('[aria-label="User menu"], [data-dropdown-trigger]').first();
     
-    if (await userMenuTrigger.isVisible()) {
-        await userMenuTrigger.click();
-    } else if (await fallbackTrigger.isVisible()) {
-        await fallbackTrigger.click();
-    }
+    await expect(userMenuTrigger).toBeVisible({ timeout: 10000 });
+    await userMenuTrigger.click();
 
     // Now look for logout button in the dropdown
+    // Radix UI DropdownMenu uses role="menuitem"
     const logoutBtn = page.getByRole('menuitem', { name: /abmelden|logout/i }).first();
-    const logoutBtnAlt = page.getByRole('button', { name: /abmelden|logout/i }).first();
-    const logoutLink = page.getByRole('link', { name: /abmelden|logout/i }).first();
-    const logoutText = page.getByText(/abmelden|logout/i).first();
+    const logoutBtnAlt = page.locator('div[role="menuitem"]').filter({ hasText: /abmelden|logout/i }).first();
 
     if (await logoutBtn.isVisible()) {
       await logoutBtn.click();
     } else if (await logoutBtnAlt.isVisible()) {
       await logoutBtnAlt.click();
-    } else if (await logoutLink.isVisible()) {
-      await logoutLink.click();
-    } else if (await logoutText.isVisible()) {
-      await logoutText.click();
     } else {
-      console.log('Could not find logout button or user menu trigger');
+      console.log('Could not find logout button in dropdown');
+      const dropdownContent = page.locator('[role="menu"], .dropdown-content, .popover').first();
+      if (await dropdownContent.isVisible()) {
+          console.log('Dropdown content is visible, but logout button not found by role/name');
+      }
       await page.screenshot({ path: 'logout-failure.png' });
+      // Fallback: try clicking anything with logout text
+      await page.getByText(/abmelden|logout/i).last().click({ timeout: 5000 }).catch(() => {});
     }
 
     // After logout, should be redirected to login or home
+    // UserSettings uses window.location.href = '/'
     await expect(page).toHaveURL(/\/auth\/login|^\/$/, { timeout: 15000 });
   });
 });
