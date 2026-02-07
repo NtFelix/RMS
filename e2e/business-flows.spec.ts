@@ -243,66 +243,82 @@ test.describe('Business Logic Flows', () => {
           console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
           await page.goto(entity.path, { waitUntil: 'networkidle' });
 
-          // 1. Robust search: matches "Suchen...", "Mieter suchen...", etc.
+          // Strategy 1: Search for the specific entity name
+          let foundAndDeleted = false;
           const searchInput = page.locator('input[placeholder*="suchen" i]').first();
+
           if (await searchInput.isVisible({ timeout: 10000 }).catch(() => false)) {
             await searchInput.clear();
             await searchInput.fill(entity.name);
-            await page.waitForTimeout(2000); // Allow filtering to complete
-          } else {
-            console.log(`[Cleanup] Search input not found for ${entity.label}, attempting to proceed anyway...`);
+            await page.waitForTimeout(2000);
+
+            foundAndDeleted = await attemptDelete(page, entity);
           }
 
-          // 2. Try to Select All (header checkbox) to clean up ALL matches (even from previous failed runs)
-          // Look for any checkbox in the table header or the first checkbox overall
-          const selectAll = page.locator('thead input[type="checkbox"], thead [role="checkbox"], table [role="checkbox"]').first();
+          // Strategy 2: If specific name didn't work, search for "E2E" prefix to catch all test data
+          if (!foundAndDeleted && await searchInput.isVisible().catch(() => false)) {
+            console.log(`[Cleanup] Trying broader E2E search for ${entity.label}...`);
+            await searchInput.clear();
+            await searchInput.fill('E2E');
+            await page.waitForTimeout(2000);
 
-          if (await selectAll.isVisible({ timeout: 5000 }).catch(() => false)) {
-            console.log(`[Cleanup] Selecting entries for ${entity.label}...`);
-            await selectAll.click({ force: true });
-            await page.waitForTimeout(1000); // Wait for bulk action bar
+            foundAndDeleted = await attemptDelete(page, entity);
+          }
 
-            // 3. Find the delete button in the bulk action bar
-            // We search for a button containing "Löschen" and having a trash icon
-            const deleteBtn = page.getByRole('button')
-              .filter({ hasText: /Löschen/i })
-              .filter({ has: page.locator('svg.lucide-trash-2, .lucide-trash-2, .lucide-trash') })
-              .first();
-
-            if (await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-              console.log(`[Cleanup] Clicking bulk delete for ${entity.label}...`);
-              await deleteBtn.click({ force: true });
-
-              // 4. Handle confirmation Dialog/AlertDialog
-              // Confirm button text varies: "Löschen", "Löschen bestätigen", "1 Häuser löschen"
-              const confirmBtn = page.getByRole('button')
-                .filter({ hasText: /Löschen bestätigen|Löschen|Bestätigen/i })
-                .filter({ hasNotText: /Abbrechen/i })
-                .last();
-
-              if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-                await confirmBtn.click({ force: true });
-                console.log(`[Cleanup] Successfully deleted ${entity.label}: ${entity.name}`);
-                await page.waitForTimeout(2000); // Wait for processing
-              } else {
-                console.log(`[Cleanup] Confirmation button not found for ${entity.label}`);
-              }
-            } else {
-              console.log(`[Cleanup] Bulk delete button not visible for ${entity.label}. Trying individual row...`);
-              // Fallback: try to find the row directly
-              const row = page.locator('tr').filter({ hasText: entity.name }).first();
-              const rowCheckbox = row.getByRole('checkbox').first();
-              if (await rowCheckbox.isVisible().catch(() => false)) {
-                await rowCheckbox.click({ force: true });
-                await page.waitForTimeout(500);
-                await deleteBtn.click({ force: true }).catch(() => { });
-              }
-            }
-          } else {
-            console.log(`[Cleanup] No entries found to delete for ${entity.label}: ${entity.name}`);
+          if (!foundAndDeleted) {
+            console.log(`[Cleanup] Could not delete ${entity.label}: ${entity.name}`);
           }
         } catch (entityError) {
           console.error(`[Cleanup] Error during ${entity.label} cleanup:`, entityError);
+        }
+      }
+
+      async function attemptDelete(page: any, entity: any): Promise<boolean> {
+        // Look for any checkbox in the table header or the first checkbox overall
+        const selectAll = page.locator('thead input[type="checkbox"], thead [role="checkbox"], table [role="checkbox"]').first();
+
+        if (!(await selectAll.isVisible({ timeout: 3000 }).catch(() => false))) {
+          console.log(`[Cleanup] No checkboxes found for ${entity.label}`);
+          return false;
+        }
+
+        console.log(`[Cleanup] Selecting entries for ${entity.label}...`);
+        await selectAll.click({ force: true });
+        await page.waitForTimeout(1500); // Increased wait for bulk action bar
+
+        // Find the delete button - try multiple strategies
+        let deleteBtn = page.getByRole('button')
+          .filter({ hasText: /Löschen/i })
+          .filter({ has: page.locator('svg.lucide-trash-2, .lucide-trash-2, .lucide-trash') })
+          .first();
+
+        if (!(await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
+          // Try without the icon filter
+          deleteBtn = page.getByRole('button').filter({ hasText: /^Löschen \(\d+\)$/i }).first();
+        }
+
+        if (!(await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
+          console.log(`[Cleanup] Delete button not visible for ${entity.label}`);
+          return false;
+        }
+
+        console.log(`[Cleanup] Clicking delete for ${entity.label}...`);
+        await deleteBtn.click({ force: true });
+
+        // Handle confirmation Dialog/AlertDialog
+        const confirmBtn = page.getByRole('button')
+          .filter({ hasText: /Löschen bestätigen|Löschen|Bestätigen/i })
+          .filter({ hasNotText: /Abbrechen/i })
+          .last();
+
+        if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+          await confirmBtn.click({ force: true });
+          console.log(`[Cleanup] Successfully deleted ${entity.label}`);
+          await page.waitForTimeout(2000);
+          return true;
+        } else {
+          console.log(`[Cleanup] Confirmation button not found for ${entity.label}`);
+          return false;
         }
       }
     } catch (globalError) {
