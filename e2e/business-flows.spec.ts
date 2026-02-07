@@ -221,10 +221,10 @@ test.describe('Business Logic Flows', () => {
   });
 
   test.afterAll(async ({ browser }) => {
-    // Only cleanup if we have credentials (otherwise they were skipped anyway)
+    // Only cleanup if we have credentials
     if (!hasTestCredentials()) return;
 
-    // Use a fresh browser context for cleanup
+    // Fresh browser context for cleanup
     const context = await browser.newContext();
     const page = await context.newPage();
 
@@ -243,48 +243,66 @@ test.describe('Business Logic Flows', () => {
           console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
           await page.goto(entity.path, { waitUntil: 'networkidle' });
 
-          const searchInput = page.getByPlaceholder('Suchen...');
-          await expect(searchInput).toBeVisible({ timeout: 10000 });
-          await searchInput.fill(entity.name);
-          await page.waitForTimeout(2000); // Increased wait for filtering
+          // 1. Robust search: matches "Suchen...", "Mieter suchen...", etc.
+          const searchInput = page.locator('input[placeholder*="suchen" i]').first();
+          if (await searchInput.isVisible({ timeout: 10000 }).catch(() => false)) {
+            await searchInput.clear();
+            await searchInput.fill(entity.name);
+            await page.waitForTimeout(2000); // Allow filtering to complete
+          } else {
+            console.log(`[Cleanup] Search input not found for ${entity.label}, attempting to proceed anyway...`);
+          }
 
-          // Find the row containing the entity name and get the checkbox within it
-          const row = page.locator('tr').filter({ hasText: entity.name }).first();
-          const checkbox = row.getByRole('checkbox');
+          // 2. Try to Select All (header checkbox) to clean up ALL matches (even from previous failed runs)
+          // Look for any checkbox in the table header or the first checkbox overall
+          const selectAll = page.locator('thead input[type="checkbox"], thead [role="checkbox"], table [role="checkbox"]').first();
 
-          if (await checkbox.isVisible({ timeout: 5000 }).catch(() => false)) {
-            console.log(`[Cleanup] Selecting row for ${entity.label}...`);
-            await checkbox.click({ force: true });
-            await page.waitForTimeout(1000); // Wait for bulk action bar to appear
+          if (await selectAll.isVisible({ timeout: 5000 }).catch(() => false)) {
+            console.log(`[Cleanup] Selecting entries for ${entity.label}...`);
+            await selectAll.click({ force: true });
+            await page.waitForTimeout(1000); // Wait for bulk action bar
 
-            // Try different ways to find the delete button in the bulk action bar
-            // 1. By its ID if possible (none yet)
-            // 2. By trash icon (lucide icon)
-            // 3. By button text if present (some have "Löschen (1)")
-            const deleteBtn = page.locator('button').filter({
-              has: page.locator('svg.lucide-trash-2, .lucide-trash-2, .lucide-trash')
-            }).or(page.getByRole('button', { name: /Löschen/i })).first();
+            // 3. Find the delete button in the bulk action bar
+            // We search for a button containing "Löschen" and having a trash icon
+            const deleteBtn = page.getByRole('button')
+              .filter({ hasText: /Löschen/i })
+              .filter({ has: page.locator('svg.lucide-trash-2, .lucide-trash-2, .lucide-trash') })
+              .first();
 
             if (await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-              console.log(`[Cleanup] Clicking delete for ${entity.label}...`);
+              console.log(`[Cleanup] Clicking bulk delete for ${entity.label}...`);
               await deleteBtn.click({ force: true });
 
-              // Confirmation modal button
-              const confirmBtn = page.getByRole('button', { name: /Löschen/i }).filter({ hasNotText: /Abbrechen/i }).last();
-              await expect(confirmBtn).toBeVisible({ timeout: 5000 });
-              await confirmBtn.click();
+              // 4. Handle confirmation Dialog/AlertDialog
+              // Confirm button text varies: "Löschen", "Löschen bestätigen", "1 Häuser löschen"
+              const confirmBtn = page.getByRole('button')
+                .filter({ hasText: /Löschen bestätigen|Löschen|Bestätigen/i })
+                .filter({ hasNotText: /Abbrechen/i })
+                .last();
 
-              await page.waitForTimeout(2000);
-              console.log(`[Cleanup] Successfully deleted ${entity.label}: ${entity.name}`);
+              if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+                await confirmBtn.click({ force: true });
+                console.log(`[Cleanup] Successfully deleted ${entity.label}: ${entity.name}`);
+                await page.waitForTimeout(2000); // Wait for processing
+              } else {
+                console.log(`[Cleanup] Confirmation button not found for ${entity.label}`);
+              }
             } else {
-              console.log(`[Cleanup] Delete button not visible for ${entity.label}. Trying alternate label...`);
-              // Some components might have different bulk bar structures
+              console.log(`[Cleanup] Bulk delete button not visible for ${entity.label}. Trying individual row...`);
+              // Fallback: try to find the row directly
+              const row = page.locator('tr').filter({ hasText: entity.name }).first();
+              const rowCheckbox = row.getByRole('checkbox').first();
+              if (await rowCheckbox.isVisible().catch(() => false)) {
+                await rowCheckbox.click({ force: true });
+                await page.waitForTimeout(500);
+                await deleteBtn.click({ force: true }).catch(() => { });
+              }
             }
           } else {
-            console.log(`[Cleanup] Entity not found (no checkbox): ${entity.label}`);
+            console.log(`[Cleanup] No entries found to delete for ${entity.label}: ${entity.name}`);
           }
         } catch (entityError) {
-          console.error(`[Cleanup] Error item-wise for ${entity.label}:`, entityError);
+          console.error(`[Cleanup] Error during ${entity.label} cleanup:`, entityError);
         }
       }
     } catch (globalError) {
