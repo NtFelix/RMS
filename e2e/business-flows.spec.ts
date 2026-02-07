@@ -224,85 +224,67 @@ test.describe('Business Logic Flows', () => {
     // Only cleanup if we have credentials (otherwise they were skipped anyway)
     if (!hasTestCredentials()) return;
 
-    // Use a fresh page for cleanup
-    const page = await browser.newPage();
-    await login(page);
-    await acceptCookieConsent(page);
+    // Use a fresh browser context for cleanup
+    const context = await browser.newContext();
+    const page = await context.newPage();
 
-    console.log(`Cleaning up E2E entities with ID: ${randomId}`);
-
-    // 1. Delete Tenant
     try {
-      await page.goto('/mieter', { waitUntil: 'domcontentloaded' });
-      const searchInput = page.getByPlaceholder('Suchen...');
-      if (await searchInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await searchInput.fill(tenantName);
-        await page.waitForTimeout(1000);
+      await login(page);
+      await acceptCookieConsent(page);
 
-        const checkbox = page.locator('td input[type="checkbox"]').first();
-        if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await checkbox.click();
-          const deleteBtn = page.locator('button').filter({ has: page.locator('svg.lucide-trash-2') }).first();
-          if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await deleteBtn.click();
-            const confirmBtn = page.getByRole('button', { name: /Löschen/i }).last();
-            await confirmBtn.click();
-            await page.waitForTimeout(1000);
+      const entities = [
+        { name: tenantName, path: '/mieter', label: 'Tenant' },
+        { name: aptName, path: '/wohnungen', label: 'Apartment' },
+        { name: houseName, path: '/haeuser', label: 'House' }
+      ];
+
+      for (const entity of entities) {
+        try {
+          console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
+          await page.goto(entity.path, { waitUntil: 'networkidle' });
+
+          const searchInput = page.getByPlaceholder('Suchen...');
+          await expect(searchInput).toBeVisible({ timeout: 10000 });
+          await searchInput.fill(entity.name);
+          await page.waitForTimeout(1500); // Wait for results to filter
+
+          // Radix UI Checkbox has role="checkbox"
+          const checkbox = page.getByRole('checkbox').first();
+
+          if (await checkbox.isVisible({ timeout: 5000 }).catch(() => false)) {
+            console.log(`[Cleanup] Selecting ${entity.label}...`);
+            await checkbox.click();
+            await page.waitForTimeout(500);
+
+            // Look for the delete button (trash icon) in the bulk action bar
+            const deleteBtn = page.locator('button').filter({ has: page.locator('svg.lucide-trash-2, .lucide-trash-2') }).first();
+
+            if (await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+              console.log(`[Cleanup] Clicking delete for ${entity.label}...`);
+              await deleteBtn.click();
+
+              // Confirmation modal button
+              const confirmBtn = page.getByRole('button', { name: /Löschen/i }).filter({ hasNotText: /Abbrechen/i }).last();
+              await expect(confirmBtn).toBeVisible({ timeout: 5000 });
+              await confirmBtn.click();
+
+              await page.waitForTimeout(2000);
+              console.log(`[Cleanup] Successfully deleted ${entity.label}: ${entity.name}`);
+            } else {
+              console.log(`[Cleanup] Delete button not visible for ${entity.label}`);
+            }
+          } else {
+            console.log(`[Cleanup] Entity not found (no checkbox): ${entity.label}`);
           }
+        } catch (entityError) {
+          console.error(`[Cleanup] Error item-wise for ${entity.label}:`, entityError);
         }
       }
-    } catch (e) {
-      console.warn('Tenant cleanup failed:', e);
+    } catch (globalError) {
+      console.error('[Cleanup] Global error:', globalError);
+    } finally {
+      await page.close();
+      await context.close();
     }
-
-    // 2. Delete Apartment
-    try {
-      await page.goto('/wohnungen', { waitUntil: 'domcontentloaded' });
-      const aptSearch = page.getByPlaceholder('Suchen...');
-      if (await aptSearch.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await aptSearch.fill(aptName);
-        await page.waitForTimeout(1000);
-
-        const aptCheckbox = page.locator('td input[type="checkbox"]').first();
-        if (await aptCheckbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await aptCheckbox.click();
-          const deleteBtn = page.locator('button').filter({ has: page.locator('svg.lucide-trash-2') }).first();
-          if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await deleteBtn.click();
-            const confirmBtn = page.getByRole('button', { name: /Löschen/i }).last();
-            await confirmBtn.click();
-            await page.waitForTimeout(1000);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Apartment cleanup failed:', e);
-    }
-
-    // 3. Delete House
-    try {
-      await page.goto('/haeuser', { waitUntil: 'domcontentloaded' });
-      const houseSearch = page.getByPlaceholder('Suchen...');
-      if (await houseSearch.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await houseSearch.fill(houseName);
-        await page.waitForTimeout(1000);
-
-        const houseCheckbox = page.locator('td input[type="checkbox"]').first();
-        if (await houseCheckbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await houseCheckbox.click();
-          const deleteBtn = page.locator('button').filter({ has: page.locator('svg.lucide-trash-2') }).first();
-          if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await deleteBtn.click();
-            const confirmBtn = page.getByRole('button', { name: /Löschen/i }).last();
-            await confirmBtn.click();
-            await page.waitForTimeout(1000);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('House cleanup failed:', e);
-    }
-
-    await page.close();
   });
 });
