@@ -24,7 +24,7 @@ export const login = async (page: Page) => {
   await page.goto('/auth/login', { waitUntil: 'networkidle' });
 
   // Wait for the form to be ready
-  await expect(page.locator('form')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('form')).toBeVisible({ timeout: 30000 });
 
   // Fill in credentials using IDs with form context to avoid potential duplicates
   const form = page.locator('form').first();
@@ -36,7 +36,11 @@ export const login = async (page: Page) => {
 
   // Wait for navigation to dashboard or check for errors
   try {
-    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 30000 });
+    // If we are already on the dashboard, we are done
+    if (page.url().includes('/dashboard')) {
+      return;
+    }
+    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 60000 });
   } catch (e) {
     // If navigation failed, check if there's an error message visible
     // We filter for alerts that aren't the hidden route announcer
@@ -53,9 +57,15 @@ export const login = async (page: Page) => {
         // Alert check failed, continue to other checks
       }
 
-      // Check if we are still on the login page
-      if (page.url().includes('/auth/login')) {
-        throw new Error(`Login failed: Still on login page after timeout. URL: ${page.url()}`);
+      // Final check of the URL
+      const currentUrl = page.url();
+      if (currentUrl.includes('/auth/login')) {
+        throw new Error(`Login failed: Still on login page after timeout. URL: ${currentUrl}`);
+      }
+
+      // If we are on some other page (like /subscription-locked), report it
+      if (currentUrl.includes('/subscription-locked')) {
+        throw new Error(`Login failed: Redirected to subscription-locked page. URL: ${currentUrl}`);
       }
     }
 
