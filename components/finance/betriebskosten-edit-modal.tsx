@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { formatNumber } from "@/utils/format";
 import { createPortal } from "react-dom";
 import {
@@ -957,6 +957,41 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     setBetriebskostenModalDirty(true);
   };
 
+  const addMeterCostSelect = useMemo(() => {
+    const availableTypes = (Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
+      .filter(typ => zaehlerkosten[typ] === undefined);
+
+    if (availableTypes.length === 0) return null;
+
+    return (
+      <div className="flex justify-start">
+        <Select
+          value=""
+          onValueChange={(value) => handleZaehlerkostenChange(value as ZaehlerTyp, "")}
+        >
+          <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all text-muted-foreground">
+            <PlusCircle className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Zähler-Kostenstelle hinzufügen" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableTypes.map((typ) => {
+              const config = ZAEHLER_CONFIG[typ];
+              const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
+              return (
+                <SelectItem key={typ} value={typ} className="group">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-muted-foreground group-focus:text-white transition-colors" />
+                    <span>{config.label}</span>
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }, [zaehlerkosten, handleZaehlerkostenChange]);
+
   if (!isBetriebskostenModalOpen) {
     return null;
   }
@@ -1145,40 +1180,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                     </div>
 
                     {/* Add Meter Cost Select */}
-                    {(() => {
-                      const availableTypes = (Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
-                        .filter(typ => zaehlerkosten[typ] === undefined);
-
-                      if (availableTypes.length === 0) return null;
-
-                      return (
-                        <div className="flex justify-start">
-                          <Select
-                            value=""
-                            onValueChange={(value) => handleZaehlerkostenChange(value as ZaehlerTyp, "")}
-                          >
-                            <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all text-muted-foreground">
-                              <PlusCircle className="w-4 h-4 mr-2" />
-                              <SelectValue placeholder="Zähler-Kostenstelle hinzufügen" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableTypes.map((typ) => {
-                                const config = ZAEHLER_CONFIG[typ];
-                                const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
-                                return (
-                                  <SelectItem key={typ} value={typ} className="group">
-                                    <div className="flex items-center gap-2">
-                                      <Icon className="w-4 h-4 text-muted-foreground group-focus:text-white transition-colors" />
-                                      <span>{config.label}</span>
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      );
-                    })()}
+                    {addMeterCostSelect}
                   </div>
                 )}
               </div>
