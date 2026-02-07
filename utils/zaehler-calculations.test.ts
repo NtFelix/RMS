@@ -156,162 +156,175 @@ describe("zaehler-calculations", () => {
             };
             expect(sumAllZaehlerValues(values)).toBeCloseTo(0.6);
         });
-    });
 
-    describe("convertZaehlerkostenToStrings", () => {
-        it("22. should convert numeric values to strings", () => {
-            const kosten = {
-                kaltwasser: 100,
-                warmwasser: 50.5,
-            };
-            const result = convertZaehlerkostenToStrings(kosten);
-            expect(result).toEqual({
-                kaltwasser: "100",
-                warmwasser: "50.5",
-            });
-        });
-
-        it("23. should handle empty object", () => {
-            expect(convertZaehlerkostenToStrings({})).toEqual({});
-        });
-
-        it("24. should handle zero value", () => {
-            expect(convertZaehlerkostenToStrings({ strom: 0 })).toEqual({
-                strom: "0",
-            });
-        });
-
-        it("25. should handle negative value", () => {
-            expect(convertZaehlerkostenToStrings({ gas: -10 })).toEqual({
-                gas: "-10",
-            });
-        });
-
-        it("26. should handle large integers", () => {
-            expect(convertZaehlerkostenToStrings({ waermemenge: 123456789 })).toEqual({
-                waermemenge: "123456789",
-            });
-        });
-    });
-
-    describe("Constants and Configuration", () => {
-        it("27. WATER_METER_TYPES should contain exactly kaltwasser and warmwasser", () => {
-            expect(WATER_METER_TYPES).toContain("kaltwasser");
-            expect(WATER_METER_TYPES).toContain("warmwasser");
-            expect(WATER_METER_TYPES.length).toBe(2);
-        });
-
-        it("28. ZAEHLER_CONFIG should have entries for all ZaehlerTyp values", () => {
-            const types = [
-                'kaltwasser',
-                'warmwasser',
-                'waermemenge',
-                'heizkostenverteiler',
-                'strom',
-                'gas'
-            ];
-            types.forEach(typ => {
-                expect(ZAEHLER_CONFIG).toHaveProperty(typ);
-                expect(ZAEHLER_CONFIG[typ as keyof typeof ZAEHLER_CONFIG]).toHaveProperty('label');
-                expect(ZAEHLER_CONFIG[typ as keyof typeof ZAEHLER_CONFIG]).toHaveProperty('einheit');
-            });
-        });
-    });
-
-    describe("Real-world Scenarios", () => {
-        it("29. Scenario: 1 house, 1 apt, 3 meters (mixed types)", () => {
-            const values = {
-                kaltwasser: 120.4,
-                warmwasser: 45.2,
-                strom: 3500,
-            };
-            const waterSum = sumZaehlerValues(values);
-            const allSum = sumAllZaehlerValues(values);
-
-            expect(waterSum).toBeCloseTo(165.6);
-            expect(allSum).toBeCloseTo(3665.6);
-        });
-
-        it("30. Scenario: Multi-apt building with shared water cost", () => {
-            const buildingValues = {
-                kaltwasser: 1000,
-                warmwasser: 500,
-                waermemenge: 2000,
-            };
-            expect(sumZaehlerValues(buildingValues)).toBe(1500);
-        });
-
-        it("31. Scenario: Apartment with multiple cold water meters", () => {
-            // sumZaehlerValues doesn't support multiple same-type keys (JS objects don't)
-            // but the Record<string, number> usually represents sums per type
-            const values = {
-                kaltwasser: 150, // sum of all KW meters
-                warmwasser: 75,
-            };
-            expect(sumZaehlerValues(values)).toBe(225);
-        });
-
-        it("32. Scenario: Zero consumption for a period", () => {
-            const values = {
-                kaltwasser: 0,
-                warmwasser: 0,
-                strom: 0,
-            };
-            expect(sumZaehlerValues(values)).toBe(0);
-            expect(sumAllZaehlerValues(values)).toBe(0);
-        });
-
-        it("33. Scenario: Only non-water meters present", () => {
-            const values = {
-                strom: 450,
-                gas: 200,
-            };
-            expect(sumZaehlerValues(values)).toBe(0);
-            expect(sumAllZaehlerValues(values)).toBe(650);
-        });
-
-        it("34. Scenario: Missing property in values object", () => {
-            const values = {
-                kaltwasser: 100,
-            };
-            expect(values.hasOwnProperty('warmwasser')).toBe(false);
-            expect(sumZaehlerValues(values)).toBe(100);
-        });
-
-        it("35. Scenario: High precision decimals", () => {
-            const values = {
-                kaltwasser: 100.0001,
-                warmwasser: 50.0002,
-            };
-            expect(sumZaehlerValues(values)).toBeCloseTo(150.0003, 4);
-        });
-
-        it("36. Scenario: Extreme values comparison", () => {
-            const values = {
-                kaltwasser: Number.MAX_SAFE_INTEGER,
-                warmwasser: 1,
-            };
-            // Result is actually MAX_SAFE_INTEGER + 1 which is not safe, 
-            // but for this range it usually works for simple additions
-            expect(sumZaehlerValues(values)).toBe(Number.MAX_SAFE_INTEGER + 1);
-        });
-
-        it("37. Scenario: Record with extra metadata keys (ignored by sumZaehlerValues)", () => {
-            const values = {
+        it("22. should ignore non-numeric properties when summing", () => {
+            const valuesWithMixedTypes = {
                 kaltwasser: 100,
                 warmwasser: 50,
-                comment: "Estimated values" as any,
-                lastUpdate: "2024-01-01" as any,
+                comment: 'some string',
+                isValid: false,
             };
-            // sumZaehlerValues only looks at types provided in WATER_METER_TYPES
-            expect(sumZaehlerValues(values)).toBe(150);
-            // sumAllZaehlerValues might fail if types are not numbers, 
-            // but the implementation uses reduce((sum, v) => sum + v, 0).
-            // JS handles string addition by concatenation.
-            // Let's see if we should test robustness.
-            // In lib/zaehler-utils.ts: return Object.values(values).reduce((sum, v) => sum + v, 0);
-            // If v is a string, it will concatenate.
-            // However, the type is Record<string, number>.
+
+            // Cast to `any` to simulate real-world data from a less-strict JSONB source.
+            // A robust implementation should pass this test.
+            expect(sumAllZaehlerValues(valuesWithMixedTypes as any)).toBe(150);
         });
+    });
+});
+
+describe("convertZaehlerkostenToStrings", () => {
+    it("22. should convert numeric values to strings", () => {
+        const kosten = {
+            kaltwasser: 100,
+            warmwasser: 50.5,
+        };
+        const result = convertZaehlerkostenToStrings(kosten);
+        expect(result).toEqual({
+            kaltwasser: "100",
+            warmwasser: "50.5",
+        });
+    });
+
+    it("23. should handle empty object", () => {
+        expect(convertZaehlerkostenToStrings({})).toEqual({});
+    });
+
+    it("24. should handle zero value", () => {
+        expect(convertZaehlerkostenToStrings({ strom: 0 })).toEqual({
+            strom: "0",
+        });
+    });
+
+    it("25. should handle negative value", () => {
+        expect(convertZaehlerkostenToStrings({ gas: -10 })).toEqual({
+            gas: "-10",
+        });
+    });
+
+    it("26. should handle large integers", () => {
+        expect(convertZaehlerkostenToStrings({ waermemenge: 123456789 })).toEqual({
+            waermemenge: "123456789",
+        });
+    });
+});
+
+describe("Constants and Configuration", () => {
+    it("27. WATER_METER_TYPES should contain exactly kaltwasser and warmwasser", () => {
+        expect(WATER_METER_TYPES).toContain("kaltwasser");
+        expect(WATER_METER_TYPES).toContain("warmwasser");
+        expect(WATER_METER_TYPES.length).toBe(2);
+    });
+
+    it("28. ZAEHLER_CONFIG should have entries for all ZaehlerTyp values", () => {
+        const types = [
+            'kaltwasser',
+            'warmwasser',
+            'waermemenge',
+            'heizkostenverteiler',
+            'strom',
+            'gas'
+        ];
+        types.forEach(typ => {
+            expect(ZAEHLER_CONFIG).toHaveProperty(typ);
+            expect(ZAEHLER_CONFIG[typ as keyof typeof ZAEHLER_CONFIG]).toHaveProperty('label');
+            expect(ZAEHLER_CONFIG[typ as keyof typeof ZAEHLER_CONFIG]).toHaveProperty('einheit');
+        });
+    });
+});
+
+describe("Real-world Scenarios", () => {
+    it("29. Scenario: 1 house, 1 apt, 3 meters (mixed types)", () => {
+        const values = {
+            kaltwasser: 120.4,
+            warmwasser: 45.2,
+            strom: 3500,
+        };
+        const waterSum = sumZaehlerValues(values);
+        const allSum = sumAllZaehlerValues(values);
+
+        expect(waterSum).toBeCloseTo(165.6);
+        expect(allSum).toBeCloseTo(3665.6);
+    });
+
+    it("30. Scenario: Multi-apt building with shared water cost", () => {
+        const buildingValues = {
+            kaltwasser: 1000,
+            warmwasser: 500,
+            waermemenge: 2000,
+        };
+        expect(sumZaehlerValues(buildingValues)).toBe(1500);
+    });
+
+    it("31. Scenario: Apartment with multiple cold water meters", () => {
+        // sumZaehlerValues doesn't support multiple same-type keys (JS objects don't)
+        // but the Record<string, number> usually represents sums per type
+        const values = {
+            kaltwasser: 150, // sum of all KW meters
+            warmwasser: 75,
+        };
+        expect(sumZaehlerValues(values)).toBe(225);
+    });
+
+    it("32. Scenario: Zero consumption for a period", () => {
+        const values = {
+            kaltwasser: 0,
+            warmwasser: 0,
+            strom: 0,
+        };
+        expect(sumZaehlerValues(values)).toBe(0);
+        expect(sumAllZaehlerValues(values)).toBe(0);
+    });
+
+    it("33. Scenario: Only non-water meters present", () => {
+        const values = {
+            strom: 450,
+            gas: 200,
+        };
+        expect(sumZaehlerValues(values)).toBe(0);
+        expect(sumAllZaehlerValues(values)).toBe(650);
+    });
+
+    it("34. Scenario: Missing property in values object", () => {
+        const values = {
+            kaltwasser: 100,
+        };
+        expect(values.hasOwnProperty('warmwasser')).toBe(false);
+        expect(sumZaehlerValues(values)).toBe(100);
+    });
+
+    it("35. Scenario: High precision decimals", () => {
+        const values = {
+            kaltwasser: 100.0001,
+            warmwasser: 50.0002,
+        };
+        expect(sumZaehlerValues(values)).toBeCloseTo(150.0003, 4);
+    });
+
+    it("36. Scenario: Extreme values comparison", () => {
+        const values = {
+            kaltwasser: Number.MAX_SAFE_INTEGER,
+            warmwasser: 1,
+        };
+        // Result is actually MAX_SAFE_INTEGER + 1 which is not safe, 
+        // but for this range it usually works for simple additions
+        expect(sumZaehlerValues(values)).toBe(Number.MAX_SAFE_INTEGER + 1);
+    });
+
+    it("37. Scenario: Record with extra metadata keys (ignored by sumZaehlerValues)", () => {
+        const values = {
+            kaltwasser: 100,
+            warmwasser: 50,
+            comment: "Estimated values" as any,
+            lastUpdate: "2024-01-01" as any,
+        };
+        // sumZaehlerValues only looks at types provided in WATER_METER_TYPES
+        expect(sumZaehlerValues(values)).toBe(150);
+        // sumAllZaehlerValues might fail if types are not numbers, 
+        // but the implementation uses reduce((sum, v) => sum + v, 0).
+        // JS handles string addition by concatenation.
+        // Let's see if we should test robustness.
+        // In lib/zaehler-utils.ts: return Object.values(values).reduce((sum, v) => sum + v, 0);
+        // If v is a string, it will concatenate.
+        // However, the type is Record<string, number>.
     });
 });

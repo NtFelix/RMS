@@ -858,10 +858,14 @@ describe('Water Cost Calculations', () => {
       const resB = results.find(r => r.tenantId === 'tenant-B');
 
       // Since mid-year is almost halfway (July 1st), it should be roughly 50/50
-      // 2025 is not a leap year. Jan 1 to Jul 1 is 181 days. Jul 1 to Dec 31 is 184 days.
-      // Total 365.
-      expect(resA!.totalConsumption).toBeLessThan(resB!.totalConsumption);
-      expect(resA!.totalConsumption + resB!.totalConsumption).toBeCloseTo(100, 1);
+      // 2025 is not a leap year. 
+      // Tenant A (Jan 1 - Jul 1 inclusive): 182 days
+      // Tenant B (Jul 1 - Dec 31 inclusive): 184 days
+      // Total person-days: 366 (overlapping on Jul 1).
+      // Costs are distributed proportionally: 182/366 and 184/366.
+      expect(resA!.totalConsumption).toBeCloseTo(100 * 182 / 366);
+      expect(resB!.totalConsumption).toBeCloseTo(100 * 184 / 366);
+      expect(resA!.totalConsumption + resB!.totalConsumption).toBeCloseTo(100);
     });
   });
 });
