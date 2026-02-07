@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { formatNumber } from "@/utils/format";
 import { createPortal } from "react-dom";
 import {
@@ -30,7 +30,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed } from "lucide-react";
+import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed, Droplets, Thermometer, Flame, Gauge, Zap, Fuel, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -64,6 +64,15 @@ import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDat
 // Re-export for other components that might need it
 export type { CostItem, RechnungEinzel };
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+
+const METER_ICON_MAP = {
+  droplet: Droplets,
+  thermometer: Thermometer,
+  flame: Flame,
+  gauge: Gauge,
+  zap: Zap,
+  fuel: Fuel,
+};
 
 interface BetriebskostenEditModalPropsRefactored { }
 
@@ -934,10 +943,54 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     setBetriebskostenModalDirty(true);
   };
 
+  const handleRemoveZaehlerkosten = (zaehlerTyp: string) => {
+    setZaehlerkosten(prev => {
+      const next = { ...prev };
+      delete next[zaehlerTyp];
+      return next;
+    });
+    setBetriebskostenModalDirty(true);
+  };
+
   const handleHausChange = (newHausId: string | null) => {
     setHausId(newHausId || '');
     setBetriebskostenModalDirty(true);
   };
+
+  const addMeterCostSelect = useMemo(() => {
+    const availableTypes = (Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
+      .filter(typ => zaehlerkosten[typ] === undefined);
+
+    if (availableTypes.length === 0) return null;
+
+    return (
+      <div className="flex justify-start">
+        <Select
+          value=""
+          onValueChange={(value) => handleZaehlerkostenChange(value as ZaehlerTyp, "")}
+        >
+          <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all text-muted-foreground">
+            <PlusCircle className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Zähler-Kostenstelle hinzufügen" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableTypes.map((typ) => {
+              const config = ZAEHLER_CONFIG[typ];
+              const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
+              return (
+                <SelectItem key={typ} value={typ} className="group">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-muted-foreground group-focus:text-white transition-colors" />
+                    <span>{config.label}</span>
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }, [zaehlerkosten, handleZaehlerkostenChange]);
 
   if (!isBetriebskostenModalOpen) {
     return null;
@@ -1065,33 +1118,69 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
               {/* Meter Costs / Zählerkosten */}
               <div className="space-y-3">
-                <LabelWithTooltip htmlFor="formZaehlerkosten" infoText="Die Kosten je Zählertyp für das ausgewählte Haus in diesem Abrechnungszeitraum.">
+                <LabelWithTooltip htmlFor="formZaehlerkosten" infoText="Die Kosten je Zählertyp für das ausgewählte Haus in diesem Abrechnungszeitraum. Nur Zähler, für die Kosten anfallen, müssen hier eingetragen werden.">
                   Zählerkosten (€)
                 </LabelWithTooltip>
+
                 {isFormLoading ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {Array.from({ length: 4 }).map((_, idx) => (
-                      <Skeleton key={`skel-zaehler-${idx}`} className="h-10 w-full" />
+                      <Skeleton key={`skel-zaehler-${idx}`} className="h-10 w-full rounded-xl" />
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[]).map((typ) => (
-                      <div key={typ} className="flex items-center gap-2">
-                        <Label htmlFor={`zaehlerkosten-${typ}`} className="min-w-[120px] text-sm">
-                          {ZAEHLER_CONFIG[typ].label}
-                        </Label>
-                        <NumberInput
-                          id={`zaehlerkosten-${typ}`}
-                          value={zaehlerkosten[typ] || ''}
-                          onChange={(e) => handleZaehlerkostenChange(typ, e.target.value)}
-                          placeholder="0.00"
-                          step="0.01"
-                          disabled={isSaving || isFormLoading}
-                          className="flex-1"
-                        />
-                      </div>
-                    ))}
+                  <div className="space-y-4">
+                    {/* Active Meter Costs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
+                        .filter(typ => zaehlerkosten[typ] !== undefined)
+                        .map((typ) => {
+                          const config = ZAEHLER_CONFIG[typ];
+                          const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
+
+                          return (
+                            <div
+                              key={typ}
+                              className="group flex flex-col gap-2 p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm transition-all hover:border-primary/30"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className={`p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors`}>
+                                    <Icon className="w-4 h-4" />
+                                  </div>
+                                  <Label htmlFor={`zaehlerkosten-${typ}`} className="text-sm font-medium">
+                                    {config.label}
+                                  </Label>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                  onClick={() => handleRemoveZaehlerkosten(typ)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                              <div className="relative">
+                                <NumberInput
+                                  id={`zaehlerkosten-${typ}`}
+                                  value={zaehlerkosten[typ] || ''}
+                                  onChange={(e) => handleZaehlerkostenChange(typ, e.target.value)}
+                                  placeholder="0.00"
+                                  step="0.01"
+                                  disabled={isSaving || isFormLoading}
+                                  className="h-10 pl-3 pr-8 bg-gray-50/50 dark:bg-black/20 border-gray-200 dark:border-gray-800 focus:ring-primary/20"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">€</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+
+                    {/* Add Meter Cost Select */}
+                    {addMeterCostSelect}
                   </div>
                 )}
               </div>
