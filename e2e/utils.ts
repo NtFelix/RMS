@@ -36,6 +36,10 @@ export const login = async (page: Page) => {
 
   // Wait for navigation to dashboard or check for errors
   try {
+    // If we are already on the dashboard, we are done
+    if (page.url().includes('/dashboard')) {
+      return;
+    }
     await page.waitForURL(/\/dashboard|^\/$/, { timeout: 30000 });
   } catch (e) {
     // If navigation failed, check if there's an error message visible
@@ -53,9 +57,15 @@ export const login = async (page: Page) => {
         // Alert check failed, continue to other checks
       }
 
-      // Check if we are still on the login page
-      if (page.url().includes('/auth/login')) {
-        throw new Error(`Login failed: Still on login page after timeout. URL: ${page.url()}`);
+      // Final check of the URL
+      const currentUrl = page.url();
+      if (currentUrl.includes('/auth/login')) {
+        throw new Error(`Login failed: Still on login page after timeout. URL: ${currentUrl}`);
+      }
+
+      // If we are on some other page (like /subscription-locked), report it
+      if (currentUrl.includes('/subscription-locked')) {
+        throw new Error(`Login failed: Redirected to subscription-locked page. URL: ${currentUrl}`);
       }
     }
 

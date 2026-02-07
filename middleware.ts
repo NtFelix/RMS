@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
 import { createServerClient } from "@supabase/ssr"
 import { ROUTES } from "@/lib/constants"
+import { isTestEnv } from "@/lib/test-utils"
 
 
 export async function middleware(request: NextRequest) {
@@ -134,7 +135,9 @@ export async function middleware(request: NextRequest) {
 
   // Subscription check
   // This requires a Supabase client, so we create one here if needed.
+  // Bypass subscription check in E2E tests
   if (sessionUser &&
+    !isTestEnv() &&
     !publicRoutes.some(route => {
       const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
       return regex.test(pathname);

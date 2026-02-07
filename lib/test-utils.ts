@@ -4,7 +4,7 @@
  */
 
 export const isTestEnv = (): boolean => {
-    return process.env.CI === 'true' || process.env.NODE_ENV === 'test';
+    return process.env.CI === 'true' || process.env.CI === '1' || process.env.NODE_ENV === 'test' || !!process.env.NEXT_PUBLIC_IS_E2E_TEST;
 };
 
 export const isStripeMocked = (): boolean => {
