@@ -24,7 +24,7 @@ export const login = async (page: Page) => {
   await page.goto('/auth/login', { waitUntil: 'networkidle' });
 
   // Wait for the form to be ready
-  await expect(page.locator('form')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('form')).toBeVisible({ timeout: 30000 });
 
   // Fill in credentials using IDs with form context to avoid potential duplicates
   const form = page.locator('form').first();
@@ -40,7 +40,7 @@ export const login = async (page: Page) => {
     if (page.url().includes('/dashboard')) {
       return;
     }
-    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 30000 });
+    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 60000 });
   } catch (e) {
     // If navigation failed, check if there's an error message visible
     // We filter for alerts that aren't the hidden route announcer

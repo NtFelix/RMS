@@ -246,22 +246,28 @@ test.describe('Business Logic Flows', () => {
           const searchInput = page.getByPlaceholder('Suchen...');
           await expect(searchInput).toBeVisible({ timeout: 10000 });
           await searchInput.fill(entity.name);
-          await page.waitForTimeout(1500); // Wait for results to filter
+          await page.waitForTimeout(2000); // Increased wait for filtering
 
-          // Radix UI Checkbox has role="checkbox"
-          const checkbox = page.getByRole('checkbox').first();
+          // Find the row containing the entity name and get the checkbox within it
+          const row = page.locator('tr').filter({ hasText: entity.name }).first();
+          const checkbox = row.getByRole('checkbox');
 
           if (await checkbox.isVisible({ timeout: 5000 }).catch(() => false)) {
-            console.log(`[Cleanup] Selecting ${entity.label}...`);
-            await checkbox.click();
-            await page.waitForTimeout(500);
+            console.log(`[Cleanup] Selecting row for ${entity.label}...`);
+            await checkbox.click({ force: true });
+            await page.waitForTimeout(1000); // Wait for bulk action bar to appear
 
-            // Look for the delete button (trash icon) in the bulk action bar
-            const deleteBtn = page.locator('button').filter({ has: page.locator('svg.lucide-trash-2, .lucide-trash-2') }).first();
+            // Try different ways to find the delete button in the bulk action bar
+            // 1. By its ID if possible (none yet)
+            // 2. By trash icon (lucide icon)
+            // 3. By button text if present (some have "Löschen (1)")
+            const deleteBtn = page.locator('button').filter({
+              has: page.locator('svg.lucide-trash-2, .lucide-trash-2, .lucide-trash')
+            }).or(page.getByRole('button', { name: /Löschen/i })).first();
 
             if (await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
               console.log(`[Cleanup] Clicking delete for ${entity.label}...`);
-              await deleteBtn.click();
+              await deleteBtn.click({ force: true });
 
               // Confirmation modal button
               const confirmBtn = page.getByRole('button', { name: /Löschen/i }).filter({ hasNotText: /Abbrechen/i }).last();
@@ -271,7 +277,8 @@ test.describe('Business Logic Flows', () => {
               await page.waitForTimeout(2000);
               console.log(`[Cleanup] Successfully deleted ${entity.label}: ${entity.name}`);
             } else {
-              console.log(`[Cleanup] Delete button not visible for ${entity.label}`);
+              console.log(`[Cleanup] Delete button not visible for ${entity.label}. Trying alternate label...`);
+              // Some components might have different bulk bar structures
             }
           } else {
             console.log(`[Cleanup] Entity not found (no checkbox): ${entity.label}`);

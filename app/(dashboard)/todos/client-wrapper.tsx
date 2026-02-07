@@ -46,7 +46,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
       <div
-        className="absolute inset-0 z-[-1]"
+        className="absolute inset-0 z-[-1] pointer-events-none"
         style={{
           backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
         }}
