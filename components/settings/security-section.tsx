@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import ConnectedAccountsSection from "./connected-accounts-section";
+import AuthorizedAppsSection from "./authorized-apps-section";
 
 const SecuritySection = () => {
   const supabase = createClient()
@@ -203,6 +205,9 @@ const SecuritySection = () => {
           </div>
         </SettingsCard>
       </SettingsSection>
+
+      <ConnectedAccountsSection />
+      <AuthorizedAppsSection />
     </div>
   )
 };

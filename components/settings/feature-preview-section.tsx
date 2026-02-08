@@ -11,7 +11,7 @@ import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 
 type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
 interface EarlyAccessFeature {
-  flagKey: string
+  flagKey: string | null
   name: string
   description?: string
   documentationUrl?: string | null
@@ -68,7 +68,6 @@ const FeaturePreviewSection = () => {
         setIsLoadingFeatures(false);
       }, 5000);
 
-      // @ts-ignore: method is available on Web SDK, types may lag
       posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
         clearTimeout(timeoutId);
         const active = activeFlags || []
@@ -82,7 +81,7 @@ const FeaturePreviewSection = () => {
           }
           featuresByStage[stage].push({
             ...f,
-            enabled: active.includes(f.flagKey)
+            enabled: f.flagKey ? active.includes(f.flagKey) : false
           })
         })
 
@@ -99,7 +98,9 @@ const FeaturePreviewSection = () => {
     }
   }, [posthog, posthog?.__loaded, activeFlagsString])
 
-  const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
+  const toggleEarlyAccess = async (flagKey: string | null, enable: boolean) => {
+    if (!flagKey) return;
+    
     if (useLocalFeatures) {
       toast({
         title: "Fehler",
@@ -131,10 +132,8 @@ const FeaturePreviewSection = () => {
         throw new Error('updateEarlyAccessFeatureEnrollment method not available');
       }
 
-      // @ts-ignore: available on Web SDK
       posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
 
-      // @ts-ignore: optional method to refresh flags
       if (typeof posthog.reloadFeatureFlags === 'function') {
         await posthog.reloadFeatureFlags();
       }
