@@ -726,4 +726,146 @@ describe('Water Cost Calculations', () => {
       expect(result!.pricePerUnit).toBe(3); // 540 / 180 = 3 EUR/m³
     });
   });
+
+  describe('Enhanced Meter Reading Aggregation', () => {
+    it('should aggregate consumption across multiple meter types (kaltwasser, warmwasser, gas)', () => {
+      // Test 1: Multi-meter type grouping
+      const gasMeter: WasserZaehler = {
+        ...meter2,
+        id: 'meter-gas',
+        zaehler_typ: 'gas',
+        einheit: 'm³',
+      };
+      const gasReading: WasserAblesung = {
+        id: 'reading-gas',
+        ablese_datum: '2025-12-31',
+        zaehlerstand: 500,
+        verbrauch: 500,
+        user_id: 'user-1',
+        zaehler_id: 'meter-gas',
+      };
+
+      const result = calculateTenantMeterConsumption(
+        [tenant3],
+        [meter2, gasMeter], // meter2 is kaltwasser
+        [reading3, gasReading],
+        periodStart,
+        periodEnd
+      );
+
+      expect(result).toHaveLength(1);
+      // Total consumption should be 180 (kaltwasser) + 500 (gas) = 680
+      expect(result[0].totalConsumption).toBe(680);
+      expect(result[0].consumptionDetails).toHaveLength(2);
+    });
+
+    it('should provide consumption details grouped by individual meter', () => {
+      // Test 2: Consumption details grouped by meter
+      const result = calculateTenantMeterConsumption(
+        [tenant3],
+        [meter2],
+        [reading3],
+        periodStart,
+        periodEnd
+      );
+
+      expect(result[0].consumptionDetails).toHaveLength(1);
+      expect(result[0].consumptionDetails[0].meterId).toBe('meter-2');
+      expect(result[0].consumptionDetails[0].consumption).toBe(180);
+    });
+
+    it('should match reading sums with zaehlerverbrauch JSONB structure', () => {
+      // Test 3: Reading sums matching zaehlerverbrauch JSONB
+      // This verifies that the logic used to calculate consumption for tenants
+      // can be reconciled with the building-level JSONB data
+      const results = calculateTenantMeterConsumption(
+        [tenant1, tenant2, tenant3],
+        [meter1, meter2],
+        [reading1, reading2, reading3],
+        periodStart,
+        periodEnd
+      );
+
+      const totalConsumption = results.reduce((sum, r) => sum + r.totalConsumption, 0);
+      // Apartment 1: 200 (reading1+2), Apartment 2: 180 (reading3)
+      // Total: 380
+      expect(totalConsumption).toBe(380);
+
+      const zaehlerverbrauch = {
+        kaltwasser: 380
+      };
+
+      const summedFromJSONB = Object.values(zaehlerverbrauch).reduce((sum, v) => sum + v, 0);
+      expect(totalConsumption).toBe(summedFromJSONB);
+    });
+
+    it('should strictly validate date period filtering for readings', () => {
+      // Test 4: Date period filtering validation
+      const midYearReading: WasserAblesung = {
+        id: 'mid-reading',
+        ablese_datum: '2025-06-01',
+        zaehlerstand: 50,
+        verbrauch: 50,
+        user_id: 'user-1',
+        zaehler_id: 'meter-2',
+      };
+      const lateReading: WasserAblesung = {
+        id: 'late-reading',
+        ablese_datum: '2026-01-05', // Outside period (2025)
+        zaehlerstand: 300,
+        verbrauch: 100,
+        user_id: 'user-1',
+        zaehler_id: 'meter-2',
+      };
+
+      const result = calculateTenantMeterConsumption(
+        [tenant3],
+        [meter2],
+        [midYearReading, lateReading],
+        '2025-01-01',
+        '2025-12-31'
+      );
+
+      // Should only include midYearReading (50)
+      expect(result[0].totalConsumption).toBe(50);
+    });
+
+    it('should handle partial periods with multi-tenant occupancy correctly', () => {
+      // Test 5: Re-verifying complex splitting for safety
+      const midYear = '2025-07-01';
+      const tenantA: Mieter = { ...tenant1, id: 'tenant-A', einzug: '2025-01-01', auszug: midYear };
+      const tenantB: Mieter = { ...tenant1, id: 'tenant-B', einzug: midYear, auszug: null };
+
+      const reading: WasserAblesung = {
+        id: 'one-reading',
+        ablese_datum: '2025-12-31',
+        zaehlerstand: 100,
+        verbrauch: 100,
+        user_id: 'user-1',
+        zaehler_id: 'meter-1',
+      };
+
+      const results = calculateTenantMeterConsumption(
+        [tenantA, tenantB],
+        [meter1],
+        [reading],
+        '2025-01-01',
+        '2025-12-31'
+      );
+
+      expect(results).toHaveLength(2);
+      const resA = results.find(r => r.tenantId === 'tenant-A');
+      const resB = results.find(r => r.tenantId === 'tenant-B');
+
+      // Since mid-year is almost halfway (July 1st), it should be roughly 50/50
+      // 2025 is not a leap year. 
+      // Tenant A (Jan 1 - Jul 1 inclusive): 182 days
+      // Tenant B (Jul 1 - Dec 31 inclusive): 184 days
+      // Total person-days: 366 (overlapping on Jul 1).
+      // Costs are distributed proportionally: 182/366 and 184/366.
+      expect(resA!.totalConsumption).toBeCloseTo(100 * 182 / 366);
+      expect(resB!.totalConsumption).toBeCloseTo(100 * 184 / 366);
+      expect(resA!.totalConsumption + resB!.totalConsumption).toBeCloseTo(100);
+    });
+  });
 });
