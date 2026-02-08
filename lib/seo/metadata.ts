@@ -352,7 +352,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/auth/login`,
         },
         alternates: {
-            canonical: `${BASE_URL}/auth/login`,
+            canonical: '/auth/login',
         },
     } satisfies Metadata,
 
@@ -373,7 +373,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/auth/register`,
         },
         alternates: {
-            canonical: `${BASE_URL}/auth/register`,
+            canonical: '/auth/register',
         },
     } satisfies Metadata,
 
