@@ -54,3 +54,5 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+# next-agents-md
+.next-docs/
