@@ -761,8 +761,12 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     }
 
     // Parse the JSON result
+    // Parse the JSON result
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    const parsedResult = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(responseText);
+    if (!jsonMatch) {
+        throw new Error(`Failed to extract JSON from AI response: ${responseText}`);
+    }
+    const parsedResult = JSON.parse(jsonMatch[0]);
 
     return {
         result: parsedResult,
@@ -916,9 +920,10 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
 
             } catch (processError: any) {
                 logger.error('Processing Failed', { msgId, error: processError.message });
-                // We might want to keep it in queue or move to DLQ? 
-                // For now, we delete it to strictly avoid infinite loops, or you could increment failure count.
-                // Let's delete it but log error.
+                // By re-throwing the error, we prevent the message from being deleted,
+                // allowing it to be retried later after the visibility timeout.
+                // For a more advanced system, consider a dead-letter queue after N retries.
+                throw processError;
             }
         } else {
             logger.warn('No dateipfad available for task', { msgId, mailId: mail_id });

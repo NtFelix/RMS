@@ -163,13 +163,23 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
             const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
 
             try {
-                fetch(`${workerUrl}/process-queue`, {
+                const response = await fetch(`${workerUrl}/process-queue`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_id: userId })
-                }).catch(e => console.error("Initial worker kickoff failed:", e));
-            } catch (e) {
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Worker returned ${response.status} ${response.statusText}`);
+                }
+            } catch (e: any) {
                 console.error("Worker fetch failed:", e);
+                // We don't necessarily want to fail the whole import if just the kickoff failed,
+                // but we should probably let the user know.
+                // Since this is the very last step, adding to errors might be confusing if success is true.
+                // But the user prompt suggested returning a specific error.
+                // The outer catch block pushes to errors. Rethrowing here will do that.
+                throw new Error("AI Processing kickoff failed: " + e.message);
             }
 
             await posthogLogger.flush();

@@ -361,16 +361,16 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
                     <Skeleton className="h-5 w-20 rounded-full" />
                   </div>
                 </div>
-              ) : (
+              ) : internalMail && (
                 <>
-                  <h3 className="text-xl font-semibold dark:text-[#f3f4f6] mb-2">{internalMail?.subject || mail.subject}</h3>
+                  <h3 className="text-xl font-semibold dark:text-[#f3f4f6] mb-2">{internalMail.subject}</h3>
                   <div className="flex items-center gap-2">
-                    {getStatusBadge(internalMail?.status || mail.status || 'sent')}
+                    {getStatusBadge(internalMail.status)}
                     <Badge variant="outline" className="dark:text-[#f3f4f6]">
-                      {(internalMail?.type || mail.type) === 'inbox' ? 'Posteingang' : 'Postausgang'}
+                      {internalMail.type === 'inbox' ? 'Posteingang' : 'Postausgang'}
                     </Badge>
                     <Badge variant="outline" className="dark:text-[#f3f4f6]">
-                      {internalMail?.source || mail.source || 'Mietevo'}
+                      {internalMail.source}
                     </Badge>
                   </div>
                 </>

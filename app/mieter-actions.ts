@@ -358,10 +358,17 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
   const supabase = await createClient();
 
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: { message: "Unauthorized" } };
+    }
+
     const { error } = await supabase
       .from('Mieter')
       .delete()
-      .eq('status', 'bewerber');
+      .eq('status', 'bewerber')
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error deleting all applicants:', error);
