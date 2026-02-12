@@ -418,7 +418,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">Datum:</span>
               {isLoadingMetadata ? <Skeleton className="h-4 w-32" /> : (
-                <span className="font-medium dark:text-[#f3f4f6]">{formatDate(internalMail?.date || mail.date || '')}</span>
+                <span className="font-medium dark:text-[#f3f4f6]">{(internalMail?.date ?? mail.date) ? formatDate(internalMail?.date ?? mail.date ?? '') : ''}</span>
               )}
             </div>
             {mail.hasAttachment && (
