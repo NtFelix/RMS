@@ -11,10 +11,10 @@ import type { Mail } from "@/types/Mail";
 
 export default async function MailsPage() {
   const supabase = await createClient();
-  
+
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
-  
+
   if (userError || !user) {
     redirect('/auth/login');
   }
@@ -28,7 +28,7 @@ export default async function MailsPage() {
     .range(0, 49); // First 50 emails
 
   // Convert to legacy format for UI compatibility
-  const mails: LegacyMail[] = emails && !emailsError 
+  const mails: LegacyMail[] = emails && !emailsError
     ? emails.map((email: Mail) => convertToLegacyMail(email))
     : [];
 

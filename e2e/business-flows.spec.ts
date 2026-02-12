@@ -171,6 +171,13 @@ test.describe('Business Logic Flows', () => {
       await fallbackBtn.click();
     }
 
+    // Handle Dropdown Menu if present (New UI has import option)
+    const manualAddOption = page.getByRole('menuitem', { name: /Manuell hinzufügen/i });
+    // Wait briefly for dropdown animation
+    if (await manualAddOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await manualAddOption.click();
+    }
+
     const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#einzug') }).first();
     await expect(modal).toBeVisible({ timeout: 10000 });
 
