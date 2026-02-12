@@ -86,13 +86,6 @@ const ConnectedAccountsSection = () => {
         }
     ]
 
-    const getProviderStatus = (providerId: string) => {
-        // Check if we have an identity with this provider
-        // Note: Supabase might use 'google', 'azure', etc.
-        // We match roughly based on provider name
-        const identity = identities.find(id => id.provider === providerId)
-        return identity
-    }
 
     if (loading) {
         return (

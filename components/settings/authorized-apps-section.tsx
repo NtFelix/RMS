@@ -3,8 +3,7 @@ import { createClient } from "@/utils/supabase/client"
 import { SettingsCard, SettingsSection } from "@/components/settings/shared"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, ShieldCheck, Trash2, Calendar, Shield, Info, User, Mail, Key, Home, Users, Check } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Loader2, ShieldCheck, Trash2, Calendar, Shield, User, Mail, Key, Home, Users, Check } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -131,7 +130,20 @@ const AuthorizedAppsSection = () => {
         }
     }
 
-    if (loading) return null
+    if (loading) {
+        return (
+            <SettingsSection
+                title="Autorisierte Anwendungen"
+                description="Anwendungen, denen Sie Zugriff auf Ihr Konto gewährt haben."
+            >
+                <SettingsCard>
+                    <div className="flex justify-center p-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                </SettingsCard>
+            </SettingsSection>
+        )
+    }
 
     if (apps.length === 0) return null
 
