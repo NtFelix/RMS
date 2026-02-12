@@ -6,6 +6,9 @@ import { posthogLogger } from "@/lib/posthog-logger";
 
 export async function searchMailSenders(query: string) {
     const supabase = await createClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) return [];
 
     if (!query || query.length < 2) return [];
 
@@ -18,6 +21,7 @@ export async function searchMailSenders(query: string) {
     const { data, error } = await supabase
         .from('Mail_Metadaten')
         .select('absender')
+        .eq('user_id', user.id)
         .ilike('absender', `%${query}%`)
         .limit(50);
 
@@ -33,10 +37,14 @@ export async function searchMailSenders(query: string) {
 
 export async function getMailsBySender(sender: string, startDate?: Date, endDate?: Date) {
     const supabase = await createClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) return [];
 
     let query = supabase
         .from('Mail_Metadaten')
         .select('id, betreff, absender, datum_erhalten, dateipfad')
+        .eq('user_id', user.id)
         .eq('absender', sender)
         .not('dateipfad', 'is', null)
         .order('datum_erhalten', { ascending: false });
@@ -82,17 +90,20 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
         const chunk = mails.slice(i, i + CHUNK_SIZE);
 
         const newApplicants = chunk.map(mail => {
-            // Simple heuristic: if sender format is "Name <email>", extract Name.
-            // Otherwise use the whole string.
             let name = mail.absender;
-            const match = mail.absender.match(/^([^<]+)/);
-            if (match && match[1].trim()) {
-                name = match[1].trim().replace(/"/g, '');
+            const emailMatch = mail.absender.match(/<([^>]+)>/);
+            if (emailMatch) {
+                // If there's an email in angle brackets, take the part before it as the name.
+                name = mail.absender.substring(0, emailMatch.index).trim();
+                // Remove quotes if the name is wrapped in them.
+                if (name.startsWith('"') && name.endsWith('"')) {
+                    name = name.substring(1, name.length - 1);
+                }
             }
 
             return {
                 name: name,
-                email: mail.absender.includes('<') ? mail.absender.match(/<([^>]+)>/)?.[1] || mail.absender : mail.absender,
+                email: mail.absender.match(/<([^>]+)>/)?.[1] ?? mail.absender,
                 status: 'bewerber',
                 bewerbung_mail_id: mail.id,
                 user_id: userId,
@@ -165,7 +176,11 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 
             // Kickoff first Worker call
             const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
-            const workerAuthKey = process.env.WORKER_AUTH_KEY || '';
+            const workerAuthKey = process.env.WORKER_AUTH_KEY;
+            
+            if (!workerAuthKey) {
+                throw new Error("Worker authentication key is not configured.");
+            }
 
             try {
                 const response = await fetch(`${workerUrl}/process-queue`, {

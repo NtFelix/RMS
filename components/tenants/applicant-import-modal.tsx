@@ -130,7 +130,8 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
 
                 // If items were queued, start client-side polling
                 if (result.hasMore) {
-                    const workerUrl = 'https://backend.mietevo.de'; // Fallsback
+                    const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL || 'https://backend.mietevo.de';
+                    const workerAuthKey = process.env.NEXT_PUBLIC_WORKER_AUTH_KEY || '';
                     const userId = result.userId;
 
                     // Run polling in background
@@ -141,7 +142,10 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
                             try {
                                 const res = await fetch(`${workerUrl}/process-queue`, {
                                     method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
+                                    headers: { 
+                                        'Content-Type': 'application/json',
+                                        'x-worker-auth': workerAuthKey
+                                    },
                                     body: JSON.stringify({ user_id: userId })
                                 });
                                 if (!res.ok) break;

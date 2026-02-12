@@ -731,7 +731,8 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
 
     const apiResult = await client.models.generateContent({
         model: model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
     });
 
     const latencyMs = Date.now() - startTime;
