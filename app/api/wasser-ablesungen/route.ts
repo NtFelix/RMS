@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       .select('id')
       .eq('id', wasserZaehlerId)
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (zaehlerError || !zaehler) {
       return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       .select('id')
       .eq('id', meterId)
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (zaehlerError || !zaehler) {
       return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
