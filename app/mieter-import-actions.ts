@@ -177,7 +177,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
             // Kickoff first Worker call
             const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
             let workerAuthKey = process.env.WORKER_AUTH_KEY;
-            
+
             if (!workerAuthKey) {
                 if (process.env.NODE_ENV === 'development') {
                     console.warn("WORKER_AUTH_KEY not set. Using empty key for development.");
@@ -190,7 +190,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
             try {
                 const response = await fetch(`${workerUrl}/process-queue`, {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'x-worker-auth': workerAuthKey
                     },
@@ -232,4 +232,40 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
             ? `Imported ${successCount} applicants with some warnings. Queued ${mailsWithContent.length} for AI processing.`
             : `Import successful. ${mailsWithContent.length} mails queued for AI processing.`
     };
+}
+
+export async function checkWorkerQueueStatus(userId: string) {
+    const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
+    let workerAuthKey = process.env.WORKER_AUTH_KEY;
+
+    if (!workerAuthKey) {
+        if (process.env.NODE_ENV === 'development') {
+            workerAuthKey = "";
+        } else {
+            console.error("Worker authentication key is not configured.");
+            return { hasMore: false, error: "Configuration Error" };
+        }
+    }
+
+    try {
+        const res = await fetch(`${workerUrl}/process-queue`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-worker-auth': workerAuthKey!
+            },
+            body: JSON.stringify({ user_id: userId })
+        });
+
+        if (!res.ok) {
+            console.error(`Worker returned ${res.status} ${res.statusText}`);
+            return { hasMore: false, error: "Worker Error" };
+        }
+
+        const data = await res.json() as { hasMore: boolean };
+        return { hasMore: data.hasMore, success: true };
+    } catch (err: any) {
+        console.error("Polling error:", err);
+        return { hasMore: false, error: err.message };
+    }
 }

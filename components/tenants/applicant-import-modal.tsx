@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Search, Check } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { searchMailSenders, getMailsBySender, createApplicantsFromMails } from "@/app/mieter-import-actions";
+import { searchMailSenders, getMailsBySender, createApplicantsFromMails, checkWorkerQueueStatus } from "@/app/mieter-import-actions";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -130,8 +130,6 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
 
                 // If items were queued, start client-side polling
                 if (result.hasMore) {
-                    const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL || 'https://backend.mietevo.de';
-                    const workerAuthKey = process.env.NEXT_PUBLIC_WORKER_AUTH_KEY || '';
                     const userId = result.userId;
 
                     // Run polling in background
@@ -140,17 +138,10 @@ export function ApplicantImportModal({ open, onOpenChange }: ApplicantImportModa
                         let processed = 0;
                         while (hasMore && processed < 100) {
                             try {
-                                const res = await fetch(`${workerUrl}/process-queue`, {
-                                    method: 'POST',
-                                    headers: { 
-                                        'Content-Type': 'application/json',
-                                        'x-worker-auth': workerAuthKey
-                                    },
-                                    body: JSON.stringify({ user_id: userId })
-                                });
-                                if (!res.ok) break;
-                                const data = await res.json() as { hasMore: boolean };
-                                hasMore = data.hasMore;
+                                const status = await checkWorkerQueueStatus(userId);
+                                if (status.error || !status.success) break;
+
+                                hasMore = status.hasMore;
                                 processed++;
                                 if (hasMore) await new Promise(r => setTimeout(r, 1000));
                             } catch (err) {
