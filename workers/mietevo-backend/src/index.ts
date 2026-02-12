@@ -17,6 +17,7 @@ interface Env {
     POSTHOG_API_KEY?: string;
     POSTHOG_HOST?: string;
     RATE_LIMITER: any; // Using 'any' for now to avoid compilation errors with unknown binding type
+    WORKER_AUTH_KEY?: string;
 }
 
 interface AIRequest {
@@ -719,8 +720,10 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     Analyze the following email application for a rental property and extract the data into the requested JSON format.
     Return ONLY valid JSON.
 
-    Email Content:
-    ${emailContent.substring(0, 30000)} -- Truncate to prevent token limits
+    Email Content (delimited by ---):
+    ---
+    ${emailContent.substring(0, 30000)}
+    ---
 
     Output Schema:
     ${schema}
@@ -761,12 +764,22 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     }
 
     // Parse the JSON result
-    // Parse the JSON result
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-        throw new Error(`Failed to extract JSON from AI response: ${responseText}`);
+    let parsedResult;
+    try {
+        parsedResult = JSON.parse(responseText);
+    } catch (e) {
+        // Fallback to regex if direct parse fails (maybe markdown code blocks)
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+             try {
+                parsedResult = JSON.parse(jsonMatch[0]);
+             } catch (e2: any) {
+                throw new Error(`Failed to parse JSON: ${e2.message}`);
+             }
+        } else {
+             throw new Error(`Failed to extract JSON from AI response: ${responseText}`);
+        }
     }
-    const parsedResult = JSON.parse(jsonMatch[0]);
 
     return {
         result: parsedResult,
@@ -783,6 +796,12 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
 
 
 async function processQueue(request: Request, env: Env, ctx: any): Promise<Response> {
+    // Auth Check
+    const authHeader = request.headers.get('x-worker-auth');
+    if (env.WORKER_AUTH_KEY && authHeader !== env.WORKER_AUTH_KEY) {
+        return new Response('Unauthorized', { status: 401 });
+    }
+
     const logger = new WorkerLogger(env, ctx);
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -795,6 +814,9 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
     } catch (e) {
         // Ignore parsing errors for requests without a body
     }
+
+    // PostHog instance holder
+    let posthog: PostHog | null = null;
 
     try {
         // 1. Read from Queue
@@ -817,6 +839,15 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
             logger.flush();
             return new Response(JSON.stringify({ status: 'done', message: 'Queue empty', hasMore: false }), {
                 headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        // Initialize PostHog only if we have work
+        if (env.POSTHOG_API_KEY) {
+            posthog = new PostHog(env.POSTHOG_API_KEY, {
+                host: env.POSTHOG_HOST || 'https://eu.i.posthog.com',
+                flushAt: 1,
+                flushInterval: 0,
             });
         }
 
@@ -856,13 +887,7 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
                 aiScore = aiResult.application?.completenessScore || null;
 
                 // Log LLM generation to PostHog for LLM Analytics dashboard
-                if (env.POSTHOG_API_KEY) {
-                    const posthog = new PostHog(env.POSTHOG_API_KEY, {
-                        host: env.POSTHOG_HOST || 'https://eu.i.posthog.com',
-                        flushAt: 1,
-                        flushInterval: 0,
-                    });
-
+                if (posthog) {
                     const traceId = crypto.randomUUID();
                     await posthog.capture({
                         distinctId: userIdForTracking, // Use the actual user if provided
@@ -883,7 +908,7 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
                             completeness_score: aiScore || 0,
                         }
                     });
-                    await posthog.shutdown();
+                    // Shutdown is handled at the end of function
                 }
 
                 logger.info('LLM Analysis Complete', {
@@ -938,6 +963,10 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
         logger.info('Queue Item Processed', { msgId });
         logger.flush();
 
+        if (posthog) {
+            await posthog.shutdown();
+        }
+
         // Return hasMore: true so client can trigger next processing.
         // The next call will return hasMore: false if the queue is actually empty.
         return new Response(JSON.stringify({
@@ -951,8 +980,158 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
     } catch (e: any) {
         logger.error('Queue Handler Error', { error: e.message });
         logger.flush();
+        if (posthog) {
+            await posthog.shutdown();
+        }
         return new Response(JSON.stringify({ error: e.message, hasMore: false }), { status: 500 });
     }
+}
+
+// --- File Generation Logic ---
+
+async function handleFileGeneration(request: Request, env: Env | any, ctx: any): Promise<Response> {
+    const logger = new WorkerLogger(env, ctx);
+    let body: any = {};
+    
+    try {
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+            const clonedReq = request.clone();
+            body = await clonedReq.json();
+        }
+    } catch (e) {
+        // Ignore JSON parse errors
+    }
+
+    // Only log if we have a body type or it's not a simple health check
+    if (body?.type) {
+        logger.info('Worker request received', {
+            type: body?.type,
+            template: body?.template,
+            filename: body?.filename,
+            path: new URL(request.url).pathname
+        });
+    }
+
+    const { type, template, data, filename } = body;
+    const startTime = Date.now();
+    let totalPages = 0;
+
+    if (type === 'csv') {
+        const csv = Papa.unparse(data);
+        const endTime = Date.now();
+
+        logger.info('CSV export generated', {
+            filename,
+            durationMs: endTime - startTime
+        });
+        logger.flush();
+
+        return new Response(csv, {
+            headers: {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': `attachment; filename="${filename || 'export.csv'}"`,
+                'X-PDF-Page-Count': '0',
+                'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+            },
+        });
+    }
+
+    if (type === 'zip' && !template) {
+        const zip = new JSZip();
+        if (Array.isArray(data)) {
+            data.forEach((item: any) => {
+                const csv = Papa.unparse(item.data);
+                zip.file(`${item.name}.csv`, csv);
+            });
+        } else {
+            Object.entries(data).forEach(([name, content]: [string, any]) => {
+                const csv = Papa.unparse(content);
+                zip.file(`${name}.csv`, csv);
+            });
+        }
+        const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
+        const endTime = Date.now();
+
+        logger.info('ZIP export generated', {
+            filename,
+            type: 'csv-zip',
+            durationMs: endTime - startTime
+        });
+        logger.flush();
+
+        return new Response(zipBuffer, {
+            headers: {
+                'Content-Type': 'application/zip',
+                'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
+                'X-PDF-Page-Count': '0',
+                'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+            }
+        });
+    }
+
+    if (type === 'zip' && template === 'pdf') {
+        const zip = new JSZip();
+        for (const item of data) {
+            const doc = new jsPDF();
+            generateSingleTenantPDF(doc, item.data);
+            totalPages += doc.getNumberOfPages();
+            zip.file(`${item.name}.pdf`, doc.output('arraybuffer'));
+        }
+        const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
+        const endTime = Date.now();
+
+        logger.info('PDF ZIP export generated', {
+            filename,
+            type: 'pdf-zip',
+            pageCount: totalPages,
+            durationMs: endTime - startTime
+        });
+        logger.flush();
+
+        return new Response(zipBuffer, {
+            headers: {
+                'Content-Type': 'application/zip',
+                'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
+                'X-PDF-Page-Count': totalPages.toString(),
+                'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+            }
+        });
+    }
+
+    if (type === 'pdf') {
+        const doc = new jsPDF();
+        if (template === 'house-overview') {
+            generateHouseOverviewPDF(doc, body);
+        } else {
+            generateSingleTenantPDF(doc, body);
+        }
+        totalPages = doc.getNumberOfPages();
+        const pdfBuffer = doc.output('arraybuffer');
+        const endTime = Date.now();
+        logger.info('PDF generated successfully', {
+            type: 'pdf',
+            template: template || 'standard',
+            pageCount: totalPages,
+            durationMs: endTime - startTime
+        });
+        logger.flush();
+
+        return new Response(new Uint8Array(pdfBuffer), {
+            headers: {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
+                'X-PDF-Page-Count': totalPages.toString(),
+                'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+            }
+        });
+    }
+
+    // Default 404 if no type matched and path is unknown
+    return new Response(JSON.stringify({ error: 'Not Found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 }
 
 // --- Main Handler ---
@@ -966,6 +1145,7 @@ export default {
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Allow-Credentials': 'true',
             'Access-Control-Max-Age': '86400',
+            'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time', // Expose headers for file generation
         };
 
         const url = new URL(request.url);
@@ -977,10 +1157,6 @@ export default {
             });
         }
 
-        // Instantiating logger at the top level of fetch would be ideal, but we need to handle the try-catch block scope.
-        // Given the structure, we'll initialize it at the beginning of the try block.
-        // However, since we are inside `export default { async fetch(...) }`, we can initialize it right at the start of `fetch`.
-
         const logger = new WorkerLogger(env, ctx);
 
         try {
@@ -991,9 +1167,8 @@ export default {
             } else if (url.pathname === '/process-queue') {
                 response = await processQueue(request, env, ctx);
             } else {
-                // Default response or logging logic
-                const status = 404;
-                response = new Response(JSON.stringify({ error: 'Not Found' }), { status, headers: { 'Content-Type': 'application/json' } });
+                // Fallback to file generation logic (PDF/ZIP/CSV)
+                response = await handleFileGeneration(request, env, ctx);
             }
 
             // Append CORS headers to every response
@@ -1008,154 +1183,6 @@ export default {
                 headers: newHeaders
             });
 
-            // Try to parse body for logging other requests, but be safe
-            let body: any = {};
-            try {
-                // Clone request to not consume body stream for downstream logic if needed 
-                // (though for now we return above for known paths)
-                if (request.method !== 'GET' && request.method !== 'HEAD') {
-                    const clonedReq = request.clone();
-                    body = await clonedReq.json();
-                }
-            } catch (e) {
-                // Ignore JSON parse errors (e.g. empty body)
-            }
-
-            // Log worker request using the single instance
-            logger.info('Worker request received', {
-                type: body?.type,
-                template: body?.template,
-                filename: body?.filename,
-                path: url.pathname
-            });
-
-            // Existing logic for PDF/ZIP
-            const { type, template, data, filename } = body;
-            const startTime = Date.now();
-            let totalPages = 0;
-
-            if (type === 'csv') {
-                const csv = Papa.unparse(data);
-                const endTime = Date.now();
-
-                logger.info('CSV export generated', {
-                    filename,
-                    durationMs: endTime - startTime
-                });
-                logger.flush();
-
-                return new Response(csv, {
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': 'text/csv',
-                        'Content-Disposition': `attachment; filename="${filename || 'export.csv'}"`,
-                        'X-PDF-Page-Count': '0',
-                        'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                        'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-                    },
-                });
-            }
-
-            if (type === 'zip' && !template) {
-                const zip = new JSZip();
-                if (Array.isArray(data)) {
-                    data.forEach((item: any) => {
-                        const csv = Papa.unparse(item.data);
-                        zip.file(`${item.name}.csv`, csv);
-                    });
-                } else {
-                    Object.entries(data).forEach(([name, content]: [string, any]) => {
-                        const csv = Papa.unparse(content);
-                        zip.file(`${name}.csv`, csv);
-                    });
-                }
-                const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
-                const endTime = Date.now();
-
-                logger.info('ZIP export generated', {
-                    filename,
-                    type: 'csv-zip',
-                    durationMs: endTime - startTime
-                });
-                logger.flush();
-
-                return new Response(zipBuffer, {
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': 'application/zip',
-                        'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
-                        'X-PDF-Page-Count': '0',
-                        'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                        'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-                    }
-                });
-            }
-
-            if (type === 'zip' && template === 'pdf') {
-                const zip = new JSZip();
-                for (const item of data) {
-                    const doc = new jsPDF();
-                    generateSingleTenantPDF(doc, item.data);
-                    totalPages += doc.getNumberOfPages();
-                    zip.file(`${item.name}.pdf`, doc.output('arraybuffer'));
-                }
-                const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
-                const endTime = Date.now();
-
-                logger.info('PDF ZIP export generated', {
-                    filename,
-                    type: 'pdf-zip',
-                    pageCount: totalPages,
-                    durationMs: endTime - startTime
-                });
-                logger.flush();
-
-                return new Response(zipBuffer, {
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': 'application/zip',
-                        'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
-                        'X-PDF-Page-Count': totalPages.toString(),
-                        'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                        'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-                    }
-                });
-            }
-
-            if (type === 'pdf') {
-                const doc = new jsPDF();
-                if (template === 'house-overview') {
-                    generateHouseOverviewPDF(doc, body);
-                } else {
-                    generateSingleTenantPDF(doc, body);
-                }
-                totalPages = doc.getNumberOfPages();
-                const pdfBuffer = doc.output('arraybuffer');
-                const endTime = Date.now();
-                logger.info('PDF generated successfully', {
-                    type: 'pdf',
-                    template: template || 'standard',
-                    pageCount: totalPages,
-                    durationMs: endTime - startTime
-                });
-                logger.flush();
-
-                return new Response(new Uint8Array(pdfBuffer), {
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': 'application/pdf',
-                        'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
-                        'X-PDF-Page-Count': totalPages.toString(),
-                        'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                        'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-                    }
-                });
-            }
-
-            logger.warn('Invalid Request Type', { type, template });
-            logger.warn('Invalid Request Type', { type, template });
-            logger.flush();
-            return new Response('Invalid Request Type', { status: 400, headers: corsHeaders });
         } catch (error: any) {
             // Re-use existing logger instance
             logger.error('Worker Error', { error: error.message });

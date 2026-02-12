@@ -63,8 +63,11 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
 
 export async function createApplicantsFromMails(mails: { id: string, absender: string, dateipfad?: string | null }[]) {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id || 'system';
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        return { success: false, error: "Unauthorized: Please log in." };
+    }
+    const userId = user.id;
 
     if (!mails || mails.length === 0) {
         return { success: false, error: "No mails provided" };
@@ -73,7 +76,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
     // Process in chunks to avoid any potential batch size limits on insert
     const CHUNK_SIZE = 100;
     let successCount = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     for (let i = 0; i < mails.length; i += CHUNK_SIZE) {
         const chunk = mails.slice(i, i + CHUNK_SIZE);
@@ -92,6 +95,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
                 email: mail.absender.includes('<') ? mail.absender.match(/<([^>]+)>/)?.[1] || mail.absender : mail.absender,
                 status: 'bewerber',
                 bewerbung_mail_id: mail.id,
+                user_id: userId,
                 // bewerbung_metadaten left empty for now, to be filled by AI later
             };
         });
@@ -161,11 +165,15 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 
             // Kickoff first Worker call
             const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
+            const workerAuthKey = process.env.WORKER_AUTH_KEY || '';
 
             try {
                 const response = await fetch(`${workerUrl}/process-queue`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-worker-auth': workerAuthKey
+                    },
                     body: JSON.stringify({ user_id: userId })
                 });
 

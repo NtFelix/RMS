@@ -1,5 +1,14 @@
--- Create the queue for applicant AI processing
-SELECT pgmq.create('applicant_ai_processing');
+-- Create the queue for applicant AI processing if it doesn't exist
+DO $$
+BEGIN
+   IF NOT EXISTS (
+       SELECT 1 
+       FROM pgmq.list_queues() 
+       WHERE queue_name = 'applicant_ai_processing'
+   ) THEN
+      PERFORM pgmq.create('applicant_ai_processing');
+   END IF;
+END $$;
 
 -- Wrapper function for pgmq.send to be callable from Supabase client
 CREATE OR REPLACE FUNCTION pgmq_send(
@@ -13,6 +22,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+REVOKE EXECUTE ON FUNCTION pgmq_send(TEXT, JSONB, INTEGER) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pgmq_send(TEXT, JSONB, INTEGER) TO authenticated, service_role;
+
 -- Wrapper function for pgmq.read
 CREATE OR REPLACE FUNCTION pgmq_read(
     queue_name TEXT,
@@ -25,6 +37,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+REVOKE EXECUTE ON FUNCTION pgmq_read(TEXT, INTEGER, INTEGER) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pgmq_read(TEXT, INTEGER, INTEGER) TO service_role;
+
 -- Wrapper function for pgmq.delete
 CREATE OR REPLACE FUNCTION pgmq_delete(
     queue_name TEXT,
@@ -35,3 +50,6 @@ BEGIN
     RETURN pgmq.delete(queue_name, msg_id);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE EXECUTE ON FUNCTION pgmq_delete(TEXT, BIGINT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pgmq_delete(TEXT, BIGINT) TO service_role;
