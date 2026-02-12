@@ -7,8 +7,19 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
-import { Loader2, Link as LinkIcon, Unlink } from "lucide-react"
+import { Loader2, Link as LinkIcon, Unlink, Check, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface Identity {
     id: string
@@ -136,32 +147,51 @@ const ConnectedAccountsSection = () => {
                                 </div>
 
                                 {isConnected ? (
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-200">
+                                    <div className="flex items-center gap-3">
+                                        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 text-green-600 border border-green-200/50 text-xs font-medium">
+                                            <Check className="h-3.5 w-3.5" />
                                             Verbunden
-                                        </Badge>
-                                        {/* Only allow unlink if there are multiple identities or a password set, 
-                        otherwise user might lock themselves out. 
-                        For now, we just offer unlink. Supabase usually prevents removing the last identity if no password.
-                    */}
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-muted-foreground hover:text-destructive h-8 px-2"
-                                            onClick={() => identity && handleUnlink(identity)}
-                                            disabled={actionLoading === identity?.id}
-                                            title="Verknüpfung aufheben"
-                                        >
-                                            {actionLoading === identity?.id ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <Unlink className="h-4 w-4" />
-                                            )}
-                                        </Button>
+                                        </div>
+
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 px-3 gap-2 transition-all duration-200"
+                                                    disabled={actionLoading === identity?.id}
+                                                >
+                                                    {actionLoading === identity?.id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Unlink className="h-4 w-4" />
+                                                    )}
+                                                    <span className="hidden sm:inline">Trennen</span>
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Verknüpfung aufheben?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Möchten Sie die Verbindung zu Ihrem <strong>{provider.name}</strong>-Konto wirklich trennen?
+                                                        Sie können sich danach nicht mehr über diesen Anbieter einloggen, es sei denn, Sie verknüpfen ihn erneut.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => identity && handleUnlink(identity)}
+                                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                    >
+                                                        Verbindung trennen
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </div>
                                 ) : (
-                                    <Button variant="outline" size="sm" disabled className="h-8">
-                                        {/* Connecting requires redirect flow, disabling for now as per plan */}
+                                    <Button variant="outline" size="sm" disabled className="h-9 gap-2 opacity-50 cursor-not-allowed">
+                                        <Zap className="h-3.5 w-3.5" />
                                         Verbinden
                                     </Button>
                                 )}
@@ -183,24 +213,46 @@ const ConnectedAccountsSection = () => {
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Badge variant="secondary" className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-200">
+                            <div className="flex items-center gap-3">
+                                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 text-green-600 border border-green-200/50 text-xs font-medium">
+                                    <Check className="h-3.5 w-3.5" />
                                     Verbunden
-                                </Badge>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-muted-foreground hover:text-destructive h-8 px-2"
-                                    onClick={() => handleUnlink(identity)}
-                                    disabled={actionLoading === identity.id}
-                                    title="Verknüpfung aufheben"
-                                >
-                                    {actionLoading === identity.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Unlink className="h-4 w-4" />
-                                    )}
-                                </Button>
+                                </div>
+
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 px-3 gap-2 transition-all duration-200"
+                                            disabled={actionLoading === identity.id}
+                                        >
+                                            {actionLoading === identity.id ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Unlink className="h-4 w-4" />
+                                            )}
+                                            <span className="hidden sm:inline">Trennen</span>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Verknüpfung aufheben?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Möchten Sie die Verbindung zu diesem <strong>{identity.provider}</strong>-Konto wirklich trennen?
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => handleUnlink(identity)}
+                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                            >
+                                                Verbindung trennen
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </div>
                         </div>
                     ))}
