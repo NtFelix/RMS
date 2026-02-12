@@ -176,10 +176,15 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 
             // Kickoff first Worker call
             const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
-            const workerAuthKey = process.env.WORKER_AUTH_KEY;
+            let workerAuthKey = process.env.WORKER_AUTH_KEY;
             
             if (!workerAuthKey) {
-                throw new Error("Worker authentication key is not configured.");
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn("WORKER_AUTH_KEY not set. Using empty key for development.");
+                    workerAuthKey = "";
+                } else {
+                    throw new Error("Worker authentication key is not configured.");
+                }
             }
 
             try {
