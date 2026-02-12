@@ -130,7 +130,6 @@ export class WorkerLogger {
         };
 
         // Clear logs immediately to avoid double sending if flush called twice
-        const logsCount = this.logs.length;
         this.logs = [];
 
         const promise = fetch(endpoint, {

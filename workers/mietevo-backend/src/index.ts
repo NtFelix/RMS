@@ -159,7 +159,7 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
         margin: { left: 20, right: 20 }
     });
 
-    let tableFinalY = (doc as any).lastAutoTable?.finalY;
+    const tableFinalY = (doc as any).lastAutoTable?.finalY;
     startY = typeof tableFinalY === 'number' ? tableFinalY + 6 : startY + 10;
 
     const sumOfTotalCostForItem = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: any) => sum + item.totalCostForItem, 0) : 0;

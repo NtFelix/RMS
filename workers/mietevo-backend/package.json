@@ -7,10 +7,16 @@
     "scripts": {
         "deploy": "wrangler deploy",
         "dev": "wrangler dev",
-        "start": "wrangler dev"
+        "start": "wrangler dev",
+        "type-check": "tsc --noEmit",
+        "lint": "eslint src --ext .ts",
+        "test": "echo \"No tests configured yet\" && exit 0"
     },
     "devDependencies": {
         "@cloudflare/workers-types": "^4.0.0",
+        "@typescript-eslint/eslint-plugin": "^6.0.0",
+        "@typescript-eslint/parser": "^6.0.0",
+        "eslint": "^8.0.0",
         "typescript": "^5.0.0",
         "wrangler": "^4.0.0"
     },
