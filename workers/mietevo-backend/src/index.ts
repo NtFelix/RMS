@@ -3,8 +3,8 @@ import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 import { GoogleGenAI } from '@google/genai';
-import { createClient } from '@supabase/supabase-js';
-import { WorkerLogger } from './logger';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { WorkerLogger, ExecutionContext } from './logger';
 import pako from 'pako';
 import { PostHog } from 'posthog-node';
 
@@ -468,11 +468,7 @@ und viele weitere Funktionen.
 Wenn du Dokumentationskontext erhältst, nutze diesen um präzise und hilfreiche Antworten zu geben.
 Antworte immer auf Deutsch und sei freundlich und professionell.`;
 
-async function fetchDocumentationContext(supabase: unknown, query: string): Promise<string> {
-    const sb = supabase as { 
-        rpc: (name: string, params: object) => Promise<{ data: unknown; error: unknown }>; 
-        from: (table: string) => { select: (columns: string) => { textSearch: (columns: string, query: string, options: object) => { limit: (n: number) => Promise<{ data: unknown; error: unknown }> } } }
-    };
+async function fetchDocumentationContext(supabase: SupabaseClient, query: string): Promise<string> {
     if (!query) return "";
 
     try {
@@ -481,7 +477,7 @@ async function fetchDocumentationContext(supabase: unknown, query: string): Prom
         // We will try simple text search first as it's safer if RPC isn't deployed
 
         // Option 1: RPC call (Preferred if exists)
-        const { data: rpcData, error: rpcError } = await sb.rpc('search_documentation', {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('search_documentation', {
             search_query: query
         });
 
@@ -490,7 +486,7 @@ async function fetchDocumentationContext(supabase: unknown, query: string): Prom
             records = rpcData;
         } else {
             // Option 2: Fallback to simple text search
-            const { data, error } = await sb
+            const { data, error } = await supabase
                 .from('Dokumentation')
                 .select('titel, kategorie, seiteninhalt')
                 .textSearch('titel,seiteninhalt', query, {
@@ -539,7 +535,7 @@ async function handleAIRequest(request: Request, env: Env, ctx: ExecutionContext
         // Rate Limiting
         const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
         if (env.RATE_LIMITER) {
-            const { success } = (env.RATE_LIMITER as { limit: (options: { key: string }) => Promise<{ success: boolean }> }).limit({ key: ip }) as unknown as { success: boolean };
+            const { success } = await (env.RATE_LIMITER as { limit: (options: { key: string }) => Promise<{ success: boolean }> }).limit({ key: ip });
             if (!success) {
                 logger.warn('Rate limit exceeded', { ip });
                 logger.flush();
@@ -678,7 +674,7 @@ async function handleAIRequest(request: Request, env: Env, ctx: ExecutionContext
 
 // --- Queue Processing Implementation ---
 
-async function downloadAndDecompressEmail(supabase: { storage: { from: (name: string) => { download: (path: string) => Promise<{ data: Blob | null; error: unknown }> } } }, dateipfad: string): Promise<string> {
+async function downloadAndDecompressEmail(supabase: SupabaseClient, dateipfad: string): Promise<string> {
     const { data: bodyBlob, error: downloadError } = await supabase.storage
         .from('mails')
         .download(dateipfad);
@@ -812,8 +808,8 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     const apiResult = await client.models.generateContent({
         model: model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { responseMimeType: "application/json" }
-    });
+        generationConfig: { responseMimeType: "application/json" }
+    } as any);
 
     const latencyMs = Date.now() - startTime;
     const resultAny = apiResult as unknown as { 
