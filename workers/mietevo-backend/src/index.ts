@@ -732,7 +732,7 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     const apiResult = await client.models.generateContent({
         model: model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
+        config: { responseMimeType: "application/json" }
     });
 
     const latencyMs = Date.now() - startTime;
@@ -772,13 +772,13 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
         // Fallback to regex if direct parse fails (maybe markdown code blocks)
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-             try {
+            try {
                 parsedResult = JSON.parse(jsonMatch[0]);
-             } catch (e2: any) {
+            } catch (e2: any) {
                 throw new Error(`Failed to parse JSON: ${e2.message}`);
-             }
+            }
         } else {
-             throw new Error(`Failed to extract JSON from AI response: ${responseText}`);
+            throw new Error(`Failed to extract JSON from AI response: ${responseText}`);
         }
     }
 
@@ -993,7 +993,7 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
 async function handleFileGeneration(request: Request, env: Env | any, ctx: any): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
     let body: any = {};
-    
+
     try {
         if (request.method !== 'GET' && request.method !== 'HEAD') {
             const clonedReq = request.clone();
