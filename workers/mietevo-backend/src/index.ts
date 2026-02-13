@@ -18,6 +18,7 @@ interface Env {
     POSTHOG_HOST?: string;
     RATE_LIMITER: unknown; // Using 'unknown' instead of 'any'
     WORKER_AUTH_KEY?: string;
+    [key: string]: unknown;
 }
 
 interface AIRequest {
@@ -72,22 +73,51 @@ const roundToNearest5 = (value: number) => {
 
 // --- PDF Generation Functions (Preserved) ---
 
-function generateSingleTenantPDF(doc: jsPDF, payload: {
-    tenantData: unknown;
-    nebenkostenItem: unknown;
+interface TenantData {
+    apartmentName?: string;
+    apartmentSize?: number;
+    tenantName?: string;
+    costItems?: {
+        costName: string;
+        totalCostForItem: number;
+        verteiler?: string;
+        pricePerSqm?: number;
+        tenantShare: number;
+    }[];
+    waterCost?: {
+        tenantShare: number;
+        consumption: number;
+    };
+    vorauszahlungNextYear?: number;
+    vorauszahlungen?: number;
+    finalSettlement?: number;
+    recommendedPrepayment?: number;
+}
+
+interface NebenkostenItem {
+    startdatum: string;
+    enddatum: string;
+    Haeuser?: { name: string };
+    zaehlerkosten?: Record<string, number>;
+    zaehlerverbrauch?: Record<string, number>;
+}
+
+interface SingleTenantPayload {
+    tenantData: TenantData;
+    nebenkostenItem: NebenkostenItem;
     ownerName?: string;
     ownerAddress?: string;
-    billingAddress?: unknown;
-    houseCity?: string;
-}) {
-    const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload as {
-        tenantData: unknown;
-        nebenkostenItem: unknown;
-        ownerName?: string;
-        ownerAddress?: string;
-        billingAddress?: unknown;
-        houseCity?: string;
+    billingAddress?: {
+        line1?: string;
+        line2?: string;
+        city?: string;
+        postal_code?: string;
     };
+    houseCity?: string;
+}
+
+function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
+    const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload;
     let startY = 20;
 
     let displayAddress = ownerAddress || '';
@@ -186,9 +216,10 @@ function generateSingleTenantPDF(doc: jsPDF, payload: {
             3: { halign: 'right' },
             4: { halign: 'right' }
         },
-        willDrawCell: function (data: { section: string; column: { index: number }; cell: { styles: { halign: string } } }) {
-            if (data.section === 'head' && data.column.index >= 1) {
-                data.cell.styles.halign = 'right';
+        willDrawCell: function (data: unknown) {
+            const d = data as { section: string; column: { index: number }; cell: { styles: { halign: string } } };
+            if (d.section === 'head' && d.column.index >= 1) {
+                d.cell.styles.halign = 'right';
             }
         },
         tableWidth: doc.internal.pageSize.getWidth() - 40,
@@ -273,18 +304,25 @@ const ZAEHLER_CONFIG = {
     heizung: { label: 'Heizung', einheit: 'kWh' },
 };
 
-function generateHouseOverviewPDF(doc: jsPDF, payload: {
-    nebenkosten: unknown;
+interface HouseOverviewPayload {
+    nebenkosten: {
+        startdatum: string;
+        enddatum: string;
+        haus_name?: string;
+        anzahlWohnungen?: number;
+        anzahlMieter?: number;
+        nebenkostenart?: string[];
+        betrag?: (number | null)[];
+        zaehlerkosten?: Record<string, number>;
+        zaehlerverbrauch?: Record<string, number>;
+    };
     totalArea: number;
     totalCosts: number;
     costPerSqm: number;
-}) {
-    const { nebenkosten, totalArea, totalCosts, costPerSqm } = payload as {
-        nebenkosten: unknown;
-        totalArea: number;
-        totalCosts: number;
-        costPerSqm: number;
-    };
+}
+
+function generateHouseOverviewPDF(doc: jsPDF, payload: HouseOverviewPayload) {
+    const { nebenkosten, totalArea, totalCosts, costPerSqm } = payload;
     let startY = 20;
 
     doc.setFontSize(16);
@@ -365,21 +403,22 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: {
         },
         tableWidth: doc.internal.pageSize.getWidth() - 40,
         margin: { left: 20, right: 20 },
-        didParseCell: function (data: {
-            row: { index: number };
-            section: string;
-            column: { index: number };
-            cell: { styles: { fontStyle: string; fillColor: number[]; halign: string } };
-        }) {
-            if (data.row.index === tableData.length - 1) {
-                data.cell.styles.fontStyle = 'bold';
-                data.cell.styles.fillColor = [248, 248, 248];
+        didParseCell: function (data: unknown) {
+            const d = data as {
+                row: { index: number };
+                section: string;
+                column: { index: number };
+                cell: { styles: { fontStyle: string; fillColor: number[]; halign: string } };
+            };
+            if (d.row.index === tableData.length - 1) {
+                d.cell.styles.fontStyle = 'bold';
+                d.cell.styles.fillColor = [248, 248, 248];
             }
-            if (data.section === 'head') {
-                if (data.column.index === 2 || data.column.index === 3) {
-                    data.cell.styles.halign = 'right';
+            if (d.section === 'head') {
+                if (d.column.index === 2 || d.column.index === 3) {
+                    d.cell.styles.halign = 'right';
                 } else {
-                    data.cell.styles.halign = 'left';
+                    d.cell.styles.halign = 'left';
                 }
             }
         }
@@ -447,7 +486,7 @@ async function fetchDocumentationContext(supabase: unknown, query: string): Prom
         });
 
         let records: { seiteninhalt?: string; titel?: string; kategorie?: string }[] = [];
-        if (!rpcError && rpcData) {
+        if (!rpcError && rpcData && Array.isArray(rpcData)) {
             records = rpcData;
         } else {
             // Option 2: Fallback to simple text search
@@ -460,7 +499,7 @@ async function fetchDocumentationContext(supabase: unknown, query: string): Prom
                 })
                 .limit(5);
 
-            if (!error && data) {
+            if (!error && data && Array.isArray(data)) {
                 records = data;
             }
         }
@@ -645,7 +684,7 @@ async function downloadAndDecompressEmail(supabase: { storage: { from: (name: st
         .download(dateipfad);
 
     if (downloadError || !bodyBlob) {
-        throw new Error('Failed to download email body: ' + (downloadError?.message || 'Unknown error'));
+        throw new Error('Failed to download email body: ' + ((downloadError as { message?: string })?.message || 'Unknown error'));
     }
 
     const arrayBuffer = await bodyBlob.arrayBuffer();
@@ -935,7 +974,7 @@ async function processQueue(request: Request, env: Env, ctx: ExecutionContext): 
                 const emailContent = await downloadAndDecompressEmail(supabase, dateipfad);
                 const aiResponse = await withRetry(() => analyzeApplicantWithAI(env, emailContent));
                 aiResult = aiResponse.result;
-                aiScore = aiResult.application?.completenessScore || null;
+                aiScore = (aiResult as { application?: { completenessScore?: number } }).application?.completenessScore || null;
 
                 // Log LLM generation to PostHog for LLM Analytics dashboard
                 if (posthog) {
@@ -1074,7 +1113,7 @@ async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionCo
     let totalPages = 0;
 
     if (type === 'csv') {
-        const csv = Papa.unparse(data);
+        const csv = Papa.unparse(data as unknown[] | Record<string, unknown>[]);
         const endTime = Date.now();
 
         logger.info('CSV export generated', {
@@ -1117,7 +1156,7 @@ async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionCo
         });
         logger.flush();
 
-        return new Response(zipBuffer, {
+        return new Response(zipBuffer as unknown as BodyInit, {
             headers: {
                 'Content-Type': 'application/zip',
                 'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
@@ -1130,7 +1169,7 @@ async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionCo
 
     if (type === 'zip' && template === 'pdf') {
         const zip = new JSZip();
-        for (const item of data) {
+        for (const item of (data as { data: SingleTenantPayload; name: string }[])) {
             const doc = new jsPDF();
             generateSingleTenantPDF(doc, item.data);
             totalPages += doc.getNumberOfPages();
@@ -1147,7 +1186,7 @@ async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionCo
         });
         logger.flush();
 
-        return new Response(zipBuffer, {
+        return new Response(zipBuffer as unknown as BodyInit, {
             headers: {
                 'Content-Type': 'application/zip',
                 'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
@@ -1161,9 +1200,9 @@ async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionCo
     if (type === 'pdf') {
         const doc = new jsPDF();
         if (template === 'house-overview') {
-            generateHouseOverviewPDF(doc, body);
+            generateHouseOverviewPDF(doc, body as unknown as HouseOverviewPayload);
         } else {
-            generateSingleTenantPDF(doc, body);
+            generateSingleTenantPDF(doc, body as unknown as SingleTenantPayload);
         }
         totalPages = doc.getNumberOfPages();
         const pdfBuffer = doc.output('arraybuffer');
@@ -1176,7 +1215,7 @@ async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionCo
         });
         logger.flush();
 
-        return new Response(new Uint8Array(pdfBuffer), {
+        return new Response(new Uint8Array(pdfBuffer) as unknown as BodyInit, {
             headers: {
                 'Content-Type': 'application/pdf',
                 'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
