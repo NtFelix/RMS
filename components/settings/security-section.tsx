@@ -21,14 +21,16 @@ const SecuritySection = () => {
   const [emailError, setEmailError] = useState<boolean>(false)
   const [passwordError, setPasswordError] = useState<boolean>(false)
 
+  const fetchUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      setEmail(user.email || "")
+      setConfirmEmail(user.email || "")
+    }
+  }
+
   useEffect(() => {
-    supabase.auth.getUser().then(res => {
-      const user = res.data.user
-      if (user) {
-        setEmail(user.email || "")
-        setConfirmEmail(user.email || "")
-      }
-    });
+    fetchUser()
   }, [supabase]);
 
   const handleEmailSave = async () => {
@@ -206,7 +208,7 @@ const SecuritySection = () => {
         </SettingsCard>
       </SettingsSection>
 
-      <ConnectedAccountsSection />
+      <ConnectedAccountsSection onUpdate={fetchUser} />
       <AuthorizedAppsSection />
     </div>
   )
