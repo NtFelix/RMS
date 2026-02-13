@@ -351,7 +351,7 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     });
 
     if (nebenkosten.zaehlerkosten && Object.keys(nebenkosten.zaehlerkosten).length > 0) {
-        let meterY = (doc as any).lastAutoTable?.finalY + 15;
+        let meterY = doc.lastAutoTable?.finalY + 15;
 
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
