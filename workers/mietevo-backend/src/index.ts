@@ -805,44 +805,58 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     ${schema}
     `;
 
-    const apiResult = await client.models.generateContent({
+    const apiResult = await (client.models.generateContent as unknown as (params: unknown) => Promise<unknown>)({
         model: model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
-    } as any);
+    });
 
     const latencyMs = Date.now() - startTime;
-    const resultAny = apiResult as unknown as { 
+    const typedResult = apiResult as unknown as { 
         usageMetadata?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number }; 
         usage?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number }; 
         text?: string | (() => string);
         response?: { text?: string | (() => string) };
         candidates?: { content?: { parts?: { text?: string }[] } }[];
     };
-    const usageMetadata = resultAny.usageMetadata || resultAny.usage || {};
+    const usageMetadata = typedResult.usageMetadata || typedResult.usage || {};
 
     // Check if result has text directly or via response
     // Based on lint error: 'Property response does not exist on type GenerateContentResponse'
     // For @google/genai SDK v1.x+, result has .text as a getter property (not a method)
     // Access as property, not function call
 
-    let responseText: string;
+        let responseText: string;
 
-    if (typeof resultAny.text === 'string') {
-        // Direct .text property (v1.x SDK)
-        responseText = resultAny.text;
-    } else if (typeof resultAny.text === 'function') {
-        // .text() method (older SDK versions)
-        responseText = resultAny.text();
-    } else if (resultAny.response?.text) {
-        // Nested response structure
-        responseText = typeof resultAny.response.text === 'function'
-            ? resultAny.response.text()
-            : resultAny.response.text;
-    } else if (resultAny.candidates?.[0]?.content?.parts?.[0]?.text) {
-        // Raw candidate structure
-        responseText = resultAny.candidates[0].content.parts[0].text;
-    } else {
+        if (typeof typedResult.text === 'string') {
+
+            // Direct .text property (v1.x SDK)
+
+            responseText = typedResult.text;
+
+        } else if (typeof typedResult.text === 'function') {
+
+            // .text() method (older SDK versions)
+
+            responseText = typedResult.text();
+
+        } else if (typedResult.response?.text) {
+
+            // Nested response structure
+
+            responseText = typeof typedResult.response.text === 'function'
+
+                ? typedResult.response.text()
+
+                : typedResult.response.text;
+
+        } else if (typedResult.candidates?.[0]?.content?.parts?.[0]?.text) {
+
+            // Raw candidate structure
+
+            responseText = typedResult.candidates[0].content.parts[0].text;
+
+        } else {
         responseText = JSON.stringify(apiResult);
     }
 
