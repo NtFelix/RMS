@@ -295,6 +295,20 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
     }
   }, [operationError, toast])
 
+  // Auto-clear completed uploads after a delay
+  useEffect(() => {
+    const completedItems = uploadQueue.filter(item => item.status === 'completed')
+    if (completedItems.length > 0) {
+      const timeoutId = setTimeout(() => {
+        completedItems.forEach(item => {
+          removeFromUploadQueue(item.id)
+        })
+      }, 3000) // Clear after 3 seconds
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [uploadQueue, removeFromUploadQueue])
+
   // Show loading state while getting user ID
   if (!actualUserId) {
     return (
@@ -382,20 +396,6 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
       })
     }
   }
-
-  // Auto-clear completed uploads after a delay
-  useEffect(() => {
-    const completedItems = uploadQueue.filter(item => item.status === 'completed')
-    if (completedItems.length > 0) {
-      const timeoutId = setTimeout(() => {
-        completedItems.forEach(item => {
-          removeFromUploadQueue(item.id)
-        })
-      }, 3000) // Clear after 3 seconds
-      
-      return () => clearTimeout(timeoutId)
-    }
-  }, [uploadQueue, removeFromUploadQueue])
 
   // Open upload modal
   const openUpload = () => {
