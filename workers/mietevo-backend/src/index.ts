@@ -16,14 +16,14 @@ interface Env {
     SUPABASE_SERVICE_ROLE_KEY: string;
     POSTHOG_API_KEY?: string;
     POSTHOG_HOST?: string;
-    RATE_LIMITER: any; // Using 'any' for now to avoid compilation errors with unknown binding type
+    RATE_LIMITER: unknown; // Using 'unknown' instead of 'any'
     WORKER_AUTH_KEY?: string;
 }
 
 interface AIRequest {
     message: string;
     sessionId?: string;
-    context?: any; // Allow passing context directly if needed, though we prefer fetching it here
+    context?: unknown; // Use 'unknown' instead of 'any'
 }
 
 interface QueueTask {
@@ -61,9 +61,9 @@ const isoToGermanDate = (isoString: string | null | undefined) => {
     }
 };
 
-const sumZaehlerValues = (obj: any): number => {
+const sumZaehlerValues = (obj: Record<string, unknown> | null | undefined): number => {
     if (!obj || typeof obj !== 'object') return 0;
-    return Object.values(obj).reduce((sum: number, val: any) => sum + (Number(val) || 0), 0);
+    return Object.values(obj).reduce((sum: number, val: unknown) => sum + (Number(val) || 0), 0);
 };
 
 const roundToNearest5 = (value: number) => {
@@ -72,8 +72,22 @@ const roundToNearest5 = (value: number) => {
 
 // --- PDF Generation Functions (Preserved) ---
 
-function generateSingleTenantPDF(doc: jsPDF, payload: any) {
-    const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload;
+function generateSingleTenantPDF(doc: jsPDF, payload: {
+    tenantData: unknown;
+    nebenkostenItem: unknown;
+    ownerName?: string;
+    ownerAddress?: string;
+    billingAddress?: unknown;
+    houseCity?: string;
+}) {
+    const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload as {
+        tenantData: unknown;
+        nebenkostenItem: unknown;
+        ownerName?: string;
+        ownerAddress?: string;
+        billingAddress?: unknown;
+        houseCity?: string;
+    };
     let startY = 20;
 
     let displayAddress = ownerAddress || '';
@@ -124,10 +138,16 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
     startY += 10;
 
     const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
-    const tableRows: any[][] = [];
+    const tableRows: unknown[][] = [];
 
     if (tenantData.costItems) {
-        tenantData.costItems.forEach((item: any) => {
+        tenantData.costItems.forEach((item: {
+            costName: string;
+            totalCostForItem: number;
+            verteiler?: string;
+            pricePerSqm?: number;
+            tenantShare: number;
+        }) => {
             tableRows.push([
                 item.costName,
                 formatCurrency(item.totalCostForItem),
@@ -166,7 +186,7 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
             3: { halign: 'right' },
             4: { halign: 'right' }
         },
-        willDrawCell: function (data: any) {
+        willDrawCell: function (data: { section: string; column: { index: number }; cell: { styles: { halign: string } } }) {
             if (data.section === 'head' && data.column.index >= 1) {
                 data.cell.styles.halign = 'right';
             }
@@ -175,11 +195,11 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
         margin: { left: 20, right: 20 }
     });
 
-    const tableFinalY = (doc as any).lastAutoTable?.finalY;
+    const tableFinalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY;
     startY = typeof tableFinalY === 'number' ? tableFinalY + 6 : startY + 10;
 
-    const sumOfTotalCostForItem = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: any) => sum + item.totalCostForItem, 0) : 0;
-    const sumOfTenantSharesFromCostItems = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: any) => sum + item.tenantShare, 0) : 0;
+    const sumOfTotalCostForItem = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: { totalCostForItem: number }) => sum + item.totalCostForItem, 0) : 0;
+    const sumOfTenantSharesFromCostItems = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: { tenantShare: number }) => sum + item.tenantShare, 0) : 0;
 
     startY += 8;
     doc.setFontSize(10);
@@ -253,8 +273,18 @@ const ZAEHLER_CONFIG = {
     heizung: { label: 'Heizung', einheit: 'kWh' },
 };
 
-function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
-    const { nebenkosten, totalArea, totalCosts, costPerSqm } = payload;
+function generateHouseOverviewPDF(doc: jsPDF, payload: {
+    nebenkosten: unknown;
+    totalArea: number;
+    totalCosts: number;
+    costPerSqm: number;
+}) {
+    const { nebenkosten, totalArea, totalCosts, costPerSqm } = payload as {
+        nebenkosten: unknown;
+        totalArea: number;
+        totalCosts: number;
+        costPerSqm: number;
+    };
     let startY = 20;
 
     doc.setFontSize(16);
@@ -335,7 +365,12 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
         },
         tableWidth: doc.internal.pageSize.getWidth() - 40,
         margin: { left: 20, right: 20 },
-        didParseCell: function (data: any) {
+        didParseCell: function (data: {
+            row: { index: number };
+            section: string;
+            column: { index: number };
+            cell: { styles: { fontStyle: string; fillColor: number[]; halign: string } };
+        }) {
             if (data.row.index === tableData.length - 1) {
                 data.cell.styles.fontStyle = 'bold';
                 data.cell.styles.fillColor = [248, 248, 248];
@@ -351,7 +386,7 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     });
 
     if (nebenkosten.zaehlerkosten && Object.keys(nebenkosten.zaehlerkosten).length > 0) {
-        let meterY = doc.lastAutoTable?.finalY + 15;
+        let meterY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY + 15;
 
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
@@ -362,7 +397,7 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
         doc.setFont("helvetica", "normal");
 
         Object.entries(nebenkosten.zaehlerkosten).forEach(([typ, kosten]) => {
-            const config = (ZAEHLER_CONFIG as any)[typ] || { label: typ, einheit: 'm³' };
+            const config = (ZAEHLER_CONFIG as Record<string, { label: string; einheit: string }>)[typ] || { label: typ, einheit: 'm³' };
             const label = config.label;
             const einheit = config.einheit;
             const verbrauch = nebenkosten.zaehlerverbrauch?.[typ];
@@ -394,7 +429,11 @@ und viele weitere Funktionen.
 Wenn du Dokumentationskontext erhältst, nutze diesen um präzise und hilfreiche Antworten zu geben.
 Antworte immer auf Deutsch und sei freundlich und professionell.`;
 
-async function fetchDocumentationContext(supabase: any, query: string): Promise<string> {
+async function fetchDocumentationContext(supabase: unknown, query: string): Promise<string> {
+    const sb = supabase as { 
+        rpc: (name: string, params: object) => Promise<{ data: unknown; error: unknown }>; 
+        from: (table: string) => { select: (columns: string) => { textSearch: (columns: string, query: string, options: object) => { limit: (n: number) => Promise<{ data: unknown; error: unknown }> } } }
+    };
     if (!query) return "";
 
     try {
@@ -403,16 +442,16 @@ async function fetchDocumentationContext(supabase: any, query: string): Promise<
         // We will try simple text search first as it's safer if RPC isn't deployed
 
         // Option 1: RPC call (Preferred if exists)
-        const { data: rpcData, error: rpcError } = await supabase.rpc('search_documentation', {
+        const { data: rpcData, error: rpcError } = await sb.rpc('search_documentation', {
             search_query: query
         });
 
-        let records = [];
+        let records: { seiteninhalt?: string; titel?: string; kategorie?: string }[] = [];
         if (!rpcError && rpcData) {
             records = rpcData;
         } else {
             // Option 2: Fallback to simple text search
-            const { data, error } = await supabase
+            const { data, error } = await sb
                 .from('Dokumentation')
                 .select('titel, kategorie, seiteninhalt')
                 .textSearch('titel,seiteninhalt', query, {
@@ -429,7 +468,7 @@ async function fetchDocumentationContext(supabase: any, query: string): Promise<
         if (records.length === 0) return "";
 
         let contextText = '\n\nDokumentationskontext:\n';
-        records.slice(0, 5).forEach((record: any) => {
+        records.slice(0, 5).forEach((record: { seiteninhalt?: string; titel?: string; kategorie?: string }) => {
             if (record.seiteninhalt) {
                 contextText += `\n**${record.titel}** (Kategorie: ${record.kategorie || 'Allgemein'}):\n${record.seiteninhalt.substring(0, 1000)}\n`;
             }
@@ -443,7 +482,7 @@ async function fetchDocumentationContext(supabase: any, query: string): Promise<
     }
 }
 
-async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Response> {
+async function handleAIRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
     try {
         const body = await request.json() as AIRequest;
@@ -461,7 +500,7 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
         // Rate Limiting
         const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
         if (env.RATE_LIMITER) {
-            const { success } = await env.RATE_LIMITER.limit({ key: ip });
+            const { success } = (env.RATE_LIMITER as { limit: (options: { key: string }) => Promise<{ success: boolean }> }).limit({ key: ip }) as unknown as { success: boolean };
             if (!success) {
                 logger.warn('Rate limit exceeded', { ip });
                 logger.flush();
@@ -489,8 +528,8 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
         // Retry logic with exponential backoff
         const maxRetries = 3;
         let attempt = 0;
-        let stream: any;
-        let lastError: any;
+        let stream: unknown = null; // Use unknown instead of any
+        let lastError: { message?: string } | null = null;
 
         while (attempt < maxRetries) {
             try {
@@ -499,8 +538,8 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
                     contents: [{ role: 'user', parts: [{ text: fullPrompt }] }]
                 });
                 break; // Success
-            } catch (err: any) {
-                lastError = err;
+            } catch (err: unknown) {
+                lastError = err as { message?: string };
                 attempt++;
                 if (attempt >= maxRetries) break; // Failed after max retries
 
@@ -519,7 +558,7 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
         const readableStream = new ReadableStream({
             async start(controller) {
                 try {
-                    for await (const chunk of stream) {
+                    for await (const chunk of stream as AsyncIterable<{ text: string | (() => string) }>) {
                         let chunkText = '';
                         if (typeof chunk.text === 'function') {
                             chunkText = chunk.text();
@@ -544,10 +583,10 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
                     });
                     controller.enqueue(encoder.encode(`data: ${doneData}\n\n`));
                     controller.close();
-                } catch (e: any) {
+                } catch (e: unknown) {
                     const errorData = JSON.stringify({
                         type: 'error',
-                        error: e.message,
+                        error: (e as Error).message,
                         sessionId
                     });
                     controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
@@ -575,11 +614,12 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
             }
         });
 
-    } catch (e: any) {
-        logger.error('AI Request Error', { error: e.message });
+    } catch (e: unknown) {
+        const err = e as { message?: string; status?: number };
+        logger.error('AI Request Error', { error: err.message });
         logger.flush();
-        const errorMessage = e.message || "An unexpected error occurred.";
-        const statusCode = e.status || 500;
+        const errorMessage = err.message || "An unexpected error occurred.";
+        const statusCode = err.status || 500;
 
         return new Response(JSON.stringify({
             error: {
@@ -599,7 +639,7 @@ async function handleAIRequest(request: Request, env: Env, ctx: any): Promise<Re
 
 // --- Queue Processing Implementation ---
 
-async function downloadAndDecompressEmail(supabase: any, dateipfad: string): Promise<string> {
+async function downloadAndDecompressEmail(supabase: { storage: { from: (name: string) => { download: (path: string) => Promise<{ data: Blob | null; error: unknown }> } } }, dateipfad: string): Promise<string> {
     const { data: bodyBlob, error: downloadError } = await supabase.storage
         .from('mails')
         .download(dateipfad);
@@ -619,10 +659,10 @@ async function downloadAndDecompressEmail(supabase: any, dateipfad: string): Pro
         const emailBody = JSON.parse(decompressed);
         // Return plain text content preferably, or html if plain is missing
         return emailBody.plain || emailBody.html || JSON.stringify(emailBody);
-    } catch (e) {
+    } catch (e: unknown) {
         // If it fails, maybe it wasn't gzipped or was just text?
         // But RMS implementation always gzips using pako.
-        throw new Error('Failed to decompress email body: ' + e);
+        throw new Error('Failed to decompress email body: ' + String(e));
     }
 }
 
@@ -642,13 +682,14 @@ async function withRetry<T>(
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             return await fn();
-        } catch (error: any) {
-            lastError = error;
+        } catch (error: unknown) {
+            const err = error as { message?: string; status?: number };
+            lastError = error as Error;
 
             // Check if it's a rate limit error (429)
-            const isRateLimit = error?.message?.includes('429') ||
-                error?.message?.includes('RESOURCE_EXHAUSTED') ||
-                error?.status === 429;
+            const isRateLimit = err?.message?.includes('429') ||
+                err?.message?.includes('RESOURCE_EXHAUSTED') ||
+                err?.status === 429;
 
             if (isRateLimit && attempt < maxRetries) {
                 const delay = baseDelayMs * Math.pow(2, attempt); // Exponential backoff: 2s, 4s, 8s
@@ -660,11 +701,11 @@ async function withRetry<T>(
         }
     }
 
-    throw lastError;
+    throw lastError as Error;
 }
 
 async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
-    result: any;
+    result: unknown;
     prompt: string;
     usage: { model: string; inputTokens?: number; outputTokens?: number; totalTokens?: number; latencyMs: number; };
 }> {
@@ -736,7 +777,13 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     });
 
     const latencyMs = Date.now() - startTime;
-    const resultAny = apiResult as any;
+    const resultAny = apiResult as unknown as { 
+        usageMetadata?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number }; 
+        usage?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number }; 
+        text?: string | (() => string);
+        response?: { text?: string | (() => string) };
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
     const usageMetadata = resultAny.usageMetadata || resultAny.usage || {};
 
     // Check if result has text directly or via response
@@ -774,8 +821,8 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
         if (jsonMatch) {
             try {
                 parsedResult = JSON.parse(jsonMatch[0]);
-            } catch (e2: any) {
-                throw new Error(`Failed to parse JSON: ${e2.message}`);
+            } catch (e2: unknown) {
+                throw new Error(`Failed to parse JSON: ${(e2 as Error).message}`);
             }
         } else {
             throw new Error(`Failed to extract JSON from AI response: ${responseText}`);
@@ -796,7 +843,7 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
 }
 
 
-async function processQueue(request: Request, env: Env, ctx: any): Promise<Response> {
+async function processQueue(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // Auth Check
     const authHeader = request.headers.get('x-worker-auth');
     if (env.WORKER_AUTH_KEY && authHeader !== env.WORKER_AUTH_KEY) {
@@ -810,7 +857,7 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
     let userIdForTracking = 'system';
     try {
         const clonedReq = request.clone();
-        const body = await clonedReq.json() as any;
+        const body = await clonedReq.json() as { user_id?: string };
         if (body.user_id) userIdForTracking = body.user_id;
     } catch (e) {
         // Ignore parsing errors for requests without a body
@@ -856,6 +903,9 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
         const msgId = task.msg_id;
         const { mail_id, user_id } = task.message;
         let { dateipfad } = task.message;
+
+        // Use user_id from task if available
+        if (user_id) userIdForTracking = user_id;
 
         logger.info('Processing Queue Item', { msgId, mailId: mail_id });
 
@@ -920,20 +970,21 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
                 });
 
                 // Update DB with Top-Level fields for easier access/sorting
-                const updates: any = {
+                const updates: Record<string, unknown> = {
                     bewerbung_metadaten: aiResult,
                     bewerbung_score: aiScore
                 };
 
-                if (aiResult?.personalInfo) {
-                    if (aiResult.personalInfo.firstName || aiResult.personalInfo.lastName) {
-                        updates.name = `${aiResult.personalInfo.firstName || ''} ${aiResult.personalInfo.lastName || ''}`.trim();
+                const personalInfo = (aiResult as { personalInfo?: Record<string, string> })?.personalInfo;
+                if (personalInfo) {
+                    if (personalInfo.firstName || personalInfo.lastName) {
+                        updates.name = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
                     }
-                    if (aiResult.personalInfo.email) {
-                        updates.email = aiResult.personalInfo.email;
+                    if (personalInfo.email) {
+                        updates.email = personalInfo.email;
                     }
-                    if (aiResult.personalInfo.phone) {
-                        updates.telefonnummer = aiResult.personalInfo.phone;
+                    if (personalInfo.phone) {
+                        updates.telefonnummer = personalInfo.phone;
                     }
                 }
 
@@ -944,8 +995,8 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
 
                 if (updateError) throw updateError;
 
-            } catch (processError: any) {
-                logger.error('Processing Failed', { msgId, error: processError.message });
+            } catch (processError: unknown) {
+                logger.error('Processing Failed', { msgId, error: (processError as Error).message });
                 // By re-throwing the error, we prevent the message from being deleted,
                 // allowing it to be retried later after the visibility timeout.
                 // For a more advanced system, consider a dead-letter queue after N retries.
@@ -978,21 +1029,26 @@ async function processQueue(request: Request, env: Env, ctx: any): Promise<Respo
             headers: { 'Content-Type': 'application/json' }
         });
 
-    } catch (e: any) {
-        logger.error('Queue Handler Error', { error: e.message });
+    } catch (e: unknown) {
+        logger.error('Queue Handler Error', { error: (e as Error).message });
         logger.flush();
         if (posthog) {
             await posthog.shutdown();
         }
-        return new Response(JSON.stringify({ error: e.message, hasMore: false }), { status: 500 });
+        return new Response(JSON.stringify({ error: (e as Error).message, hasMore: false }), { status: 500 });
     }
 }
 
 // --- File Generation Logic ---
 
-async function handleFileGeneration(request: Request, env: Env | any, ctx: any): Promise<Response> {
+async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
-    let body: any = {};
+    let body: {
+        type?: string;
+        template?: string;
+        data?: unknown;
+        filename?: string;
+    } = {};
 
     try {
         if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -1041,13 +1097,13 @@ async function handleFileGeneration(request: Request, env: Env | any, ctx: any):
     if (type === 'zip' && !template) {
         const zip = new JSZip();
         if (Array.isArray(data)) {
-            data.forEach((item: any) => {
-                const csv = Papa.unparse(item.data);
+            data.forEach((item: { data: unknown; name: string }) => {
+                const csv = Papa.unparse(item.data as unknown[]);
                 zip.file(`${item.name}.csv`, csv);
             });
         } else {
-            Object.entries(data).forEach(([name, content]: [string, any]) => {
-                const csv = Papa.unparse(content);
+            Object.entries(data as Record<string, unknown>).forEach(([name, content]: [string, unknown]) => {
+                const csv = Papa.unparse(content as unknown[]);
                 zip.file(`${name}.csv`, csv);
             });
         }
@@ -1138,7 +1194,7 @@ async function handleFileGeneration(request: Request, env: Env | any, ctx: any):
 // --- Main Handler ---
 
 export default {
-    async fetch(request: Request, env: Env | any, ctx: any): Promise<Response> {
+    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         const origin = request.headers.get('Origin') || '*';
         const corsHeaders: Record<string, string> = {
             'Access-Control-Allow-Origin': origin,
@@ -1184,12 +1240,12 @@ export default {
                 headers: newHeaders
             });
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Re-use existing logger instance
-            logger.error('Worker Error', { error: error.message });
+            logger.error('Worker Error', { error: (error as Error).message });
             logger.flush();
 
-            return new Response(`Error: ${error.message}`, { status: 500, headers: corsHeaders });
+            return new Response(`Error: ${(error as Error).message}`, { status: 500, headers: corsHeaders });
         }
     },
 };
