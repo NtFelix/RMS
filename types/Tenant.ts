@@ -32,6 +32,11 @@ export interface Tenant {
   nebenkosten?: NebenkostenEntry[];
   kaution?: KautionData;    // New optional kaution field
   status?: TenantStatus;
+
+  // AI Applicant Scoring Fields
+  bewerbung_score?: number;
+  bewerbung_mail_id?: string;
+  bewerbung_metadaten?: Record<string, any>; // JSONB data
 }
 
 export type TenantStatus = 'bewerber' | 'mieter';
