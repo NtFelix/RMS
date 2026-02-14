@@ -1,11 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
 
-// Load environment variables from .env or .env.local
-dotenv.config({ path: '.env.local' });
-dotenv.config({ path: '.env' });
+// Load environment variables locally if dotenv is available
+try {
+    const dotenv = await import('dotenv');
+    dotenv.config({ path: '.env.local' });
+    dotenv.config({ path: '.env' });
+} catch (e) {
+    // dotenv not found, assuming variables are already in environment (e.g., CI/CD)
+}
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de';
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com';
