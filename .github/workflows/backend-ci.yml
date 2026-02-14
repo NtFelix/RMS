@@ -130,3 +130,48 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: workers/mietevo-backend
+
+  notify:
+    name: Discord Notification
+    runs-on: ubuntu-latest
+    needs: [test, deploy]
+    if: always() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Determine status
+        id: status
+        run: |
+          if [[ "${{ needs.test.result }}" == "success" && "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "color=3066993" >> $GITHUB_OUTPUT
+            echo "message=✅ Backend deployment successful! All tests passed." >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.test.result }}" == "failure" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "color=15158332" >> $GITHUB_OUTPUT
+            echo "message=❌ Backend tests failed!" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.deploy.result }}" == "failure" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "color=15158332" >> $GITHUB_OUTPUT
+            echo "message=❌ Backend deployment failed!" >> $GITHUB_OUTPUT
+          else
+            echo "status=cancelled" >> $GITHUB_OUTPUT
+            echo "color=16776960" >> $GITHUB_OUTPUT
+            echo "message=⚠️ Backend CI/CD workflow was cancelled or skipped." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Discord notification
+        uses: tsickert/discord-webhook@v6.0.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          embed-title: "Backend CI/CD - ${{ steps.status.outputs.message }}"
+          embed-description: |
+            **Repository:** ${{ github.repository }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** [${{ github.sha }}](${{ github.event.head_commit.url }})
+            **Author:** ${{ github.event.head_commit.author.name }}
+            **Message:** ${{ github.event.head_commit.message }}
+            
+            **Test Status:** ${{ needs.test.result }}
+            **Deploy Status:** ${{ needs.deploy.result }}
+          embed-color: ${{ steps.status.outputs.color }}
+          embed-url: ${{ github.event.head_commit.url }}
+          embed-timestamp: ${{ github.event.head_commit.timestamp }}
