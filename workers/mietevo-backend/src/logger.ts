@@ -8,7 +8,7 @@
 export interface Env {
     POSTHOG_API_KEY?: string;
     POSTHOG_HOST?: string;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export interface LogAttributes {
@@ -43,7 +43,7 @@ function getSeverityNumber(severity: string): number {
 
 // Minimal interface for Cloudflare Worker ExecutionContext
 export interface ExecutionContext {
-    waitUntil(promise: Promise<any>): void;
+    waitUntil(promise: Promise<unknown>): void;
 }
 
 interface LogRecord {
@@ -130,7 +130,6 @@ export class WorkerLogger {
         };
 
         // Clear logs immediately to avoid double sending if flush called twice
-        const logsCount = this.logs.length;
         this.logs = [];
 
         const promise = fetch(endpoint, {
