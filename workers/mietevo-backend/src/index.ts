@@ -10,7 +10,7 @@ import { PostHog } from 'posthog-node';
 
 // --- Type Definitions ---
 
-interface Env {
+export interface Env {
     GEMINI_API_KEY: string;
     SUPABASE_URL: string;
     SUPABASE_SERVICE_ROLE_KEY: string;
@@ -41,35 +41,7 @@ interface QueueTask {
 }
 
 
-// --- Helper Functions (Duplicated for Worker Independence) ---
-
-const formatCurrency = (value: number | null | undefined) => {
-    if (value == null) return "-";
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
-};
-
-const isoToGermanDate = (isoString: string | null | undefined) => {
-    if (!isoString) return "N/A";
-    try {
-        const date = new Date(isoString);
-        return date.toLocaleDateString('de-DE', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    } catch (e) {
-        return isoString;
-    }
-};
-
-const sumZaehlerValues = (obj: Record<string, unknown> | null | undefined): number => {
-    if (!obj || typeof obj !== 'object') return 0;
-    return Object.values(obj).reduce((sum: number, val: unknown) => sum + (Number(val) || 0), 0);
-};
-
-const roundToNearest5 = (value: number) => {
-    return Math.round(value / 5) * 5;
-};
+import { formatCurrency, isoToGermanDate, sumZaehlerValues, roundToNearest5 } from './utils';
 
 // --- PDF Generation Functions (Preserved) ---
 
@@ -102,7 +74,7 @@ interface NebenkostenItem {
     zaehlerverbrauch?: Record<string, number>;
 }
 
-interface SingleTenantPayload {
+export interface SingleTenantPayload {
     tenantData: TenantData;
     nebenkostenItem: NebenkostenItem;
     ownerName?: string;
@@ -304,7 +276,7 @@ const ZAEHLER_CONFIG = {
     heizung: { label: 'Heizung', einheit: 'kWh' },
 };
 
-interface HouseOverviewPayload {
+export interface HouseOverviewPayload {
     nebenkosten: {
         startdatum: string;
         enddatum: string;
@@ -517,7 +489,7 @@ async function fetchDocumentationContext(supabase: SupabaseClient, query: string
     }
 }
 
-async function handleAIRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+export async function handleAIRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
     try {
         const body = await request.json() as AIRequest;
@@ -812,9 +784,9 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     });
 
     const latencyMs = Date.now() - startTime;
-    const typedResult = apiResult as unknown as { 
-        usageMetadata?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number }; 
-        usage?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number }; 
+    const typedResult = apiResult as unknown as {
+        usageMetadata?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number };
+        usage?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number };
         text?: string | (() => string);
         response?: { text?: string | (() => string) };
         candidates?: { content?: { parts?: { text?: string }[] } }[];
@@ -826,37 +798,37 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     // For @google/genai SDK v1.x+, result has .text as a getter property (not a method)
     // Access as property, not function call
 
-        let responseText: string;
+    let responseText: string;
 
-        if (typeof typedResult.text === 'string') {
+    if (typeof typedResult.text === 'string') {
 
-            // Direct .text property (v1.x SDK)
+        // Direct .text property (v1.x SDK)
 
-            responseText = typedResult.text;
+        responseText = typedResult.text;
 
-        } else if (typeof typedResult.text === 'function') {
+    } else if (typeof typedResult.text === 'function') {
 
-            // .text() method (older SDK versions)
+        // .text() method (older SDK versions)
 
-            responseText = typedResult.text();
+        responseText = typedResult.text();
 
-        } else if (typedResult.response?.text) {
+    } else if (typedResult.response?.text) {
 
-            // Nested response structure
+        // Nested response structure
 
-            responseText = typeof typedResult.response.text === 'function'
+        responseText = typeof typedResult.response.text === 'function'
 
-                ? typedResult.response.text()
+            ? typedResult.response.text()
 
-                : typedResult.response.text;
+            : typedResult.response.text;
 
-        } else if (typedResult.candidates?.[0]?.content?.parts?.[0]?.text) {
+    } else if (typedResult.candidates?.[0]?.content?.parts?.[0]?.text) {
 
-            // Raw candidate structure
+        // Raw candidate structure
 
-            responseText = typedResult.candidates[0].content.parts[0].text;
+        responseText = typedResult.candidates[0].content.parts[0].text;
 
-        } else {
+    } else {
         responseText = JSON.stringify(apiResult);
     }
 
@@ -892,7 +864,7 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
 }
 
 
-async function processQueue(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+export async function processQueue(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // Auth Check
     const authHeader = request.headers.get('x-worker-auth');
     if (env.WORKER_AUTH_KEY && authHeader !== env.WORKER_AUTH_KEY) {
@@ -1090,7 +1062,7 @@ async function processQueue(request: Request, env: Env, ctx: ExecutionContext): 
 
 // --- File Generation Logic ---
 
-async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+export async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
     let body: {
         type?: string;
