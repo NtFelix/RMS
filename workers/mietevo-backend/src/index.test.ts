@@ -1,12 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-    formatCurrency,
-    isoToGermanDate,
-    sumZaehlerValues,
-    roundToNearest5,
-    handleFileGeneration,
-    processQueue
-} from './index';
+import { describe, it, expect, vi } from 'vitest';
+import { handleFileGeneration, processQueue, Env } from './index';
+import { formatCurrency, isoToGermanDate, sumZaehlerValues, roundToNearest5 } from './utils';
+import { ExecutionContext } from './logger';
 
 describe('Backend Worker Tests', () => {
     const mockEnv = {
@@ -72,7 +67,7 @@ describe('Backend Worker Tests', () => {
                 })
             });
 
-            const response = await handleFileGeneration(request, mockEnv as any, mockCtx as any);
+            const response = await handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
 
             expect(response.status).toBe(200);
             expect(response.headers.get('Content-Type')).toBe('text/csv');
@@ -102,7 +97,7 @@ describe('Backend Worker Tests', () => {
                 })
             });
 
-            const response = await handleFileGeneration(request, mockEnv as any, mockCtx as any);
+            const response = await handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
 
             expect(response.status).toBe(200);
             expect(response.headers.get('Content-Type')).toBe('application/pdf');
@@ -118,7 +113,7 @@ describe('Backend Worker Tests', () => {
                 })
             });
 
-            const response = await handleFileGeneration(request, mockEnv as any, mockCtx as any);
+            const response = await handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
             expect(response.status).toBe(404);
         });
     });
@@ -133,7 +128,7 @@ describe('Backend Worker Tests', () => {
                 body: JSON.stringify({ user_id: 'test-user' })
             });
 
-            const response = await processQueue(request, mockEnv as any, mockCtx as any);
+            const response = await processQueue(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
             expect(response.status).toBe(401);
             expect(await response.text()).toBe('Unauthorized');
         });
@@ -149,7 +144,7 @@ describe('Backend Worker Tests', () => {
                 body: JSON.stringify({ user_id: 'test-user' })
             });
 
-            const response = await processQueue(request, mockEnv as any, mockCtx as any);
+            const response = await processQueue(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
             // It should probably hit the Supabase client creation and then fail on an RPC call
             expect(response.status).not.toBe(401);
         });
@@ -159,3 +154,4 @@ describe('Backend Worker Tests', () => {
         expect(true).toBe(true);
     });
 });
+
