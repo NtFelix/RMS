@@ -1,0 +1,20 @@
+# Mietevo
+
+> Mietevo ist eine professionelle Hausverwaltungssoftware für private Vermieter und Hausverwaltungen. Sie bietet Funktionen für Betriebskostenabrechnung, Wohnungsverwaltung, Finanzmanagement und Mieterkommunikation.
+
+## Produkt & Funktionen
+- [Startseite](https://mietevo.de/): Übersicht und Einführung in Mietevo
+- [Betriebskostenabrechnung](https://mietevo.de/funktionen/betriebskosten): Nebenkostenabrechnung erstellen
+- [Wohnungsverwaltung](https://mietevo.de/funktionen/wohnungsverwaltung): Digitale Verwaltung von Objekten, Einheiten und Mietern
+- [Finanzverwaltung](https://mietevo.de/funktionen/finanzverwaltung): Überwachung von Mieteingängen und Ausgaben
+- [Preise & Pakete](https://mietevo.de/preise): Übersicht der Preismodelle und enthaltenen Funktionen
+
+## Hilfe & Ressourcen
+- [Kostenlos testen](https://mietevo.de/auth/register): 14 Tage kostenlos testen, keine Kreditkarte erforderlich
+- [Login](https://mietevo.de/auth/login): Anmeldung für bestehende Nutzer
+- [Handbuch & Dokumentation](https://mietevo.de/hilfe/dokumentation): Übersicht aller Hilfethemen
+
+## Rechtliches
+- [Impressum](https://mietevo.de/impressum)
+- [Datenschutz](https://mietevo.de/datenschutz)
+- [AGB](https://mietevo.de/agb)
