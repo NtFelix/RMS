@@ -134,24 +134,37 @@ jobs:
   notify:
     name: Discord Notification
     runs-on: ubuntu-latest
-    needs: [test, deploy]
+    needs: [type-check, lint, test, deploy]
     if: always() && github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Determine status
         id: status
         run: |
-          if [[ "${{ needs.test.result }}" == "success" && "${{ needs.deploy.result }}" == "success" ]]; then
+          # Check if all jobs succeeded
+          if [[ "${{ needs.type-check.result }}" == "success" && \
+                "${{ needs.lint.result }}" == "success" && \
+                "${{ needs.test.result }}" == "success" && \
+                "${{ needs.deploy.result }}" == "success" ]]; then
             echo "status=success" >> $GITHUB_OUTPUT
             echo "color=3066993" >> $GITHUB_OUTPUT
-            echo "message=✅ Backend deployment successful! All tests passed." >> $GITHUB_OUTPUT
+            echo "message=✅ Backend deployment successful! All checks passed." >> $GITHUB_OUTPUT
+          # Check for specific failures
+          elif [[ "${{ needs.type-check.result }}" == "failure" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "color=15158332" >> $GITHUB_OUTPUT
+            echo "message=❌ Type check failed!" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.lint.result }}" == "failure" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "color=15158332" >> $GITHUB_OUTPUT
+            echo "message=❌ Linting failed!" >> $GITHUB_OUTPUT
           elif [[ "${{ needs.test.result }}" == "failure" ]]; then
             echo "status=failure" >> $GITHUB_OUTPUT
             echo "color=15158332" >> $GITHUB_OUTPUT
-            echo "message=❌ Backend tests failed!" >> $GITHUB_OUTPUT
+            echo "message=❌ Tests failed!" >> $GITHUB_OUTPUT
           elif [[ "${{ needs.deploy.result }}" == "failure" ]]; then
             echo "status=failure" >> $GITHUB_OUTPUT
             echo "color=15158332" >> $GITHUB_OUTPUT
-            echo "message=❌ Backend deployment failed!" >> $GITHUB_OUTPUT
+            echo "message=❌ Deployment failed!" >> $GITHUB_OUTPUT
           else
             echo "status=cancelled" >> $GITHUB_OUTPUT
             echo "color=16776960" >> $GITHUB_OUTPUT
@@ -170,8 +183,11 @@ jobs:
             **Author:** ${{ github.event.head_commit.author.name }}
             **Message:** ${{ github.event.head_commit.message }}
             
-            **Test Status:** ${{ needs.test.result }}
-            **Deploy Status:** ${{ needs.deploy.result }}
+            **Quality Checks:**
+            • Type Check: ${{ needs.type-check.result }}
+            • Lint: ${{ needs.lint.result }}
+            • Test: ${{ needs.test.result }}
+            • Deploy: ${{ needs.deploy.result }}
           embed-color: ${{ steps.status.outputs.color }}
           embed-url: ${{ github.event.head_commit.url }}
           embed-timestamp: ${{ github.event.head_commit.timestamp }}
