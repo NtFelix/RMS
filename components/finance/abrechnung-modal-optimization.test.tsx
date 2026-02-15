@@ -179,6 +179,7 @@ describe('AbrechnungModal Optimization', () => {
       verbrauch: 50,
       nebenkosten_id: 'test-id',
       user_id: 'user-1',
+      zaehler_id: 'meter-1',
     },
   ];
 
@@ -202,7 +203,7 @@ describe('AbrechnungModal Optimization', () => {
 
     // Verify the modal opens
     expect(screen.getByTestId('dialog')).toBeInTheDocument();
-    
+
     // Verify it shows the optimization indicator
     expect(screen.getByText(/Daten für 2 Mieter erfolgreich geladen/)).toBeInTheDocument();
   });
@@ -213,7 +214,7 @@ describe('AbrechnungModal Optimization', () => {
     // Verify tenant combobox is rendered with pre-loaded data
     const combobox = screen.getByTestId('combobox');
     expect(combobox).toBeInTheDocument();
-    
+
     // Verify tenants are available in the combobox
     expect(screen.getByRole('option', { name: 'John Doe' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Jane Smith' })).toBeInTheDocument();
@@ -252,10 +253,10 @@ describe('AbrechnungModal Optimization', () => {
 
     // Find the PDF export button and verify it's disabled
     const buttons = screen.getAllByTestId('button');
-    const pdfButton = buttons.find(button => 
+    const pdfButton = buttons.find(button =>
       button.textContent?.includes('Als PDF exportieren')
     );
-    
+
     expect(pdfButton).toBeDisabled();
   });
 
@@ -264,10 +265,10 @@ describe('AbrechnungModal Optimization', () => {
 
     // Initially should show normal text
     const buttons = screen.getAllByTestId('button');
-    const pdfButton = buttons.find(button => 
+    const pdfButton = buttons.find(button =>
       button.textContent?.includes('Als PDF exportieren')
     );
-    
+
     expect(pdfButton).toHaveTextContent('Als PDF exportieren');
   });
 
@@ -276,7 +277,7 @@ describe('AbrechnungModal Optimization', () => {
 
     // Verify dropdown menu is rendered
     expect(screen.getByTestId('dropdown-menu')).toBeInTheDocument();
-    
+
     // Verify dropdown trigger (chevron button) is rendered
     expect(screen.getByTestId('dropdown-trigger')).toBeInTheDocument();
     expect(screen.getByTestId('chevron-down-icon')).toBeInTheDocument();
