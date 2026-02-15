@@ -480,7 +480,7 @@ export async function fetchMeterReadingsByHausAndDateRange(
         } | null;
       }
 
-      // Transform new structure to legacy format for compatibility: O(N) complexity
+      // Transform readings to include optional tenant context for modal compatibility: O(N) complexity
       // Total complexity reduced from O(N*M) to O(N+M)
       existingReadings = (readingsWithRelations as unknown as DBReadingWithRelations[]).map((reading) => {
         // reading.Zaehler is available due to the join
@@ -489,7 +489,6 @@ export async function fetchMeterReadingsByHausAndDateRange(
 
         return {
           id: reading.id,
-          nebenkosten_id: '', // Not applicable in new structure
           mieter_id: mieter?.id || '',
           ablese_datum: reading.ablese_datum,
           zaehlerstand: reading.zaehlerstand || 0,
@@ -545,13 +544,9 @@ export async function fetchMeterReadingsModalData(nebenkostenId: string): Promis
     // 2. Use the new function to get data by house and date range
     const { mieterList, existingReadings } = await fetchMeterReadingsByHausAndDateRange(haeuser_id, startdatum, enddatum);
 
-    // 3. Filter existingReadings to only include those for the current nebenkosten_id
-    //    This maintains backward compatibility with the existing code
-    const filteredReadings = existingReadings.filter(reading => reading.nebenkosten_id === nebenkostenId);
-
     return {
       mieterList,
-      existingReadings: filteredReadings
+      existingReadings
     };
 
   } catch (error) {

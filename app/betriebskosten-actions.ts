@@ -414,12 +414,12 @@ async function getPreviousWasserzaehlerRecordAction(
             success: true,
             data: {
               id: previousYearData.id,
-              nebenkosten_id: '',
               mieter_id: mieterId,
               ablese_datum: previousYearData.ablese_datum,
               zaehlerstand: previousYearData.zaehlerstand || 0,
               verbrauch: previousYearData.verbrauch || 0,
-              user_id: previousYearData.user_id
+              user_id: previousYearData.user_id,
+              zaehler_id: previousYearData.zaehler_id
             }
           };
         }
@@ -449,12 +449,12 @@ async function getPreviousWasserzaehlerRecordAction(
         success: true,
         data: {
           id: data.id,
-          nebenkosten_id: '',
           mieter_id: mieterId,
           ablese_datum: data.ablese_datum,
           zaehlerstand: data.zaehlerstand || 0,
           verbrauch: data.verbrauch || 0,
-          user_id: data.user_id
+          user_id: data.user_id,
+          zaehler_id: data.zaehler_id
         }
       };
     }
@@ -540,12 +540,12 @@ async function fetchMeterReadingsForMieters(
 
     result[mieter.id] = {
       id: reading.id,
-      nebenkosten_id: '',
       mieter_id: mieter.id,
       ablese_datum: reading.ablese_datum,
       zaehlerstand: reading.zaehlerstand || 0,
       verbrauch: reading.verbrauch || 0,
-      user_id: reading.user_id || userId
+      user_id: reading.user_id || userId,
+      zaehler_id: reading.zaehler_id
     };
   });
 
@@ -1342,29 +1342,6 @@ export async function getMeterModalDataAction(
           }
         }
 
-        // Get tenant IDs for legacy query
-        const tenantIds = tenants?.map(t => t.id) || [];
-
-        // If no previous readings found in new structure, try legacy table as fallback
-        if (previousReadings.length === 0 && tenantIds.length > 0) {
-          const { data: legacyReadings, error: legacyError } = await supabase
-            .from("Wasserzaehler")
-            .select("*")
-            .in("mieter_id", tenantIds)
-            .eq("user_id", user.id)
-            .lt("ablese_datum", nebenkostenData.startdatum)
-            .order("ablese_datum", { ascending: false });
-
-          if (legacyError) {
-            logger.error('Failed to fetch previous readings from legacy table', legacyError, {
-              userId: user.id,
-              nebenkostenId
-            });
-          } else if (legacyReadings) {
-            previousReadings = legacyReadings;
-          }
-        }
-
         // Build the response data
         const modalData: MeterModalData[] = (tenants || []).map(tenant => {
           const currentReading = currentReadings?.find(r => r.mieter_id === tenant.id);
@@ -1390,7 +1367,7 @@ export async function getMeterModalDataAction(
             mieter_id: tenant.id,
             mieter_name: tenant.name,
             meter_id: meter?.id || "",
-            meter_type: meter?.zaehler_typ || 'Wasserzaehler', // Fallback to generic if everything fails
+            meter_type: meter?.zaehler_typ || 'kaltwasser',
             custom_id: meter?.custom_id || null,
             wohnung_name: wohnung?.name || 'Unbekannt',
             wohnung_groesse: wohnung?.groesse || 0,
@@ -2347,5 +2324,4 @@ export async function createAbrechnungCalculationOptimizedAction(
     };
   }
 }
-
 
