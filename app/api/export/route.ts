@@ -11,7 +11,7 @@ const tablesToExport = {
   Mieter: ['name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'],
   Nebenkosten: ['jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten', 'wasserverbrauch'],
   Rechnungen: ['name', 'betrag'],
-  Wasserzaehler: ['ablese_datum', 'zaehlerstand', 'verbrauch'],
+  Zaehler_Ablesungen: ['ablese_datum', 'zaehlerstand', 'verbrauch', 'kommentar'],
   Wohnungen: ['groesse', 'name', 'miete'],
   // profiles table removed from export as requested due to sensitive data.
 };

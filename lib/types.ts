@@ -135,21 +135,14 @@ export type ZaehlerAblesung = {
 export type WasserZaehler = Zaehler;
 export type WasserAblesung = ZaehlerAblesung;
 
-// Legacy Wasserzaehler type (old structure with nebenkosten_id)
-// Named explicitly to avoid confusion with WasserZaehler alias
-export type LegacyWasserzaehler = {
-    id: string;
-    nebenkosten_id: string;
-    mieter_id: string;
-    ablese_datum: string;
-    zaehlerstand: number;
-    verbrauch: number;
-    user_id: string;
-    zaehler_id?: string;
+/**
+ * Deprecated alias kept for compatibility with older Wasserzähler modal code.
+ * It now represents readings from Zaehler_Ablesungen plus optional tenant/billing context.
+ */
+export type Wasserzaehler = ZaehlerAblesung & {
+    mieter_id?: string;
+    nebenkosten_id?: string | null;
 };
-
-// Backward compatibility alias
-export type Wasserzaehler = LegacyWasserzaehler;
 
 export type MeterReadingFormEntry = {
     id: string; // Used as key
