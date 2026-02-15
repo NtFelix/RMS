@@ -171,19 +171,21 @@ export function calculateMeterCostDistribution(
   meters: WasserZaehler[],
   readings: WasserAblesung[]
 ): MeterCostBreakdown {
-  // Get meter costs from zaehlerkosten JSONB (sum all meter-related types)
+  // Pass per-type costs and consumption to the calculation function
+  // This ensures each meter type gets its own price per unit
+  const zaehlerkosten = nebenkosten.zaehlerkosten || {};
+  const zaehlerverbrauch = nebenkosten.zaehlerverbrauch || {};
   const totalBuildingMeterCost = sumZaehlerValues(nebenkosten.zaehlerkosten);
-  // Get water consumption from zaehlerverbrauch JSONB (sum all water-related types)
   const totalBuildingConsumption = sumZaehlerValues(nebenkosten.zaehlerverbrauch);
 
-  // Use the new calculation system with official building consumption
+  // Use the new per-type calculation system
   const tenantMeterCost = getTenantMeterCost(
     tenant.id,
     allTenants,
     meters,
     readings,
-    totalBuildingMeterCost,
-    totalBuildingConsumption,
+    zaehlerkosten,
+    zaehlerverbrauch,
     nebenkosten.startdatum,
     nebenkosten.enddatum
   );

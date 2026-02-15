@@ -29,9 +29,11 @@ export interface TenantMeterConsumption {
   tenantName: string;
   apartmentId: string;
   totalConsumption: number; // Total units consumed (m³, kWh, etc.)
+  consumptionByType: Record<string, number>; // Consumption broken down by meter type (e.g., { gas: 68, kaltwasser: 382.25 })
   consumptionDetails: Array<{
     meterId: string;
     meterCustomId: string | null;
+    meterType: string; // zaehler_typ of the meter
     consumption: number;
     readingDate: string;
     isPartialPeriod: boolean; // True if tenant moved in/out during period
@@ -46,9 +48,12 @@ export interface TenantMeterCost {
   tenantId: string;
   tenantName: string;
   apartmentId: string;
-  consumption: number; // units
-  costShare: number; // EUR
-  pricePerUnit: number; // EUR/unit
+  consumption: number; // Total units consumed across all meter types
+  costShare: number; // Total EUR across all meter types
+  pricePerUnit: number; // Weighted average EUR/unit (for display only)
+  consumptionByType: Record<string, number>; // Per-type consumption (e.g., { gas: 68, kaltwasser: 382.25 })
+  costByType: Record<string, number>; // Per-type costs (e.g., { gas: 10, kaltwasser: 100 })
+  pricePerUnitByType: Record<string, number>; // Per-type price per unit
   isWGMember: boolean; // True if apartment has multiple tenants
   wgSplitDetails?: {
     totalApartmentConsumption: number;
@@ -143,22 +148,24 @@ export function calculateTenantMeterConsumption(
   });
 
   // Process each apartment
-  metersByApartment.forEach((meters, apartmentId) => {
+  metersByApartment.forEach((aptMeters, apartmentId) => {
     // Get all tenants who lived in this apartment during the period
     const apartmentTenants = getApartmentTenantsInPeriod(tenants, apartmentId, periodStart, periodEnd);
 
     if (apartmentTenants.length === 0) return;
 
-    // Calculate total consumption for this apartment from all meters
+    // Calculate total consumption for this apartment from all meters, tracking by type
     let totalApartmentConsumption = 0;
+    const consumptionByMeterType: Record<string, number> = {};
     const meterConsumptions: Array<{
       meterId: string;
       meterCustomId: string | null;
+      meterType: string;
       consumption: number;
       readingDate: string;
     }> = [];
 
-    meters.forEach(meter => {
+    aptMeters.forEach(meter => {
       // Find readings for this meter within the period
       const meterReadings = readings.filter(reading =>
         reading.zaehler_id === meter.id &&
@@ -171,6 +178,7 @@ export function calculateTenantMeterConsumption(
         console.log('[Meter Calculation Debug]', {
           meterId: meter.id,
           meterCustomId: meter.custom_id,
+          meterType: meter.zaehler_typ,
           totalReadings: readings.length,
           matchingReadings: meterReadings.length,
           periodStart,
@@ -185,6 +193,10 @@ export function calculateTenantMeterConsumption(
       if (meterConsumption > 0) {
         totalApartmentConsumption += meterConsumption;
 
+        // Track consumption by meter type
+        const meterType = meter.zaehler_typ || 'unknown';
+        consumptionByMeterType[meterType] = (consumptionByMeterType[meterType] || 0) + meterConsumption;
+
         // Use the last reading date for this meter
         const lastReading = meterReadings.sort((a, b) =>
           new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime()
@@ -193,6 +205,7 @@ export function calculateTenantMeterConsumption(
         meterConsumptions.push({
           meterId: meter.id,
           meterCustomId: meter.custom_id,
+          meterType: meterType,
           consumption: meterConsumption,
           readingDate: lastReading?.ablese_datum || periodEnd
         });
@@ -215,10 +228,17 @@ export function calculateTenantMeterConsumption(
 
       const tenantConsumption = totalApartmentConsumption * tenantShare;
 
+      // Calculate per-type consumption for this tenant
+      const tenantConsumptionByType: Record<string, number> = {};
+      for (const [meterType, typeConsumption] of Object.entries(consumptionByMeterType)) {
+        tenantConsumptionByType[meterType] = typeConsumption * tenantShare;
+      }
+
       // Create consumption details for this tenant
       const consumptionDetails = meterConsumptions.map(mc => ({
         meterId: mc.meterId,
         meterCustomId: mc.meterCustomId,
+        meterType: mc.meterType,
         consumption: mc.consumption * tenantShare,
         readingDate: mc.readingDate,
         isPartialPeriod: occupancyFactor < 1,
@@ -230,6 +250,7 @@ export function calculateTenantMeterConsumption(
         tenantName: tenant.name,
         apartmentId: apartmentId,
         totalConsumption: tenantConsumption,
+        consumptionByType: tenantConsumptionByType,
         consumptionDetails
       });
     });
@@ -240,18 +261,22 @@ export function calculateTenantMeterConsumption(
 
 /**
  * Calculate meter costs for each tenant
- * Includes WG splitting logic and detailed cost breakdown
+ * Calculates costs PER METER TYPE to avoid blending different unit prices.
+ * E.g., gas (€/m³), cold water (€/m³), warm water (€/m³) each get their own price.
+ * 
+ * @param zaehlerkosten - Building-level costs by meter type (e.g., { gas: 10, kaltwasser: 100, warmwasser: 100 })
+ * @param zaehlerverbrauch - Building-level consumption by meter type (e.g., { gas: 68, kaltwasser: 382.25, warmwasser: 428 })
  */
 export function calculateTenantMeterCosts(
   tenants: Mieter[],
   meters: WasserZaehler[],
   readings: WasserAblesung[],
-  totalBuildingCost: number,
-  totalBuildingConsumption: number,
+  zaehlerkosten: Record<string, number>,
+  zaehlerverbrauch: Record<string, number>,
   periodStart: string,
   periodEnd: string
 ): TenantMeterCost[] {
-  // First, calculate consumption for each tenant
+  // First, calculate consumption for each tenant (now includes consumptionByType)
   const tenantConsumptions = calculateTenantMeterConsumption(
     tenants,
     meters,
@@ -260,9 +285,12 @@ export function calculateTenantMeterCosts(
     periodEnd
   );
 
-  // Calculate price per unit using the official building consumption from Nebenkosten (or other source)
-  // This ensures the price is based on the actual total, not the sum of individual readings
-  const pricePerUnit = totalBuildingConsumption > 0 ? totalBuildingCost / totalBuildingConsumption : 0;
+  // Calculate price per unit for EACH meter type independently
+  const pricePerUnitByType: Record<string, number> = {};
+  for (const [meterType, buildingCost] of Object.entries(zaehlerkosten)) {
+    const buildingConsumption = zaehlerverbrauch[meterType] || 0;
+    pricePerUnitByType[meterType] = buildingConsumption > 0 ? buildingCost / buildingConsumption : 0;
+  }
 
   // Group tenants by apartment to identify WGs
   const tenantsByApartment = new Map<string, TenantMeterConsumption[]>();
@@ -272,9 +300,22 @@ export function calculateTenantMeterCosts(
     tenantsByApartment.set(tc.apartmentId, apartmentTenants);
   });
 
-  // Calculate costs for each tenant
+  // Calculate costs for each tenant using per-type pricing
   const tenantCosts: TenantMeterCost[] = tenantConsumptions.map(tc => {
-    const costShare = tc.totalConsumption * pricePerUnit;
+    // Calculate cost per meter type
+    const costByType: Record<string, number> = {};
+    let totalCostShare = 0;
+
+    for (const [meterType, tenantTypeConsumption] of Object.entries(tc.consumptionByType)) {
+      const typePrice = pricePerUnitByType[meterType] || 0;
+      const typeCost = tenantTypeConsumption * typePrice;
+      costByType[meterType] = typeCost;
+      totalCostShare += typeCost;
+    }
+
+    // Calculate weighted average price per unit (for display purposes only)
+    const weightedAvgPricePerUnit = tc.totalConsumption > 0 ? totalCostShare / tc.totalConsumption : 0;
+
     const apartmentTenants = tenantsByApartment.get(tc.apartmentId) || [];
     const isWGMember = apartmentTenants.length > 1;
 
@@ -283,8 +324,11 @@ export function calculateTenantMeterCosts(
       tenantName: tc.tenantName,
       apartmentId: tc.apartmentId,
       consumption: tc.totalConsumption,
-      costShare: costShare,
-      pricePerUnit: pricePerUnit,
+      costShare: totalCostShare,
+      pricePerUnit: weightedAvgPricePerUnit,
+      consumptionByType: tc.consumptionByType,
+      costByType: costByType,
+      pricePerUnitByType: pricePerUnitByType,
       isWGMember: isWGMember
     };
 
@@ -317,16 +361,17 @@ export function calculateTenantMeterCosts(
 }
 
 /**
- * Get meter consumption for a specific tenant
- * Helper function for modal display
+ * Get meter cost for a specific tenant
+ * Helper function for modal display.
+ * Uses per-type pricing to avoid blending different meter type costs.
  */
 export function getTenantMeterCost(
   tenantId: string,
   tenants: Mieter[],
   meters: WasserZaehler[],
   readings: WasserAblesung[],
-  totalBuildingCost: number,
-  totalBuildingConsumption: number,
+  zaehlerkosten: Record<string, number>,
+  zaehlerverbrauch: Record<string, number>,
   periodStart: string,
   periodEnd: string
 ): TenantMeterCost | null {
@@ -334,8 +379,8 @@ export function getTenantMeterCost(
     tenants,
     meters,
     readings,
-    totalBuildingCost,
-    totalBuildingConsumption,
+    zaehlerkosten,
+    zaehlerverbrauch,
     periodStart,
     periodEnd
   );
