@@ -2,66 +2,105 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
+import { GoogleGenAI } from '@google/genai';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { WorkerLogger, ExecutionContext } from './logger';
+import pako from 'pako';
+import { PostHog } from 'posthog-node';
 
-/**
- * PDF Helper Functions
- * 
- * NOTE: These helper functions are intentionally duplicated from the main Next.js application.
- * The Cloudflare Worker runs in an isolated runtime environment and cannot share code with
- * the main app. This duplication ensures the worker is fully self-contained and independent.
- * 
- * If these functions need to be updated, ensure changes are synchronized with:
- * - lib/utils.ts (roundToNearest5)
- * - utils/date-calculations.ts (isoToGermanDate)
- * - utils/format.ts (formatCurrency equivalent)
- * - lib/zaehler-utils.ts (sumZaehlerValues)
- */
-const formatCurrency = (value: number | null | undefined) => {
-    if (value == null) return "-";
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
-};
+// --- Type Definitions ---
 
-const isoToGermanDate = (isoString: string | null | undefined) => {
-    if (!isoString) return "N/A";
-    try {
-        const date = new Date(isoString);
-        return date.toLocaleDateString('de-DE', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    } catch (e) {
-        return isoString;
-    }
-};
+export interface Env {
+    GEMINI_API_KEY: string;
+    SUPABASE_URL: string;
+    SUPABASE_SERVICE_ROLE_KEY: string;
+    POSTHOG_API_KEY?: string;
+    POSTHOG_HOST?: string;
+    RATE_LIMITER: unknown; // Using 'unknown' instead of 'any'
+    WORKER_AUTH_KEY?: string;
+    [key: string]: unknown;
+}
 
-const sumZaehlerValues = (obj: any): number => {
-    if (!obj || typeof obj !== 'object') return 0;
-    return Object.values(obj).reduce((sum: number, val: any) => sum + (Number(val) || 0), 0);
-};
+interface AIRequest {
+    message: string;
+    sessionId?: string;
+    context?: unknown; // Use 'unknown' instead of 'any'
+}
 
-const roundToNearest5 = (value: number) => {
-    return Math.round(value / 5) * 5;
-};
+interface QueueTask {
+    msg_id: number;
+    read_ct: number;
+    enqueued_at: string;
+    vt: string;
+    message: {
+        mail_id: string;
+        user_id: string;
+        created_at: string;
+        dateipfad?: string | null;
+    };
+}
 
-// --- Single Tenant PDF Generation (Restored Original Logic) ---
-function generateSingleTenantPDF(doc: jsPDF, payload: any) {
+
+import { formatCurrency, isoToGermanDate, sumZaehlerValues, roundToNearest5 } from './utils';
+
+// --- PDF Generation Functions (Preserved) ---
+
+interface TenantData {
+    apartmentName?: string;
+    apartmentSize?: number;
+    tenantName?: string;
+    costItems?: {
+        costName: string;
+        totalCostForItem: number;
+        verteiler?: string;
+        pricePerSqm?: number;
+        tenantShare: number;
+    }[];
+    waterCost?: {
+        tenantShare: number;
+        consumption: number;
+    };
+    vorauszahlungNextYear?: number;
+    vorauszahlungen?: number;
+    finalSettlement?: number;
+    recommendedPrepayment?: number;
+}
+
+interface NebenkostenItem {
+    startdatum: string;
+    enddatum: string;
+    Haeuser?: { name: string };
+    zaehlerkosten?: Record<string, number>;
+    zaehlerverbrauch?: Record<string, number>;
+}
+
+export interface SingleTenantPayload {
+    tenantData: TenantData;
+    nebenkostenItem: NebenkostenItem;
+    ownerName?: string;
+    ownerAddress?: string;
+    billingAddress?: {
+        line1?: string;
+        line2?: string;
+        city?: string;
+        postal_code?: string;
+    };
+    houseCity?: string;
+}
+
+function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
     const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload;
     let startY = 20;
 
-    // Determine display name and address
     let displayAddress = ownerAddress || '';
     let displayCity = houseCity || '';
 
-    // If no houseCity provided, try to extract from ownerAddress
     if (!displayCity && ownerAddress) {
         const parts = ownerAddress.split(',').map((p: string) => p.trim());
-        // Attempt to find a part that looks like a city (e.g., not just a postal code or street number)
         const potentialCity = parts.find((p: string) => !/^\d{5}$/.test(p) && p.length > 2);
         if (potentialCity) {
             displayCity = potentialCity;
         } else if (parts.length > 0) {
-            // Fallback to the last part if no clear city is found
             displayCity = parts[parts.length - 1];
         }
     }
@@ -76,7 +115,6 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
         }
     }
 
-    // Owner Information & Title
     doc.setFontSize(10);
     doc.text(ownerName || '', 20, startY);
     startY += 6;
@@ -88,28 +126,30 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
     doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
     startY += 10;
 
-    // Settlement Period
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
     startY += 6;
 
-    // Property Details
     const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
     doc.text(propertyDetails, 20, startY);
     startY += 6;
 
-    // Tenant Details
     const tenantDetails = `Mieter: ${tenantData.tenantName}`;
     doc.text(tenantDetails, 20, startY);
     startY += 10;
 
-    // Costs Table
     const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
-    const tableRows: any[][] = [];
+    const tableRows: unknown[][] = [];
 
     if (tenantData.costItems) {
-        tenantData.costItems.forEach((item: any) => {
+        tenantData.costItems.forEach((item: {
+            costName: string;
+            totalCostForItem: number;
+            verteiler?: string;
+            pricePerSqm?: number;
+            tenantShare: number;
+        }) => {
             tableRows.push([
                 item.costName,
                 formatCurrency(item.totalCostForItem),
@@ -148,20 +188,21 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
             3: { halign: 'right' },
             4: { halign: 'right' }
         },
-        willDrawCell: function (data: any) {
-            if (data.section === 'head' && data.column.index >= 1) {
-                data.cell.styles.halign = 'right';
+        willDrawCell: function (data: unknown) {
+            const d = data as { section: string; column: { index: number }; cell: { styles: { halign: string } } };
+            if (d.section === 'head' && d.column.index >= 1) {
+                d.cell.styles.halign = 'right';
             }
         },
         tableWidth: doc.internal.pageSize.getWidth() - 40,
         margin: { left: 20, right: 20 }
     });
 
-    let tableFinalY = (doc as any).lastAutoTable?.finalY;
+    const tableFinalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY;
     startY = typeof tableFinalY === 'number' ? tableFinalY + 6 : startY + 10;
 
-    const sumOfTotalCostForItem = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: any) => sum + item.totalCostForItem, 0) : 0;
-    const sumOfTenantSharesFromCostItems = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: any) => sum + item.tenantShare, 0) : 0;
+    const sumOfTotalCostForItem = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: { totalCostForItem: number }) => sum + item.totalCostForItem, 0) : 0;
+    const sumOfTenantSharesFromCostItems = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: { tenantShare: number }) => sum + item.tenantShare, 0) : 0;
 
     startY += 8;
     doc.setFontSize(10);
@@ -227,7 +268,6 @@ function generateSingleTenantPDF(doc: jsPDF, payload: any) {
     doc.text(`${displayCity}, den ${today.toLocaleDateString('de-DE')}`, col1Start, startY);
 }
 
-// --- Zähler Config for Labels ---
 const ZAEHLER_CONFIG = {
     wasser_kalt: { label: 'Kaltwasser', einheit: 'm³' },
     wasser_warm: { label: 'Warmwasser', einheit: 'm³' },
@@ -236,18 +276,32 @@ const ZAEHLER_CONFIG = {
     heizung: { label: 'Heizung', einheit: 'kWh' },
 };
 
-// --- House Overview PDF Generation (Original Logic) ---
-function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
+export interface HouseOverviewPayload {
+    nebenkosten: {
+        startdatum: string;
+        enddatum: string;
+        haus_name?: string;
+        anzahlWohnungen?: number;
+        anzahlMieter?: number;
+        nebenkostenart?: string[];
+        betrag?: (number | null)[];
+        zaehlerkosten?: Record<string, number>;
+        zaehlerverbrauch?: Record<string, number>;
+    };
+    totalArea: number;
+    totalCosts: number;
+    costPerSqm: number;
+}
+
+function generateHouseOverviewPDF(doc: jsPDF, payload: HouseOverviewPayload) {
     const { nebenkosten, totalArea, totalCosts, costPerSqm } = payload;
     let startY = 20;
 
-    // Title
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text("Kostenaufstellung - Betriebskosten", 20, startY);
     startY += 10;
 
-    // Period and house info
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)}`, 20, startY);
@@ -258,7 +312,6 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     }
     startY += 10;
 
-    // Summary information
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text("Übersicht", 20, startY);
@@ -277,7 +330,6 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     doc.text(`Kosten pro m²: ${formatCurrency(costPerSqm)}`, 20, startY);
     startY += 15;
 
-    // Cost breakdown table
     const tableData = nebenkosten.nebenkostenart?.map((art: string, index: number) => [
         (index + 1).toString(),
         art || '-',
@@ -287,7 +339,6 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
             : '-'
     ]) || [];
 
-    // Add total row
     tableData.push([
         '',
         'Gesamtkosten',
@@ -301,50 +352,52 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
         startY: startY,
         theme: 'plain',
         headStyles: {
-            fillColor: [255, 255, 255], // White background instead of gray
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            lineWidth: { bottom: 0.3 }, // Thicker bottom border for header
-            lineColor: [0, 0, 0] // Black color for header bottom border
+            lineWidth: { bottom: 0.3 },
+            lineColor: [0, 0, 0]
         },
         styles: {
             fontSize: 9,
             cellPadding: 3,
-            lineWidth: 0 // Remove all cell borders
+            lineWidth: 0
         },
         bodyStyles: {
-            lineWidth: { bottom: 0.1 }, // Only add thin bottom border for rows
-            lineColor: [0, 0, 0] // Black color for row separators
+            lineWidth: { bottom: 0.1 },
+            lineColor: [0, 0, 0]
         },
         columnStyles: {
-            0: { halign: 'left' },   // Left align position numbers
-            1: { halign: 'left' },   // Left align service descriptions
-            2: { halign: 'right' },  // Right align total costs
-            3: { halign: 'right' },  // Right align costs per sqm
+            0: { halign: 'left' },
+            1: { halign: 'left' },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
         },
-        // Ensure table aligns with left and right content margins
         tableWidth: doc.internal.pageSize.getWidth() - 40,
         margin: { left: 20, right: 20 },
-        didParseCell: function (data: any) {
-            // Make the total row bold
-            if (data.row.index === tableData.length - 1) {
-                data.cell.styles.fontStyle = 'bold';
-                data.cell.styles.fillColor = [248, 248, 248];
+        didParseCell: function (data: unknown) {
+            const d = data as {
+                row: { index: number };
+                section: string;
+                column: { index: number };
+                cell: { styles: { fontStyle: string; fillColor: number[]; halign: string } };
+            };
+            if (d.row.index === tableData.length - 1) {
+                d.cell.styles.fontStyle = 'bold';
+                d.cell.styles.fillColor = [248, 248, 248];
             }
-            // Ensure header columns are properly aligned
-            if (data.section === 'head') {
-                if (data.column.index === 2 || data.column.index === 3) {
-                    data.cell.styles.halign = 'right';
+            if (d.section === 'head') {
+                if (d.column.index === 2 || d.column.index === 3) {
+                    d.cell.styles.halign = 'right';
                 } else {
-                    data.cell.styles.halign = 'left';
+                    d.cell.styles.halign = 'left';
                 }
             }
         }
     });
 
-    // Meter costs section if zaehlerkosten available
     if (nebenkosten.zaehlerkosten && Object.keys(nebenkosten.zaehlerkosten).length > 0) {
-        let meterY = (doc as any).lastAutoTable?.finalY + 15;
+        let meterY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY + 15;
 
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
@@ -355,7 +408,7 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
         doc.setFont("helvetica", "normal");
 
         Object.entries(nebenkosten.zaehlerkosten).forEach(([typ, kosten]) => {
-            const config = (ZAEHLER_CONFIG as any)[typ] || { label: typ, einheit: 'm³' };
+            const config = (ZAEHLER_CONFIG as Record<string, { label: string; einheit: string }>)[typ] || { label: typ, einheit: 'm³' };
             const label = config.label;
             const einheit = config.einheit;
             const verbrauch = nebenkosten.zaehlerverbrauch?.[typ];
@@ -375,8 +428,794 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: any) {
     }
 }
 
+// --- AI Logic Implementation ---
+
+const SYSTEM_INSTRUCTION = `Stelle dir vor du bist ein hilfreicher Assistent der für Mietevo arbeitet. 
+Deine Aufgabe ist den Nutzer zu helfen seine Frage zu dem Programm zu beantworten. 
+Das Programm zu dem du fragen beantworten sollst ist Mietevo, ein 
+Immobilienverwaltungsprogramm das Benutzern ermöglicht einfach ihre Immobilien 
+zu verwalten, indem Nebenkosten/Betriebskostenabrechnungen vereinfach werden 
+und viele weitere Funktionen.
+
+Wenn du Dokumentationskontext erhältst, nutze diesen um präzise und hilfreiche Antworten zu geben.
+Antworte immer auf Deutsch und sei freundlich und professionell.`;
+
+async function fetchDocumentationContext(supabase: SupabaseClient, query: string): Promise<string> {
+    if (!query) return "";
+
+    try {
+        // Use Supabase text search on 'Dokumentation' table
+        // Note: This relies on the 'search_documentation' RPC function existing or using simple textSearch
+        // We will try simple text search first as it's safer if RPC isn't deployed
+
+        // Option 1: RPC call (Preferred if exists)
+        const { data: rpcData, error: rpcError } = await supabase.rpc('search_documentation', {
+            search_query: query
+        });
+
+        let records: { seiteninhalt?: string; titel?: string; kategorie?: string }[] = [];
+        if (!rpcError && rpcData && Array.isArray(rpcData)) {
+            records = rpcData;
+        } else {
+            // Option 2: Fallback to simple text search
+            const { data, error } = await supabase
+                .from('Dokumentation')
+                .select('titel, kategorie, seiteninhalt')
+                .textSearch('titel,seiteninhalt', query, {
+                    type: 'websearch',
+                    config: 'german'
+                })
+                .limit(5);
+
+            if (!error && data && Array.isArray(data)) {
+                records = data;
+            }
+        }
+
+        if (records.length === 0) return "";
+
+        let contextText = '\n\nDokumentationskontext:\n';
+        records.slice(0, 5).forEach((record: { seiteninhalt?: string; titel?: string; kategorie?: string }) => {
+            if (record.seiteninhalt) {
+                contextText += `\n**${record.titel}** (Kategorie: ${record.kategorie || 'Allgemein'}):\n${record.seiteninhalt.substring(0, 1000)}\n`;
+            }
+        });
+
+        return contextText;
+
+    } catch (e) {
+        console.error("Error fetching context:", e);
+        return "";
+    }
+}
+
+export async function handleAIRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const logger = new WorkerLogger(env, ctx);
+    try {
+        const body = await request.json() as AIRequest;
+        const { message, sessionId } = body;
+
+        logger.info('AI Request received', { sessionId });
+
+        // Check for API key
+        if (!env.GEMINI_API_KEY) {
+            logger.error('Gemini API key not configured');
+            logger.flush();
+            return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500 });
+        }
+
+        // Rate Limiting
+        const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+        if (env.RATE_LIMITER) {
+            const { success } = await (env.RATE_LIMITER as { limit: (options: { key: string }) => Promise<{ success: boolean }> }).limit({ key: ip });
+            if (!success) {
+                logger.warn('Rate limit exceeded', { ip });
+                logger.flush();
+                return new Response(JSON.stringify({
+                    error: {
+                        message: "Too many requests. Please try again later.",
+                        code: 429,
+                        type: 'RATE_LIMIT_EXCEEDED'
+                    }
+                }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } });
+            }
+        }
+
+        // Initialize Supabase if credentials exist
+        let contextText = "";
+        if (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
+            const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+            contextText = await fetchDocumentationContext(supabase, message);
+        }
+
+        // Initialize Gemini
+        const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+        const fullPrompt = `${SYSTEM_INSTRUCTION}\n\nUser Message: ${message}\n${contextText}`;
+
+        // Retry logic with exponential backoff
+        const maxRetries = 3;
+        let attempt = 0;
+        let stream: unknown = null; // Use unknown instead of any
+        let lastError: { message?: string } | null = null;
+
+        while (attempt < maxRetries) {
+            try {
+                stream = await client.models.generateContentStream({
+                    model: 'models/gemini-2.5-flash-lite',
+                    contents: [{ role: 'user', parts: [{ text: fullPrompt }] }]
+                });
+                break; // Success
+            } catch (err: unknown) {
+                lastError = err as { message?: string };
+                attempt++;
+                if (attempt >= maxRetries) break; // Failed after max retries
+
+                // Wait before retrying (exponential backoff: 1s, 2s, 4s...)
+                const delay = Math.pow(2, attempt - 1) * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+
+        if (!stream) {
+            throw new Error(lastError?.message || "Failed to connect to AI service after multiple attempts.");
+        }
+
+        // Create stream for response
+        const encoder = new TextEncoder();
+        const readableStream = new ReadableStream({
+            async start(controller) {
+                try {
+                    for await (const chunk of stream as AsyncIterable<{ text: string | (() => string) }>) {
+                        let chunkText = '';
+                        if (typeof chunk.text === 'function') {
+                            chunkText = chunk.text();
+                        } else if (typeof chunk.text === 'string') {
+                            chunkText = chunk.text;
+                        }
+
+                        if (chunkText) {
+                            const data = JSON.stringify({
+                                type: 'chunk',
+                                content: chunkText,
+                                sessionId
+                            });
+                            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                        }
+                    }
+
+                    const doneData = JSON.stringify({
+                        type: 'complete',
+                        content: '', // Or accumulator if we tracked it
+                        sessionId
+                    });
+                    controller.enqueue(encoder.encode(`data: ${doneData}\n\n`));
+                    controller.close();
+                } catch (e: unknown) {
+                    const errorData = JSON.stringify({
+                        type: 'error',
+                        error: (e as Error).message,
+                        sessionId
+                    });
+                    controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+                    controller.close();
+                }
+            }
+        });
+
+
+
+        // Note: logs will be flushed by waitUntil in logger if ctx is provided, 
+        // but we can also explicitly flush here if we want to be sure, though synchronous flush might delay response.
+        // Better to rely on ctx.waitUntil which WorkerLogger handles in flush().
+        logger.info('AI Request stream started', { sessionId });
+        logger.flush();
+
+        return new Response(readableStream, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            }
+        });
+
+    } catch (e: unknown) {
+        const err = e as { message?: string; status?: number };
+        logger.error('AI Request Error', { error: err.message });
+        logger.flush();
+        const errorMessage = err.message || "An unexpected error occurred.";
+        const statusCode = err.status || 500;
+
+        return new Response(JSON.stringify({
+            error: {
+                message: errorMessage,
+                code: statusCode,
+                type: 'AI_PROCESSING_ERROR'
+            }
+        }), {
+            status: statusCode,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Content-Type': 'application/json'
+            }
+        });
+    }
+}
+
+// --- Queue Processing Implementation ---
+
+async function downloadAndDecompressEmail(supabase: SupabaseClient, dateipfad: string): Promise<string> {
+    const { data: bodyBlob, error: downloadError } = await supabase.storage
+        .from('mails')
+        .download(dateipfad);
+
+    if (downloadError || !bodyBlob) {
+        throw new Error('Failed to download email body: ' + ((downloadError as { message?: string })?.message || 'Unknown error'));
+    }
+
+    const arrayBuffer = await bodyBlob.arrayBuffer();
+    // Assuming pako is used, but we see 'import pako from "pako"' at top.
+    // However, if we need to support both gzip and plain text, we might need checking.
+    // But usually body is gzipped if in storage.
+    // Let's try/catch decompression.
+    try {
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const decompressed = pako.ungzip(uint8Array, { to: 'string' });
+        const emailBody = JSON.parse(decompressed);
+        // Return plain text content preferably, or html if plain is missing
+        return emailBody.plain || emailBody.html || JSON.stringify(emailBody);
+    } catch (e: unknown) {
+        // If it fails, maybe it wasn't gzipped or was just text?
+        // But RMS implementation always gzips using pako.
+        throw new Error('Failed to decompress email body: ' + String(e));
+    }
+}
+
+// Helper for exponential backoff delay
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Retry wrapper for rate-limited API calls
+async function withRetry<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelayMs: number = 2000
+): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error: unknown) {
+            const err = error as { message?: string; status?: number };
+            lastError = error as Error;
+
+            // Check if it's a rate limit error (429)
+            const isRateLimit = err?.message?.includes('429') ||
+                err?.message?.includes('RESOURCE_EXHAUSTED') ||
+                err?.status === 429;
+
+            if (isRateLimit && attempt < maxRetries) {
+                const delay = baseDelayMs * Math.pow(2, attempt); // Exponential backoff: 2s, 4s, 8s
+                console.log(`Rate limited. Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
+                await sleep(delay);
+            } else {
+                throw error;
+            }
+        }
+    }
+
+    throw lastError as Error;
+}
+
+async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
+    result: unknown;
+    prompt: string;
+    usage: { model: string; inputTokens?: number; outputTokens?: number; totalTokens?: number; latencyMs: number; };
+}> {
+    const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+    const model = 'gemini-2.5-flash-lite'; // Latest high-speed, cost-efficient model for batch tasks
+    const startTime = Date.now();
+    // Using a more lightweight model strictly for JSON extraction if possible, 
+    // but gemini-1.5-flash is good. 'models/gemini-2.5-flash-lite' was used in existing code.
+    // Let's stick to that.
+
+    const schema = `
+    {
+      "personalInfo": {
+        "salutation": "string (Herr/Frau/Divers)",
+        "firstName": "string",
+        "lastName": "string",
+        "email": "string",
+        "phone": "string",
+        "address": { "street": "string", "city": "string", "zip": "string" },
+        "dateOfBirth": "string (ISO)",
+        "nationality": "string"
+      },
+      "financials": {
+        "status": "string (employed/self-employed/unemployed/student/pensioner/other/unknown)",
+        "employer": "string",
+        "profession": "string",
+        "netIncome": "number",
+        "hasSchufa": "boolean",
+        "schufaScore": "string"
+      },
+      "household": {
+        "personCount": "number",
+        "childrenCount": "number",
+        "pets": "boolean",
+        "petsDescription": "string",
+        "smoker": "boolean",
+        "instruments": "boolean",
+        "instrumentDetails": "string"
+      },
+      "application": {
+        "desiredMoveInDate": "string (ISO)",
+        "reasonForMoving": "string",
+        "messageSummary": "string",
+        "sentiment": "string (positive/neutral/negative/urgent)",
+        "completenessScore": "number (0-100)"
+      },
+      "redFlags": ["string"],
+      "missingInformation": ["string"]
+    }
+    `;
+
+    const prompt = `
+    Analyze the following email application for a rental property and extract the data into the requested JSON format.
+    Return ONLY valid JSON.
+
+    Email Content (delimited by ---):
+    ---
+    ${emailContent.substring(0, 30000)}
+    ---
+
+    Output Schema:
+    ${schema}
+    `;
+
+    const apiResult = await (client.models.generateContent as unknown as (params: unknown) => Promise<unknown>)({
+        model: model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+    });
+
+    const latencyMs = Date.now() - startTime;
+    const typedResult = apiResult as unknown as {
+        usageMetadata?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number };
+        usage?: { promptTokenCount?: number; input_tokens?: number; candidatesTokenCount?: number; output_tokens?: number; totalTokenCount?: number; total_tokens?: number };
+        text?: string | (() => string);
+        response?: { text?: string | (() => string) };
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const usageMetadata = typedResult.usageMetadata || typedResult.usage || {};
+
+    // Check if result has text directly or via response
+    // Based on lint error: 'Property response does not exist on type GenerateContentResponse'
+    // For @google/genai SDK v1.x+, result has .text as a getter property (not a method)
+    // Access as property, not function call
+
+    let responseText: string;
+
+    if (typeof typedResult.text === 'string') {
+
+        // Direct .text property (v1.x SDK)
+
+        responseText = typedResult.text;
+
+    } else if (typeof typedResult.text === 'function') {
+
+        // .text() method (older SDK versions)
+
+        responseText = typedResult.text();
+
+    } else if (typedResult.response?.text) {
+
+        // Nested response structure
+
+        responseText = typeof typedResult.response.text === 'function'
+
+            ? typedResult.response.text()
+
+            : typedResult.response.text;
+
+    } else if (typedResult.candidates?.[0]?.content?.parts?.[0]?.text) {
+
+        // Raw candidate structure
+
+        responseText = typedResult.candidates[0].content.parts[0].text;
+
+    } else {
+        responseText = JSON.stringify(apiResult);
+    }
+
+    // Parse the JSON result
+    let parsedResult;
+    try {
+        parsedResult = JSON.parse(responseText);
+    } catch (e) {
+        // Fallback to regex if direct parse fails (maybe markdown code blocks)
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            try {
+                parsedResult = JSON.parse(jsonMatch[0]);
+            } catch (e2: unknown) {
+                throw new Error(`Failed to parse JSON: ${(e2 as Error).message}`);
+            }
+        } else {
+            throw new Error(`Failed to extract JSON from AI response: ${responseText}`);
+        }
+    }
+
+    return {
+        result: parsedResult,
+        prompt,
+        usage: {
+            model,
+            inputTokens: usageMetadata.promptTokenCount || usageMetadata.input_tokens,
+            outputTokens: usageMetadata.candidatesTokenCount || usageMetadata.output_tokens,
+            totalTokens: usageMetadata.totalTokenCount || usageMetadata.total_tokens,
+            latencyMs
+        }
+    };
+}
+
+
+export async function processQueue(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Auth Check
+    const authHeader = request.headers.get('x-worker-auth');
+    if (env.WORKER_AUTH_KEY && authHeader !== env.WORKER_AUTH_KEY) {
+        return new Response('Unauthorized', { status: 401 });
+    }
+
+    const logger = new WorkerLogger(env, ctx);
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    // Get user_id from body if available for ownership tracking
+    let userIdForTracking = 'system';
+    try {
+        const clonedReq = request.clone();
+        const body = await clonedReq.json() as { user_id?: string };
+        if (body.user_id) userIdForTracking = body.user_id;
+    } catch (e) {
+        // Ignore parsing errors for requests without a body
+    }
+
+    // PostHog instance holder
+    let posthog: PostHog | null = null;
+
+    try {
+        // 1. Read from Queue
+        // vt: 60 seconds visibility timeout
+        const { data: messages, error: readError } = await supabase.rpc('pgmq_read', {
+            queue_name: 'applicant_ai_processing',
+            vt: 60,
+            qty: 1
+        });
+
+        if (readError) {
+            logger.error('PGMQ Read Error', { error: readError.message });
+            logger.flush();
+            return new Response('Queue Read Error', { status: 500 });
+        }
+
+        if (!messages || messages.length === 0) {
+            // Queue is empty, stop the chain
+            logger.info('Queue Empty', {});
+            logger.flush();
+            return new Response(JSON.stringify({ status: 'done', message: 'Queue empty', hasMore: false }), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        // Initialize PostHog only if we have work
+        if (env.POSTHOG_API_KEY) {
+            posthog = new PostHog(env.POSTHOG_API_KEY, {
+                host: env.POSTHOG_HOST || 'https://eu.i.posthog.com',
+                flushAt: 1,
+                flushInterval: 0,
+            });
+        }
+
+        const task = messages[0] as QueueTask;
+        const msgId = task.msg_id;
+        const { mail_id, user_id } = task.message;
+        let { dateipfad } = task.message;
+
+        // Use user_id from task if available
+        if (user_id) userIdForTracking = user_id;
+
+        logger.info('Processing Queue Item', { msgId, mailId: mail_id });
+
+        // 2. Fetch dateipfad from Mail_Metadaten if not provided
+        if (!dateipfad && mail_id) {
+            const { data: mailData, error: mailError } = await supabase
+                .from('Mail_Metadaten')
+                .select('dateipfad')
+                .eq('id', mail_id)
+                .single();
+
+            if (mailError) {
+                logger.error('Failed to fetch mail metadata', { mailId: mail_id, error: mailError.message });
+            } else if (mailData?.dateipfad) {
+                dateipfad = mailData.dateipfad;
+                logger.info('Fetched dateipfad from DB', { mailId: mail_id, dateipfad });
+            }
+        }
+
+        // 3. Process Item
+        let aiResult = null;
+        let aiScore = null;
+
+        if (dateipfad) {
+            try {
+                // Download & AI with retry for rate limits
+                const emailContent = await downloadAndDecompressEmail(supabase, dateipfad);
+                const aiResponse = await withRetry(() => analyzeApplicantWithAI(env, emailContent));
+                aiResult = aiResponse.result;
+                aiScore = (aiResult as { application?: { completenessScore?: number } }).application?.completenessScore || null;
+
+                // Log LLM generation to PostHog for LLM Analytics dashboard
+                if (posthog) {
+                    const traceId = crypto.randomUUID();
+                    await posthog.capture({
+                        distinctId: userIdForTracking, // Use the actual user if provided
+                        event: '$ai_generation',
+                        properties: {
+                            $ai_trace_id: traceId,
+                            $ai_span_name: 'applicant_analysis',
+                            $ai_model: aiResponse.usage.model,
+                            $ai_provider: 'google',
+                            $ai_input: [{ role: 'user', content: aiResponse.prompt }],
+                            $ai_input_tokens: aiResponse.usage.inputTokens || 0,
+                            $ai_output_choices: [{ role: 'assistant', content: JSON.stringify(aiResult).substring(0, 1000) }],
+                            $ai_output_tokens: aiResponse.usage.outputTokens || 0,
+                            $ai_latency: aiResponse.usage.latencyMs / 1000,
+                            // User visibility
+                            user_id: userIdForTracking,
+                            mail_id: mail_id,
+                            completeness_score: aiScore || 0,
+                        }
+                    });
+                    // Shutdown is handled at the end of function
+                }
+
+                logger.info('LLM Analysis Complete', {
+                    model: aiResponse.usage.model,
+                    latencyMs: aiResponse.usage.latencyMs,
+                    mailId: mail_id,
+                    score: aiScore || 0
+                });
+
+                // Update DB with Top-Level fields for easier access/sorting
+                const updates: Record<string, unknown> = {
+                    bewerbung_metadaten: aiResult,
+                    bewerbung_score: aiScore
+                };
+
+                const personalInfo = (aiResult as { personalInfo?: Record<string, string> })?.personalInfo;
+                if (personalInfo) {
+                    if (personalInfo.firstName || personalInfo.lastName) {
+                        updates.name = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
+                    }
+                    if (personalInfo.email) {
+                        updates.email = personalInfo.email;
+                    }
+                    if (personalInfo.phone) {
+                        updates.telefonnummer = personalInfo.phone;
+                    }
+                }
+
+                const { error: updateError } = await supabase
+                    .from('Mieter')
+                    .update(updates)
+                    .eq('bewerbung_mail_id', mail_id);
+
+                if (updateError) throw updateError;
+
+            } catch (processError: unknown) {
+                logger.error('Processing Failed', { msgId, error: (processError as Error).message });
+                // By re-throwing the error, we prevent the message from being deleted,
+                // allowing it to be retried later after the visibility timeout.
+                // For a more advanced system, consider a dead-letter queue after N retries.
+                throw processError;
+            }
+        } else {
+            logger.warn('No dateipfad available for task', { msgId, mailId: mail_id });
+        }
+
+        // 3. Delete from Queue
+        await supabase.rpc('pgmq_delete', {
+            queue_name: 'applicant_ai_processing',
+            msg_id: msgId
+        });
+
+        logger.info('Queue Item Processed', { msgId });
+        logger.flush();
+
+        if (posthog) {
+            await posthog.shutdown();
+        }
+
+        // Return hasMore: true so client can trigger next processing.
+        // The next call will return hasMore: false if the queue is actually empty.
+        return new Response(JSON.stringify({
+            status: 'processed',
+            msgId,
+            hasMore: true
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (e: unknown) {
+        logger.error('Queue Handler Error', { error: (e as Error).message });
+        logger.flush();
+        if (posthog) {
+            await posthog.shutdown();
+        }
+        return new Response(JSON.stringify({ error: (e as Error).message, hasMore: false }), { status: 500 });
+    }
+}
+
+// --- File Generation Logic ---
+
+export async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const logger = new WorkerLogger(env, ctx);
+    let body: {
+        type?: string;
+        template?: string;
+        data?: unknown;
+        filename?: string;
+    } = {};
+
+    try {
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+            const clonedReq = request.clone();
+            body = await clonedReq.json();
+        }
+    } catch (e) {
+        // Ignore JSON parse errors
+    }
+
+    // Only log if we have a body type or it's not a simple health check
+    if (body?.type) {
+        logger.info('Worker request received', {
+            type: body?.type,
+            template: body?.template,
+            filename: body?.filename,
+            path: new URL(request.url).pathname
+        });
+    }
+
+    const { type, template, data, filename } = body;
+    const startTime = Date.now();
+    let totalPages = 0;
+
+    if (type === 'csv') {
+        const csv = Papa.unparse(data as unknown[] | Record<string, unknown>[]);
+        const endTime = Date.now();
+
+        logger.info('CSV export generated', {
+            filename,
+            durationMs: endTime - startTime
+        });
+        logger.flush();
+
+        return new Response(csv, {
+            headers: {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': `attachment; filename="${filename || 'export.csv'}"`,
+                'X-PDF-Page-Count': '0',
+                'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+            },
+        });
+    }
+
+    if (type === 'zip' && !template) {
+        const zip = new JSZip();
+        if (Array.isArray(data)) {
+            data.forEach((item: { data: unknown; name: string }) => {
+                const csv = Papa.unparse(item.data as unknown[]);
+                zip.file(`${item.name}.csv`, csv);
+            });
+        } else {
+            Object.entries(data as Record<string, unknown>).forEach(([name, content]: [string, unknown]) => {
+                const csv = Papa.unparse(content as unknown[]);
+                zip.file(`${name}.csv`, csv);
+            });
+        }
+        const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
+        const endTime = Date.now();
+
+        logger.info('ZIP export generated', {
+            filename,
+            type: 'csv-zip',
+            durationMs: endTime - startTime
+        });
+        logger.flush();
+
+        return new Response(zipBuffer as unknown as BodyInit, {
+            headers: {
+                'Content-Type': 'application/zip',
+                'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
+                'X-PDF-Page-Count': '0',
+                'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+            }
+        });
+    }
+
+    if (type === 'zip' && template === 'pdf') {
+        const zip = new JSZip();
+        for (const item of (data as { data: SingleTenantPayload; name: string }[])) {
+            const doc = new jsPDF();
+            generateSingleTenantPDF(doc, item.data);
+            totalPages += doc.getNumberOfPages();
+            zip.file(`${item.name}.pdf`, doc.output('arraybuffer'));
+        }
+        const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
+        const endTime = Date.now();
+
+        logger.info('PDF ZIP export generated', {
+            filename,
+            type: 'pdf-zip',
+            pageCount: totalPages,
+            durationMs: endTime - startTime
+        });
+        logger.flush();
+
+        return new Response(zipBuffer as unknown as BodyInit, {
+            headers: {
+                'Content-Type': 'application/zip',
+                'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
+                'X-PDF-Page-Count': totalPages.toString(),
+                'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+            }
+        });
+    }
+
+    if (type === 'pdf') {
+        const doc = new jsPDF();
+        if (template === 'house-overview') {
+            generateHouseOverviewPDF(doc, body as unknown as HouseOverviewPayload);
+        } else {
+            generateSingleTenantPDF(doc, body as unknown as SingleTenantPayload);
+        }
+        totalPages = doc.getNumberOfPages();
+        const pdfBuffer = doc.output('arraybuffer');
+        const endTime = Date.now();
+        logger.info('PDF generated successfully', {
+            type: 'pdf',
+            template: template || 'standard',
+            pageCount: totalPages,
+            durationMs: endTime - startTime
+        });
+        logger.flush();
+
+        return new Response(new Uint8Array(pdfBuffer) as unknown as BodyInit, {
+            headers: {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
+                'X-PDF-Page-Count': totalPages.toString(),
+                'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+            }
+        });
+    }
+
+    // Default 404 if no type matched and path is unknown
+    return new Response(JSON.stringify({ error: 'Not Found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+}
+
+// --- Main Handler ---
+
 export default {
-    async fetch(request: Request, env: any, ctx: any): Promise<Response> {
+    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         const origin = request.headers.get('Origin') || '*';
         const corsHeaders: Record<string, string> = {
             'Access-Control-Allow-Origin': origin,
@@ -384,111 +1223,50 @@ export default {
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Allow-Credentials': 'true',
             'Access-Control-Max-Age': '86400',
+            'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time', // Expose headers for file generation
         };
 
-        if (request.method === 'OPTIONS') {
-            return new Response(null, { headers: corsHeaders });
+        const url = new URL(request.url);
+
+        // Handle CORS preflight requests
+        if (request.method === "OPTIONS") {
+            return new Response(null, {
+                headers: corsHeaders
+            });
         }
 
-        if (request.method !== 'POST') {
-            return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-        }
+        const logger = new WorkerLogger(env, ctx);
 
         try {
-            const body = await request.json() as any;
-            const { type, template, data, filename } = body;
-            const startTime = Date.now();
-            let totalPages = 0;
-
-            if (type === 'csv') {
-                const csv = Papa.unparse(data);
-                const endTime = Date.now();
-                return new Response(csv, {
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': 'text/csv',
-                        'Content-Disposition': `attachment; filename="${filename || 'export.csv'}"`,
-                        'X-PDF-Page-Count': '0',
-                        'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                        'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-                    },
-                });
+            // Route based on URL path first (more robust)
+            let response: Response;
+            if (url.pathname === '/ai') {
+                response = await handleAIRequest(request, env, ctx);
+            } else if (url.pathname === '/process-queue') {
+                response = await processQueue(request, env, ctx);
+            } else {
+                // Fallback to file generation logic (PDF/ZIP/CSV)
+                response = await handleFileGeneration(request, env, ctx);
             }
 
-            if (type === 'zip' && !template) {
-                const zip = new JSZip();
-                if (Array.isArray(data)) {
-                    data.forEach((item: any) => {
-                        const csv = Papa.unparse(item.data);
-                        zip.file(`${item.name}.csv`, csv);
-                    });
-                } else {
-                    Object.entries(data).forEach(([name, content]: [string, any]) => {
-                        const csv = Papa.unparse(content);
-                        zip.file(`${name}.csv`, csv);
-                    });
-                }
-                const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
-                const endTime = Date.now();
-                return new Response(zipBuffer, {
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': 'application/zip',
-                        'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
-                        'X-PDF-Page-Count': '0',
-                        'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                        'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-                    }
-                });
-            }
+            // Append CORS headers to every response
+            const newHeaders = new Headers(response.headers);
+            Object.entries(corsHeaders).forEach(([key, value]) => {
+                newHeaders.set(key, value);
+            });
 
-            if (type === 'zip' && template === 'pdf') {
-                const zip = new JSZip();
-                for (const item of data) {
-                    const doc = new jsPDF();
-                    generateSingleTenantPDF(doc, item.data);
-                    totalPages += doc.getNumberOfPages();
-                    zip.file(`${item.name}.pdf`, doc.output('arraybuffer'));
-                }
-                const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
-                const endTime = Date.now();
-                return new Response(zipBuffer, {
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': 'application/zip',
-                        'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
-                        'X-PDF-Page-Count': totalPages.toString(),
-                        'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                        'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-                    }
-                });
-            }
+            return new Response(response.body, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: newHeaders
+            });
 
-            if (type === 'pdf') {
-                const doc = new jsPDF();
-                if (template === 'house-overview') {
-                    generateHouseOverviewPDF(doc, body);
-                } else {
-                    generateSingleTenantPDF(doc, body);
-                }
-                totalPages = doc.getNumberOfPages();
-                const pdfBuffer = doc.output('arraybuffer');
-                const endTime = Date.now();
-                return new Response(new Uint8Array(pdfBuffer), {
-                    headers: {
-                        ...corsHeaders,
-                        'Content-Type': 'application/pdf',
-                        'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
-                        'X-PDF-Page-Count': totalPages.toString(),
-                        'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                        'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-                    }
-                });
-            }
+        } catch (error: unknown) {
+            // Re-use existing logger instance
+            logger.error('Worker Error', { error: (error as Error).message });
+            logger.flush();
 
-            return new Response('Invalid Request Type', { status: 400, headers: corsHeaders });
-        } catch (error: any) {
-            return new Response(`Error: ${error.message}`, { status: 500, headers: corsHeaders });
+            return new Response(`Error: ${(error as Error).message}`, { status: 500, headers: corsHeaders });
         }
     },
 };

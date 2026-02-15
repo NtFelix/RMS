@@ -24,8 +24,8 @@ interface SearchProps {
   onFallbackToSearch?: () => void;
 }
 
-export function DocumentationSearch({ 
-  onSearch, 
+export function DocumentationSearch({
+  onSearch,
   placeholder = "Dokumentation durchsuchen...",
   className = "",
   isLoading = false,
@@ -38,12 +38,17 @@ export function DocumentationSearch({
   const debouncedQuery = useDebounce(query, 300);
   const inputRef = useRef<HTMLInputElement>(null);
   const { handleError } = useErrorHandler();
-  const isAIDocumentationMode = useFeatureFlagEnabled('ai-documentation-mode');
-  
+  const flagEnabled = useFeatureFlagEnabled('ai-documentation-mode');
+  const [isAIDocumentationMode, setIsAIDocumentationMode] = useState(false);
+
+  useEffect(() => {
+    setIsAIDocumentationMode(!!flagEnabled);
+  }, [flagEnabled]);
+
   // AI Assistant store
-  const { 
-    currentMode, 
-    switchToAI, 
+  const {
+    currentMode,
+    switchToAI,
     switchToSearch
   } = useAIAssistantStore();
 
@@ -105,10 +110,10 @@ export function DocumentationSearch({
           <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center justify-center">
             <Search className={cn(
               "h-6 w-6 transition-colors",
-              isLoading 
-                ? 'text-primary animate-pulse' 
-                : query 
-                  ? 'text-primary' 
+              isLoading
+                ? 'text-primary animate-pulse'
+                : query
+                  ? 'text-primary'
                   : 'text-muted-foreground'
             )} />
           </div>
@@ -165,7 +170,7 @@ export function DocumentationSearch({
             )}
           </div>
         </div>
-        
+
         {/* Subtle glow effect */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/10 via-transparent to-primary/10 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
@@ -209,33 +214,33 @@ export function DocumentationSearch({
           Geben Sie mindestens 3 Zeichen ein für bessere Suchergebnisse.
         </div>
       )}
-      
+
       {/* Search suggestions when empty */}
       {query.length === 0 && !isLoading && (
         <div className="text-center">
           <div className="flex flex-wrap justify-center items-center gap-3 mt-4">
-            <button 
+            <button
               onClick={() => setQuery('Mieter')}
               className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >
               <Users className="h-4 w-4" />
               Mieter
             </button>
-            <button 
+            <button
               onClick={() => setQuery('Betriebskosten')}
               className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >
               <Euro className="h-4 w-4" />
               Betriebskosten
             </button>
-            <button 
+            <button
               onClick={() => setQuery('Wohnung')}
               className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >
               <Home className="h-4 w-4" />
               Wohnung
             </button>
-            <button 
+            <button
               onClick={() => setQuery('Dokumente')}
               className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >

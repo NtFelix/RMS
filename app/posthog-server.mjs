@@ -1,5 +1,13 @@
 import { PostHog } from 'posthog-node'
 
+const dummyPostHog = {
+  capture: () => { },
+  flush: async () => { },
+  on: () => { },
+  identify: () => { },
+  alias: () => { },
+}
+
 let posthogInstance = null
 
 export function getPostHogServer() {
@@ -8,19 +16,29 @@ export function getPostHogServer() {
     const apiHost = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
 
     if (!apiKey) {
+      if (process.env.NODE_ENV === 'test' || process.env.CI === 'true') {
+        // Return a mock object for testing to avoid crashes
+        return dummyPostHog
+      }
       console.warn('[PostHog Server] No API key found. Events will not be captured.')
     }
 
-    posthogInstance = new PostHog(apiKey, {
-      host: apiHost,
-      flushAt: 1,
-      flushInterval: 0
-    })
+    try {
+      posthogInstance = new PostHog(apiKey || 'dummy-key', {
+        host: apiHost,
+        flushAt: 1,
+        flushInterval: 0
+      })
 
-    // Add error handler
-    posthogInstance.on('error', (err) => {
-      console.error('[PostHog Server] Error:', err)
-    })
+      // Add error handler
+      posthogInstance.on('error', (err) => {
+        console.error('[PostHog Server] Error:', err)
+      })
+    } catch (e) {
+      console.error('[PostHog Server] Initialization failed:', e)
+      // Fallback to dummy
+      return dummyPostHog
+    }
   }
   return posthogInstance
 }
