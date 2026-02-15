@@ -232,7 +232,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
             </div>
 
             {/* --- WORKSPACE CONTENT --- */}
-            <div className="relative rounded-2xl overflow-hidden bg-background border border-border/50 w-full min-h-[600px] sm:min-h-0 aspect-[9/16] sm:aspect-[2/1] shadow-inner flex">
+            <div className="relative rounded-2xl overflow-hidden bg-background border border-border/50 w-full h-[70vh] max-h-[600px] sm:h-auto sm:max-h-none sm:aspect-[2/1] shadow-inner flex">
 
               {/* STAGE 1: INPUT COST (Belege) */}
               <AnimatePresence mode="wait">
