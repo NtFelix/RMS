@@ -323,7 +323,8 @@ export function OperatingCostsOverviewModal({
                     ))}
                     {/* Total Row */}
                     <TableRow className="bg-muted/50 font-semibold">
-                      <TableCell colSpan={2} className="text-right pr-4">Summe Betriebskosten (exkl. Zähler)</TableCell>
+                      <TableCell className="text-center font-medium text-muted-foreground"></TableCell>
+                      <TableCell className="font-semibold">Summe Betriebskosten (exkl. Zähler)</TableCell>
                       <TableCell className="text-right text-base">
                         {formatCurrency(totalOperatingCosts)}
                       </TableCell>
