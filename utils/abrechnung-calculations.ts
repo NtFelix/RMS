@@ -265,12 +265,12 @@ export function calculatePrepayments(
     if (monthOccupancy.occupancyDays > 0 && tenant.nebenkosten && Array.isArray(tenant.nebenkosten)) {
       // Find applicable prepayment for this month
       // We look for the latest prepayment entry that is valid before or during this month
-      const applicableNK = [...(tenant.nebenkosten as any[])]
-        .filter(n => new Date(n.date) <= monthEnd)
+      const applicableNK = [...(tenant.nebenkosten || [])]
+        .filter(n => n.date && new Date(n.date) <= monthEnd)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
       if (applicableNK) {
-        monthlyAmount = (applicableNK.amount || 0) * monthOccupancy.occupancyRatio;
+        monthlyAmount = (Number(applicableNK.amount) || 0) * monthOccupancy.occupancyRatio;
       }
     }
 

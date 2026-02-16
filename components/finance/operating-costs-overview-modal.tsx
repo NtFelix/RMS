@@ -44,6 +44,12 @@ export function OperatingCostsOverviewModal({
         .then(res => {
           if (res.success && res.data) {
             setAbrechnungData(res.data)
+          } else {
+            toast({
+              title: "Fehler beim Laden der Abrechnungsdaten",
+              description: res.message || "Die Zusammenfassungsdaten konnten nicht geladen werden.",
+              variant: "destructive",
+            });
           }
         })
         .finally(() => {
@@ -165,6 +171,9 @@ export function OperatingCostsOverviewModal({
     );
   }, [abrechnungData, nebenkosten]);
 
+  const totalBalance = totalCosts - (summaryTotals?.totalVorauszahlungen || 0);
+  const isNachzahlung = totalBalance >= 0;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-4xl md:max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -204,12 +213,12 @@ export function OperatingCostsOverviewModal({
                     <Skeleton className="h-12 w-32 mx-auto rounded-lg" />
                   ) : (
                     <div className="flex flex-col items-center">
-                      <div className={`text-4xl font-bold tracking-tight ${(totalCosts - (summaryTotals?.totalVorauszahlungen || 0)) >= 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                        {formatCurrency(totalCosts - (summaryTotals?.totalVorauszahlungen || 0))}
+                      <div className={`text-4xl font-bold tracking-tight ${isNachzahlung ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                        {formatCurrency(totalBalance)}
                       </div>
-                      <div className={`flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-medium ${(totalCosts - (summaryTotals?.totalVorauszahlungen || 0)) >= 0 ? "bg-red-100 text-red-700 dark:bg-red-900/30" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30"}`}>
-                        {(totalCosts - (summaryTotals?.totalVorauszahlungen || 0)) >= 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
-                        {(totalCosts - (summaryTotals?.totalVorauszahlungen || 0)) >= 0 ? "Nachzahlung" : "Guthaben"}
+                      <div className={`flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-medium ${isNachzahlung ? "bg-red-100 text-red-700 dark:bg-red-900/30" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30"}`}>
+                        {isNachzahlung ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+                        {isNachzahlung ? "Nachzahlung" : "Guthaben"}
                       </div>
                     </div>
                   )}
