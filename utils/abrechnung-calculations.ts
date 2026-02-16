@@ -171,19 +171,21 @@ export function calculateMeterCostDistribution(
   meters: WasserZaehler[],
   readings: WasserAblesung[]
 ): MeterCostBreakdown {
-  // Get meter costs from zaehlerkosten JSONB (sum all meter-related types)
+  // Pass per-type costs and consumption to the calculation function
+  // This ensures each meter type gets its own price per unit
+  const zaehlerkosten = nebenkosten.zaehlerkosten || {};
+  const zaehlerverbrauch = nebenkosten.zaehlerverbrauch || {};
   const totalBuildingMeterCost = sumZaehlerValues(nebenkosten.zaehlerkosten);
-  // Get water consumption from zaehlerverbrauch JSONB (sum all water-related types)
   const totalBuildingConsumption = sumZaehlerValues(nebenkosten.zaehlerverbrauch);
 
-  // Use the new calculation system with official building consumption
+  // Use the new per-type calculation system
   const tenantMeterCost = getTenantMeterCost(
     tenant.id,
     allTenants,
     meters,
     readings,
-    totalBuildingMeterCost,
-    totalBuildingConsumption,
+    zaehlerkosten,
+    zaehlerverbrauch,
     nebenkosten.startdatum,
     nebenkosten.enddatum
   );
@@ -258,10 +260,19 @@ export function calculatePrepayments(
       monthEnd.toISOString().split('T')[0]
     );
 
-    // Use tenant's current Nebenkosten prepayment amount
-    // For now, use a default monthly amount since nebenkosten is an array of entries
-    const defaultMonthlyPrepayment = 100; // Default monthly prepayment in EUR
-    const monthlyAmount = defaultMonthlyPrepayment * monthOccupancy.occupancyRatio;
+    // Use tenant's actual Nebenkosten prepayment data
+    let monthlyAmount = 0;
+    if (monthOccupancy.occupancyDays > 0 && tenant.nebenkosten && Array.isArray(tenant.nebenkosten)) {
+      // Find applicable prepayment for this month
+      // We look for the latest prepayment entry that is valid before or during this month
+      const applicableNK = [...(tenant.nebenkosten || [])]
+        .filter(n => n.date && new Date(n.date) <= monthEnd)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+      if (applicableNK) {
+        monthlyAmount = (Number(applicableNK.amount) || 0) * monthOccupancy.occupancyRatio;
+      }
+    }
 
     monthlyPayments.push({
       month: `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`,
@@ -472,5 +483,39 @@ export function calculateCompleteTenantResult(
     prepayments,
     finalSettlement,
     recommendedPrepayment
+  };
+}
+
+/**
+ * Calculate summary totals across all tenants for the operating cost overview
+ */
+export function calculateAbrechnungSummary(
+  tenants: Mieter[],
+  nebenkosten: Nebenkosten,
+  meters: WasserZaehler[],
+  readings: WasserAblesung[]
+) {
+  let totalAbrechnungVolumen = 0;
+  let totalVorauszahlungen = 0;
+
+  tenants.forEach(tenant => {
+    // We can reuse the complete tenant result calculation which encapsulates all logic
+    // (occupancy, operating costs, meter costs, prepayments)
+    const result = calculateCompleteTenantResult(
+      tenant,
+      nebenkosten,
+      tenants,
+      meters,
+      readings
+    );
+
+    totalAbrechnungVolumen += result.totalCosts;
+    totalVorauszahlungen += result.prepayments.totalPrepayments;
+  });
+
+  return {
+    totalAbrechnungVolumen,
+    totalVorauszahlungen,
+    totalBalance: totalAbrechnungVolumen - totalVorauszahlungen
   };
 }

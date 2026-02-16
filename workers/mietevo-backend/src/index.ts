@@ -41,7 +41,7 @@ interface QueueTask {
 }
 
 
-import { formatCurrency, isoToGermanDate, sumZaehlerValues, roundToNearest5 } from './utils';
+import { formatCurrency, isoToGermanDate, roundToNearest5 } from './utils';
 
 // --- PDF Generation Functions (Preserved) ---
 
@@ -225,9 +225,10 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
 
     const tenantWaterShare = tenantData.waterCost?.tenantShare || 0;
     const tenantWaterConsumption = tenantData.waterCost?.consumption || 0;
-    const buildingWaterCost = sumZaehlerValues(nebenkostenItem.zaehlerkosten);
-    const buildingWaterConsumption = sumZaehlerValues(nebenkostenItem.zaehlerverbrauch);
-    const pricePerCubicMeterCalc = buildingWaterConsumption > 0 ? buildingWaterCost / buildingWaterConsumption : 0;
+
+    // Price per unit shown on PDF is the weighted average across all meter types (for display only)
+    // The actual tenant cost (tenantWaterShare) is already calculated per-type upstream
+    const pricePerCubicMeterCalc = tenantWaterConsumption > 0 ? tenantWaterShare / tenantWaterConsumption : 0;
 
     doc.text("Wasserkosten:", col1Start, startY, { align: 'left' });
     doc.text(`${tenantWaterConsumption} m³`, col3Start + 15.65, startY, { align: 'right' });

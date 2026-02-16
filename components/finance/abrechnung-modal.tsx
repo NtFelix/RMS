@@ -28,7 +28,7 @@ import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { getTenantMeterCost } from "@/utils/water-cost-calculations";
 import { useEffect, useState, useMemo, useRef } from "react"; // Import useEffect, useState, useMemo, and useRef
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive } from 'lucide-react'; // Added FileDown and other icon imports
+import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive, Wallet, Coins, Scale } from 'lucide-react'; // Added Wallet, Coins, Scale icons
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -549,16 +549,17 @@ export function AbrechnungModal({
 
       // Calculate total meter costs from zaehlerkosten JSONB (sum all types)
       const totalMeterCost = sumZaehlerValues(zaehlerkosten);
-      const totalMeterConsumption = sumZaehlerValues(zaehlerverbrauch);
 
-      // Use the new generic meter calculation system
+      // Use the per-type meter calculation system (each meter type gets its own price)
+      const safeZaehlerkosten = zaehlerkosten || {};
+      const safeZaehlerverbrauch = zaehlerverbrauch || {};
       const tenantMeterCostData = getTenantMeterCost(
         tenant.id,
         safeTenants,
         meters,
         readings,
-        totalMeterCost,
-        totalMeterConsumption, // Total building consumption from Nebenkosten
+        safeZaehlerkosten,
+        safeZaehlerverbrauch,
         itemStartdatum || startdatum,
         itemEnddatum || enddatum
       );
@@ -626,6 +627,20 @@ export function AbrechnungModal({
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
   }, [isOpen, tenants, selectedTenantId, loadAllRelevantTenants, calculateCostsForTenant, pricePerCubicMeter]);
+
+  // Calculate summary totals across all tenants when all data is loaded
+  const summaryTotals = useMemo(() => {
+    if (!loadAllRelevantTenants || calculatedTenantData.length === 0 || calculatedTenantData.length < safeTenants.length) {
+      return null;
+    }
+
+    return calculatedTenantData.reduce((acc, tenant) => {
+      acc.totalCosts += tenant.totalTenantCost;
+      acc.totalPrepayments += tenant.vorauszahlungen;
+      acc.totalSettlement += tenant.finalSettlement;
+      return acc;
+    }, { totalCosts: 0, totalPrepayments: 0, totalSettlement: 0 });
+  }, [calculatedTenantData, loadAllRelevantTenants, safeTenants.length]);
 
   // Optimized PDF generation function with worker offloading
   const generateSettlementPDF = async (
@@ -813,6 +828,48 @@ export function AbrechnungModal({
                 Alle relevanten Mieter laden
               </Button>
             </div>
+          </div>
+        )}
+
+        {/* Global Summary Totals */}
+        {summaryTotals && (
+          <div className="mt-6 mb-2 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gesamtvolumen</CardTitle>
+                <Coins className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(summaryTotals.totalCosts)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Summe aller Mieter-Anteile</p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Vorauszahlungen</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(summaryTotals.totalPrepayments)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Geleistete Zahlungen</p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {summaryTotals.totalSettlement >= 0 ? "Nachzahlung" : "Guthaben"}
+                </CardTitle>
+                <Scale className={`h-4 w-4 ${summaryTotals.totalSettlement >= 0 ? "text-red-500" : "text-emerald-500"}`} />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${summaryTotals.totalSettlement >= 0 ? "text-red-600" : "text-emerald-600"}`}>
+                  {formatCurrency(summaryTotals.totalSettlement)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Saldo über alle Mieter</p>
+              </CardContent>
+            </Card>
           </div>
         )}
 
