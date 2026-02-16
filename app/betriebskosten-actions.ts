@@ -1820,6 +1820,7 @@ export async function createAbrechnungCalculationAction(
     includeRecommendations?: boolean;
     validateWaterReadings?: boolean;
     calculateMonthlyBreakdown?: boolean;
+    prepaymentMode?: 'scheduled' | 'actual';
   } = {}
 ): Promise<OptimizedActionResponse<AbrechnungCalculationResult>> {
   "use server";
@@ -1895,6 +1896,43 @@ export async function createAbrechnungCalculationAction(
       };
     }
 
+    // Fetch actual payments if mode is 'actual' or 'ist'
+    let actualPayments: any[] = [];
+    const dbPrepaymentMode = (nebenkosten_data as any).vorauszahlungs_art;
+    const effectivePrepaymentMode = options.prepaymentMode ||
+      (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
+
+    if (effectivePrepaymentMode === 'actual') {
+      const apartmentIds = tenants.map(t => t.wohnung_id).filter((id): id is string => !!id);
+
+      if (apartmentIds.length > 0) {
+        // Find payments tagged with 'prepayment' or 'Vorauszahlung' within the period
+        const { data: finances, error: financeError } = await supabase
+          .from('Finanzen')
+          .select('*')
+          .in('wohnung_id', apartmentIds)
+          .gte('datum', nebenkosten_data.startdatum)
+          .lte('datum', nebenkosten_data.enddatum)
+          .eq('ist_einnahmen', true)
+          .contains('tags', ['prepayment']); // efficiently checks if tags array contains 'prepayment'
+
+        if (financeError) {
+          logger.error('Failed to fetch actual prepayments', financeError, {
+            nebenkostenId,
+            operation: 'fetchActualPrepayments'
+          });
+          // Fallback to scheduled? Or return error?
+          // For now, log and continue with empty actual payments (result might be 0 prepayment)
+        } else {
+          actualPayments = finances || [];
+          logger.info(`Fetched ${actualPayments.length} actual prepayment entries`, {
+            nebenkostenId,
+            mode: 'actual'
+          });
+        }
+      }
+    }
+
     // Calculate costs for each tenant
     const tenantCalculations: TenantCalculationResult[] = [];
 
@@ -1927,8 +1965,9 @@ export async function createAbrechnungCalculationAction(
         const prepayments = calculatePrepayments(
           tenant,
           nebenkosten_data.startdatum,
-          nebenkosten_data.enddatum
-
+          nebenkosten_data.enddatum,
+          actualPayments,
+          effectivePrepaymentMode
         );
 
         // Calculate totals and settlement

@@ -70,6 +70,7 @@ export type Nebenkosten = {
     gesamtFlaeche?: number;
     anzahlWohnungen?: number;
     anzahlMieter?: number;
+    vorauszahlungs_art?: 'soll' | 'ist'; // 'soll' (default) or 'ist' (actual payments)
 };
 
 export type NebenkostenChartData = {
@@ -174,4 +175,5 @@ export type Finanzen = {
     notiz: string | null;
     user_id: string;
     dokument_id: string | null;
+    tags?: string[] | null;
 };

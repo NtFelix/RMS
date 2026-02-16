@@ -183,7 +183,7 @@ describe('abrechnung-calculations', () => {
         enddatum,
         nebenkostenart: ['Test'],
         betrag: [100],
-        wasserkosten: 100
+        zaehlerkosten: { kaltwasser: 100 }
       } as any;
 
       // Case 1: No meters

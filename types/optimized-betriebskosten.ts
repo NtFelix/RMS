@@ -43,6 +43,7 @@ export type OptimizedNebenkosten = {
   gesamtFlaeche?: number;
   anzahlWohnungen?: number;
   anzahlMieter?: number;
+  vorauszahlungs_art?: 'soll' | 'ist';
 };
 
 /**
@@ -317,6 +318,7 @@ export type AbrechnungCalculationResult = {
     includeRecommendations?: boolean;
     validateWaterReadings?: boolean;
     calculateMonthlyBreakdown?: boolean;
+    prepaymentMode?: 'scheduled' | 'actual';
   };
 };
 
@@ -338,6 +340,7 @@ export type AbrechnungCalculationOptions = {
   calculateMonthlyBreakdown?: boolean;
   generatePdfPreview?: boolean;
   saveCalculationResults?: boolean;
+  prepaymentMode?: 'scheduled' | 'actual';
 };
 
 /**
