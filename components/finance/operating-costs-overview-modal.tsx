@@ -17,9 +17,8 @@ import { getAbrechnungModalDataAction } from "@/app/betriebskosten-actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { getTenantMeterCost } from "@/utils/water-cost-calculations"
-import { calculateTenantOccupancy } from "@/utils/date-calculations"
-import { calculateProFlächeDistribution, calculateProMieterDistribution, calculateProWohnungDistribution } from "@/utils/cost-calculations"
+
+import { calculateAbrechnungSummary } from "@/utils/abrechnung-calculations"
 import type { AbrechnungModalData } from "@/types/optimized-betriebskosten"
 import type { Mieter } from "@/lib/types"
 
@@ -152,101 +151,18 @@ export function OperatingCostsOverviewModal({
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
   }, [nebenkosten.startdatum, nebenkosten.enddatum])
 
-  // Calculate summary totals across all tenants
+  // Calculate summary totals using the shared utility function
   const summaryTotals = useMemo(() => {
     if (!abrechnungData || !abrechnungData.tenants || abrechnungData.tenants.length === 0) {
       return null;
     }
 
-    const { tenants, rechnungen, meters, readings } = abrechnungData;
-    const nk = nebenkosten;
-
-    // We need to calculate for each tenant to get the totals
-    // This logic is simplified but follows the main calculation rules
-    let totalAbrechnungVolumen = 0;
-    let totalVorauszahlungen = 0;
-
-    tenants.forEach((tenant: Mieter) => {
-      // 1. Calculate Occupancy
-      const occupancy = calculateTenantOccupancy(tenant, nk.startdatum, nk.enddatum);
-
-      // 2. Calculate Operating Costs (simplified)
-      let tenantOperatingCosts = 0;
-      if (nk.nebenkostenart && nk.betrag && nk.berechnungsart) {
-        for (let i = 0; i < nk.nebenkostenart.length; i++) {
-          const totalCostForItem = nk.betrag[i] || 0;
-          const calculationType = nk.berechnungsart[i] || 'pro Fläche';
-
-          switch (calculationType) {
-            case 'pro Fläche':
-              const flächeDist = calculateProFlächeDistribution(tenants, totalCostForItem, nk.startdatum, nk.enddatum);
-              tenantOperatingCosts += flächeDist[tenant.id]?.amount || 0;
-              break;
-            case 'pro Mieter':
-              const mieterDist = calculateProMieterDistribution(tenants, totalCostForItem, nk.startdatum, nk.enddatum);
-              tenantOperatingCosts += mieterDist[tenant.id]?.amount || 0;
-              break;
-            case 'pro Wohnung':
-              const wohnungDist = calculateProWohnungDistribution(tenants, totalCostForItem, nk.startdatum, nk.enddatum);
-              tenantOperatingCosts += wohnungDist[tenant.id]?.amount || 0;
-              break;
-            default:
-              const defDist = calculateProFlächeDistribution(tenants, totalCostForItem, nk.startdatum, nk.enddatum);
-              tenantOperatingCosts += defDist[tenant.id]?.amount || 0;
-          }
-        }
-      }
-
-      // 3. Calculate Meter Costs (per-type pricing: each meter type gets its own price per unit)
-      const zaehlerkosten = nk.zaehlerkosten || {};
-      const zaehlerverbrauch = nk.zaehlerverbrauch || {};
-      const tenantMeterCostData = getTenantMeterCost(
-        tenant.id, tenants, meters, readings,
-        zaehlerkosten, zaehlerverbrauch,
-        nk.startdatum, nk.enddatum
-      );
-      const tenantMeterCosts = tenantMeterCostData?.costShare || 0;
-
-      // 4. Calculate Vorauszahlungen
-      let tenantVorauszahlungen = 0;
-      if (tenant.nebenkosten && Array.isArray(tenant.nebenkosten)) {
-        // Simplified monthly calculation logic
-        const startDate = new Date(nk.startdatum);
-        const endDate = new Date(nk.enddatum);
-        let curr = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-
-        while (curr <= endDate) {
-          const mStart = new Date(curr.getFullYear(), curr.getMonth(), 1);
-          const mEnd = new Date(curr.getFullYear(), curr.getMonth() + 1, 0);
-
-          const mOccupancy = calculateTenantOccupancy(
-            tenant,
-            mStart.toISOString().split('T')[0],
-            mEnd.toISOString().split('T')[0]
-          );
-
-          if (mOccupancy.occupancyDays > 0) {
-            // Find applicable prepayment
-            const applicableNK = [...(tenant.nebenkosten as any[])]
-              .filter(n => new Date(n.date) <= mEnd)
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-            const amount = applicableNK ? (applicableNK.amount || 0) : 0;
-            tenantVorauszahlungen += amount * mOccupancy.occupancyRatio;
-          }
-          curr.setMonth(curr.getMonth() + 1);
-        }
-      }
-
-      totalAbrechnungVolumen += (tenantOperatingCosts + tenantMeterCosts);
-      totalVorauszahlungen += tenantVorauszahlungen;
-    });
-
-    return {
-      totalAbrechnungVolumen, // This is total costs including meters
-      totalVorauszahlungen,
-      totalBalance: totalAbrechnungVolumen - totalVorauszahlungen
-    };
+    return calculateAbrechnungSummary(
+      abrechnungData.tenants,
+      nebenkosten,
+      abrechnungData.meters,
+      abrechnungData.readings
+    );
   }, [abrechnungData, nebenkosten]);
 
   return (
@@ -400,7 +316,7 @@ export function OperatingCostsOverviewModal({
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground">
                           {nebenkosten.betrag?.[index] && totalArea > 0
-                            ? (nebenkosten.betrag[index]! / totalArea).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            ? <>{formatCurrency(nebenkosten.betrag[index]! / totalArea)}/m²</>
                             : '-'}
                         </TableCell>
                       </TableRow>
