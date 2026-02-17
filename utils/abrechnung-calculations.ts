@@ -269,7 +269,7 @@ export function calculatePrepayments(
       const tenantPayments = actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id);
       const monthPayments = tenantPayments.filter(p => {
         if (!p.datum) return false;
-        const pDate = new Date(p.datum);
+        const pDate = new Date(p.datum + 'T00:00:00Z');
         return pDate >= monthStart && pDate <= monthEnd;
       });
       monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);

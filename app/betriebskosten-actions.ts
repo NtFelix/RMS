@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, MeterReadingFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
+import { Nebenkosten, MeterReadingFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
 import { roundToNearest5 } from "@/lib/utils";
 import { logAction } from '@/lib/logging-middleware';
 
@@ -1430,6 +1430,98 @@ export async function getMeterModalDataAction(
 }
 
 /**
+ * Helper function to fetch actual prepayments for a set of apartments and a date range.
+ * Consolidates the RPC call and the fallback query logic.
+ * 
+ * @param supabase Supabase client instance
+ * @param apartmentIds Array of apartment IDs to fetch payments for
+ * @param startDate Start date of the billing period
+ * @param endDate End date of the billing period
+ * @param nebenkostenId Optional ID for logging purposes
+ * @returns Array of financial entries (Finanzen)
+ */
+async function fetchActualPrepayments(
+  supabase: any,
+  apartmentIds: string[],
+  startDate: string,
+  endDate: string,
+  nebenkostenId?: string
+): Promise<Finanzen[]> {
+  if (!apartmentIds || apartmentIds.length === 0) return [];
+
+  // Primary method: RPC function for optimized fetching
+  const { data: rpcFinances, error: rpcError } = await supabase.rpc('get_actual_prepayments', {
+    p_wohnung_ids: apartmentIds,
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_tags: ['Nebenkosten', 'Vorauszahlung']
+  });
+
+  if (!rpcError && rpcFinances) {
+    logger.info(`Fetched ${rpcFinances.length} actual prepayment entries via RPC`, {
+      nebenkostenId,
+      mode: 'actual'
+    });
+    return rpcFinances as Finanzen[];
+  }
+
+  // Log RPC fallback reason
+  if (rpcError) {
+    logger.warn('RPC fetch failed or function does not exist, falling back to direct query', {
+      errorCode: rpcError.code,
+      message: rpcError.message,
+      nebenkostenId
+    });
+  }
+
+  // Fallback: Direct query using Supabase client
+  // Select only required columns for performance (id, wohnung_id, name, datum, betrag, ist_einnahmen, tags, notiz)
+  const { data: finances, error: financeError } = await supabase
+    .from('Finanzen')
+    .select('id, wohnung_id, name, datum, betrag, ist_einnahmen, tags, notiz')
+    .in('wohnung_id', apartmentIds)
+    .gte('datum', startDate)
+    .lte('datum', endDate)
+    .eq('ist_einnahmen', true);
+
+  if (financeError || !finances) {
+    if (financeError) {
+      logger.error('Failed to fetch actual payments via fallback query', financeError, {
+        nebenkostenId,
+        apartmentIds
+      });
+    }
+    return [];
+  }
+
+  // Enhanced filter for the fallback logic to mirror RPC logic
+  const filteredFinances = (finances as any[]).filter(f => {
+    const nameLower = f.name?.toLowerCase() || '';
+    const notizLower = f.notiz?.toLowerCase() || '';
+    const tags = f.tags || [];
+
+    const isPrepayment =
+      tags.includes('Nebenkosten') || tags.includes('Vorauszahlung') ||
+      nameLower.includes('nebenkosten') || nameLower.includes('vorauszahlung') ||
+      notizLower.includes('nebenkosten') || notizLower.includes('vorauszahlung');
+
+    const isBackPayment =
+      tags.includes('Nachzahlung') ||
+      nameLower.includes('nachzahlung') || nameLower.includes('nachtrag') ||
+      notizLower.includes('nachzahlung') || notizLower.includes('nachtrag');
+
+    return isPrepayment && !isBackPayment;
+  });
+
+  logger.info(`Fetched ${filteredFinances.length} actual prepayment entries (total ${finances.length} income) via fallback`, {
+    nebenkostenId,
+    mode: 'actual'
+  });
+
+  return filteredFinances as Finanzen[];
+}
+
+/**
  * Optimized server action to fetch all Abrechnung modal data in a single database call
  * 
  * **Performance Optimization**: Consolidates multiple data fetching operations into a single 
@@ -1580,52 +1672,13 @@ export async function getAbrechnungModalDataAction(
         const apartmentIds = modalData.tenants.map(t => t.wohnung_id).filter((id): id is string => !!id);
 
         if (apartmentIds.length > 0) {
-          const { data: rpcFinances, error: rpcError } = await supabase.rpc('get_actual_prepayments', {
-            p_wohnung_ids: apartmentIds,
-            p_start_date: modalData.nebenkosten_data.startdatum,
-            p_end_date: modalData.nebenkosten_data.enddatum,
-            p_tags: ['Nebenkosten']
-          });
-
-          if (!rpcError && rpcFinances) {
-            const actualPayments = rpcFinances;
-            modalData.actualPayments = actualPayments;
-            logger.info(`Fetched ${actualPayments.length} actual prepayment entries via RPC for modal`, {
-              nebenkostenId
-            });
-          } else {
-            if (rpcError) {
-              logger.warn('RPC fetch for modal failed, using fallback query', {
-                errorCode: rpcError.code,
-                message: rpcError.message,
-                nebenkostenId
-              });
-            }
-
-            // Fallback: Direct query using Supabase client
-            // We fetch all income for these apartments and filter in JS to be more robust 
-            // against missing tags (checking name as well)
-            const { data: finances, error: financeError } = await supabase
-              .from('Finanzen')
-              .select('*')
-              .in('wohnung_id', apartmentIds)
-              .gte('datum', modalData.nebenkosten_data.startdatum)
-              .lte('datum', modalData.nebenkosten_data.enddatum)
-              .eq('ist_einnahmen', true);
-
-            if (!financeError && finances) {
-              // Filter in JS: tagged as 'Nebenkosten' OR name contains 'Nebenkosten'
-              const filteredFinances = finances.filter(f =>
-                (Array.isArray(f.tags) && f.tags.includes('Nebenkosten')) ||
-                (f.name && f.name.toLowerCase().includes('nebenkosten'))
-              );
-
-              modalData.actualPayments = filteredFinances;
-              logger.info(`Fetched ${filteredFinances.length} actual prepayment entries (total ${finances.length} income) via fallback for modal`, {
-                nebenkostenId
-              });
-            }
-          }
+          modalData.actualPayments = await fetchActualPrepayments(
+            supabase,
+            apartmentIds,
+            modalData.nebenkosten_data.startdatum,
+            modalData.nebenkosten_data.enddatum,
+            nebenkostenId
+          );
         }
       }
 
@@ -1815,6 +1868,17 @@ async function getAbrechnungModalDataFallback(
     readings: waterReadings
   };
 
+  // Fetch actual payments if mode is 'ist'
+  if ((nebenkostenData as any).vorauszahlungs_art === 'ist' && apartmentIds.length > 0) {
+    modalData.actualPayments = await fetchActualPrepayments(
+      supabase,
+      apartmentIds,
+      nebenkostenData.startdatum,
+      nebenkostenData.enddatum,
+      nebenkostenId
+    );
+  }
+
   logger.info('Successfully fetched Abrechnung modal data (fallback)', {
     userId,
     nebenkostenId,
@@ -1975,51 +2039,13 @@ export async function createAbrechnungCalculationAction(
       const apartmentIds = tenants.map(t => t.wohnung_id).filter((id): id is string => !!id);
 
       if (apartmentIds.length > 0) {
-        // Primary method: RPC function for optimized fetching
-        const { data: rpcFinances, error: rpcError } = await supabase.rpc('get_actual_prepayments', {
-          p_wohnung_ids: apartmentIds,
-          p_start_date: nebenkosten_data.startdatum,
-          p_end_date: nebenkosten_data.enddatum,
-          p_tags: ['Nebenkosten']
-        });
-
-        if (!rpcError && rpcFinances) {
-          actualPayments = rpcFinances;
-          logger.info(`Fetched ${actualPayments.length} actual prepayment entries via RPC`, {
-            nebenkostenId,
-            mode: 'actual'
-          });
-        } else {
-          // Log RPC fallback reason
-          if (rpcError) {
-            logger.warn('RPC fetch failed or function does not exist, falling back to direct query', {
-              errorCode: rpcError.code,
-              message: rpcError.message,
-              nebenkostenId
-            });
-          }
-
-          // Fallback: Direct query using Supabase client
-          const { data: finances, error: financeError } = await supabase
-            .from('Finanzen')
-            .select('*')
-            .in('wohnung_id', apartmentIds)
-            .gte('datum', nebenkosten_data.startdatum)
-            .lte('datum', nebenkosten_data.enddatum)
-            .eq('ist_einnahmen', true);
-
-          if (!financeError && finances) {
-            actualPayments = finances.filter(f =>
-              (Array.isArray(f.tags) && (f.tags.includes('Nebenkosten') || f.tags.includes('Vorauszahlung'))) ||
-              (f.name && (f.name.toLowerCase().includes('nebenkosten') || f.name.toLowerCase().includes('vorauszahlung'))) ||
-              (f.notiz && (f.notiz.toLowerCase().includes('nebenkosten') || f.notiz.toLowerCase().includes('vorauszahlung')))
-            );
-            logger.info(`Fetched ${actualPayments.length} actual prepayment entries (total ${finances.length} income) via fallback`, {
-              nebenkostenId,
-              mode: 'actual'
-            });
-          }
-        }
+        actualPayments = await fetchActualPrepayments(
+          supabase,
+          apartmentIds,
+          nebenkosten_data.startdatum,
+          nebenkosten_data.enddatum,
+          nebenkostenId
+        );
       }
     }
 
@@ -2317,46 +2343,13 @@ export async function createAbrechnungCalculationOptimizedAction(
       const apartmentIds = tenants_with_occupancy.map((t: any) => t.wohnung_id).filter((id: any): id is string => !!id);
 
       if (apartmentIds.length > 0) {
-        const { data: rpcFinances, error: rpcError } = await supabase.rpc('get_actual_prepayments', {
-          p_wohnung_ids: apartmentIds,
-          p_start_date: nebenkosten_data.startdatum,
-          p_end_date: nebenkosten_data.enddatum,
-          p_tags: ['Nebenkosten']
-        });
-
-        if (!rpcError && rpcFinances) {
-          actualPayments = rpcFinances;
-          logger.info(`Fetched ${actualPayments.length} actual prepayment entries via RPC (optimized call)`, {
-            nebenkostenId
-          });
-        } else {
-          if (rpcError) {
-            logger.warn('RPC fetch in optimized call failed, using fallback', {
-              errorCode: rpcError.code,
-              message: rpcError.message,
-              nebenkostenId
-            });
-          }
-
-          const { data: finances, error: financeError } = await supabase
-            .from('Finanzen')
-            .select('*')
-            .in('wohnung_id', apartmentIds)
-            .gte('datum', nebenkosten_data.startdatum)
-            .lte('datum', nebenkosten_data.enddatum)
-            .eq('ist_einnahmen', true);
-
-          if (!financeError && finances) {
-            actualPayments = finances.filter(f =>
-              (Array.isArray(f.tags) && (f.tags.includes('Nebenkosten') || f.tags.includes('Vorauszahlung'))) ||
-              (f.name && (f.name.toLowerCase().includes('nebenkosten') || f.name.toLowerCase().includes('vorauszahlung'))) ||
-              (f.notiz && (f.notiz.toLowerCase().includes('nebenkosten') || f.notiz.toLowerCase().includes('vorauszahlung')))
-            );
-            logger.info(`Fetched ${actualPayments.length} actual prepayment entries (total ${finances.length} income) via fallback (optimized call)`, {
-              nebenkostenId
-            });
-          }
-        }
+        actualPayments = await fetchActualPrepayments(
+          supabase,
+          apartmentIds,
+          nebenkosten_data.startdatum,
+          nebenkosten_data.enddatum,
+          nebenkostenId
+        );
       }
     }
 

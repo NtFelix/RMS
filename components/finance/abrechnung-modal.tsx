@@ -459,7 +459,7 @@ export function AbrechnungModal({
               const tenantActualPayments = actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id);
               const monthActualPayments = tenantActualPayments.filter(p => {
                 if (!p.datum) return false;
-                const pDate = new Date(p.datum);
+                const pDate = new Date(p.datum + 'T00:00:00Z');
                 const pYear = pDate.getUTCFullYear();
                 const pMonth = pDate.getUTCMonth();
                 return pYear === currentMonthStart.getUTCFullYear() && pMonth === currentMonthStart.getUTCMonth();
