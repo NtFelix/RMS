@@ -163,11 +163,16 @@ export function OperatingCostsOverviewModal({
       return null;
     }
 
+    const effectiveNK = abrechnungData.nebenkosten_data || nebenkosten;
+    const mode = (effectiveNK as any).vorauszahlungs_art === 'ist' ? 'actual' : 'scheduled';
+
     return calculateAbrechnungSummary(
       abrechnungData.tenants,
-      nebenkosten,
+      effectiveNK,
       abrechnungData.meters,
-      abrechnungData.readings
+      abrechnungData.readings,
+      abrechnungData.actualPayments,
+      mode
     );
   }, [abrechnungData, nebenkosten]);
 

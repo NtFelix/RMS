@@ -201,6 +201,7 @@ interface AbrechnungModalProps {
   readings?: WasserAblesung[]; // Updated to use new generic reading type
   ownerName: string;
   ownerAddress: string;
+  actualPayments?: any[]; // Actual financial entries
 }
 
 export function AbrechnungModal({
@@ -213,6 +214,7 @@ export function AbrechnungModal({
   readings = [], // Default to empty array
   ownerName,
   ownerAddress,
+  actualPayments = [], // Default to empty array
 }: AbrechnungModalProps) {
   const posthog = usePostHog();
   const { toast } = useToast();
@@ -447,6 +449,26 @@ export function AbrechnungModal({
 
           // Apply occupancy proration to the prepayment
           effectivePrepaymentForMonth = basePrepaymentAmount * (monthOccupancy.percentage / 100);
+
+          // OVERRIDE with actual payment if mode is IST
+          const vorauszahlungsArt = (nebenkostenItem as any).vorauszahlungs_art;
+          if (vorauszahlungsArt === 'ist') {
+            // Force exactly what is in actualPayments, even if 0 or empty
+            let totalMonthActual = 0;
+            if (actualPayments && actualPayments.length > 0) {
+              const tenantActualPayments = actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id);
+              const monthActualPayments = tenantActualPayments.filter(p => {
+                if (!p.datum) return false;
+                const pDate = new Date(p.datum);
+                const pYear = pDate.getUTCFullYear();
+                const pMonth = pDate.getUTCMonth();
+                return pYear === currentMonthStart.getUTCFullYear() && pMonth === currentMonthStart.getUTCMonth();
+              });
+              totalMonthActual = monthActualPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
+            }
+            effectivePrepaymentForMonth = totalMonthActual;
+          }
+
           totalVorauszahlungen += effectivePrepaymentForMonth;
         }
 
@@ -600,7 +622,7 @@ export function AbrechnungModal({
         recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
       };
     };
-  }, [nebenkostenItem, wgFactors, rechnungen, meters, readings, totalHouseArea, safeTenants]);
+  }, [nebenkostenItem, wgFactors, rechnungen, meters, readings, actualPayments, totalHouseArea, safeTenants]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {

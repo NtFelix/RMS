@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 // Predefined finance tags organized by category
 export const FINANCE_TAGS = {
     rent: ["Miete", "Kaltmiete", "Warmmiete", "Kaution", "Nachzahlung"],
-    operatingCosts: ["Nebenkosten", "Heizkosten", "Wasserkosten", "Stromkosten", "Müllabfuhr", "Grundsteuer"],
+    operatingCosts: ["Nebenkosten", "Vorauszahlung", "Heizkosten", "Wasserkosten", "Stromkosten", "Müllabfuhr", "Grundsteuer"],
     maintenance: ["Reparatur", "Wartung", "Handwerker", "Renovierung", "Instandhaltung"],
     insurance: ["Versicherung", "Gebäudeversicherung", "Haftpflicht"],
     administration: ["Verwaltung", "Hausverwaltung", "Rechtskosten", "Bankgebühren"],

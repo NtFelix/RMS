@@ -82,6 +82,7 @@ export type AbrechnungModalData = {
   rechnungen: Rechnung[];         // From existing Rechnungen table
   meters: WasserZaehler[];        // From Zaehler table (generic)
   readings: WasserAblesung[];     // From Zaehler_Ablesungen table (generic)
+  actualPayments?: any[];         // Actual financial entries if in IST mode
 };
 
 /**
