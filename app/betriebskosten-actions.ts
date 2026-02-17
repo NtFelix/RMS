@@ -1908,13 +1908,11 @@ export async function createAbrechnungCalculationAction(
       if (apartmentIds.length > 0) {
         // Find payments tagged with 'prepayment' or 'Vorauszahlung' within the period
         const { data: finances, error: financeError } = await supabase
-          .from('Finanzen')
-          .select('*')
-          .in('wohnung_id', apartmentIds)
-          .gte('datum', nebenkosten_data.startdatum)
-          .lte('datum', nebenkosten_data.enddatum)
-          .eq('ist_einnahmen', true)
-          .contains('tags', ['prepayment']); // efficiently checks if tags array contains 'prepayment'
+          .rpc('get_actual_prepayments', {
+            p_apartment_ids: apartmentIds,
+            p_start_date: nebenkosten_data.startdatum,
+            p_end_date: nebenkosten_data.enddatum
+          });
 
         if (financeError) {
           logger.error('Failed to fetch actual prepayments', financeError, {
