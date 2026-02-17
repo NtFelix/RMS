@@ -33,6 +33,11 @@ import {
 } from "./water-cost-calculations";
 
 /**
+ * Fallback prepayment amount used when no payment data is found for an occupied month.
+ */
+export const DEFAULT_MONTHLY_PREPAYMENT_FALLBACK = 100;
+
+/**
  * Calculate occupancy percentage for a tenant during the billing period
  */
 export function calculateOccupancyPercentage(
@@ -288,7 +293,7 @@ export function calculatePrepayments(
 
       // Fallback to default monthly prepayment if no entries found or amount is 0
       if (monthlyAmount === 0 && monthOccupancy.occupancyDays > 0) {
-        monthlyAmount = 100 * monthOccupancy.occupancyRatio;
+        monthlyAmount = DEFAULT_MONTHLY_PREPAYMENT_FALLBACK * monthOccupancy.occupancyRatio;
       }
     }
 

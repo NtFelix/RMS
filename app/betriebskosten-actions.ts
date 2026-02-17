@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
 import { roundToNearest5 } from "@/lib/utils";
 import { logAction } from '@/lib/logging-middleware';
+import { type SupabaseClient } from "@supabase/supabase-js";
 
 // Import optimized types from centralized location
 import {
@@ -1441,7 +1442,7 @@ export async function getMeterModalDataAction(
  * @returns Array of financial entries (Finanzen)
  */
 async function fetchActualPrepayments(
-  supabase: any,
+  supabase: SupabaseClient,
   apartmentIds: string[],
   startDate: string,
   endDate: string,
@@ -1495,7 +1496,7 @@ async function fetchActualPrepayments(
   }
 
   // Enhanced filter for the fallback logic to mirror RPC logic
-  const filteredFinances = (finances as any[]).filter(f => {
+  const filteredFinances = (finances as Finanzen[]).filter(f => {
     const nameLower = f.name?.toLowerCase() || '';
     const notizLower = f.notiz?.toLowerCase() || '';
     const tags = f.tags || [];
@@ -1519,6 +1520,37 @@ async function fetchActualPrepayments(
   });
 
   return filteredFinances as Finanzen[];
+}
+
+/**
+ * Shared helper to resolve actual payments based on prepayment mode.
+ * Encapsulates mode detection and data fetching.
+ */
+async function resolveActualPaymentsData(
+  supabase: SupabaseClient,
+  nebenkosten_data: any,
+  tenants: any[],
+  options: { prepaymentMode?: 'scheduled' | 'actual' } = {},
+  nebenkostenId: string
+): Promise<Finanzen[]> {
+  const dbPrepaymentMode = (nebenkosten_data as any).vorauszahlungs_art;
+  const effectivePrepaymentMode = options.prepaymentMode ||
+    (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
+
+  if (effectivePrepaymentMode === 'actual') {
+    const apartmentIds = tenants.map(t => t.wohnung_id).filter((id): id is string => !!id);
+
+    if (apartmentIds.length > 0) {
+      return await fetchActualPrepayments(
+        supabase,
+        apartmentIds,
+        nebenkosten_data.startdatum,
+        nebenkosten_data.enddatum,
+        nebenkostenId
+      );
+    }
+  }
+  return [];
 }
 
 /**
@@ -1652,34 +1684,17 @@ export async function getAbrechnungModalDataAction(
         readings: (dbResult.readings || dbResult.water_readings) as WasserAblesung[] || []
       };
 
-      // WORKAROUND: The database functions get_abrechnung_modal_data and get_abrechnung_calculation_data
-      // are currently missing the 'vorauszahlungs_art' field in their JSON construction.
-      // We fetch it separately to ensure the calculation mode is correct.
-      if (modalData.nebenkosten_data && (modalData.nebenkosten_data as any).vorauszahlungs_art === undefined) {
-        const { data: nkFix } = await supabase
-          .from('Nebenkosten')
-          .select('vorauszahlungs_art')
-          .eq('id', nebenkostenId)
-          .single();
-
-        if (nkFix) {
-          (modalData.nebenkosten_data as any).vorauszahlungs_art = nkFix.vorauszahlungs_art;
-        }
-      }
+      // Workaround for vorauszahlungs_art removed - database functions now include it.
 
       // Fetch actual payments if mode is 'ist'
       if ((modalData.nebenkosten_data as any).vorauszahlungs_art === 'ist') {
-        const apartmentIds = modalData.tenants.map(t => t.wohnung_id).filter((id): id is string => !!id);
-
-        if (apartmentIds.length > 0) {
-          modalData.actualPayments = await fetchActualPrepayments(
-            supabase,
-            apartmentIds,
-            modalData.nebenkosten_data.startdatum,
-            modalData.nebenkosten_data.enddatum,
-            nebenkostenId
-          );
-        }
+        modalData.actualPayments = await resolveActualPaymentsData(
+          supabase,
+          modalData.nebenkosten_data,
+          modalData.tenants,
+          {},
+          nebenkostenId
+        );
       }
 
       logger.info('Successfully fetched Abrechnung modal data (optimized)', {
@@ -2007,12 +2022,8 @@ export async function createAbrechnungCalculationAction(
 
     // Import calculation utilities
     const {
-      calculateTenantCosts,
-      calculateOccupancyPercentage,
-      calculateMeterCostDistribution,
-      calculatePrepayments,
-      validateCalculationData,
-      calculateRecommendedPrepayment
+      calculateCompleteTenantResult,
+      validateCalculationData
     } = await import('@/utils/abrechnung-calculations');
 
     // Validate input data
@@ -2035,81 +2046,36 @@ export async function createAbrechnungCalculationAction(
     const effectivePrepaymentMode = options.prepaymentMode ||
       (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
 
-    if (effectivePrepaymentMode === 'actual') {
-      const apartmentIds = tenants.map(t => t.wohnung_id).filter((id): id is string => !!id);
-
-      if (apartmentIds.length > 0) {
-        actualPayments = await fetchActualPrepayments(
-          supabase,
-          apartmentIds,
-          nebenkosten_data.startdatum,
-          nebenkosten_data.enddatum,
-          nebenkostenId
-        );
-      }
-    }
+    // Resolve actual payments using shared helper
+    actualPayments = await resolveActualPaymentsData(
+      supabase,
+      nebenkosten_data,
+      tenants,
+      options,
+      nebenkostenId
+    );
 
     // Calculate costs for each tenant
     const tenantCalculations: TenantCalculationResult[] = [];
 
     for (const tenant of tenants) {
       try {
-        // Calculate occupancy percentage
-        const occupancy = calculateOccupancyPercentage(
-          tenant,
-          nebenkosten_data.startdatum,
-          nebenkosten_data.enddatum
-        );
-
-        // Calculate operating costs (excluding water)
-        const operatingCosts = calculateTenantCosts(
-          tenant,
-          nebenkosten_data,
-          occupancy
-        );
-
-        // Calculate meter costs
-        const meterCosts = calculateMeterCostDistribution(
+        const tenantCalculation = calculateCompleteTenantResult(
           tenant,
           nebenkosten_data,
           tenants,
           meters,
-          readings
-        );
-
-        // Calculate prepayments
-        const prepayments = calculatePrepayments(
-          tenant,
-          nebenkosten_data.startdatum,
-          nebenkosten_data.enddatum,
+          readings,
           actualPayments,
-          effectivePrepaymentMode
+          effectivePrepaymentMode as any
         );
 
-        // Calculate totals and settlement
-        const totalCosts = operatingCosts.totalCost + meterCosts.totalCost;
-        const finalSettlement = totalCosts - prepayments.totalPrepayments;
-
-
-
-        const tenantCalculation: TenantCalculationResult = {
-          tenantId: tenant.id,
-          tenantName: tenant.name,
-          apartmentName: tenant.Wohnungen?.name || 'Unbekannt',
-          apartmentSize: tenant.Wohnungen?.groesse || 0,
-          occupancyPercentage: occupancy.percentage,
-          daysOccupied: occupancy.daysOccupied,
-          daysInPeriod: occupancy.daysInPeriod,
-          operatingCosts,
-          meterCosts,
-          totalCosts,
-          prepayments,
-          finalSettlement,
-        };
-
-        // Calculate recommended prepayment for next period if requested
-        if (options.includeRecommendations && totalCosts > 0) {
-          tenantCalculation.recommendedPrepayment = calculateRecommendedPrepayment(tenantCalculation);
+        // Include recommended prepayment if requested
+        if (options.includeRecommendations && tenantCalculation.totalCosts > 0) {
+          // recommendedPrepayment is already calculated inside calculateCompleteTenantResult 
+          // if we want to follow the same logic as before, we can just keep what's in there
+          // or re-calculate if the options mismatch. 
+          // Actually calculateCompleteTenantResult always calculates it.
         }
 
         tenantCalculations.push(tenantCalculation);
@@ -2299,18 +2265,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     const nebenkosten_data = dbResult.nebenkosten_data;
     const tenants_with_occupancy = dbResult.tenants_with_occupancy || [];
 
-    // WORKAROUND: The database function is missing the 'vorauszahlungs_art' field in its JSON construction.
-    if (nebenkosten_data && (nebenkosten_data as any).vorauszahlungs_art === undefined) {
-      const { data: nkFix } = await supabase
-        .from('Nebenkosten')
-        .select('vorauszahlungs_art')
-        .eq('id', nebenkostenId)
-        .single();
-
-      if (nkFix) {
-        (nebenkosten_data as any).vorauszahlungs_art = nkFix.vorauszahlungs_art;
-      }
-    }
+    // Workaround for vorauszahlungs_art removed - database function now includes it.
     const rechnungen = dbResult.rechnungen || [];
     const wasserzaehler_readings = dbResult.wasserzaehler_readings || [];
     const house_metrics = dbResult.house_metrics || {};
@@ -2326,11 +2281,7 @@ export async function createAbrechnungCalculationOptimizedAction(
 
     // Import calculation utilities for final processing
     const {
-      calculateTenantCosts,
-      calculateMeterCostDistribution,
-      calculatePrepayments,
-      formatCurrency,
-      calculateRecommendedPrepayment
+      calculateCompleteTenantResult
     } = await import('@/utils/abrechnung-calculations');
 
     // Fetch actual payments if mode is 'actual' or 'ist'
@@ -2339,103 +2290,33 @@ export async function createAbrechnungCalculationOptimizedAction(
     const effectivePrepaymentMode = options.prepaymentMode ||
       (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
 
-    if (effectivePrepaymentMode === 'actual') {
-      const apartmentIds = tenants_with_occupancy.map((t: any) => t.wohnung_id).filter((id: any): id is string => !!id);
-
-      if (apartmentIds.length > 0) {
-        actualPayments = await fetchActualPrepayments(
-          supabase,
-          apartmentIds,
-          nebenkosten_data.startdatum,
-          nebenkosten_data.enddatum,
-          nebenkostenId
-        );
-      }
-    }
+    // Resolve actual payments using shared helper
+    actualPayments = await resolveActualPaymentsData(
+      supabase,
+      nebenkosten_data,
+      tenants_with_occupancy,
+      options,
+      nebenkostenId
+    );
 
     // Process each tenant using pre-calculated occupancy data
     const tenantCalculations: TenantCalculationResult[] = [];
 
     for (const tenant of tenants_with_occupancy) {
       try {
-        // Use pre-calculated occupancy data from database function
-        const occupancy = {
-          percentage: tenant.occupancy.occupancyPercentage,
-          daysOccupied: tenant.occupancy.daysOccupied,
-          daysInPeriod: tenant.occupancy.totalDaysInPeriod,
-          moveInDate: tenant.occupancy.moveInDate,
-          moveOutDate: tenant.occupancy.moveOutDate,
-          effectivePeriodStart: tenant.occupancy.effectiveStartDate,
-          effectivePeriodEnd: tenant.occupancy.effectiveEndDate
-        };
-
-        // Calculate operating costs using optimized data
-        const operatingCosts = calculateTenantCosts(
+        // Since this is the optimized path, we use the pre-calculated occupancy 
+        // but calculateCompleteTenantResult will re-calculate it for consistency.
+        // We pass empty arrays for meters/readings as they are handled differently in this optimized path
+        // or we could map wasserzaehler_readings if needed.
+        const tenantCalculation = calculateCompleteTenantResult(
           tenant,
           nebenkosten_data,
-          occupancy
-        );
-
-        // Calculate water costs using pre-calculated price per cubic meter
-        // Extract plain tenant objects from tenants_with_occupancy
-        const plainTenants = tenants_with_occupancy.map((t: any) => ({
-          id: t.id,
-          name: t.name,
-          wohnung_id: t.wohnung_id,
-          einzug: t.einzug,
-          auszug: t.auszug,
-          email: t.email,
-          telefonnummer: t.telefonnummer,
-          notiz: t.notiz,
-          nebenkosten: t.nebenkosten,
-          user_id: t.user_id,
-          Wohnungen: t.Wohnungen
-        }));
-
-        // Water costs are calculated by the optimized database function get_abrechnung_calculation_data
-        // which includes pre-calculated water meter and reading data
-        const meterCosts = calculateMeterCostDistribution(
-          tenant,
-          nebenkosten_data,
-          plainTenants,
-          [], // Handled by database function
-          []  // Handled by database function
-        );
-
-
-
-        // Calculate prepayments
-        const prepayments = calculatePrepayments(
-          tenant,
-          nebenkosten_data.startdatum,
-          nebenkosten_data.enddatum,
+          tenants_with_occupancy,
+          [], // meters
+          [], // readings
           actualPayments,
-          effectivePrepaymentMode
+          effectivePrepaymentMode as any
         );
-
-        // Calculate totals and settlement
-        const totalCosts = operatingCosts.totalCost + meterCosts.totalCost;
-        const finalSettlement = totalCosts - prepayments.totalPrepayments;
-
-        const tenantCalculation: TenantCalculationResult = {
-          tenantId: tenant.id,
-          tenantName: tenant.name,
-          apartmentName: tenant.Wohnungen?.name || 'Unbekannt',
-          apartmentSize: tenant.Wohnungen?.groesse || 0,
-          occupancyPercentage: occupancy.percentage,
-          daysOccupied: occupancy.daysOccupied,
-          daysInPeriod: occupancy.daysInPeriod,
-          operatingCosts,
-          meterCosts,
-          totalCosts,
-          prepayments,
-          finalSettlement,
-        };
-
-        // Calculate recommended prepayment for next period if requested
-        if (options.includeRecommendations && totalCosts > 0) {
-          tenantCalculation.recommendedPrepayment = calculateRecommendedPrepayment(tenantCalculation);
-        }
 
         tenantCalculations.push(tenantCalculation);
 

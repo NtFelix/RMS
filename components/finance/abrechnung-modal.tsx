@@ -53,7 +53,7 @@ import { isoToGermanDate } from "@/utils/date-calculations"; // New import for n
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
-import { calculateRecommendedPrepayment } from "@/utils/abrechnung-calculations";
+import { calculateCompleteTenantResult, DEFAULT_MONTHLY_PREPAYMENT_FALLBACK } from "@/utils/abrechnung-calculations";
 import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
 
 
@@ -361,268 +361,57 @@ export function AbrechnungModal({
     const startdatum = nebenkostenItem.startdatum || '';
     const enddatum = nebenkostenItem.enddatum || '';
 
-    return (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
-      const {
-        id: nebenkostenItemId,
-        startdatum: itemStartdatum,
-        enddatum: itemEnddatum,
-        nebenkostenart,
-        betrag,
-        berechnungsart,
-        zaehlerkosten, // JSONB: meter costs by type
-        zaehlerverbrauch, // JSONB: meter usage by type
-        gesamtFlaeche,
-      } = nebenkostenItem!;
+    return (tenant: Mieter, _pricePerCubicMeter: number): TenantCostDetails => {
+      const prepaymentMode = (nebenkostenItem as any).vorauszahlungs_art === 'ist' ? 'actual' : 'scheduled';
 
-      // 1. Call calculateOccupancy
-      const { percentage: occupancyPercentage, daysOccupied, daysInPeriod: daysInBillingPeriod } = calculateOccupancy(
-        tenant.einzug,
-        tenant.auszug,
-        itemStartdatum || startdatum,
-        itemEnddatum || enddatum
-      );
-
-      // (Vorauszahlungen logic remains here - no changes needed for it based on current plan)
-      let totalVorauszahlungen = 0;
-      const monthlyVorauszahlungenDetails: MonthlyVorauszahlung[] = [];
-      const prepaymentSchedule: Array<{ date: Date; amount: number }> = [];
-      if (Array.isArray(tenant.nebenkosten)) {
-        tenant.nebenkosten.forEach((entry) => {
-          if (typeof entry.date === 'string' && typeof entry.amount === 'string') {
-            const amountNum = parseFloat(entry.amount);
-            const dateObj = new Date(entry.date);
-            if (!isNaN(dateObj.getTime()) && !isNaN(amountNum)) {
-              prepaymentSchedule.push({ date: dateObj, amount: amountNum });
-            }
-          }
-        });
-        prepaymentSchedule.sort((a, b) => a.date.getTime() - b.date.getTime());
-      }
-
-      const einzugDate = tenant.einzug ? new Date(tenant.einzug) : null;
-      const auszugDate = tenant.auszug ? new Date(tenant.auszug) : null;
-
-      // Calculate prepayments for the actual billing period
-      const billingStart = new Date(itemStartdatum || startdatum);
-      const billingEnd = new Date(itemEnddatum || enddatum);
-
-      // Generate months within the billing period
-      const currentDate = new Date(Date.UTC(billingStart.getUTCFullYear(), billingStart.getUTCMonth(), 1));
-
-      while (currentDate <= billingEnd) {
-        const currentMonthStart = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
-        const currentMonthEnd = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0));
-        const monthName = GERMAN_MONTHS[currentDate.getUTCMonth()];
-
-        let effectivePrepaymentForMonth = 0;
-        const isActiveThisMonth = !!(
-          einzugDate && !isNaN(einzugDate.getTime()) &&
-          einzugDate <= currentMonthEnd &&
-          (!auszugDate || isNaN(auszugDate.getTime()) || auszugDate >= currentMonthStart)
-        );
-
-        if (isActiveThisMonth) {
-          // Find the base prepayment amount for this month
-          let basePrepaymentAmount = 0;
-          for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
-            // Check if this prepayment entry's date is within or before the current month
-            const prepaymentYear = prepaymentSchedule[i].date.getUTCFullYear();
-            const prepaymentMonth = prepaymentSchedule[i].date.getUTCMonth();
-            const currentYear = currentDate.getUTCFullYear();
-            const currentMonth = currentDate.getUTCMonth();
-
-            // Include prepayment if it's from the same month/year or earlier
-            if (prepaymentYear < currentYear ||
-              (prepaymentYear === currentYear && prepaymentMonth <= currentMonth)) {
-              basePrepaymentAmount = prepaymentSchedule[i].amount;
-              break;
-            }
-          }
-
-          // Calculate occupancy percentage for this specific month
-          const monthOccupancy = calculateOccupancy(
-            tenant.einzug,
-            tenant.auszug,
-            currentMonthStart.toISOString().split('T')[0],
-            currentMonthEnd.toISOString().split('T')[0]
-          );
-
-          // Apply occupancy proration to the prepayment
-          effectivePrepaymentForMonth = basePrepaymentAmount * (monthOccupancy.percentage / 100);
-
-          // OVERRIDE with actual payment if mode is IST
-          const vorauszahlungsArt = (nebenkostenItem as any).vorauszahlungs_art;
-          if (vorauszahlungsArt === 'ist') {
-            // Force exactly what is in actualPayments, even if 0 or empty
-            let totalMonthActual = 0;
-            if (actualPayments && actualPayments.length > 0) {
-              const tenantActualPayments = actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id);
-              const monthActualPayments = tenantActualPayments.filter(p => {
-                if (!p.datum) return false;
-                const pDate = new Date(p.datum + 'T00:00:00Z');
-                const pYear = pDate.getUTCFullYear();
-                const pMonth = pDate.getUTCMonth();
-                return pYear === currentMonthStart.getUTCFullYear() && pMonth === currentMonthStart.getUTCMonth();
-              });
-              totalMonthActual = monthActualPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
-            }
-            effectivePrepaymentForMonth = totalMonthActual;
-          }
-
-          totalVorauszahlungen += effectivePrepaymentForMonth;
-        }
-
-        monthlyVorauszahlungenDetails.push({
-          monthName: `${monthName} ${currentDate.getUTCFullYear()}`,
-          amount: effectivePrepaymentForMonth,
-          isActiveMonth: isActiveThisMonth,
-        });
-
-        // Move to next month
-        currentDate.setUTCMonth(currentDate.getUTCMonth() + 1);
-      }
-
-      const apartmentSize = tenant.Wohnungen?.groesse || 0;
-      const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
-
-      const costItemsDetails: TenantCostDetails['costItems'] = [];
-
-      if (nebenkostenart && betrag && berechnungsart) {
-        const uniqueAptIds = new Set(safeTenants.map(t => t.wohnung_id).filter(Boolean));
-        const activeTenantsCount = Math.max(1, safeTenants.length);
-
-        nebenkostenart.forEach((costName, index) => {
-          const totalCostForItem = betrag[index] || 0;
-          const calcType = (berechnungsart[index] || 'fix').toLowerCase();
-          let share = 0;
-          let itemPricePerSqm: number | undefined = undefined;
-          let verteiler: string | number = '-';
-
-          switch (calcType) {
-            case 'pro qm':
-            case 'qm':
-            case 'pro flaeche':
-            case 'pro fläche':
-              verteiler = formatNumber(totalHouseArea);
-              if (totalHouseArea > 0) {
-                itemPricePerSqm = totalCostForItem / totalHouseArea;
-                share = itemPricePerSqm * apartmentSize;
-              }
-              break;
-            case 'nach rechnung':
-              if (rechnungen) {
-                const relevantRechnung = rechnungen.find(
-                  (r) => r.mieter_id === tenant.id && r.name === costName
-                );
-                share = relevantRechnung?.betrag || 0;
-                verteiler = '-';
-              } else {
-                share = 0;
-              }
-              break;
-            case 'pro mieter':
-            case 'pro person':
-              verteiler = String(activeTenantsCount);
-              share = totalCostForItem / activeTenantsCount;
-              break;
-            case 'pro wohnung':
-              verteiler = String(uniqueAptIds.size);
-              const totalApartments = uniqueAptIds.size;
-              const costPerApartment = totalApartments > 0 ? totalCostForItem / totalApartments : 0;
-              share = costPerApartment;
-              break;
-            case 'pro einheit':
-            case 'fix':
-              verteiler = '1';
-              share = totalCostForItem;
-              break;
-            default:
-              verteiler = '-';
-              share = 0;
-              break;
-          }
-
-          // Apply tenant-level proration
-          let tenantShareForItem = 0;
-          const type = calcType.toLowerCase();
-          // Define all calculation types that use area/WG factor split
-          const areaBasedCalcTypes = ['pro qm', 'qm', 'pro flaeche', 'pro fläche', 'pro wohnung'];
-          if (areaBasedCalcTypes.includes(type)) {
-            // Use the precomputed WG factor for area-based and 'pro wohnung' calculations
-            const wgFactor = wgFactors[tenant.id] ?? (occupancyPercentage / 100);
-            tenantShareForItem = share * wgFactor;
-          } else {
-            // For all other types, use occupancy proration
-            tenantShareForItem = share * (occupancyPercentage / 100);
-          }
-
-          costItemsDetails.push({
-            costName: costName || `Kostenart ${index + 1}`,
-            totalCostForItem,
-            calculationType: calcType,
-            tenantShare: tenantShareForItem,
-            pricePerSqm: itemPricePerSqm,
-            verteiler,
-          });
-        });
-      }
-
-      const tenantTotalForRegularItems = costItemsDetails.reduce((sum, item) => sum + item.tenantShare, 0);
-
-      // Calculate total meter costs from zaehlerkosten JSONB (sum all types)
-      const totalMeterCost = sumZaehlerValues(zaehlerkosten);
-
-      // Use the per-type meter calculation system (each meter type gets its own price)
-      const safeZaehlerkosten = zaehlerkosten || {};
-      const safeZaehlerverbrauch = zaehlerverbrauch || {};
-      const tenantMeterCostData = getTenantMeterCost(
-        tenant.id,
+      const result = calculateCompleteTenantResult(
+        tenant,
+        nebenkostenItem!,
         safeTenants,
         meters,
         readings,
-        safeZaehlerkosten,
-        safeZaehlerverbrauch,
-        itemStartdatum || startdatum,
-        itemEnddatum || enddatum
+        actualPayments,
+        prepaymentMode
       );
 
-      const tenantWaterCost = {
-        totalWaterCostOverall: totalMeterCost, // Keeping property name for now to avoid breaking TenantCostDetails
-        calculationType: "nach Verbrauch (Zähler)",
-        tenantShare: tenantMeterCostData?.costShare || 0,
-        consumption: tenantMeterCostData?.consumption || 0, // Updated property name
-      };
-
-      const totalTenantCost = tenantTotalForRegularItems + tenantWaterCost.tenantShare;
-      const finalSettlement = totalTenantCost - totalVorauszahlungen;
-
-      // Calculate recommended prepayment for next year based on current year's settlement
-      let recommendedPrepayment = 0;
-      if (totalTenantCost > 0) {
-        // Use the centralized function to ensure consistency
-        const mockTenantCalculation = { totalCosts: totalTenantCost } as TenantCalculationResult;
-        recommendedPrepayment = calculateRecommendedPrepayment(mockTenantCalculation);
-      }
-
       return {
-        tenantId: tenant.id,
-        tenantName: tenant.name,
-        apartmentId: tenant.wohnung_id || 'N/A',
-        apartmentName: apartmentName,
-        apartmentSize: apartmentSize,
-        costItems: costItemsDetails,
-        waterCost: tenantWaterCost,
-        totalTenantCost: totalTenantCost,
-        vorauszahlungen: totalVorauszahlungen,
-        monthlyVorauszahlungen: monthlyVorauszahlungenDetails,
-        finalSettlement: finalSettlement,
-        occupancyPercentage,
-        daysOccupied,
-        daysInBillingPeriod,
-        recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
+        tenantId: result.tenantId,
+        tenantName: result.tenantName,
+        apartmentId: tenant.wohnung_id || '',
+        apartmentName: result.apartmentName,
+        apartmentSize: result.apartmentSize,
+        costItems: result.operatingCosts.costItems.map(ci => ({
+          costName: ci.costName,
+          totalCostForItem: ci.totalCostForItem,
+          calculationType: ci.calculationType,
+          tenantShare: ci.tenantShare,
+          pricePerSqm: ci.pricePerSqm,
+          verteiler: ci.distributionBasis
+        })),
+        waterCost: {
+          totalWaterCostOverall: result.meterCosts.totalBuildingMeterCost,
+          calculationType: "nach Verbrauch (Zähler)",
+          tenantShare: result.meterCosts.totalCost,
+          consumption: result.meterCosts.tenantConsumption
+        },
+        totalTenantCost: result.totalCosts,
+        vorauszahlungen: result.prepayments.totalPrepayments,
+        monthlyVorauszahlungen: result.prepayments.monthlyPayments.map(mp => {
+          const [yr, mo] = mp.month.split('-').map(Number);
+          return {
+            monthName: `${GERMAN_MONTHS[mo - 1]} ${yr}`,
+            amount: mp.amount,
+            isActiveMonth: mp.isActiveMonth
+          };
+        }),
+        finalSettlement: result.finalSettlement,
+        occupancyPercentage: result.occupancyPercentage,
+        daysOccupied: result.daysOccupied,
+        daysInBillingPeriod: result.daysInPeriod,
+        recommendedPrepayment: result.recommendedPrepayment
       };
     };
-  }, [nebenkostenItem, wgFactors, rechnungen, meters, readings, actualPayments, totalHouseArea, safeTenants]);
+  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {
