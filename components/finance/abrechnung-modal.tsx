@@ -53,7 +53,7 @@ import { isoToGermanDate } from "@/utils/date-calculations"; // New import for n
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
-import { calculateCompleteTenantResult, DEFAULT_MONTHLY_PREPAYMENT_FALLBACK } from "@/utils/abrechnung-calculations";
+import { calculateCompleteTenantResult } from "@/utils/abrechnung-calculations";
 import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
 
 
@@ -189,6 +189,7 @@ interface TenantCostDetails {
   daysOccupied: number;
   daysInBillingPeriod: number;
   recommendedPrepayment?: number; // New field for recommended prepayment
+  missingScheduleMonths?: number; // > 0 means some occupied months had no prepayment schedule
 }
 
 interface AbrechnungModalProps {
@@ -408,7 +409,8 @@ export function AbrechnungModal({
         occupancyPercentage: result.occupancyPercentage,
         daysOccupied: result.daysOccupied,
         daysInBillingPeriod: result.daysInPeriod,
-        recommendedPrepayment: result.recommendedPrepayment
+        recommendedPrepayment: result.recommendedPrepayment,
+        missingScheduleMonths: result.prepayments.missingScheduleMonths
       };
     };
   }, [nebenkostenItem, safeTenants, meters, readings, actualPayments]);
@@ -438,6 +440,20 @@ export function AbrechnungModal({
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
   }, [isOpen, tenants, selectedTenantId, loadAllRelevantTenants, calculateCostsForTenant, pricePerCubicMeter]);
+
+  // Warn the user when calculated tenants have missing prepayment schedule data
+  useEffect(() => {
+    if (calculatedTenantData.length === 0) return;
+    const affected = calculatedTenantData.filter(t => (t.missingScheduleMonths ?? 0) > 0);
+    if (affected.length > 0) {
+      toast({
+        title: 'Fehlende Vorauszahlungsdaten',
+        description: `Für ${affected.length} Mieter (${affected.map(t => t.tenantName).join(', ')}) fehlen Vorauszahlungseinträge. Betroffene Monate werden mit €0 gerechnet.`,
+        variant: 'default',
+        duration: 8000,
+      });
+    }
+  }, [calculatedTenantData, toast]);
 
   // Calculate summary totals across all tenants when all data is loaded
   const summaryTotals = useMemo(() => {

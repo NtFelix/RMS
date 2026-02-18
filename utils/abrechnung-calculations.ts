@@ -33,11 +33,6 @@ import {
 } from "./water-cost-calculations";
 
 /**
- * Fallback prepayment amount used when no payment data is found for an occupied month.
- */
-export const DEFAULT_MONTHLY_PREPAYMENT_FALLBACK = 100;
-
-/**
  * Calculate occupancy percentage for a tenant during the billing period
  */
 export function calculateOccupancyPercentage(
@@ -250,6 +245,7 @@ export function calculatePrepayments(
 ): PrepaymentBreakdown {
   const monthlyPayments: PrepaymentBreakdown['monthlyPayments'] = [];
   let totalPrepayments = 0;
+  let missingScheduleMonths = 0;
 
   // Generate monthly breakdown
   const startDate = new Date(startdatum);
@@ -279,8 +275,8 @@ export function calculatePrepayments(
       monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
     } else if (mode === 'scheduled') {
       if (monthOccupancy.occupancyDays > 0 && tenant.nebenkosten && Array.isArray(tenant.nebenkosten)) {
-        // Find applicable prepayment for this month
-        // We look for the latest prepayment entry that is valid before or during this month
+        // Find applicable prepayment for this month.
+        // We look for the latest prepayment entry that is valid before or during this month.
         const applicableNK = [...(tenant.nebenkosten || [])]
           .filter(n => n.date && new Date(n.date) <= monthEnd)
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -290,9 +286,10 @@ export function calculatePrepayments(
         }
       }
 
-      // Fallback to default monthly prepayment if no entries found or amount is 0
+      // Track months where the tenant was occupied but no schedule entry exists.
+      // We do NOT inject a fallback value — missing data should be surfaced explicitly.
       if (monthlyAmount === 0 && monthOccupancy.occupancyDays > 0) {
-        monthlyAmount = DEFAULT_MONTHLY_PREPAYMENT_FALLBACK * monthOccupancy.occupancyRatio;
+        missingScheduleMonths++;
       }
     }
 
@@ -316,7 +313,8 @@ export function calculatePrepayments(
   return {
     monthlyPayments,
     totalPrepayments,
-    averageMonthlyPayment
+    averageMonthlyPayment,
+    ...(mode === 'scheduled' && missingScheduleMonths > 0 ? { missingScheduleMonths } : {})
   };
 }
 

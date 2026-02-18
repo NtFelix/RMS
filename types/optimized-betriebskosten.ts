@@ -250,6 +250,12 @@ export type PrepaymentBreakdown = {
   }>;
   totalPrepayments: number;
   averageMonthlyPayment: number;
+  /**
+   * Number of occupied months for which no prepayment schedule entry was found.
+   * Only relevant in 'scheduled' mode. > 0 means the billing statement
+   * may be incomplete because contract data is missing for those months.
+   */
+  missingScheduleMonths?: number;
 };
 
 /**
