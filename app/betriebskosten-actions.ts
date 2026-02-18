@@ -2067,16 +2067,8 @@ export async function createAbrechnungCalculationAction(
           meters,
           readings,
           actualPayments,
-          effectivePrepaymentMode as any
+          effectivePrepaymentMode
         );
-
-        // Include recommended prepayment if requested
-        if (options.includeRecommendations && tenantCalculation.totalCosts > 0) {
-          // recommendedPrepayment is already calculated inside calculateCompleteTenantResult 
-          // if we want to follow the same logic as before, we can just keep what's in there
-          // or re-calculate if the options mismatch. 
-          // Actually calculateCompleteTenantResult always calculates it.
-        }
 
         tenantCalculations.push(tenantCalculation);
 
@@ -2315,7 +2307,7 @@ export async function createAbrechnungCalculationOptimizedAction(
           [], // meters
           [], // readings
           actualPayments,
-          effectivePrepaymentMode as any
+          effectivePrepaymentMode
         );
 
         tenantCalculations.push(tenantCalculation);
