@@ -2297,6 +2297,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     // Workaround for vorauszahlungs_art removed - database function now includes it.
     const rechnungen = dbResult.rechnungen || [];
     const wasserzaehler_readings = dbResult.wasserzaehler_readings || [];
+    const wasserzaehler_meters = dbResult.wasserzaehler_meters || [];
     const house_metrics = dbResult.house_metrics || {};
     const calculation_metadata = dbResult.calculation_metadata || {};
 
@@ -2333,16 +2334,14 @@ export async function createAbrechnungCalculationOptimizedAction(
 
     for (const tenant of tenants_with_occupancy) {
       try {
-        // Since this is the optimized path, we use the pre-calculated occupancy 
-        // but calculateCompleteTenantResult will re-calculate it for consistency.
-        // We pass empty arrays for meters/readings as they are handled differently in this optimized path
-        // or we could map wasserzaehler_readings if needed.
+        // Use meter/reading data fetched from the RPC (wasserzaehler_meters, wasserzaehler_readings).
+        // calculateCompleteTenantResult re-calculates occupancy for consistency.
         const tenantCalculation = calculateCompleteTenantResult(
           tenant,
           nebenkosten_data,
           tenants_with_occupancy,
-          [], // meters
-          [], // readings
+          wasserzaehler_meters as any[], // meters from RPC
+          wasserzaehler_readings as any[], // readings from RPC
           actualPayments,
           effectivePrepaymentMode
         );

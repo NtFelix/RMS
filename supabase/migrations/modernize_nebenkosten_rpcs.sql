@@ -211,7 +211,7 @@ $function$;
 
 -- 4. Update Optimized Calculation Data Function
 CREATE OR REPLACE FUNCTION public.get_abrechnung_calculation_data(nebenkosten_id uuid, user_id uuid)
- RETURNS TABLE(nebenkosten_data jsonb, tenants_with_occupancy jsonb, rechnungen jsonb, wasserzaehler_readings jsonb, house_metrics jsonb, calculation_metadata jsonb)
+ RETURNS TABLE(nebenkosten_data jsonb, tenants_with_occupancy jsonb, rechnungen jsonb, wasserzaehler_readings jsonb, wasserzaehler_meters jsonb, house_metrics jsonb, calculation_metadata jsonb)
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
@@ -282,12 +282,28 @@ BEGIN
         ) as data
         FROM "Haeuser" h
         WHERE h.id = target_haus_id
+    ),
+    relevant_meters AS (
+        SELECT COALESCE(jsonb_agg(wz), '[]'::jsonb) as data
+        FROM "Zaehler" wz
+        WHERE wz.wohnung_id IN (
+            SELECT m.wohnung_id
+            FROM "Mieter" m
+            JOIN "Wohnungen" w ON m.wohnung_id = w.id
+            WHERE w.haus_id = target_haus_id
+        )
+    ),
+    relevant_readings AS (
+        SELECT COALESCE(jsonb_agg(wa), '[]'::jsonb) as data
+        FROM "Zaehler_Ablesungen" wa
+        WHERE wa.ablese_datum >= start_datum AND wa.ablese_datum <= end_datum
     )
-    SELECT 
+    SELECT
         (SELECT data FROM nebenkosten_info) as nebenkosten_data,
         (SELECT data FROM tenants_json) as tenants_with_occupancy,
         (SELECT data FROM rechnungen_info) as rechnungen,
-        '[]'::jsonb as wasserzaehler_readings, 
+        (SELECT data FROM relevant_readings) as wasserzaehler_readings,
+        (SELECT data FROM relevant_meters) as wasserzaehler_meters,
         (SELECT data FROM house_summary) as house_metrics,
         jsonb_build_object('optimized', true) as calculation_metadata;
 END;
