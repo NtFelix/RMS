@@ -1962,6 +1962,40 @@ async function getAbrechnungModalDataFallback(
  * @see {@link components/abrechnung-modal.tsx} Modal component that uses this data
  * @see {@link utils/abrechnung-calculations.ts} Calculation utilities
  */
+
+/**
+ * Detects tenants with missing prepayment schedule months, logs a structured warning,
+ * and returns a human-readable warning message (or undefined if all data is complete).
+ * Extracted to avoid duplication between the standard and optimized calculation actions.
+ */
+function detectMissingPrepaymentSchedules(
+  tenantCalculations: TenantCalculationResult[],
+  userId: string,
+  nebenkostenId: string,
+  logContext?: string
+): string | undefined {
+  const affected = tenantCalculations.filter(
+    t => (t.prepayments.missingScheduleMonths ?? 0) > 0
+  );
+  if (affected.length === 0) return undefined;
+
+  const warning =
+    `Fehlende Vorauszahlungsdaten für ${affected.length} Mieter (${affected.map(t => t.tenantName).join(', ')}). ` +
+    `Betroffene Monate werden mit €0 Vorauszahlung gerechnet.`;
+
+  logger.warn(`Prepayment schedule data missing for some tenants${logContext ? ` (${logContext})` : ''}`, {
+    userId,
+    nebenkostenId,
+    affectedTenants: affected.map(t => ({
+      tenantId: t.tenantId,
+      tenantName: t.tenantName,
+      missingMonths: t.prepayments.missingScheduleMonths
+    }))
+  });
+
+  return warning;
+}
+
 export async function createAbrechnungCalculationAction(
   nebenkostenId: string,
   options: {
@@ -2121,25 +2155,7 @@ export async function createAbrechnungCalculationAction(
     };
 
     // Detect tenants with missing prepayment schedule data and surface them as warnings
-    const tenantsWithMissingSchedule = tenantCalculations.filter(
-      t => (t.prepayments.missingScheduleMonths ?? 0) > 0
-    );
-    const calculationWarning = tenantsWithMissingSchedule.length > 0
-      ? `Fehlende Vorauszahlungsdaten für ${tenantsWithMissingSchedule.length} Mieter (${tenantsWithMissingSchedule.map(t => t.tenantName).join(', ')}). ` +
-        `Betroffene Monate werden mit €0 Vorauszahlung gerechnet.`
-      : undefined;
-
-    if (calculationWarning) {
-      logger.warn('Prepayment schedule data missing for some tenants', {
-        userId: user.id,
-        nebenkostenId,
-        affectedTenants: tenantsWithMissingSchedule.map(t => ({
-          tenantId: t.tenantId,
-          tenantName: t.tenantName,
-          missingMonths: t.prepayments.missingScheduleMonths
-        }))
-      });
-    }
+    const calculationWarning = detectMissingPrepaymentSchedules(tenantCalculations, user.id, nebenkostenId);
 
     logger.info('Successfully completed Abrechnung calculations', {
       userId: user.id,
@@ -2382,25 +2398,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     };
 
     // Detect tenants with missing prepayment schedule data and surface them as warnings
-    const tenantsWithMissingScheduleOpt = tenantCalculations.filter(
-      t => (t.prepayments.missingScheduleMonths ?? 0) > 0
-    );
-    const calculationWarningOpt = tenantsWithMissingScheduleOpt.length > 0
-      ? `Fehlende Vorauszahlungsdaten für ${tenantsWithMissingScheduleOpt.length} Mieter (${tenantsWithMissingScheduleOpt.map(t => t.tenantName).join(', ')}). ` +
-        `Betroffene Monate werden mit €0 Vorauszahlung gerechnet.`
-      : undefined;
-
-    if (calculationWarningOpt) {
-      logger.warn('Prepayment schedule data missing for some tenants (optimized path)', {
-        userId: user.id,
-        nebenkostenId,
-        affectedTenants: tenantsWithMissingScheduleOpt.map(t => ({
-          tenantId: t.tenantId,
-          tenantName: t.tenantName,
-          missingMonths: t.prepayments.missingScheduleMonths
-        }))
-      });
-    }
+    const calculationWarningOpt = detectMissingPrepaymentSchedules(tenantCalculations, user.id, nebenkostenId, 'optimized path');
 
     logger.info('Successfully completed optimized Abrechnung calculations', {
       userId: user.id,
