@@ -270,9 +270,8 @@ export function calculatePrepayments(
     // Use tenant's actual Nebenkosten prepayment data
     let monthlyAmount = 0;
 
-    if (mode === 'actual' && actualPayments && tenant.wohnung_id) {
-      const tenantPayments = actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id);
-      const monthPayments = tenantPayments.filter(p => {
+    if (mode === 'actual' && actualPayments) {
+      const monthPayments = actualPayments.filter(p => {
         if (!p.datum) return false;
         const pDate = new Date(p.datum + 'T00:00:00Z');
         return pDate >= monthStart && pDate <= monthEnd;
@@ -471,12 +470,18 @@ export function calculateCompleteTenantResult(
     readings
   );
 
+  // Pre-filter actual payments for this tenant if in actual mode
+  // This improves performance by avoiding repeated building-wide filtering inside the monthly loop
+  const tenantActualPayments = (prepaymentMode === 'actual' && actualPayments && tenant.wohnung_id)
+    ? actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id)
+    : actualPayments;
+
   // Calculate prepayments
   const prepayments = calculatePrepayments(
     tenant,
     nebenkosten.startdatum,
     nebenkosten.enddatum,
-    actualPayments,
+    tenantActualPayments,
     prepaymentMode
   );
 
