@@ -621,7 +621,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               setStartdatum(fetchedData.startdatum ? isoToGermanDate(fetchedData.startdatum) : "");
               setEnddatum(fetchedData.enddatum ? isoToGermanDate(fetchedData.enddatum) : "");
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
-              setVorauszahlungsArt((fetchedData as any).vorauszahlungs_art === 'ist' ? 'ist' : 'soll');
+              setVorauszahlungsArt(fetchedData.vorauszahlungs_art === 'ist' ? 'ist' : 'soll');
               // Load zaehlerkosten
               if (fetchedData.zaehlerkosten) {
                 setZaehlerkosten(convertZaehlerkostenToStrings(fetchedData.zaehlerkosten));
