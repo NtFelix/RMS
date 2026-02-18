@@ -637,11 +637,12 @@ export function OperatingCostsTable({
         <AbrechnungModal
           isOpen={isAbrechnungModalOpen}
           onClose={handleCloseAbrechnungModal}
-          nebenkostenItem={selectedNebenkostenForAbrechnung}
+          nebenkostenItem={abrechnungModalData?.nebenkosten_data || selectedNebenkostenForAbrechnung}
           tenants={abrechnungModalData.tenants ?? []}
           rechnungen={abrechnungModalData.rechnungen ?? []}
           meters={abrechnungModalData.meters ?? []}
           readings={abrechnungModalData.readings ?? []}
+          actualPayments={abrechnungModalData.actualPayments ?? []}
           ownerName={ownerName}
           ownerAddress={(() => {
             const selectedHaus = allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id);
