@@ -145,7 +145,7 @@ export default function TenantPaymentEditModal() {
           datum: today,
           ist_einnahmen: true,
           notiz: nebenkostenNote,
-          tags: [PAYMENT_TAGS.NEBENKOSTEN]
+          tags: [PAYMENT_TAGS.NEBENKOSTEN, PAYMENT_TAGS.VORAUSZAHLUNG]
         })
       }
 

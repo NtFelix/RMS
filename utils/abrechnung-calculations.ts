@@ -6,7 +6,7 @@
  * and data validation.
  */
 
-import type { Mieter, Nebenkosten, WasserZaehler, WasserAblesung } from "@/lib/types";
+import type { Mieter, Nebenkosten, WasserZaehler, WasserAblesung, Finanzen } from "@/lib/types";
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
@@ -239,10 +239,13 @@ export function calculateMeterCostDistribution(
 export function calculatePrepayments(
   tenant: Mieter,
   startdatum: string,
-  enddatum: string
+  enddatum: string,
+  actualPayments?: Finanzen[],
+  mode: 'scheduled' | 'actual' = 'scheduled'
 ): PrepaymentBreakdown {
   const monthlyPayments: PrepaymentBreakdown['monthlyPayments'] = [];
   let totalPrepayments = 0;
+  let missingScheduleMonths = 0;
 
   // Generate monthly breakdown
   const startDate = new Date(startdatum);
@@ -250,8 +253,8 @@ export function calculatePrepayments(
 
   const currentDate = new Date(startDate);
   while (currentDate <= endDate) {
-    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const monthStart = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
+    const monthEnd = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
     // Calculate occupancy for this month
     const monthOccupancy = calculateTenantOccupancy(
@@ -262,15 +265,31 @@ export function calculatePrepayments(
 
     // Use tenant's actual Nebenkosten prepayment data
     let monthlyAmount = 0;
-    if (monthOccupancy.occupancyDays > 0 && tenant.nebenkosten && Array.isArray(tenant.nebenkosten)) {
-      // Find applicable prepayment for this month
-      // We look for the latest prepayment entry that is valid before or during this month
-      const applicableNK = [...(tenant.nebenkosten || [])]
-        .filter(n => n.date && new Date(n.date) <= monthEnd)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
-      if (applicableNK) {
-        monthlyAmount = (Number(applicableNK.amount) || 0) * monthOccupancy.occupancyRatio;
+    if (mode === 'actual' && actualPayments) {
+      const monthPayments = actualPayments.filter(p => {
+        if (!p.datum) return false;
+        const pDate = new Date(p.datum + 'T00:00:00Z');
+        return pDate >= monthStart && pDate <= monthEnd;
+      });
+      monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
+    } else if (mode === 'scheduled') {
+      if (monthOccupancy.occupancyDays > 0 && tenant.nebenkosten && Array.isArray(tenant.nebenkosten)) {
+        // Find applicable prepayment for this month.
+        // We look for the latest prepayment entry that is valid before or during this month.
+        const applicableNK = [...(tenant.nebenkosten || [])]
+          .filter(n => n.date && new Date(n.date) <= monthEnd)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+        if (applicableNK) {
+          monthlyAmount = (Number(applicableNK.amount) || 0) * monthOccupancy.occupancyRatio;
+        }
+      }
+
+      // Track months where the tenant was occupied but no schedule entry exists.
+      // We do NOT inject a fallback value — missing data should be surfaced explicitly.
+      if (monthlyAmount === 0 && monthOccupancy.occupancyDays > 0) {
+        missingScheduleMonths++;
       }
     }
 
@@ -294,7 +313,8 @@ export function calculatePrepayments(
   return {
     monthlyPayments,
     totalPrepayments,
-    averageMonthlyPayment
+    averageMonthlyPayment,
+    ...(mode === 'scheduled' && missingScheduleMonths > 0 ? { missingScheduleMonths } : {})
   };
 }
 
@@ -429,7 +449,9 @@ export function calculateCompleteTenantResult(
   nebenkosten: Nebenkosten,
   allTenants: Mieter[],
   meters: WasserZaehler[],
-  readings: WasserAblesung[]
+  readings: WasserAblesung[],
+  actualPayments?: Finanzen[],
+  prepaymentMode: 'scheduled' | 'actual' = 'scheduled'
 ): TenantCalculationResult {
   // Calculate occupancy
   const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
@@ -446,8 +468,20 @@ export function calculateCompleteTenantResult(
     readings
   );
 
+  // Pre-filter actual payments for this tenant if in actual mode
+  // This improves performance by avoiding repeated building-wide filtering inside the monthly loop
+  const tenantActualPayments = (prepaymentMode === 'actual' && actualPayments && tenant.wohnung_id)
+    ? actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id)
+    : actualPayments;
+
   // Calculate prepayments
-  const prepayments = calculatePrepayments(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
+  const prepayments = calculatePrepayments(
+    tenant,
+    nebenkosten.startdatum,
+    nebenkosten.enddatum,
+    tenantActualPayments,
+    prepaymentMode
+  );
 
   // Calculate totals
   const totalCosts = operatingCosts.totalCost + meterCosts.totalCost;
@@ -493,7 +527,9 @@ export function calculateAbrechnungSummary(
   tenants: Mieter[],
   nebenkosten: Nebenkosten,
   meters: WasserZaehler[],
-  readings: WasserAblesung[]
+  readings: WasserAblesung[],
+  actualPayments?: Finanzen[],
+  prepaymentMode: 'scheduled' | 'actual' = 'scheduled'
 ) {
   let totalAbrechnungVolumen = 0;
   let totalVorauszahlungen = 0;
@@ -506,7 +542,9 @@ export function calculateAbrechnungSummary(
       nebenkosten,
       tenants,
       meters,
-      readings
+      readings,
+      actualPayments,
+      prepaymentMode
     );
 
     totalAbrechnungVolumen += result.totalCosts;
