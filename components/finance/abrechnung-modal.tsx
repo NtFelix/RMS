@@ -441,19 +441,30 @@ export function AbrechnungModal({
     }
   }, [isOpen, tenants, selectedTenantId, loadAllRelevantTenants, calculateCostsForTenant, pricePerCubicMeter]);
 
+  // Ref to track which warning we already showed — prevents infinite re-render loop
+  // (toast() triggers a state update internally; using a ref avoids adding toast to deps)
+  const shownMissingWarningRef = useRef<string | null>(null);
+
   // Warn the user when calculated tenants have missing prepayment schedule data
   useEffect(() => {
     if (calculatedTenantData.length === 0) return;
     const affected = calculatedTenantData.filter(t => (t.missingScheduleMonths ?? 0) > 0);
-    if (affected.length > 0) {
-      toast({
-        title: 'Fehlende Vorauszahlungsdaten',
-        description: `Für ${affected.length} Mieter (${affected.map(t => t.tenantName).join(', ')}) fehlen Vorauszahlungseinträge. Betroffene Monate werden mit €0 gerechnet.`,
-        variant: 'default',
-        duration: 8000,
-      });
+    if (affected.length === 0) {
+      shownMissingWarningRef.current = null; // reset when data is clean
+      return;
     }
-  }, [calculatedTenantData, toast]);
+    // Only show toast once per unique set of affected tenants
+    const signature = affected.map(t => t.tenantId).sort().join(',');
+    if (shownMissingWarningRef.current === signature) return;
+    shownMissingWarningRef.current = signature;
+    toast({
+      title: 'Fehlende Vorauszahlungsdaten',
+      description: `Für ${affected.length} Mieter (${affected.map(t => t.tenantName).join(', ')}) fehlen Vorauszahlungseinträge. Betroffene Monate werden mit €0 gerechnet.`,
+      variant: 'default',
+      duration: 8000,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calculatedTenantData]); // intentionally omit toast — it is stable but changes ref on every render
 
   // Calculate summary totals across all tenants when all data is loaded
   const summaryTotals = useMemo(() => {
