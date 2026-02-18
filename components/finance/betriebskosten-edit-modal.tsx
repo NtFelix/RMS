@@ -30,7 +30,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed, Droplets, Thermometer, Flame, Gauge, Zap, Fuel, X } from "lucide-react";
+import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed, Droplets, Thermometer, Flame, Gauge, Zap, Fuel, X, CalendarClock, Banknote, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -91,6 +91,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
   const [enddatum, setEnddatum] = useState("");
   const [zaehlerkosten, setZaehlerkosten] = useState<Record<string, string>>({});
   const [hausId, setHausId] = useState("");
+  const [vorauszahlungsArt, setVorauszahlungsArt] = useState<'soll' | 'ist'>('soll');
   const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -571,6 +572,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
         setEnddatum("");
       }
       setZaehlerkosten({});
+      setVorauszahlungsArt('soll');
       const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
       setHausId(initialHausId);
 
@@ -619,6 +621,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               setStartdatum(fetchedData.startdatum ? isoToGermanDate(fetchedData.startdatum) : "");
               setEnddatum(fetchedData.enddatum ? isoToGermanDate(fetchedData.enddatum) : "");
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
+              setVorauszahlungsArt(fetchedData.vorauszahlungs_art === 'ist' ? 'ist' : 'soll');
               // Load zaehlerkosten
               if (fetchedData.zaehlerkosten) {
                 setZaehlerkosten(convertZaehlerkostenToStrings(fetchedData.zaehlerkosten));
@@ -833,6 +836,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       berechnungsart: berechnungsartArray,
       zaehlerkosten: Object.keys(parsedZaehlerkosten).length > 0 ? parsedZaehlerkosten : null,
       haeuser_id: hausId,
+      vorauszahlungs_art: vorauszahlungsArt,
     };
 
     let response;
@@ -1113,6 +1117,62 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                       );
                     })()}
                   </>
+                )}
+              </div>
+
+              {/* Vorauszahlungsmethode */}
+              <div className="space-y-2">
+                <LabelWithTooltip htmlFor="formVorauszahlungsArt" infoText="Soll: Verwendet den vereinbarten Vorauszahlungsbetrag, der im Mieterprofil hinterlegt ist. Ist: Verwendet die tatsächlich gebuchten Zahlungen aus der Finanzen-Seite.">
+                  Vorauszahlungsmethode
+                </LabelWithTooltip>
+                {isFormLoading ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Soll option */}
+                    <button
+                      type="button"
+                      onClick={() => { setVorauszahlungsArt('soll'); setBetriebskostenModalDirty(true); }}
+                      disabled={isSaving || isFormLoading}
+                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'soll' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
+                    >
+                      <div className="flex items-start justify-between w-full">
+                        <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'soll' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                          <CalendarClock className="w-4 h-4" />
+                        </div>
+                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'soll' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
+                          <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                        </div>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-semibold leading-tight transition-colors ${vorauszahlungsArt === 'soll' ? 'text-primary' : 'text-foreground'}`}>Soll</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Vereinbarte Vorauszahlung<br />aus dem Mieterprofil</p>
+                      </div>
+                    </button>
+                    {/* Ist option */}
+                    <button
+                      type="button"
+                      onClick={() => { setVorauszahlungsArt('ist'); setBetriebskostenModalDirty(true); }}
+                      disabled={isSaving || isFormLoading}
+                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'ist' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
+                    >
+                      <div className="flex items-start justify-between w-full">
+                        <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'ist' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                          <Banknote className="w-4 h-4" />
+                        </div>
+                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'ist' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
+                          <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                        </div>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-semibold leading-tight transition-colors ${vorauszahlungsArt === 'ist' ? 'text-primary' : 'text-foreground'}`}>Ist</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Gebuchte Einnahmen<br />aus der Finanzen-Seite</p>
+                      </div>
+                    </button>
+                  </div>
                 )}
               </div>
 

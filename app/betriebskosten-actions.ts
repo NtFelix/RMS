@@ -56,6 +56,7 @@ export type NebenkostenFormData = {
   wasserkosten?: number | null; // Legacy
   zaehlerkosten?: Record<string, number> | null; // New JSONB: { [zaehlerTyp]: cost }
   haeuser_id: string;
+  vorauszahlungs_art?: 'soll' | 'ist'; // 'soll' (default) = scheduled prepayments, 'ist' = actual payments
 };
 
 export interface RechnungData {
