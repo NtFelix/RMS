@@ -1147,7 +1147,6 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
 
 export async function handleFileGeneration(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
-    const requestStartTime = Date.now();
     let body: {
         type?: string;
         template?: string;
