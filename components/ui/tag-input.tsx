@@ -76,6 +76,7 @@ export function TagInput({
     placeholder = "Tags auswählen...",
     className,
 }: TagInputProps) {
+    const listboxId = React.useId();
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
 
@@ -112,6 +113,7 @@ export function TagInput({
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
+                    aria-controls={listboxId}
                     className={cn(
                         "w-full justify-between min-h-[40px] h-auto",
                         disabled && "opacity-50 cursor-not-allowed",
@@ -182,6 +184,8 @@ export function TagInput({
                 </div>
 
                 <div
+                    id={listboxId}
+                    role="listbox"
                     className="max-h-[350px] overflow-y-auto p-3 pb-4 space-y-5 custom-scrollbar"
                     onPointerDown={(e) => e.stopPropagation()}
                     onWheel={(e) => e.stopPropagation()}

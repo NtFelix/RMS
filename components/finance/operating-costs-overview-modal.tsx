@@ -58,104 +58,20 @@ export function OperatingCostsOverviewModal({
     }
   }, [isOpen, nebenkosten?.id])
 
-  if (!nebenkosten) return null
-
   // Helper function to format currency
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-"
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value)
   }
 
-  // Calculate total costs from all cost items
-  const totalOperatingCosts = nebenkosten.betrag?.reduce((sum, betrag) => sum + (betrag || 0), 0) || 0
-
-  // Calculate total meter costs
-  const totalMeterCosts = nebenkosten.zaehlerkosten
-    ? Object.values(nebenkosten.zaehlerkosten).reduce((sum, cost) => sum + (cost || 0), 0)
-    : 0
-
-  // Total costs including meters
-  const totalCosts = totalOperatingCosts + totalMeterCosts
-
-  const totalArea = nebenkosten.gesamtFlaeche || 1 // Default to 1 to avoid division by zero
-  const costPerSqm = totalArea > 0 ? totalCosts / totalArea : 0
-  const operatingCostPerSqm = totalArea > 0 ? totalOperatingCosts / totalArea : 0
-
-  // PDF export function with worker offloading
-  const exportToPDF = async () => {
-    setIsExporting(true)
-    toast({
-      title: "Export gestartet",
-      description: "PDF wird erstellt...",
-      variant: "default"
-    })
-
-    try {
-      const { generateHouseOverviewPDF } = await import('@/lib/worker-client')
-
-      const startDate = isoToGermanDate(nebenkosten.startdatum)?.replace(/\./g, '-') || 'unbekannt'
-      const endDate = isoToGermanDate(nebenkosten.enddatum)?.replace(/\./g, '-') || 'unbekannt'
-      const houseName = nebenkosten.haus_name?.replace(/[^a-zA-Z0-9äöüÄÖÜß]/g, '_') || 'Haus'
-      const filename = `Kostenaufstellung_${houseName}_${startDate}_bis_${endDate}.pdf`
-
-      const clientStartTime = Date.now();
-      const response = await generateHouseOverviewPDF({
-        nebenkosten,
-        totalArea,
-        totalCosts,
-        costPerSqm,
-        filename
-      })
-      const clientEndTime = Date.now();
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      toast({
-        title: "Export erfolgreich",
-        description: "PDF erfolgreich erstellt und heruntergeladen!",
-        variant: "success"
-      })
-
-      // Extract metrics from headers
-      const pageCount = parseInt(response.headers.get('X-PDF-Page-Count') || '0', 10);
-
-      posthog?.capture('pdf_exported', {
-        document_type: 'overview',
-        export_method: 'single',
-        period: `${nebenkosten.startdatum}_${nebenkosten.enddatum}`,
-        house_name: nebenkosten.haus_name,
-        page_count: pageCount,
-        processing_time_ms: clientEndTime - clientStartTime
-      });
-
-    } catch (error) {
-      console.error("PDF export error:", error)
-      toast({
-        title: "Fehler",
-        description: "Fehler beim Erstellen der PDF-Datei",
-        variant: "destructive"
-      })
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
   // Calculate days in period
   const periodDays = useMemo(() => {
-    if (!nebenkosten.startdatum || !nebenkosten.enddatum) return 0
+    if (!nebenkosten?.startdatum || !nebenkosten?.enddatum) return 0
     const start = new Date(nebenkosten.startdatum)
     const end = new Date(nebenkosten.enddatum)
     const diffTime = Math.abs(end.getTime() - start.getTime())
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-  }, [nebenkosten.startdatum, nebenkosten.enddatum])
+  }, [nebenkosten?.startdatum, nebenkosten?.enddatum])
 
   // Calculate summary totals using the shared utility function
   const summaryTotals = useMemo(() => {
@@ -175,6 +91,11 @@ export function OperatingCostsOverviewModal({
       mode
     );
   }, [abrechnungData, nebenkosten]);
+
+  if (!nebenkosten) return null
+
+  // Calculate total costs from all cost items
+  const totalOperatingCosts = nebenkosten.betrag?.reduce((sum, betrag) => sum + (betrag || 0), 0) || 0
 
   const totalBalance = totalCosts - (summaryTotals?.totalVorauszahlungen || 0);
   const isNachzahlung = totalBalance >= 0;

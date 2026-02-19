@@ -8,6 +8,7 @@ import type { Haus } from "@/lib/types";
 
 const ALL_HOUSES_LABEL = 'Alle Häuser'
 const ALL_HOUSES_VALUE = 'all'
+const EMPTY_ARRAY: any[] = []
 
 interface OperatingCostsFiltersProps {
   onFilterChange: (filter: string) => void
@@ -22,7 +23,7 @@ export function OperatingCostsFilters({
   onFilterChange,
   onSearchChange,
   onHouseChange,
-  haeuser = [],
+  haeuser = EMPTY_ARRAY,
   selectedHouseId = ALL_HOUSES_VALUE,
   searchQuery = ""
 }: OperatingCostsFiltersProps) {

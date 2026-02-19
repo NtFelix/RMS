@@ -16,11 +16,13 @@ export default async function BetriebskostenPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
-  // Use optimized function that eliminates individual getHausGesamtFlaeche calls
-  const nebenkostenResult = await fetchNebenkostenListOptimized();
+  // Parallelize independent data fetches
+  const [nebenkostenResult, haeuserData] = await Promise.all([
+    fetchNebenkostenListOptimized(),
+    fetchHaeuserServer()
+  ]);
+
   const nebenkostenData: OptimizedNebenkosten[] = nebenkostenResult.success ? nebenkostenResult.data || [] : [];
-  
-  const haeuserData: Haus[] = await fetchHaeuserServer();
 
   let ownerName = "Vermieter Name";
   if (user) {

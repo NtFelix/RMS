@@ -244,8 +244,10 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
         source: 'server_action'
       }
     });
-    await posthog.flush();
-    await posthogLogger.flush();
+    await Promise.all([
+      posthog.flush(),
+      posthogLogger.flush()
+    ]);
     logger.info(`[PostHog] Capturing betriebskosten event for user: ${user.id}`);
   } catch (phError) {
     logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
@@ -1755,19 +1757,29 @@ async function getAbrechnungModalDataFallback(
     operation: 'getAbrechnungModalDataFallback'
   });
 
-  // Fetch Nebenkosten with house info
-  const { data: nebenkostenData, error: nebenkostenError } = await supabase
-    .from("Nebenkosten")
-    .select(`
-      *,
-      Haeuser (
-        name,
-        groesse
-      )
-    `)
-    .eq("id", nebenkostenId)
-    .eq("user_id", userId)
-    .single();
+  // Fetch Nebenkosten and Rechnungen in parallel as they are independent
+  const [nebenkostenResult, rechnungenResult] = await Promise.all([
+    supabase
+      .from("Nebenkosten")
+      .select(`
+        *,
+        Haeuser (
+          name,
+          groesse
+        )
+      `)
+      .eq("id", nebenkostenId)
+      .eq("user_id", userId)
+      .single(),
+    supabase
+      .from("Rechnungen")
+      .select("*")
+      .eq("nebenkosten_id", nebenkostenId)
+      .eq("user_id", userId)
+  ]);
+
+  const { data: nebenkostenData, error: nebenkostenError } = nebenkostenResult;
+  const { data: rechnungen, error: rechnungenError } = rechnungenResult;
 
   if (nebenkostenError || !nebenkostenData) {
     logger.error('Failed to fetch Nebenkosten details in fallback', nebenkostenError || undefined, {
@@ -1801,13 +1813,6 @@ async function getAbrechnungModalDataFallback(
     });
     return { success: false, message: "Fehler beim Laden der Mieterdaten." };
   }
-
-  // Fetch rechnungen
-  const { data: rechnungen, error: rechnungenError } = await supabase
-    .from("Rechnungen")
-    .select("*")
-    .eq("nebenkosten_id", nebenkostenId)
-    .eq("user_id", userId);
 
   if (rechnungenError) {
     logger.error('Failed to fetch rechnungen in fallback', rechnungenError || undefined, {

@@ -28,6 +28,8 @@ import { Trash2 } from "lucide-react";
 import type { Tenant, TenantStatus } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
+const EMPTY_ARRAY: any[] = [];
+
 // Props for the main client view component
 interface MieterClientViewProps {
   initialTenants: Tenant[];
@@ -42,8 +44,8 @@ interface MieterClientViewProps {
 import { useFeatureFlagEnabled } from "posthog-js/react";
 
 export default function MieterClientView({
-  initialTenants,
-  initialWohnungen,
+  initialTenants = EMPTY_ARRAY,
+  initialWohnungen = EMPTY_ARRAY,
   serverAction,
 }: MieterClientViewProps) {
   const router = useRouter()

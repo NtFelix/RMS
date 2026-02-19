@@ -125,14 +125,24 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
 
     // Only check limits when creating a new apartment
     if (!id) {
-      // Get user profile for subscription details
-      const userProfile = await fetchUserProfile();
+      // Parallelize profile fetch and apartment count check
+      const [userProfile, countResult] = await Promise.all([
+        fetchUserProfile(),
+        supabase
+          .from('Wohnungen')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+      ]);
+
       if (!userProfile) {
         return {
           success: false,
           error: { message: "Benutzerprofil nicht gefunden." }
         };
       }
+
+      const { count, error: countError } = countResult;
+      if (countError) throw countError;
 
       // Determine user's eligibility and apartment limit based on their subscription status
       const { isEligible, apartmentLimit } = await determineApartmentEligibility(userProfile);
@@ -145,14 +155,6 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
           error: { message: "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen." }
         };
       }
-
-      // Get current apartment count for the user
-      const { count, error: countError } = await supabase
-        .from('Wohnungen')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      if (countError) throw countError;
 
       // Check if user has reached their limit
       if (effectiveApartmentLimit !== Infinity && count !== null && count >= effectiveApartmentLimit) {

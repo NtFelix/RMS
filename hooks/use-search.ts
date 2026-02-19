@@ -73,8 +73,48 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const [retryCount, setRetryCount] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
   const [lastSuccessfulQuery, setLastSuccessfulQuery] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  // Generate search suggestions based on query - derived during render
+  const suggestions = useMemo(() => {
+    if (!query.trim() || query.length < 2) {
+      return [];
+    }
+
+    const queryLower = query.toLowerCase();
+    const newSuggestions: string[] = [];
+
+    // Add recent searches that match
+    recentSearches.forEach(recent => {
+      if (recent.toLowerCase().includes(queryLower) && recent.toLowerCase() !== queryLower) {
+        newSuggestions.push(recent);
+      }
+    });
+
+    // Add common search patterns
+    const commonSuggestions = [
+      'Mieter',
+      'Wohnung',
+      'Haus',
+      'Rechnung',
+      'Aufgabe',
+      'Einnahmen',
+      'Ausgaben',
+      'Betriebskosten',
+      'Kaution',
+      'Nebenkosten'
+    ];
+
+    commonSuggestions.forEach(suggestion => {
+      if (suggestion.toLowerCase().includes(queryLower) &&
+        suggestion.toLowerCase() !== queryLower &&
+        !newSuggestions.includes(suggestion)) {
+        newSuggestions.push(suggestion);
+      }
+    });
+
+    return newSuggestions.slice(0, 3);
+  }, [query, recentSearches]);
 
   // Cache for storing search results with LRU eviction
   const cacheRef = useRef<SearchCache>({});
@@ -147,48 +187,6 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       return updated;
     });
   }, []);
-
-  // Generate search suggestions based on query
-  useEffect(() => {
-    if (!query.trim() || query.length < 2) {
-      setSuggestions([]);
-      return;
-    }
-
-    const queryLower = query.toLowerCase();
-    const newSuggestions: string[] = [];
-
-    // Add recent searches that match
-    recentSearches.forEach(recent => {
-      if (recent.toLowerCase().includes(queryLower) && recent.toLowerCase() !== queryLower) {
-        newSuggestions.push(recent);
-      }
-    });
-
-    // Add common search patterns
-    const commonSuggestions = [
-      'Mieter',
-      'Wohnung',
-      'Haus',
-      'Rechnung',
-      'Aufgabe',
-      'Einnahmen',
-      'Ausgaben',
-      'Betriebskosten',
-      'Kaution',
-      'Nebenkosten'
-    ];
-
-    commonSuggestions.forEach(suggestion => {
-      if (suggestion.toLowerCase().includes(queryLower) &&
-        suggestion.toLowerCase() !== queryLower &&
-        !newSuggestions.includes(suggestion)) {
-        newSuggestions.push(suggestion);
-      }
-    });
-
-    setSuggestions(newSuggestions.slice(0, 3));
-  }, [query, recentSearches]);
 
   // Network status monitoring
   useEffect(() => {

@@ -40,6 +40,8 @@ export function CustomCombobox({
   disabled = false,
   id,
 }: CustomComboboxProps) {
+  const generatedId = React.useId()
+  const listboxId = `listbox-${id || generatedId}`
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
   const [highlightedIndex, setHighlightedIndex] = React.useState(-1)
@@ -189,6 +191,7 @@ export function CustomCombobox({
           tabIndex={disabled ? -1 : 0}
           aria-expanded={open}
           aria-haspopup="listbox"
+          aria-controls={listboxId}
           aria-label={id ? undefined : (selectedOption ? `Selected: ${selectedOption.label}` : placeholder)}
           className={cn("justify-between px-3 min-h-[40px] h-auto cursor-pointer", width, !value && "text-muted-foreground")}
           disabled={disabled}
@@ -245,13 +248,14 @@ export function CustomCombobox({
 
           {/* Custom options list with proper scrolling */}
           <div
+            id={listboxId}
+            role="listbox"
             className="flex max-h-[300px] flex-col gap-1 overflow-y-auto p-1 custom-scrollbar"
             style={{ overscrollBehavior: 'contain' }}
           >
             {filteredOptions.length === 0 ? (
               <div
                 className="rounded-lg px-4 py-6 text-center text-sm text-muted-foreground font-medium"
-                role="option"
                 aria-disabled="true"
               >
                 {emptyText}

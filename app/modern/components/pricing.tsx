@@ -22,23 +22,9 @@ import { PreviewLimitNoticeBanner } from './preview-limit-notice-banner';
 import { Profile } from '@/types/supabase';
 import { POSTHOG_FEATURE_FLAGS, BRAND_NAME } from '@/lib/constants';
 import { trackBillingCycleChanged, trackPricingPlanSelected, trackPricingViewAllClicked, type BillingCycle } from '@/lib/posthog-landing-events';
-
-// Updated Plan interface to match the API response structure
-interface Plan {
-  id: string; // Stripe Price ID
-  name: string; // This should be the common product name, e.g., "Basic Plan"
-  price: number; // unit_amount in cents
-  currency: string;
-  interval: string | null; // 'month' or 'year'
-  interval_count: number | null;
-  features: string[];
-  limit_wohnungen?: number;
-  priceId: string; // Stripe Price ID (same as id)
-  position?: number;
-  productName: string; // A common name for the product, e.g. "Basic", "Pro"
-  description?: string; // To hold description from API (Stripe Product description)
-  metadata?: Record<string, string>;
-}
+import { getStripePlans } from '@/app/actions/stripe-actions';
+import { ComparisonTable, type Plan, type GroupedPlan } from './pricing-comparison';
+import { PricingCard } from './pricing-card';
 
 // Helper function to format price for display
 const formatDisplayPrice = (amount: number, currency: string, interval: string | null): string => {
@@ -58,244 +44,6 @@ interface PricingProps {
   // currentPlanId is now derived from userProfile.stripe_price_id
   showComparison?: boolean;
   showViewAllButton?: boolean;
-}
-
-interface GroupedPlan {
-  productName: string; // e.g. "Basic", "Pro"
-  features: string[];
-  description?: string; // Added description
-  monthly: Plan | null;
-  annually: Plan | null;
-  position?: number;
-  popular?: boolean; // Added popular flag
-}
-
-// Configuration for the comparison table mapping features to Stripe metadata keys
-interface FeatureConfig {
-  name: string;
-  key: string;
-  type?: 'boolean' | 'string';
-  tooltip?: string;
-}
-
-interface CategoryConfig {
-  category: string;
-  features: FeatureConfig[];
-}
-
-const comparisonConfig: CategoryConfig[] = [
-  {
-    category: "Allgemeine Funktionen",
-    features: [
-      { name: "Anzahl Einheiten", key: "feat_units", tooltip: "Die maximale Anzahl an verwaltbaren Wohneinheiten." },
-      { name: "Benutzerzugänge", key: "feat_users", tooltip: "Anzahl der Mitarbeiter, die Zugriff auf das System haben." },
-      { name: "Dokumentenspeicher", key: "feat_storage", tooltip: "Verfügbarer Speicherplatz für Dokumente und Belege." },
-      { name: "Mobile App", key: "feat_mobile_app", type: "boolean", tooltip: "Zugriff über iOS und Android App." },
-    ]
-  },
-  {
-    category: "Verwaltung & Organisation",
-    features: [
-      { name: "Digitale Mieterakte", key: "feat_tenant_files", type: "boolean" },
-      { name: "Vertragsmanagement", key: "feat_contracts", type: "boolean" },
-      { name: "Aufgabenmanagement", key: "feat_tasks", type: "boolean" },
-      { name: "Wartungsplaner", key: "feat_maintenance", type: "boolean" },
-    ]
-  },
-  {
-    category: "Finanzen & Buchhaltung",
-    features: [
-      { name: "Mieteingangskontrolle", key: "feat_rent_check", type: "boolean" },
-      { name: "Nebenkostenabrechnung", key: "feat_utility_costs" },
-      { name: "Automatische Mahnungen", key: "feat_dunning", type: "boolean" },
-      { name: "DATEV Export", key: "feat_datev", type: "boolean" },
-      { name: "Bankintegration", key: "feat_banking", type: "boolean" },
-    ]
-  },
-  {
-    category: "Support & Service",
-    features: [
-      { name: "Support-Level", key: "feat_support" },
-      { name: "Onboarding-Hilfe", key: "feat_onboarding", type: "boolean" },
-      { name: "Dedizierter Ansprechpartner", key: "feat_account_manager", type: "boolean" },
-    ]
-  }
-];
-
-interface ComparisonTableProps {
-  plans: GroupedPlan[];
-  billingCycle: "monthly" | "yearly";
-  onSelectPlan: (priceId: string) => void;
-  getButtonTextAndState: (priceId: string) => { text: string; disabled: boolean };
-}
-
-function ComparisonTable({ plans, billingCycle, onSelectPlan, getButtonTextAndState }: ComparisonTableProps) {
-  // Filter configuration to only include features that have data in at least one plan
-  const filteredConfig = useMemo(() => {
-    return comparisonConfig.map(category => {
-      const activeFeatures = category.features.filter(feature => {
-        // Check if any plan has a value for this feature key
-        return plans.some(plan => {
-          const metadata = plan.monthly?.metadata || plan.annually?.metadata || {};
-          return metadata && metadata[feature.key] !== undefined;
-        });
-      });
-
-      return {
-        ...category,
-        features: activeFeatures
-      };
-    }).filter(category => category.features.length > 0); // Remove empty categories
-  }, [plans]);
-
-  // Calculate total rows for the grid-row span: 1 header row + category rows + feature rows
-  const totalRows = 1 + filteredConfig.length + filteredConfig.reduce((acc, cat) => acc + cat.features.length, 0);
-
-  // If no plans are available or no features to show, don't render the table
-  if (plans.length === 0 || filteredConfig.length === 0) return null;
-
-  // Define grid columns dynamically based on number of plans
-  // First column is feature name (min 200px), then 1 column per plan
-  const gridTemplateColumns = `minmax(200px, 1.5fr) repeat(${plans.length}, minmax(180px, 1fr))`;
-
-  return (
-    <div className="mt-24 max-w-7xl mx-auto px-4">
-      <div className="text-center mb-16">
-        <h3 className="text-2xl font-bold mb-4">Funktionen im Vergleich</h3>
-        <p className="text-muted-foreground">Detaillierte Übersicht aller Features und Limits.</p>
-      </div>
-
-      {/* Container with padding to prevent shadow clipping */}
-      <div className="overflow-x-auto pb-12 pt-4 -mx-4 px-4">
-        {/* Grid Container */}
-        <div
-          className="grid relative min-w-[900px] isolate"
-          style={{ gridTemplateColumns }}
-        >
-
-          {/* Header Row - Titles */}
-          <div className="p-6 flex items-end font-bold text-xl pb-6">Vergleich</div>
-          {plans.map((plan, index) => (
-            <div key={plan.productName} className="p-6 text-center flex flex-col justify-end pb-6">
-              <span className={`font-bold text-2xl ${plan.popular ? 'text-primary' : ''}`}>{plan.productName}</span>
-            </div>
-          ))}
-
-          {/* Price Row */}
-          <div className="p-4 pl-6 min-h-[60px]"></div> {/* Empty cell for left column */}
-          {plans.map((plan, index) => {
-            const planVariant = billingCycle === 'monthly' ? plan.monthly : plan.annually;
-            return (
-              <div key={`${plan.productName}-price`} className="p-4 flex justify-center items-center min-h-[60px]">
-                {planVariant ? (
-                  <span className="text-xl font-semibold text-muted-foreground">
-                    {formatDisplayPrice(planVariant.price, planVariant.currency, planVariant.interval)}
-                    <span className="text-sm font-normal ml-1">
-                      {billingCycle === "monthly" ? "/Monat" : "/Jahr"}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Button Row */}
-          <div className="p-4 pl-6 min-h-[60px]"></div> {/* Empty cell for left column */}
-          {plans.map((plan) => {
-            const planVariant = billingCycle === 'monthly' ? plan.monthly : plan.annually;
-            if (!planVariant) return <div key={`${plan.productName}-btn-top`} className="p-4"></div>;
-
-            const { text, disabled } = getButtonTextAndState(planVariant.priceId);
-
-            return (
-              <div key={`${plan.productName}-btn-top`} className="p-4 flex justify-center items-center min-h-[60px] pb-6">
-                <Button
-                  onClick={() => onSelectPlan(planVariant.priceId)}
-                  className="w-full rounded-xl"
-                  variant={plan.popular ? "default" : "outline"}
-                  size="lg"
-                  disabled={disabled}
-                >
-                  {text}
-                </Button>
-              </div>
-            );
-          })}
-
-          {/* Data Rows */}
-          {filteredConfig.map((category, catIndex) => (
-            <Fragment key={catIndex}>
-              {/* Category Header */}
-              <div
-                className="p-4 pl-6 font-semibold text-sm text-muted-foreground uppercase tracking-wider mt-2 mb-2 flex items-center after:content-[''] after:flex-1 after:h-px after:bg-border after:ml-4"
-                style={{ gridColumn: `1 / span ${plans.length + 1}` }}
-              >
-                {category.category}
-              </div>
-
-              {/* Features */}
-              {category.features.map((feature, featIndex) => (
-                <Fragment key={`${catIndex}-${featIndex}`}>
-                  <div className="p-4 pl-6 flex items-center gap-2 border-b border-border/40 min-h-[60px]">
-                    <span className="font-medium text-sm sm:text-base">{feature.name}</span>
-                    {feature.tooltip && (
-                      <div className="group relative">
-                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                        <div className="absolute left-1/2 bottom-full mb-2 -translate-x-1/2 hidden group-hover:block w-56 p-3 bg-popover text-popover-foreground text-xs rounded-lg shadow-lg z-50 border border-border">
-                          {feature.tooltip}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {plans.map((plan, planIndex) => {
-                    // Get metadata from either monthly or annually plan (they share the same product metadata)
-                    const metadata = plan.monthly?.metadata || plan.annually?.metadata || {};
-                    const rawValue = metadata[feature.key];
-
-                    // Determine value to render
-                    let valueToRender: string | boolean = rawValue || false;
-
-                    if (feature.type === 'boolean') {
-                      // Only check for "true" string value (as per STRIPE_METADATA_GUIDE.md)
-                      valueToRender = rawValue === 'true';
-                    }
-
-                    return (
-                      <div key={`${plan.productName}-${feature.key}`} className="p-4 flex justify-center items-center border-b border-border/40 min-h-[60px]">
-                        {renderFeatureValue(valueToRender)}
-                      </div>
-                    );
-                  })}
-                </Fragment>
-              ))}
-            </Fragment>
-          ))}
-
-
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function renderFeatureValue(value: boolean | string) {
-  if (typeof value === 'boolean') {
-    return value ? (
-      <div className="flex justify-center">
-        <div className="rounded-full bg-green-500/10 p-1">
-          <Check className="h-4 w-4 text-green-500" />
-        </div>
-      </div>
-    ) : (
-      <div className="flex justify-center">
-        <Minus className="h-4 w-4 text-muted-foreground/30" />
-      </div>
-    );
-  }
-  return <span className="text-sm font-medium">{value}</span>;
 }
 
 export default function Pricing({
@@ -323,14 +71,12 @@ export default function Pricing({
       setIsLoadingPlans(true);
       setError(null);
       try {
-        const response = await fetch('/api/stripe/plans');
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to fetch plans: ${response.status}`);
+        const result = await getStripePlans();
+        if (result.success && result.data) {
+          setAllPlans(result.data as Plan[]);
+        } else {
+          throw new Error(result.error || 'Failed to fetch plans');
         }
-        // productName now comes directly from the API
-        const data: Plan[] = await response.json();
-        setAllPlans(data);
       } catch (err) {
         console.error(err);
         setError((err as Error).message || 'An unexpected error occurred');
@@ -494,7 +240,7 @@ export default function Pricing({
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[0, 1, 2].map((i) => (
               <Card
-                key={i}
+                key={`pricing-skeleton-card-${i}`}
                 className={`relative flex flex-col rounded-[2.5rem] ${i === 1 ? "border-primary shadow-lg scale-105" : "border-border"
                   }`}
               >
@@ -514,7 +260,7 @@ export default function Pricing({
                 <CardContent className="flex-grow">
                   <div className="space-y-3">
                     {[1, 2, 3, 4].map((j) => (
-                      <div key={j} className="flex items-center gap-3">
+                      <div key={`pricing-skeleton-line-${i}-${j}`} className="flex items-center gap-3">
                         <Skeleton className="h-4 w-4 rounded-full" />
                         <Skeleton className="h-4 w-full" />
                       </div>
@@ -600,78 +346,16 @@ export default function Pricing({
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {groupedPlans.filter(group => group.position !== 0).map((group) => {
-              const planToDisplay = billingCycle === 'monthly' ? group.monthly : group.annually;
-              if (!planToDisplay) {
-                // If the selected cycle isn't available for this group, maybe show a message or skip
-                // For now, skipping seems fine as per original logic.
-                return null;
-              }
-
-              // const yearlySavings = group.monthly && group.annually
-              //   ? (group.monthly.price * 12) - group.annually.price
-              //   : 0;
-              // The example UI doesn't show savings this way, but has a "(20% off)" in the yearly button.
-              // We'll stick to the example's UI for now.
-
-              return (
-                <Card
-                  key={group.productName}
-                  className={`relative flex flex-col rounded-[2.5rem] ${group.popular ? "border-primary shadow-lg scale-105" : "border-border"}`}
-                >
-                  {group.popular && (
-                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">Am beliebtesten</Badge>
-                  )}
-
-                  <CardHeader className="text-center pb-8">
-                    <CardTitle className="text-xl font-semibold">{group.productName}</CardTitle>
-                    <div className="mt-4">
-                      <span className="text-4xl font-bold">
-                        {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {billingCycle === "monthly" ? "/Monat" : "/Jahr"}
-                      </span>
-                    </div>
-                    <CardDescription className="mt-2 h-12 overflow-hidden"> {/* Added fixed height and overflow for description consistency */}
-                      {group.description || `Unser ${group.productName} Plan.`} {/* Use group's description */}
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="flex-grow">
-                    <ul className="space-y-3">
-                      {group.features.map((feature, featureIndex) => (
-                        <li key={featureIndex} className="flex items-center gap-3">
-                          <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                          <span className="text-sm">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-
-                  <CardFooter className="mt-auto py-6">
-                    <Button
-                      onClick={() => {
-                        trackPricingPlanSelected(
-                          group.productName,
-                          planToDisplay.priceId,
-                          billingCycle,
-                          planToDisplay.price / 100,
-                          planToDisplay.currency
-                        )
-                        onSelectPlan(planToDisplay.priceId)
-                      }}
-                      className="w-full rounded-xl"
-                      variant={group.popular ? "default" : "outline"}
-                      size="lg"
-                      disabled={getButtonTextAndState(planToDisplay.priceId).disabled}
-                    >
-                      {getButtonTextAndState(planToDisplay.priceId).text}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              );
-            })}
+            {groupedPlans.filter(group => group.position !== 0).map((group) => (
+              <PricingCard
+                key={group.productName}
+                group={group}
+                billingCycle={billingCycle}
+                getButtonTextAndState={getButtonTextAndState}
+                onSelectPlan={onSelectPlan}
+                formatDisplayPrice={formatDisplayPrice}
+              />
+            ))}
           </div>
 
           {isTrialEligible && (

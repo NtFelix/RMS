@@ -19,19 +19,32 @@ export default async function WohnungenPage() {
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Load all independent initial data in parallel
+  const [
+    userProfileResult,
+    countResult,
+    apartmentsResult,
+    tenantsResult,
+    housesResult
+  ] = await Promise.all([
+    user ? fetchUserProfile() : Promise.resolve(null),
+    user ? supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id) : Promise.resolve({ count: 0, error: null }),
+    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)'),
+    supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name'),
+    supabase.from('Haeuser').select('id,name')
+  ]);
+
   let apartmentCount = 0;
   let userIsEligibleToAdd = false;
   let effectiveApartmentLimit: number | typeof Infinity = 0;
   let limitReason: 'trial' | 'subscription' | 'none' = 'none';
 
   if (user) {
-    const userProfile = await fetchUserProfile();
+    const userProfile = userProfileResult;
     if (userProfile) {
       const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
       const isEffectivelyInTrial = isStripeTrial;
       const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
-
-
 
       if (isEffectivelyInTrial) {
         userIsEligibleToAdd = true;
@@ -70,15 +83,14 @@ export default async function WohnungenPage() {
       limitReason = 'subscription';
     }
 
-    const { count, error: countError } = await supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
-    if (countError) console.error('Error fetching apartment count:', countError.message);
-    else apartmentCount = count || 0;
+    if (countResult.error) console.error('Error fetching apartment count:', countResult.error.message);
+    else apartmentCount = countResult.count || 0;
   }
 
-  const { data: rawApartments, error: apartmentsError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+  const { data: rawApartments, error: apartmentsError } = apartmentsResult;
   if (apartmentsError) console.error('Fehler beim Laden der Wohnungen:', apartmentsError);
 
-  const { data: tenants, error: tenantsError } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name');
+  const { data: tenants, error: tenantsError } = tenantsResult;
   if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
 
   const today = new Date();
@@ -105,7 +117,7 @@ export default async function WohnungenPage() {
     } as Wohnung; // Ensure the mapped object conforms to Wohnung type
   }) : [];
 
-  const { data: housesData, error: housesError } = await supabase.from('Haeuser').select('id,name');
+  const { data: housesData, error: housesError } = housesResult;
   if (housesError) console.error('Fehler beim Laden der Häuser:', housesError);
   const houses = housesData || [];
 

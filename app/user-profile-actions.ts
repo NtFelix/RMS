@@ -45,19 +45,22 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
       return { error: 'Not authenticated', details: authError?.message };
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single<SupabaseProfile>();
+    // Parallelize independent data fetches
+    const [profileResult, currentWohnungenCount] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single<SupabaseProfile>(),
+      getCurrentWohnungenCount(supabase, user.id)
+    ]);
+
+    const { data: profile, error: profileError } = profileResult;
 
     if (profileError || !profile) {
       console.error('Profile error in getUserProfileForSettings:', profileError);
       return { error: 'Profile not found', details: profileError?.message };
     }
-
-    // Use the new utility function to get the count of Wohnungen
-    const currentWohnungenCount = await getCurrentWohnungenCount(supabase, user.id);
 
     let planDetails = null;
     if (profile.stripe_price_id &&

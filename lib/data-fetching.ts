@@ -256,8 +256,10 @@ export async function fetchFinanzenByMonth() {
 }
 
 export async function getMietstatistik() {
-  const wohnungen = await fetchWohnungen();
-  const mieter = await fetchMieter();
+  const [wohnungen, mieter] = await Promise.all([
+    fetchWohnungen(),
+    fetchMieter()
+  ]);
 
   // Calculate occupancy data by month (last 12 months)
   const now = new Date();
@@ -286,10 +288,12 @@ export async function getMietstatistik() {
 }
 
 export async function getDashboardSummary() {
-  const haeuser = await fetchHaeuser();
-  const wohnungen = await fetchWohnungen();
-  const mieter = await fetchMieter();
-  const aufgaben = await fetchAufgaben();
+  const [haeuser, wohnungen, mieter, aufgaben] = await Promise.all([
+    fetchHaeuser(),
+    fetchWohnungen(),
+    fetchMieter(),
+    fetchAufgaben()
+  ]);
 
   // Calculate monthly income
   const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);

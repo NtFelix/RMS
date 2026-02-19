@@ -118,34 +118,6 @@ export function MaintenanceDonutChart() {
     fetchMaintenanceData();
   }, []);
 
-  // Custom tooltip to format currency
-  interface TooltipProps {
-    active?: boolean;
-    payload?: Array<{
-      name: string;
-      value: number;
-      payload: MaintenanceData;
-    }>;
-  }
-
-  const CustomTooltip = ({ active, payload }: TooltipProps) => {
-    if (active && payload && payload.length) {
-      const data = payload[0];
-      return (
-        <div className="bg-white p-2 border rounded shadow-lg">
-          <p className="text-sm font-medium">{data.name}</p>
-          <p className="text-sm text-blue-600">
-            {new Intl.NumberFormat('de-DE', { 
-              style: 'currency', 
-              currency: 'EUR' 
-            }).format(data.value)}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
       <CardHeader className="flex-shrink-0 pb-2">
@@ -184,3 +156,31 @@ export function MaintenanceDonutChart() {
     </Card>
   );
 }
+
+// Custom tooltip to format currency
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    name: string;
+    value: number;
+    payload: MaintenanceData;
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: TooltipProps) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    return (
+      <div className="bg-white p-2 border rounded shadow-lg">
+        <p className="text-sm font-medium">{data.name}</p>
+        <p className="text-sm text-blue-600">
+          {new Intl.NumberFormat('de-DE', { 
+            style: 'currency', 
+            currency: 'EUR' 
+          }).format(data.value)}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};

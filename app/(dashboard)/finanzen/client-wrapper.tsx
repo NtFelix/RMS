@@ -70,6 +70,8 @@ interface FinanzenClientWrapperProps {
   currentYear?: number;
 }
 
+const EMPTY_ARRAY: any[] = [];
+
 // Utility function to remove duplicates based on ID
 const deduplicateFinances = (finances: Finanz[]): Finanz[] => {
   const seen = new Set<string>();
@@ -86,12 +88,12 @@ export default function FinanzenClientWrapper({
   finances: initialFinances,
   wohnungen,
   summaryData: initialSummaryData,
-  initialAvailableYears = [],
+  initialAvailableYears = EMPTY_ARRAY,
   initialYear,
   isUsingFallbackYear = false,
   currentYear = new Date().getFullYear()
 }: FinanzenClientWrapperProps) {
-  const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
+  const [finData, setFinData] = useState<Finanz[]>(() => deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
@@ -314,9 +316,11 @@ export default function FinanzenClientWrapper({
   }, [wohnungen, handleSuccess]);
 
   const refreshFinances = async () => {
-    await loadMoreTransactions(true);
-    await refreshSummaryData();
-    await fetchBalance();
+    await Promise.all([
+      loadMoreTransactions(true),
+      refreshSummaryData(),
+      fetchBalance()
+    ]);
   };
 
   // Constants for filter options
