@@ -120,6 +120,7 @@ export type Zaehler = {
     einheit: string;
     ist_aktiv?: boolean;
     user_id: string;
+    kommentar?: string | null;
 };
 
 export type ZaehlerAblesung = {
