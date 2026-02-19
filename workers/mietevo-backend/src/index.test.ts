@@ -114,7 +114,7 @@ describe('Backend Worker Tests', () => {
             });
 
             const response = await handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
-            expect(response.status).toBe(404);
+            expect(response.status).toBe(400);
         });
     });
 
