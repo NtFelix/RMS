@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { formatNumber } from "@/utils/format";
 import { createPortal } from "react-dom";
 import {
@@ -30,13 +31,22 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed, Droplets, Thermometer, Flame, Gauge, Zap, Fuel, X, CalendarClock, Banknote, Check } from "lucide-react";
+import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed, Droplets, Thermometer, Flame, Gauge, Zap, Fuel, X, CalendarClock, Banknote, Check, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+function ConfettiSideCannons() {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-[100]">
+      <div className="absolute -left-10 bottom-0 rotate-[35deg]">🎊</div>
+      <div className="absolute -right-10 bottom-0 -rotate-[35deg]">🎊</div>
+    </div>
+  );
+}
 import type { Mieter, Nebenkosten, RechnungSql } from "@/lib/types";
 import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types";
 import { convertZaehlerkostenToStrings } from "@/lib/zaehler-utils";
@@ -60,6 +70,39 @@ import { CustomCombobox, type ComboboxOption } from "@/components/ui/custom-comb
 import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable-cost-item";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration } from "@/utils/date-calculations";
+
+const SuccessStep = ({ data, onClose, onOverview }: { data: any, onClose: () => void, onOverview: () => void }) => {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6">
+      <div className="relative">
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 shadow-xl shadow-green-500/10"
+        >
+          <Check className="w-10 h-10" strokeWidth={3} />
+        </motion.div>
+        <ConfettiSideCannons />
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-2xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">Abrechnung gespeichert!</h3>
+        <p className="text-muted-foreground max-w-sm mx-auto">
+          Die Betriebskosten für das Objekt <span className="font-semibold text-foreground">{data?.house_name || data?.Haeuser?.name || 'Unbekannt'}</span> im Zeitraum <span className="font-semibold text-foreground">{isoToGermanDate(data?.startdatum)} - {isoToGermanDate(data?.enddatum)}</span> wurden erfolgreich erfasst.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md pt-4">
+        <Button variant="outline" onClick={onClose} className="h-12 rounded-2xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all">
+          Schließen
+        </Button>
+        <Button onClick={onOverview} className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 border-none transition-all active:scale-[0.98]">
+          Zur Übersicht
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 // Re-export for other components that might need it
 export type { CostItem, RechnungEinzel };
@@ -101,6 +144,8 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [modalNebenkostenData, setModalNebenkostenData] = useState<Nebenkosten | null>(null);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [savedItemData, setSavedItemData] = useState<Nebenkosten | null>(null);
   const currentlyLoadedNebenkostenId = React.useRef<string | null | undefined>(null);
 
   // Tooltip next to dropdown: track hovered verteilerschlüssel, dropdown rect, and hovered item position
@@ -732,6 +777,31 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     }
   }, [selectedHausMieter, costItems, modalNebenkostenData, isBetriebskostenModalOpen, isFormLoading]);
 
+  const handleNextStep = () => {
+    if (currentStep === 1) {
+      if (!hausId) {
+        toast({ title: "Haus erforderlich", description: "Bitte wählen Sie ein Haus aus.", variant: "destructive" });
+        return;
+      }
+      const validation = validateDateRange(startdatum, enddatum);
+      if (!validation.isValid) {
+        toast({
+          title: "Ungültiger Zeitraum",
+          description: validation.errors.range || "Bitte überprüfen Sie den Abrechnungszeitraum.",
+          variant: "destructive"
+        });
+        return;
+      }
+      setCurrentStep(2);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep === 2) {
+      setCurrentStep(1);
+    }
+  };
+
   const handleSubmit = async () => {
     setIsSaving(true);
     setBetriebskostenModalDirty(false);
@@ -890,18 +960,41 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
       }
 
-      // Only show success and close if everything was successful
+      // Only show success and move to step 3 if everything was successful
       toast({
         title: "Erfolg",
         description: "Betriebskosten erfolgreich gespeichert",
         variant: "success"
       });
       setBetriebskostenModalDirty(false); // Clear dirty state before closing
+
+      // Store the result for step 3 overview
+      if (response.data) {
+        setSavedItemData(response.data);
+      } else {
+        // Fallback for updates where response data might be partial
+        setSavedItemData({
+          ...modalNebenkostenData,
+          startdatum: germanToIsoDate(startdatum),
+          enddatum: germanToIsoDate(enddatum),
+          haeuser_id: hausId,
+          vorauszahlungs_art: vorauszahlungsArt,
+          nebenkostenart: costItems.map(i => i.art),
+          betrag: costItems.map(i => parseFloat(i.betrag) || 0),
+          berechnungsart: costItems.map(i => i.berechnungsart),
+          zaehlerkosten: Object.fromEntries(
+            Object.entries(zaehlerkosten).map(([k, v]) => [k, parseFloat(v) || 0])
+          )
+        } as Nebenkosten);
+      }
+
+      setCurrentStep(3);
+
       if (betriebskostenModalOnSuccess) {
         betriebskostenModalOnSuccess();
       }
       useOnboardingStore.getState().completeStep('create-bill-form');
-      closeBetriebskostenModal();
+      // No longer close modal immediately - wait for Step 3
     } else {
       toast({ title: "Fehler beim Speichern", description: response.message, variant: "destructive" });
       setBetriebskostenModalDirty(true);
@@ -1014,184 +1107,200 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
         className="sm:max-w-3xl md:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
         onAttemptClose={attemptClose}
         isDirty={isBetriebskostenModalDirty}
-      >  <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-          <DialogHeader className="px-4">
-            <DialogTitle>
+      >  <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="flex flex-col flex-1 overflow-hidden min-h-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="text-xl">
               {betriebskostenInitialData?.id ? "Betriebskosten bearbeiten" : "Neue Betriebskostenabrechnung"}
             </DialogTitle>
-            <DialogDescription>
-              {isFormLoading ? "Daten werden vorbereitet..." : "Füllen Sie die Details für die Betriebskostenabrechnung aus."}
+            <DialogDescription className="text-sm">
+              {currentStep === 1
+                ? "Schritt 1: Wählen Sie das Haus, den Zeitraum und die Abrechnungsmethode."
+                : currentStep === 2
+                  ? "Schritt 2: Erfassen Sie Zählerkosten und ergänzen Sie die Kostenaufstellung."
+                  : "Abrechnung erfolgreich gespeichert."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 overflow-y-auto max-h-[70vh] p-4">
-            {/* Property & Period Selection Section */}
-            <div className="bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 space-y-4">
-              {/* House Selection */}
-              <div className="space-y-2">
-                <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
-                  Haus *
-                </LabelWithTooltip>
-                {isFormLoading ? <Skeleton className="h-10 w-full" /> : (
-                  <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausIdChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving || isFormLoading} />
-                )}
+          {/* Stepper Header */}
+          {currentStep < 3 && (
+            <div className="px-6 py-4 border-y border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-white/5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">Schritt {currentStep} von 2</span>
+                <span className="text-xs font-bold text-primary">
+                  {currentStep === 1 ? 'Basis-Informationen' : 'Kosten & Details'}
+                </span>
               </div>
+              <Progress value={currentStep === 1 ? 50 : 100} className="h-1.5" />
+            </div>
+          )}
 
-              {/* Date Range Selection */}
-              <div className="space-y-3">
-                {isFormLoading ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                ) : (
-                  <>
-                    <DateRangePicker
-                      startDate={startdatum}
-                      endDate={enddatum}
-                      onStartDateChange={handleStartdatumChange}
-                      onEndDateChange={handleEnddatumChange}
-                      disabled={isSaving || isFormLoading}
-                      showPeriodInfo={false}
-                    />
-
-                    {/* Year Navigation Buttons - positioned directly below date inputs */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-10 w-full rounded-full"
-                        onClick={() => {
-                          // Extract year from current startdatum and subtract 1
-                          const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
-                          const newYear = currentStartYear - 1;
-                          setStartdatum(`01.01.${newYear}`);
-                          setEnddatum(`31.12.${newYear}`);
-                          setBetriebskostenModalDirty(true);
-                        }}
-                        disabled={isSaving || isFormLoading}
-                        title="Ein Jahr zurück"
-                      >
-                        <CalendarMinus className="w-4 h-4 mr-2" />
-                        -1 Jahr
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-10 w-full rounded-full"
-                        onClick={() => {
-                          // Extract year from current startdatum and add 1
-                          const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
-                          const newYear = currentStartYear + 1;
-                          setStartdatum(`01.01.${newYear}`);
-                          setEnddatum(`31.12.${newYear}`);
-                          setBetriebskostenModalDirty(true);
-                        }}
-                        disabled={isSaving || isFormLoading}
-                        title="Ein Jahr vor"
-                      >
-                        <CalendarPlus className="w-4 h-4 mr-2" />
-                        +1 Jahr
-                      </Button>
+          <div className="flex-1 overflow-y-auto relative min-h-0 custom-scrollbar">
+            <AnimatePresence mode="wait">
+              {currentStep === 1 && (
+                <motion.div
+                  key="step1"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="space-y-6 p-6"
+                >
+                  <div className="bg-gray-50/50 dark:bg-white/5 rounded-3xl border border-gray-200/60 dark:border-gray-800/60 p-5 space-y-6">
+                    {/* House Selection */}
+                    <div className="space-y-2.5">
+                      <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
+                        <span className="text-sm font-semibold tracking-tight">Immobilie auswählen *</span>
+                      </LabelWithTooltip>
+                      {isFormLoading ? <Skeleton className="h-11 w-full rounded-xl" /> : (
+                        <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausIdChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving || isFormLoading} />
+                      )}
                     </div>
 
-                    {/* Period information - moved below the year buttons */}
-                    {(() => {
-                      const validation = validateDateRange(startdatum, enddatum);
-                      return (
-                        <div className="space-y-2">
-                          {validation.isValid && validation.periodDays && (
-                            <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-xl">
-                              <strong>Abrechnungszeitraum:</strong> {formatPeriodDuration(startdatum, enddatum)}
+                    {/* Date Range Selection */}
+                    <div className="space-y-4 pt-2">
+                      <LabelWithTooltip htmlFor="formDates" infoText="Legen Sie den Abrechnungszeitraum fest.">
+                        <span className="text-sm font-semibold tracking-tight">Abrechnungszeitraum *</span>
+                      </LabelWithTooltip>
+                      {isFormLoading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <Skeleton className="h-11 w-full rounded-xl" />
+                          <Skeleton className="h-11 w-full rounded-xl" />
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <DateRangePicker
+                            startDate={startdatum}
+                            endDate={enddatum}
+                            onStartDateChange={handleStartdatumChange}
+                            onEndDateChange={handleEnddatumChange}
+                            disabled={isSaving || isFormLoading}
+                            showPeriodInfo={false}
+                          />
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-11 w-full rounded-2xl border-gray-200/60 dark:border-gray-800/60 hover:bg-white dark:hover:bg-gray-800 transition-all shadow-sm"
+                              onClick={() => {
+                                const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                                const newYear = currentStartYear - 1;
+                                setStartdatum(`01.01.${newYear}`);
+                                setEnddatum(`31.12.${newYear}`);
+                                setBetriebskostenModalDirty(true);
+                              }}
+                              disabled={isSaving || isFormLoading}
+                            >
+                              <CalendarMinus className="w-4 h-4 mr-2 text-muted-foreground" />
+                              <span className="font-medium">-1 Jahr</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-11 w-full rounded-2xl border-gray-200/60 dark:border-gray-800/60 hover:bg-white dark:hover:bg-gray-800 transition-all shadow-sm"
+                              onClick={() => {
+                                const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                                const newYear = currentStartYear + 1;
+                                setStartdatum(`01.01.${newYear}`);
+                                setEnddatum(`31.12.${newYear}`);
+                                setBetriebskostenModalDirty(true);
+                              }}
+                              disabled={isSaving || isFormLoading}
+                            >
+                              <CalendarPlus className="w-4 h-4 mr-2 text-primary" />
+                              <span className="font-medium">+1 Jahr</span>
+                            </Button>
+                          </div>
+
+                          {(() => {
+                            const validation = validateDateRange(startdatum, enddatum);
+                            return validation.isValid && validation.periodDays && (
+                              <div className="text-sm text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100/50 dark:border-blue-800/50 p-3.5 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                  <span className="font-medium">Abrechnungszeitraum:</span> {formatPeriodDuration(startdatum, enddatum)}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Vorauszahlungsmethode */}
+                    <div className="space-y-4 pt-2">
+                      <LabelWithTooltip htmlFor="formVorauszahlungsArt" infoText="Soll: Verwendet den vereinbarten Vorauszahlungsbetrag aus dem Mieterprofil. Ist: Verwendet die tatsächlich gebuchten Zahlungen.">
+                        <span className="text-sm font-semibold tracking-tight">Zahlungsmethode</span>
+                      </LabelWithTooltip>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => { setVorauszahlungsArt('soll'); setBetriebskostenModalDirty(true); }}
+                          disabled={isSaving || isFormLoading}
+                          className={`group relative flex items-center gap-4 p-4 rounded-2xl border transition-all disabled:opacity-50 ${vorauszahlungsArt === 'soll' ? 'bg-primary/5 border-primary shadow-sm shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200/60 dark:border-gray-800/60 hover:border-primary/30'}`}
+                        >
+                          <div className={`p-2.5 rounded-xl transition-colors ${vorauszahlungsArt === 'soll' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground group-hover:text-primary'} shadow-sm`}>
+                            <CalendarClock className="w-5 h-5" />
+                          </div>
+                          <div className="text-left">
+                            <p className={`font-bold transition-colors ${vorauszahlungsArt === 'soll' ? 'text-primary' : 'text-foreground'}`}>Soll-Verfahren</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">Geplante Vorauszahlungen</p>
+                          </div>
+                          {vorauszahlungsArt === 'soll' && (
+                            <div className="ml-auto w-5 h-5 rounded-full bg-primary flex items-center justify-center animate-in zoom-in duration-300">
+                              <Check className="w-3 h-3 text-white" strokeWidth={3} />
                             </div>
                           )}
-
-                          {validation.errors.range && (
-                            <p className={`text-sm ${validation.errors.range.startsWith('Warnung') ? 'text-yellow-600' : 'text-red-600'}`}>
-                              {validation.errors.range}
-                            </p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setVorauszahlungsArt('ist'); setBetriebskostenModalDirty(true); }}
+                          disabled={isSaving || isFormLoading}
+                          className={`group relative flex items-center gap-4 p-4 rounded-2xl border transition-all disabled:opacity-50 ${vorauszahlungsArt === 'ist' ? 'bg-primary/5 border-primary shadow-sm shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200/60 dark:border-gray-800/60 hover:border-primary/30'}`}
+                        >
+                          <div className={`p-2.5 rounded-xl transition-colors ${vorauszahlungsArt === 'ist' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground group-hover:text-primary'} shadow-sm`}>
+                            <Banknote className="w-5 h-5" />
+                          </div>
+                          <div className="text-left">
+                            <p className={`font-bold transition-colors ${vorauszahlungsArt === 'ist' ? 'text-primary' : 'text-foreground'}`}>Ist-Verfahren</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">Reale Bankeingänge</p>
+                          </div>
+                          {vorauszahlungsArt === 'ist' && (
+                            <div className="ml-auto w-5 h-5 rounded-full bg-primary flex items-center justify-center animate-in zoom-in duration-300">
+                              <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                            </div>
                           )}
-                        </div>
-                      );
-                    })()}
-                  </>
-                )}
-              </div>
-
-              {/* Vorauszahlungsmethode */}
-              <div className="space-y-2">
-                <LabelWithTooltip htmlFor="formVorauszahlungsArt" infoText="Soll: Verwendet den vereinbarten Vorauszahlungsbetrag, der im Mieterprofil hinterlegt ist. Ist: Verwendet die tatsächlich gebuchten Zahlungen aus der Finanzen-Seite.">
-                  Vorauszahlungsmethode
-                </LabelWithTooltip>
-                {isFormLoading ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <Skeleton className="h-20 w-full rounded-xl" />
-                    <Skeleton className="h-20 w-full rounded-xl" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Soll option */}
-                    <button
-                      type="button"
-                      onClick={() => { setVorauszahlungsArt('soll'); setBetriebskostenModalDirty(true); }}
-                      disabled={isSaving || isFormLoading}
-                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'soll' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
-                    >
-                      <div className="flex items-start justify-between w-full">
-                        <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'soll' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                          <CalendarClock className="w-4 h-4" />
-                        </div>
-                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'soll' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
-                          <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
-                        </div>
-                      </div>
-                      <div>
-                        <p className={`text-sm font-semibold leading-tight transition-colors ${vorauszahlungsArt === 'soll' ? 'text-primary' : 'text-foreground'}`}>Soll</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Vereinbarte Vorauszahlung<br />aus dem Mieterprofil</p>
-                      </div>
-                    </button>
-                    {/* Ist option */}
-                    <button
-                      type="button"
-                      onClick={() => { setVorauszahlungsArt('ist'); setBetriebskostenModalDirty(true); }}
-                      disabled={isSaving || isFormLoading}
-                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'ist' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
-                    >
-                      <div className="flex items-start justify-between w-full">
-                        <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'ist' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                          <Banknote className="w-4 h-4" />
-                        </div>
-                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'ist' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
-                          <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
-                        </div>
-                      </div>
-                      <div>
-                        <p className={`text-sm font-semibold leading-tight transition-colors ${vorauszahlungsArt === 'ist' ? 'text-primary' : 'text-foreground'}`}>Ist</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Gebuchte Einnahmen<br />aus der Finanzen-Seite</p>
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
+                </motion.div>
+              )}
 
-              {/* Meter Costs / Zählerkosten */}
-              <div className="space-y-3">
-                <LabelWithTooltip htmlFor="formZaehlerkosten" infoText="Die Kosten je Zählertyp für das ausgewählte Haus in diesem Abrechnungszeitraum. Nur Zähler, für die Kosten anfallen, müssen hier eingetragen werden.">
-                  Zählerkosten (€)
-                </LabelWithTooltip>
-
-                {isFormLoading ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {Array.from({ length: 4 }).map((_, idx) => (
-                      <Skeleton key={`skel-zaehler-${idx}`} className="h-10 w-full rounded-xl" />
-                    ))}
-                  </div>
-                ) : (
+              {currentStep === 2 && (
+                <motion.div
+                  key="step2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="space-y-8 p-6"
+                >
+                  {/* Meter Costs Section */}
                   <div className="space-y-4">
-                    {/* Active Meter Costs */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
+                        <Gauge className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold tracking-tight">Verbrauchskosten</h3>
+                        <p className="text-xs text-muted-foreground">Hausweite Gesamtkosten für Zähler</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {(Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
                         .filter(typ => zaehlerkosten[typ] !== undefined)
                         .map((typ) => {
@@ -1201,25 +1310,23 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                           return (
                             <div
                               key={typ}
-                              className="group flex flex-col gap-2 p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm transition-all hover:border-primary/30"
+                              className="group flex flex-col gap-3 p-4 bg-gray-50/50 dark:bg-white/5 rounded-3xl border border-gray-200/60 dark:border-gray-800/60 shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
                             >
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div className={`p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors`}>
-                                    <Icon className="w-4 h-4" />
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2.5 rounded-xl bg-white dark:bg-gray-800 text-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-sm border border-gray-100 dark:border-gray-700">
+                                    <Icon className="w-4.5 h-4.5" />
                                   </div>
-                                  <Label htmlFor={`zaehlerkosten-${typ}`} className="text-sm font-medium">
-                                    {config.label}
-                                  </Label>
+                                  <span className="text-sm font-bold">{config.label}</span>
                                 </div>
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                  className="h-8 w-8 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
                                   onClick={() => handleRemoveZaehlerkosten(typ)}
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
                               <div className="relative">
@@ -1230,90 +1337,142 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                   placeholder="0.00"
                                   step="0.01"
                                   disabled={isSaving || isFormLoading}
-                                  className="h-10 pl-3 pr-8 bg-gray-50/50 dark:bg-black/20 border-gray-200 dark:border-gray-800 focus:ring-primary/20"
+                                  className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-all font-medium text-lg"
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">€</span>
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">€</span>
                               </div>
                             </div>
                           );
                         })}
+
+                      <div className="sm:col-span-1">
+                        {addMeterCostSelect}
+                      </div>
                     </div>
-
-                    {/* Add Meter Cost Select */}
-                    {addMeterCostSelect}
                   </div>
-                )}
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
-              <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 p-3 space-y-3">
-                {isFormLoading ? (
-                  Array.from({ length: 3 }).map((_, idx) => (
-                    <div key={`skel-cost-${idx}`} className="flex flex-col gap-2 py-2 border-b last:border-b-0">
-                      <div className="flex flex-col sm:flex-row items-start gap-2">
-                        <div className="flex items-center justify-center flex-none w-8 h-10">
-                          <Skeleton className="h-6 w-6 rounded" />
+                  {/* Kostenaufstellung Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
+                          <PlusCircle className="w-5 h-5" />
                         </div>
-                        <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
-                        <Skeleton className="h-10 w-full sm:flex-[3_1_0%]" />
-                        <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
-                        <div className="flex items-center justify-center flex-none w-10 h-10">
-                          <Skeleton className="h-8 w-8 rounded" />
+                        <div>
+                          <h3 className="text-lg font-bold tracking-tight">Betriebskosten</h3>
+                          <p className="text-xs text-muted-foreground">Alle weiteren umlagefähigen Positionen</p>
                         </div>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext items={costItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
-                      {costItems.map((item, index) => (
-                        <SortableCostItem
-                          key={item.id}
-                          item={item}
-                          index={index}
-                          costItems={costItems}
-                          selectedHausMieter={selectedHausMieter}
-                          rechnungen={rechnungen}
-                          isSaving={isSaving}
-                          isLoadingDetails={isFormLoading}
-                          isFetchingTenants={isFetchingTenants}
-                          hausId={hausId}
-                          onCostItemChange={handleCostItemChange}
-                          onRemoveCostItem={removeCostItem}
-                          onRechnungChange={handleRechnungChange}
-                          hoveredBerechnungsart={hoveredBerechnungsart}
-                          selectContentRect={selectContentRect}
-                          hoveredItemRect={hoveredItemRect}
-                          tooltipMap={tooltipMap}
-                          onItemHover={handleItemHover}
-                          onItemLeave={handleItemLeave}
-                          selectContentRef={selectContentRef}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                )}
-                <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isFormLoading || isSaving}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Kostenposition hinzufügen
-                </Button>
-              </div>
-            </div>
+
+                    <div className="rounded-3xl bg-gray-50/50 dark:bg-white/5 border border-gray-200/60 dark:border-gray-800/60 p-4 space-y-4">
+                      {isFormLoading ? (
+                        Array.from({ length: 3 }).map((_, idx) => (
+                          <div key={`skel-cost-${idx}`} className="flex flex-col gap-2 py-2">
+                            <Skeleton className="h-14 w-full rounded-2xl" />
+                          </div>
+                        ))
+                      ) : (
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <div className="space-y-3">
+                            <SortableContext items={costItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
+                              {costItems.map((item, index) => (
+                                <SortableCostItem
+                                  key={item.id}
+                                  item={item}
+                                  index={index}
+                                  costItems={costItems}
+                                  selectedHausMieter={selectedHausMieter}
+                                  rechnungen={rechnungen}
+                                  isSaving={isSaving}
+                                  isLoadingDetails={isFormLoading}
+                                  isFetchingTenants={isFetchingTenants}
+                                  hausId={hausId}
+                                  onCostItemChange={handleCostItemChange}
+                                  onRemoveCostItem={removeCostItem}
+                                  onRechnungChange={handleRechnungChange}
+                                  hoveredBerechnungsart={hoveredBerechnungsart}
+                                  selectContentRect={selectContentRect}
+                                  hoveredItemRect={hoveredItemRect}
+                                  tooltipMap={tooltipMap}
+                                  onItemHover={handleItemHover}
+                                  onItemLeave={handleItemLeave}
+                                  selectContentRef={selectContentRef}
+                                />
+                              ))}
+                            </SortableContext>
+                          </div>
+                        </DndContext>
+                      )}
+
+                      <Button
+                        type="button"
+                        onClick={addCostItem}
+                        variant="ghost"
+                        className="w-full h-11 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary font-semibold"
+                        disabled={isFormLoading || isSaving}
+                      >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Weitere Kostenposition hinzufügen
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {currentStep === 3 && (
+                <motion.div
+                  key="step3"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, type: "spring" }}
+                >
+                  <SuccessStep
+                    data={savedItemData}
+                    onClose={closeBetriebskostenModal}
+                    onOverview={() => {
+                      // For now we just close, but ideally we'd trigger the overview
+                      closeBetriebskostenModal();
+                      // Optional: if we can find a way to let parent know to open overview
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          <DialogFooter className="px-4">
-            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isFormLoading}>
-              Abbrechen
-            </Button>
-            <Button type="submit" disabled={isSaving || isFetchingTenants || isFormLoading}>
-              {isSaving ? "Speichern..." : (isFormLoading || isFetchingTenants ? "Laden..." : "Speichern")}
-            </Button>
+          <DialogFooter className="px-6 py-4 bg-gray-50/30 dark:bg-white/5 border-t border-gray-100 dark:border-gray-800 gap-3">
+            {currentStep === 1 ? (
+              <>
+                <Button type="button" variant="ghost" onClick={handleCancelClick} disabled={isSaving || isFormLoading} className="rounded-2xl h-11 px-6 font-semibold hover:bg-gray-100 dark:hover:bg-gray-800">
+                  Abbrechen
+                </Button>
+                <Button type="button" onClick={handleNextStep} disabled={isSaving || isFormLoading} className="rounded-2xl h-11 px-8 font-bold shadow-lg shadow-primary/20 flex items-center gap-2">
+                  Weiter
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </>
+            ) : currentStep === 2 ? (
+              <>
+                <Button type="button" variant="ghost" onClick={handlePrevStep} disabled={isSaving || isFormLoading} className="rounded-2xl h-11 px-6 font-semibold flex items-center gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  Zurück
+                </Button>
+                <div className="flex-1" />
+                <Button type="submit" disabled={isSaving || isFetchingTenants || isFormLoading} className="rounded-2xl h-11 px-10 font-bold shadow-lg shadow-primary/25 border-none transition-all active:scale-[0.98]">
+                  {isSaving ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Wird gespeichert...
+                    </div>
+                  ) : (isFormLoading || isFetchingTenants ? "Laden..." : "Speichern & Abschließen")}
+                </Button>
+              </>
+            ) : null}
           </DialogFooter>
         </form>
       </DialogContent>
