@@ -1193,7 +1193,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                       transition={{ duration: 0.2, ease: "easeInOut" }}
                       className="space-y-6 p-6"
                     >
-                      <div className="p-0 space-y-8">
+                      <div className="p-6 space-y-8 bg-gray-50/30 dark:bg-gray-900/10 border border-gray-200/60 dark:border-gray-800/60 rounded-[2rem]">
                         {/* House Selection */}
                         <div className="space-y-2.5">
                           <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
@@ -1337,7 +1337,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                       className="space-y-8 p-6"
                     >
                       {/* Meter Costs Section */}
-                      <div className="space-y-4">
+                      <div className="space-y-4 p-6 bg-gray-50/30 dark:bg-gray-900/10 border border-gray-200/60 dark:border-gray-800/60 rounded-[2rem]">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
                             <Gauge className="w-5 h-5" />
@@ -1364,12 +1364,12 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
                                     transition={{ duration: 0.2 }}
-                                    className="group flex flex-col gap-3 p-4 bg-transparent border-transparent"
+                                    className="group flex flex-col gap-3 p-4 bg-gray-50/50 dark:bg-gray-900/10 border border-gray-200 dark:border-gray-800 rounded-[2rem]"
                                   >
                                     <div className="flex items-center justify-between">
                                       <div className="flex items-center gap-3">
-                                        <div className="p-2.5 rounded-xl bg-white dark:bg-gray-800 text-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-sm border border-gray-100 dark:border-gray-700">
-                                          <Icon className="w-4.5 h-4.5" />
+                                        <div className="p-2 rounded-[1rem] bg-primary text-primary-foreground transition-all duration-300 shadow-sm border border-primary/20">
+                                          <Icon className="w-4 h-4" />
                                         </div>
                                         <span className="text-sm font-bold">{config.label}</span>
                                       </div>
@@ -1383,12 +1383,12 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                         <Trash2 className="w-4 h-4" />
                                       </Button>
                                     </div>
-                                    <div className="relative">
+                                    <div className="relative mt-auto">
                                       <NumberInput
                                         id={`zaehlerkosten-${typ}`}
                                         value={zaehlerkosten[typ] || ''}
                                         onChange={(e) => handleZaehlerkostenChange(typ, e.target.value)}
-                                        placeholder="0.00"
+                                        placeholder="0,00"
                                         step="0.01"
                                         disabled={isSaving || isFormLoading}
                                         className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-all font-medium text-lg"
@@ -1399,15 +1399,17 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                 );
                               })}
                           </AnimatePresence>
+                        </div>
 
-                          <motion.div layout className="sm:col-span-1">
+                        {addMeterCostSelect && (
+                          <motion.div layout>
                             {addMeterCostSelect}
                           </motion.div>
-                        </div>
+                        )}
                       </div>
 
                       {/* Kostenaufstellung Section */}
-                      <div className="space-y-4">
+                      <div className="space-y-4 p-6 bg-gray-50/30 dark:bg-gray-900/10 border border-gray-200/60 dark:border-gray-800/60 rounded-[2rem]">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
@@ -1468,7 +1470,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                             type="button"
                             onClick={addCostItem}
                             variant="ghost"
-                            className="w-full h-11 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary font-semibold"
+                            className="w-full h-11 rounded-[2rem] border border-dashed border-gray-300 dark:border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary font-semibold mt-4"
                             disabled={isFormLoading || isSaving}
                           >
                             <PlusCircle className="mr-2 h-4 w-4" />
