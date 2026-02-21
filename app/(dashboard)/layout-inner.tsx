@@ -40,6 +40,7 @@ const MarkdownEditorModal = dynamic(() => import('@/components/cloud-storage/mar
 const TemplatesModal = dynamic(() => import('@/components/templates/templates-modal').then(mod => mod.TemplatesModal), { ssr: false })
 const TenantMailTemplatesModal = dynamic(() => import('@/components/tenants/tenant-mail-templates-modal').then(mod => mod.TenantMailTemplatesModal), { ssr: false })
 const AIAssistantModal = dynamic(() => import('@/components/ai/ai-assistant-modal').then(mod => mod.AIAssistantModal), { ssr: false })
+const OperatingCostsOverviewModal = dynamic(() => import('@/components/finance/operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
 // Default exports
 const TenantPaymentEditModal = dynamic(() => import('@/components/tenants/tenant-payment-edit-modal'), { ssr: false })
 const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenants/tenant-payment-overview-modal'), { ssr: false })
@@ -134,6 +135,11 @@ export default function DashboardInnerLayout({
     closeTenantMailTemplatesModal,
     // AI Assistant Modal state
     isAIAssistantModalOpen,
+
+    // Operating Costs Overview Modal state
+    isOperatingCostsOverviewModalOpen,
+    operatingCostsOverviewData,
+    closeOperatingCostsOverviewModal,
   } = useModalStore()
 
   return (
@@ -268,6 +274,14 @@ export default function DashboardInnerLayout({
         <TenantPaymentEditModal />
         {/* Tenant Payment Overview Modal */}
         <TenantPaymentOverviewModal />
+        {/* Operating Costs Overview Modal */}
+        {isOperatingCostsOverviewModalOpen && operatingCostsOverviewData && (
+          <OperatingCostsOverviewModal
+            isOpen={isOperatingCostsOverviewModalOpen}
+            onClose={closeOperatingCostsOverviewModal}
+            nebenkosten={operatingCostsOverviewData}
+          />
+        )}
         {/* Global Confirmation Dialog */}
         {isConfirmationModalOpen && confirmationModalConfig && (
           <ConfirmationDialog
