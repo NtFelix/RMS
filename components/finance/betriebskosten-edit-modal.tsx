@@ -128,6 +128,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     betriebskostenModalOnSuccess,
     isBetriebskostenModalDirty,
     setBetriebskostenModalDirty,
+    openOperatingCostsOverviewModal,
   } = useModalStore();
 
   const [startdatum, setStartdatum] = useState("");
@@ -300,10 +301,12 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
   };
 
   const attemptClose = () => {
+    setCurrentStep(1);
     closeBetriebskostenModal();
   };
 
   const handleCancelClick = () => {
+    setCurrentStep(1);
     closeBetriebskostenModal({ force: true });
   };
 
@@ -620,6 +623,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       setVorauszahlungsArt('soll');
       const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
       setHausId(initialHausId);
+      setCurrentStep(1);
 
       // Always start with a single empty cost item for new entries
       if (forNewEntry) {
@@ -1158,18 +1162,6 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                   );
                 })}
               </div>
-
-              <div className="mt-auto">
-                <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/30">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Tipp</span>
-                  </div>
-                  <p className="text-[11px] leading-relaxed text-blue-800/70 dark:text-blue-300/60">
-                    Positionen können per Drag & Drop sortiert werden.
-                  </p>
-                </div>
-              </div>
             </div>
 
             {/* Main Content Area */}
@@ -1492,9 +1484,15 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                         data={savedItemData}
                         onClose={closeBetriebskostenModal}
                         onOverview={() => {
-                          // For now we just close, but ideally we'd trigger the overview
-                          closeBetriebskostenModal();
-                          // Optional: if we can find a way to let parent know to open overview
+                          if (savedItemData) {
+                            closeBetriebskostenModal();
+                            const selectedHaus = betriebskostenModalHaeuser?.find(h => h.id === hausId);
+                            const enrichedData = {
+                              ...savedItemData,
+                              haus_name: selectedHaus?.name || 'Unbekanntes Haus'
+                            };
+                            openOperatingCostsOverviewModal(enrichedData as any);
+                          }
                         }}
                       />
                     </motion.div>

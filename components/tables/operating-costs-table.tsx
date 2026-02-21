@@ -40,7 +40,7 @@ import {
   deleteNebenkosten as deleteNebenkostenServerAction,
   bulkDeleteNebenkosten
 } from "@/app/betriebskosten-actions" // Removed old wasserzaehler imports
-import { toast } from "@/hooks/use-toast" // For notifications
+import { toast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { useRouter } from "next/navigation"
@@ -72,7 +72,7 @@ export function OperatingCostsTable({
   const router = useRouter()
 
   // Old openWasserzaehlerModalOptimized removed - now using new ZaehlerAblesenModal
-  const [overviewItem, setOverviewItem] = useState<OptimizedNebenkosten | null>(null);
+  const { openOperatingCostsOverviewModal } = useModalStore();
   // Old wasserzähler modal state removed - now using new ZaehlerAblesenModal
   const [isAbrechnungModalOpen, setIsAbrechnungModalOpen] = useState(false);
   const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<OptimizedNebenkosten | null>(null);
@@ -188,11 +188,11 @@ export function OperatingCostsTable({
   };
 
   const handleOpenOverview = (item: OptimizedNebenkosten) => {
-    setOverviewItem(item);
+    openOperatingCostsOverviewModal(item);
   };
 
   const handleCloseOverview = () => {
-    setOverviewItem(null);
+    // No longer needed locally
   };
 
   // Old handleOpenWasserzaehlerModal function removed - now using new WasserZaehlerAblesenModal
@@ -621,14 +621,7 @@ export function OperatingCostsTable({
         </div>
       </div>
 
-      {/* Overview Modal */}
-      {overviewItem && (
-        <OperatingCostsOverviewModal
-          isOpen={!!overviewItem}
-          onClose={handleCloseOverview}
-          nebenkosten={overviewItem}
-        />
-      )}
+      {/* Overview Modal is now handled globally via ModalStore */}
 
       {/* Zaehler Modal is now handled by the modal store */}
 
