@@ -1,15 +1,13 @@
-// "use client" directive removed - this is now a Server Component file.
-
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
-import MieterClientView from "./client-wrapper"; // Import the default export
+import MieterClientView from "../client-wrapper";
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
-export default async function MieterPage() {
+export default async function BewerberPage() {
   const supabase = await createSupabaseServerClient();
   const { data: rawWohnungen, error: wohnungenError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
   if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
@@ -26,6 +24,7 @@ export default async function MieterPage() {
     if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
       status = 'vermietet';
     }
+
     return {
       ...apt,
       Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
@@ -34,14 +33,13 @@ export default async function MieterPage() {
     } as Wohnung;
   }) : [];
 
-  const mieter: Tenant[] = rawMieter ? rawMieter.map(m => ({ ...m })) : [];
-
-
+  const mieter: Tenant[] = rawMieter ? rawMieter.map((m) => ({ ...m })) : [];
 
   return (
     <MieterClientView
       initialTenants={mieter}
       initialWohnungen={wohnungen}
+      initialTab="bewerber"
     />
   );
 }

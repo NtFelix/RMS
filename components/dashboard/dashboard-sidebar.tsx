@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
 import { motion, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 
@@ -37,6 +37,16 @@ const sidebarNavItems = [
     title: "Mieter",
     href: "/mieter",
     icon: Users,
+    children: [
+      {
+        title: "Mieter",
+        href: "/mieter",
+      },
+      {
+        title: "Bewerber",
+        href: "/mieter/bewerber",
+      },
+    ],
   },
   {
     title: "Finanzen",
@@ -272,6 +282,20 @@ function SidebarContent({
   textVariants,
   iconVariants
 }: SidebarContentProps) {
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    '/mieter': pathname.startsWith('/mieter')
+  })
+
+  useEffect(() => {
+    if (pathname.startsWith('/mieter')) {
+      setExpandedGroups((prev) => ({ ...prev, '/mieter': true }))
+    }
+  }, [pathname])
+
+  const toggleGroup = (href: string) => {
+    setExpandedGroups((prev) => ({ ...prev, [href]: !prev[href] }))
+  }
+
   return (
     <div className="h-full w-full flex flex-col relative">
       {/* Header section */}
@@ -359,53 +383,115 @@ function SidebarContent({
               .filter(item => !featureFlags.has(item.href) || featureFlags.get(item.href))
               .map((item) => {
                 const isActive = isRouteActive(item.href);
+                const isExpanded = !!expandedGroups[item.href]
+                const hasChildren = !!item.children?.length
 
                 return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={item.href}
-                        id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
-                        onClick={() => {
-                          setIsOpen(false)
-                          if (item.href === ROUTES.HOME) {
-                            useOnboardingStore.getState().completeStep('overview-open')
-                          }
-                        }}
-                        className={cn(
-                          "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2",
-                          getActiveStateClasses(item.href),
-                        )}
-                        data-active={isActive}
-                        aria-current={isActive ? "page" : undefined}
-                      >
-                        {!isMobile && iconVariants ? (
-                          <motion.div
-                            variants={iconVariants}
-                            className="flex-shrink-0"
+                  <div key={item.href} className="space-y-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {hasChildren ? (
+                          <button
+                            type="button"
+                            id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
+                            onClick={() => toggleGroup(item.href)}
+                            className={cn(
+                              "group flex w-full items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2",
+                              getActiveStateClasses(item.href),
+                            )}
+                            data-active={isActive}
+                            aria-expanded={isExpanded}
                           >
-                            <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
-                          </motion.div>
+                            {!isMobile && iconVariants ? (
+                              <motion.div variants={iconVariants} className="flex-shrink-0">
+                                <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
+                              </motion.div>
+                            ) : (
+                              <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                            )}
+                            {!isMobile && textVariants && (
+                              <motion.span
+                                variants={textVariants}
+                                className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide"
+                              >
+                                {item.title}
+                              </motion.span>
+                            )}
+                            {isMobile && (
+                              <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
+                                {item.title}
+                              </span>
+                            )}
+                            {!isCollapsed && (
+                              <ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                            )}
+                          </button>
                         ) : (
-                          <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
-                        )}
-                        {!isMobile && textVariants && (
-                          <motion.span
-                            variants={textVariants}
-                            className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide"
+                          <Link
+                            href={item.href}
+                            id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
+                            onClick={() => {
+                              setIsOpen(false)
+                              if (item.href === ROUTES.HOME) {
+                                useOnboardingStore.getState().completeStep('overview-open')
+                              }
+                            }}
+                            className={cn(
+                              "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2",
+                              getActiveStateClasses(item.href),
+                            )}
+                            data-active={isActive}
+                            aria-current={isActive ? "page" : undefined}
                           >
-                            {item.title}
-                          </motion.span>
+                            {!isMobile && iconVariants ? (
+                              <motion.div variants={iconVariants} className="flex-shrink-0">
+                                <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
+                              </motion.div>
+                            ) : (
+                              <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                            )}
+                            {!isMobile && textVariants && (
+                              <motion.span
+                                variants={textVariants}
+                                className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide"
+                              >
+                                {item.title}
+                              </motion.span>
+                            )}
+                            {isMobile && (
+                              <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
+                                {item.title}
+                              </span>
+                            )}
+                          </Link>
                         )}
-                        {isMobile && (
-                          <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
-                            {item.title}
-                          </span>
-                        )}
-                      </Link>
-                    </TooltipTrigger>
-                    {isCollapsed && <TooltipContent side="right" className="font-medium">{item.title}</TooltipContent>}
-                  </Tooltip>
+                      </TooltipTrigger>
+                      {isCollapsed && <TooltipContent side="right" className="font-medium">{item.title}</TooltipContent>}
+                    </Tooltip>
+
+                    {hasChildren && isExpanded && !isCollapsed && (
+                      <div className="ml-6 flex flex-col gap-1 border-l border-border pl-2">
+                        {item.children?.map((child) => {
+                          const childActive = isRouteActive(child.href)
+
+                          return (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={() => setIsOpen(false)}
+                              className={cn(
+                                "rounded-lg px-3 py-1.5 text-sm transition-colors",
+                                childActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground"
+                              )}
+                              aria-current={childActive ? "page" : undefined}
+                            >
+                              {child.title}
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )
               })}
           </TooltipProvider>

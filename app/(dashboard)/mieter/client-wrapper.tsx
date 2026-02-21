@@ -2,20 +2,18 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { PlusCircle, Users, BadgeCheck, Euro, Search } from "lucide-react";
+import { PlusCircle, Users, BadgeCheck, Euro } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
 import { TenantTable } from "@/components/tables/tenant-table";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
 import { SearchInput } from "@/components/ui/search-input";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { deleteTenantAction, deleteAllApplicantsAction } from "@/app/mieter-actions";
+import { deleteAllApplicantsAction } from "@/app/mieter-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ApplicantImportModal } from "@/components/tenants/applicant-import-modal";
@@ -32,23 +30,20 @@ import type { Wohnung } from "@/types/Wohnung";
 interface MieterClientViewProps {
   initialTenants: Tenant[];
   initialWohnungen: Wohnung[];
-  serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
+  initialTab?: TenantStatus;
 }
 
 // Internal AddTenantButton (could be kept from previous step if preferred)
 
 
-// This is the new main client component, previously MieterPageClientComponent in page.tsx
-import { useFeatureFlagEnabled } from "posthog-js/react";
-
 export default function MieterClientView({
   initialTenants,
   initialWohnungen,
-  serverAction,
+  initialTab = "mieter",
 }: MieterClientViewProps) {
   const router = useRouter()
   const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
-  const [currentTab, setCurrentTab] = useState<TenantStatus>("mieter");
+  const [currentTab, setCurrentTab] = useState<TenantStatus>(initialTab);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -57,7 +52,6 @@ export default function MieterClientView({
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const { openTenantModal } = useModalStore();
-  const showTenantTabs = useFeatureFlagEnabled('show-tenant-tabs');
 
   // Filter tenants based on tab
   const filteredTenantsByTab = useMemo(() => {
@@ -277,7 +271,6 @@ export default function MieterClientView({
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
 
-      {/* Tab Selector */}
       <Tabs value={currentTab} onValueChange={(v) => {
         setCurrentTab(v as TenantStatus);
         // Reset filter to 'current' when switching tabs, although 'current' applies to both mostly
@@ -286,13 +279,6 @@ export default function MieterClientView({
       }} className="w-full">
 
         <div className="flex flex-col gap-6">
-          {showTenantTabs && (
-            <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
-              <TabsTrigger value="mieter">Mieter</TabsTrigger>
-              <TabsTrigger value="bewerber">Bewerber</TabsTrigger>
-            </TabsList>
-          )}
-
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
             <StatCard
               title={currentTab === 'mieter' ? "Mieter gesamt" : "Bewerber gesamt"}
