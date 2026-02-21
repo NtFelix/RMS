@@ -62,6 +62,7 @@ import {
   deleteRechnungenByNebenkostenId,
   getLatestBetriebskostenByHausId,
 } from "@/app/betriebskosten-actions";
+import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
 import { getMieterByHausIdAction } from "@/app/mieter-actions";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -71,7 +72,7 @@ import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration } from "@/utils/date-calculations";
 
-const SuccessStep = ({ data, onClose, onOverview }: { data: any, onClose: () => void, onOverview: () => void }) => {
+const SuccessStep = ({ data, onClose, onOverview }: { data: Nebenkosten | null, onClose: () => void, onOverview: () => void }) => {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6">
       <div className="relative">
@@ -978,7 +979,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       } else {
         // Fallback for updates where response data might be partial
         setSavedItemData({
-          ...modalNebenkostenData,
+          ...(modalNebenkostenData || {}),
           startdatum: germanToIsoDate(startdatum),
           enddatum: germanToIsoDate(enddatum),
           haeuser_id: hausId,
@@ -1487,11 +1488,17 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                           if (savedItemData) {
                             closeBetriebskostenModal();
                             const selectedHaus = betriebskostenModalHaeuser?.find(h => h.id === hausId);
-                            const enrichedData = {
-                              ...savedItemData,
-                              haus_name: selectedHaus?.name || 'Unbekanntes Haus'
+                            // Provide default values for mandatory OptimizedNebenkosten fields
+                            // The modal will fetch the real values using the id anyway
+                            const enrichedData: OptimizedNebenkosten = {
+                              ...(savedItemData as any),
+                              haus_name: selectedHaus?.name || 'Unbekanntes Haus',
+                              gesamt_flaeche: (savedItemData as any).gesamt_flaeche || 0,
+                              anzahl_wohnungen: (savedItemData as any).anzahl_wohnungen || 0,
+                              anzahl_mieter: (savedItemData as any).anzahl_mieter || 0,
+                              user_id: savedItemData.user_id || '',
                             };
-                            openOperatingCostsOverviewModal(enrichedData as any);
+                            openOperatingCostsOverviewModal(enrichedData);
                           }
                         }}
                       />
