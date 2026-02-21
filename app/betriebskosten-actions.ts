@@ -99,7 +99,10 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
 
   revalidatePath("/dashboard/betriebskosten");
   logAction(actionName, 'success', { nebenkosten_id: data?.id, house_id: formData.haeuser_id });
-  return { success: true, data };
+
+  // Return optimized data for the UI
+  const { data: optimizedData } = await fetchOptimizedNebenkostenById(data.id);
+  return { success: true, data: optimizedData || data };
 }
 
 // Implement updateNebenkosten function
@@ -124,7 +127,10 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
 
   revalidatePath("/dashboard/betriebskosten");
   logAction(actionName, 'success', { nebenkosten_id: id });
-  return { success: true, data };
+
+  // Return optimized data for the UI
+  const { data: optimizedData } = await fetchOptimizedNebenkostenById(id);
+  return { success: true, data: optimizedData || data };
 }
 
 // Implement deleteNebenkosten function
@@ -279,6 +285,45 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
   // No revalidatePath here as this is a subordinate action.
   // Revalidation should happen after the primary operation (e.g., updateNebenkosten) is complete.
   return { success: true };
+}
+
+/**
+ * Fetches a single Nebenkosten record with optimized metrics (house name, area, tenant counts)
+ */
+export async function fetchOptimizedNebenkostenById(id: string): Promise<{ success: boolean; data: OptimizedNebenkosten | null; message?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, data: null, message: "Not authenticated" };
+
+  try {
+    // We use the RPC defined in modernize_nebenkosten_rpcs.sql
+    // and filter for the specific ID
+    const { data, error } = await supabase.rpc('get_nebenkosten_with_metrics', {
+      user_id: user.id
+    });
+
+    if (error) throw error;
+
+    const record = data?.find((n: any) => n.id === id);
+
+    if (!record) {
+      // Fallback: if not found in the optimized list (rare), fetch raw record
+      const { data: rawData } = await supabase.from('Nebenkosten').select('*, Haeuser(name)').eq('id', id).single();
+      return { success: true, data: rawData as any };
+    }
+
+    return {
+      success: true,
+      data: {
+        ...record,
+        // Map user_id_field to user_id to match OptimizedNebenkosten type
+        user_id: record.user_id_field
+      } as OptimizedNebenkosten
+    };
+  } catch (error: any) {
+    console.error("Error fetching optimized nebenkosten:", error);
+    return { success: false, data: null, message: error.message };
+  }
 }
 
 export async function getNebenkostenDetailsAction(id: string): Promise<{

@@ -72,7 +72,7 @@ import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration } from "@/utils/date-calculations";
 
-const SuccessStep = ({ data, onClose, onOverview }: { data: Nebenkosten | OptimizedNebenkosten | null, onClose: () => void, onOverview: () => void }) => {
+const SuccessStep = ({ data, onClose, onOverview }: { data: OptimizedNebenkosten | null, onClose: () => void, onOverview: () => void }) => {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6">
       <div className="relative">
@@ -89,7 +89,7 @@ const SuccessStep = ({ data, onClose, onOverview }: { data: Nebenkosten | Optimi
       <div className="space-y-2">
         <h3 className="text-2xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">Abrechnung gespeichert!</h3>
         <p className="text-muted-foreground max-w-sm mx-auto">
-          Die Betriebskosten für das Objekt <span className="font-semibold text-foreground">{(data as any)?.haus_name || (data as any)?.house_name || data?.Haeuser?.name || 'Unbekannt'}</span> im Zeitraum <span className="font-semibold text-foreground">{isoToGermanDate(data?.startdatum || '')} - {isoToGermanDate(data?.enddatum || '')}</span> wurden erfolgreich erfasst.
+          Die Betriebskosten für das Objekt <span className="font-semibold text-foreground">{data?.haus_name || 'Unbekannt'}</span> im Zeitraum <span className="font-semibold text-foreground">{isoToGermanDate(data?.startdatum || '')} - {isoToGermanDate(data?.enddatum || '')}</span> wurden erfolgreich erfasst.
         </p>
       </div>
 
@@ -147,7 +147,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [modalNebenkostenData, setModalNebenkostenData] = useState<Nebenkosten | null>(null);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
-  const [savedItemData, setSavedItemData] = useState<Nebenkosten | null>(null);
+  const [savedItemData, setSavedItemData] = useState<OptimizedNebenkosten | null>(null);
   const currentlyLoadedNebenkostenId = React.useRef<string | null | undefined>(null);
 
   // Tooltip next to dropdown: track hovered verteilerschlüssel, dropdown rect, and hovered item position
@@ -975,22 +975,14 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
       // Store the result for step 3 overview
       if (response.data) {
-        setSavedItemData(response.data);
+        setSavedItemData(response.data as OptimizedNebenkosten);
       } else {
-        // Fallback for updates where response data might be partial
-        setSavedItemData({
-          ...(modalNebenkostenData || {}),
-          startdatum: germanToIsoDate(startdatum),
-          enddatum: germanToIsoDate(enddatum),
-          haeuser_id: hausId,
-          vorauszahlungs_art: vorauszahlungsArt,
-          nebenkostenart: costItems.map(i => i.art),
-          betrag: costItems.map(i => parseFloat(i.betrag) || 0),
-          berechnungsart: costItems.map(i => i.berechnungsart),
-          zaehlerkosten: Object.fromEntries(
-            Object.entries(zaehlerkosten).map(([k, v]) => [k, parseFloat(v) || 0])
-          )
-        } as Nebenkosten);
+        // This should theoretically not happen with the new server action
+        toast({
+          title: "Warnung",
+          description: "Daten konnten nach dem Speichern nicht vollständig geladen werden.",
+          variant: "destructive"
+        });
       }
 
       setCurrentStep(3);
@@ -1487,18 +1479,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                         onOverview={() => {
                           if (savedItemData) {
                             closeBetriebskostenModal();
-                            const selectedHaus = betriebskostenModalHaeuser?.find(h => h.id === hausId);
-                            // Provide default values for mandatory OptimizedNebenkosten fields
-                            // The modal will fetch the real values using the id anyway
-                            const enrichedData: OptimizedNebenkosten = {
-                              ...(savedItemData as any),
-                              haus_name: selectedHaus?.name || 'Unbekanntes Haus',
-                              gesamt_flaeche: (savedItemData as any).gesamt_flaeche || 0,
-                              anzahl_wohnungen: (savedItemData as any).anzahl_wohnungen || 0,
-                              anzahl_mieter: (savedItemData as any).anzahl_mieter || 0,
-                              user_id: savedItemData.user_id || '',
-                            };
-                            openOperatingCostsOverviewModal(enrichedData);
+                            openOperatingCostsOverviewModal(savedItemData);
                           }
                         }}
                       />
