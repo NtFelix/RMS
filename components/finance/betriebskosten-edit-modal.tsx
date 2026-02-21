@@ -72,7 +72,7 @@ import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration } from "@/utils/date-calculations";
 
-const SuccessStep = ({ data, onClose, onOverview }: { data: Nebenkosten | null, onClose: () => void, onOverview: () => void }) => {
+const SuccessStep = ({ data, onClose, onOverview }: { data: Nebenkosten | OptimizedNebenkosten | null, onClose: () => void, onOverview: () => void }) => {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6">
       <div className="relative">
@@ -89,7 +89,7 @@ const SuccessStep = ({ data, onClose, onOverview }: { data: Nebenkosten | null, 
       <div className="space-y-2">
         <h3 className="text-2xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">Abrechnung gespeichert!</h3>
         <p className="text-muted-foreground max-w-sm mx-auto">
-          Die Betriebskosten für das Objekt <span className="font-semibold text-foreground">{data?.house_name || data?.Haeuser?.name || 'Unbekannt'}</span> im Zeitraum <span className="font-semibold text-foreground">{isoToGermanDate(data?.startdatum)} - {isoToGermanDate(data?.enddatum)}</span> wurden erfolgreich erfasst.
+          Die Betriebskosten für das Objekt <span className="font-semibold text-foreground">{(data as any)?.haus_name || (data as any)?.house_name || data?.Haeuser?.name || 'Unbekannt'}</span> im Zeitraum <span className="font-semibold text-foreground">{isoToGermanDate(data?.startdatum || '')} - {isoToGermanDate(data?.enddatum || '')}</span> wurden erfolgreich erfasst.
         </p>
       </div>
 
