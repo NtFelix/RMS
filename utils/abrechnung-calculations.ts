@@ -71,10 +71,11 @@ export function calculateOccupancyPercentage(
 export function calculateTenantCosts(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
+  allTenants?: Mieter[],
   occupancyData?: OccupancyCalculation
 ): OperatingCostBreakdown {
   const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
-  const tenants = [tenant]; // For distribution calculations
+  const tenants = allTenants || [tenant]; // For distribution calculations
 
   const costItems: OperatingCostBreakdown['costItems'] = [];
   let totalCost = 0;
@@ -457,7 +458,7 @@ export function calculateCompleteTenantResult(
   const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
 
   // Calculate operating costs
-  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, occupancy);
+  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, allTenants, occupancy);
 
   // Calculate meter costs using new system
   const meterCosts = calculateMeterCostDistribution(

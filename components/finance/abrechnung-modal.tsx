@@ -386,7 +386,7 @@ export function AbrechnungModal({
           totalCostForItem: ci.totalCostForItem,
           calculationType: ci.calculationType,
           tenantShare: ci.tenantShare,
-          pricePerSqm: ci.pricePerSqm,
+          pricePerSqm: ci.calculationType === 'pro Fläche' ? ci.pricePerSqm : undefined,
           verteiler: ci.distributionBasis
         })),
         waterCost: {
@@ -463,7 +463,7 @@ export function AbrechnungModal({
       variant: 'default',
       duration: 8000,
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calculatedTenantData]); // intentionally omit toast — it is stable but changes ref on every render
 
   // Calculate summary totals across all tenants when all data is loaded
