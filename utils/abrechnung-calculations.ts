@@ -94,6 +94,7 @@ export function calculateTenantCosts(
       // Calculate tenant share based on calculation type
       switch (calculationType) {
         case 'pro Fläche':
+        case 'pro Flaeche':
           const flächeDistribution = calculateProFlächeDistribution(
             tenants,
             totalCostForItem,

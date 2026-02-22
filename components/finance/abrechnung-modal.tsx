@@ -386,7 +386,7 @@ export function AbrechnungModal({
           totalCostForItem: ci.totalCostForItem,
           calculationType: ci.calculationType,
           tenantShare: ci.tenantShare,
-          pricePerSqm: ci.calculationType === 'pro Fläche' ? ci.pricePerSqm : undefined,
+          pricePerSqm: ci.pricePerSqm,
           verteiler: ci.distributionBasis
         })),
         waterCost: {
