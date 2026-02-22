@@ -11,6 +11,7 @@ import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calend
 import type { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/types";
 import { bulkCreateAblesungen } from "@/app/meter-actions";
 import { isoToGermanDate } from "@/utils/date-calculations";
+import { formatNumber } from "@/utils/format";
 import { StatCard } from "@/components/common/stat-card";
 
 interface MeterImportModalProps {
@@ -157,18 +158,26 @@ export function MeterImportModal({
   };
 
   const parseGermanNumber = (value: string | number): number => {
-    if (typeof value === 'number') return value;
-    if (!value) return 0;
+    let parsed: number;
 
-    let strVal = String(value).trim();
+    if (typeof value === 'number') {
+      parsed = value;
+    } else if (!value) {
+      parsed = 0;
+    } else {
+      let strVal = String(value).trim();
 
-    if (strVal.includes(',')) {
-      strVal = strVal.replace(/\./g, '');
-      strVal = strVal.replace(',', '.');
+      if (strVal.includes(',')) {
+        strVal = strVal.replace(/\./g, '');
+        strVal = strVal.replace(',', '.');
+      }
+
+      parsed = parseFloat(strVal);
+      if (isNaN(parsed)) parsed = 0;
     }
 
-    const parsed = parseFloat(strVal);
-    return isNaN(parsed) ? 0 : parsed;
+    // Round to 3 decimal places
+    return Number(Math.round(Number(parsed + 'e3')) + 'e-3');
   };
 
   const validateAndProcessData = async () => {
@@ -356,6 +365,9 @@ export function MeterImportModal({
         if (prev) {
           calculatedUsage = Math.max(0, item.zaehlerstand - prev.value);
         }
+
+        // Round calculated usage to 3 decimal places
+        calculatedUsage = Number(Math.round(Number(calculatedUsage + 'e3')) + 'e-3');
 
         return { ...item, verbrauch: calculatedUsage };
       });
@@ -575,8 +587,8 @@ export function MeterImportModal({
                         </TableCell>
                         <TableCell>{row.custom_id}</TableCell>
                         <TableCell>{row.ablese_datum ? isoToGermanDate(row.ablese_datum) : "-"}</TableCell>
-                        <TableCell>{row.zaehlerstand}</TableCell>
-                        <TableCell>{row.verbrauch}</TableCell>
+                        <TableCell>{formatNumber(row.zaehlerstand, 3)}</TableCell>
+                        <TableCell>{formatNumber(row.verbrauch, 3)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.message}</TableCell>
                       </TableRow>
                     ))}

@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types"
+import { formatNumber } from "@/utils/format"
 
 // Types
 export interface Zaehler {
@@ -391,7 +392,7 @@ export function MeterCard({
                                         <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
                                         {zaehler.latest_reading ? (
                                             <p className="text-sm font-medium">
-                                                {zaehler.latest_reading.zaehlerstand} {einheit}
+                                                {formatNumber(zaehler.latest_reading.zaehlerstand, 3)} {einheit}
                                             </p>
                                         ) : (
                                             <p className="text-sm font-medium text-muted-foreground italic">

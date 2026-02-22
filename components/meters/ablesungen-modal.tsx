@@ -908,7 +908,7 @@ export function AblesungenModal() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
                                       <p className="text-sm font-medium">
-                                        {ablesung.zaehlerstand !== null ? `${formatNumber(ablesung.zaehlerstand)} m³` : (
+                                        {ablesung.zaehlerstand !== null ? `${formatNumber(ablesung.zaehlerstand, 3)} m³` : (
                                           <span className="text-muted-foreground italic">Nicht gesetzt</span>
                                         )}
                                       </p>
@@ -927,7 +927,7 @@ export function AblesungenModal() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Verbrauch</p>
                                       <p className="text-sm font-medium">
-                                        {formatNumber(ablesung.verbrauch)} {ablesungenModalData?.einheit || 'm³'}
+                                        {formatNumber(ablesung.verbrauch, 3)} {ablesungenModalData?.einheit || 'm³'}
                                       </p>
                                     </div>
                                   </motion.div>

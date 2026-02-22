@@ -667,11 +667,11 @@ export function WasserzaehlerModal() {
                             </Badge>
                             <Badge variant="outline" className="gap-1.5">
                               <Gauge className="h-3 w-3" />
-                              <span>Stand: {formatNumber(entry.previous_reading.zaehlerstand)} m³</span>
+                              <span>Stand: {formatNumber(entry.previous_reading.zaehlerstand, 3)} m³</span>
                             </Badge>
                             <Badge variant="outline" className="gap-1.5">
                               <Droplet className="h-3 w-3" />
-                              <span>Verbrauch: {formatNumber(entry.previous_reading.verbrauch)} m³</span>
+                              <span>Verbrauch: {formatNumber(entry.previous_reading.verbrauch, 3)} m³</span>
                             </Badge>
                           </div>
                         ) : (
