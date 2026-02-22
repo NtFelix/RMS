@@ -101,7 +101,9 @@ export function calculateTenantCosts(
             nebenkosten.enddatum
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
-          pricePerSqm = tenant.Wohnungen?.groesse ? tenantShare / tenant.Wohnungen.groesse : undefined;
+          pricePerSqm = (tenant.Wohnungen?.groesse && occupancy.percentage > 0)
+            ? tenantShare / (tenant.Wohnungen.groesse * (occupancy.percentage / 100))
+            : undefined;
           distributionBasis = `${tenant.Wohnungen?.groesse || 0} m²`;
           break;
 
@@ -143,6 +145,9 @@ export function calculateTenantCosts(
             nebenkosten.enddatum
           );
           tenantShare = defaultDistribution[tenant.id]?.amount || 0;
+          pricePerSqm = (tenant.Wohnungen?.groesse && occupancy.percentage > 0)
+            ? tenantShare / (tenant.Wohnungen.groesse * (occupancy.percentage / 100))
+            : undefined;
           distributionBasis = `${tenant.Wohnungen?.groesse || 0} m²`;
       }
 
