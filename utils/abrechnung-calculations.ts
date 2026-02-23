@@ -80,10 +80,9 @@ export function calculateTenantCosts(
   const costItems: OperatingCostBreakdown['costItems'] = [];
   let totalCost = 0;
 
-  // Use gesamtFlaeche from the nebenkosten object as the canonical total house area —
-  // this is the same value set by the server action (from Haeuser.groesse) that the
-  // overview modal uses, guaranteeing both modals show identical pricePerSqm values.
-  // Fall back to summing tenant apartment sizes only if gesamtFlaeche is not available.
+  // For the verteiler display in the PDF: show tenant area vs total physical house area.
+  // gesamtFlaeche is the canonical value set by the server action (Haeuser.groesse),
+  // consistent with what the overview modal shows.
   const totalHouseArea = (nebenkosten as any).gesamtFlaeche
     || tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
 
@@ -111,9 +110,12 @@ export function calculateTenantCosts(
             nebenkosten.enddatum
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
-          // Price per sqm is a building-wide rate: totalCost / totalWeightedArea
-          pricePerSqm = totalHouseArea > 0 ? totalCostForItem / totalHouseArea : undefined;
-          // Show the tenant's area vs. house total area in the verteiler column
+          // Self-consistent per-tenant rate: pricePerSqm × area × occupancyRatio = tenantShare
+          // This avoids the stacking problem (sequential tenants in same apartment).
+          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
+            ? tenantShare / (tenantArea * (occupancy.percentage / 100))
+            : undefined;
+          // Verteiler shows physical area vs total house area (for PDF column)
           distributionBasis = totalHouseArea > 0
             ? `${tenantArea} m² / ${totalHouseArea} m²`
             : `${tenantArea} m²`;
@@ -157,7 +159,9 @@ export function calculateTenantCosts(
             nebenkosten.enddatum
           );
           tenantShare = defaultDistribution[tenant.id]?.amount || 0;
-          pricePerSqm = totalHouseArea > 0 ? totalCostForItem / totalHouseArea : undefined;
+          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
+            ? tenantShare / (tenantArea * (occupancy.percentage / 100))
+            : undefined;
           distributionBasis = totalHouseArea > 0
             ? `${tenantArea} m² / ${totalHouseArea} m²`
             : `${tenantArea} m²`;
