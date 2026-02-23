@@ -106,18 +106,63 @@ describe('abrechnung-calculations', () => {
       expect(calculateProFlächeDistribution).toHaveBeenCalled();
     });
 
-    it('handles nach Rechnung type', () => {
+    it('handles nach Rechnung type from rechnungen array', () => {
       const nebenkosten = {
-        nebenkostenart: ['Special'],
-        betrag: [100],
-        berechnungsart: ['nach Rechnung'],
+        nebenkostenart: ['Special', 'Not Invoiced'],
+        betrag: [0, 0], // placeholder 0 in db
+        berechnungsart: ['nach Rechnung', 'nach Rechnung'],
         startdatum,
         enddatum
       } as any;
 
-      const result = calculateTenantCosts(mockTenant, nebenkosten);
+      const rechnungen = [
+        { name: 'Special', mieter_id: 't1', betrag: 150 },
+        { name: 'Special', mieter_id: 'other', betrag: 300 }
+      ] as any[];
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten, undefined, undefined, rechnungen);
+
       expect(result.costItems[0].calculationType).toBe('nach Rechnung');
-      expect(result.costItems[0].tenantShare).toBe(100); // 100% occupancy
+      expect(result.costItems[0].costName).toBe('Special');
+      expect(result.costItems[0].tenantShare).toBe(150); // Exact invoice amount
+      expect(result.costItems[0].distributionBasis).toBe('-');
+
+      // For 'Not Invoiced' which doesn't match this tenant, it should use the 0 from betrag[]
+      expect(result.costItems[1].calculationType).toBe('nach Rechnung');
+      expect(result.costItems[1].costName).toBe('Not Invoiced');
+      expect(result.costItems[1].tenantShare).toBe(0);
+      expect(result.costItems[1].distributionBasis).toBe('-');
+    });
+
+    it('uses nebenkosten.gesamtFlaeche as canonical house area for verteiler', () => {
+      const nebenkosten = {
+        nebenkostenart: ['General'],
+        betrag: [1000],
+        berechnungsart: ['pro Fläche'],
+        startdatum,
+        enddatum,
+        gesamtFlaeche: 2313 // canonical house size from server action
+      } as any;
+
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 100 } });
+      const occupancy = {
+        percentage: 100,
+        occupancyDays: 365,
+        tenantId: 't1',
+        occupancyRatio: 1,
+        daysOccupied: 365,
+        daysInPeriod: 365,
+        effectivePeriodStart: startdatum,
+        effectivePeriodEnd: enddatum
+      };
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten, [mockTenant], occupancy as any);
+
+      // totalHouseArea used for verteiler should be 2313 m²
+      expect(result.costItems[0].distributionBasis).toBe('2313 m²');
+
+      // pricePerSqm should use tenantShare / (tenantArea * occupancyRatio) = 100 / (50 * 1.0) = 2
+      expect(result.costItems[0].pricePerSqm).toBe(2);
     });
   });
 
@@ -181,18 +226,18 @@ describe('abrechnung-calculations', () => {
 
   describe('calculatePrepayments — actual mode', () => {
     const makePayment = (datum: string, betrag: number, wohnungId = 'w1'): Finanzen =>
-      ({
-        id: `pay-${datum}`,
-        wohnung_id: wohnungId,
-        datum,
-        betrag,
-        ist_einnahmen: true,
-        name: 'Nebenkosten',
-        notiz: null,
-        user_id: 'u1',
-        dokument_id: null,
-        tags: ['Nebenkosten']
-      } as Finanzen);
+    ({
+      id: `pay-${datum}`,
+      wohnung_id: wohnungId,
+      datum,
+      betrag,
+      ist_einnahmen: true,
+      name: 'Nebenkosten',
+      notiz: null,
+      user_id: 'u1',
+      dokument_id: null,
+      tags: ['Nebenkosten']
+    } as Finanzen);
 
     it('sums actual payments within each month', () => {
       const actualPayments: Finanzen[] = [
@@ -250,18 +295,18 @@ describe('abrechnung-calculations', () => {
 
   describe('calculateCompleteTenantResult — prepaymentMode', () => {
     const makePayment = (datum: string, betrag: number, wohnungId = 'w1'): Finanzen =>
-      ({
-        id: `pay-${datum}`,
-        wohnung_id: wohnungId,
-        datum,
-        betrag,
-        ist_einnahmen: true,
-        name: 'Nebenkosten',
-        notiz: null,
-        user_id: 'u1',
-        dokument_id: null,
-        tags: ['Nebenkosten']
-      } as Finanzen);
+    ({
+      id: `pay-${datum}`,
+      wohnung_id: wohnungId,
+      datum,
+      betrag,
+      ist_einnahmen: true,
+      name: 'Nebenkosten',
+      notiz: null,
+      user_id: 'u1',
+      dokument_id: null,
+      tags: ['Nebenkosten']
+    } as Finanzen);
 
     beforeEach(() => {
       (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 100 } });
