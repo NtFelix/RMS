@@ -372,7 +372,8 @@ export function AbrechnungModal({
         meters,
         readings,
         actualPayments,
-        prepaymentMode
+        prepaymentMode,
+        rechnungen
       );
 
       return {

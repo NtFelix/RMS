@@ -6,7 +6,8 @@
  * and data validation.
  */
 
-import type { Mieter, Nebenkosten, WasserZaehler, WasserAblesung, Finanzen } from "@/lib/types";
+import type { Mieter, Nebenkosten, WasserZaehler, WasserAblesung, Finanzen, Rechnung } from "@/lib/types";
+
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
@@ -72,7 +73,8 @@ export function calculateTenantCosts(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
   allTenants?: Mieter[],
-  occupancyData?: OccupancyCalculation
+  occupancyData?: OccupancyCalculation,
+  rechnungen?: Rechnung[]
 ): OperatingCostBreakdown {
   const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
   const tenants = allTenants || [tenant]; // For distribution calculations
@@ -141,12 +143,17 @@ export function calculateTenantCosts(
           distributionBasis = '1 Wohnung';
           break;
 
-        case 'nach Rechnung':
-          // Individual invoice: the full amount is billed directly to this tenant.
-          // No splitting across tenants or occupancy scaling.
-          tenantShare = totalCostForItem;
+        case 'nach Rechnung': {
+          // Look up the tenant's specific invoice from Rechnungen by cost name + mieter_id.
+          // The betrag[] in Nebenkosten is a placeholder 0; the real per-tenant amount lives in Rechnungen.
+          const matching = rechnungen?.find(
+            r => r.name === costName && r.mieter_id === tenant.id
+          );
+          tenantShare = matching?.betrag ?? totalCostForItem;
           distributionBasis = 'Individuelle Rechnung';
           break;
+        }
+
 
         default:
           // Default to area-based distribution
@@ -469,13 +476,15 @@ export function calculateCompleteTenantResult(
   meters: WasserZaehler[],
   readings: WasserAblesung[],
   actualPayments?: Finanzen[],
-  prepaymentMode: 'scheduled' | 'actual' = 'scheduled'
+  prepaymentMode: 'scheduled' | 'actual' = 'scheduled',
+  rechnungen?: Rechnung[]
 ): TenantCalculationResult {
   // Calculate occupancy
   const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
 
   // Calculate operating costs
-  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, allTenants, occupancy);
+  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, allTenants, occupancy, rechnungen);
+
 
   // Calculate meter costs using new system
   const meterCosts = calculateMeterCostDistribution(
