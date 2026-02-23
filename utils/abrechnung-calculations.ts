@@ -6,7 +6,8 @@
  * and data validation.
  */
 
-import type { Mieter, Nebenkosten, WasserZaehler, WasserAblesung, Finanzen } from "@/lib/types";
+import type { Mieter, Nebenkosten, WasserZaehler, WasserAblesung, Finanzen, Rechnung } from "@/lib/types";
+
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
@@ -71,13 +72,23 @@ export function calculateOccupancyPercentage(
 export function calculateTenantCosts(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
-  occupancyData?: OccupancyCalculation
+  allTenants?: Mieter[],
+  occupancyData?: OccupancyCalculation,
+  rechnungen?: Rechnung[]
 ): OperatingCostBreakdown {
   const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
-  const tenants = [tenant]; // For distribution calculations
+  const tenants = allTenants || [tenant]; // For distribution calculations
 
   const costItems: OperatingCostBreakdown['costItems'] = [];
   let totalCost = 0;
+
+  // For the verteiler display in the PDF: show tenant area vs total physical house area.
+  // gesamtFlaeche is the canonical value set by the server action (Haeuser.groesse),
+  // consistent with what the overview modal shows.
+  const totalHouseArea = (nebenkosten as any).gesamtFlaeche
+    || tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
+
+  const tenantArea = tenant.Wohnungen?.groesse || 0;
 
   // Process each cost item
   if (nebenkosten.nebenkostenart && nebenkosten.betrag && nebenkosten.berechnungsart) {
@@ -93,6 +104,7 @@ export function calculateTenantCosts(
       // Calculate tenant share based on calculation type
       switch (calculationType) {
         case 'pro Fläche':
+        case 'pro Flaeche':
           const flächeDistribution = calculateProFlächeDistribution(
             tenants,
             totalCostForItem,
@@ -100,8 +112,13 @@ export function calculateTenantCosts(
             nebenkosten.enddatum
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
-          pricePerSqm = tenant.Wohnungen?.groesse ? tenantShare / tenant.Wohnungen.groesse : undefined;
-          distributionBasis = `${tenant.Wohnungen?.groesse || 0} m²`;
+          // Self-consistent per-tenant rate: pricePerSqm × area × occupancyRatio = tenantShare
+          // This avoids the stacking problem (sequential tenants in same apartment).
+          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
+            ? tenantShare / (tenantArea * (occupancy.percentage / 100))
+            : undefined;
+          // Verteiler shows physical area vs total house area (for PDF column)
+          distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
           break;
 
         case 'pro Mieter':
@@ -126,12 +143,17 @@ export function calculateTenantCosts(
           distributionBasis = '1 Wohnung';
           break;
 
-        case 'nach Rechnung':
-          // For individual amounts, we'd need additional data
-          // For now, assume equal distribution
-          tenantShare = totalCostForItem * (occupancy.percentage / 100);
-          distributionBasis = 'Individuelle Rechnung';
+        case 'nach Rechnung': {
+          // Look up the tenant's specific invoice from Rechnungen by cost name + mieter_id.
+          // The betrag[] in Nebenkosten is a placeholder 0; the real per-tenant amount lives in Rechnungen.
+          const matching = rechnungen?.find(
+            r => r.name === costName && r.mieter_id === tenant.id
+          );
+          tenantShare = matching?.betrag ?? totalCostForItem;
+          distributionBasis = '-';
           break;
+        }
+
 
         default:
           // Default to area-based distribution
@@ -142,7 +164,10 @@ export function calculateTenantCosts(
             nebenkosten.enddatum
           );
           tenantShare = defaultDistribution[tenant.id]?.amount || 0;
-          distributionBasis = `${tenant.Wohnungen?.groesse || 0} m²`;
+          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
+            ? tenantShare / (tenantArea * (occupancy.percentage / 100))
+            : undefined;
+          distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
       }
 
       costItems.push({
@@ -451,13 +476,15 @@ export function calculateCompleteTenantResult(
   meters: WasserZaehler[],
   readings: WasserAblesung[],
   actualPayments?: Finanzen[],
-  prepaymentMode: 'scheduled' | 'actual' = 'scheduled'
+  prepaymentMode: 'scheduled' | 'actual' = 'scheduled',
+  rechnungen?: Rechnung[]
 ): TenantCalculationResult {
   // Calculate occupancy
   const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
 
   // Calculate operating costs
-  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, occupancy);
+  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, allTenants, occupancy, rechnungen);
+
 
   // Calculate meter costs using new system
   const meterCosts = calculateMeterCostDistribution(

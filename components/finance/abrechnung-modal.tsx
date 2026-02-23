@@ -372,7 +372,8 @@ export function AbrechnungModal({
         meters,
         readings,
         actualPayments,
-        prepaymentMode
+        prepaymentMode,
+        rechnungen
       );
 
       return {
@@ -463,7 +464,7 @@ export function AbrechnungModal({
       variant: 'default',
       duration: 8000,
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calculatedTenantData]); // intentionally omit toast — it is stable but changes ref on every render
 
   // Calculate summary totals across all tenants when all data is loaded
