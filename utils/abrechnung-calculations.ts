@@ -150,7 +150,7 @@ export function calculateTenantCosts(
             r => r.name === costName && r.mieter_id === tenant.id
           );
           tenantShare = matching?.betrag ?? totalCostForItem;
-          distributionBasis = 'Individuelle Rechnung';
+          distributionBasis = '-';
           break;
         }
 
