@@ -142,9 +142,9 @@ export function calculateTenantCosts(
           break;
 
         case 'nach Rechnung':
-          // For individual amounts, we'd need additional data
-          // For now, assume equal distribution
-          tenantShare = totalCostForItem * (occupancy.percentage / 100);
+          // Individual invoice: the full amount is billed directly to this tenant.
+          // No splitting across tenants or occupancy scaling.
+          tenantShare = totalCostForItem;
           distributionBasis = 'Individuelle Rechnung';
           break;
 
