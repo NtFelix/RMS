@@ -80,12 +80,12 @@ export function calculateTenantCosts(
   const costItems: OperatingCostBreakdown['costItems'] = [];
   let totalCost = 0;
 
-  // Pre-compute the total house area (sum of all physical apartment sizes).
-  // Used for pricePerSqm to give a building-wide rate consistent with the overview modal.
-  // Note: we do NOT use totalWeightedArea here because when multiple tenants occupy the
-  // same apartment sequentially in a year, their occupancy ratios would stack, inflating
-  // the denominator above the physical house size and producing a misleadingly low rate.
-  const totalHouseArea = tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
+  // Use gesamtFlaeche from the nebenkosten object as the canonical total house area —
+  // this is the same value set by the server action (from Haeuser.groesse) that the
+  // overview modal uses, guaranteeing both modals show identical pricePerSqm values.
+  // Fall back to summing tenant apartment sizes only if gesamtFlaeche is not available.
+  const totalHouseArea = (nebenkosten as any).gesamtFlaeche
+    || tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
 
   const tenantArea = tenant.Wohnungen?.groesse || 0;
 
