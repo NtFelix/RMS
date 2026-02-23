@@ -885,7 +885,7 @@ export function WasserZaehlerModal() {
                                         <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
                                         {zaehler.latest_reading ? (
                                           <p className="text-sm font-medium">
-                                            {zaehler.latest_reading.zaehlerstand} m³
+                                            {formatNumber(zaehler.latest_reading.zaehlerstand, 3)} m³
                                           </p>
                                         ) : (
                                           <p className="text-sm font-medium text-muted-foreground italic">

@@ -157,6 +157,10 @@ export function MeterImportModal({
     return null;
   };
 
+  const roundTo3Decimals = (num: number): number => {
+    return Number(Math.round(Number(`${num}e3`)) + 'e-3');
+  };
+
   const parseGermanNumber = (value: string | number): number => {
     let parsed: number;
 
@@ -177,7 +181,7 @@ export function MeterImportModal({
     }
 
     // Round to 3 decimal places
-    return Number(Math.round(Number(parsed + 'e3')) + 'e-3');
+    return roundTo3Decimals(parsed);
   };
 
   const validateAndProcessData = async () => {
@@ -367,7 +371,7 @@ export function MeterImportModal({
         }
 
         // Round calculated usage to 3 decimal places
-        calculatedUsage = Number(Math.round(Number(calculatedUsage + 'e3')) + 'e-3');
+        calculatedUsage = roundTo3Decimals(calculatedUsage);
 
         return { ...item, verbrauch: calculatedUsage };
       });
