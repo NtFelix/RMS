@@ -116,9 +116,7 @@ export function calculateTenantCosts(
             ? tenantShare / (tenantArea * (occupancy.percentage / 100))
             : undefined;
           // Verteiler shows physical area vs total house area (for PDF column)
-          distributionBasis = totalHouseArea > 0
-            ? `${tenantArea} m² / ${totalHouseArea} m²`
-            : `${tenantArea} m²`;
+          distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
           break;
 
         case 'pro Mieter':
@@ -162,9 +160,7 @@ export function calculateTenantCosts(
           pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
             ? tenantShare / (tenantArea * (occupancy.percentage / 100))
             : undefined;
-          distributionBasis = totalHouseArea > 0
-            ? `${tenantArea} m² / ${totalHouseArea} m²`
-            : `${tenantArea} m²`;
+          distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
       }
 
       costItems.push({
