@@ -144,8 +144,8 @@ export class PostHogLLMTracker {
       trace_id: params.traceId || params.id
     };
 
-    // Track the start
-    this.trackGeneration(generation);
+    // Track the start - DISABLED to prevent duplicate generation events
+    // this.trackGeneration(generation);
 
     return generation;
   }

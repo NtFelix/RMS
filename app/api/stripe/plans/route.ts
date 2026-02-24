@@ -5,16 +5,53 @@ import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { StripePlan } from '@/types/stripe';
 import { parseStorageString } from '@/lib/stripe-server';
 
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
+
 export async function GET() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  if (isStripeMocked()) {
     // Only log in non-CI environments to avoid cluttering test output
-    if (process.env.CI !== 'true') {
-      console.error('Stripe secret key not configured');
+    if (process.env.CI !== 'true' && !process.env.STRIPE_SECRET_KEY?.startsWith('mock-')) {
+      console.error('Stripe secret key not configured or is a mock key');
     }
+
+    if (isTestEnv()) {
+      return NextResponse.json([{
+        id: 'price_mock_starter',
+        priceId: 'price_mock_starter',
+        name: 'Starter Plan (Mock)',
+        productName: 'Starter',
+        price: 990,
+        currency: 'eur',
+        interval: 'month',
+        interval_count: 1,
+        features: ['Up to 5 units', 'Basic support'],
+        limit_wohnungen: 5,
+        storage_limit: 1024 * 1024 * 1024,
+        position: 1,
+        description: 'Mock starter plan for testing',
+        metadata: { feat_units: '5', feat_storage: '1 GB' }
+      }, {
+        id: 'price_mock_pro',
+        priceId: 'price_mock_pro',
+        name: 'Pro Plan (Mock)',
+        productName: 'Pro',
+        price: 2990,
+        currency: 'eur',
+        interval: 'month',
+        interval_count: 1,
+        features: ['Up to 50 units', 'Priority support'],
+        limit_wohnungen: 50,
+        storage_limit: 10 * 1024 * 1024 * 1024,
+        position: 2,
+        description: 'Mock pro plan for testing',
+        metadata: { feat_units: '50', feat_storage: '10 GB' }
+      }]);
+    }
+
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   try {
     const prices = await stripe.prices.list({

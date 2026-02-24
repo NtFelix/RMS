@@ -118,29 +118,39 @@ export function CustomCombobox({
     }
   }, [filteredOptions, highlightedIndex, value, onChange, closeCombobox])
 
-  // Reset input and highlighted index when opening/closing
+  // Effect 1: Handle Open/Close state and input focus
   React.useEffect(() => {
     if (!open) {
       setInputValue("")
       setHighlightedIndex(-1)
       setIsKeyboardNavigation(false)
     } else {
-      // Set initial highlighted index to current selection or first option
-      const currentIndex = filteredOptions.findIndex(option => option.value === value)
-      setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
+      // When opening:
       // Start in mouse mode by default
       setIsKeyboardNavigation(false)
 
-      // Focus the input when opening
-      if (inputRef.current) {
-        setTimeout(() => {
-          if (inputRef.current && open) {
-            inputRef.current.focus({ preventScroll: true })
-          }
-        }, 50)
-      }
+      // Focus the input
+      // Use requestAnimationFrame to ensure the element is mounted and ready
+      requestAnimationFrame(() => {
+        if (inputRef.current) {
+          inputRef.current.focus({ preventScroll: true })
+        }
+      })
     }
   }, [open])
+
+  // Effect 2: Handle Highlighting synchronization
+  React.useEffect(() => {
+    if (open) {
+      // Only update highlight based on value if we are NOT actively searching (inputValue is empty)
+      // If the user is typing (inputValue !== ""), the onChange handler takes care of setting the index to 0 (top result)
+      // and we shouldn't override that with the currently selected value's index.
+      if (inputValue === "") {
+        const currentIndex = filteredOptions.findIndex(option => option.value === value)
+        setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
+      }
+    }
+  }, [open, value, filteredOptions, inputValue])
 
 
 
@@ -170,7 +180,7 @@ export function CustomCombobox({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           ref={buttonRef}
@@ -190,10 +200,12 @@ export function CustomCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className={cn("p-2 border border-border rounded-2xl shadow-2xl backdrop-blur-sm bg-popover", width)}
+        className={cn("p-2 border border-border rounded-2xl shadow-2xl backdrop-blur-sm bg-popover z-[100]", width)}
         align="start"
         sideOffset={8}
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        // Removed onOpenAutoFocus prevention to allow natural focus behavior
+        // Also added data attribute for dialog interaction handling
+        data-combobox-dropdown=""
       >
         <div className="flex flex-col gap-2">
           {/* Custom search input with aggressive focus management */}

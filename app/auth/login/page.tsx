@@ -1,11 +1,9 @@
-import { Suspense } from "react"
-import LoginContent from "@/components/auth/login-content"
-import { AuthPageLoader } from "@/components/auth/auth-page-loader"
+import { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo/metadata'
+import LoginPage from './content'
 
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<AuthPageLoader />}>
-      <LoginContent />
-    </Suspense>
-  )
+export const metadata: Metadata = pageMetadata.authLogin
+
+export default function Page() {
+  return <LoginPage />
 }

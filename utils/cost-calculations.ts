@@ -16,36 +16,65 @@ export function calculateProFlächeDistribution(
 ): Record<string, { amount: number; occupancyDays: number; totalDays: number }> {
   const distribution: Record<string, { amount: number; occupancyDays: number; totalDays: number }> = {};
 
-  // Calculate total weighted area (area * occupancy ratio)
-  let totalWeightedArea = 0;
-  const tenantOccupancies: Array<{
-    tenant: Mieter;
-    occupancy: TenantOccupancy;
-    weightedArea: number;
-  }> = [];
+  const periodStart = new Date(startdatum);
+  const periodEnd = new Date(enddatum);
+  const totalDays = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 3600 * 24)) + 1;
 
+  // Group tenants by wohnung_id so WG members sharing the same apartment
+  // don't each add the full apartment area to totalWeightedArea (stacking bug).
+  const apartmentGroups = new Map<string, { area: number; tenants: Mieter[] }>();
   tenants.forEach(tenant => {
-    const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
-    const apartmentArea = tenant.Wohnungen?.groesse || 0;
-    const weightedArea = apartmentArea * occupancy.occupancyRatio;
-
-    totalWeightedArea += weightedArea;
-    tenantOccupancies.push({ tenant, occupancy, weightedArea });
+    const wohnungId = tenant.wohnung_id || tenant.id;
+    const area = tenant.Wohnungen?.groesse || 0;
+    const existing = apartmentGroups.get(wohnungId);
+    if (existing) {
+      existing.tenants.push(tenant);
+    } else {
+      apartmentGroups.set(wohnungId, { area, tenants: [tenant] });
+    }
   });
 
-  // Distribute costs proportionally
-  tenantOccupancies.forEach(({ tenant, occupancy, weightedArea }) => {
-    const amount = totalWeightedArea > 0 ? (weightedArea / totalWeightedArea) * totalCost : 0;
+  // For each apartment, compute the union of occupied days across all co-tenants.
+  // This caps the apartment's contribution to physical size × occupancyRatio (≤ 1),
+  // regardless of how many tenants share it simultaneously or sequentially.
+  let totalWeightedArea = 0;
+  const apartmentWeightedAreas = new Map<string, number>();
+
+  apartmentGroups.forEach((group, wohnungId) => {
+    const occupiedDays = new Set<number>();
+    group.tenants.forEach(tenant => {
+      const einStart = tenant.einzug ? new Date(tenant.einzug) : periodStart;
+      const auzEnd = tenant.auszug ? new Date(tenant.auszug) : periodEnd;
+      const effectiveStart = einStart > periodStart ? einStart : periodStart;
+      const effectiveEnd = auzEnd < periodEnd ? auzEnd : periodEnd;
+      for (let d = new Date(effectiveStart); d <= effectiveEnd; d.setDate(d.getDate() + 1)) {
+        occupiedDays.add(Math.floor((d.getTime() - periodStart.getTime()) / (1000 * 3600 * 24)));
+      }
+    });
+    const unionRatio = Math.min(occupiedDays.size / totalDays, 1);
+    const weightedArea = group.area * unionRatio;
+    totalWeightedArea += weightedArea;
+    apartmentWeightedAreas.set(wohnungId, weightedArea);
+  });
+
+  // Distribute the total cost to each apartment, then split equally among co-tenants.
+  tenants.forEach(tenant => {
+    const wohnungId = tenant.wohnung_id || tenant.id;
+    const group = apartmentGroups.get(wohnungId)!;
+    const aptWeightedArea = apartmentWeightedAreas.get(wohnungId) || 0;
+    const aptShare = totalWeightedArea > 0 ? (aptWeightedArea / totalWeightedArea) * totalCost : 0;
+    const tenantOccupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
 
     distribution[tenant.id] = {
-      amount,
-      occupancyDays: occupancy.occupancyDays,
-      totalDays: Math.ceil((new Date(enddatum).getTime() - new Date(startdatum).getTime()) / (1000 * 3600 * 24)) + 1
+      amount: aptShare / group.tenants.length,
+      occupancyDays: tenantOccupancy.occupancyDays,
+      totalDays
     };
   });
 
   return distribution;
 }
+
 
 /**
  * Calculate cost distribution per tenant (pro Mieter) with day-based weighting

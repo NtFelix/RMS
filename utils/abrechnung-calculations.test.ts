@@ -9,6 +9,7 @@ import {
   formatCurrency,
   calculateCompleteTenantResult
 } from './abrechnung-calculations';
+import type { Finanzen } from '@/lib/types';
 import { calculateTenantOccupancy } from './date-calculations';
 import {
   calculateProFlächeDistribution,
@@ -105,28 +106,287 @@ describe('abrechnung-calculations', () => {
       expect(calculateProFlächeDistribution).toHaveBeenCalled();
     });
 
-    it('handles nach Rechnung type', () => {
+    it('handles nach Rechnung type from rechnungen array', () => {
       const nebenkosten = {
-        nebenkostenart: ['Special'],
-        betrag: [100],
-        berechnungsart: ['nach Rechnung'],
+        nebenkostenart: ['Special', 'Not Invoiced'],
+        betrag: [0, 0], // placeholder 0 in db
+        berechnungsart: ['nach Rechnung', 'nach Rechnung'],
         startdatum,
         enddatum
       } as any;
 
-      const result = calculateTenantCosts(mockTenant, nebenkosten);
+      const rechnungen = [
+        { name: 'Special', mieter_id: 't1', betrag: 150 },
+        { name: 'Special', mieter_id: 'other', betrag: 300 }
+      ] as any[];
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten, undefined, undefined, rechnungen);
+
       expect(result.costItems[0].calculationType).toBe('nach Rechnung');
-      expect(result.costItems[0].tenantShare).toBe(100); // 100% occupancy
+      expect(result.costItems[0].costName).toBe('Special');
+      expect(result.costItems[0].tenantShare).toBe(150); // Exact invoice amount
+      expect(result.costItems[0].distributionBasis).toBe('-');
+
+      // For 'Not Invoiced' which doesn't match this tenant, it should use the 0 from betrag[]
+      expect(result.costItems[1].calculationType).toBe('nach Rechnung');
+      expect(result.costItems[1].costName).toBe('Not Invoiced');
+      expect(result.costItems[1].tenantShare).toBe(0);
+      expect(result.costItems[1].distributionBasis).toBe('-');
+    });
+
+    it('uses nebenkosten.gesamtFlaeche as canonical house area for verteiler', () => {
+      const nebenkosten = {
+        nebenkostenart: ['General'],
+        betrag: [1000],
+        berechnungsart: ['pro Fläche'],
+        startdatum,
+        enddatum,
+        gesamtFlaeche: 2313 // canonical house size from server action
+      } as any;
+
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 100 } });
+      const occupancy = {
+        percentage: 100,
+        occupancyDays: 365,
+        tenantId: 't1',
+        occupancyRatio: 1,
+        daysOccupied: 365,
+        daysInPeriod: 365,
+        effectivePeriodStart: startdatum,
+        effectivePeriodEnd: enddatum
+      };
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten, [mockTenant], occupancy as any);
+
+      // totalHouseArea used for verteiler should be 2313 m²
+      expect(result.costItems[0].distributionBasis).toBe('2313 m²');
+
+      // pricePerSqm should use tenantShare / (tenantArea * occupancyRatio) = 100 / (50 * 1.0) = 2
+      expect(result.costItems[0].pricePerSqm).toBe(2);
     });
   });
 
-  describe('calculatePrepayments', () => {
-    it('calculates monthly prepayments based on occupancy', () => {
+  describe('calculatePrepayments — scheduled mode', () => {
+    it('returns 0 and reports missingScheduleMonths when no nebenkosten schedule exists', () => {
+      // mockTenant has no nebenkosten array — all occupied months should be flagged
       const result = calculatePrepayments(mockTenant, startdatum, enddatum);
 
       expect(result.monthlyPayments).toHaveLength(12);
-      expect(result.totalPrepayments).toBeGreaterThan(0);
-      expect(result.averageMonthlyPayment).toBe(100); // Default constant in code
+      expect(result.totalPrepayments).toBe(0);
+      expect(result.averageMonthlyPayment).toBe(0);
+      expect(result.missingScheduleMonths).toBe(12);
+    });
+
+    it('does NOT set missingScheduleMonths when schedule data is present for all months', () => {
+      const tenantWithSchedule = {
+        ...mockTenant,
+        nebenkosten: [{ date: '2023-01-01', amount: '150' }]
+      } as any;
+
+      const result = calculatePrepayments(tenantWithSchedule, startdatum, enddatum);
+
+      expect(result.totalPrepayments).toBe(12 * 150); // 150/month * 12 months * ratio 1
+      expect(result.missingScheduleMonths).toBeUndefined();
+    });
+
+    it('prorates prepayment by occupancy ratio', () => {
+      const tenantWithSchedule = {
+        ...mockTenant,
+        nebenkosten: [{ date: '2023-01-01', amount: '200' }]
+      } as any;
+
+      // Mock half-month occupancy
+      (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+        occupancyRatio: 0.5,
+        occupancyDays: 15,
+        tenantId: 't1'
+      });
+
+      const result = calculatePrepayments(tenantWithSchedule, startdatum, enddatum);
+
+      // Each month should be 200 * 0.5 = 100
+      expect(result.monthlyPayments[0].amount).toBe(100);
+    });
+
+    it('does not set missingScheduleMonths when tenant is not occupying in a month', () => {
+      // Zero occupancy days — not occupied, so no missing data expected
+      (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+        occupancyRatio: 0,
+        occupancyDays: 0,
+        tenantId: 't1'
+      });
+
+      const result = calculatePrepayments(mockTenant, startdatum, enddatum);
+
+      expect(result.totalPrepayments).toBe(0);
+      // Not occupied, so no "missing" data — missingScheduleMonths should be 0 or undefined
+      expect(result.missingScheduleMonths ?? 0).toBe(0);
+    });
+  });
+
+  describe('calculatePrepayments — actual mode', () => {
+    const makePayment = (datum: string, betrag: number, wohnungId = 'w1'): Finanzen =>
+    ({
+      id: `pay-${datum}`,
+      wohnung_id: wohnungId,
+      datum,
+      betrag,
+      ist_einnahmen: true,
+      name: 'Nebenkosten',
+      notiz: null,
+      user_id: 'u1',
+      dokument_id: null,
+      tags: ['Nebenkosten']
+    } as Finanzen);
+
+    it('sums actual payments within each month', () => {
+      const actualPayments: Finanzen[] = [
+        makePayment('2023-01-10', 150),
+        makePayment('2023-02-10', 150),
+        makePayment('2023-03-10', 150),
+      ];
+
+      const result = calculatePrepayments(mockTenant, '2023-01-01', '2023-03-31', actualPayments, 'actual');
+
+      expect(result.totalPrepayments).toBe(450);
+      expect(result.monthlyPayments[0].amount).toBe(150);
+      expect(result.monthlyPayments[1].amount).toBe(150);
+      expect(result.monthlyPayments[2].amount).toBe(150);
+    });
+
+    it('returns 0 for months with no actual payment entries — does NOT set missingScheduleMonths', () => {
+      const result = calculatePrepayments(mockTenant, '2023-01-01', '2023-03-31', [], 'actual');
+
+      expect(result.totalPrepayments).toBe(0);
+      // missingScheduleMonths only applies to 'scheduled' mode
+      expect(result.missingScheduleMonths).toBeUndefined();
+    });
+
+    it('sums multiple payments in the same month', () => {
+      const actualPayments: Finanzen[] = [
+        makePayment('2023-01-05', 100),
+        makePayment('2023-01-20', 75),
+      ];
+
+      const result = calculatePrepayments(mockTenant, '2023-01-01', '2023-01-31', actualPayments, 'actual');
+
+      expect(result.totalPrepayments).toBe(175);
+      expect(result.monthlyPayments[0].amount).toBe(175);
+    });
+
+    it('ignores payments outside the billing period', () => {
+      const actualPayments: Finanzen[] = [
+        makePayment('2022-12-31', 200), // Before billing period
+        makePayment('2023-01-15', 150), // Inside
+        makePayment('2024-01-01', 200), // After billing period
+      ];
+
+      const result = calculatePrepayments(mockTenant, '2023-01-01', '2023-01-31', actualPayments, 'actual');
+
+      expect(result.totalPrepayments).toBe(150); // Only the in-period payment
+    });
+
+    it('handles actualPayments being undefined gracefully', () => {
+      const result = calculatePrepayments(mockTenant, '2023-01-01', '2023-01-31', undefined, 'actual');
+
+      expect(result.totalPrepayments).toBe(0);
+    });
+  });
+
+  describe('calculateCompleteTenantResult — prepaymentMode', () => {
+    const makePayment = (datum: string, betrag: number, wohnungId = 'w1'): Finanzen =>
+    ({
+      id: `pay-${datum}`,
+      wohnung_id: wohnungId,
+      datum,
+      betrag,
+      ist_einnahmen: true,
+      name: 'Nebenkosten',
+      notiz: null,
+      user_id: 'u1',
+      dokument_id: null,
+      tags: ['Nebenkosten']
+    } as Finanzen);
+
+    beforeEach(() => {
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 100 } });
+      (getTenantMeterCost as jest.Mock).mockReturnValue(null);
+    });
+
+    it('uses actual payments when prepaymentMode is actual', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Test'],
+        betrag: [100],
+        berechnungsart: ['pro Fläche'],
+        startdatum: '2023-01-01',
+        enddatum: '2023-01-31'
+      } as any;
+
+      const actualPayments: Finanzen[] = [makePayment('2023-01-10', 80)];
+
+      const result = calculateCompleteTenantResult(
+        mockTenant,
+        nebenkosten,
+        [mockTenant],
+        [],
+        [],
+        actualPayments,
+        'actual'
+      );
+
+      expect(result.prepayments.totalPrepayments).toBe(80);
+      // finalSettlement = totalCosts - prepayments = 100 - 80 = 20
+      expect(result.finalSettlement).toBe(20);
+    });
+
+    it('defaults to scheduled mode when no prepaymentMode passed', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Test'],
+        betrag: [100],
+        berechnungsart: ['pro Fläche'],
+        startdatum: '2023-01-01',
+        enddatum: '2023-01-31'
+      } as any;
+
+      const tenantWithSchedule = {
+        ...mockTenant,
+        nebenkosten: [{ date: '2023-01-01', amount: '120' }]
+      } as any;
+
+      const result = calculateCompleteTenantResult(tenantWithSchedule, nebenkosten, [tenantWithSchedule], [], []);
+
+      expect(result.prepayments.totalPrepayments).toBe(120);
+    });
+
+    it('pre-filters actualPayments by wohnung_id before passing to calculatePrepayments', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Test'],
+        betrag: [0],
+        berechnungsart: ['pro Fläche'],
+        startdatum: '2023-01-01',
+        enddatum: '2023-01-31'
+      } as any;
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 0 } });
+
+      // Mix of payments for different apartments
+      const actualPayments: Finanzen[] = [
+        makePayment('2023-01-10', 100, 'w1'), // belongs to mockTenant
+        makePayment('2023-01-10', 200, 'w2'), // different apartment
+        makePayment('2023-01-15', 50, 'w1'),  // belongs to mockTenant
+      ];
+
+      const result = calculateCompleteTenantResult(
+        mockTenant,
+        nebenkosten,
+        [mockTenant],
+        [],
+        [],
+        actualPayments,
+        'actual'
+      );
+
+      // Only payments for w1 should be counted: 100 + 50 = 150
+      expect(result.prepayments.totalPrepayments).toBe(150);
     });
   });
 
@@ -183,7 +443,7 @@ describe('abrechnung-calculations', () => {
         enddatum,
         nebenkostenart: ['Test'],
         betrag: [100],
-        wasserkosten: 100
+        zaehlerkosten: { kaltwasser: 100 }
       } as any;
 
       // Case 1: No meters
@@ -261,15 +521,42 @@ describe('abrechnung-calculations', () => {
         enddatum
       } as any;
 
-      // Mock sub-calculations
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 100 } });
+      (getTenantMeterCost as jest.Mock).mockReturnValue(null);
+
+      // Provide a prepayment schedule so the result is deterministic
+      const tenantWithSchedule = {
+        ...mockTenant,
+        nebenkosten: [{ date: '2023-01-01', amount: '50' }]
+      } as any;
+
+      const result = calculateCompleteTenantResult(tenantWithSchedule, nebenkosten, [], [], []);
+
+      expect(result.operatingCosts.totalCost).toBe(100);
+      expect(result.meterCosts.totalCost).toBe(0);
+      // 12 months * 50€ schedule
+      expect(result.prepayments.totalPrepayments).toBe(600);
+      expect(result.finalSettlement).toBe(100 - 600); // costs − prepayments
+      expect(result.prepayments.missingScheduleMonths).toBeUndefined();
+    });
+
+    it('surfaces missingScheduleMonths when tenant has no prepayment schedule', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Test'],
+        betrag: [100],
+        berechnungsart: ['pro Fläche'],
+        startdatum,
+        enddatum
+      } as any;
+
       (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 100 } });
       (getTenantMeterCost as jest.Mock).mockReturnValue(null);
 
       const result = calculateCompleteTenantResult(mockTenant, nebenkosten, [], [], []);
 
-      expect(result.totalCosts).toBeGreaterThan(0);
       expect(result.operatingCosts.totalCost).toBe(100);
-      expect(result.prepayments.totalPrepayments).toBeGreaterThan(0);
+      expect(result.prepayments.totalPrepayments).toBe(0);
+      expect(result.prepayments.missingScheduleMonths).toBe(12);
     });
   });
 });

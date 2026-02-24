@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { custom_id, wohnung_id, eichungsdatum, zaehler_typ, einheit } = body
+    const { custom_id, wohnung_id, eichungsdatum, zaehler_typ, einheit, kommentar } = body
 
     if (!wohnung_id) {
       return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400 })
@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         zaehler_typ: zaehler_typ || 'wasser',
         einheit: einheit || 'm³',
+        kommentar: kommentar || null,
       })
       .select()
       .single()

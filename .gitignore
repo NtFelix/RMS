@@ -39,6 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.eslintcache
 
 # ide
 .vscode
@@ -54,3 +55,5 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+# next-agents-md
+.next-docs/

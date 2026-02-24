@@ -12,7 +12,7 @@
  * @see .kiro/specs/betriebskosten-performance-optimization/design.md
  */
 
-import type { Nebenkosten, Mieter, WasserZaehler, WasserAblesung, Rechnung } from "@/lib/types";
+import type { Nebenkosten, Mieter, WasserZaehler, WasserAblesung, Rechnung, Finanzen } from "@/lib/types";
 
 /**
  * OptimizedNebenkosten extends the existing Nebenkosten type with calculated fields
@@ -43,6 +43,7 @@ export type OptimizedNebenkosten = {
   gesamtFlaeche?: number;
   anzahlWohnungen?: number;
   anzahlMieter?: number;
+  vorauszahlungs_art?: 'soll' | 'ist';
 };
 
 /**
@@ -81,6 +82,7 @@ export type AbrechnungModalData = {
   rechnungen: Rechnung[];         // From existing Rechnungen table
   meters: WasserZaehler[];        // From Zaehler table (generic)
   readings: WasserAblesung[];     // From Zaehler_Ablesungen table (generic)
+  actualPayments?: Finanzen[];    // Actual financial entries if in IST mode
 };
 
 /**
@@ -248,6 +250,12 @@ export type PrepaymentBreakdown = {
   }>;
   totalPrepayments: number;
   averageMonthlyPayment: number;
+  /**
+   * Number of occupied months for which no prepayment schedule entry was found.
+   * Only relevant in 'scheduled' mode. > 0 means the billing statement
+   * may be incomplete because contract data is missing for those months.
+   */
+  missingScheduleMonths?: number;
 };
 
 /**
@@ -317,6 +325,7 @@ export type AbrechnungCalculationResult = {
     includeRecommendations?: boolean;
     validateWaterReadings?: boolean;
     calculateMonthlyBreakdown?: boolean;
+    prepaymentMode?: 'scheduled' | 'actual';
   };
 };
 
@@ -338,6 +347,7 @@ export type AbrechnungCalculationOptions = {
   calculateMonthlyBreakdown?: boolean;
   generatePdfPreview?: boolean;
   saveCalculationResults?: boolean;
+  prepaymentMode?: 'scheduled' | 'actual';
 };
 
 /**

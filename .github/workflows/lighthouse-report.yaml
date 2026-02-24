@@ -121,6 +121,11 @@ jobs:
       - name: Build application
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
         run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
 
       - name: Save build cache
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
@@ -255,6 +260,11 @@ jobs:
       - name: Run Lighthouse audit
         id: lighthouse
         timeout-minutes: 8
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
         run: |
           DEVICE="${{ matrix.device }}"
           FORM_FACTOR="${{ matrix.form-factor }}"
