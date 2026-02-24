@@ -11,7 +11,7 @@ import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calend
 import type { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/types";
 import { bulkCreateAblesungen } from "@/app/meter-actions";
 import { isoToGermanDate } from "@/utils/date-calculations";
-import { formatNumber } from "@/utils/format";
+import { formatNumber, roundTo3Decimals } from "@/utils/format";
 import { StatCard } from "@/components/common/stat-card";
 
 interface MeterImportModalProps {
@@ -157,9 +157,6 @@ export function MeterImportModal({
     return null;
   };
 
-  const roundTo3Decimals = (num: number): number => {
-    return Number(Math.round(Number(`${num}e3`)) + 'e-3');
-  };
 
   const parseGermanNumber = (value: string | number): number => {
     let parsed: number;
