@@ -558,7 +558,7 @@ function SidebarContent({
                                 <div key={child.href} className="relative flex items-center mt-1">
                                   {/* Branch Curve pointing to the item */}
                                   <div
-                                    className="absolute left-[19px] w-[23px] border-l-[2px] border-b-[2px] border-border rounded-bl-[16px] bg-transparent pointer-events-none"
+                                    className="absolute left-[19px] w-[23px] border-l-[2px] border-b-[2px] border-zinc-300 dark:border-zinc-800 rounded-bl-[16px] bg-transparent pointer-events-none transition-colors duration-300"
                                     style={{
                                       top: index === 0 ? '-16px' : '0',
                                       height: index === 0 ? 'calc(50% + 16px)' : '50%'
@@ -567,7 +567,7 @@ function SidebarContent({
                                   {/* Vertical line continuing down past the curve (only if not last) */}
                                   {!isLast && (
                                     <div
-                                      className="absolute left-[19px] w-[2px] bg-border pointer-events-none"
+                                      className="absolute left-[19px] w-[2px] bg-zinc-300 dark:bg-zinc-800 pointer-events-none transition-colors duration-300"
                                       style={{
                                         top: index === 0 ? '-16px' : '0',
                                         // Connects to the next item's top (4px bridges the mt-1 gap)
