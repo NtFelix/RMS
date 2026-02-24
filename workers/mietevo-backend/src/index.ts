@@ -43,6 +43,9 @@ interface QueueTask {
 
 import { formatCurrency, isoToGermanDate, roundToNearest5 } from './utils';
 
+// --- Constants ---
+const QUEUE_VISIBILITY_TIMEOUT = 60;
+
 // --- PDF Generation Functions (Preserved) ---
 
 interface TenantData {
@@ -492,25 +495,32 @@ async function fetchDocumentationContext(supabase: SupabaseClient, query: string
 
 export async function handleAIRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
+    const requestStartTime = Date.now();
+
     try {
         const body = await request.json() as AIRequest;
-        const { message, sessionId } = body;
+        const { message, sessionId, context } = body;
 
-        logger.info('AI Request received', { sessionId });
+        logger.info('AI request received', {
+            sessionId,
+            messageLength: message?.length || 0,
+            hasContext: !!context
+        });
 
         // Check for API key
         if (!env.GEMINI_API_KEY) {
-            logger.error('Gemini API key not configured');
+            logger.error('AI request failed: Gemini API key not configured');
             logger.flush();
             return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500 });
         }
 
         // Rate Limiting
         const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+        logger.info('Checking rate limit', { ip });
         if (env.RATE_LIMITER) {
             const { success } = await (env.RATE_LIMITER as { limit: (options: { key: string }) => Promise<{ success: boolean }> }).limit({ key: ip });
             if (!success) {
-                logger.warn('Rate limit exceeded', { ip });
+                logger.warn('Rate limit exceeded, rejecting request', { ip });
                 logger.flush();
                 return new Response(JSON.stringify({
                     error: {
@@ -521,45 +531,64 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
                 }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } });
             }
         }
+        logger.info('Rate limit check passed', { ip });
 
         // Initialize Supabase if credentials exist
         let contextText = "";
         if (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
+            logger.info('Fetching documentation context from database');
             const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
             contextText = await fetchDocumentationContext(supabase, message);
+            logger.info('Documentation context fetched', { contextLength: contextText.length });
+        } else {
+            logger.warn('Supabase credentials not configured, skipping context fetch');
         }
 
         // Initialize Gemini
         const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
         const fullPrompt = `${SYSTEM_INSTRUCTION}\n\nUser Message: ${message}\n${contextText}`;
+        logger.info('Initializing Gemini API', { model: 'gemini-2.5-flash-lite', promptLength: fullPrompt.length });
 
         // Retry logic with exponential backoff
         const maxRetries = 3;
         let attempt = 0;
         let stream: unknown = null; // Use unknown instead of any
         let lastError: { message?: string } | null = null;
+        const aiStartTime = Date.now();
 
         while (attempt < maxRetries) {
             try {
+                logger.info('Attempting AI connection', { attempt: attempt + 1, maxRetries });
                 stream = await client.models.generateContentStream({
                     model: 'models/gemini-2.5-flash-lite',
                     contents: [{ role: 'user', parts: [{ text: fullPrompt }] }]
                 });
+                logger.info('AI connection successful', { attempt: attempt + 1 });
                 break; // Success
             } catch (err: unknown) {
                 lastError = err as { message?: string };
+                logger.warn('AI connection attempt failed', {
+                    attempt: attempt + 1,
+                    error: lastError?.message
+                });
                 attempt++;
                 if (attempt >= maxRetries) break; // Failed after max retries
 
                 // Wait before retrying (exponential backoff: 1s, 2s, 4s...)
                 const delay = Math.pow(2, attempt - 1) * 1000;
+                logger.info('Waiting before retry', { delayMs: delay });
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
 
         if (!stream) {
+            logger.error('AI request failed: all retry attempts exhausted', {
+                lastError: lastError?.message,
+                totalAttempts: maxRetries
+            });
             throw new Error(lastError?.message || "Failed to connect to AI service after multiple attempts.");
         }
+        logger.info('AI stream initialized, starting response', { setupDurationMs: Date.now() - aiStartTime });
 
         // Create stream for response
         const encoder = new TextEncoder();
@@ -608,7 +637,11 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
         // Note: logs will be flushed by waitUntil in logger if ctx is provided, 
         // but we can also explicitly flush here if we want to be sure, though synchronous flush might delay response.
         // Better to rely on ctx.waitUntil which WorkerLogger handles in flush().
-        logger.info('AI Request stream started', { sessionId });
+        const totalSetupTime = Date.now() - requestStartTime;
+        logger.info('AI request stream started', {
+            sessionId,
+            setupDurationMs: totalSetupTime
+        });
         logger.flush();
 
         return new Response(readableStream, {
@@ -624,7 +657,10 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
 
     } catch (e: unknown) {
         const err = e as { message?: string; status?: number };
-        logger.error('AI Request Error', { error: err.message });
+        logger.error('AI request failed with error', {
+            error: err.message,
+            durationMs: Date.now() - requestStartTime
+        });
         logger.flush();
         const errorMessage = err.message || "An unexpected error occurred.";
         const statusCode = err.status || 500;
@@ -866,13 +902,17 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
 
 
 export async function processQueue(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const logger = new WorkerLogger(env, ctx);
+
     // Auth Check
     const authHeader = request.headers.get('x-worker-auth');
     if (env.WORKER_AUTH_KEY && authHeader !== env.WORKER_AUTH_KEY) {
+        logger.error('Unauthorized access attempt', { workerAuthKeyConfigured: !!env.WORKER_AUTH_KEY });
+        logger.flush();
         return new Response('Unauthorized', { status: 401 });
     }
 
-    const logger = new WorkerLogger(env, ctx);
+    logger.info('Queue processing started', { workerAuthKeyConfigured: !!env.WORKER_AUTH_KEY });
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
     // Get user_id from body if available for ownership tracking
@@ -890,18 +930,20 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
 
     try {
         // 1. Read from Queue
-        // vt: 60 seconds visibility timeout
+        // vt: visibility timeout from constant
         const { data: messages, error: readError } = await supabase.rpc('pgmq_read', {
             queue_name: 'applicant_ai_processing',
-            vt: 60,
+            vt: QUEUE_VISIBILITY_TIMEOUT,
             qty: 1
         });
 
         if (readError) {
-            logger.error('PGMQ Read Error', { error: readError.message });
+            logger.error('PGMQ Read Error', { error: readError.message, code: readError.code });
             logger.flush();
             return new Response('Queue Read Error', { status: 500 });
         }
+
+        logger.info('Queue read attempted', { messageCount: messages?.length || 0 });
 
         if (!messages || messages.length === 0) {
             // Queue is empty, stop the chain
@@ -925,11 +967,17 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         const msgId = task.msg_id;
         const { mail_id, user_id } = task.message;
         let { dateipfad } = task.message;
+        const processingStartTime = Date.now();
 
         // Use user_id from task if available
         if (user_id) userIdForTracking = user_id;
 
-        logger.info('Processing Queue Item', { msgId, mailId: mail_id });
+        logger.info('Queue item received', {
+            msgId,
+            mailId: mail_id,
+            userId: userIdForTracking,
+            visibilityTimeout: QUEUE_VISIBILITY_TIMEOUT
+        });
 
         // 2. Fetch dateipfad from Mail_Metadaten if not provided
         if (!dateipfad && mail_id) {
@@ -940,24 +988,39 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 .single();
 
             if (mailError) {
-                logger.error('Failed to fetch mail metadata', { mailId: mail_id, error: mailError.message });
+                logger.error('Failed to fetch mail metadata', { mailId: mail_id, error: mailError.message, code: mailError.code });
             } else if (mailData?.dateipfad) {
                 dateipfad = mailData.dateipfad;
-                logger.info('Fetched dateipfad from DB', { mailId: mail_id, dateipfad });
+                logger.info('Mail metadata fetched successfully', { mailId: mail_id, dateipfad });
+            } else {
+                logger.warn('No dateipfad found in mail metadata', { mailId: mail_id });
             }
         }
 
         // 3. Process Item
         let aiResult = null;
         let aiScore = null;
+        const aiStartTime = Date.now();
 
         if (dateipfad) {
             try {
                 // Download & AI with retry for rate limits
+                logger.info('Starting email download', { msgId, mailId: mail_id, dateipfad });
                 const emailContent = await downloadAndDecompressEmail(supabase, dateipfad);
+                logger.info('Email downloaded, starting AI analysis', { msgId, mailId: mail_id, contentLength: emailContent.length });
+
                 const aiResponse = await withRetry(() => analyzeApplicantWithAI(env, emailContent));
                 aiResult = aiResponse.result;
                 aiScore = (aiResult as { application?: { completenessScore?: number } }).application?.completenessScore || null;
+                const aiDuration = Date.now() - aiStartTime;
+
+                logger.info('AI analysis completed', {
+                    msgId,
+                    mailId: mail_id,
+                    aiDurationMs: aiDuration,
+                    model: aiResponse.usage?.model,
+                    completenessScore: aiScore
+                });
 
                 // Log LLM generation to PostHog for LLM Analytics dashboard
                 if (posthog) {
@@ -988,10 +1051,12 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                     model: aiResponse.usage.model,
                     latencyMs: aiResponse.usage.latencyMs,
                     mailId: mail_id,
-                    score: aiScore || 0
+                    score: aiScore || 0,
+                    totalProcessingMs: Date.now() - processingStartTime
                 });
 
                 // Update DB with Top-Level fields for easier access/sorting
+                logger.info('Updating tenant record in database', { mailId: mail_id, msgId });
                 const updates: Record<string, unknown> = {
                     bewerbung_metadaten: aiResult,
                     bewerbung_score: aiScore
@@ -1015,26 +1080,43 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                     .update(updates)
                     .eq('bewerbung_mail_id', mail_id);
 
-                if (updateError) throw updateError;
+                if (updateError) {
+                    logger.error('Database update failed', { msgId, mailId: mail_id, error: updateError.message, code: updateError.code });
+                    throw updateError;
+                }
+                logger.info('Tenant record updated successfully', { mailId: mail_id, msgId });
 
             } catch (processError: unknown) {
-                logger.error('Processing Failed', { msgId, error: (processError as Error).message });
+                logger.error('Queue item processing failed', {
+                    msgId,
+                    mailId: mail_id,
+                    error: (processError as Error).message,
+                    hasDateipfad: !!dateipfad,
+                    processingDurationMs: Date.now() - processingStartTime
+                });
                 // By re-throwing the error, we prevent the message from being deleted,
                 // allowing it to be retried later after the visibility timeout.
                 // For a more advanced system, consider a dead-letter queue after N retries.
                 throw processError;
             }
         } else {
-            logger.warn('No dateipfad available for task', { msgId, mailId: mail_id });
+            logger.warn('No dateipfad available for task, skipping AI processing', { msgId, mailId: mail_id });
         }
 
         // 3. Delete from Queue
+        logger.info('Deleting processed item from queue', { msgId, mailId: mail_id });
         await supabase.rpc('pgmq_delete', {
             queue_name: 'applicant_ai_processing',
             msg_id: msgId
         });
 
-        logger.info('Queue Item Processed', { msgId });
+        const totalDuration = Date.now() - processingStartTime;
+        logger.info('Queue item processed successfully', {
+            msgId,
+            mailId: mail_id,
+            totalDurationMs: totalDuration,
+            hadDateipfad: !!dateipfad
+        });
         logger.flush();
 
         if (posthog) {
@@ -1052,7 +1134,10 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         });
 
     } catch (e: unknown) {
-        logger.error('Queue Handler Error', { error: (e as Error).message });
+        logger.error('Queue processing failed with unhandled error', {
+            error: (e as Error).message,
+            errorType: (e as Error).name
+        });
         logger.flush();
         if (posthog) {
             await posthog.shutdown();
@@ -1078,145 +1163,193 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
             body = await clonedReq.json();
         }
     } catch (e) {
-        // Ignore JSON parse errors
+        logger.warn('Failed to parse request body', { error: (e as Error).message });
     }
 
-    // Only log if we have a body type or it's not a simple health check
-    if (body?.type) {
-        logger.info('Worker request received', {
-            type: body?.type,
-            template: body?.template,
-            filename: body?.filename,
-            path: new URL(request.url).pathname
-        });
-    }
+    logger.info('File generation request received', {
+        type: body?.type || 'unknown',
+        template: body?.template || 'none',
+        filename: body?.filename || 'none',
+        path: new URL(request.url).pathname,
+        method: request.method
+    });
 
     const { type, template, data, filename } = body;
     const startTime = Date.now();
     let totalPages = 0;
 
     if (type === 'csv') {
-        const csv = Papa.unparse(data as unknown[] | Record<string, unknown>[]);
-        const endTime = Date.now();
+        try {
+            logger.info('Generating CSV export', { filename, dataItems: Array.isArray(data) ? data.length : 0 });
+            const csv = Papa.unparse(data as unknown[] | Record<string, unknown>[]);
+            const endTime = Date.now();
 
-        logger.info('CSV export generated', {
-            filename,
-            durationMs: endTime - startTime
-        });
-        logger.flush();
+            logger.info('CSV export completed', {
+                filename,
+                durationMs: endTime - startTime,
+                csvSize: csv.length
+            });
+            logger.flush();
 
-        return new Response(csv, {
-            headers: {
-                'Content-Type': 'text/csv',
-                'Content-Disposition': `attachment; filename="${filename || 'export.csv'}"`,
-                'X-PDF-Page-Count': '0',
-                'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-            },
-        });
+            return new Response(csv, {
+                headers: {
+                    'Content-Type': 'text/csv',
+                    'Content-Disposition': `attachment; filename="${filename || 'export.csv'}`,
+                    'X-PDF-Page-Count': '0',
+                    'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                    'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+                },
+            });
+        } catch (err) {
+            logger.error('CSV generation failed', { error: (err as Error).message, filename });
+            logger.flush();
+            return new Response(JSON.stringify({ error: 'CSV generation failed', details: (err as Error).message }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
     }
 
     if (type === 'zip' && !template) {
-        const zip = new JSZip();
-        if (Array.isArray(data)) {
-            data.forEach((item: { data: unknown; name: string }) => {
-                const csv = Papa.unparse(item.data as unknown[]);
-                zip.file(`${item.name}.csv`, csv);
+        try {
+            logger.info('Generating CSV ZIP export', { filename, itemCount: Array.isArray(data) ? data.length : 0 });
+            const zip = new JSZip();
+            if (Array.isArray(data)) {
+                data.forEach((item: { data: unknown; name: string }) => {
+                    const csv = Papa.unparse(item.data as unknown[]);
+                    zip.file(`${item.name}.csv`, csv);
+                });
+            } else {
+                Object.entries(data as Record<string, unknown>).forEach(([name, content]: [string, unknown]) => {
+                    const csv = Papa.unparse(content as unknown[]);
+                    zip.file(`${name}.csv`, csv);
+                });
+            }
+            const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
+            const endTime = Date.now();
+
+            logger.info('CSV ZIP export completed', {
+                filename,
+                type: 'csv-zip',
+                durationMs: endTime - startTime,
+                zipSize: zipBuffer.length
             });
-        } else {
-            Object.entries(data as Record<string, unknown>).forEach(([name, content]: [string, unknown]) => {
-                const csv = Papa.unparse(content as unknown[]);
-                zip.file(`${name}.csv`, csv);
+            logger.flush();
+
+            return new Response(zipBuffer as unknown as BodyInit, {
+                headers: {
+                    'Content-Type': 'application/zip',
+                    'Content-Disposition': `attachment; filename="${filename || 'export.zip'}`,
+                    'X-PDF-Page-Count': '0',
+                    'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                    'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+                }
+            });
+        } catch (err) {
+            logger.error('ZIP generation failed', { error: (err as Error).message, filename });
+            logger.flush();
+            return new Response(JSON.stringify({ error: 'ZIP generation failed', details: (err as Error).message }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
             });
         }
-        const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
-        const endTime = Date.now();
-
-        logger.info('ZIP export generated', {
-            filename,
-            type: 'csv-zip',
-            durationMs: endTime - startTime
-        });
-        logger.flush();
-
-        return new Response(zipBuffer as unknown as BodyInit, {
-            headers: {
-                'Content-Type': 'application/zip',
-                'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
-                'X-PDF-Page-Count': '0',
-                'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
-            }
-        });
     }
 
     if (type === 'zip' && template === 'pdf') {
-        const zip = new JSZip();
-        for (const item of (data as { data: SingleTenantPayload; name: string }[])) {
-            const doc = new jsPDF();
-            generateSingleTenantPDF(doc, item.data);
-            totalPages += doc.getNumberOfPages();
-            zip.file(`${item.name}.pdf`, doc.output('arraybuffer'));
-        }
-        const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
-        const endTime = Date.now();
-
-        logger.info('PDF ZIP export generated', {
-            filename,
-            type: 'pdf-zip',
-            pageCount: totalPages,
-            durationMs: endTime - startTime
-        });
-        logger.flush();
-
-        return new Response(zipBuffer as unknown as BodyInit, {
-            headers: {
-                'Content-Type': 'application/zip',
-                'Content-Disposition': `attachment; filename="${filename || 'export.zip'}"`,
-                'X-PDF-Page-Count': totalPages.toString(),
-                'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+        try {
+            logger.info('Generating PDF ZIP export', { filename, itemCount: (data as { data: SingleTenantPayload; name: string }[]).length });
+            const zip = new JSZip();
+            for (const item of (data as { data: SingleTenantPayload; name: string }[])) {
+                const doc = new jsPDF();
+                generateSingleTenantPDF(doc, item.data);
+                totalPages += doc.getNumberOfPages();
+                zip.file(`${item.name}.pdf`, doc.output('arraybuffer'));
             }
-        });
+            const zipBuffer = await zip.generateAsync({ type: 'uint8array' });
+            const endTime = Date.now();
+
+            logger.info('PDF ZIP export completed', {
+                filename,
+                type: 'pdf-zip',
+                pageCount: totalPages,
+                durationMs: endTime - startTime,
+                zipSize: zipBuffer.length
+            });
+            logger.flush();
+
+            return new Response(zipBuffer as unknown as BodyInit, {
+                headers: {
+                    'Content-Type': 'application/zip',
+                    'Content-Disposition': `attachment; filename="${filename || 'export.zip'}`,
+                    'X-PDF-Page-Count': totalPages.toString(),
+                    'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                    'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+                }
+            });
+        } catch (err) {
+            logger.error('PDF ZIP generation failed', { error: (err as Error).message, filename });
+            logger.flush();
+            return new Response(JSON.stringify({ error: 'PDF ZIP generation failed', details: (err as Error).message }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
     }
 
     if (type === 'pdf') {
-        const doc = new jsPDF();
-        if (template === 'house-overview') {
-            generateHouseOverviewPDF(doc, body as unknown as HouseOverviewPayload);
-        } else {
-            generateSingleTenantPDF(doc, body as unknown as SingleTenantPayload);
-        }
-        totalPages = doc.getNumberOfPages();
-        const pdfBuffer = doc.output('arraybuffer');
-        const endTime = Date.now();
-        logger.info('PDF generated successfully', {
-            type: 'pdf',
-            template: template || 'standard',
-            pageCount: totalPages,
-            durationMs: endTime - startTime
-        });
-        logger.flush();
-
-        return new Response(new Uint8Array(pdfBuffer) as unknown as BodyInit, {
-            headers: {
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
-                'X-PDF-Page-Count': totalPages.toString(),
-                'X-PDF-Generation-Time': (endTime - startTime).toString(),
-                'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+        try {
+            logger.info('Generating PDF', { template: template || 'standard', filename });
+            const doc = new jsPDF();
+            if (template === 'house-overview') {
+                generateHouseOverviewPDF(doc, body as unknown as HouseOverviewPayload);
+            } else {
+                generateSingleTenantPDF(doc, body as unknown as SingleTenantPayload);
             }
-        });
+            totalPages = doc.getNumberOfPages();
+            const pdfBuffer = doc.output('arraybuffer');
+            const endTime = Date.now();
+
+            logger.info('PDF generation completed', {
+                type: 'pdf',
+                template: template || 'standard',
+                pageCount: totalPages,
+                durationMs: endTime - startTime,
+                pdfSize: pdfBuffer.byteLength
+            });
+            logger.flush();
+
+            return new Response(new Uint8Array(pdfBuffer) as unknown as BodyInit, {
+                headers: {
+                    'Content-Type': 'application/pdf',
+                    'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}`,
+                    'X-PDF-Page-Count': totalPages.toString(),
+                    'X-PDF-Generation-Time': (endTime - startTime).toString(),
+                    'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time'
+                }
+            });
+        } catch (err) {
+            logger.error('PDF generation failed', { error: (err as Error).message, template: template || 'standard' });
+            logger.flush();
+            return new Response(JSON.stringify({ error: 'PDF generation failed', details: (err as Error).message }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
     }
 
-    // Default 404 if no type matched and path is unknown
-    return new Response(JSON.stringify({ error: 'Not Found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    // Unknown type
+    logger.error('Unknown file generation type', { type: type || 'none', template: template || 'none' });
+    logger.flush();
+    return new Response('Unknown file type', { status: 400 });
 }
 
 // --- Main Handler ---
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+        const logger = new WorkerLogger(env, ctx);
+        const requestStartTime = Date.now();
+
         const origin = request.headers.get('Origin') || '*';
         const corsHeaders: Record<string, string> = {
             'Access-Control-Allow-Origin': origin,
@@ -1224,19 +1357,23 @@ export default {
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Allow-Credentials': 'true',
             'Access-Control-Max-Age': '86400',
-            'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time', // Expose headers for file generation
+            'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time',
         };
 
         const url = new URL(request.url);
+        logger.info('Worker request received', {
+            method: request.method,
+            pathname: url.pathname,
+            userAgent: request.headers.get('User-Agent') || 'none'
+        });
 
         // Handle CORS preflight requests
         if (request.method === "OPTIONS") {
+            logger.info('CORS preflight handled', { pathname: url.pathname });
             return new Response(null, {
                 headers: corsHeaders
             });
         }
-
-        const logger = new WorkerLogger(env, ctx);
 
         try {
             // Route based on URL path first (more robust)
@@ -1256,6 +1393,14 @@ export default {
                 newHeaders.set(key, value);
             });
 
+            const duration = Date.now() - requestStartTime;
+            logger.info('Worker request completed', {
+                pathname: url.pathname,
+                status: response.status,
+                durationMs: duration
+            });
+            logger.flush();
+
             return new Response(response.body, {
                 status: response.status,
                 statusText: response.statusText,
@@ -1264,7 +1409,12 @@ export default {
 
         } catch (error: unknown) {
             // Re-use existing logger instance
-            logger.error('Worker Error', { error: (error as Error).message });
+            logger.error('Worker request failed with unhandled error', {
+                error: (error as Error).message,
+                pathname: url.pathname,
+                method: request.method,
+                durationMs: Date.now() - requestStartTime
+            });
             logger.flush();
 
             return new Response(`Error: ${(error as Error).message}`, { status: 500, headers: corsHeaders });
