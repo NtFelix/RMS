@@ -11,7 +11,7 @@ import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calend
 import type { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/types";
 import { bulkCreateAblesungen } from "@/app/meter-actions";
 import { isoToGermanDate } from "@/utils/date-calculations";
-import { formatNumber, roundTo3Decimals } from "@/utils/format";
+import { formatNumber, roundToDecimals } from "@/utils/format";
 import { StatCard } from "@/components/common/stat-card";
 
 interface MeterImportModalProps {
@@ -178,7 +178,7 @@ export function MeterImportModal({
     }
 
     // Round to 3 decimal places
-    return roundTo3Decimals(parsed);
+    return roundToDecimals(parsed);
   };
 
   const validateAndProcessData = async () => {
@@ -368,7 +368,7 @@ export function MeterImportModal({
         }
 
         // Round calculated usage to 3 decimal places
-        calculatedUsage = roundTo3Decimals(calculatedUsage);
+        calculatedUsage = roundToDecimals(calculatedUsage);
 
         return { ...item, verbrauch: calculatedUsage };
       });

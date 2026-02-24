@@ -21,13 +21,14 @@ export function formatNumber(value: number | string, fractionDigits: number = 2)
 }
 
 /**
- * Rounds a number to a specified number of decimal places (default 3)
+ * Rounds a number to a specified number of decimal places
  * @param num - The number to round
- * @param decimals - The number of decimal places
+ * @param decimals - The number of decimal places (default 3)
  * @returns Rounded number
  */
-export function roundTo3Decimals(num: number): number {
-  return Math.round((num + Number.EPSILON) * 1000) / 1000;
+export function roundToDecimals(num: number, decimals: number = 3): number {
+  const factor = Math.pow(10, decimals);
+  return Math.round((num + Number.EPSILON) * factor) / factor;
 }
 
 /**
