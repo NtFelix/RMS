@@ -1274,7 +1274,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                               disabled={isSaving || isFormLoading}
                               className={`group relative flex items-center gap-4 p-4 rounded-2xl border transition-all disabled:opacity-50 ${vorauszahlungsArt === 'soll' ? 'bg-primary/5 border-primary shadow-sm shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200/60 dark:border-gray-800/60 hover:border-primary/30'}`}
                             >
-                              <div className={`p-2.5 rounded-xl transition-colors ${vorauszahlungsArt === 'soll' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground group-hover:text-primary'} shadow-sm`}>
+                              <div className={`p-2.5 rounded-xl transition-colors ${vorauszahlungsArt === 'soll' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground group-hover:text-primary dark:group-hover:text-white'} shadow-sm`}>
                                 <CalendarClock className="w-5 h-5" />
                               </div>
                               <div className="text-left">
@@ -1293,7 +1293,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                               disabled={isSaving || isFormLoading}
                               className={`group relative flex items-center gap-4 p-4 rounded-2xl border transition-all disabled:opacity-50 ${vorauszahlungsArt === 'ist' ? 'bg-primary/5 border-primary shadow-sm shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200/60 dark:border-gray-800/60 hover:border-primary/30'}`}
                             >
-                              <div className={`p-2.5 rounded-xl transition-colors ${vorauszahlungsArt === 'ist' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground group-hover:text-primary'} shadow-sm`}>
+                              <div className={`p-2.5 rounded-xl transition-colors ${vorauszahlungsArt === 'ist' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground group-hover:text-primary dark:group-hover:text-white'} shadow-sm`}>
                                 <Banknote className="w-5 h-5" />
                               </div>
                               <div className="text-left">
