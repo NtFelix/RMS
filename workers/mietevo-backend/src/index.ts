@@ -43,6 +43,9 @@ interface QueueTask {
 
 import { formatCurrency, isoToGermanDate, roundToNearest5 } from './utils';
 
+// --- Constants ---
+const QUEUE_VISIBILITY_TIMEOUT = 60;
+
 // --- PDF Generation Functions (Preserved) ---
 
 interface TenantData {
@@ -493,13 +496,13 @@ async function fetchDocumentationContext(supabase: SupabaseClient, query: string
 export async function handleAIRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
     const requestStartTime = Date.now();
-    
+
     try {
         const body = await request.json() as AIRequest;
         const { message, sessionId, context } = body;
 
-        logger.info('AI request received', { 
-            sessionId, 
+        logger.info('AI request received', {
+            sessionId,
             messageLength: message?.length || 0,
             hasContext: !!context
         });
@@ -564,9 +567,9 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
                 break; // Success
             } catch (err: unknown) {
                 lastError = err as { message?: string };
-                logger.warn('AI connection attempt failed', { 
-                    attempt: attempt + 1, 
-                    error: lastError?.message 
+                logger.warn('AI connection attempt failed', {
+                    attempt: attempt + 1,
+                    error: lastError?.message
                 });
                 attempt++;
                 if (attempt >= maxRetries) break; // Failed after max retries
@@ -579,7 +582,7 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
         }
 
         if (!stream) {
-            logger.error('AI request failed: all retry attempts exhausted', { 
+            logger.error('AI request failed: all retry attempts exhausted', {
                 lastError: lastError?.message,
                 totalAttempts: maxRetries
             });
@@ -635,8 +638,8 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
         // but we can also explicitly flush here if we want to be sure, though synchronous flush might delay response.
         // Better to rely on ctx.waitUntil which WorkerLogger handles in flush().
         const totalSetupTime = Date.now() - requestStartTime;
-        logger.info('AI request stream started', { 
-            sessionId, 
+        logger.info('AI request stream started', {
+            sessionId,
             setupDurationMs: totalSetupTime
         });
         logger.flush();
@@ -654,7 +657,7 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
 
     } catch (e: unknown) {
         const err = e as { message?: string; status?: number };
-        logger.error('AI request failed with error', { 
+        logger.error('AI request failed with error', {
             error: err.message,
             durationMs: Date.now() - requestStartTime
         });
@@ -900,7 +903,7 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
 
 export async function processQueue(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const logger = new WorkerLogger(env, ctx);
-    
+
     // Auth Check
     const authHeader = request.headers.get('x-worker-auth');
     if (env.WORKER_AUTH_KEY && authHeader !== env.WORKER_AUTH_KEY) {
@@ -908,7 +911,7 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         logger.flush();
         return new Response('Unauthorized', { status: 401 });
     }
-    
+
     logger.info('Queue processing started', { workerAuthKeyConfigured: !!env.WORKER_AUTH_KEY });
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -927,10 +930,10 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
 
     try {
         // 1. Read from Queue
-        // vt: 60 seconds visibility timeout
+        // vt: visibility timeout from constant
         const { data: messages, error: readError } = await supabase.rpc('pgmq_read', {
             queue_name: 'applicant_ai_processing',
-            vt: 60,
+            vt: QUEUE_VISIBILITY_TIMEOUT,
             qty: 1
         });
 
@@ -969,11 +972,11 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         // Use user_id from task if available
         if (user_id) userIdForTracking = user_id;
 
-        logger.info('Queue item received', { 
-            msgId, 
-            mailId: mail_id, 
+        logger.info('Queue item received', {
+            msgId,
+            mailId: mail_id,
             userId: userIdForTracking,
-            visibilityTimeout: 60
+            visibilityTimeout: QUEUE_VISIBILITY_TIMEOUT
         });
 
         // 2. Fetch dateipfad from Mail_Metadaten if not provided
@@ -1005,15 +1008,15 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 logger.info('Starting email download', { msgId, mailId: mail_id, dateipfad });
                 const emailContent = await downloadAndDecompressEmail(supabase, dateipfad);
                 logger.info('Email downloaded, starting AI analysis', { msgId, mailId: mail_id, contentLength: emailContent.length });
-                
+
                 const aiResponse = await withRetry(() => analyzeApplicantWithAI(env, emailContent));
                 aiResult = aiResponse.result;
                 aiScore = (aiResult as { application?: { completenessScore?: number } }).application?.completenessScore || null;
                 const aiDuration = Date.now() - aiStartTime;
-                
-                logger.info('AI analysis completed', { 
-                    msgId, 
-                    mailId: mail_id, 
+
+                logger.info('AI analysis completed', {
+                    msgId,
+                    mailId: mail_id,
                     aiDurationMs: aiDuration,
                     model: aiResponse.usage?.model,
                     completenessScore: aiScore
@@ -1084,8 +1087,8 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 logger.info('Tenant record updated successfully', { mailId: mail_id, msgId });
 
             } catch (processError: unknown) {
-                logger.error('Queue item processing failed', { 
-                    msgId, 
+                logger.error('Queue item processing failed', {
+                    msgId,
                     mailId: mail_id,
                     error: (processError as Error).message,
                     hasDateipfad: !!dateipfad,
@@ -1108,8 +1111,8 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         });
 
         const totalDuration = Date.now() - processingStartTime;
-        logger.info('Queue item processed successfully', { 
-            msgId, 
+        logger.info('Queue item processed successfully', {
+            msgId,
             mailId: mail_id,
             totalDurationMs: totalDuration,
             hadDateipfad: !!dateipfad
@@ -1131,7 +1134,7 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         });
 
     } catch (e: unknown) {
-        logger.error('Queue processing failed with unhandled error', { 
+        logger.error('Queue processing failed with unhandled error', {
             error: (e as Error).message,
             errorType: (e as Error).name
         });
@@ -1200,7 +1203,10 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
         } catch (err) {
             logger.error('CSV generation failed', { error: (err as Error).message, filename });
             logger.flush();
-            throw err;
+            return new Response(JSON.stringify({ error: 'CSV generation failed', details: (err as Error).message }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
     }
 
@@ -1242,7 +1248,10 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
         } catch (err) {
             logger.error('ZIP generation failed', { error: (err as Error).message, filename });
             logger.flush();
-            throw err;
+            return new Response(JSON.stringify({ error: 'ZIP generation failed', details: (err as Error).message }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
     }
 
@@ -1280,7 +1289,10 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
         } catch (err) {
             logger.error('PDF ZIP generation failed', { error: (err as Error).message, filename });
             logger.flush();
-            throw err;
+            return new Response(JSON.stringify({ error: 'PDF ZIP generation failed', details: (err as Error).message }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
     }
 
@@ -1296,7 +1308,7 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
             totalPages = doc.getNumberOfPages();
             const pdfBuffer = doc.output('arraybuffer');
             const endTime = Date.now();
-            
+
             logger.info('PDF generation completed', {
                 type: 'pdf',
                 template: template || 'standard',
@@ -1318,7 +1330,10 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
         } catch (err) {
             logger.error('PDF generation failed', { error: (err as Error).message, template: template || 'standard' });
             logger.flush();
-            throw err;
+            return new Response(JSON.stringify({ error: 'PDF generation failed', details: (err as Error).message }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
     }
 
@@ -1334,7 +1349,7 @@ export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         const logger = new WorkerLogger(env, ctx);
         const requestStartTime = Date.now();
-        
+
         const origin = request.headers.get('Origin') || '*';
         const corsHeaders: Record<string, string> = {
             'Access-Control-Allow-Origin': origin,
@@ -1394,7 +1409,7 @@ export default {
 
         } catch (error: unknown) {
             // Re-use existing logger instance
-            logger.error('Worker request failed with unhandled error', { 
+            logger.error('Worker request failed with unhandled error', {
                 error: (error as Error).message,
                 pathname: url.pathname,
                 method: request.method,
