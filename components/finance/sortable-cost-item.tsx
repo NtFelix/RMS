@@ -192,9 +192,9 @@ export function SortableCostItem({
             onClick={() => onRemoveCostItem(index)}
             disabled={costItems.length <= 1 || isLoadingDetails || isSaving}
             aria-label="Kostenposition entfernen"
-            className="h-8 w-8"
+            className="h-10 w-10 rounded-full text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive transition-colors"
           >
-            <Trash2 className="h-4 w-4 text-destructive" />
+            <Trash2 className="h-5 w-5" />
           </Button>
         </div>
       </div>
