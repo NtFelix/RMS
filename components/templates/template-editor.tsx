@@ -103,10 +103,12 @@ export function TemplateEditor({
 
     return debouncedFn;
   }, [cleanupTracker]);
-  const editor = useEditor({
-    // Disable immediate rendering to prevent SSR issues
-    immediatelyRender: false,
-    extensions: [
+  // Extensions configuration for TipTap - memoized to prevent unnecessary re-renders
+  const extensions = useMemo(() => {
+    // Tracking for race conditions in async filtering
+    let latestQueryId = 0;
+
+    return [
       StarterKit.configure({
         bulletList: {
           keepMarks: true,
@@ -129,6 +131,8 @@ export function TemplateEditor({
           allowSpaces: false,
           startOfLine: false,
           items: async ({ query }) => {
+            const queryId = ++latestQueryId;
+
             // Use safe execution for filtering with error handling and performance monitoring
             const endTiming = suggestionPerformanceMonitor.startTiming('suggestion-items');
 
@@ -148,6 +152,12 @@ export function TemplateEditor({
             );
 
             endTiming();
+
+            // Race condition check: only proceed if this is still the latest request
+            if (queryId !== latestQueryId) {
+              // Return a promise that never resolves to ignore this stale result
+              return new Promise(() => { });
+            }
 
             if (result.success) {
               setSuggestionError(null);
@@ -290,7 +300,13 @@ export function TemplateEditor({
           },
         },
       }),
-    ],
+    ];
+  }, [fallback, checkInitialization]);
+
+  const editor = useEditor({
+    // Disable immediate rendering to prevent SSR issues
+    immediatelyRender: false,
+    extensions,
     content: content || '',
     editable: !readOnly,
     onUpdate: ({ editor }) => {
@@ -298,7 +314,8 @@ export function TemplateEditor({
       const json = editor.getJSON();
       onChange?.(html, json);
     },
-  });
+  }, [extensions, readOnly]);
+
 
   useEffect(() => {
     if (editor && content !== undefined) {

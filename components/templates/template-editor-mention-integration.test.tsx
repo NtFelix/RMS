@@ -113,65 +113,59 @@ jest.mock('@/lib/mention-suggestion-popup', () => ({
 }));
 
 // Mock error handling
-jest.mock('@/lib/mention-suggestion-error-handling', () => ({
-  MentionSuggestionErrorType: {
-    INITIALIZATION_FAILED: 'INITIALIZATION_FAILED',
-    FILTER_ERROR: 'FILTER_ERROR',
-    RENDER_ERROR: 'RENDER_ERROR',
-    POSITION_ERROR: 'POSITION_ERROR',
-    KEYBOARD_NAVIGATION_ERROR: 'KEYBOARD_NAVIGATION_ERROR',
-    POPUP_CREATION_ERROR: 'POPUP_CREATION_ERROR',
-    COMPONENT_MOUNT_ERROR: 'COMPONENT_MOUNT_ERROR',
-    UNKNOWN_ERROR: 'UNKNOWN_ERROR',
-  },
-  handleSuggestionInitializationError: jest.fn((error, context) => ({
-    type: 'INITIALIZATION_FAILED',
-    message: error.message,
-    originalError: error,
-    context,
-    timestamp: Date.now(),
-    errorId: 'test-init-error',
-    recoverable: false,
-  })),
-  handleFilterError: jest.fn((error, query, count) => ({
-    type: 'FILTER_ERROR',
-    message: error.message,
-    originalError: error,
-    context: { query, variableCount: count },
-    timestamp: Date.now(),
-    errorId: 'test-filter-error',
-    recoverable: true,
-  })),
-  handlePositionError: jest.fn((error, rect) => ({
-    type: 'POSITION_ERROR',
-    message: error.message,
-    originalError: error,
-    context: { clientRect: rect },
-    timestamp: Date.now(),
-    errorId: 'test-position-error',
-    recoverable: true,
-  })),
-  safeExecute: jest.fn(async (fn) => {
-    try {
-      const result = await fn();
-      return { success: true, result };
-    } catch (error) {
-      return { success: false, error };
-    }
-  }),
-  createGracefulFallback: jest.fn(() => ({
-    fallbackFilter: jest.fn((variables, query) =>
-      variables.filter((v: any) => v.label.toLowerCase().includes(query.toLowerCase())).slice(0, 5)
-    ),
-    fallbackSuggestion: jest.fn(),
-    shouldUseFallback: jest.fn(() => false),
-  })),
-  mentionSuggestionErrorRecovery: {
-    recordError: jest.fn(() => false),
-    isInFallbackMode: jest.fn(() => false),
-    reset: jest.fn(),
-  },
-}));
+jest.mock('@/lib/mention-suggestion-error-handling', () => {
+  const originalModule = jest.requireActual('@/lib/mention-suggestion-error-handling');
+  return {
+    ...originalModule,
+    handleSuggestionInitializationError: jest.fn((error, context) => ({
+      type: originalModule.MentionSuggestionErrorType.INITIALIZATION_FAILED,
+      message: error.message,
+      originalError: error,
+      context,
+      timestamp: Date.now(),
+      errorId: 'test-init-error',
+      recoverable: false,
+    })),
+    handleFilterError: jest.fn((error, query, count) => ({
+      type: originalModule.MentionSuggestionErrorType.FILTER_ERROR,
+      message: error.message,
+      originalError: error,
+      context: { query, variableCount: count },
+      timestamp: Date.now(),
+      errorId: 'test-filter-error',
+      recoverable: true,
+    })),
+    handlePositionError: jest.fn((error, rect) => ({
+      type: originalModule.MentionSuggestionErrorType.POSITION_ERROR,
+      message: error.message,
+      originalError: error,
+      context: { clientRect: rect },
+      timestamp: Date.now(),
+      errorId: 'test-position-error',
+      recoverable: true,
+    })),
+    safeExecute: jest.fn(async (fn) => {
+      try {
+        const result = await fn();
+        return { success: true, result };
+      } catch (error) {
+        return { success: false, error };
+      }
+    }),
+    createGracefulFallback: jest.fn(() => ({
+      fallbackFilter: jest.fn((variables, query) =>
+        variables.filter((v: any) => v.label.toLowerCase().includes(query.toLowerCase())).slice(0, 5)
+      ),
+      fallbackSuggestion: jest.fn(),
+      shouldUseFallback: jest.fn(() => false),
+    })),
+    mentionSuggestionErrorRecovery: {
+      recordError: jest.fn(() => false),
+      isInFallbackMode: jest.fn(() => false),
+      reset: jest.fn(),
+    },
+  };
+});
 
 jest.mock('@/components/ai/mention-suggestion-error-boundary', () => ({
   MentionSuggestionErrorBoundary: ({ children }: any) => children,
