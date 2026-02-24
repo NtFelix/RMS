@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown } from "lucide-react"
 import { motion, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 
@@ -17,7 +17,17 @@ import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 
-const sidebarNavItems = [
+type SidebarNavItemType = {
+  title: string;
+  href: string;
+  icon: React.ElementType;
+  children?: {
+    title: string;
+    href: string;
+  }[];
+};
+
+const sidebarNavItems: SidebarNavItemType[] = [
   {
     title: "Dashboard",
     href: ROUTES.HOME,
@@ -37,6 +47,16 @@ const sidebarNavItems = [
     title: "Mieter",
     href: "/mieter",
     icon: Users,
+    children: [
+      {
+        title: "Übersicht",
+        href: "/mieter",
+      },
+      {
+        title: "Bewerber",
+        href: "#bewerber",
+      }
+    ]
   },
   {
     title: "Finanzen",
@@ -286,6 +306,28 @@ function SidebarContent({
   setActiveTab,
   notificationCenterEnabled
 }: SidebarContentProps) {
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const newExpanded = { ...expandedItems };
+    sidebarNavItems.forEach(item => {
+      const hasActiveChild = item.children?.some(c => pathname === c.href || (c.href !== '/' && pathname.startsWith(c.href)));
+      if (pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)) || hasActiveChild) {
+        newExpanded[item.title] = true;
+      }
+    });
+    setExpandedItems(newExpanded);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  const toggleExpanded = (title: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedItems(prev => ({
+      ...prev,
+      [title]: !prev[title]
+    }));
+  };
   return (
     <div className="h-full w-full flex flex-col relative">
       {/* Header section */}
@@ -438,53 +480,121 @@ function SidebarContent({
                 .filter(item => !featureFlags.has(item.href) || featureFlags.get(item.href))
                 .map((item) => {
                   const isActive = isRouteActive(item.href);
+                  const hasChildren = !!item.children && item.children.length > 0;
+                  const isExpanded = expandedItems[item.title];
 
                   return (
-                    <Tooltip key={item.href}>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={item.href}
-                          id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
-                          onClick={() => {
-                            setIsOpen(false)
-                            if (item.href === ROUTES.HOME) {
-                              useOnboardingStore.getState().completeStep('overview-open')
-                            }
-                          }}
-                          className={cn(
-                            "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2",
-                            getActiveStateClasses(item.href),
-                          )}
-                          data-active={isActive}
-                          aria-current={isActive ? "page" : undefined}
+                    <div key={item.href} className="flex flex-col">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link
+                            href={item.href}
+                            id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
+                            onClick={() => {
+                              if (!hasChildren) setIsOpen(false)
+                              if (item.href === ROUTES.HOME) {
+                                useOnboardingStore.getState().completeStep('overview-open')
+                              }
+                            }}
+                            className={cn(
+                              "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2 relative",
+                              getActiveStateClasses(item.href),
+                            )}
+                            data-active={isActive}
+                            aria-current={isActive ? "page" : undefined}
+                          >
+                            {!isMobile && iconVariants ? (
+                              <motion.div
+                                variants={iconVariants}
+                                className="flex-shrink-0"
+                              >
+                                <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
+                              </motion.div>
+                            ) : (
+                              <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                            )}
+                            {!isMobile && textVariants && (
+                              <motion.span
+                                variants={textVariants}
+                                className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1"
+                              >
+                                {item.title}
+                              </motion.span>
+                            )}
+                            {isMobile && (
+                              <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1">
+                                {item.title}
+                              </span>
+                            )}
+
+                            {hasChildren && !isCollapsed && (
+                              <button
+                                onClick={(e) => toggleExpanded(item.title, e)}
+                                className={cn(
+                                  "ml-auto p-1 -mr-1 rounded-md opacity-80 hover:opacity-100 hover:bg-white/20 transition-transform duration-200",
+                                  isExpanded ? "rotate-180" : "rotate-0"
+                                )}
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </button>
+                            )}
+                          </Link>
+                        </TooltipTrigger>
+                        {isCollapsed && <TooltipContent side="right" className="font-medium">{item.title}</TooltipContent>}
+                      </Tooltip>
+
+                      {hasChildren && !isCollapsed && (
+                        <motion.div
+                          initial={false}
+                          animate={{ height: isExpanded ? "auto" : 0, opacity: isExpanded ? 1 : 0 }}
+                          className="overflow-hidden"
                         >
-                          {!isMobile && iconVariants ? (
-                            <motion.div
-                              variants={iconVariants}
-                              className="flex-shrink-0"
-                            >
-                              <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
-                            </motion.div>
-                          ) : (
-                            <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
-                          )}
-                          {!isMobile && textVariants && (
-                            <motion.span
-                              variants={textVariants}
-                              className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide"
-                            >
-                              {item.title}
-                            </motion.span>
-                          )}
-                          {isMobile && (
-                            <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide">
-                              {item.title}
-                            </span>
-                          )}
-                        </Link>
-                      </TooltipTrigger>
-                      {isCollapsed && <TooltipContent side="right" className="font-medium">{item.title}</TooltipContent>}
-                    </Tooltip>
+                          <div className="flex flex-col relative mt-1 pb-1">
+                            {item.children!.map((child, index) => {
+                              const isChildActive = pathname === child.href || (pathname === item.href && child.href === item.href);
+                              const isLast = index === item.children!.length - 1;
+
+                              return (
+                                <div key={child.href} className="relative flex items-center mt-1">
+                                  {/* Branch Curve pointing to the item */}
+                                  <div
+                                    className="absolute left-[19px] w-[23px] border-l-[2px] border-b-[2px] border-border rounded-bl-[16px] bg-transparent pointer-events-none"
+                                    style={{
+                                      top: index === 0 ? '-16px' : '0',
+                                      height: index === 0 ? 'calc(50% + 16px)' : '50%'
+                                    }}
+                                  />
+                                  {/* Vertical line continuing down past the curve (only if not last) */}
+                                  {!isLast && (
+                                    <div
+                                      className="absolute left-[19px] w-[2px] bg-border pointer-events-none"
+                                      style={{
+                                        top: index === 0 ? '-16px' : '0',
+                                        // Connects to the next item's top (4px bridges the mt-1 gap)
+                                        bottom: '-4px'
+                                      }}
+                                    />
+                                  )}
+
+                                  <Link
+                                    href={child.href}
+                                    onClick={() => setIsOpen(false)}
+                                    className={cn(
+                                      "text-sm px-3 md:py-2 py-2.5 ml-[42px] mr-2 flex-1 rounded-xl transition-all duration-200 flex items-center gap-2",
+                                      isChildActive
+                                        ? "bg-white dark:bg-zinc-800 text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10 font-semibold"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground font-medium"
+                                    )}
+                                  >
+                                    <span className="truncate">{child.title}</span>
+                                  </Link>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
                   )
                 })}
             </TooltipProvider>
