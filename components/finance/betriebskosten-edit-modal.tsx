@@ -1063,7 +1063,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
           value=""
           onValueChange={(value) => handleZaehlerkostenChange(value as ZaehlerTyp, "")}
         >
-          <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all text-muted-foreground">
+          <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary dark:hover:text-white transition-all text-muted-foreground">
             <PlusCircle className="w-4 h-4 mr-2" />
             <SelectValue placeholder="Zähler-Kostenstelle hinzufügen" />
           </SelectTrigger>
@@ -1144,7 +1144,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                       </div>
 
                       <div className="flex flex-col pt-1">
-                        <span className={`text-sm font-bold transition-colors duration-300 ${isActive ? 'text-primary' : isCompleted ? 'text-foreground/80' : 'text-muted-foreground'}`}>
+                        <span className={`text-sm font-bold transition-colors duration-300 ${isActive ? 'text-primary dark:text-primary-foreground' : isCompleted ? 'text-foreground/80' : 'text-muted-foreground'}`}>
                           {step.label}
                         </span>
                         <span className="text-[11px] text-muted-foreground/60 font-medium leading-tight mt-0.5">
@@ -1455,7 +1455,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                             type="button"
                             onClick={addCostItem}
                             variant="ghost"
-                            className="w-full h-11 rounded-[2rem] border border-dashed border-gray-300 dark:border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary font-semibold mt-4"
+                            className="w-full h-11 rounded-[2rem] border border-dashed border-gray-300 dark:border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary dark:hover:text-white font-semibold mt-4"
                             disabled={isFormLoading || isSaving}
                           >
                             <PlusCircle className="mr-2 h-4 w-4" />
