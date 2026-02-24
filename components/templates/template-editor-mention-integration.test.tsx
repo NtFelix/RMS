@@ -113,54 +113,59 @@ jest.mock('@/lib/mention-suggestion-popup', () => ({
 }));
 
 // Mock error handling
-jest.mock('@/lib/mention-suggestion-error-handling', () => ({
-  handleSuggestionInitializationError: jest.fn((error, context) => ({
-    type: 'INITIALIZATION_FAILED',
-    message: error.message,
-    originalError: error,
-    context,
-    timestamp: Date.now(),
-    errorId: 'test-init-error',
-    recoverable: false,
-  })),
-  handleFilterError: jest.fn((error, query, count) => ({
-    type: 'FILTER_ERROR',
-    message: error.message,
-    originalError: error,
-    context: { query, variableCount: count },
-    timestamp: Date.now(),
-    errorId: 'test-filter-error',
-    recoverable: true,
-  })),
-  handlePositionError: jest.fn((error, rect) => ({
-    type: 'POSITION_ERROR',
-    message: error.message,
-    originalError: error,
-    context: { clientRect: rect },
-    timestamp: Date.now(),
-    errorId: 'test-position-error',
-    recoverable: true,
-  })),
-  safeExecute: jest.fn((fn) => {
-    try {
-      return { success: true, result: fn() };
-    } catch (error) {
-      return { success: false, error };
-    }
-  }),
-  createGracefulFallback: jest.fn(() => ({
-    fallbackFilter: jest.fn((variables, query) =>
-      variables.filter((v: any) => v.label.toLowerCase().includes(query.toLowerCase())).slice(0, 5)
-    ),
-    fallbackSuggestion: jest.fn(),
-    shouldUseFallback: jest.fn(() => false),
-  })),
-  mentionSuggestionErrorRecovery: {
-    recordError: jest.fn(() => false),
-    isInFallbackMode: jest.fn(() => false),
-    reset: jest.fn(),
-  },
-}));
+jest.mock('@/lib/mention-suggestion-error-handling', () => {
+  const originalModule = jest.requireActual('@/lib/mention-suggestion-error-handling');
+  return {
+    ...originalModule,
+    handleSuggestionInitializationError: jest.fn((error, context) => ({
+      type: originalModule.MentionSuggestionErrorType.INITIALIZATION_FAILED,
+      message: error.message,
+      originalError: error,
+      context,
+      timestamp: Date.now(),
+      errorId: 'test-init-error',
+      recoverable: false,
+    })),
+    handleFilterError: jest.fn((error, query, count) => ({
+      type: originalModule.MentionSuggestionErrorType.FILTER_ERROR,
+      message: error.message,
+      originalError: error,
+      context: { query, variableCount: count },
+      timestamp: Date.now(),
+      errorId: 'test-filter-error',
+      recoverable: true,
+    })),
+    handlePositionError: jest.fn((error, rect) => ({
+      type: originalModule.MentionSuggestionErrorType.POSITION_ERROR,
+      message: error.message,
+      originalError: error,
+      context: { clientRect: rect },
+      timestamp: Date.now(),
+      errorId: 'test-position-error',
+      recoverable: true,
+    })),
+    safeExecute: jest.fn(async (fn) => {
+      try {
+        const result = await fn();
+        return { success: true, result };
+      } catch (error) {
+        return { success: false, error };
+      }
+    }),
+    createGracefulFallback: jest.fn(() => ({
+      fallbackFilter: jest.fn((variables, query) =>
+        variables.filter((v: any) => v.label.toLowerCase().includes(query.toLowerCase())).slice(0, 5)
+      ),
+      fallbackSuggestion: jest.fn(),
+      shouldUseFallback: jest.fn(() => false),
+    })),
+    mentionSuggestionErrorRecovery: {
+      recordError: jest.fn(() => false),
+      isInFallbackMode: jest.fn(() => false),
+      reset: jest.fn(),
+    },
+  };
+});
 
 jest.mock('@/components/ai/mention-suggestion-error-boundary', () => ({
   MentionSuggestionErrorBoundary: ({ children }: any) => children,
@@ -352,7 +357,7 @@ describe('TemplateEditor - Mention Integration Tests', () => {
       expect(() => lifecycle.onStart(mockProps)).not.toThrow();
     });
 
-    it('should handle filter errors gracefully', () => {
+    it('should handle filter errors gracefully', async () => {
       const { filterMentionVariables } = require('@/lib/mention-utils');
       filterMentionVariables.mockImplementationOnce(() => {
         throw new Error('Filter failed');
@@ -365,12 +370,12 @@ describe('TemplateEditor - Mention Integration Tests', () => {
       const itemsFunction = mentionConfig.suggestion.items;
 
       // Should return fallback results
-      const result = itemsFunction({ query: 'test' });
+      const result = await itemsFunction({ query: 'test' });
       expect(Array.isArray(result)).toBe(true);
     });
 
     // TODO: Implement error notification UI in TemplateEditor
-    it.skip('should display error notifications for suggestion failures', () => {
+    it('should display error notifications for suggestion failures', async () => {
       const { safeExecute } = require('@/lib/mention-suggestion-error-handling');
       safeExecute.mockReturnValueOnce({
         success: false,
@@ -380,11 +385,11 @@ describe('TemplateEditor - Mention Integration Tests', () => {
       render(<TemplateEditor onChange={mockOnChange} />);
 
       // Should render error notification
-      expect(screen.getByText('Variable suggestions temporarily unavailable')).toBeInTheDocument();
+      expect(await screen.findByText('Variable suggestions temporarily unavailable')).toBeInTheDocument();
     });
 
     // TODO: Implement retry functionality UI in TemplateEditor
-    it.skip('should provide retry functionality for errors', async () => {
+    it('should provide retry functionality for errors', async () => {
       const user = userEvent.setup();
       const { safeExecute } = require('@/lib/mention-suggestion-error-handling');
 
@@ -395,7 +400,7 @@ describe('TemplateEditor - Mention Integration Tests', () => {
 
       render(<TemplateEditor onChange={mockOnChange} />);
 
-      const retryButton = screen.getByText('Retry');
+      const retryButton = await screen.findByText('Retry');
       await user.click(retryButton);
 
       // Should reset error state
@@ -602,7 +607,7 @@ describe('TemplateEditor - Mention Integration Tests', () => {
 
   describe('Fallback Mode Integration', () => {
     // TODO: Implement fallback mode UI notification
-    it.skip('should display fallback mode notification', () => {
+    it('should display fallback mode notification', () => {
       const { mentionSuggestionErrorRecovery } = require('@/lib/mention-suggestion-error-handling');
       mentionSuggestionErrorRecovery.isInFallbackMode.mockReturnValue(true);
 
@@ -612,7 +617,7 @@ describe('TemplateEditor - Mention Integration Tests', () => {
     });
 
     // TODO: Implement fallback mode UI with try full mode button
-    it.skip('should allow switching back from fallback mode', async () => {
+    it('should allow switching back from fallback mode', async () => {
       const user = userEvent.setup();
       const { mentionSuggestionErrorRecovery } = require('@/lib/mention-suggestion-error-handling');
 
