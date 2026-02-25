@@ -134,7 +134,7 @@ export function WasserzaehlerModal() {
           remainingTenants--;
           return {
             ...entry,
-            verbrauch: share.toFixed(2),
+            verbrauch: share.toFixed(3),
             warning: '' // Clear any previous warnings
           };
         }
@@ -596,7 +596,7 @@ export function WasserzaehlerModal() {
                         <div className="relative flex-1">
                           <NumberInput
                             id={`apartment-usage-${wohnungName}`}
-                            step="0.01"
+                            step="0.001"
                             min="0"
                             value={apartmentUsage[wohnungName] || ''}
                             onChange={(e) => setApartmentUsage(prev => ({
@@ -667,11 +667,11 @@ export function WasserzaehlerModal() {
                             </Badge>
                             <Badge variant="outline" className="gap-1.5">
                               <Gauge className="h-3 w-3" />
-                              <span>Stand: {formatNumber(entry.previous_reading.zaehlerstand)} m³</span>
+                              <span>Stand: {formatNumber(entry.previous_reading.zaehlerstand, 3)} m³</span>
                             </Badge>
                             <Badge variant="outline" className="gap-1.5">
                               <Droplet className="h-3 w-3" />
-                              <span>Verbrauch: {formatNumber(entry.previous_reading.verbrauch)} m³</span>
+                              <span>Verbrauch: {formatNumber(entry.previous_reading.verbrauch, 3)} m³</span>
                             </Badge>
                           </div>
                         ) : (
@@ -700,7 +700,7 @@ export function WasserzaehlerModal() {
                             </Label>
                             <NumberInput
                               id={`zaehlerstand-${entry.mieter_id}`}
-                              step="0.01"
+                              step="0.001"
                               value={entry.zaehlerstand}
                               onChange={(e) => handleInputChange(index, 'zaehlerstand', e.target.value)}
                               placeholder="z.B. 123.45"
@@ -713,7 +713,7 @@ export function WasserzaehlerModal() {
                             </Label>
                             <NumberInput
                               id={`verbrauch-${entry.mieter_id}`}
-                              step="0.01"
+                              step="0.001"
                               value={entry.verbrauch}
                               onChange={(e) => handleInputChange(index, 'verbrauch', e.target.value)}
                               placeholder="wird berechnet"

@@ -375,11 +375,11 @@ export function MeterAblesungenModal({
                                         </Badge>
                                         <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
                                           <Gauge className="h-3 w-3" />
-                                          {formatNumber(entry.latest_reading.zaehlerstand)} {entry.einheit}
+                                          {formatNumber(entry.latest_reading.zaehlerstand, 3)} {entry.einheit}
                                         </Badge>
                                         <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
                                           {getMeterIcon(entry.zaehler_typ, "h-3 w-3")}
-                                          {formatNumber(entry.latest_reading.verbrauch)} {entry.einheit}
+                                          {formatNumber(entry.latest_reading.verbrauch, 3)} {entry.einheit}
                                         </Badge>
                                         {consumptionChange !== null && !isNaN(consumptionChange) && (
                                           <Badge
