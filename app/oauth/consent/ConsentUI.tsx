@@ -59,12 +59,17 @@ interface ConsentUIProps {
 }
 
 interface AuthorizationDetails {
+    id?: string;
+    state?: string;
     client?: {
+        id?: string;
         name?: string;
         logo_uri?: string;
     };
     redirect_uri?: string;
-    scopes?: string[];
+    scopes?: string | string[];
+    redirect_to?: string;
+    redirect_url?: string;
 }
 
 import { LOGO_URL, BRAND_NAME } from '@/lib/constants';
@@ -112,9 +117,9 @@ export default function ConsentUI({
                 // Check if the authorization was auto-approved and has a redirect URL
                 // This happens when the user has previously approved this client
                 if (data?.redirect_to || data?.redirect_url) {
-                    console.log('Auto-approved, redirecting to:', data.redirect_to || data.redirect_url);
-                    window.location.href = data.redirect_to || data.redirect_url;
-                    return; // Keep loading state while redirecting
+                    console.log('Skipping auto-approval to force manual consent screen. Redirect would have been to:', data.redirect_to || data.redirect_url);
+                    // window.location.href = data.redirect_to || data.redirect_url;
+                    // return; // Keep loading state while redirecting
                 }
 
                 setAuthDetails(data);
@@ -128,10 +133,55 @@ export default function ConsentUI({
         fetchDetails();
     }, [authorizationId, type]);
 
-    const clientName = authDetails?.client?.name || initialClientName || 'Unknown Application';
-    const clientIcon = authDetails?.client?.logo_uri || initialClientIcon;
+    // Side-channel: Fetch requested scopes directly from the Mietevo Worker 
+    // because Supabase filters out any scopes it doesn't officially support.
+    const [customScopes, setCustomScopes] = useState<string[]>([]);
+    useEffect(() => {
+        const state = authDetails?.state;
+        if (!state) return;
+
+        const fetchCustomScopes = async () => {
+            try {
+                const response = await fetch(`https://mcp.mietevo.de/oauth/scopes?state=${state}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.scopes) {
+                        // scopes might be a space-separated string or an array
+                        const scopeList = typeof data.scopes === 'string'
+                            ? data.scopes.split(' ')
+                            : data.scopes;
+                        setCustomScopes(scopeList.filter(Boolean));
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to fetch custom scopes side-channel:', err);
+            }
+        };
+
+        fetchCustomScopes();
+    }, [authDetails]);
+
+    // Known client ID mappings for better UI fallback
+    const KNOWN_MCP_CLIENTS: Record<string, string> = {
+        '4df23a6c-c2d9-43b8-aba8-a2a4f3681892': 'Mietevo',
+        'b7fee65f-13af-4c19-b749-85fad88253fd': 'Mietevo Public MCP'
+    };
+
+    const clientId = authDetails?.client?.id;
+    const clientName = authDetails?.client?.name ||
+        (clientId && KNOWN_MCP_CLIENTS[clientId]) ||
+        initialClientName ||
+        'Mietevo';
+
+    // Set icon - use logo_uri if provided, or mascot if it's a known client
+    const clientIcon = authDetails?.client?.logo_uri ||
+        (clientId && KNOWN_MCP_CLIENTS[clientId] ? LOGO_URL : initialClientIcon);
     const redirectUri = authDetails?.redirect_uri || initialRedirectUri;
-    const scopes = authDetails?.scopes || initialScopes;
+
+    // Merge Supabase scopes with our custom stashed scopes
+    const rawSupabaseScopes = typeof authDetails?.scopes === 'string' ? authDetails.scopes.split(' ') : (authDetails?.scopes || []);
+    const mergedScopes = Array.from(new Set([...rawSupabaseScopes, ...customScopes, ...(initialScopes || [])])).filter(s => s !== 'offline_access');
+    const scopes = mergedScopes.length > 0 ? mergedScopes : ['openid', 'email'];
 
     const handleDecision = async (decision: 'approve' | 'deny') => {
         if (!authorizationId) return;
@@ -140,6 +190,15 @@ export default function ConsentUI({
         setProcessError(null);
 
         try {
+            // If we are approving and we already have a redirect URL from the details (auto-approved case),
+            // just use it instead of calling the API again to avoid "validation_failed" (400) errors.
+            const autoRedirectUrl = authDetails?.redirect_to || authDetails?.redirect_url;
+            if (decision === 'approve' && autoRedirectUrl) {
+                console.log('Manual approval for auto-approved request. Using existing redirect URL:', autoRedirectUrl);
+                window.location.href = autoRedirectUrl;
+                return;
+            }
+
             const authClient = supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth;
             const { data, error } = decision === 'approve'
                 ? await authClient.oauth.approveAuthorization(authorizationId)
