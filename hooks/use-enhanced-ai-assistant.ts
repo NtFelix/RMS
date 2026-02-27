@@ -671,7 +671,9 @@ function getGermanErrorMessage(errorDetails: AIErrorDetails): string {
     case 'rate_limit':
       return 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
     case 'server_error':
-      return 'Serverfehler. Bitte versuchen Sie es später erneut.';
+      return 'Serverfehler. Der AI-Dienst ist momentan nicht erreichbar. Bitte versuchen Sie es später erneut.';
+    case 'inference_error':
+      return 'Fehler bei der AI-Verarbeitung. Bitte versuchen Sie es erneut.';
     case 'authentication_error':
       return 'Authentifizierungsfehler. Der Service ist momentan nicht verfügbar.';
     case 'content_safety_error':

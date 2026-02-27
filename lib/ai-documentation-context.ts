@@ -415,6 +415,19 @@ export function categorizeAIError(error: Error | string, context?: any): AIError
     };
   }
   
+  // Inference errors
+  if (errorLower.includes('inference failed')) {
+    return {
+      errorType: 'inference_error',
+      errorCode: 'INFERENCE_ERROR',
+      errorMessage: errorMessage,
+      httpStatus: 500,
+      retryable: true,
+      failureStage: 'inference',
+      ...context
+    };
+  }
+  
   // Server errors
   if (errorLower.includes('500') || errorLower.includes('internal server') || 
       errorLower.includes('server error')) {

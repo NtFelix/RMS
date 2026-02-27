@@ -730,14 +730,20 @@ async function withRetry<T>(
             const err = error as { message?: string; status?: number };
             lastError = error as Error;
 
-            // Check if it's a rate limit error (429)
+            // Check if it's a rate limit error (429) or a transient server error (500)
             const isRateLimit = err?.message?.includes('429') ||
                 err?.message?.includes('RESOURCE_EXHAUSTED') ||
                 err?.status === 429;
+            
+            const isTransientError = err?.status === 500 || 
+                err?.message?.includes('500') ||
+                err?.message?.includes('Internal error') ||
+                err?.message?.includes('Agent inference failed') ||
+                err?.message?.includes('overloaded');
 
-            if (isRateLimit && attempt < maxRetries) {
-                const delay = baseDelayMs * Math.pow(2, attempt); // Exponential backoff: 2s, 4s, 8s
-                console.log(`Rate limited. Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
+            if ((isRateLimit || isTransientError) && attempt < maxRetries) {
+                const delay = baseDelayMs * Math.pow(2, attempt); // Exponential backoff
+                console.log(`Transient or rate limit error (${err?.message}). Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
                 await sleep(delay);
             } else {
                 throw error;
