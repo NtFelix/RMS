@@ -44,8 +44,15 @@ describe('AI Input Validation', () => {
     it('detects HTML/script injection attempts', () => {
       const injectionAttempts = [
         '<script>alert("xss")</script>',
+        '<script >alert("xss")</script >',
+        '<script\t>alert("xss")</script\t>',
         '<iframe src="malicious.com"></iframe>',
+        '<iframe ></iframe>',
+        '<style>body { color: red; }</style>',
+        '<style > </style >',
         'javascript:alert("xss")',
+        'data:text/html,<script>alert(1)</script>',
+        'vbscript:msgbox("hello")',
         '<div onclick="alert()">Click me</div>'
       ];
 
@@ -210,9 +217,11 @@ describe('AI Input Validation', () => {
       expect(sanitizeInput('<div><span>Nested</span></div>')).toBe('Nested');
     });
 
-    it('removes javascript URLs', () => {
+    it('removes dangerous URL schemes', () => {
       expect(sanitizeInput('Click javascript:alert("xss") here')).toBe('Click alert("xss") here');
       expect(sanitizeInput('javascript:void(0)')).toBe('void(0)');
+      expect(sanitizeInput('data:text/html,abc')).toBe('text/html,abc');
+      expect(sanitizeInput('vbscript:msgbox("hi")')).toBe('msgbox("hi")');
     });
 
     it('removes event handlers', () => {

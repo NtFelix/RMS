@@ -57,10 +57,10 @@ function stripHtml(input: string): string {
 
 // HTML/Script injection patterns - improved to be more robust and avoid ReDoS
 const INJECTION_PATTERNS = [
-  /<script\b[^>]*>[\s\S]*?<\/script>/gi,
-  /<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi,
-  /<style\b[^>]*>[\s\S]*?<\/style>/gi,
-  /javascript:/gi,
+  /<script\b[^>]*>[\s\S]*?<\/script\s*>/gi,
+  /<iframe\b[^>]*>[\s\S]*?<\/iframe\s*>/gi,
+  /<style\b[^>]*>[\s\S]*?<\/style\s*>/gi,
+  /(?:javascript|data|vbscript):/gi,
   /on\w+\s*=/gi
 ];
 
@@ -103,6 +103,7 @@ export function validateAIInput(
 
   // Check for injection attempts
   for (const pattern of INJECTION_PATTERNS) {
+    pattern.lastIndex = 0; // Reset regex state
     if (pattern.test(trimmedInput)) {
       return {
         isValid: false,
@@ -248,7 +249,7 @@ export function sanitizeInput(input: string): string {
   if (!input) return '';
 
   const cleaned = stripHtml(input)
-    .replace(/javascript:/gi, '') // Remove javascript: URLs
+    .replace(/(?:javascript|data|vbscript):/gi, '') // Remove dangerous URL schemes
     .replace(/on\w+\s*=/gi, '') // Remove event handlers
     .replace(/[\x00-\x1F\x7F]/g, ''); // Remove control characters
 
