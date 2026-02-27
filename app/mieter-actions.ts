@@ -67,7 +67,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        posthog.capture({
+        await posthog.capture({
           distinctId: user.id,
           event: eventName,
           properties: {
@@ -80,8 +80,10 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
             source: 'server_action'
           }
         });
-        await posthog.flush();
-        await posthogLogger.flush();
+        await Promise.all([
+          posthog.flush(),
+          posthogLogger.flush()
+        ]);
         logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
       }
     } catch (phError) {

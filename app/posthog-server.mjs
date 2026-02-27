@@ -1,11 +1,12 @@
 import { PostHog } from 'posthog-node'
 
 const dummyPostHog = {
-  capture: () => { },
+  capture: async () => { },
   flush: async () => { },
   on: () => { },
-  identify: () => { },
-  alias: () => { },
+  identify: async () => { },
+  alias: async () => { },
+  captureException: async () => { },
 }
 
 let posthogInstance = null

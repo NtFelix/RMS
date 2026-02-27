@@ -1117,11 +1117,6 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
             totalDurationMs: totalDuration,
             hadDateipfad: !!dateipfad
         });
-        logger.flush();
-
-        if (posthog) {
-            await posthog.shutdown();
-        }
 
         // Return hasMore: true so client can trigger next processing.
         // The next call will return hasMore: false if the queue is actually empty.
@@ -1138,11 +1133,13 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
             error: (e as Error).message,
             errorType: (e as Error).name
         });
-        logger.flush();
-        if (posthog) {
-            await posthog.shutdown();
-        }
+
         return new Response(JSON.stringify({ error: (e as Error).message, hasMore: false }), { status: 500 });
+    } finally {
+        await Promise.all([
+            logger.flush(),
+            posthog ? posthog.shutdown() : Promise.resolve()
+        ]);
     }
 }
 

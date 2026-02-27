@@ -234,7 +234,7 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
   try {
     const posthog = getPostHogServer();
-    posthog.capture({
+    await posthog.capture({
       distinctId: user.id,
       event: 'betriebskosten_calculated',
       properties: {
@@ -244,8 +244,10 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
         source: 'server_action'
       }
     });
-    await posthog.flush();
-    await posthogLogger.flush();
+    await Promise.all([
+      posthog.flush(),
+      posthogLogger.flush()
+    ]);
     logger.info(`[PostHog] Capturing betriebskosten event for user: ${user.id}`);
   } catch (phError) {
     logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
