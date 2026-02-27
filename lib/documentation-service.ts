@@ -4,7 +4,7 @@ import {
   getDocumentationServerClient,
   getPublicDocumentationClient
 } from '@/lib/supabase/documentation-client';
-import { naturalSort } from '@/lib/utils';
+import { naturalSort, escapeRegExp } from '@/lib/utils';
 import type {
   Article,
   Category,
@@ -83,7 +83,7 @@ export class DocumentationService {
 
       return this.transformRecordsToArticles(data || []);
     } catch (error) {
-      console.error(`Error fetching articles for category ${kategorie}:`, error);
+      console.error('Error fetching articles for category %s:', kategorie, error);
       throw error;
     }
   }
@@ -134,7 +134,7 @@ export class DocumentationService {
     // Basic UUID validation to prevent Postgres errors
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
-      console.warn(`Invalid article search ID skipped: ${id}`);
+      console.warn('Invalid article search ID skipped %s:', id);
       return null;
     }
 
@@ -144,7 +144,7 @@ export class DocumentationService {
 
       if (error) {
         // If it's a 406 or similar, it's just not found
-        console.error(`Database error fetching article ${id}:`, error.message);
+        console.error('Database error fetching article %s:', id, error.message);
         return null;
       }
 
@@ -155,7 +155,7 @@ export class DocumentationService {
 
       return this.transformRecordToArticle(data);
     } catch (error) {
-      console.error(`Unexpected error fetching article ${id}:`, error);
+      console.error('Unexpected error fetching article %s:', id, error);
       return null; // Return null instead of throwing to prevent 500s
     }
   }
@@ -246,7 +246,8 @@ export class DocumentationService {
     let highlightedText = text;
 
     searchTerms.forEach(term => {
-      const regex = new RegExp(`(${term})`, 'gi');
+      const escapedTerm = escapeRegExp(term);
+      const regex = new RegExp(`(${escapedTerm})`, 'gi');
       highlightedText = highlightedText.replace(regex, '<mark>$1</mark>');
     });
 

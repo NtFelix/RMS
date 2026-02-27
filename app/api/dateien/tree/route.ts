@@ -428,7 +428,7 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
             })
           } catch (error) {
             // Skip problematic folders
-            console.warn(`Could not access folder ${childPath}:`, error)
+            console.warn('Could not access folder %s:', childPath, error)
             continue
           }
         }

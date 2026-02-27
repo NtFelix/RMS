@@ -273,7 +273,7 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
     .eq("nebenkosten_id", nebenkostenId);
 
   if (error) {
-    console.error(`Error deleting Rechnungen for nebenkosten_id ${nebenkostenId}:`, error);
+    console.error('Error deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, error);
     return { success: false, message: error.message };
   }
 
@@ -375,7 +375,7 @@ async function getPreviousWasserzaehlerRecordAction(
       .single();
 
     if (mieterError || !mieterData) {
-      console.error(`Error fetching mieter data for ${mieterId}:`, mieterError);
+      console.error('Error fetching mieter data for %s:', mieterId, mieterError);
       return { success: true, data: null };
     }
 
@@ -412,7 +412,7 @@ async function getPreviousWasserzaehlerRecordAction(
           .maybeSingle();
 
         if (previousYearError && previousYearError.code !== 'PGRST116') {
-          console.error(`Error fetching previous year's Wasserzaehler record for mieter_id ${mieterId}:`, previousYearError);
+          console.error('Error fetching previous year\'s Wasserzaehler record for mieter_id %s:', mieterId, previousYearError);
         } else if (previousYearData) {
           return {
             success: true,
@@ -444,7 +444,7 @@ async function getPreviousWasserzaehlerRecordAction(
       if (error.code === 'PGRST116') {
         return { success: true, data: null }; // No records found
       }
-      console.error(`Error fetching previous water reading for mieter_id ${mieterId}:`, error);
+      console.error('Error fetching previous water reading for mieter_id %s:', mieterId, error);
       return { success: false, message: `Fehler beim Abrufen des vorherigen Zählerstands: ${error.message}` };
     }
 
@@ -660,7 +660,7 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
       .eq("user_id", user.id); // Ensuring user can only fetch their own Rechnungen
 
     if (error) {
-      console.error(`Error fetching Rechnungen for nebenkosten_id ${nebenkostenId}:`, error);
+      console.error('Error fetching Rechnungen for nebenkosten_id %s:', nebenkostenId, error);
       return { success: false, message: `Fehler beim Abrufen der Rechnungen: ${error.message}` };
     }
 

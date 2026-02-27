@@ -46,9 +46,10 @@ interface SearchResult<T> {
 const searchPatternCache = new Map<string, { pattern: string; exact: string; fuzzy?: string; words?: string[]; timestamp: number }>();
 const PATTERN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Helper function to sanitize search query
+// Helper function to sanitize search query for SQL LIKE/ILIKE
 function sanitizeQuery(query: string): string {
-  return query.trim().replace(/[%_]/g, '\\$&');
+  // Escape backslash first, then % and _
+  return query.trim().replace(/[\\%_]/g, '\\$&');
 }
 
 // Helper function to create search patterns with caching and fuzzy matching
@@ -65,15 +66,17 @@ function getSearchPatterns(query: string): { pattern: string; exact: string; fuz
     };
   }
   
-  const sanitized = sanitizeQuery(query);
+  const trimmed = query.trim();
+  const sanitized = sanitizeQuery(trimmed);
   const pattern = `%${sanitized}%`;
   const exact = sanitized;
   
   // Create fuzzy pattern for better matching
-  const fuzzy = sanitized.split('').join('%');
+  // We split the original query and sanitize each character to avoid breaking escape sequences
+  const fuzzy = trimmed.split('').map(char => sanitizeQuery(char)).join('%');
   
   // Split into words for multi-word search
-  const words = sanitized.split(/\s+/).filter(word => word.length > 0);
+  const words = trimmed.split(/\s+/).filter(word => word.length > 0).map(word => sanitizeQuery(word));
   
   const patterns = {
     pattern,

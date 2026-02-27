@@ -170,7 +170,7 @@ export async function getMieterByHausIdAction(
       .eq("haus_id", hausId);
 
     if (wohnungenError) {
-      console.error(`Error fetching Wohnungen for Haus ${hausId}:`, wohnungenError.message);
+      console.error('Error fetching Wohnungen for Haus %s:', hausId, wohnungenError.message);
       return { success: false, error: wohnungenError.message, data: null };
     }
 
@@ -199,7 +199,7 @@ export async function getMieterByHausIdAction(
     const { data: mieterData, error: mieterError } = await query;
 
     if (mieterError) {
-      console.error(`Error fetching Mieter for Haus ${hausId} (Wohnung IDs: ${wohnungIds.join(', ')}):`, mieterError.message);
+      console.error('Error fetching Mieter for Haus %s (Wohnung IDs: %s):', hausId, wohnungIds.join(', '), mieterError.message);
       return { success: false, error: mieterError.message, data: null };
     }
 

@@ -40,10 +40,26 @@ const SPAM_PATTERNS = [
 // Excessive punctuation patterns
 const EXCESSIVE_PUNCTUATION = /[!?]{3,}|[.]{4,}/g;
 
-// HTML/Script injection patterns
+/**
+ * Robustly strips HTML tags from a string, handling nested/broken tags
+ */
+function stripHtml(input: string): string {
+  if (!input) return '';
+  let previous;
+  let current = input;
+  // Repeat to handle cases like <<script>script>
+  do {
+    previous = current;
+    current = current.replace(/<[^>]*>?/gm, '');
+  } while (current !== previous);
+  return current;
+}
+
+// HTML/Script injection patterns - improved to be more robust and avoid ReDoS
 const INJECTION_PATTERNS = [
-  /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-  /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
+  /<script\b[^>]*>[\s\S]*?<\/script>/gi,
+  /<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi,
+  /<style\b[^>]*>[\s\S]*?<\/style>/gi,
   /javascript:/gi,
   /on\w+\s*=/gi
 ];
@@ -110,7 +126,7 @@ export function validateAIInput(
     }
 
     // Remove potential HTML tags (but preserve common symbols)
-    sanitizedInput = sanitizedInput.replace(/<[^>]*>/g, '');
+    sanitizedInput = stripHtml(sanitizedInput);
   }
 
   // Spam detection
@@ -231,13 +247,12 @@ export function validateAIContext(input: string): ValidationResult {
 export function sanitizeInput(input: string): string {
   if (!input) return '';
 
-  return input
-    .trim()
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
+  const cleaned = stripHtml(input)
     .replace(/javascript:/gi, '') // Remove javascript: URLs
     .replace(/on\w+\s*=/gi, '') // Remove event handlers
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
-    .substring(0, 2000); // Enforce max length
+    .replace(/[\x00-\x1F\x7F]/g, ''); // Remove control characters
+
+  return cleaned.trim().substring(0, 2000); // Enforce max length
 }
 
 /**

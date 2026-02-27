@@ -33,7 +33,7 @@ interface AIAssistantStore {
   setSessionId: (sessionId: string | null) => void;
 }
 
-const generateSessionId = () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+const generateSessionId = () => `session_${crypto.randomUUID()}`;
 
 // Initialize performance monitors
 const performanceMonitor = createAIPerformanceMonitor(posthog);

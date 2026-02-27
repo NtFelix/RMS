@@ -45,8 +45,8 @@ export interface UseEnhancedAIAssistantReturn {
   retryState: ReturnType<typeof useRetry>['state'];
 }
 
-const generateSessionId = () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+const generateSessionId = () => `session_${crypto.randomUUID()}`;
+const generateMessageId = () => `msg_${crypto.randomUUID()}`;
 
 /**
  * Enhanced AI Assistant hook with comprehensive error handling

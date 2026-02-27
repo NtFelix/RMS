@@ -270,7 +270,7 @@ export async function createSetupIntent(stripeCustomerId: string): Promise<{ cli
 
     return { clientSecret: setupIntent.client_secret };
   } catch (error: any) {
-    console.error(`Error creating SetupIntent for ${stripeCustomerId}:`, error);
+    console.error('Error creating SetupIntent for %s:', stripeCustomerId, error);
     return {
       error: error.message || 'Failed to create SetupIntent'
     };
