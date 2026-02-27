@@ -65,7 +65,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const posthog = getPostHogServer();
-        posthog.capture({
+        await posthog.capture({
           distinctId: user.id,
           event: 'payment_recorded',
           properties: {

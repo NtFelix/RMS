@@ -234,7 +234,7 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
   try {
     const posthog = getPostHogServer();
-    posthog.capture({
+    await posthog.capture({
       distinctId: user.id,
       event: 'betriebskosten_calculated',
       properties: {

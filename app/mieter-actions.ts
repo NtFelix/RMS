@@ -67,7 +67,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        posthog.capture({
+        await posthog.capture({
           distinctId: user.id,
           event: eventName,
           properties: {

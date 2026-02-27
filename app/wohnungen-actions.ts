@@ -209,7 +209,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       const posthog = getPostHogServer();
       const eventName = id ? 'property_updated' : 'property_created';
 
-      posthog.capture({
+      await posthog.capture({
         distinctId: user.id || 'unknown',
         event: eventName,
         properties: {

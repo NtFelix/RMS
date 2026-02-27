@@ -55,9 +55,8 @@ export async function getRequestContext(): Promise<RequestContext> {
 /**
  * Capture a PostHog event with consistent error handling.
  * 
- * Note: The PostHog server is configured with flushAt: 1, which means
- * events are automatically flushed after each capture() call.
- * We still flush the posthogLogger to ensure logs are sent.
+ * In v5, capture() returns a Promise and should be awaited.
+ * We also flush the posthogLogger to ensure logs are sent.
  * 
  * @param userId - The distinct ID for the event (usually user.id)
  * @param event - The event name
@@ -91,13 +90,14 @@ export async function capturePostHogEvent(
             fullProperties.$host = requestContext.host
         }
 
-        posthog.capture({
+        await posthog.capture({
             distinctId: userId,
             event,
             properties: fullProperties,
         })
-        // Note: posthog.flush() is not needed since flushAt: 1 auto-flushes
-        // But we still need to flush the logger
+
+        await posthog.flush()
+        // We still need to flush the logger
         await posthogLogger.flush()
         logger.info(`[PostHog] Captured event: ${event} for user: ${userId}`)
     } catch (phError) {
