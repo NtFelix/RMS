@@ -78,8 +78,10 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
             source: 'server_action'
           }
         });
-        await posthog.flush();
-        await posthogLogger.flush();
+        await Promise.all([
+          posthog.flush(),
+          posthogLogger.flush()
+        ]);
         logger.info(`[PostHog] Capturing payment event for user: ${user.id}`);
       }
     } catch (phError) {

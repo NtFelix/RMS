@@ -96,9 +96,11 @@ export async function capturePostHogEvent(
             properties: fullProperties,
         })
 
-        await posthog.flush()
-        // We still need to flush the logger
-        await posthogLogger.flush()
+        // Flush both PostHog and the logger in parallel to save time
+        await Promise.all([
+            posthog.flush(),
+            posthogLogger.flush()
+        ])
         logger.info(`[PostHog] Captured event: ${event} for user: ${userId}`)
     } catch (phError) {
         logger.error(
