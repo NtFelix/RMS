@@ -8,6 +8,9 @@ on:
     branches: [main]
   workflow_dispatch:  # Allows manual triggering from the Actions tab
 
+permissions:
+  contents: read
+
 jobs:
   # Lightweight job to determine if lighthouse should run and which devices to test
   # This allows build and prepare-lhci to run truly in parallel
@@ -629,7 +632,7 @@ jobs:
       - name: Create device zip files and send to Discord
         if: always()
         run: |
-          WEBHOOK_URL="https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy"
+          WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}"
           
           # Create zip files for each available device
           echo "Creating zip files for available device reports..."
