@@ -72,7 +72,42 @@ interface AuthorizationDetails {
     redirect_url?: string;
 }
 
-import { LOGO_URL, BRAND_NAME } from '@/lib/constants';
+import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/constants';
+
+/**
+ * Allowlist of trusted redirect origins for the OAuth consent flow.
+ * Only URLs starting with these origins are permitted as redirect targets,
+ * preventing open-redirect / XSS via javascript: URIs.
+ */
+const ALLOWED_REDIRECT_ORIGINS = [
+    'https://api.notion.com',
+    'https://www.notion.so',
+    'https://mcp.mietevo.de',
+    'https://mietevo.de',
+    // Allow any Cloudflare Pages preview deploy for development
+    ...(process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS
+        ? process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS.split(',')
+        : []),
+];
+
+/**
+ * Validates a redirect URL before navigating to it.
+ * Only HTTPS URLs whose origin is in the allowlist are accepted.
+ */
+function safeRedirect(url: string | undefined | null): void {
+    if (!url) return;
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:') return;
+        if (!ALLOWED_REDIRECT_ORIGINS.some(allowed => parsed.origin === allowed)) {
+            console.error('[OAuth] Blocked redirect to untrusted origin:', parsed.origin);
+            return;
+        }
+        window.location.href = url;
+    } catch {
+        // Invalid URL — silently ignore
+    }
+}
 
 export default function ConsentUI({
     type,
@@ -127,9 +162,10 @@ export default function ConsentUI({
                 const data = await response.json();
                 console.log('Authorization details:', data);
 
-                // Check if the authorization was auto-approved and has a redirect URL
+                // Check if the authorization was auto-approved and has a redirect URL.
+                // We intentionally do NOT auto-follow — always show the manual consent screen.
                 if (data?.redirect_to || data?.redirect_url) {
-                    console.log('Skipping auto-approval to force manual consent screen. Redirect would have been to:', data.redirect_to || data.redirect_url);
+                    // Redirect URL present, but user must still explicitly approve below.
                 }
 
                 setAuthDetails(data);
@@ -152,7 +188,7 @@ export default function ConsentUI({
 
         const fetchCustomScopes = async () => {
             try {
-                const response = await fetch(`https://mcp.mietevo.de/oauth/scopes?state=${state}`);
+                const response = await fetch(`${MIETEVO_MCP_URL}/oauth/scopes?state=${encodeURIComponent(state)}`);
                 if (response.ok) {
                     const data = await response.json();
                     if (data.scopes) {
@@ -176,8 +212,8 @@ export default function ConsentUI({
         const lowerName = (name || '').toLowerCase();
 
         // 1. Check known IDs first
-        if (id === '4df23a6c-c2d9-43b8-aba8-a2a4f3681892') return { name: 'Mietevo', icon: LOGO_URL };
-        if (id === 'b7fee65f-13af-4c19-b749-85fad88253fd') return { name: 'Mietevo Public MCP', icon: LOGO_URL };
+        if (id === OAUTH_CLIENT_IDS.MIETEVO) return { name: 'Mietevo', icon: LOGO_URL };
+        if (id === OAUTH_CLIENT_IDS.MIETEVO_PUBLIC_MCP) return { name: 'Mietevo Public MCP', icon: LOGO_URL };
 
         // 2. Use provided URI if it exists
         if (providedUri) return { name: name || 'Unbekannte Anwendung', icon: providedUri };
@@ -240,8 +276,7 @@ export default function ConsentUI({
             // just use it instead of calling the API again to avoid "validation_failed" (400) errors.
             const autoRedirectUrl = authDetails?.redirect_to || authDetails?.redirect_url;
             if (decision === 'approve' && autoRedirectUrl) {
-                console.log('Manual approval for auto-approved request. Using existing redirect URL:', autoRedirectUrl);
-                window.location.href = autoRedirectUrl;
+                safeRedirect(autoRedirectUrl);
                 return;
             }
 
@@ -259,17 +294,14 @@ export default function ConsentUI({
             if (response.ok) {
                 const data = await response.json();
                 const redirectTarget = data?.redirect_to || data?.redirect_url;
-                if (redirectTarget) {
-                    window.location.href = redirectTarget;
-                } else {
-                    setIsProcessing(false);
-                }
+                safeRedirect(redirectTarget);
+                if (!redirectTarget) setIsProcessing(false);
             } else {
                 // Fallback to Server Action if client-side POST is blocked (e.g. by Brave/Firefox cross-site policies)
                 if (decision === 'approve') {
                     const { success, redirect_to, error } = await import('./actions').then(m => m.approveAuthorizationAction(authorizationId));
                     if (success && redirect_to) {
-                        window.location.href = redirect_to;
+                        safeRedirect(redirect_to);
                     } else {
                         setProcessError(error || 'Action failed');
                         setIsProcessing(false);

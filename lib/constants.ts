@@ -86,6 +86,15 @@ export const ROUTES = {
   IMPRESSUM: '/impressum',
 } as const;
 
+// MCP Worker URL
+export const MIETEVO_MCP_URL = process.env.NEXT_PUBLIC_MIETEVO_MCP_URL || 'https://mcp.mietevo.de';
+
+// Known OAuth Client IDs for first-party clients (display branding overrides)
+export const OAUTH_CLIENT_IDS = {
+  MIETEVO: '4df23a6c-c2d9-43b8-aba8-a2a4f3681892',
+  MIETEVO_PUBLIC_MCP: 'b7fee65f-13af-4c19-b749-85fad88253fd',
+} as const;
+
 // Supabase API paths
 export const SUPABASE_API_PATHS = {
   OAUTH_AUTHORIZE: '/auth/v1/oauth/authorize',
