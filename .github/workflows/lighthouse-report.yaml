@@ -8,6 +8,9 @@ on:
     branches: [main]
   workflow_dispatch:  # Allows manual triggering from the Actions tab
 
+permissions:
+  contents: read
+
 jobs:
   # Lightweight job to determine if lighthouse should run and which devices to test
   # This allows build and prepare-lhci to run truly in parallel
