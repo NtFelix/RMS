@@ -4,9 +4,8 @@ import { cookies } from 'next/headers';
 
 export async function approveAuthorizationAction(authorizationId: string) {
     try {
-        // Validate the authorizationId to prevent SSRF and unexpected paths.
-        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        if (!uuidPattern.test(authorizationId)) {
+        // Validate the authorizationId — it can be a UUID or a Supabase URL-safe base64 string
+        if (!authorizationId || authorizationId.length < 10 || authorizationId.length > 64) {
             throw new Error('Invalid authorization identifier format');
         }
 
@@ -18,7 +17,9 @@ export async function approveAuthorizationAction(authorizationId: string) {
         console.log('Cookies being sent:', allCookies.map(c => c.name).join(', '));
 
         const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const url = new URL('/auth/v1/oauth/authorizations/' + encodeURIComponent(authorizationId) + '/approve', baseUrl);
+        // Correct Supabase OAuth authorization approval endpoint:
+        // POST /auth/v1/oauth/authorizations/{id}  with body { decision: "allow" }
+        const url = new URL('/auth/v1/oauth/authorizations/' + encodeURIComponent(authorizationId), baseUrl);
         console.log('Calling URL:', url.toString());
 
         const response = await fetch(url.toString(), {
@@ -28,6 +29,7 @@ export async function approveAuthorizationAction(authorizationId: string) {
                 'Cookie': cookieHeader,
                 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             },
+            body: JSON.stringify({ decision: 'allow' }),
         });
 
         const responseText = await response.text();
