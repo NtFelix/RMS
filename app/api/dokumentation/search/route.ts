@@ -42,8 +42,7 @@ function sanitizeQuery(query: string): string {
       .replace(/[<>]/g, '') // Remove HTML tags
       .replace(/javascript:/gi, '') // Remove javascript: protocol
       .replace(/data:/gi, '') // Remove data: protocol
-      .replace(/vbscript:/gi, '') // Remove vbscript: protocol
-      .replace(/\bon\w*\s*=/gi, ''); // Remove event handlers with word boundary
+      .replace(/vbscript:/gi, ''); // Remove vbscript: protocol
   } while (current !== previous);
 
   // Escape SQL wildcards and backslashes for LIKE clauses

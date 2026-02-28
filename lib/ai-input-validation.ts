@@ -269,17 +269,14 @@ export function sanitizeInput(input: string): string {
   let current = input;
 
   // Repeat until no more dangerous patterns are found
-  // to handle cases like javasjavascript:cript: or ononmouseover=
-  // This addresses CodeQL Alert #56 (Incomplete multi-character sanitization)
+  // to handle cases like javasjavascript:cript:
   do {
     previous = current;
-    // Step 1: Strip HTML tags and attributes
+    // Step 1: Strip HTML tags and attributes (handles on* handlers)
     current = stripHtml(current);
     
-    // Step 2: Remove dangerous URL schemes and event handlers
-    current = current
-      .replace(/(?:javascript|data|vbscript):/gi, '')
-      .replace(/\bon\w*\s*=/gi, '');
+    // Step 2: Remove dangerous URL schemes
+    current = current.replace(/(?:javascript|data|vbscript):/gi, '');
   } while (current !== previous);
 
   // Final cleanup: remove control characters, trim and enforce length
