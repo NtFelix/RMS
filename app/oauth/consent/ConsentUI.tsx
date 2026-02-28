@@ -112,22 +112,24 @@ export default function ConsentUI({
             }
 
             try {
-                const { data, error: detailsError } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.getAuthorizationDetails(authorizationId);
+                const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}`, {
+                    headers: { 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! },
+                    credentials: 'include'
+                });
 
-                console.log('getAuthorizationDetails response:', data, detailsError);
-
-                if (detailsError) {
-                    setLoadError(detailsError.message);
+                if (!response.ok) {
+                    const err = await response.json();
+                    setLoadError(err.message || err.error_description || 'Failed to load details');
                     setIsLoading(false);
                     return;
                 }
 
+                const data = await response.json();
+                console.log('Authorization details:', data);
+
                 // Check if the authorization was auto-approved and has a redirect URL
-                // This happens when the user has previously approved this client
                 if (data?.redirect_to || data?.redirect_url) {
                     console.log('Skipping auto-approval to force manual consent screen. Redirect would have been to:', data.redirect_to || data.redirect_url);
-                    // window.location.href = data.redirect_to || data.redirect_url;
-                    // return; // Keep loading state while redirecting
                 }
 
                 setAuthDetails(data);
@@ -243,22 +245,40 @@ export default function ConsentUI({
                 return;
             }
 
-            const authClient = supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth;
-            const { data, error } = decision === 'approve'
-                ? await authClient.oauth.approveAuthorization(authorizationId)
-                : await authClient.oauth.denyAuthorization(authorizationId);
+            // Attempt client-side approve/deny first
+            const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                },
+                credentials: 'include',
+                body: JSON.stringify({ decision: decision === 'approve' ? 'allow' : 'deny' })
+            });
 
-            if (error) {
-                setProcessError(error.message);
-                setIsProcessing(false);
-                return;
-            }
-
-            // The SDK should auto-redirect, but check for redirect_url just in case
-            if (data?.redirect_url) {
-                window.location.href = data.redirect_url;
-            } else if (data?.redirect_to) {
-                window.location.href = data.redirect_to;
+            if (response.ok) {
+                const data = await response.json();
+                const redirectTarget = data?.redirect_to || data?.redirect_url;
+                if (redirectTarget) {
+                    window.location.href = redirectTarget;
+                } else {
+                    setIsProcessing(false);
+                }
+            } else {
+                // Fallback to Server Action if client-side POST is blocked (e.g. by Brave/Firefox cross-site policies)
+                if (decision === 'approve') {
+                    const { success, redirect_to, error } = await import('./actions').then(m => m.approveAuthorizationAction(authorizationId));
+                    if (success && redirect_to) {
+                        window.location.href = redirect_to;
+                    } else {
+                        setProcessError(error || 'Action failed');
+                        setIsProcessing(false);
+                    }
+                } else {
+                    const errData = await response.json();
+                    setProcessError(errData.message || 'Denial failed');
+                    setIsProcessing(false);
+                }
             }
         } catch (err: any) {
             setProcessError(err.message || `An error occurred while ${decision === 'approve' ? 'approving' : 'denying'} authorization`);
