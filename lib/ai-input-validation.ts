@@ -265,19 +265,25 @@ export function validateAIContext(input: string): ValidationResult {
 export function sanitizeInput(input: string): string {
   if (!input) return '';
 
-  // Step 1: Strip HTML tags and attributes using industry-standard methods
-  const cleaned = stripHtml(input);
+  let previous;
+  let current = input;
 
-  // Step 2: Final cleanup: 
-  // 1. Remove dangerous URL schemes that might survive (javascript:, data:, vbscript:)
-  // 2. Remove event handlers that might survive or be provided without tags (onclick=)
-  // 3. Remove control characters
-  // 4. Trim and enforce length
-  // Note: Using non-iterative replacement for event handlers to satisfy CodeQL
-  // while still providing protection against bare event handlers.
-  return cleaned
-    .replace(/(?:javascript|data|vbscript):/gi, '')
-    .replace(/\bon\w+\s*=/gi, '')
+  // Repeat until no more dangerous patterns are found
+  // to handle cases like javasjavascript:cript: or ononmouseover=
+  // This addresses CodeQL Alert #56 (Incomplete multi-character sanitization)
+  do {
+    previous = current;
+    // Step 1: Strip HTML tags and attributes
+    current = stripHtml(current);
+    
+    // Step 2: Remove dangerous URL schemes and event handlers
+    current = current
+      .replace(/(?:javascript|data|vbscript):/gi, '')
+      .replace(/\bon\w+\s*=/gi, '');
+  } while (current !== previous);
+
+  // Final cleanup: remove control characters, trim and enforce length
+  return current
     .replace(/[\x00-\x1F\x7F]/g, '')
     .trim()
     .substring(0, 2000);
