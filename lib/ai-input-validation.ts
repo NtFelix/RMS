@@ -262,20 +262,37 @@ export function validateAIContext(input: string): ValidationResult {
 export function sanitizeInput(input: string): string {
   if (!input) return '';
 
-  let previous;
-  let current = input;
+  // Use DOMPurify for industry-standard HTML and attribute stripping
+  // Configuration: no tags allowed, no attributes allowed.
+  // This effectively neutralizes all event handlers (on*) and HTML tags.
+  let cleaned = input;
 
-  // Repeat until no more dangerous patterns are found
-  // to handle cases like javasjavascript:cript: or <<script>script>
-  do {
-    previous = current;
-    current = stripHtml(current)
-      .replace(/(?:javascript|data|vbscript):/gi, '') // Remove dangerous URL schemes
-      .replace(/\bon\w+\s*=/gi, '') // Remove event handlers with word boundary
-      .replace(/[\x00-\x1F\x7F]/g, ''); // Remove control characters
-  } while (current !== previous);
+  // Browser environment: use DOMPurify
+  if (typeof window !== 'undefined') {
+    cleaned = DOMPurify.sanitize(input, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: [],
+      RETURN_DOM_FRAGMENT: false,
+      RETURN_DOM: false,
+    });
+  } else {
+    // Server-side fallback: strip HTML tags recursively
+    let previous;
+    do {
+      previous = cleaned;
+      cleaned = cleaned.replace(/<[^>]*>?/gm, '');
+    } while (cleaned !== previous);
+  }
 
-  return current.trim().substring(0, 2000); // Enforce max length
+  // Final cleanup: 
+  // 1. Remove dangerous URL schemes that might survive (javascript:, data:, vbscript:)
+  // 2. Remove control characters
+  // 3. Trim and enforce length
+  return cleaned
+    .replace(/(?:javascript|data|vbscript):/gi, '')
+    .replace(/[\x00-\x1F\x7F]/g, '')
+    .trim()
+    .substring(0, 2000);
 }
 
 /**
