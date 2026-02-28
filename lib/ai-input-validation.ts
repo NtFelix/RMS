@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify';
+
 /**
  * AI Input Validation Utilities
  * Provides comprehensive input validation for AI assistant queries
@@ -45,14 +47,26 @@ const EXCESSIVE_PUNCTUATION = /[!?]{3,}|[.]{4,}/g;
  */
 function stripHtml(input: string): string {
   if (!input) return '';
-  let previous;
-  let current = input;
-  // Repeat to handle cases like <<script>script>
-  do {
-    previous = current;
-    current = current.replace(/<[^>]*>?/gm, '');
-  } while (current !== previous);
-  return current;
+  
+  // Handle both browser and Node.js environments
+  if (typeof window !== 'undefined') {
+    // Use DOMPurify for robust, industry-standard HTML stripping in the browser
+    return DOMPurify.sanitize(input, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: [],
+      KEEP_CONTENT: true
+    });
+  } else {
+    // For Node.js/Server-side without JSDOM, use recursive regex stripping
+    let previous;
+    let current = input;
+    // Repeat to handle cases like <<script>script>
+    do {
+      previous = current;
+      current = current.replace(/<[^>]*>?/gm, '');
+    } while (current !== previous);
+    return current;
+  }
 }
 
 // HTML/Script injection patterns - improved to be more robust and avoid ReDoS
