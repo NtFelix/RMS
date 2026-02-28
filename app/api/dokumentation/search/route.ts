@@ -43,7 +43,7 @@ function sanitizeQuery(query: string): string {
       .replace(/javascript:/gi, '') // Remove javascript: protocol
       .replace(/data:/gi, '') // Remove data: protocol
       .replace(/vbscript:/gi, '') // Remove vbscript: protocol
-      .replace(/\bon\w+\s*=/gi, ''); // Remove event handlers with word boundary
+      .replace(/\bon\w*\s*=/gi, ''); // Remove event handlers with word boundary
   } while (current !== previous);
 
   // Escape SQL wildcards and backslashes for LIKE clauses
@@ -58,7 +58,7 @@ function isValidQuery(query: string): boolean {
     /javascript:/i,
     /data:/i,
     /vbscript:/i,
-    /\bon\w+\s*=/i, // Event handlers like onclick=
+    /\bon\w*\s*=/i, // Event handlers like onclick=
     /eval\s*\(/i,
     /expression\s*\(/i,
   ];

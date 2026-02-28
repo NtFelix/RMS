@@ -78,7 +78,7 @@ const INJECTION_PATTERNS = [
   /<iframe\b[^>]*>[\s\S]*?<\/iframe[^>]*>/gi,
   /<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi,
   /(?:javascript|data|vbscript):/gi,
-  /\bon\w+\s*=/gi
+  /\bon\w*\s*=/gi
 ];
 
 /**
@@ -279,7 +279,7 @@ export function sanitizeInput(input: string): string {
     // Step 2: Remove dangerous URL schemes and event handlers
     current = current
       .replace(/(?:javascript|data|vbscript):/gi, '')
-      .replace(/\bon\w+\s*=/gi, '');
+      .replace(/\bon\w*\s*=/gi, '');
   } while (current !== previous);
 
   // Final cleanup: remove control characters, trim and enforce length
