@@ -633,6 +633,10 @@ jobs:
         if: always()
         run: |
           WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}"
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "❌ Error: DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS secret is not set."
+            exit 1
+          fi
           
           # Create zip files for each available device
           echo "Creating zip files for available device reports..."
@@ -660,43 +664,56 @@ jobs:
           echo "Available zip files:"
           ls -lh lighthouse-*-report.zip 2>/dev/null || echo "No zip files created"
           
-          # Build the curl command dynamically based on available files
-          # Discord webhooks support up to 10 files per message
+          # Build the curl command as an array to handle spaces and special characters safely
           echo ""
           echo "Sending Discord notification with embed and attachments..."
           
-          # Start building curl command with the payload_json for the embed
-          CURL_CMD="curl -s"
-          FILE_COUNT=0
+          CURL_ARGS=(-s -S) # -S shows error if it fails
           
           # Add each available zip file
+          FILE_COUNT=0
           if [ -f lighthouse-mobile-report.zip ] && [ -s lighthouse-mobile-report.zip ]; then
-            CURL_CMD="$CURL_CMD -F 'files[$FILE_COUNT]=@lighthouse-mobile-report.zip;filename=lighthouse-mobile-report.zip'"
+            CURL_ARGS+=(-F "files[$FILE_COUNT]=@lighthouse-mobile-report.zip")
             FILE_COUNT=$((FILE_COUNT + 1))
             echo "  📱 Adding mobile report"
           fi
           
           if [ -f lighthouse-desktop-report.zip ] && [ -s lighthouse-desktop-report.zip ]; then
-            CURL_CMD="$CURL_CMD -F 'files[$FILE_COUNT]=@lighthouse-desktop-report.zip;filename=lighthouse-desktop-report.zip'"
+            CURL_ARGS+=(-F "files[$FILE_COUNT]=@lighthouse-desktop-report.zip")
             FILE_COUNT=$((FILE_COUNT + 1))
             echo "  🖥️ Adding desktop report"
           fi
           
           if [ -f lighthouse-tablet-report.zip ] && [ -s lighthouse-tablet-report.zip ]; then
-            CURL_CMD="$CURL_CMD -F 'files[$FILE_COUNT]=@lighthouse-tablet-report.zip;filename=lighthouse-tablet-report.zip'"
+            CURL_ARGS+=(-F "files[$FILE_COUNT]=@lighthouse-tablet-report.zip")
             FILE_COUNT=$((FILE_COUNT + 1))
             echo "  📱 Adding tablet report"
           fi
           
           # Add the JSON payload with the embed
-          CURL_CMD="$CURL_CMD -F 'payload_json=<discord-payload.json'"
-          CURL_CMD="$CURL_CMD $WEBHOOK_URL"
+          if [ -f discord-payload.json ]; then
+            CURL_ARGS+=(-F "payload_json=<discord-payload.json")
+          else
+            echo "❌ Error: discord-payload.json not found"
+            exit 1
+          fi
           
           echo ""
           echo "Sending $FILE_COUNT file(s) with embed to Discord..."
           
-          # Execute the curl command
-          eval $CURL_CMD
+          # Execute curl with the constructed arguments
+          RESPONSE=$(curl "${CURL_ARGS[@]}" "$WEBHOOK_URL")
+          CURL_EXIT_CODE=$?
+          
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "❌ Error: curl failed with exit code $CURL_EXIT_CODE"
+            exit $CURL_EXIT_CODE
+          fi
+          
+          if [ -n "$RESPONSE" ] && echo "$RESPONSE" | grep -q "error"; then
+            echo "❌ Error from Discord API: $RESPONSE"
+            exit 1
+          fi
           
           echo ""
           echo "✓ Discord notification sent successfully with $FILE_COUNT attachment(s)"
