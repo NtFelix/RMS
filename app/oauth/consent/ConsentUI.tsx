@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldAlert, Check, Loader2, AlertTriangle, X } from 'lucide-react';
@@ -69,6 +68,42 @@ interface AuthorizationDetails {
 
 import { LOGO_URL, BRAND_NAME } from '@/lib/constants';
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+/** Direct fetch to GET /auth/v1/oauth/authorizations/{id} */
+async function fetchAuthorizationDetails(authorizationId: string): Promise<{ data: any; error: any }> {
+    try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}`, {
+            method: 'GET',
+            headers: { 'apikey': SUPABASE_ANON_KEY },
+            credentials: 'include',
+        });
+        const json = await res.json();
+        if (!res.ok) return { data: null, error: { message: json.error_description || json.message || json.error || 'Failed to load' } };
+        return { data: json, error: null };
+    } catch (e: any) {
+        return { data: null, error: { message: e.message } };
+    }
+}
+
+/** Direct fetch to POST /auth/v1/oauth/authorizations/{id} with { decision: 'allow' | 'deny' } */
+async function submitAuthorizationDecision(authorizationId: string, decision: 'allow' | 'deny'): Promise<{ data: any; error: any }> {
+    try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+            credentials: 'include',
+            body: JSON.stringify({ decision }),
+        });
+        const json = await res.json();
+        if (!res.ok) return { data: null, error: { message: json.error_description || json.message || json.error || 'Failed' } };
+        return { data: json, error: null };
+    } catch (e: any) {
+        return { data: null, error: { message: e.message } };
+    }
+}
+
 export default function ConsentUI({
     type,
     error,
@@ -84,12 +119,6 @@ export default function ConsentUI({
     const [authDetails, setAuthDetails] = useState<AuthorizationDetails | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    // Create browser client for consent actions
-    const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
     // Fetch authorization details on mount
     useEffect(() => {
         const fetchDetails = async () => {
@@ -98,31 +127,24 @@ export default function ConsentUI({
                 return;
             }
 
-            try {
-                const { data, error: detailsError } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.getAuthorizationDetails(authorizationId);
+            const { data, error: detailsError } = await fetchAuthorizationDetails(authorizationId);
+            console.log('getAuthorizationDetails response:', data, detailsError);
 
-                console.log('getAuthorizationDetails response:', data, detailsError);
-
-                if (detailsError) {
-                    setLoadError(detailsError.message);
-                    setIsLoading(false);
-                    return;
-                }
-
-                // Check if the authorization was auto-approved and has a redirect URL
-                // This happens when the user has previously approved this client
-                if (data?.redirect_to || data?.redirect_url) {
-                    console.log('Auto-approved, redirecting to:', data.redirect_to || data.redirect_url);
-                    window.location.href = data.redirect_to || data.redirect_url;
-                    return; // Keep loading state while redirecting
-                }
-
-                setAuthDetails(data);
-            } catch (err: any) {
-                setLoadError(err.message || 'Failed to load authorization details');
-            } finally {
+            if (detailsError) {
+                setLoadError(detailsError.message);
                 setIsLoading(false);
+                return;
             }
+
+            // Check if the authorization was auto-approved and has a redirect URL
+            if (data?.redirect_to || data?.redirect_url) {
+                console.log('Auto-approved, redirecting to:', data.redirect_to || data.redirect_url);
+                window.location.href = data.redirect_to || data.redirect_url;
+                return;
+            }
+
+            setAuthDetails(data);
+            setIsLoading(false);
         };
 
         fetchDetails();
@@ -139,26 +161,23 @@ export default function ConsentUI({
         setIsProcessing(true);
         setProcessError(null);
 
-        try {
-            const authClient = supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth;
-            const { data, error } = decision === 'approve'
-                ? await authClient.oauth.approveAuthorization(authorizationId)
-                : await authClient.oauth.denyAuthorization(authorizationId);
+        const { data, error } = await submitAuthorizationDecision(
+            authorizationId,
+            decision === 'approve' ? 'allow' : 'deny'
+        );
 
-            if (error) {
-                setProcessError(error.message);
-                setIsProcessing(false);
-                return;
-            }
+        if (error) {
+            setProcessError(error.message);
+            setIsProcessing(false);
+            return;
+        }
 
-            // The SDK should auto-redirect, but check for redirect_url just in case
-            if (data?.redirect_url) {
-                window.location.href = data.redirect_url;
-            } else if (data?.redirect_to) {
-                window.location.href = data.redirect_to;
-            }
-        } catch (err: any) {
-            setProcessError(err.message || `An error occurred while ${decision === 'approve' ? 'approving' : 'denying'} authorization`);
+        // Supabase returns redirect_to after approval — follow it
+        const redirectTarget = data?.redirect_to || data?.redirect_url;
+        if (redirectTarget) {
+            window.location.href = redirectTarget;
+        } else {
+            // Fallback: reload page to show success state
             setIsProcessing(false);
         }
     };
