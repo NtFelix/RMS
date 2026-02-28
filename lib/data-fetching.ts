@@ -369,7 +369,7 @@ export async function fetchUserProfile(): Promise<Profile | null> {
     if (profileError.code === 'PGRST116') {
       // Profile not found in 'profiles' table - this is expected for new users
     } else {
-      console.error(`Unhandled error fetching profile data for user ${user.id}:`, profileError);
+      console.error('Unhandled error fetching profile data for user %s:', user.id, profileError);
     }
     return baseUserProfile;
   }
@@ -448,7 +448,7 @@ export async function fetchMeterReadingsByHausAndDateRange(
     const { data: readingsWithRelations, error: readingsError } = readingsResult;
 
     if (mieterError) {
-      console.error(`Error fetching Mieter for Wohnungen in Haus ID ${hausId}:`, mieterError);
+      console.error('Error fetching Mieter for Wohnungen in Haus ID %s:', hausId, mieterError);
       // If fetching tenants fails, we can't do much, so return empty
       return { mieterList: [], existingReadings: [] };
     }
@@ -530,14 +530,14 @@ export async function fetchMeterReadingsModalData(nebenkostenId: string): Promis
       .single();
 
     if (nebenkostenError || !nebenkostenEntry) {
-      console.error(`Error fetching Nebenkosten entry for ID ${nebenkostenId}:`, nebenkostenError);
+      console.error('Error fetching Nebenkosten entry for ID %s:', nebenkostenId, nebenkostenError);
       throw new Error(`Nebenkosten entry with ID ${nebenkostenId} not found.`);
     }
 
     const { haeuser_id, startdatum, enddatum } = nebenkostenEntry;
 
     if (!haeuser_id || !startdatum || !enddatum) {
-      console.error(`Nebenkosten entry ${nebenkostenId} is missing haeuser_id, startdatum, or enddatum.`);
+      console.error('Nebenkosten entry %s is missing haeuser_id, startdatum, or enddatum.', nebenkostenId);
       return { mieterList: [], existingReadings: [] };
     }
 

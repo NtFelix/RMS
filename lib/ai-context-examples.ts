@@ -257,7 +257,7 @@ export class ConversationalAI {
   private currentContext: any = null;
 
   constructor(sessionId?: string) {
-    this.sessionId = sessionId || `conversation_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.sessionId = sessionId || `conversation_${crypto.randomUUID()}`;
   }
 
   async askQuestion(question: string, updateContext: boolean = true) {

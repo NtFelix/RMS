@@ -45,8 +45,10 @@ export interface UseEnhancedAIAssistantReturn {
   retryState: ReturnType<typeof useRetry>['state'];
 }
 
-const generateSessionId = () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// crypto.randomUUID() requires a secure context (HTTPS/localhost) in the browser
+// and is available in Node.js >=14.17.
+const generateSessionId = () => `session_${crypto.randomUUID()}`;
+const generateMessageId = () => `msg_${crypto.randomUUID()}`;
 
 /**
  * Enhanced AI Assistant hook with comprehensive error handling
@@ -671,7 +673,9 @@ function getGermanErrorMessage(errorDetails: AIErrorDetails): string {
     case 'rate_limit':
       return 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
     case 'server_error':
-      return 'Serverfehler. Bitte versuchen Sie es später erneut.';
+      return 'Serverfehler. Der AI-Dienst ist momentan nicht erreichbar. Bitte versuchen Sie es später erneut.';
+    case 'inference_error':
+      return 'Fehler bei der AI-Verarbeitung. Bitte versuchen Sie es erneut.';
     case 'authentication_error':
       return 'Authentifizierungsfehler. Der Service ist momentan nicht verfügbar.';
     case 'content_safety_error':
