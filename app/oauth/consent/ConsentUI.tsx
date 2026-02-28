@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { getAuthorizationDetailsAction, submitDecisionAction } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldAlert, Check, Loader2, AlertTriangle, X } from 'lucide-react';
@@ -132,12 +132,6 @@ export default function ConsentUI({
     );
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    // Create browser client for consent actions
-    const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
     // Fetch authorization details on mount
     useEffect(() => {
         const fetchDetails = async () => {
@@ -147,26 +141,19 @@ export default function ConsentUI({
             }
 
             try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}`, {
-                    headers: { 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! },
-                    credentials: 'include'
-                });
+                // Must use server action — browser cannot call Supabase Auth directly
+                // because Supabase returns Access-Control-Allow-Origin: * which
+                // browsers block when credentials: include is set.
+                const { success, data, error: detailsError } = await getAuthorizationDetailsAction(authorizationId);
 
-                if (!response.ok) {
-                    const err = await response.json();
-                    setLoadError(err.message || err.error_description || 'Failed to load details');
+                if (!success || detailsError) {
+                    setLoadError(detailsError || 'Failed to load details');
                     setIsLoading(false);
                     return;
                 }
 
-                const data = await response.json();
-                console.log('Authorization details:', data);
-
                 // Check if the authorization was auto-approved and has a redirect URL.
                 // We intentionally do NOT auto-follow — always show the manual consent screen.
-                if (data?.redirect_to || data?.redirect_url) {
-                    // Redirect URL present, but user must still explicitly approve below.
-                }
 
                 setAuthDetails(data);
             } catch (err: any) {
@@ -272,46 +259,21 @@ export default function ConsentUI({
         setProcessError(null);
 
         try {
-            // If we are approving and we already have a redirect URL from the details (auto-approved case),
-            // just use it instead of calling the API again to avoid "validation_failed" (400) errors.
-            const autoRedirectUrl = authDetails?.redirect_to || authDetails?.redirect_url;
-            if (decision === 'approve' && autoRedirectUrl) {
-                safeRedirect(autoRedirectUrl);
+            // All Supabase calls go through server actions to avoid CORS issues.
+            // (Supabase returns Access-Control-Allow-Origin: * which browsers block with credentials: include)
+            const { success, redirect_to, error } = await submitDecisionAction(
+                authorizationId,
+                decision === 'approve' ? 'allow' : 'deny'
+            );
+
+            if (!success || error) {
+                setProcessError(error || 'Decision failed');
+                setIsProcessing(false);
                 return;
             }
 
-            // Attempt client-side approve/deny first
-            const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-                },
-                credentials: 'include',
-                body: JSON.stringify({ decision: decision === 'approve' ? 'allow' : 'deny' })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const redirectTarget = data?.redirect_to || data?.redirect_url;
-                safeRedirect(redirectTarget);
-                if (!redirectTarget) setIsProcessing(false);
-            } else {
-                // Fallback to Server Action if client-side POST is blocked (e.g. by Brave/Firefox cross-site policies)
-                if (decision === 'approve') {
-                    const { success, redirect_to, error } = await import('./actions').then(m => m.approveAuthorizationAction(authorizationId));
-                    if (success && redirect_to) {
-                        safeRedirect(redirect_to);
-                    } else {
-                        setProcessError(error || 'Action failed');
-                        setIsProcessing(false);
-                    }
-                } else {
-                    const errData = await response.json();
-                    setProcessError(errData.message || 'Denial failed');
-                    setIsProcessing(false);
-                }
-            }
+            safeRedirect(redirect_to);
+            if (!redirect_to) setIsProcessing(false);
         } catch (err: any) {
             setProcessError(err.message || `An error occurred while ${decision === 'approve' ? 'approving' : 'denying'} authorization`);
             setIsProcessing(false);
