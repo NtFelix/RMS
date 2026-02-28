@@ -29,14 +29,24 @@ function checkRateLimit(clientId: string): boolean {
 
 // Helper function to sanitize search query
 function sanitizeQuery(query: string): string {
-  // Remove potentially harmful patterns
-  return query
-    .trim()
-    .replace(/[<>]/g, '') // Remove HTML tags
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/data:/gi, '') // Remove data: protocol
-    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
-    .replace(/[%_]/g, '\\$&'); // Escape SQL wildcards
+  if (!query) return '';
+  
+  let previous;
+  let current = query.trim();
+  
+  // Repeat until no more dangerous patterns are found
+  // to handle cases like javasjavascript:cript:
+  do {
+    previous = current;
+    current = current
+      .replace(/[<>]/g, '') // Remove HTML tags
+      .replace(/javascript:/gi, '') // Remove javascript: protocol
+      .replace(/data:/gi, '') // Remove data: protocol
+      .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+      .replace(/on\w+\s*=/gi, ''); // Remove event handlers
+  } while (current !== previous);
+
+  return current.replace(/[%_]/g, '\\$&'); // Escape SQL wildcards
 }
 
 // Validate query for suspicious patterns

@@ -248,12 +248,20 @@ export function validateAIContext(input: string): ValidationResult {
 export function sanitizeInput(input: string): string {
   if (!input) return '';
 
-  const cleaned = stripHtml(input)
-    .replace(/(?:javascript|data|vbscript):/gi, '') // Remove dangerous URL schemes
-    .replace(/on\w+\s*=/gi, '') // Remove event handlers
-    .replace(/[\x00-\x1F\x7F]/g, ''); // Remove control characters
+  let previous;
+  let current = stripHtml(input);
 
-  return cleaned.trim().substring(0, 2000); // Enforce max length
+  // Repeat until no more dangerous patterns are found
+  // to handle cases like javasjavascript:cript:
+  do {
+    previous = current;
+    current = current
+      .replace(/(?:javascript|data|vbscript):/gi, '') // Remove dangerous URL schemes
+      .replace(/on\w+\s*=/gi, '') // Remove event handlers
+      .replace(/[\x00-\x1F\x7F]/g, ''); // Remove control characters
+  } while (current !== previous);
+
+  return current.trim().substring(0, 2000); // Enforce max length
 }
 
 /**
