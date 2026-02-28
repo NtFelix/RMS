@@ -1,5 +1,3 @@
-import DOMPurify from 'dompurify';
-
 /**
  * AI Input Validation Utilities
  * Provides comprehensive input validation for AI assistant queries
@@ -50,6 +48,8 @@ function stripHtml(input: string): string {
   
   // Handle both browser and Node.js environments
   if (typeof window !== 'undefined') {
+    // Dynamically require DOMPurify to prevent SSR issues during module load
+    const DOMPurify = require('dompurify');
     // Use DOMPurify for robust, industry-standard HTML stripping in the browser
     return DOMPurify.sanitize(input, {
       ALLOWED_TAGS: [],
@@ -270,10 +270,14 @@ export function sanitizeInput(input: string): string {
 
   // Step 2: Final cleanup: 
   // 1. Remove dangerous URL schemes that might survive (javascript:, data:, vbscript:)
-  // 2. Remove control characters
-  // 3. Trim and enforce length
+  // 2. Remove event handlers that might survive or be provided without tags (onclick=)
+  // 3. Remove control characters
+  // 4. Trim and enforce length
+  // Note: Using non-iterative replacement for event handlers to satisfy CodeQL
+  // while still providing protection against bare event handlers.
   return cleaned
     .replace(/(?:javascript|data|vbscript):/gi, '')
+    .replace(/\bon\w+\s*=/gi, '')
     .replace(/[\x00-\x1F\x7F]/g, '')
     .trim()
     .substring(0, 2000);

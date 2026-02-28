@@ -736,7 +736,6 @@ async function withRetry<T>(
                 err?.status === 429;
             
             const isTransientError = err?.status === 500 || 
-                err?.message?.includes('500') ||
                 err?.message?.includes('Internal error') ||
                 err?.message?.includes('Agent inference failed') ||
                 err?.message?.includes('overloaded');

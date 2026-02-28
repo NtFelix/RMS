@@ -196,7 +196,7 @@ jest.mock('@/hooks/use-ai-cache-client', () => ({
 }));
 
 // AI input validation is used directly in tests to verify logic
-// jest.mock('@/lib/ai-input-validation', ...);
+jest.unmock('@/lib/ai-input-validation');
 
 jest.mock('@/lib/ai-documentation-context', () => ({
   categorizeAIError: jest.fn(() => ({
