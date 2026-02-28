@@ -57,9 +57,9 @@ function stripHtml(input: string): string {
 
 // HTML/Script injection patterns - improved to be more robust and avoid ReDoS
 const INJECTION_PATTERNS = [
-  /<script\b[^>]*>[\s\S]*?<\/script\s*>/gi,
-  /<iframe\b[^>]*>[\s\S]*?<\/iframe\s*>/gi,
-  /<style\b[^>]*>[\s\S]*?<\/style\s*>/gi,
+  /<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi,
+  /<iframe\b[^>]*>[\s\S]*?<\/iframe[^>]*>/gi,
+  /<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi,
   /(?:javascript|data|vbscript):/gi,
   /on\w+\s*=/gi
 ];
