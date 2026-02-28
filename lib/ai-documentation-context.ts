@@ -429,8 +429,11 @@ export function categorizeAIError(error: Error | string, context?: any): AIError
   }
   
   // Server errors
-  if (errorLower.includes('500') || errorLower.includes('internal server') || 
-      errorLower.includes('server error')) {
+  if (
+    (typeof error !== 'string' && (error as any).status === 500) ||
+    errorLower.includes('internal server') || 
+    errorLower.includes('server error')
+  ) {
     return {
       errorType: 'server_error',
       errorCode: 'SERVER_ERROR',

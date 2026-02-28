@@ -59,13 +59,14 @@ function stripHtml(input: string): string {
       RETURN_DOM: false,
     });
   } else {
-    // For Node.js/Server-side without JSDOM, use recursive regex stripping
+    // For Node.js/Server-side without JSDOM, use recursive stripping
+    // Heuristic: only strip if it looks like a tag (starts with < and a letter or /)
+    // and ends with >. This avoids mangling math like "a < b".
     let previous;
     let current = input;
-    // Repeat to handle cases like <<script>script>
     do {
       previous = current;
-      current = current.replace(/<[^>]*>?/gm, '');
+      current = current.replace(/<[a-z\/][^>]*>/gi, '');
     } while (current !== previous);
     return current;
   }

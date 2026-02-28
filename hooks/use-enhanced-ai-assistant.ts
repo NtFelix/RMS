@@ -45,6 +45,8 @@ export interface UseEnhancedAIAssistantReturn {
   retryState: ReturnType<typeof useRetry>['state'];
 }
 
+// crypto.randomUUID() requires a secure context (HTTPS/localhost) in the browser
+// and is available in Node.js >=14.17.
 const generateSessionId = () => `session_${crypto.randomUUID()}`;
 const generateMessageId = () => `msg_${crypto.randomUUID()}`;
 
