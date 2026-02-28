@@ -54,7 +54,9 @@ function stripHtml(input: string): string {
     return DOMPurify.sanitize(input, {
       ALLOWED_TAGS: [],
       ALLOWED_ATTR: [],
-      KEEP_CONTENT: true
+      KEEP_CONTENT: true,
+      RETURN_DOM_FRAGMENT: false,
+      RETURN_DOM: false,
     });
   } else {
     // For Node.js/Server-side without JSDOM, use recursive regex stripping
@@ -262,29 +264,10 @@ export function validateAIContext(input: string): ValidationResult {
 export function sanitizeInput(input: string): string {
   if (!input) return '';
 
-  // Use DOMPurify for industry-standard HTML and attribute stripping
-  // Configuration: no tags allowed, no attributes allowed.
-  // This effectively neutralizes all event handlers (on*) and HTML tags.
-  let cleaned = input;
+  // Step 1: Strip HTML tags and attributes using industry-standard methods
+  const cleaned = stripHtml(input);
 
-  // Browser environment: use DOMPurify
-  if (typeof window !== 'undefined') {
-    cleaned = DOMPurify.sanitize(input, {
-      ALLOWED_TAGS: [],
-      ALLOWED_ATTR: [],
-      RETURN_DOM_FRAGMENT: false,
-      RETURN_DOM: false,
-    });
-  } else {
-    // Server-side fallback: strip HTML tags recursively
-    let previous;
-    do {
-      previous = cleaned;
-      cleaned = cleaned.replace(/<[^>]*>?/gm, '');
-    } while (cleaned !== previous);
-  }
-
-  // Final cleanup: 
+  // Step 2: Final cleanup: 
   // 1. Remove dangerous URL schemes that might survive (javascript:, data:, vbscript:)
   // 2. Remove control characters
   // 3. Trim and enforce length

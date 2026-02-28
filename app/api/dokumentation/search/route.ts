@@ -46,11 +46,8 @@ function sanitizeQuery(query: string): string {
       .replace(/\bon\w+\s*=/gi, ''); // Remove event handlers with word boundary
   } while (current !== previous);
 
-  // Escape SQL wildcards and backslashes
-  // MUST escape backslashes FIRST, then %, then _
-  return current
-    .replace(/\\/g, '\\\\')
-    .replace(/[%_]/g, '\\$&');
+  // Escape SQL wildcards and backslashes for LIKE clauses
+  return current.replace(/[\\%_]/g, '\\$&');
 }
 
 // Validate query for suspicious patterns
