@@ -61,7 +61,7 @@ const INJECTION_PATTERNS = [
   /<iframe\b[^>]*>[\s\S]*?<\/iframe[^>]*>/gi,
   /<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi,
   /(?:javascript|data|vbscript):/gi,
-  /on\w+\s*=/gi
+  /\bon\w+\s*=/gi
 ];
 
 /**
@@ -249,15 +249,15 @@ export function sanitizeInput(input: string): string {
   if (!input) return '';
 
   let previous;
-  let current = stripHtml(input);
+  let current = input;
 
   // Repeat until no more dangerous patterns are found
-  // to handle cases like javasjavascript:cript:
+  // to handle cases like javasjavascript:cript: or <<script>script>
   do {
     previous = current;
-    current = current
+    current = stripHtml(current)
       .replace(/(?:javascript|data|vbscript):/gi, '') // Remove dangerous URL schemes
-      .replace(/on\w+\s*=/gi, '') // Remove event handlers
+      .replace(/\bon\w+\s*=/gi, '') // Remove event handlers with word boundary
       .replace(/[\x00-\x1F\x7F]/g, ''); // Remove control characters
   } while (current !== previous);
 

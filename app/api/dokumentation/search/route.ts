@@ -35,7 +35,7 @@ function sanitizeQuery(query: string): string {
   let current = query.trim();
   
   // Repeat until no more dangerous patterns are found
-  // to handle cases like javasjavascript:cript:
+  // to handle cases like javasjavascript:cript: or <<script>script>
   do {
     previous = current;
     current = current
@@ -43,10 +43,14 @@ function sanitizeQuery(query: string): string {
       .replace(/javascript:/gi, '') // Remove javascript: protocol
       .replace(/data:/gi, '') // Remove data: protocol
       .replace(/vbscript:/gi, '') // Remove vbscript: protocol
-      .replace(/on\w+\s*=/gi, ''); // Remove event handlers
+      .replace(/\bon\w+\s*=/gi, ''); // Remove event handlers with word boundary
   } while (current !== previous);
 
-  return current.replace(/[%_]/g, '\\$&'); // Escape SQL wildcards
+  // Escape SQL wildcards and backslashes
+  // MUST escape backslashes FIRST, then %, then _
+  return current
+    .replace(/\\/g, '\\\\')
+    .replace(/[%_]/g, '\\$&');
 }
 
 // Validate query for suspicious patterns
@@ -57,7 +61,7 @@ function isValidQuery(query: string): boolean {
     /javascript:/i,
     /data:/i,
     /vbscript:/i,
-    /on\w+\s*=/i, // Event handlers like onclick=
+    /\bon\w+\s*=/i, // Event handlers like onclick=
     /eval\s*\(/i,
     /expression\s*\(/i,
   ];
