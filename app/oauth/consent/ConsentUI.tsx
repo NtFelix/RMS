@@ -266,8 +266,13 @@ export default function ConsentUI({
             // For auto-approved authorizations, Supabase has already granted access.
             // POSTing a decision to the endpoint returns 405 Method Not Allowed.
             // Instead, use the redirect_to from the initial GET details response directly.
-            const autoRedirectUrl = authDetails?.redirect_to || authDetails?.redirect_url;
-            if (decision === 'approve' && authDetails?.auto_approved && autoRedirectUrl) {
+            if (decision === 'approve' && authDetails?.auto_approved) {
+                const autoRedirectUrl = authDetails.redirect_to || authDetails.redirect_url;
+                if (!autoRedirectUrl) {
+                    setProcessError('Automatically approved authorization has no redirect URL. Please try again.');
+                    setIsProcessing(false);
+                    return;
+                }
                 safeRedirect(autoRedirectUrl);
                 return;
             }
