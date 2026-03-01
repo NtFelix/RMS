@@ -1,6 +1,6 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -24,15 +24,6 @@ function buildAuthUrl(authorizationId: string): string {
     ).toString();
 }
 
-/** Gets the current user's session cookies to forward to Supabase */
-async function getSessionCookieHeader(): Promise<string> {
-    const cookieStore = await cookies();
-    return cookieStore.getAll()
-        .filter(c => c.name.startsWith('sb-'))
-        .map(c => `${c.name}=${c.value}`)
-        .join('; ');
-}
-
 /** Parses a Supabase Auth error from a response text. */
 function parseSupabaseAuthError(responseText: string, fallbackMessage: string): string {
     let errorData: any = {};
@@ -46,20 +37,36 @@ function parseSupabaseAuthError(responseText: string, fallbackMessage: string): 
 }
 
 /**
+ * Retrieves the current user's access token from their Supabase session.
+ * The /auth/v1/oauth/authorizations/{id} endpoint requires a Bearer token,
+ * NOT cookies — unlike most other Supabase Auth endpoints.
+ */
+async function getAccessToken(): Promise<string> {
+    const supabase = await createClient();
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session?.access_token) {
+        throw new Error('Not authenticated — no valid session found');
+    }
+    return session.access_token;
+}
+
+/**
  * Fetches the authorization request details from Supabase.
  * Must run server-side — Supabase CORS policy blocks client-side requests
  * with credentials from cross-origin pages.
+ *
+ * NOTE: This endpoint requires Authorization: Bearer <access_token>, NOT cookies.
  */
 export async function getAuthorizationDetailsAction(authorizationId: string) {
     try {
         validateId(authorizationId);
-        const cookieHeader = await getSessionCookieHeader();
+        const accessToken = await getAccessToken();
         const url = buildAuthUrl(authorizationId);
 
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'Cookie': cookieHeader,
+                'Authorization': `Bearer ${accessToken}`,
                 'apikey': SUPABASE_ANON_KEY,
             },
         });
@@ -86,6 +93,8 @@ export async function getAuthorizationDetailsAction(authorizationId: string) {
 /**
  * Submits the user's consent decision (allow or deny) to Supabase.
  * Must run server-side — same CORS restriction as above.
+ *
+ * NOTE: This endpoint requires Authorization: Bearer <access_token>, NOT cookies.
  */
 export async function submitDecisionAction(authorizationId: string, decision: 'allow' | 'deny') {
     try {
@@ -94,14 +103,14 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
             throw new Error('Invalid decision value');
         }
 
-        const cookieHeader = await getSessionCookieHeader();
+        const accessToken = await getAccessToken();
         const url = buildAuthUrl(authorizationId);
 
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Cookie': cookieHeader,
+                'Authorization': `Bearer ${accessToken}`,
                 'apikey': SUPABASE_ANON_KEY,
             },
             body: JSON.stringify({ decision }),
