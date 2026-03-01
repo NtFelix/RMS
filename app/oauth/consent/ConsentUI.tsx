@@ -70,7 +70,7 @@ interface AuthorizationDetails {
     scopes?: string | string[];
     redirect_to?: string;
     redirect_url?: string;
-    /** Set to true by Supabase when the OAuth app was previously approved (skip POST on approve) */
+    /** Set to true by Supabase when the app was previously approved — skip the decision POST endpoint */
     auto_approved?: boolean;
 }
 
@@ -266,13 +266,24 @@ export default function ConsentUI({
             // For auto-approved authorizations, Supabase has already granted access.
             // POSTing a decision to the endpoint returns 405 Method Not Allowed.
             // Instead, use the redirect_to from the initial GET details response directly.
-            if (decision === 'approve' && authDetails?.auto_approved) {
+            if (authDetails?.auto_approved) {
+                if (decision === 'deny') {
+                    // For auto-approved, the access is already granted. Denying now would face the same
+                    // 405 constraint, so we gracefully abort and inform the user.
+                    setProcessError('This application is already approved. You can revoke access from your account settings.');
+                    setIsProcessing(false);
+                    return;
+                }
+
+                // redirect_to is set by Supabase on auto-approved flows; redirect_url is the registered fallback
                 const autoRedirectUrl = authDetails.redirect_to || authDetails.redirect_url;
                 if (!autoRedirectUrl) {
                     setProcessError('Automatically approved authorization has no redirect URL. Please try again.');
                     setIsProcessing(false);
                     return;
                 }
+
+                setIsProcessing(false); // defensive reset before navigation
                 safeRedirect(autoRedirectUrl);
                 return;
             }
