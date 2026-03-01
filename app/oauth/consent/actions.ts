@@ -50,9 +50,9 @@ async function getAccessToken(): Promise<string> {
         throw new Error('Not authenticated: invalid or expired session');
     }
 
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) {
-        throw error;
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+        throw new Error(`Session error: ${sessionError.message}`);
     }
     if (!session?.access_token) {
         throw new Error('Not authenticated: no valid session found');
