@@ -30,6 +30,18 @@ async function getSessionCookieHeader(): Promise<string> {
     return cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
 }
 
+/** Parses a Supabase Auth error from a response text. */
+function parseSupabaseAuthError(responseText: string, fallbackMessage: string): string {
+    let errorData: any = {};
+    try {
+        errorData = JSON.parse(responseText);
+    } catch {
+        // Not a JSON response, use the raw text if available.
+        return responseText || fallbackMessage;
+    }
+    return errorData.error_description || errorData.message || errorData.error || fallbackMessage;
+}
+
 /**
  * Fetches the authorization request details from Supabase.
  * Must run server-side — Supabase CORS policy blocks client-side requests
@@ -52,10 +64,7 @@ export async function getAuthorizationDetailsAction(authorizationId: string) {
         const responseText = await response.text();
 
         if (!response.ok) {
-            let errorData: any = {};
-            try { errorData = JSON.parse(responseText); } catch { /* */ }
-            const msg = errorData.error_description || errorData.message || errorData.error
-                || `Failed to fetch details: ${response.status}`;
+            const msg = parseSupabaseAuthError(responseText, `Failed to fetch details: ${response.status}`);
             return { success: false, error: msg, data: null };
         }
 
@@ -94,10 +103,7 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         const responseText = await response.text();
 
         if (!response.ok) {
-            let errorData: any = {};
-            try { errorData = JSON.parse(responseText); } catch { /* */ }
-            const msg = errorData.error_description || errorData.message || errorData.error
-                || `Decision failed: ${response.status}`;
+            const msg = parseSupabaseAuthError(responseText, `Decision failed: ${response.status}`);
             throw new Error(msg);
         }
 
