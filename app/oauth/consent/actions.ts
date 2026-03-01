@@ -44,7 +44,10 @@ function parseSupabaseAuthError(responseText: string, fallbackMessage: string): 
 async function getAccessToken(): Promise<string> {
     const supabase = await createClient();
     const { data: { session }, error } = await supabase.auth.getSession();
-    if (error || !session?.access_token) {
+    if (error) {
+        throw error;
+    }
+    if (!session?.access_token) {
         throw new Error('Not authenticated — no valid session found');
     }
     return session.access_token;
