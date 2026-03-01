@@ -27,7 +27,10 @@ function buildAuthUrl(authorizationId: string): string {
 /** Gets the current user's session cookies to forward to Supabase */
 async function getSessionCookieHeader(): Promise<string> {
     const cookieStore = await cookies();
-    return cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
+    return cookieStore.getAll()
+        .filter(c => c.name.startsWith('sb-'))
+        .map(c => `${c.name}=${c.value}`)
+        .join('; ');
 }
 
 /** Parses a Supabase Auth error from a response text. */
@@ -68,8 +71,12 @@ export async function getAuthorizationDetailsAction(authorizationId: string) {
             return { success: false, error: msg, data: null };
         }
 
-        const data = JSON.parse(responseText);
-        return { success: true, data, error: null };
+        try {
+            const data = JSON.parse(responseText);
+            return { success: true, data, error: null };
+        } catch {
+            return { success: false, error: 'Invalid JSON response from Supabase', data: null };
+        }
     } catch (err: any) {
         console.error('Server Action: getAuthorizationDetails failed:', err.message);
         return { success: false, error: err.message || 'Failed to load authorization details', data: null };
@@ -104,11 +111,15 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
 
         if (!response.ok) {
             const msg = parseSupabaseAuthError(responseText, `Decision failed: ${response.status}`);
-            throw new Error(msg);
+            return { success: false, redirect_to: null, error: msg };
         }
 
-        const data = JSON.parse(responseText);
-        return { success: true, redirect_to: data.redirect_to || data.redirect_url || null, error: null };
+        try {
+            const data = JSON.parse(responseText);
+            return { success: true, redirect_to: data.redirect_to || data.redirect_url || null, error: null };
+        } catch {
+            return { success: false, redirect_to: null, error: 'Invalid JSON response from Supabase' };
+        }
     } catch (err: any) {
         console.error('Server Action: submitDecision failed:', err.message);
         return { success: false, redirect_to: null, error: err.message || 'Authorization decision failed' };
@@ -124,6 +135,6 @@ export async function approveAuthorizationAction(authorizationId: string) {
     return {
         success: result.success,
         redirect_to: result.redirect_to,
-        error: result.error ?? undefined,
+        error: result.error,
     };
 }

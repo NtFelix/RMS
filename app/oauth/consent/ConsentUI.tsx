@@ -272,8 +272,12 @@ export default function ConsentUI({
                 return;
             }
 
-            safeRedirect(redirect_to);
-            if (!redirect_to) setIsProcessing(false);
+            if (redirect_to) {
+                safeRedirect(redirect_to);
+            } else {
+                setProcessError('No redirect URL returned. Please try again.');
+                setIsProcessing(false);
+            }
         } catch (err: any) {
             setProcessError(err.message || `An error occurred while ${decision === 'approve' ? 'approving' : 'denying'} authorization`);
             setIsProcessing(false);
