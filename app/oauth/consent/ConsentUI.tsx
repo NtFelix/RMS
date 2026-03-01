@@ -70,6 +70,8 @@ interface AuthorizationDetails {
     scopes?: string | string[];
     redirect_to?: string;
     redirect_url?: string;
+    /** Set to true by Supabase when the OAuth app was previously approved (skip POST on approve) */
+    auto_approved?: boolean;
 }
 
 import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/constants';
@@ -152,8 +154,10 @@ export default function ConsentUI({
                     return;
                 }
 
-                // Check if the authorization was auto-approved and has a redirect URL.
-                // We intentionally do NOT auto-follow — always show the manual consent screen.
+                // If auto_approved, Supabase has already granted access and the redirect_to
+                // URL is immediately usable. We still show the consent screen so the user
+                // knows what was approved, but the approve button uses the existing redirect
+                // instead of POSTing to the decision endpoint (which returns 405 on auto-approved).
 
                 setAuthDetails(data);
             } catch (err: any) {
@@ -259,6 +263,15 @@ export default function ConsentUI({
         setProcessError(null);
 
         try {
+            // For auto-approved authorizations, Supabase has already granted access.
+            // POSTing a decision to the endpoint returns 405 Method Not Allowed.
+            // Instead, use the redirect_to from the initial GET details response directly.
+            const autoRedirectUrl = authDetails?.redirect_to || authDetails?.redirect_url;
+            if (decision === 'approve' && authDetails?.auto_approved && autoRedirectUrl) {
+                safeRedirect(autoRedirectUrl);
+                return;
+            }
+
             // All Supabase calls go through server actions to avoid CORS issues.
             // (Supabase returns Access-Control-Allow-Origin: * which browsers block with credentials: include)
             const { success, redirect_to, error } = await submitDecisionAction(
