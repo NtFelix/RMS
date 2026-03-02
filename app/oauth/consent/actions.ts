@@ -84,6 +84,11 @@ export async function getAuthorizationDetailsAction(authorizationId: string) {
         const responseText = await response.text();
 
         if (!response.ok) {
+            // 404 means the authorization was already consumed or has expired.
+            // Supabase logs show "authorization not found" or "current status: approved" in this case.
+            if (response.status === 404) {
+                return { success: false, error: 'This authorization link has already been used or has expired. Please start the connection process again.', data: null };
+            }
             const msg = parseSupabaseAuthError(responseText, `Failed to fetch details: ${response.status}`);
             return { success: false, error: msg, data: null };
         }
