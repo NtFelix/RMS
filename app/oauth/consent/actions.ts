@@ -5,6 +5,9 @@ import { createClient } from '@/utils/supabase/server';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+const ERR_AUTH_EXPIRED =
+    'Dieser Autorisierungslink wurde bereits verwendet oder ist abgelaufen. Bitte starten Sie den Verbindungsvorgang erneut.';
+
 /** Validates an authorizationId to prevent SSRF via path traversal */
 function validateId(authorizationId: string): void {
     if (!authorizationId || authorizationId.length < 10 || authorizationId.length > 64) {
@@ -84,6 +87,11 @@ export async function getAuthorizationDetailsAction(authorizationId: string) {
         const responseText = await response.text();
 
         if (!response.ok) {
+            // 404 means the authorization was already consumed or has expired.
+            // Supabase logs show "authorization not found" or "current status: approved" in this case.
+            if (response.status === 404) {
+                return { success: false, error: ERR_AUTH_EXPIRED, data: null };
+            }
             const msg = parseSupabaseAuthError(responseText, `Failed to fetch details: ${response.status}`);
             return { success: false, error: msg, data: null };
         }
@@ -129,6 +137,9 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         const responseText = await response.text();
 
         if (!response.ok) {
+            if (response.status === 404) {
+                return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
+            }
             const msg = parseSupabaseAuthError(responseText, `Decision failed: ${response.status}`);
             return { success: false, redirect_to: null, error: msg };
         }
