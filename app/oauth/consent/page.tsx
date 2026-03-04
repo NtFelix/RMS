@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ConsentUI from './ConsentUI';
+import { getAuthorizationDetailsAction } from './actions';
 
 export const runtime = 'edge';
 
@@ -60,9 +61,21 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         redirect(`/login?redirect=/oauth/consent?authorization_id=${authorizationId}`);
     }
 
-    // Just pass the authorization_id to the client component
-    // The client will call getAuthorizationDetails and approveAuthorization
-    // This avoids any potential issues with server-side calls consuming the authorization
+    // Fetch authorization details server-side to handle auto_approved flows.
+    // When Supabase has already auto-approved the app, it returns auto_approved: true
+    // along with a redirect_to URL. We must NOT POST a decision in this case —
+    // Supabase returns 405 Method Not Allowed. Instead, redirect directly.
+    const { success, data } = await getAuthorizationDetailsAction(authorizationId);
+
+    if (success && data?.auto_approved) {
+        const autoRedirectUrl = data.redirect_to || data.redirect_url;
+        if (autoRedirectUrl) {
+            redirect(autoRedirectUrl);
+        }
+        // auto_approved but no redirect_to — fall through to show the consent UI
+        // which will display a user-friendly error if approve is clicked.
+    }
+
     return (
         <ConsentUI
             type="consent"
