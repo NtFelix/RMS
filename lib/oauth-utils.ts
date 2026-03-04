@@ -39,17 +39,13 @@ export function isValidRedirect(url: string | undefined | null): boolean {
  */
 export function isValidSupabaseRedirect(url: string | undefined | null): boolean {
     if (!url) return false;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) return false; // fail-closed
     try {
         const parsed = new URL(url);
         if (parsed.protocol !== 'https:') return false;
-        // Trust URLs on the project's own Supabase instance
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (supabaseUrl) {
-            const supabaseOrigin = new URL(supabaseUrl).origin;
-            if (parsed.origin === supabaseOrigin) return true;
-        }
-        // Also trust *.supabase.co domains as a broad safety net
-        return parsed.hostname.endsWith('.supabase.co');
+        const supabaseOrigin = new URL(supabaseUrl).origin;
+        return parsed.origin === supabaseOrigin;
     } catch {
         return false;
     }
@@ -60,7 +56,12 @@ export function isValidSupabaseRedirect(url: string | undefined | null): boolean
  * Falls back to an error page if the redirect URL is untrusted.
  */
 export function safeServerRedirect(url: string | undefined | null): never {
-    if (isValidRedirect(url) || isValidSupabaseRedirect(url)) {
+    if (isValidRedirect(url)) {
+        redirect(url!);
+    }
+
+    if (isValidSupabaseRedirect(url)) {
+        console.info('[OAuth] Allowing Supabase-internal redirect:', url);
         redirect(url!);
     }
 
