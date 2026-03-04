@@ -64,13 +64,41 @@ async function getAccessToken(): Promise<string> {
 }
 
 /**
+ * Details of an OAuth authorization request returned by Supabase.
+ */
+export interface AuthorizationDetails {
+    id?: string;
+    state?: string;
+    client?: {
+        id?: string;
+        name?: string;
+        logo_uri?: string;
+    };
+    redirect_uri?: string;
+    scopes?: string | string[];
+    redirect_to?: string;
+    redirect_url?: string;
+    /** Set to true by Supabase when the app was previously approved — skip the decision POST endpoint */
+    auto_approved?: boolean;
+}
+
+/**
+ * Result of the getAuthorizationDetails server action.
+ */
+export interface AuthorizationDetailsResult {
+    success: boolean;
+    data: AuthorizationDetails | null;
+    error: string | null;
+}
+
+/**
  * Fetches the authorization request details from Supabase.
  * Must run server-side — Supabase CORS policy blocks client-side requests
  * with credentials from cross-origin pages.
  *
  * NOTE: This endpoint requires Authorization: Bearer <access_token>, NOT cookies.
  */
-export async function getAuthorizationDetailsAction(authorizationId: string) {
+export async function getAuthorizationDetailsAction(authorizationId: string): Promise<AuthorizationDetailsResult> {
     try {
         validateId(authorizationId);
         const accessToken = await getAccessToken();
@@ -97,7 +125,7 @@ export async function getAuthorizationDetailsAction(authorizationId: string) {
         }
 
         try {
-            const data = JSON.parse(responseText);
+            const data = JSON.parse(responseText) as AuthorizationDetails;
             return { success: true, data, error: null };
         } catch {
             return { success: false, error: 'Invalid JSON response from Supabase', data: null };

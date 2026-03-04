@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getAuthorizationDetailsAction, submitDecisionAction } from './actions';
+import { getAuthorizationDetailsAction, submitDecisionAction, type AuthorizationDetails } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldAlert, Check, Loader2, AlertTriangle, X } from 'lucide-react';
@@ -56,58 +56,23 @@ interface ConsentUIProps {
     redirectUri?: string;
     scopes?: string[];
     isDemo?: boolean;
-}
-
-interface AuthorizationDetails {
-    id?: string;
-    state?: string;
-    client?: {
-        id?: string;
-        name?: string;
-        logo_uri?: string;
-    };
-    redirect_uri?: string;
-    scopes?: string | string[];
-    redirect_to?: string;
-    redirect_url?: string;
-    /** Set to true by Supabase when the app was previously approved — skip the decision POST endpoint */
-    auto_approved?: boolean;
+    initialData?: AuthorizationDetails;
+    initialError?: string;
 }
 
 import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/constants';
 
-/**
- * Allowlist of trusted redirect origins for the OAuth consent flow.
- * Only URLs starting with these origins are permitted as redirect targets,
- * preventing open-redirect / XSS via javascript: URIs.
- */
-const ALLOWED_REDIRECT_ORIGINS = [
-    'https://api.notion.com',
-    'https://www.notion.so',
-    'https://mcp.mietevo.de',
-    'https://mietevo.de',
-    // Allow any Cloudflare Pages preview deploy for development
-    ...(process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS
-        ? process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS.split(',')
-        : []),
-];
+import { isValidRedirect } from '@/lib/oauth-utils';
 
 /**
  * Validates a redirect URL before navigating to it.
  * Only HTTPS URLs whose origin is in the allowlist are accepted.
  */
 function safeRedirect(url: string | undefined | null): void {
-    if (!url) return;
-    try {
-        const parsed = new URL(url);
-        if (parsed.protocol !== 'https:') return;
-        if (!ALLOWED_REDIRECT_ORIGINS.some(allowed => parsed.origin === allowed)) {
-            console.error('[OAuth] Blocked redirect to untrusted origin:', parsed.origin);
-            return;
-        }
-        window.location.href = url;
-    } catch {
-        // Invalid URL — silently ignore
+    if (isValidRedirect(url)) {
+        window.location.href = url!;
+    } else if (url) {
+        console.error('[OAuth] Blocked redirect to untrusted origin:', url);
     }
 }
 
@@ -119,26 +84,30 @@ export default function ConsentUI({
     clientIcon: initialClientIcon,
     redirectUri: initialRedirectUri,
     scopes: initialScopes = [],
-    isDemo = false
+    isDemo = false,
+    initialData,
+    initialError
 }: ConsentUIProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processError, setProcessError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(!isDemo);
+    const [isLoading, setIsLoading] = useState(!isDemo && !initialData && !initialError);
     const [authDetails, setAuthDetails] = useState<AuthorizationDetails | null>(
         isDemo ? {
             id: authorizationId,
             client: { name: initialClientName, logo_uri: initialClientIcon },
             redirect_uri: initialRedirectUri,
             scopes: initialScopes
-        } : null
+        } : (initialData || null)
     );
-    const [loadError, setLoadError] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(initialError || null);
 
     // Fetch authorization details on mount
     useEffect(() => {
         const fetchDetails = async () => {
-            if (isDemo || !authorizationId || type === 'error') {
-                setIsLoading(false);
+            if (isDemo || !authorizationId || type === 'error' || initialData || initialError) {
+                if (initialData || initialError) {
+                    setIsLoading(false);
+                }
                 return;
             }
 
@@ -168,7 +137,7 @@ export default function ConsentUI({
         };
 
         fetchDetails();
-    }, [authorizationId, type, isDemo]);
+    }, [authorizationId, type, isDemo, initialData, initialError]);
 
     // Side-channel: Fetch requested scopes directly from the Mietevo Worker 
     // because Supabase filters out any scopes it doesn't officially support.

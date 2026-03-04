@@ -1,0 +1,46 @@
+import { redirect } from 'next/navigation';
+
+/**
+ * Allowlist of trusted redirect origins for the OAuth consent flow.
+ * Only URLs starting with these origins are permitted as redirect targets,
+ * preventing open-redirect / XSS via javascript: URIs.
+ */
+export const ALLOWED_REDIRECT_ORIGINS = [
+    'https://api.notion.com',
+    'https://www.notion.so',
+    'https://mcp.mietevo.de',
+    'https://mietevo.de',
+    'https://mietevo.com',
+    // Allow any Cloudflare Pages preview deploy for development
+    ...(process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS
+        ? process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS.split(',')
+        : []),
+];
+
+/**
+ * Validates a redirect URL against the allowlist.
+ * Only HTTPS URLs whose origin is in the allowlist are accepted.
+ */
+export function isValidRedirect(url: string | undefined | null): boolean {
+    if (!url) return false;
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:') return false;
+        return ALLOWED_REDIRECT_ORIGINS.some(allowed => parsed.origin === allowed);
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Server-side safe redirect for OAuth flows.
+ * Falls back to an error page if the redirect URL is untrusted.
+ */
+export function safeServerRedirect(url: string | undefined | null): never {
+    if (isValidRedirect(url)) {
+        redirect(url!);
+    }
+    
+    console.error('[OAuth] Blocked server-side redirect to untrusted origin:', url);
+    redirect(`/oauth/consent?error=true&message=${encodeURIComponent('Ungültige Weiterleitungs-URL. Zugriff verweigert aus Sicherheitsgründen.')}`);
+}
