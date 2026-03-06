@@ -152,6 +152,37 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         const accessToken = await getAccessToken();
         const url = buildAuthUrl(authorizationId);
 
+        // Pre-flight GET: if Supabase already auto-approved this authorization, POSTing
+        // a decision returns 405 Method Not Allowed. Detect this case server-side and
+        // return the redirect_to directly — no POST needed.
+        if (decision === 'allow') {
+            const preCheck = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'apikey': SUPABASE_ANON_KEY,
+                },
+            });
+
+            if (preCheck.ok) {
+                const preCheckText = await preCheck.text();
+                try {
+                    const preCheckData = JSON.parse(preCheckText) as AuthorizationDetails;
+                    if (preCheckData.auto_approved) {
+                        const redirectUrl = preCheckData.redirect_to || preCheckData.redirect_url || null;
+                        console.info('[OAuth] submitDecisionAction: auto_approved detected, skipping POST');
+                        return { success: true, redirect_to: redirectUrl, error: null };
+                    }
+                } catch (e) {
+                    console.warn('[OAuth] pre-check JSON parse failed, falling through to POST', e);
+                }
+            } else if (preCheck.status === 404) {
+                return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
+            } else {
+                console.warn('[OAuth] pre-check GET returned unexpected status', preCheck.status);
+            }
+        }
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
