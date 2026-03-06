@@ -197,7 +197,7 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         });
 
         if (!response.ok) {
-            if (response.status === 404) {
+            if (response.status === 404 || response.status === 405) {
                 return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
             }
             if (response.status === 401 || response.status === 403) {
@@ -211,8 +211,9 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         try {
             const data = await response.json();
             return { success: true, redirect_to: data.redirect_to || data.redirect_url || null, error: null };
-        } catch {
-            return { success: false, redirect_to: null, error: 'Invalid JSON response from Supabase' };
+        } catch (e) {
+            console.error('[OAuth] Failed to parse decision response JSON:', e);
+            return { success: false, redirect_to: null, error: 'Invalid response format from Supabase' };
         }
     } catch (err: any) {
         console.error('Server Action: submitDecision failed:', err.message);
