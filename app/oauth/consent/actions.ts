@@ -7,6 +7,8 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const ERR_AUTH_EXPIRED =
     'Dieser Autorisierungslink wurde bereits verwendet oder ist abgelaufen. Bitte starten Sie den Verbindungsvorgang erneut.';
+const ERR_AUTH_UNAUTHORIZED =
+    'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.';
 
 /** Validates an authorizationId to prevent SSRF via path traversal */
 function validateId(authorizationId: string): void {
@@ -64,6 +66,23 @@ async function getAccessToken(): Promise<string> {
 }
 
 /**
+ * Internal helper to perform a fetch to the Supabase OAuth authorization endpoint.
+ * Includes a mandatory timeout and standard headers.
+ */
+async function fetchAuthEndpoint(url: string, accessToken: string, options: RequestInit = {}) {
+    return fetch(url, {
+        ...options,
+        headers: {
+            ...options.headers,
+            'Authorization': `Bearer ${accessToken}`,
+            'apikey': SUPABASE_ANON_KEY,
+        },
+        // Prevent blocking server actions indefinitely
+        signal: AbortSignal.timeout(5000),
+    });
+}
+
+/**
  * Details of an OAuth authorization request returned by Supabase.
  */
 export interface AuthorizationDetails {
@@ -95,8 +114,6 @@ export interface AuthorizationDetailsResult {
  * Fetches the authorization request details from Supabase.
  * Must run server-side — Supabase CORS policy blocks client-side requests
  * with credentials from cross-origin pages.
- *
- * NOTE: This endpoint requires Authorization: Bearer <access_token>, NOT cookies.
  */
 export async function getAuthorizationDetailsAction(authorizationId: string): Promise<AuthorizationDetailsResult> {
     try {
@@ -104,31 +121,26 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
         const accessToken = await getAccessToken();
         const url = buildAuthUrl(authorizationId);
 
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'apikey': SUPABASE_ANON_KEY,
-            },
-        });
-
-        const responseText = await response.text();
+        const response = await fetchAuthEndpoint(url, accessToken, { method: 'GET' });
 
         if (!response.ok) {
-            // 404 means the authorization was already consumed or has expired.
-            // Supabase logs show "authorization not found" or "current status: approved" in this case.
             if (response.status === 404) {
                 return { success: false, error: ERR_AUTH_EXPIRED, data: null };
             }
+            if (response.status === 401 || response.status === 403) {
+                return { success: false, error: ERR_AUTH_UNAUTHORIZED, data: null };
+            }
+            const responseText = await response.text();
             const msg = parseSupabaseAuthError(responseText, `Failed to fetch details: ${response.status}`);
             return { success: false, error: msg, data: null };
         }
 
         try {
-            const data = JSON.parse(responseText) as AuthorizationDetails;
+            const data = await response.json() as AuthorizationDetails;
             return { success: true, data, error: null };
-        } catch {
-            return { success: false, error: 'Invalid JSON response from Supabase', data: null };
+        } catch (e) {
+            console.error('[OAuth] Failed to parse AuthorizationDetails JSON:', e);
+            return { success: false, error: 'Invalid response format from Supabase', data: null };
         }
     } catch (err: any) {
         console.error('Server Action: getAuthorizationDetails failed:', err.message);
@@ -139,8 +151,6 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
 /**
  * Submits the user's consent decision (allow or deny) to Supabase.
  * Must run server-side — same CORS restriction as above.
- *
- * NOTE: This endpoint requires Authorization: Bearer <access_token>, NOT cookies.
  */
 export async function submitDecisionAction(authorizationId: string, decision: 'allow' | 'deny') {
     try {
@@ -156,58 +166,54 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         // a decision returns 405 Method Not Allowed. Detect this case server-side and
         // return the redirect_to directly — no POST needed.
         if (decision === 'allow') {
-            const preCheck = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'apikey': SUPABASE_ANON_KEY,
-                },
-            });
+            try {
+                const preCheck = await fetchAuthEndpoint(url, accessToken, { method: 'GET' });
 
-            if (preCheck.ok) {
-                const preCheckText = await preCheck.text();
-                try {
-                    const preCheckData = JSON.parse(preCheckText) as AuthorizationDetails;
-                    if (preCheckData.auto_approved) {
+                if (preCheck.ok) {
+                    const preCheckData = await preCheck.json() as AuthorizationDetails;
+                    if (preCheckData?.auto_approved) {
                         const redirectUrl = preCheckData.redirect_to || preCheckData.redirect_url || null;
                         console.info('[OAuth] submitDecisionAction: auto_approved detected, skipping POST');
                         return { success: true, redirect_to: redirectUrl, error: null };
                     }
-                } catch (e) {
-                    console.warn('[OAuth] pre-check JSON parse failed, falling through to POST', e);
+                } else if (preCheck.status === 404 || preCheck.status === 400 || preCheck.status === 405) {
+                    console.warn('[OAuth] pre-check GET indicates terminal state:', preCheck.status);
+                    return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
+                } else if (preCheck.status === 401 || preCheck.status === 403) {
+                    return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
+                } else {
+                    console.warn('[OAuth] pre-check GET returned unexpected status', preCheck.status);
+                    // Fall through to POST for other statuses (e.g. 5xx) to be defensive
                 }
-            } else if (preCheck.status === 404) {
-                return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
-            } else {
-                console.warn('[OAuth] pre-check GET returned unexpected status', preCheck.status);
+            } catch (e: any) {
+                console.warn('[OAuth] pre-check failed, falling through to POST', e.message);
             }
         }
 
-        const response = await fetch(url, {
+        const response = await fetchAuthEndpoint(url, accessToken, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`,
-                'apikey': SUPABASE_ANON_KEY,
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ decision }),
         });
 
-        const responseText = await response.text();
-
         if (!response.ok) {
-            if (response.status === 404) {
+            if (response.status === 404 || response.status === 405) {
                 return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
             }
+            if (response.status === 401 || response.status === 403) {
+                return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
+            }
+            const responseText = await response.text();
             const msg = parseSupabaseAuthError(responseText, `Decision failed: ${response.status}`);
             return { success: false, redirect_to: null, error: msg };
         }
 
         try {
-            const data = JSON.parse(responseText);
+            const data = await response.json();
             return { success: true, redirect_to: data.redirect_to || data.redirect_url || null, error: null };
-        } catch {
-            return { success: false, redirect_to: null, error: 'Invalid JSON response from Supabase' };
+        } catch (e) {
+            console.error('[OAuth] Failed to parse decision response JSON:', e);
+            return { success: false, redirect_to: null, error: 'Invalid response format from Supabase' };
         }
     } catch (err: any) {
         console.error('Server Action: submitDecision failed:', err.message);
@@ -217,7 +223,6 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
 
 /**
  * @deprecated Use submitDecisionAction('allow') instead.
- * Kept for backward compatibility with any existing callers.
  */
 export async function approveAuthorizationAction(authorizationId: string) {
     const result = await submitDecisionAction(authorizationId, 'allow');
