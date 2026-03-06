@@ -163,6 +163,7 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
                     'apikey': SUPABASE_ANON_KEY,
                 },
             });
+
             if (preCheck.ok) {
                 const preCheckText = await preCheck.text();
                 try {
@@ -172,11 +173,13 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
                         console.info('[OAuth] submitDecisionAction: auto_approved detected, skipping POST');
                         return { success: true, redirect_to: redirectUrl, error: null };
                     }
-                } catch {
-                    // Pre-check parse failed — proceed with the POST normally
+                } catch (e) {
+                    console.warn('[OAuth] pre-check JSON parse failed, falling through to POST', e);
                 }
             } else if (preCheck.status === 404) {
                 return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
+            } else {
+                console.warn('[OAuth] pre-check GET returned unexpected status', preCheck.status);
             }
         }
 
