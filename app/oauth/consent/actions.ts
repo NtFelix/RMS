@@ -176,7 +176,11 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
                 } catch (e) {
                     console.warn('[OAuth] pre-check JSON parse failed, falling through to POST', e);
                 }
-            } else if (preCheck.status === 404) {
+            } else if (preCheck.status === 404 || preCheck.status === 400 || preCheck.status === 405) {
+                // 404 = consumed/expired
+                // 400 = validation_failed — authorization is in a terminal state (already redirected/approved)
+                // 405 = already processed, POST not accepted
+                console.warn('[OAuth] pre-check GET indicates terminal state:', preCheck.status);
                 return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
             } else {
                 console.warn('[OAuth] pre-check GET returned unexpected status', preCheck.status);
@@ -196,7 +200,8 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         const responseText = await response.text();
 
         if (!response.ok) {
-            if (response.status === 404) {
+            if (response.status === 404 || response.status === 405) {
+                // 404 = consumed/expired, 405 = auto_approved (POST not accepted by Supabase)
                 return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
             }
             const msg = parseSupabaseAuthError(responseText, `Decision failed: ${response.status}`);
