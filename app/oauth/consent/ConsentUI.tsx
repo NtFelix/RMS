@@ -62,14 +62,14 @@ interface ConsentUIProps {
 
 import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/constants';
 
-import { isValidRedirect } from '@/lib/oauth-utils';
+import { isValidRedirect, isValidSupabaseRedirect } from '@/lib/oauth-utils';
 
 /**
  * Validates a redirect URL before navigating to it.
- * Only HTTPS URLs whose origin is in the allowlist are accepted.
+ * Only HTTPS URLs whose origin is in the allowlist or the project's Supabase instance are accepted.
  */
 function safeRedirect(url: string | undefined | null): void {
-    if (isValidRedirect(url)) {
+    if (isValidRedirect(url) || isValidSupabaseRedirect(url)) {
         window.location.href = url!;
     } else if (url) {
         console.error('[OAuth] Blocked redirect to untrusted origin:', url);

@@ -70,10 +70,16 @@ export default async function ConsentPage({ searchParams }: PageProps) {
 
     if (success && data?.auto_approved) {
         const autoRedirectUrl = data.redirect_to || data.redirect_url;
+        console.info('[OAuth SSR] auto_approved detected', {
+            authorizationId,
+            redirect_to: data.redirect_to,
+            redirect_url: data.redirect_url,
+            resolved: autoRedirectUrl,
+        });
         if (autoRedirectUrl) {
             safeServerRedirect(autoRedirectUrl);
         }
-        
+
         // auto_approved but no redirect_to — redirect to a user-friendly error page
         // instead of silently rendering the consent UI which would cause a 405 on approve.
         redirect(`/oauth/consent?error=true&message=${encodeURIComponent('Automatische Autorisierung fehlgeschlagen: Kein Weiterleitungs-Link gefunden.')}`);
