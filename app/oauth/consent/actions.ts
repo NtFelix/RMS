@@ -156,34 +156,40 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         // a decision returns 405 Method Not Allowed. Detect this case server-side and
         // return the redirect_to directly — no POST needed.
         if (decision === 'allow') {
-            const preCheck = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'apikey': SUPABASE_ANON_KEY,
-                },
-            });
+            try {
+                const preCheck = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'apikey': SUPABASE_ANON_KEY,
+                    },
+                    // Prevent blocking indefinitely if Supabase stalls
+                    signal: AbortSignal.timeout(3000),
+                });
 
-            if (preCheck.ok) {
-                const preCheckText = await preCheck.text();
-                try {
-                    const preCheckData = JSON.parse(preCheckText) as AuthorizationDetails;
-                    if (preCheckData.auto_approved) {
+                if (preCheck.ok) {
+                    const preCheckData = await preCheck.json() as AuthorizationDetails;
+                    // Robust check for the auto_approved boolean
+                    if (preCheckData && typeof preCheckData.auto_approved === 'boolean' && preCheckData.auto_approved) {
                         const redirectUrl = preCheckData.redirect_to || preCheckData.redirect_url || null;
                         console.info('[OAuth] submitDecisionAction: auto_approved detected, skipping POST');
                         return { success: true, redirect_to: redirectUrl, error: null };
                     }
-                } catch (e) {
-                    console.warn('[OAuth] pre-check JSON parse failed, falling through to POST', e);
+                } else if (preCheck.status === 404 || preCheck.status === 400 || preCheck.status === 405) {
+                    // 404 = consumed/expired
+                    // 400 = validation_failed — authorization is in a terminal state (already redirected/approved)
+                    // 405 = already processed, POST not accepted
+                    console.warn('[OAuth] pre-check GET indicates terminal state:', preCheck.status);
+                    return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
+                } else if (preCheck.status === 401 || preCheck.status === 403) {
+                    console.error('[OAuth] pre-check GET returned auth error', preCheck.status);
+                    return { success: false, redirect_to: null, error: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.' };
+                } else {
+                    console.warn('[OAuth] pre-check GET returned unexpected status', preCheck.status);
                 }
-            } else if (preCheck.status === 404 || preCheck.status === 400 || preCheck.status === 405) {
-                // 404 = consumed/expired
-                // 400 = validation_failed — authorization is in a terminal state (already redirected/approved)
-                // 405 = already processed, POST not accepted
-                console.warn('[OAuth] pre-check GET indicates terminal state:', preCheck.status);
-                return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
-            } else {
-                console.warn('[OAuth] pre-check GET returned unexpected status', preCheck.status);
+            } catch (e: any) {
+                // If timeout or other fetch error, fall through and try the POST anyway
+                console.warn('[OAuth] pre-check failed, falling through to POST', e.message);
             }
         }
 
