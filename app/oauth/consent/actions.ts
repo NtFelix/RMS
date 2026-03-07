@@ -108,6 +108,8 @@ export interface AuthorizationDetailsResult {
     success: boolean;
     data: AuthorizationDetails | null;
     error: string | null;
+    /** True if the authorization was already consumed/processed previously */
+    alreadyProcessed?: boolean;
 }
 
 /**
@@ -126,6 +128,18 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
         if (!response.ok) {
             if (response.status === 404) {
                 return { success: false, error: ERR_AUTH_EXPIRED, data: null };
+            }
+            if (response.status === 400) {
+                const responseText = await response.text();
+                // 400 "authorization request cannot be processed" means the authorization
+                // was already consumed — the auto_approved redirect already completed.
+                // This is a success condition, not an error.
+                if (responseText.toLowerCase().includes('cannot be processed')) {
+                    return { success: true, alreadyProcessed: true, error: null, data: null };
+                }
+                // If it's another 400 error, fall through to generic error handling
+                const msg = parseSupabaseAuthError(responseText, `Failed to fetch details: ${response.status}`);
+                return { success: false, error: msg, data: null };
             }
             if (response.status === 401 || response.status === 403) {
                 return { success: false, error: ERR_AUTH_UNAUTHORIZED, data: null };

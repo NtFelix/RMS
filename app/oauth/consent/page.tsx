@@ -66,7 +66,14 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     // When Supabase has already auto-approved the app, it returns auto_approved: true
     // along with a redirect_to URL. We must NOT POST a decision in this case —
     // Supabase returns 405 Method Not Allowed. Instead, redirect directly.
-    const { success, data, error: fetchError } = await getAuthorizationDetailsAction(authorizationId);
+    const { success, data, error: fetchError, alreadyProcessed } = await getAuthorizationDetailsAction(authorizationId);
+
+    // When the authorization was already consumed (400 from Supabase), it means
+    // the auto_approved redirect already completed the OAuth flow successfully.
+    // Show a success screen instead of an error.
+    if (alreadyProcessed) {
+        return <ConsentUI type="success" />;
+    }
 
     if (success && data?.auto_approved) {
         const autoRedirectUrl = data.redirect_to || data.redirect_url;
