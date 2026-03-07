@@ -76,6 +76,44 @@ function safeRedirect(url: string | undefined | null): void {
     }
 }
 
+/**
+ * Reusable layout wrapper for all full-screen states (loading, error, success, consent).
+ * Handles the ambient background effects and centered container.
+ */
+function FullScreenLayout({ 
+    children, 
+    className = "",
+    showGlow = false 
+}: { 
+    children: React.ReactNode; 
+    className?: string;
+    showGlow?: boolean;
+}) {
+    return (
+        <div className={`min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans ${className}`}>
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+            
+            {showGlow && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 dark:bg-primary/20 blur-[100px] dark:blur-[120px] rounded-full pointer-events-none"
+                />
+            )}
+
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative z-10 w-full max-w-md"
+            >
+                {children}
+            </motion.div>
+        </div>
+    );
+}
+
 export default function ConsentUI({
     type,
     error,
@@ -100,6 +138,19 @@ export default function ConsentUI({
         } : (initialData || null)
     );
     const [loadError, setLoadError] = useState<string | null>(initialError || null);
+
+    // Auto-close success window after a delay
+    useEffect(() => {
+        if (type === 'success' && typeof window !== 'undefined') {
+            const timer = setTimeout(() => {
+                // Only try to close if it's likely a popup
+                if (window.opener || window.history.length === 1) {
+                    window.close();
+                }
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [type]);
 
     // Fetch authorization details on mount
     useEffect(() => {
@@ -288,110 +339,71 @@ export default function ConsentUI({
     // Loading state
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="relative z-10 w-full max-w-md"
-                >
-                    <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
-                        <CardContent className="flex flex-col items-center justify-center py-16">
-                            <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                            <p className="text-muted-foreground">Laden...</p>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            </div>
+            <FullScreenLayout>
+                <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                    <CardContent className="flex flex-col items-center justify-center py-16">
+                        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                        <p className="text-muted-foreground">Laden...</p>
+                    </CardContent>
+                </Card>
+            </FullScreenLayout>
         );
     }
 
     // Error state
     if (type === 'error' || error || loadError) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="relative z-10 w-full max-w-md"
-                >
-                    <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
-                        <CardHeader className="text-center pt-8">
-                            <div className="mx-auto w-20 h-20 bg-destructive/10 rounded-3xl flex items-center justify-center mb-6 border border-destructive/20 p-4">
-                                <AlertTriangle className="w-10 h-10 text-destructive" />
-                            </div>
-                            <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-                                Autorisierung fehlgeschlagen
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="px-8 pb-8">
-                            <Alert variant="destructive" className="rounded-xl">
-                                <AlertDescription>{error || loadError}</AlertDescription>
-                            </Alert>
-                            <p className="text-sm text-muted-foreground mt-4 text-center">
-                                Bitte schließen Sie dieses Fenster und versuchen Sie es erneut.
-                            </p>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            </div>
+            <FullScreenLayout>
+                <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                    <CardHeader className="text-center pt-8">
+                        <div className="mx-auto w-20 h-20 bg-destructive/10 rounded-3xl flex items-center justify-center mb-6 border border-destructive/20 p-4">
+                            <AlertTriangle className="w-10 h-10 text-destructive" />
+                        </div>
+                        <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                            Autorisierung fehlgeschlagen
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-8 pb-8">
+                        <Alert variant="destructive" className="rounded-xl">
+                            <AlertDescription>{error || loadError}</AlertDescription>
+                        </Alert>
+                        <p className="text-sm text-muted-foreground mt-4 text-center">
+                            Bitte schließen Sie dieses Fenster und versuchen Sie es erneut.
+                        </p>
+                    </CardContent>
+                </Card>
+            </FullScreenLayout>
         );
     }
 
     // Success state — authorization already processed
     if (type === 'success') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="relative z-10 w-full max-w-md"
-                >
-                    <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
-                        <CardHeader className="text-center pt-8">
-                            <div className="mx-auto w-20 h-20 bg-green-500/10 rounded-3xl flex items-center justify-center mb-6 border border-green-500/20 p-4">
-                                <Check className="w-10 h-10 text-green-500" />
-                            </div>
-                            <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-                                Verbindung hergestellt
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="px-8 pb-8">
-                            <p className="text-muted-foreground text-center">
-                                Diese Autorisierung wurde bereits erfolgreich verarbeitet.
-                                Sie können dieses Fenster schließen.
-                            </p>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            </div>
+            <FullScreenLayout>
+                <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                    <CardHeader className="text-center pt-8">
+                        <div className="mx-auto w-20 h-20 bg-green-500/10 rounded-3xl flex items-center justify-center mb-6 border border-green-500/20 p-4">
+                            <Check className="w-10 h-10 text-green-500" />
+                        </div>
+                        <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                            Verbindung hergestellt
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-8 pb-8">
+                        <p className="text-muted-foreground text-center">
+                            Diese Autorisierung wurde bereits erfolgreich verarbeitet.
+                            Sie können dieses Fenster schließen.
+                        </p>
+                    </CardContent>
+                </Card>
+            </FullScreenLayout>
         );
     }
 
     // Consent form
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
-
-            {/* Ambient background glow (softer in light mode) */}
-            <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 dark:bg-primary/20 blur-[100px] dark:blur-[120px] rounded-full pointer-events-none"
-            />
-
-            <motion.div
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.6, type: "spring", bounce: 0.4 }}
-                className="relative z-10 w-full max-w-md group"
-            >
+        <FullScreenLayout showGlow>
+            <div className="relative group">
                 {/* Gradient glowing border effect (adapted for light/dark) */}
                 <div className="absolute -inset-0.5 bg-gradient-to-br from-primary/30 to-primary/0 dark:from-primary/40 dark:to-primary/5 rounded-[2.5rem] blur-md opacity-30 dark:opacity-50 group-hover:opacity-60 dark:group-hover:opacity-80 transition duration-1000 group-hover:duration-300" />
 
@@ -576,7 +588,7 @@ export default function ConsentUI({
                         </Button>
                     </CardFooter>
                 </Card>
-            </motion.div>
-        </div>
+            </div>
+        </FullScreenLayout>
     );
 }
