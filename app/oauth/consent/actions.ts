@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { ERR_AUTH_ALREADY_PROCESSED } from './constants';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -126,6 +127,12 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
         if (!response.ok) {
             if (response.status === 404) {
                 return { success: false, error: ERR_AUTH_EXPIRED, data: null };
+            }
+            if (response.status === 400) {
+                // 400 "authorization request cannot be processed" means the authorization
+                // was already consumed — the auto_approved redirect already completed.
+                // This is a success condition, not an error.
+                return { success: false, error: ERR_AUTH_ALREADY_PROCESSED, data: null };
             }
             if (response.status === 401 || response.status === 403) {
                 return { success: false, error: ERR_AUTH_UNAUTHORIZED, data: null };

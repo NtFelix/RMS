@@ -48,7 +48,7 @@ const getScopeDetails = (scope: string) => {
 };
 
 interface ConsentUIProps {
-    type: 'consent' | 'error' | 'loading';
+    type: 'consent' | 'error' | 'loading' | 'success';
     error?: string;
     authorizationId?: string;
     clientName?: string;
@@ -333,6 +333,38 @@ export default function ConsentUI({
                             </Alert>
                             <p className="text-sm text-muted-foreground mt-4 text-center">
                                 Bitte schließen Sie dieses Fenster und versuchen Sie es erneut.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </div>
+        );
+    }
+
+    // Success state — authorization already processed
+    if (type === 'success') {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="relative z-10 w-full max-w-md"
+                >
+                    <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                        <CardHeader className="text-center pt-8">
+                            <div className="mx-auto w-20 h-20 bg-green-500/10 rounded-3xl flex items-center justify-center mb-6 border border-green-500/20 p-4">
+                                <Check className="w-10 h-10 text-green-500" />
+                            </div>
+                            <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                                Verbindung hergestellt
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="px-8 pb-8">
+                            <p className="text-muted-foreground text-center">
+                                Diese Autorisierung wurde bereits erfolgreich verarbeitet.
+                                Sie können dieses Fenster schließen.
                             </p>
                         </CardContent>
                     </Card>
