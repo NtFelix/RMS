@@ -5,8 +5,9 @@ import { getAuthorizationDetailsAction, submitDecisionAction, type Authorization
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldAlert, Check, Loader2, AlertTriangle, X } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, type HTMLMotionProps } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 // Scope descriptions mapping
 const SCOPE_DETAILS: Record<string, { title: string; description: string }> = {
@@ -83,14 +84,20 @@ function safeRedirect(url: string | undefined | null): void {
 function FullScreenLayout({ 
     children, 
     className = "",
-    showGlow = false 
+    showGlow = false,
+    motionProps = {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.5 }
+    }
 }: { 
     children: React.ReactNode; 
     className?: string;
     showGlow?: boolean;
+    motionProps?: HTMLMotionProps<"div">;
 }) {
     return (
-        <div className={`min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans ${className}`}>
+        <div className={cn("min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans", className)}>
             <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
             
             {showGlow && (
@@ -103,9 +110,7 @@ function FullScreenLayout({
             )}
 
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
+                {...motionProps}
                 className="relative z-10 w-full max-w-md"
             >
                 {children}
@@ -138,18 +143,27 @@ export default function ConsentUI({
         } : (initialData || null)
     );
     const [loadError, setLoadError] = useState<string | null>(initialError || null);
+    const [countdown, setCountdown] = useState(5);
 
-    // Auto-close success window after a delay
+    // Auto-close success window after a delay with visible countdown
     useEffect(() => {
-        if (type === 'success' && typeof window !== 'undefined') {
-            const timer = setTimeout(() => {
-                // Only try to close if it's likely a popup
-                if (window.opener || window.history.length === 1) {
-                    window.close();
-                }
-            }, 5000);
-            return () => clearTimeout(timer);
-        }
+        if (type !== 'success' || typeof window === 'undefined') return;
+
+        const interval = setInterval(() => {
+            setCountdown(prev => Math.max(0, prev - 1));
+        }, 1000);
+
+        const timer = setTimeout(() => {
+            // Only try to close if it's likely a popup
+            if (window.opener || window.history.length === 1) {
+                window.close();
+            }
+        }, 5000);
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timer);
+        };
     }, [type]);
 
     // Fetch authorization details on mount
@@ -389,11 +403,15 @@ export default function ConsentUI({
                             Verbindung hergestellt
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="px-8 pb-8">
-                        <p className="text-muted-foreground text-center">
+                    <CardContent className="px-8 pb-8 flex flex-col items-center">
+                        <p className="text-muted-foreground text-center mb-4">
                             Diese Autorisierung wurde bereits erfolgreich verarbeitet.
                             Sie können dieses Fenster schließen.
                         </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            Fenster schließt in {countdown}s
+                        </div>
                     </CardContent>
                 </Card>
             </FullScreenLayout>
@@ -402,7 +420,14 @@ export default function ConsentUI({
 
     // Consent form
     return (
-        <FullScreenLayout showGlow>
+        <FullScreenLayout 
+            showGlow 
+            motionProps={{
+                initial: { opacity: 0, y: 30, scale: 0.95 },
+                animate: { opacity: 1, y: 0, scale: 1 },
+                transition: { duration: 0.6, type: "spring", bounce: 0.4 }
+            }}
+        >
             <div className="relative group">
                 {/* Gradient glowing border effect (adapted for light/dark) */}
                 <div className="absolute -inset-0.5 bg-gradient-to-br from-primary/30 to-primary/0 dark:from-primary/40 dark:to-primary/5 rounded-[2.5rem] blur-md opacity-30 dark:opacity-50 group-hover:opacity-60 dark:group-hover:opacity-80 transition duration-1000 group-hover:duration-300" />

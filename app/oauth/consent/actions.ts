@@ -1,7 +1,6 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
-import { ERR_AUTH_ALREADY_PROCESSED } from './constants';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -109,6 +108,8 @@ export interface AuthorizationDetailsResult {
     success: boolean;
     data: AuthorizationDetails | null;
     error: string | null;
+    /** True if the authorization was already consumed/processed previously */
+    alreadyProcessed?: boolean;
 }
 
 /**
@@ -133,8 +134,8 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
                 // 400 "authorization request cannot be processed" means the authorization
                 // was already consumed — the auto_approved redirect already completed.
                 // This is a success condition, not an error.
-                if (responseText.toLowerCase().includes('cannot be processed') || responseText.toLowerCase().includes('already_consumed')) {
-                    return { success: false, error: ERR_AUTH_ALREADY_PROCESSED, data: null };
+                if (responseText.toLowerCase().includes('cannot be processed')) {
+                    return { success: true, alreadyProcessed: true, error: null, data: null };
                 }
                 // If it's another 400 error, fall through to generic error handling
                 const msg = parseSupabaseAuthError(responseText, `Failed to fetch details: ${response.status}`);

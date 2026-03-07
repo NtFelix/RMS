@@ -3,7 +3,6 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ConsentUI from './ConsentUI';
 import { getAuthorizationDetailsAction } from './actions';
-import { ERR_AUTH_ALREADY_PROCESSED } from './constants';
 import { safeServerRedirect } from '@/lib/oauth-utils';
 
 export const runtime = 'edge';
@@ -67,7 +66,14 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     // When Supabase has already auto-approved the app, it returns auto_approved: true
     // along with a redirect_to URL. We must NOT POST a decision in this case —
     // Supabase returns 405 Method Not Allowed. Instead, redirect directly.
-    const { success, data, error: fetchError } = await getAuthorizationDetailsAction(authorizationId);
+    const { success, data, error: fetchError, alreadyProcessed } = await getAuthorizationDetailsAction(authorizationId);
+
+    // When the authorization was already consumed (400 from Supabase), it means
+    // the auto_approved redirect already completed the OAuth flow successfully.
+    // Show a success screen instead of an error.
+    if (alreadyProcessed) {
+        return <ConsentUI type="success" />;
+    }
 
     if (success && data?.auto_approved) {
         const autoRedirectUrl = data.redirect_to || data.redirect_url;
@@ -84,13 +90,6 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         // auto_approved but no redirect_to — redirect to a user-friendly error page
         // instead of silently rendering the consent UI which would cause a 405 on approve.
         redirect(`/oauth/consent?error=true&message=${encodeURIComponent('Automatische Autorisierung fehlgeschlagen: Kein Weiterleitungs-Link gefunden.')}`);
-    }
-
-    // When the authorization was already consumed (400 from Supabase), it means
-    // the auto_approved redirect already completed the OAuth flow successfully.
-    // Show a success screen instead of an error.
-    if (!success && fetchError === ERR_AUTH_ALREADY_PROCESSED) {
-        return <ConsentUI type="success" />;
     }
 
     return (
