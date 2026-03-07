@@ -131,13 +131,19 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
             }
             if (response.status === 400) {
                 const responseText = await response.text();
-                // 400 "authorization request cannot be processed" means the authorization
-                // was already consumed — the auto_approved redirect already completed.
-                // This is a success condition, not an error.
-                if (responseText.toLowerCase().includes('cannot be processed')) {
+                const lowerText = responseText.toLowerCase();
+                console.warn('[OAuth] GET authorization returned 400, body:', responseText);
+                // Supabase returns 400 with error_code "validation_failed" when the
+                // authorization was already consumed (auto_approved redirect completed).
+                // The response body format varies — check for known indicators.
+                if (
+                    lowerText.includes('validation_failed') ||
+                    lowerText.includes('cannot be processed') ||
+                    lowerText.includes('already')
+                ) {
                     return { success: true, alreadyProcessed: true, error: null, data: null };
                 }
-                // If it's another 400 error, fall through to generic error handling
+                // If it's a truly unexpected 400, fall through to generic error handling
                 const msg = parseSupabaseAuthError(responseText, `Failed to fetch details: ${response.status}`);
                 return { success: false, error: msg, data: null };
             }
