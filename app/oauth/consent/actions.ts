@@ -180,14 +180,14 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
                 console.error('[OAuth] approveAuthorization failed:', error.message);
                 return { success: false, redirect_to: null, error: error.message };
             }
-            return { success: true, redirect_to: data?.redirect_to || null, error: null };
+            return { success: true, redirect_to: data?.redirect_url || data?.redirect_to || null, error: null };
         } else {
             const { data, error } = await (supabase.auth as any).oauth.denyAuthorization(authorizationId);
             if (error) {
                 console.error('[OAuth] denyAuthorization failed:', error.message);
                 return { success: false, redirect_to: null, error: error.message };
             }
-            return { success: true, redirect_to: data?.redirect_to || null, error: null };
+            return { success: true, redirect_to: data?.redirect_url || data?.redirect_to || null, error: null };
         }
     } catch (err: any) {
         console.error('Server Action: submitDecision failed:', err.message);
