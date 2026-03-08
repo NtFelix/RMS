@@ -130,22 +130,15 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
                 return { success: false, error: ERR_AUTH_EXPIRED, data: null };
             }
             if (response.status === 400) {
-                const responseText = await response.text();
-                const lowerText = responseText.toLowerCase();
-                console.warn('[OAuth] GET authorization returned 400, body:', responseText);
-                // Supabase returns 400 with error_code "validation_failed" when the
-                // authorization was already consumed (auto_approved redirect completed).
-                // The response body format varies — check for known indicators.
-                if (
-                    lowerText.includes('validation_failed') ||
-                    lowerText.includes('cannot be processed') ||
-                    lowerText.includes('already')
-                ) {
-                    return { success: true, alreadyProcessed: true, error: null, data: null };
-                }
-                // If it's a truly unexpected 400, fall through to generic error handling
-                const msg = parseSupabaseAuthError(responseText, `Failed to fetch details: ${response.status}`);
-                return { success: false, error: msg, data: null };
+                // Any 400 from GET /oauth/authorizations/{id} means the authorization
+                // is in a terminal state — already consumed by a prior auto_approved
+                // redirect. There is no other valid 400 case for this endpoint.
+                // Log the body for diagnostics, then return alreadyProcessed.
+                try {
+                    const body = await response.text();
+                    console.warn('[OAuth] GET authorization returned 400, body:', body);
+                } catch { /* ignore read errors */ }
+                return { success: true, alreadyProcessed: true, error: null, data: null };
             }
             if (response.status === 401 || response.status === 403) {
                 return { success: false, error: ERR_AUTH_UNAUTHORIZED, data: null };
