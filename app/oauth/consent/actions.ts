@@ -114,47 +114,38 @@ export interface AuthorizationDetailsResult {
 
 /**
  * Fetches the authorization request details from Supabase.
- * Must run server-side — Supabase CORS policy blocks client-side requests
- * with credentials from cross-origin pages.
+ * Uses the Supabase JS client SDK's getAuthorizationDetails method.
+ * Must run server-side — Supabase CORS policy blocks client-side requests.
  */
 export async function getAuthorizationDetailsAction(authorizationId: string): Promise<AuthorizationDetailsResult> {
     try {
         validateId(authorizationId);
-        const accessToken = await getAccessToken();
-        const url = buildAuthUrl(authorizationId);
+        const supabase = await createClient();
 
-        const response = await fetchAuthEndpoint(url, accessToken, { method: 'GET' });
+        // Verify the user is authenticated first
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+            return { success: false, error: ERR_AUTH_UNAUTHORIZED, data: null };
+        }
 
-        if (!response.ok) {
-            if (response.status === 404) {
-                return { success: false, error: ERR_AUTH_EXPIRED, data: null };
-            }
-            if (response.status === 400) {
-                // Any 400 from GET /oauth/authorizations/{id} means the authorization
-                // is in a terminal state — already consumed by a prior auto_approved
-                // redirect. There is no other valid 400 case for this endpoint.
-                // Log the body for diagnostics, then return alreadyProcessed.
-                try {
-                    const body = await response.text();
-                    console.warn('[OAuth] GET authorization returned 400, body:', body);
-                } catch { /* ignore read errors */ }
+        const { data, error } = await (supabase.auth as any).oauth.getAuthorizationDetails(authorizationId);
+
+        if (error) {
+            const msg = error.message || 'Failed to load authorization details';
+            console.error('[OAuth] getAuthorizationDetails error:', msg, error);
+            // Check if this is a "already processed" 400 error
+            if (msg.toLowerCase().includes('cannot be processed') ||
+                msg.toLowerCase().includes('validation_failed') ||
+                error.status === 400) {
                 return { success: true, alreadyProcessed: true, error: null, data: null };
             }
-            if (response.status === 401 || response.status === 403) {
-                return { success: false, error: ERR_AUTH_UNAUTHORIZED, data: null };
+            if (error.status === 404) {
+                return { success: false, error: ERR_AUTH_EXPIRED, data: null };
             }
-            const responseText = await response.text();
-            const msg = parseSupabaseAuthError(responseText, `Failed to fetch details: ${response.status}`);
             return { success: false, error: msg, data: null };
         }
 
-        try {
-            const data = await response.json() as AuthorizationDetails;
-            return { success: true, data, error: null };
-        } catch (e) {
-            console.error('[OAuth] Failed to parse AuthorizationDetails JSON:', e);
-            return { success: false, error: 'Invalid response format from Supabase', data: null };
-        }
+        return { success: true, data: data as AuthorizationDetails, error: null };
     } catch (err: any) {
         console.error('Server Action: getAuthorizationDetails failed:', err.message);
         return { success: false, error: err.message || 'Failed to load authorization details', data: null };
@@ -163,7 +154,8 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
 
 /**
  * Submits the user's consent decision (allow or deny) to Supabase.
- * Must run server-side — same CORS restriction as above.
+ * Uses the Supabase JS client SDK which knows the correct endpoint
+ * (POST /authorizations/{id}/consent) and request body format.
  */
 export async function submitDecisionAction(authorizationId: string, decision: 'allow' | 'deny') {
     try {
@@ -172,61 +164,30 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
             throw new Error('Invalid decision value');
         }
 
-        const accessToken = await getAccessToken();
-        const url = buildAuthUrl(authorizationId);
+        const supabase = await createClient();
 
-        // Pre-flight GET: if Supabase already auto-approved this authorization, POSTing
-        // a decision returns 405 Method Not Allowed. Detect this case server-side and
-        // return the redirect_to directly — no POST needed.
+        // Verify the user is authenticated
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+            return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
+        }
+
         if (decision === 'allow') {
-            try {
-                const preCheck = await fetchAuthEndpoint(url, accessToken, { method: 'GET' });
-
-                if (preCheck.ok) {
-                    const preCheckData = await preCheck.json() as AuthorizationDetails;
-                    if (preCheckData?.auto_approved) {
-                        const redirectUrl = preCheckData.redirect_to || preCheckData.redirect_url || null;
-                        console.info('[OAuth] submitDecisionAction: auto_approved detected, skipping POST');
-                        return { success: true, redirect_to: redirectUrl, error: null };
-                    }
-                } else if (preCheck.status === 404 || preCheck.status === 400 || preCheck.status === 405) {
-                    console.warn('[OAuth] pre-check GET indicates terminal state:', preCheck.status);
-                    return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
-                } else if (preCheck.status === 401 || preCheck.status === 403) {
-                    return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
-                } else {
-                    console.warn('[OAuth] pre-check GET returned unexpected status', preCheck.status);
-                    // Fall through to POST for other statuses (e.g. 5xx) to be defensive
-                }
-            } catch (e: any) {
-                console.warn('[OAuth] pre-check failed, falling through to POST', e.message);
+            // supabase.auth.oauth.approveAuthorization() POSTs to
+            // /auth/v1/oauth/authorizations/{id}/consent with the correct body format
+            const { data, error } = await (supabase.auth as any).oauth.approveAuthorization(authorizationId);
+            if (error) {
+                console.error('[OAuth] approveAuthorization failed:', error.message);
+                return { success: false, redirect_to: null, error: error.message };
             }
-        }
-
-        const response = await fetchAuthEndpoint(url, accessToken, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ decision }),
-        });
-
-        if (!response.ok) {
-            if (response.status === 404 || response.status === 405) {
-                return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
+            return { success: true, redirect_to: data?.redirect_to || null, error: null };
+        } else {
+            const { data, error } = await (supabase.auth as any).oauth.denyAuthorization(authorizationId);
+            if (error) {
+                console.error('[OAuth] denyAuthorization failed:', error.message);
+                return { success: false, redirect_to: null, error: error.message };
             }
-            if (response.status === 401 || response.status === 403) {
-                return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
-            }
-            const responseText = await response.text();
-            const msg = parseSupabaseAuthError(responseText, `Decision failed: ${response.status}`);
-            return { success: false, redirect_to: null, error: msg };
-        }
-
-        try {
-            const data = await response.json();
-            return { success: true, redirect_to: data.redirect_to || data.redirect_url || null, error: null };
-        } catch (e) {
-            console.error('[OAuth] Failed to parse decision response JSON:', e);
-            return { success: false, redirect_to: null, error: 'Invalid response format from Supabase' };
+            return { success: true, redirect_to: data?.redirect_to || null, error: null };
         }
     } catch (err: any) {
         console.error('Server Action: submitDecision failed:', err.message);
