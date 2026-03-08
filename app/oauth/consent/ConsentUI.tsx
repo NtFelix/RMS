@@ -81,8 +81,8 @@ function safeRedirect(url: string | undefined | null): void {
  * Reusable layout wrapper for all full-screen states (loading, error, success, consent).
  * Handles the ambient background effects and centered container.
  */
-function FullScreenLayout({ 
-    children, 
+function FullScreenLayout({
+    children,
     className = "",
     showGlow = false,
     motionProps = {
@@ -90,8 +90,8 @@ function FullScreenLayout({
         animate: { opacity: 1, y: 0 },
         transition: { duration: 0.5 }
     }
-}: { 
-    children: React.ReactNode; 
+}: {
+    children: React.ReactNode;
     className?: string;
     showGlow?: boolean;
     motionProps?: HTMLMotionProps<"div">;
@@ -99,7 +99,7 @@ function FullScreenLayout({
     return (
         <div className={cn("min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans", className)}>
             <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
-            
+
             {showGlow && (
                 <motion.div
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -299,8 +299,11 @@ export default function ConsentUI({
         try {
             // For auto-approved authorizations, Supabase has already granted access.
             // POSTing a decision to the endpoint returns 405 Method Not Allowed.
-            // Instead, use the redirect_to from the initial GET details response directly.
-            if (authDetails?.auto_approved) {
+            // Instead, use the redirect_url from the initial GET details response directly.
+            const autoRedirectUrl = (authDetails as any)?.redirect_url || (authDetails as any)?.redirect_to;
+            const isAutoApproved = autoRedirectUrl && !authDetails?.client;
+
+            if (isAutoApproved) {
                 if (decision === 'deny') {
                     // For auto-approved, the access is already granted. Denying now would face the same
                     // 405 constraint, so we gracefully abort and inform the user.
@@ -309,8 +312,6 @@ export default function ConsentUI({
                     return;
                 }
 
-                // redirect_to is set by Supabase on auto-approved flows; redirect_url is the registered fallback
-                const autoRedirectUrl = authDetails.redirect_to || authDetails.redirect_url;
                 if (!autoRedirectUrl) {
                     setProcessError('Automatically approved authorization has no redirect URL. Please try again.');
                     setIsProcessing(false);
@@ -420,8 +421,8 @@ export default function ConsentUI({
 
     // Consent form
     return (
-        <FullScreenLayout 
-            showGlow 
+        <FullScreenLayout
+            showGlow
             motionProps={{
                 initial: { opacity: 0, y: 30, scale: 0.95 },
                 animate: { opacity: 1, y: 0, scale: 1 },
