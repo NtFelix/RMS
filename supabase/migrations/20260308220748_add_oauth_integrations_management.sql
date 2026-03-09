@@ -12,14 +12,14 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
   SELECT 
-    a.id as authorization_id,
-    c.client_name,
-    c.logo_uri as client_logo,
-    a.scope as scopes,
-    a.created_at
-  FROM auth.oauth_authorizations a
-  JOIN auth.oauth_clients c ON a.client_id = c.id
-  WHERE a.user_id = auth.uid();
+    c.id as authorization_id,
+    app.client_name,
+    app.logo_uri as client_logo,
+    c.scopes,
+    c.granted_at as created_at
+  FROM auth.oauth_consents c
+  JOIN auth.oauth_clients app ON c.client_id = app.id
+  WHERE c.user_id = auth.uid();
 $$;
 
 -- Allow users to revoke an integration by auth_id
@@ -32,20 +32,19 @@ AS $$
 DECLARE
   v_client_id UUID;
 BEGIN
-  -- 1. Find the client_id for this authorization
+  -- 1. Find the client_id for this authorization consent
   SELECT client_id INTO v_client_id
-  FROM auth.oauth_authorizations
+  FROM auth.oauth_consents
   WHERE id = auth_id AND user_id = auth.uid();
 
   IF v_client_id IS NOT NULL THEN
     -- 2. Delete the consent record so they have to re-authorize again next time
     DELETE FROM auth.oauth_consents
-    WHERE user_id = auth.uid() 
-      AND client_id = v_client_id;
+    WHERE id = auth_id AND user_id = auth.uid();
       
     -- 3. Delete authorization records
     DELETE FROM auth.oauth_authorizations
-    WHERE id = auth_id AND user_id = auth.uid();
+    WHERE client_id = v_client_id AND user_id = auth.uid();
   END IF;
 END;
 $$;
