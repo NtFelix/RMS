@@ -23,6 +23,7 @@ AS $$
 $$;
 
 -- Allow users to revoke an integration by auth_id
+DROP FUNCTION IF EXISTS public.revoke_app_access(UUID);
 CREATE OR REPLACE FUNCTION public.revoke_app_access(auth_id UUID)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
