@@ -38,11 +38,15 @@ BEGIN
   WHERE id = auth_id AND user_id = auth.uid();
 
   IF v_client_id IS NOT NULL THEN
-    -- 2. Delete the consent record so they have to re-authorize again next time
+    -- 2. Terminate all active sessions connected to this OAuth client
+    DELETE FROM auth.sessions
+    WHERE oauth_client_id = v_client_id AND user_id = auth.uid();
+
+    -- 3. Delete the consent record so they have to re-authorize again next time
     DELETE FROM auth.oauth_consents
     WHERE id = auth_id AND user_id = auth.uid();
       
-    -- 3. Delete authorization records
+    -- 4. Delete lingering authorization records
     DELETE FROM auth.oauth_authorizations
     WHERE client_id = v_client_id AND user_id = auth.uid();
   END IF;
