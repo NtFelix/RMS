@@ -15,7 +15,7 @@ AS $$
     a.id as authorization_id,
     c.client_name,
     c.logo_uri as client_logo,
-    a.scopes,
+    a.scope as scopes,
     a.created_at
   FROM auth.oauth_authorizations a
   JOIN auth.oauth_clients c ON a.client_id = c.id
