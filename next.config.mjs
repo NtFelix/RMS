@@ -1,16 +1,25 @@
 import { withPostHogConfig } from "@posthog/nextjs-config";
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { version } = require('./package.json');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    // Expose the app version as a public env var (was in the unused next.config.js)
+    NEXT_PUBLIC_APP_VERSION: version,
+  },
   reactStrictMode: true,
   // swcMinify is now enabled by default in Next.js 15
   productionBrowserSourceMaps: false,
   compress: true,
+  poweredByHeader: false,
   eslint: {
-    ignoreDuringBuilds: true,  // Changed from false to true
+    ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: true,  // Changed from false to true
+    ignoreBuildErrors: true,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
@@ -28,6 +37,9 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
+    // Rewrites barrel-file imports to direct sub-path imports for these packages.
+    // This reduces bundle size and can improve cold-start times by ~10-40%.
+    // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/optimizePackageImports
     optimizePackageImports: [
       'recharts',
       'lucide-react',
@@ -43,20 +55,23 @@ const nextConfig = {
     ],
   },
   webpack: (config, { webpack }) => {
-    // Stub and ignore 'ws' module in all builds
-    config.resolve = {
-      ...(config.resolve || {}),
-      alias: {
-        ...(config.resolve.alias || {}),
-        ws: false,
-      },
-      fallback: {
-        ...(config.resolve.fallback || {}),
-        ws: false,
-      },
+    // Stub and ignore the 'ws' module — it's a Node.js-only WebSocket lib that
+    // isn't compatible with browser/edge runtimes and doesn't need to be bundled.
+    // Note: '@/*' path aliases are handled automatically by Next.js reading the
+    // `paths` key in tsconfig.json, so we don't need to add them here.
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      ws: false,
     };
+
+    config.resolve.fallback = {
+      ...(config.resolve.fallback || {}),
+      ws: false,
+    };
+
     config.plugins = config.plugins || [];
     config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
+
     return config;
   },
 };
