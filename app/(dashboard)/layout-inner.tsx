@@ -48,6 +48,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Add
 import { GlobalDragDropProvider } from "@/components/cloud-storage/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
+import { AIChatSidebar } from "@/components/ai-chat/ai-chat-sidebar";
 
 export default function DashboardInnerLayout({
   children,
@@ -289,6 +290,7 @@ export default function DashboardInnerLayout({
         {/* </GlobalDragDropProvider> */}
       </NestedDialogProvider>
       <OnboardingTour />
+      <AIChatSidebar />
     </AuthProvider>
   )
 }
