@@ -8,6 +8,7 @@ import { PostHogProvider } from "@/components/providers/posthog-provider"
 import { CookieConsentBanner } from "@/components/common/cookie-consent-banner"
 import { defaultMetadata } from "@/lib/seo"
 import { PWA_IMAGES_URL, FAVICON_URL } from "@/lib/constants"
+import { GlobalAIChat } from "@/components/global-ai-chat/global-ai-chat"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -43,6 +44,7 @@ export default function RootLayout({
             {children}
             <Toaster />
             <CookieConsentBanner />
+            <GlobalAIChat />
           </PostHogProvider>
         </ThemeProvider>
       </body>
