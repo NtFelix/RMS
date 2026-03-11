@@ -92,7 +92,11 @@ export function AIChatSidebar() {
         }),
       });
 
-      if (!res.ok) throw new Error("API responded with an error");
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("API response error:", res.status, errorText);
+        throw new Error(`API responded with an error: ${res.status}`);
+      }
 
       const data = await res.json();
       
