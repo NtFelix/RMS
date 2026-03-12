@@ -31,9 +31,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Setup PostHog Node Client
-    if (process.env.NEXT_PUBLIC_POSTHOG_KEY && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
-        posthog = new PostHog(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-            host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+    const posthogKey = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    const posthogHost = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    if (posthogKey && posthogHost) {
+        posthog = new PostHog(posthogKey, {
+            host: posthogHost,
         });
     }
 
