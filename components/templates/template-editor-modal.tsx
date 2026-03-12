@@ -346,7 +346,7 @@ export function TemplateEditorModal({
     onClose: handleAttemptClose,
     isDirty: isTemplateEditorModalDirty,
     onAttemptClose: handleAttemptClose,
-    enableArrowNavigation: true,
+    enableArrowNavigation: false,
   });
 
   // Handle modal open/close for accessibility
