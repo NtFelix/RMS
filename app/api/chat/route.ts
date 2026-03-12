@@ -79,6 +79,7 @@ ${pageContext}`;
         properties: {
           $ai_trace_id: traceId,
           $ai_session_id: sessionId,
+          $ai_span_name: 'mietevo_ai_agent',
           $ai_model: 'gemini-3-flash-preview',
           $ai_provider: 'google',
           $ai_input: JSON.stringify([
@@ -111,6 +112,7 @@ ${pageContext}`;
            event: '$ai_generation_error', // Custom or fallback for error
            properties: {
                $ai_trace_id: traceId,
+               $ai_span_name: 'mietevo_ai_agent',
                error_message: error?.message || String(error)
            }
        });
