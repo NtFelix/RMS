@@ -97,38 +97,44 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { custom_id, wohnung_id, eichungsdatum, zaehler_typ, einheit, kommentar } = body
+    const isArray = Array.isArray(body)
+    const items = isArray ? body : [body]
 
-    if (!wohnung_id) {
-      return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400 })
+    if (items.length === 0) {
+      return NextResponse.json({ error: 'Body must not be empty' }, { status: 400 })
     }
 
-    // Verify the Wohnung belongs to the user
-    const { data: wohnung, error: wohnungError } = await supabase
+    const wohnungIds = [...new Set(items.map((item: any) => item.wohnung_id))]
+    if (wohnungIds.some(id => !id)) {
+      return NextResponse.json({ error: 'wohnung_id is required for all items' }, { status: 400 })
+    }
+
+    // Verify the Wohnungen belong to the user
+    const { data: wohnungen, error: wohnungError } = await supabase
       .from('Wohnungen')
       .select('id')
-      .eq('id', wohnung_id)
+      .in('id', wohnungIds)
       .eq('user_id', user.id)
-      .single()
 
-    if (wohnungError || !wohnung) {
+    if (wohnungError || !wohnungen || wohnungen.length !== wohnungIds.length) {
       return NextResponse.json({ error: 'Wohnung not found or access denied' }, { status: 404 })
     }
+
+    const recordsToInsert = items.map((item: any) => ({
+      custom_id: item.custom_id || null,
+      wohnung_id: item.wohnung_id,
+      eichungsdatum: item.eichungsdatum || null,
+      user_id: user.id,
+      zaehler_typ: item.zaehler_typ || 'wasser',
+      einheit: item.einheit || 'm³',
+      kommentar: item.kommentar || null,
+    }))
 
     // Create Zähler
     const { data, error } = await supabase
       .from('Zaehler')
-      .insert({
-        custom_id: custom_id || null,
-        wohnung_id,
-        eichungsdatum: eichungsdatum || null,
-        user_id: user.id,
-        zaehler_typ: zaehler_typ || 'wasser',
-        einheit: einheit || 'm³',
-        kommentar: kommentar || null,
-      })
+      .insert(recordsToInsert)
       .select()
-      .single()
 
     if (error) {
       console.error('Error creating Wasserzähler:', error)
@@ -136,16 +142,18 @@ export async function POST(request: NextRequest) {
     }
 
     // PostHog Event Tracking
-    await capturePostHogEventWithContext(user.id, 'meter_created', {
-      meter_id: data?.id,
-      apartment_id: wohnung_id,
-      custom_id: custom_id || null,
-      eichungsdatum: eichungsdatum || null,
-      zaehler_typ: zaehler_typ || 'kaltwasser',
-      source: 'api_route'
-    })
+    for (const item of data || []) {
+      await capturePostHogEventWithContext(user.id, 'meter_created', {
+        meter_id: item.id,
+        apartment_id: item.wohnung_id,
+        custom_id: item.custom_id,
+        eichungsdatum: item.eichungsdatum,
+        zaehler_typ: item.zaehler_typ,
+        source: 'api_route'
+      })
+    }
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(isArray ? data : data[0], { status: 201 })
   } catch (error) {
     console.error('Unexpected error in POST /api/zaehler:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
