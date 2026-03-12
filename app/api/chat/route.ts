@@ -57,7 +57,7 @@ ${pageContext}`;
 
     // 6. Create Chat with History & System Prompt
     const chat = client.chats.create({
-      model: "gemini-3-flash",
+      model: "gemini-3-flash-preview",
       config: {
         systemInstruction,
       },
@@ -77,7 +77,7 @@ ${pageContext}`;
         properties: {
           $ai_trace_id: traceId,
           $ai_session_id: sessionId,
-          $ai_model: 'gemini-3-flash',
+          $ai_model: 'gemini-3-flash-preview',
           $ai_provider: 'google',
           $ai_input: JSON.stringify([
             { role: 'system', content: systemInstruction },
