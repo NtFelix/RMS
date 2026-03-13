@@ -52,7 +52,8 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }: { event: KeyboardEvent }) => {
-      if (!props.items.length) {
+      // Only handle events if we have items to navigate
+      if (!props.items || props.items.length === 0) {
         return false;
       }
 
@@ -73,6 +74,8 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
         return true;
       }
 
+      // Explicitly return false for any other keys (ArrowLeft, ArrowRight, etc.)
+      // to let the editor handle them
       return false;
     },
   }), [props.items, props.command]);
@@ -80,9 +83,8 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
   return (
     <div
       ref={listRef}
-      className="z-[9999] min-w-[240px] max-h-[300px] overflow-y-auto overflow-x-hidden overscroll-contain rounded-lg border bg-popover p-1 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95"
-      style={{ pointerEvents: 'auto' }}
-      onMouseDown={(event) => event.preventDefault()}
+      className="z-[9999] min-w-[240px] max-h-[300px] overflow-y-auto overflow-x-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 scrollbar-thin"
+      onMouseDown={(e) => e.preventDefault()}
     >
       {props.items.length > 0 ? (
         <div className="flex flex-col gap-0.5">
@@ -94,17 +96,17 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
               data-mention-item="true"
               aria-selected={index === selectedIndex}
               className={cn(
-                "relative flex w-full cursor-default select-none items-start gap-2 rounded-md px-2 py-2 text-sm outline-none transition-colors",
+                "relative flex w-full cursor-default select-none items-start gap-2 rounded-md px-2 py-2 text-sm outline-none transition-colors text-left",
                 index === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
               )}
-              onMouseDown={(event) => event.preventDefault()}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => selectItem(index)}
               onMouseEnter={() => setSelectedIndex(index)}
             >
               <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border bg-muted text-muted-foreground">
                 <Hash className="h-3 w-3" />
               </div>
-              <div className="flex flex-col items-start overflow-hidden text-left">
+              <div className="flex flex-col items-start overflow-hidden w-full">
                 <span className="font-medium truncate w-full">{item.label}</span>
                 <span className="text-xs text-muted-foreground truncate w-full">{item.description}</span>
               </div>

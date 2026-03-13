@@ -55,9 +55,8 @@ export function TemplateEditor({
           char: '@',
           items: ({ query }) => filterMentionVariables(MENTION_VARIABLES, query).slice(0, 10),
           render: () => {
-            let component: ReactRenderer<any>;
-            let popup: TippyInstance[] | null = null;
-            let previousBodyOverflow: string | null = null;
+            let component: ReactRenderer<any> | null = null;
+            let popup: TippyInstance | null = null;
 
             return {
               onStart: (props) => {
@@ -70,12 +69,7 @@ export function TemplateEditor({
                   return;
                 }
 
-                const rect = props.clientRect();
-                if (!rect) {
-                  return;
-                }
-
-                popup = tippy('body', {
+                popup = tippy(document.body, {
                   getReferenceClientRect: props.clientRect as any,
                   appendTo: () => containerRef.current || document.body,
                   content: component.element,
@@ -89,8 +83,8 @@ export function TemplateEditor({
               onUpdate(props) {
                 component?.updateProps(props);
 
-                if (popup?.[0]) {
-                  popup[0].setProps({
+                if (popup) {
+                  popup.setProps({
                     getReferenceClientRect: props.clientRect as any,
                   });
                 }
@@ -98,8 +92,13 @@ export function TemplateEditor({
 
               onKeyDown(props) {
                 if (props.event.key === 'Escape') {
-                  popup?.[0]?.hide();
+                  popup?.hide();
                   return true;
+                }
+
+                // Only intercept keys used for list navigation
+                if (!['ArrowUp', 'ArrowDown', 'Enter', 'Tab'].includes(props.event.key)) {
+                  return false;
                 }
 
                 if (!component || !component.ref) {
@@ -110,11 +109,13 @@ export function TemplateEditor({
               },
 
               onExit() {
-                if (popup?.[0]) {
-                  popup[0].destroy();
+                if (popup) {
+                  popup.destroy();
+                  popup = null;
                 }
                 if (component) {
                   component.destroy();
+                  component = null;
                 }
               },
             };
@@ -139,7 +140,6 @@ export function TemplateEditor({
 
     const newHTML = typeof content === 'string' ? content : JSON.stringify(content);
     
-    // Only update if content is actually different from what we last emitted
     if (newHTML !== lastContentRef.current) {
       const currentJSON = editor.getJSON();
       const isSame = JSON.stringify(currentJSON) === JSON.stringify(content);
