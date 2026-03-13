@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@/utils/supabase/server";
 import { getAIContextForPathname } from "@/utils/ai-context";
 import { PostHog } from 'posthog-node';
@@ -57,17 +57,111 @@ Always be concise, helpful, and professional. Respond in the user's language.
 --- CURRENT CONTEXT ---
 ${pageContext}`;
 
-    // 6. Create Chat with History & System Prompt
+    // 6. Define Tools
+    const tools: any[] = [{
+      functionDeclarations: [
+        {
+          name: "get_houses",
+          description: "Get a list of all houses (properties/Häuser) managed by the user.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              limit: { type: Type.INTEGER, description: "Maximum number of houses to return (default is 10)" }
+            }
+          }
+        },
+        {
+          name: "get_apartments",
+          description: "Get a list of apartments (Wohnungen), optionally filtered by a specific house ID.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              house_id: { type: Type.STRING, description: "Optional UUID of the house to filter apartments by." },
+              limit: { type: Type.INTEGER, description: "Maximum number of apartments to return (default is 10)" }
+            }
+          }
+        },
+        {
+          name: "get_tenants",
+          description: "Get a list of tenants (Mieter), optionally filtered by their name.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              search_term: { type: Type.STRING, description: "Optional search term for filtering tenants by name." },
+              limit: { type: Type.INTEGER, description: "Maximum number of tenants to return (default is 10)" }
+            }
+          }
+        }
+      ]
+    }];
+
+    // 7. Create Chat with History, System Prompt & Tools
     const chat = client.chats.create({
       model: "gemini-3-flash-preview",
       config: {
         systemInstruction,
+        tools,
       },
       history: history, // Provide past conversation turns
     });
 
-    // 7. Send Message to Gemini
-    const aiResponse = await chat.sendMessage({ message });
+    // 8. Send Message & Handle Function Calls
+    let aiResponse = await chat.sendMessage({ message });
+    
+    // Process tool calls if any
+    let maxToolLoops = 5;
+    while (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && maxToolLoops > 0) {
+      maxToolLoops--;
+      const responses = [];
+
+      for (const call of aiResponse.functionCalls) {
+        let result = {};
+        try {
+          if (call.name === "get_houses") {
+            const limit = Number(call.args?.limit) || 10;
+            const { data, error } = await supabase.from('haeuser')
+              .select('id, name, strasse, hausnummer, plz, ort, anzahl_wohnungen')
+              .limit(limit);
+            result = error ? { error: error.message } : { data: data || [] };
+          } 
+          else if (call.name === "get_apartments") {
+            let query = supabase.from('wohnungen').select('id, name, etage, wohnungstyp, haeuser(name)');
+            if (call.args?.house_id) {
+               query = query.eq('haus_id', call.args.house_id);
+            }
+            const limit = Number(call.args?.limit) || 10;
+            const { data, error } = await query.limit(limit);
+            result = error ? { error: error.message } : { data: data || [] };
+          } 
+          else if (call.name === "get_tenants") {
+            let query = supabase.from('mieter').select('id, vorname, nachname, email, telefon, miete, wohnungen(name, haeuser(name))');
+            if (call.args?.search_term) {
+               query = query.or(`vorname.ilike.%${call.args.search_term}%,nachname.ilike.%${call.args.search_term}%`);
+            }
+            const limit = Number(call.args?.limit) || 10;
+            const { data, error } = await query.limit(limit);
+            result = error ? { error: error.message } : { data: data || [] };
+          } 
+          else {
+            result = { error: "Unknown tool call: " + call.name };
+          }
+        } catch (e: any) {
+          result = { error: e.message || String(e) };
+        }
+        
+        responses.push({
+          functionResponse: {
+            name: call.name,
+            id: call.id,
+            response: result
+          }
+        });
+      }
+
+      // Send the function responses back to Gemini
+      aiResponse = await chat.sendMessage({ message: responses });
+    }
+
     const replyText = aiResponse.text;
     const latency = (Date.now() - startTime) / 1000;
 
