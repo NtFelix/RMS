@@ -91,6 +91,40 @@ ${pageContext}`;
               limit: { type: Type.INTEGER, description: "Maximum number of tenants to return (default is 10)" }
             }
           }
+        },
+        {
+          name: "get_finances",
+          description: "Get a list of financial transactions (Finanzen), optionally filtered by apartment ID or income/expense type.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              wohnung_id: { type: Type.STRING, description: "Optional UUID of the apartment (Wohnung) to filter finances by." },
+              ist_einnahmen: { type: Type.BOOLEAN, description: "Optional boolean to filter by income (true) or expense (false)." },
+              limit: { type: Type.INTEGER, description: "Maximum number of transactions to return (default is 10)" }
+            }
+          }
+        },
+        {
+          name: "get_tasks",
+          description: "Get a list of tasks (Aufgaben), optionally filtered by completion status.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              ist_erledigt: { type: Type.BOOLEAN, description: "Optional boolean to filter by completed (true) or pending (false) tasks." },
+              limit: { type: Type.INTEGER, description: "Maximum number of tasks to return (default is 10)" }
+            }
+          }
+        },
+        {
+          name: "get_nebenkosten",
+          description: "Get a list of ancillary costs / utility costs (Nebenkosten), optionally filtered by house ID.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              haeuser_id: { type: Type.STRING, description: "Optional UUID of the house (Haus) to filter ancillary costs by." },
+              limit: { type: Type.INTEGER, description: "Maximum number of Nebenkosten records to return (default is 10)" }
+            }
+          }
         }
       ]
     }];
@@ -145,6 +179,39 @@ ${pageContext}`;
             let query = supabase.from('Mieter').select('id, name, email, telefonnummer, status, einzug, auszug, Wohnungen(name, miete, Haeuser(name))');
             if (call.args?.search_term) {
                query = query.ilike('name', `%${call.args.search_term}%`);
+            }
+            const limit = Number(call.args?.limit) || 10;
+            const { data, error } = await query.limit(limit);
+            if (error) toolError = error.message;
+            result = error ? { error: error.message } : { data: data || [] };
+          } 
+          else if (call.name === "get_finances") {
+            let query = supabase.from('Finanzen').select('id, name, datum, betrag, notiz, ist_einnahmen, wohnung_id, Wohnungen(name, Haeuser(name))');
+            if (call.args?.wohnung_id) {
+               query = query.eq('wohnung_id', call.args.wohnung_id);
+            }
+            if (call.args?.ist_einnahmen !== undefined) {
+               query = query.eq('ist_einnahmen', call.args.ist_einnahmen);
+            }
+            const limit = Number(call.args?.limit) || 10;
+            const { data, error } = await query.limit(limit);
+            if (error) toolError = error.message;
+            result = error ? { error: error.message } : { data: data || [] };
+          }
+          else if (call.name === "get_tasks") {
+            let query = supabase.from('Aufgaben').select('id, name, beschreibung, ist_erledigt, faelligkeitsdatum, erstellungsdatum');
+            if (call.args?.ist_erledigt !== undefined) {
+               query = query.eq('ist_erledigt', call.args.ist_erledigt);
+            }
+            const limit = Number(call.args?.limit) || 10;
+            const { data, error } = await query.limit(limit);
+            if (error) toolError = error.message;
+            result = error ? { error: error.message } : { data: data || [] };
+          }
+          else if (call.name === "get_nebenkosten") {
+            let query = supabase.from('Nebenkosten').select('id, nebenkostenart, betrag, berechnungsart, startdatum, enddatum, vorauszahlungs_art, haeuser_id, Haeuser(name)');
+            if (call.args?.haeuser_id) {
+               query = query.eq('haeuser_id', call.args.haeuser_id);
             }
             const limit = Number(call.args?.limit) || 10;
             const { data, error } = await query.limit(limit);
