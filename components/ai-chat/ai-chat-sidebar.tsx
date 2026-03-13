@@ -9,6 +9,8 @@ import { v4 as uuidv4 } from "uuid";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { LOGO_URL } from "@/lib/constants";
+import { CustomDropdown, CustomDropdownItem } from "@/components/ui/custom-dropdown";
+import { GoogleIcon } from "@/components/icons/google-icon";
 
 // Define message type
 type Message = {
@@ -23,6 +25,7 @@ export function AIChatSidebar() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite-preview");
   const pathname = usePathname();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -92,6 +95,7 @@ export function AIChatSidebar() {
           history,
           pathname,
           sessionId,
+          model: selectedModel,
         }),
       });
 
@@ -316,14 +320,40 @@ export function AIChatSidebar() {
                     </Button>
                   </div>
                   
-                  <Button
-                    type="submit"
-                    size="icon"
-                    disabled={isLoading || !inputValue.trim()}
-                    className="rounded-full w-9 h-9 shrink-0 bg-white/10 hover:bg-white/20 text-white shadow-none transition-all active:scale-95 disabled:opacity-30 disabled:hover:bg-white/10"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <CustomDropdown
+                      align="end"
+                      className="w-[160px] bg-[#1A1A1A]/95 text-white border-border/10 shadow-xl rounded-xl p-1"
+                      trigger={
+                        <Button variant="ghost" size="sm" className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 data-[state=open]:bg-white/5 data-[state=open]:text-foreground rounded-lg transition-colors gap-1.5 focus-visible:ring-0 focus-visible:ring-offset-0">
+                          <GoogleIcon className="w-3.5 h-3.5" />
+                          {selectedModel === "gemini-3.1-flash-lite-preview" ? "Flash Lite 3.1" : "Flash 3.0"}
+                        </Button>
+                      }
+                    >
+                      <CustomDropdownItem 
+                        onClick={() => setSelectedModel("gemini-3.1-flash-lite-preview")}
+                        className={`font-medium ${selectedModel === "gemini-3.1-flash-lite-preview" ? "bg-white/10" : "hover:bg-white/5 focus:bg-white/5"}`}
+                      >
+                        Flash Lite 3.1
+                      </CustomDropdownItem>
+                      <CustomDropdownItem 
+                        onClick={() => setSelectedModel("gemini-3-flash-preview")}
+                        className={`font-medium ${selectedModel === "gemini-3-flash-preview" ? "bg-white/10" : "hover:bg-white/5 focus:bg-white/5"}`}
+                      >
+                        Flash 3.0
+                      </CustomDropdownItem>
+                    </CustomDropdown>
+
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={isLoading || !inputValue.trim()}
+                      className="rounded-full w-9 h-9 shrink-0 bg-white/10 hover:bg-white/20 text-white shadow-none transition-all active:scale-95 disabled:opacity-30 disabled:hover:bg-white/10"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+                    </Button>
+                  </div>
                 </div>
               </form>
             </div>
