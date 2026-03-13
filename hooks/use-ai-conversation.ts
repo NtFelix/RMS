@@ -121,7 +121,7 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
       // Start generation for the AI response
       generation = startAIGeneration({
         id: generationId,
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite-preview',
         provider: 'google',
         input: [{ role: 'user', content: message }],
         sessionId,
