@@ -110,6 +110,7 @@ ${pageContext}`;
     
     // Process tool calls if any
     let maxToolLoops = 5;
+    const executedTools: any[] = [];
     if (aiResponse.functionCalls && aiResponse.functionCalls.length > 0) {
       console.log(`Initial Gemini response includes ${aiResponse.functionCalls.length} tool calls.`);
     }
@@ -119,38 +120,66 @@ ${pageContext}`;
 
       for (const call of aiResponse.functionCalls) {
         console.log(`Executing tool: ${call.name} with args:`, JSON.stringify(call.args));
-        let result = {};
+        let result: any = {};
+        let toolError: string | null = null;
         try {
           if (call.name === "get_houses") {
             const limit = Number(call.args?.limit) || 10;
-            const { data, error } = await supabase.from('haeuser')
-              .select('id, name, strasse, hausnummer, plz, ort, anzahl_wohnungen')
+            const { data, error } = await supabase.from('Haeuser')
+              .select('id, name, strasse, plz, ort, groesse')
               .limit(limit);
+            if (error) toolError = error.message;
             result = error ? { error: error.message } : { data: data || [] };
           } 
           else if (call.name === "get_apartments") {
-            let query = supabase.from('wohnungen').select('id, name, etage, wohnungstyp, haeuser(name)');
+            let query = supabase.from('Wohnungen').select('id, name, groesse, miete, haus_id, Haeuser(name)');
             if (call.args?.house_id) {
                query = query.eq('haus_id', call.args.house_id);
             }
             const limit = Number(call.args?.limit) || 10;
             const { data, error } = await query.limit(limit);
+            if (error) toolError = error.message;
             result = error ? { error: error.message } : { data: data || [] };
           } 
           else if (call.name === "get_tenants") {
-            let query = supabase.from('mieter').select('id, vorname, nachname, email, telefon, miete, wohnungen(name, haeuser(name))');
+            let query = supabase.from('Mieter').select('id, name, email, telefonnummer, status, einzug, auszug, Wohnungen(name, miete, Haeuser(name))');
             if (call.args?.search_term) {
-               query = query.or(`vorname.ilike.%${call.args.search_term}%,nachname.ilike.%${call.args.search_term}%`);
+               query = query.ilike('name', `%${call.args.search_term}%`);
             }
             const limit = Number(call.args?.limit) || 10;
             const { data, error } = await query.limit(limit);
+            if (error) toolError = error.message;
             result = error ? { error: error.message } : { data: data || [] };
           } 
           else {
-            result = { error: "Unknown tool call: " + call.name };
+            toolError = "Unknown tool call: " + call.name;
+            result = { error: toolError };
           }
         } catch (e: any) {
-          result = { error: e.message || String(e) };
+          toolError = e.message || String(e);
+          result = { error: toolError };
+        }
+        
+        executedTools.push({
+          name: call.name,
+          args: call.args,
+          error: toolError,
+        });
+
+        // Track specific tool failures immediately
+        if (toolError && posthog) {
+           console.error(`Tool Execution Error [${call.name}]:`, toolError);
+           posthog.capture({
+             distinctId: userId,
+             event: '$ai_generation_error',
+             properties: {
+                 $ai_trace_id: traceId,
+                 $ai_session_id: sessionId,
+                 $ai_span_name: `mietevo_ai_tool_${call.name}`,
+                 error_message: `Database Tool Error: ${toolError}`,
+                 tool_args: JSON.stringify(call.args)
+             }
+           });
         }
         
         responses.push({
@@ -208,6 +237,9 @@ ${pageContext}`;
           $ai_input_tokens: aiResponse.usageMetadata?.promptTokenCount || 0,
           $ai_output_tokens: aiResponse.usageMetadata?.candidatesTokenCount || 0,
           $ai_latency: latency,
+          $ai_tools_called: executedTools.map(t => t.name),
+          $ai_tool_call_count: executedTools.length,
+          executed_tools_json: JSON.stringify(executedTools),
           current_page: pathname,
           user_role: userRole,
         },
