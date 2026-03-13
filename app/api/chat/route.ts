@@ -97,7 +97,7 @@ ${pageContext}`;
 
     // 7. Create Chat with History, System Prompt & Tools
     const chat = client.chats.create({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-flash-lite-preview",
       config: {
         systemInstruction,
         tools,
@@ -196,7 +196,7 @@ ${pageContext}`;
           $ai_trace_id: traceId,
           $ai_session_id: sessionId,
           $ai_span_name: 'mietevo_ai_agent',
-          $ai_model: 'gemini-3-flash-preview',
+          $ai_model: 'gemini-3.1-flash-lite-preview',
           $ai_provider: 'google',
           $ai_input: JSON.stringify([
             { role: 'system', content: systemInstruction },
