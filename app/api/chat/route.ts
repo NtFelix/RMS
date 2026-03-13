@@ -110,11 +110,15 @@ ${pageContext}`;
     
     // Process tool calls if any
     let maxToolLoops = 5;
+    if (aiResponse.functionCalls && aiResponse.functionCalls.length > 0) {
+      console.log(`Initial Gemini response includes ${aiResponse.functionCalls.length} tool calls.`);
+    }
     while (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && maxToolLoops > 0) {
       maxToolLoops--;
       const responses = [];
 
       for (const call of aiResponse.functionCalls) {
+        console.log(`Executing tool: ${call.name} with args:`, JSON.stringify(call.args));
         let result = {};
         try {
           if (call.name === "get_houses") {
@@ -159,7 +163,25 @@ ${pageContext}`;
       }
 
       // Send the function responses back to Gemini
-      aiResponse = await chat.sendMessage({ message: responses });
+      try {
+        console.log("Sending function responses back to Gemini:", JSON.stringify(responses, null, 2));
+        aiResponse = await chat.sendMessage({ message: responses });
+      } catch (e: any) {
+        console.error("Tool execution or response sending failed:", e.message || String(e), e);
+        if (posthog) {
+          posthog.capture({
+             distinctId: userId,
+             event: '$ai_generation_error',
+             properties: {
+                 $ai_trace_id: traceId,
+                 $ai_span_name: 'mietevo_ai_agent_tool',
+                 error_message: `Tool response error: ${e?.message || String(e)}`,
+                 tool_responses: JSON.stringify(responses)
+             }
+         });
+        }
+        break; // Exit the loop on failure
+      }
     }
 
     const replyText = aiResponse.text;
