@@ -9,8 +9,15 @@ import { v4 as uuidv4 } from "uuid";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { LOGO_URL } from "@/lib/constants";
-import { CustomDropdown, CustomDropdownItem } from "@/components/ui/custom-dropdown";
 import { GoogleIcon } from "@/components/icons/google-icon";
+import { useTheme } from "next-themes";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Define message type
 type Message = {
@@ -26,6 +33,10 @@ export function AIChatSidebar() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite-preview");
+  const { theme, resolvedTheme } = useTheme();
+  const currentTheme = theme === 'system' ? resolvedTheme : theme;
+  const isDark = currentTheme === 'dark';
+  
   const pathname = usePathname();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -142,7 +153,7 @@ export function AIChatSidebar() {
             animate={{ x: 0, opacity: 1, filter: "blur(0px)" }}
             exit={{ x: "100%", opacity: 0, filter: "blur(8px)" }}
             transition={{ type: "spring", stiffness: 350, damping: 30 }}
-            className="fixed top-0 right-0 h-full w-full sm:w-[450px] bg-background/90 backdrop-blur-2xl border-l border-white/10 shadow-2xl z-50 flex flex-col pt-safe"
+            className="fixed top-0 right-0 h-full w-full sm:w-[450px] bg-background/90 dark:bg-background/90 backdrop-blur-2xl border-l border-border/50 dark:border-white/10 shadow-2xl z-50 flex flex-col pt-safe"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 bg-background/50 backdrop-blur-xl z-20">
@@ -155,7 +166,7 @@ export function AIChatSidebar() {
                   </span>
                 </div>
                 <div>
-                  <h2 className="font-bold text-lg leading-none bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                  <h2 className="font-bold text-lg leading-none bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 dark:to-white/70">
                     Mietevo Copilot
                   </h2>
                   <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
@@ -279,7 +290,7 @@ export function AIChatSidebar() {
                   e.preventDefault();
                   sendMessage();
                 }}
-                className="relative bg-[#1A1A1A] text-white border border-border/10 rounded-2xl shadow-sm focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300"
+                className={`relative border border-border/10 rounded-2xl shadow-sm focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300 ${isDark ? 'bg-[#1A1A1A] text-white' : 'bg-white text-foreground border-border/80'}`}
               >
                 <div className="px-4 py-3">
                   <textarea
@@ -305,7 +316,7 @@ export function AIChatSidebar() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground hover:bg-white/5"
+                      className={`rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
                     >
                       {/* Using generic lucide-react icons as fill-ins for the + and slider icons in the image */}
                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
@@ -314,42 +325,44 @@ export function AIChatSidebar() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground hover:bg-white/5"
+                      className={`rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
                     >
                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="21" y2="21"/><line x1="4" x2="20" y1="14" y2="14"/><line x1="4" x2="20" y1="7" y2="7"/><circle cx="8" cy="21" r="1"/><circle cx="16" cy="14" r="1"/><circle cx="8" cy="7" r="1"/></svg>
                     </Button>
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <CustomDropdown
-                      align="end"
-                      className="w-[160px] bg-[#1A1A1A]/95 text-white border-border/10 shadow-xl rounded-xl p-1"
-                      trigger={
-                        <Button variant="ghost" size="sm" className="h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 data-[state=open]:bg-white/5 data-[state=open]:text-foreground rounded-lg transition-colors gap-1.5 focus-visible:ring-0 focus-visible:ring-offset-0">
-                          <GoogleIcon className="w-3.5 h-3.5" />
-                          {selectedModel === "gemini-3.1-flash-lite-preview" ? "Flash Lite 3.1" : "Flash 3.0"}
-                        </Button>
-                      }
+                    <Select
+                      value={selectedModel}
+                      onValueChange={setSelectedModel}
                     >
-                      <CustomDropdownItem 
-                        onClick={() => setSelectedModel("gemini-3.1-flash-lite-preview")}
-                        className={`font-medium ${selectedModel === "gemini-3.1-flash-lite-preview" ? "bg-white/10" : "hover:bg-white/5 focus:bg-white/5"}`}
-                      >
-                        Flash Lite 3.1
-                      </CustomDropdownItem>
-                      <CustomDropdownItem 
-                        onClick={() => setSelectedModel("gemini-3-flash-preview")}
-                        className={`font-medium ${selectedModel === "gemini-3-flash-preview" ? "bg-white/10" : "hover:bg-white/5 focus:bg-white/5"}`}
-                      >
-                        Flash 3.0
-                      </CustomDropdownItem>
-                    </CustomDropdown>
+                      <SelectTrigger className={`h-9 border-none bg-transparent hover:scale-100 active:scale-100 hover:shadow-none px-3 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg transition-colors gap-1.5 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${isDark ? 'hover:bg-white/5 data-[state=open]:bg-white/5' : 'hover:bg-black/5 data-[state=open]:bg-black/5'}`}>
+                        <div className="flex items-center gap-1.5 min-w-[85px]">
+                          <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
+                          <SelectValue placeholder="Modell wählen" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent align="end" className={`w-[160px] border-border/10 shadow-xl rounded-xl p-1 ${isDark ? 'bg-[#1A1A1A]/95 text-white' : 'bg-white text-foreground'}`}>
+                        <SelectItem 
+                          value="gemini-3.1-flash-lite-preview"
+                          className={`font-medium cursor-pointer ${selectedModel === "gemini-3.1-flash-lite-preview" ? (isDark ? "bg-white/10" : "bg-black/10") : (isDark ? "hover:bg-white/5 focus:bg-white/5" : "hover:bg-black/5 focus:bg-black/5")}`}
+                        >
+                          Flash Lite 3.1
+                        </SelectItem>
+                        <SelectItem 
+                          value="gemini-3-flash-preview"
+                          className={`font-medium cursor-pointer ${selectedModel === "gemini-3-flash-preview" ? (isDark ? "bg-white/10" : "bg-black/10") : (isDark ? "hover:bg-white/5 focus:bg-white/5" : "hover:bg-black/5 focus:bg-black/5")}`}
+                        >
+                          Flash 3.0
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
 
                     <Button
                       type="submit"
                       size="icon"
                       disabled={isLoading || !inputValue.trim()}
-                      className="rounded-full w-9 h-9 shrink-0 bg-white/10 hover:bg-white/20 text-white shadow-none transition-all active:scale-95 disabled:opacity-30 disabled:hover:bg-white/10"
+                      className={`rounded-full w-9 h-9 shrink-0 shadow-none transition-all active:scale-95 disabled:opacity-30 ${isDark ? 'bg-white/10 hover:bg-white/20 text-white disabled:hover:bg-white/10' : 'bg-black/10 hover:bg-black/20 text-foreground disabled:hover:bg-black/10'}`}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
                     </Button>
