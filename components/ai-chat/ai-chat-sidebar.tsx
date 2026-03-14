@@ -18,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // Define message type
 type Message = {
@@ -262,82 +264,89 @@ export function AIChatSidebar() {
                 </motion.div>
               ) : (
                 <AnimatePresence initial={false}>
-                  {messages.map((m) => (
-                    <motion.div
-                      layout
-                      key={m.id}
-                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      className={`flex w-full ${
-                        m.role === "user" ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      {m.role === "model" && (
-                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 mr-3 flex-shrink-0 mt-1 shadow-sm overflow-hidden p-[2px]">
-                            <Image src={LOGO_URL} alt="AI" width={24} height={24} className="object-contain" />
+                   {messages.map((m) => (
+                     <motion.div
+                       layout
+                       key={m.id}
+                       initial={{ opacity: 0, y: 10 }}
+                       animate={{ opacity: 1, y: 0 }}
+                       className={`flex w-full flex-col ${
+                         m.role === "user" ? "items-end" : "items-start"
+                       }`}
+                     >
+                       {m.role === "user" ? (
+                         <div className="flex flex-col items-end max-w-[85%]">
+                            <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-[20px] rounded-tr-[4px] shadow-sm text-sm border border-primary/20">
+                              {m.attachment && (
+                                <div className="flex flex-col gap-2 mb-2 p-2 rounded-xl bg-white/10 hover:bg-white/15 transition-colors cursor-pointer border border-white/5 shadow-inner">
+                                  {m.attachment.type.startsWith('image/') ? (
+                                    <div className="relative aspect-auto max-h-[160px] max-w-full overflow-hidden rounded-lg">
+                                      <img src={`data:${m.attachment.type};base64,${m.attachment.data}`} alt={m.attachment.name} className="object-contain w-auto h-full rounded-md shadow-sm" />
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2 px-1">
+                                      <FileIcon className="w-8 h-8 opacity-80 shrink-0" />
+                                      <span className="text-xs truncate font-medium opacity-95 max-w-[180px]">{m.attachment.name}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              <p className="whitespace-pre-wrap">{m.content}</p>
+                            </div>
                          </div>
-                      )}
-                      
-                      <div
-                        className={`max-w-[82%] px-5 py-3.5 shadow-sm text-[15px] leading-relaxed relative ${
-                          m.role === "user"
-                            ? "bg-gradient-to-tr from-primary to-primary/80 text-primary-foreground rounded-[24px] rounded-tr-[4px]"
-                            : "bg-card text-card-foreground border border-border/80 rounded-[24px] rounded-tl-[4px]"
-                        }`}
-                      >
-                        {m.attachment && (
-                          <div className={`flex flex-col gap-2 mb-2 p-2 rounded-xl transition-opacity hover:opacity-90 cursor-pointer ${m.role === "user" ? "bg-white/10" : "bg-muted"}`}>
-                            {m.attachment.type.startsWith('image/') ? (
-                              <div className="relative aspect-auto max-h-[160px] max-w-full overflow-hidden rounded-lg">
-                                <img src={`data:${m.attachment.type};base64,${m.attachment.data}`} alt={m.attachment.name} className="object-contain w-auto h-full rounded-md shadow-sm" />
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 px-1">
-                                <FileIcon className="w-8 h-8 opacity-80 shrink-0" />
-                                <span className="text-sm truncate font-medium opacity-90 max-w-[200px]">{m.attachment.name}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <p className="whitespace-pre-wrap">{m.content}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+                       ) : (
+                         <div className="w-full space-y-3">
+                           <div className="flex items-center gap-2 px-1">
+                             <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm overflow-hidden p-[1px]">
+                               <Image src={LOGO_URL} alt="AI" width={18} height={18} className="object-contain" />
+                             </div>
+                             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mietevo Copilot</span>
+                           </div>
+                           <div className="prose prose-sm dark:prose-invert max-w-none px-1 text-[15px] leading-relaxed text-foreground/90">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {m.content}
+                              </ReactMarkdown>
+                           </div>
+                           <div className="h-px w-full bg-gradient-to-r from-border/50 via-border/20 to-transparent my-4 opacity-50" />
+                         </div>
+                       )}
+                     </motion.div>
+                   ))}
+                 </AnimatePresence>
               )}
-              
-              {isLoading && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex justify-start w-full"
-                >
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 mr-3 flex-shrink-0 mt-1 shadow-sm relative overflow-hidden">
-                     <div className="absolute inset-0 bg-primary/10 animate-pulse" />
-                     <Sparkles className="w-4 h-4 text-primary animate-[spin_3s_linear_infinite]" />
-                  </div>
-                  <div className="bg-card border border-border/80 rounded-[24px] rounded-tl-[4px] px-5 py-4 flex items-center gap-2 shadow-sm relative overflow-hidden w-[100px]">
-                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-primary/5 to-transparent z-0" />
-                    <div className="flex space-x-1.5 z-10 w-full justify-center">
-                      <motion.div 
-                        animate={{ y: [0, -5, 0] }} 
-                        transition={{ repeat: Infinity, duration: 0.6, ease: "easeInOut" }}
-                        className="w-2 h-2 bg-primary/40 rounded-full" 
-                      />
-                      <motion.div 
-                        animate={{ y: [0, -5, 0] }} 
-                        transition={{ repeat: Infinity, duration: 0.6, ease: "easeInOut", delay: 0.15 }}
-                        className="w-2 h-2 bg-primary/70 rounded-full" 
-                      />
-                      <motion.div 
-                        animate={{ y: [0, -5, 0] }} 
-                        transition={{ repeat: Infinity, duration: 0.6, ease: "easeInOut", delay: 0.3 }}
-                        className="w-2 h-2 bg-primary rounded-full" 
-                      />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
+                            {isLoading && (
+                 <motion.div 
+                   initial={{ opacity: 0, y: 10 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   className="flex flex-col items-start w-full space-y-3"
+                 >
+                   <div className="flex items-center gap-2 px-1">
+                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm relative overflow-hidden">
+                        <div className="absolute inset-0 bg-primary/10 animate-pulse" />
+                        <Sparkles className="w-3.5 h-3.5 text-primary animate-[spin_3s_linear_infinite]" />
+                     </div>
+                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider animate-pulse">Analysiere...</span>
+                   </div>
+                   <div className="flex flex-col space-y-2 w-full max-w-[120px] px-1">
+                     <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden relative">
+                       <motion.div 
+                         initial={{ x: "-100%" }}
+                         animate={{ x: "100%" }}
+                         transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                         className="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-primary to-transparent"
+                       />
+                     </div>
+                     <div className="h-1.5 w-3/4 bg-muted rounded-full overflow-hidden relative">
+                       <motion.div 
+                         initial={{ x: "-100%" }}
+                         animate={{ x: "100%" }}
+                         transition={{ repeat: Infinity, duration: 1.5, ease: "linear", delay: 0.2 }}
+                         className="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-primary to-transparent"
+                       />
+                     </div>
+                   </div>
+                 </motion.div>
+               )}
             </div>
 
             {/* Input Area */}
