@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Trash2, Sparkles } from "lucide-react";
+import { MessageCircle, X, Send, Trash2, Sparkles, Paperclip, File as FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -24,6 +24,11 @@ type Message = {
   id: string;
   role: "user" | "model";
   content: string;
+  attachment?: {
+    name: string;
+    type: string;
+    data: string;
+  };
 };
 
 export function AIChatSidebar() {
@@ -31,6 +36,7 @@ export function AIChatSidebar() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
   const [sessionId, setSessionId] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite-preview");
   const { theme, resolvedTheme } = useTheme();
@@ -39,6 +45,29 @@ export function AIChatSidebar() {
   
   const pathname = usePathname();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      alert("Datei ist zu groß (max 20MB).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Data = (event.target?.result as string).split(',')[1];
+      setAttachment({
+        name: file.name,
+        type: file.type,
+        data: base64Data
+      });
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   // Initialize session ID on mount
   useEffect(() => {
@@ -73,36 +102,50 @@ export function AIChatSidebar() {
   };
 
   const sendMessage = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() && !attachment) return;
 
     const userMessage: Message = {
       id: uuidv4(),
       role: "user",
       content: inputValue.trim(),
+      attachment: attachment ? { ...attachment } : undefined,
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
+    setAttachment(null);
     setIsLoading(true);
 
     const turnCount = messages.filter((m) => m.role === "user").length + 1;
     posthog.capture("ai_message_sent", {
       message_length: userMessage.content.length,
+      has_attachment: !!userMessage.attachment,
       current_page: pathname,
       conversation_turn: turnCount,
     });
 
     try {
-      const history = messages.map((m) => ({
-        role: m.role,
-        parts: [{ text: m.content }],
-      }));
+      const history = messages.map((m) => {
+        const parts: any[] = [];
+        if (m.content) parts.push({ text: m.content });
+        if (m.attachment) {
+          parts.push({
+            inlineData: {
+              data: m.attachment.data,
+              mimeType: m.attachment.type
+            }
+          });
+        }
+        if (parts.length === 0) parts.push({ text: " " });
+        return { role: m.role, parts };
+      });
 
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: userMessage.content,
+          message: userMessage.content || "Hier ist eine Datei zur Analyse.",
+          attachment: userMessage.attachment,
           history,
           pathname,
           sessionId,
@@ -242,6 +285,20 @@ export function AIChatSidebar() {
                             : "bg-card text-card-foreground border border-border/80 rounded-[24px] rounded-tl-[4px]"
                         }`}
                       >
+                        {m.attachment && (
+                          <div className={`flex flex-col gap-2 mb-2 p-2 rounded-xl transition-opacity hover:opacity-90 cursor-pointer ${m.role === "user" ? "bg-white/10" : "bg-muted"}`}>
+                            {m.attachment.type.startsWith('image/') ? (
+                              <div className="relative aspect-auto max-h-[160px] max-w-full overflow-hidden rounded-lg">
+                                <img src={`data:${m.attachment.type};base64,${m.attachment.data}`} alt={m.attachment.name} className="object-contain w-auto h-full rounded-md shadow-sm" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 px-1">
+                                <FileIcon className="w-8 h-8 opacity-80 shrink-0" />
+                                <span className="text-sm truncate font-medium opacity-90 max-w-[200px]">{m.attachment.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <p className="whitespace-pre-wrap">{m.content}</p>
                       </div>
                     </motion.div>
@@ -292,7 +349,32 @@ export function AIChatSidebar() {
                 }}
                 className={`relative border border-border/10 rounded-2xl shadow-sm focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300 ${isDark ? 'bg-[#1A1A1A] text-white' : 'bg-white text-foreground border-border/80'}`}
               >
-                <div className="px-4 py-3">
+                <div className="px-4 pt-3">
+                  {attachment && (
+                    <div className="flex items-center justify-between p-2 mb-2 rounded-xl bg-muted/50 border border-border/40 backdrop-blur-sm animate-in zoom-in-95 duration-200">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        {attachment.type.startsWith('image/') ? (
+                          <div className="relative shrink-0 w-8 h-8 overflow-hidden rounded bg-background shadow-sm">
+                            <img src={`data:${attachment.type};base64,${attachment.data}`} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded bg-background shadow-sm">
+                            <FileIcon className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <span className="text-sm truncate text-foreground font-medium">{attachment.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setAttachment(null)}
+                        className="w-7 h-7 rounded-full hover:bg-destructive/10 hover:text-destructive shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
                   <textarea
                     value={inputValue}
                     onChange={(e) => {
@@ -301,7 +383,7 @@ export function AIChatSidebar() {
                       e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Alles mit KI erledigen..."
+                    placeholder={attachment ? "Frage zum Anhang hinzufügen..." : "Alles mit KI erledigen..."}
                     disabled={isLoading}
                     rows={1}
                     className="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[150px] text-[15px] placeholder:text-muted-foreground disabled:opacity-50 min-h-[48px] outline-none"
@@ -312,14 +394,22 @@ export function AIChatSidebar() {
                 {/* Bottom row: tools left, send right */}
                 <div className="flex items-center justify-between px-3 pb-3">
                   <div className="flex items-center gap-1">
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      ref={fileInputRef} 
+                      onChange={handleFileSelect} 
+                      accept="image/*,.pdf,.doc,.docx,.csv,.txt"
+                    />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
+                      onClick={() => fileInputRef.current?.click()}
                       className={`rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+                      title="Datei hochladen"
                     >
-                      {/* Using generic lucide-react icons as fill-ins for the + and slider icons in the image */}
-                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                      <Paperclip className="w-4.5 h-4.5" />
                     </Button>
                     <Button
                       type="button"
@@ -361,7 +451,7 @@ export function AIChatSidebar() {
                     <Button
                       type="submit"
                       size="icon"
-                      disabled={isLoading || !inputValue.trim()}
+                      disabled={isLoading || (!inputValue.trim() && !attachment)}
                       className={`rounded-full w-9 h-9 shrink-0 shadow-none transition-all active:scale-95 disabled:opacity-30 ${isDark ? 'bg-white/10 hover:bg-white/20 text-white disabled:hover:bg-white/10' : 'bg-black/10 hover:bg-black/20 text-foreground disabled:hover:bg-black/10'}`}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
