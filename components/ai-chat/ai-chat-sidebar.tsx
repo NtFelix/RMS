@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Trash2, Sparkles, Plus, File as FileIcon } from "lucide-react";
+import { MessageCircle, X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -31,6 +31,7 @@ type Message = {
     type: string;
     data: string;
   };
+  feedback?: 'up' | 'down' | null;
 };
 
 export function AIChatSidebar() {
@@ -69,6 +70,21 @@ export function AIChatSidebar() {
     };
     reader.readAsDataURL(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleFeedback = (messageId: string, feedback: 'up' | 'down') => {
+    setMessages(prev => prev.map(m => 
+      m.id === messageId 
+        ? { ...m, feedback: m.feedback === feedback ? null : feedback } 
+        : m
+    ));
+
+    const message = messages.find(m => m.id === messageId);
+    posthog.capture("ai_message_feedback", {
+      message_id: messageId,
+      feedback_type: feedback,
+      message_content: message?.content?.substring(0, 100),
+    });
   };
 
   // Initialize session ID on mount
@@ -276,17 +292,25 @@ export function AIChatSidebar() {
                      >
                        {m.role === "user" ? (
                          <div className="flex flex-col items-end max-w-[85%]">
-                            <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-[20px] rounded-tr-[4px] shadow-sm text-sm border border-primary/20">
+                            <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-[20px] rounded-tr-[4px] shadow-md text-[14.5px] border border-primary/20">
                               {m.attachment && (
-                                <div className="flex flex-col gap-2 mb-2 p-2 rounded-xl bg-white/10 hover:bg-white/15 transition-colors cursor-pointer border border-white/5 shadow-inner">
+                                <div className="flex flex-col gap-2 mb-3 p-0 rounded-xl overflow-hidden bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 shadow-lg group/attachment">
                                   {m.attachment.type.startsWith('image/') ? (
-                                    <div className="relative aspect-auto max-h-[160px] max-w-full overflow-hidden rounded-lg">
-                                      <img src={`data:${m.attachment.type};base64,${m.attachment.data}`} alt={m.attachment.name} className="object-contain w-auto h-full rounded-md shadow-sm" />
+                                    <div className="relative aspect-auto max-h-[220px] w-full overflow-hidden bg-black/20">
+                                      <img src={`data:${m.attachment.type};base64,${m.attachment.data}`} alt={m.attachment.name} className="object-contain w-full h-full transform transition-transform duration-500 group-hover/attachment:scale-105" />
+                                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold text-white/90 border border-white/10 uppercase tracking-widest">
+                                        Bild
+                                      </div>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-2 px-1">
-                                      <FileIcon className="w-8 h-8 opacity-80 shrink-0" />
-                                      <span className="text-xs truncate font-medium opacity-95 max-w-[180px]">{m.attachment.name}</span>
+                                    <div className="flex items-center gap-3 p-3 bg-white/5">
+                                      <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 border border-white/10 shadow-inner">
+                                        <FileIcon className="w-5 h-5 text-white/90" />
+                                      </div>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-[13px] truncate font-bold text-white leading-tight">{m.attachment.name}</span>
+                                        <span className="text-[10px] opacity-60 uppercase tracking-tighter">Dokument</span>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -295,12 +319,34 @@ export function AIChatSidebar() {
                             </div>
                          </div>
                        ) : (
-                         <div className="w-full space-y-3">
-                           <div className="flex items-center gap-2 px-1">
-                             <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm overflow-hidden p-[1px]">
-                               <Image src={LOGO_URL} alt="AI" width={18} height={18} className="object-contain" />
+                         <div className="w-full space-y-3 group">
+                           <div className="flex items-center justify-between px-1">
+                             <div className="flex items-center gap-2">
+                               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm overflow-hidden p-[1px]">
+                                 <Image src={LOGO_URL} alt="AI" width={18} height={18} className="object-contain" />
+                               </div>
+                               <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-80">Mietevo Copilot</span>
                              </div>
-                             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mietevo Copilot</span>
+                             
+                             {/* Feedback and Actions */}
+                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 onClick={() => handleFeedback(m.id, 'up')}
+                                 className={`w-7 h-7 rounded-md transition-colors ${m.feedback === 'up' ? 'text-green-500 bg-green-500/10' : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/5'}`}
+                               >
+                                 <ThumbsUp className={`w-3.5 h-3.5 ${m.feedback === 'up' ? 'fill-current' : ''}`} />
+                               </Button>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 onClick={() => handleFeedback(m.id, 'down')}
+                                 className={`w-7 h-7 rounded-md transition-colors ${m.feedback === 'down' ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/5'}`}
+                               >
+                                 <ThumbsDown className={`w-3.5 h-3.5 ${m.feedback === 'down' ? 'fill-current' : ''}`} />
+                               </Button>
+                             </div>
                            </div>
                            <div className="prose prose-sm dark:prose-invert max-w-none px-1 text-[15px] leading-relaxed text-foreground/90">
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
