@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Parse Request Body
     const body = await req.json();
-    const { message, history = [], pathname, sessionId, model = "gemini-3.1-flash-lite-preview" } = body;
+    const { message, history = [], pathname, sessionId, model = "gemini-3.1-flash-lite-preview", attachment } = body;
 
     if (!message || !pathname || !sessionId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -142,7 +142,17 @@ ${pageContext}`;
     });
 
     // 8. Send Message & Handle Function Calls
-    let aiResponse = await chat.sendMessage({ message });
+    let messageParts: any[] = [{ text: message }];
+    if (attachment) {
+      messageParts.push({
+        inlineData: {
+          data: attachment.data,
+          mimeType: attachment.type
+        }
+      });
+    }
+
+    let aiResponse = await chat.sendMessage({ message: messageParts });
     
     // Process tool calls if any
     let maxToolLoops = 5;
