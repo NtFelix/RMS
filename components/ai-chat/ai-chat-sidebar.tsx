@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Trash2, Sparkles, Paperclip, File as FileIcon } from "lucide-react";
+import { MessageCircle, X, Send, Trash2, Sparkles, Plus, File as FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -409,7 +409,7 @@ export function AIChatSidebar() {
                       className={`rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
                       title="Datei hochladen"
                     >
-                      <Paperclip className="w-4.5 h-4.5" />
+                      <Plus className="w-5 h-5" />
                     </Button>
                     <Button
                       type="button"
