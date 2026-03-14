@@ -69,6 +69,7 @@ export function TemplateEditor({
                   return;
                 }
 
+                // Append to containerRef.current or body to ensure proper stacking
                 popup = tippy(document.body, {
                   getReferenceClientRect: props.clientRect as any,
                   appendTo: () => containerRef.current || document.body,
@@ -140,6 +141,7 @@ export function TemplateEditor({
 
     const newHTML = typeof content === 'string' ? content : JSON.stringify(content);
     
+    // Only update if content is actually different from what we last emitted
     if (newHTML !== lastContentRef.current) {
       const currentJSON = editor.getJSON();
       const isSame = JSON.stringify(currentJSON) === JSON.stringify(content);
@@ -258,7 +260,7 @@ export function TemplateEditor({
           className={cn(
             'prose prose-sm max-w-none focus:outline-none min-h-[150px]',
             '[&_.mention-variable]:bg-primary/10 [&_.mention-variable]:text-primary [&_.mention-variable]:px-1 [&_.mention-variable]:py-0.5 [&_.mention-variable]:rounded [&_.mention-variable]:font-medium',
-            readOnly && 'cursor-default'
+            readOnly && 'cursor-default transition-all duration-200'
           )}
         />
 

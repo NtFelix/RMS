@@ -83,7 +83,7 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
   return (
     <div
       ref={listRef}
-      className="z-[9999] min-w-[240px] max-h-[300px] overflow-y-auto overflow-x-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 scrollbar-thin"
+      className="z-[9999] min-w-[240px] max-h-[300px] overflow-y-auto overflow-x-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 scrollbar-thin overscroll-contain"
       onMouseDown={(e) => e.preventDefault()}
     >
       {props.items.length > 0 ? (
@@ -106,7 +106,7 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
               <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border bg-muted text-muted-foreground">
                 <Hash className="h-3 w-3" />
               </div>
-              <div className="flex flex-col items-start overflow-hidden w-full">
+              <div className="flex flex-col items-start overflow-hidden w-full text-left">
                 <span className="font-medium truncate w-full">{item.label}</span>
                 <span className="text-xs text-muted-foreground truncate w-full">{item.description}</span>
               </div>
