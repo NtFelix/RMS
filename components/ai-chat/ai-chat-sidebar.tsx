@@ -71,7 +71,7 @@ function IntelligenceInsight({
   toolCalls?: ToolCallRecord[];
 }) {
   const [isExpanded, setIsExpanded] = useState(isLoading);
-  const [expandedTool, setExpandedTool] = useState<number | null>(null);
+  const [expandedToolId, setExpandedToolId] = useState<string | null>(null);
 
   // Auto-expand when loading starts
   useEffect(() => {
@@ -149,97 +149,104 @@ function IntelligenceInsight({
 
                     {/* Content */}
                     <div className="min-w-0 pr-4">
-                      {isActive ? (
-                        <ShimmerText text={step.label} />
-                      ) : (
-                        <span className={`text-[13px] font-medium block leading-snug ${
-                          isDone   ? "text-muted-foreground/60" :
-                          isError  ? "text-red-400/70" :
-                          "text-muted-foreground/40"
-                        }`}>
-                          {step.label}
-                        </span>
-                      )}
+                      {step.toolResult ? (
+                        <button
+                          onClick={() => setExpandedToolId(expandedToolId === step.id ? null : step.id)}
+                          className="flex flex-col items-start text-left w-full group/toolstep outline-none"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[13px] font-medium leading-snug transition-colors ${
+                              isDone   ? "text-muted-foreground/60 group-hover/toolstep:text-muted-foreground" :
+                              isError  ? "text-red-400/70" :
+                              "text-muted-foreground/40"
+                            }`}>
+                              {step.label}
+                            </span>
+                            <motion.span
+                              animate={{ rotate: expandedToolId === step.id ? 0 : -90 }}
+                              transition={{ duration: 0.15 }}
+                            >
+                              <ChevronDown className="w-3 h-3 text-muted-foreground/30" />
+                            </motion.span>
+                          </div>
 
-                      {/* Detail chip */}
-                      {step.detail && step.status !== "pending" && (
-                        <div className="mt-1 flex items-center gap-2">
-                          <span className="text-[11px] font-medium text-muted-foreground/40 truncate max-w-full italic">
-                            {step.detail}
-                          </span>
-                          {isDone && step.duration && (
-                            <span className="text-[10px] font-mono text-muted-foreground/25 shrink-0">
-                              {step.duration}ms
+                          {step.detail && (
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="text-[11px] font-medium text-muted-foreground/40 truncate max-w-full italic">
+                                {step.detail}
+                              </span>
+                              {isDone && step.duration && (
+                                <span className="text-[10px] font-mono text-muted-foreground/25 shrink-0">
+                                  {step.duration}ms
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      ) : (
+                        <>
+                          {isActive ? (
+                            <ShimmerText text={step.label} />
+                          ) : (
+                            <span className={`text-[13px] font-medium block leading-snug ${
+                              isDone   ? "text-muted-foreground/60" :
+                              isError  ? "text-red-400/70" :
+                              "text-muted-foreground/40"
+                            }`}>
+                              {step.label}
                             </span>
                           )}
-                        </div>
+
+                          {step.detail && step.status !== "pending" && (
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="text-[11px] font-medium text-muted-foreground/40 truncate max-w-full italic">
+                                {step.detail}
+                              </span>
+                              {isDone && step.duration && (
+                                <span className="text-[10px] font-mono text-muted-foreground/25 shrink-0">
+                                  {step.duration}ms
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Tool data content */}
+                      {step.toolResult && (
+                        <AnimatePresence>
+                          {expandedToolId === step.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="mt-2.5 pb-2 space-y-3 pl-3 border-l border-border/20">
+                                <div className="space-y-1">
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/35">Input</span>
+                                  <pre className="p-2.5 rounded-lg text-[11px] font-mono bg-muted/20 text-muted-foreground/75 overflow-x-auto overflow-y-auto max-h-[160px] border border-border/5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/50 [&::-webkit-scrollbar-track]:bg-transparent">
+                                    {JSON.stringify(step.toolResult.args, null, 2)}
+                                  </pre>
+                                </div>
+
+                                {step.toolResult.result && (
+                                  <div className="space-y-1">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-primary/40">Output</span>
+                                    <pre className="p-2.5 rounded-lg text-[11px] font-mono bg-primary/[0.04] text-foreground/70 overflow-x-auto overflow-y-auto max-h-[220px] border border-primary/10 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/25 [&::-webkit-scrollbar-track]:bg-transparent">
+                                      {JSON.stringify(step.toolResult.result, null, 2)}
+                                    </pre>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       )}
                     </div>
                   </motion.div>
                 );
               })}
-
-              {/* Tool call details */}
-              {hasToolData && (
-                <div className="space-y-3 pt-1">
-                  {toolCalls!.map((call, idx) => (
-                    <div key={idx} className="relative">
-                      {/* Timeline Bullet for tools */}
-                      <div className="absolute -left-[20px] top-[7px]">
-                         <div className={`w-1.5 h-1.5 rounded-full ring-4 ring-background ${call.error ? "bg-red-400/40" : "bg-blue-400/30"}`} />
-                      </div>
-
-                      <button
-                        onClick={() => setExpandedTool(expandedTool === idx ? null : idx)}
-                        className="flex items-center gap-2 group/tool outline-none text-left"
-                      >
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <Database className={`w-3 h-3 shrink-0 ${call.error ? "text-red-400/60" : "text-blue-400/60"}`} />
-                          <span className="text-[12px] font-mono text-muted-foreground/55 group-hover/tool:text-muted-foreground transition-all">
-                            {call.name}
-                          </span>
-                          {call.error && <span className="text-[9px] text-red-400/60 font-bold uppercase tracking-wider">Fehler</span>}
-                        </div>
-                        <motion.span
-                          animate={{ rotate: expandedTool === idx ? 180 : 0 }}
-                          transition={{ duration: 0.15 }}
-                        >
-                          <ChevronDown className="w-3 h-3 text-muted-foreground/30" />
-                        </motion.span>
-                      </button>
-
-                      <AnimatePresence>
-                        {expandedTool === idx && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="mt-2.5 pb-2 space-y-3 pl-3 border-l border-border/20">
-                              <div className="space-y-1">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/35">Input</span>
-                                <pre className="p-2.5 rounded-lg text-[11px] font-mono bg-muted/20 text-muted-foreground/75 overflow-x-auto border border-border/5">
-                                  {JSON.stringify(call.args, null, 2)}
-                                </pre>
-                              </div>
-
-                              {call.result && (
-                                <div className="space-y-1">
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-primary/40">Output</span>
-                                  <pre className="p-2.5 rounded-lg text-[11px] font-mono bg-primary/[0.04] text-foreground/70 overflow-x-auto border border-primary/10">
-                                    {JSON.stringify(call.result, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </motion.div>
         )}
@@ -462,6 +469,9 @@ export function AIChatSidebar() {
             } 
             else if (data.type === "tool_result") {
               toolResults.push(data.toolCall);
+              if (currentStepId) {
+                updateStep(currentStepId, { toolResult: data.toolCall });
+              }
             } 
             else if (data.type === "final_reply") {
               finalReply = data.reply;

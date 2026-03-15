@@ -9,6 +9,7 @@ export interface LLMStep {
   status: StepStatus;
   startedAt?: number;
   duration?: number;
+  toolResult?: ToolCallRecord;
 }
 
 export interface ToolCallRecord {
