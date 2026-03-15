@@ -1,69 +1,71 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import type { LLMStep, StepStatus } from "@/types/llm-steps";
-
-const INITIAL_STEPS: LLMStep[] = [
-  { id: "thinking",   type: "thinking",   label: "Anfrage analysieren",   status: "pending" },
-  { id: "tool_call",  type: "tool_call",  label: "Datenbank abfragen",    status: "pending" },
-  { id: "generating", type: "generating", label: "Antwort formulieren",   status: "pending" },
-];
+import type { LLMStep, StepStatus, StepType } from "@/types/llm-steps";
+import { v4 as uuidv4 } from "uuid";
 
 export function useGeminiSteps() {
-  const [steps, setSteps] = useState<LLMStep[]>(INITIAL_STEPS);
+  const [steps, setSteps] = useState<LLMStep[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const timers = useRef<Record<string, number>>({});
 
-  /** Advance a step to loading or done */
-  const advanceStep = useCallback((stepId: string, status: StepStatus, detail?: string) => {
+  const addStep = useCallback((type: StepType, label: string, status: StepStatus = "pending", detail?: string) => {
+    const id = uuidv4();
+    const newStep: LLMStep = { id, type, label, status, detail, startedAt: status === "loading" ? Date.now() : undefined };
+    if (status === "loading") timers.current[id] = Date.now();
+    
+    setSteps(prev => [...prev, newStep]);
+    return id;
+  }, []);
+
+  const updateStep = useCallback((stepId: string, updates: Partial<LLMStep>) => {
     setSteps(prev => prev.map(s => {
       if (s.id !== stepId) return s;
-      if (status === "loading") {
+      
+      const newStatus = updates.status ?? s.status;
+      let duration = s.duration;
+      
+      if (newStatus === "loading" && s.status !== "loading") {
         timers.current[stepId] = Date.now();
-        return { ...s, status: "loading", detail, startedAt: Date.now() };
+        return { ...s, ...updates, startedAt: Date.now() };
       }
-      if (status === "done" || status === "error") {
-        const duration = timers.current[stepId]
-          ? Date.now() - timers.current[stepId]
-          : undefined;
-        return { ...s, status, detail: detail ?? s.detail, duration };
+      
+      if ((newStatus === "done" || newStatus === "error") && s.status === "loading") {
+        duration = timers.current[stepId] ? Date.now() - timers.current[stepId] : undefined;
+      }
+      
+      return { ...s, ...updates, duration };
+    }));
+  }, []);
+
+  const start = useCallback(() => {
+    setSteps([]);
+    setIsVisible(true);
+    addStep("thinking", "Anfrage analysieren", "loading");
+  }, [addStep]);
+
+  const setAllDone = useCallback(() => {
+    setSteps(prev => prev.map(s => {
+      if (s.status === "loading") {
+        const duration = timers.current[s.id] ? Date.now() - timers.current[s.id] : undefined;
+        return { ...s, status: "done", duration };
       }
       return s;
     }));
   }, []);
 
-  /** Call when the fetch starts */
-  const start = useCallback(() => {
-    setSteps(INITIAL_STEPS.map(s => ({ ...s })));
-    setIsVisible(true);
-    // Kick off the thinking step immediately
-    setTimeout(() => advanceStep("thinking", "loading"), 50);
-  }, [advanceStep]);
-
-  /** Call when tool calls start executing */
-  const onToolsStarted = useCallback((toolNames: string[]) => {
-    advanceStep("thinking", "done");
-    const detail = toolNames.length
-      ? toolNames.map(n => `${n}()`).join(", ")
-      : undefined;
-    advanceStep("tool_call", "loading", detail);
-  }, [advanceStep]);
-
-  /** Call when tool calls finish */
-  const onToolsDone = useCallback((hadTools: boolean) => {
-    advanceStep("tool_call", hadTools ? "done" : "done");
-    advanceStep("generating", "loading");
-  }, [advanceStep]);
-
-  /** Call when the full API response arrives */
   const finish = useCallback((success: boolean) => {
-    setSteps(prev => prev.map(s =>
-      s.status !== "done" && s.status !== "error"
-        ? { ...s, status: success ? "done" : "error",
-            duration: s.startedAt ? Date.now() - s.startedAt : undefined }
-        : s
-    ));
-  }, []);
+    setAllDone();
+    if (!success) {
+      setSteps(prev => {
+        const last = prev[prev.length - 1];
+        if (last) {
+          return prev.slice(0, -1).concat({ ...last, status: "error" });
+        }
+        return prev;
+      });
+    }
+  }, [setAllDone]);
 
-  return { steps, isVisible, start, finish, onToolsStarted, onToolsDone };
+  return { steps, isVisible, start, addStep, updateStep, finish, setAllDone };
 }

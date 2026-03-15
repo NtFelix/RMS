@@ -284,7 +284,7 @@ export function AIChatSidebar() {
   const currentTheme = theme === 'system' ? resolvedTheme : theme;
   const isDark = currentTheme === 'dark';
   
-  const { steps: llmSteps, isVisible: stepsVisible, start: startSteps, finish: finishSteps, onToolsStarted, onToolsDone } = useGeminiSteps();
+  const { steps: llmSteps, isVisible: stepsVisible, start: startSteps, finish: finishSteps, addStep, updateStep, setAllDone } = useGeminiSteps();
   const pathname = usePathname();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -402,26 +402,65 @@ export function AIChatSidebar() {
         throw new Error(`API responded with an error: ${res.status}`);
       }
 
-      const data = await res.json();
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No reader found on response body");
 
-      // Signal step phases based on real API response
-      const toolNames = (data.toolCalls ?? []).map((t: any) => t.name);
-      if (toolNames.length > 0) {
-        onToolsStarted(toolNames);
-        // Brief delay to show the tool_call step before marking done
-        await new Promise(r => setTimeout(r, 600));
-        onToolsDone(true);
-      } else {
-        onToolsDone(false);
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let currentStepId: string | null = null;
+      let finalReply = "";
+      let traceId = "";
+      let toolResults: ToolCallRecord[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const data = JSON.parse(line);
+            
+            if (data.type === "step_start") {
+              if (currentStepId) updateStep(currentStepId, { status: "done" });
+              currentStepId = addStep(data.stepType, data.label, "loading", data.detail);
+            } 
+            else if (data.type === "step_done") {
+              if (currentStepId) {
+                updateStep(currentStepId, { status: "done" });
+                currentStepId = null;
+              }
+            } 
+            else if (data.type === "tool_result") {
+              toolResults.push(data.toolCall);
+            } 
+            else if (data.type === "final_reply") {
+              finalReply = data.reply;
+              traceId = data.traceId;
+              toolResults = data.toolCalls || toolResults;
+            }
+            else if (data.type === "error") {
+              throw new Error(data.message);
+            }
+          } catch (e) {
+            console.error("Error parsing stream line:", e, line);
+          }
+        }
       }
+
+      setAllDone();
       finishSteps(true);
 
       const aiMessage: Message = {
         id: uuidv4(),
         role: "model",
-        content: data.reply || "Entschuldigung, ich konnte keine Antwort generieren.",
-        traceId: data.traceId,
-        toolCalls: data.toolCalls,
+        content: finalReply || "Entschuldigung, ich konnte keine Antwort generieren.",
+        traceId: traceId,
+        toolCalls: toolResults.length > 0 ? toolResults : undefined,
       };
 
       setMessages((prev) => [...prev, aiMessage]);

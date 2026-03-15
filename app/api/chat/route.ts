@@ -141,216 +141,211 @@ ${pageContext}`;
       history: history, // Provide past conversation turns
     });
 
-    // 8. Send Message & Handle Function Calls
-    let messageParts: any[] = [{ text: message }];
-    if (attachment) {
-      messageParts.push({
-        inlineData: {
-          data: attachment.data,
-          mimeType: attachment.type
-        }
-      });
-    }
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (data: any) => controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
 
-    let aiResponse = await chat.sendMessage({ message: messageParts });
-    
-    // Process tool calls if any
-    let maxToolLoops = 5;
-    const executedTools: any[] = [];
-    if (aiResponse.functionCalls && aiResponse.functionCalls.length > 0) {
-      console.log(`Initial Gemini response includes ${aiResponse.functionCalls.length} tool calls.`);
-    }
-    while (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && maxToolLoops > 0) {
-      maxToolLoops--;
-      const responses = [];
-
-      for (const call of aiResponse.functionCalls) {
-        console.log(`Executing tool: ${call.name} with args:`, JSON.stringify(call.args));
-        let result: any = {};
-        let toolError: string | null = null;
         try {
-          if (call.name === "get_houses") {
-            const limit = Number(call.args?.limit) || 10;
-            const { data, error } = await supabase.from('Haeuser')
-              .select('id, name, strasse, plz, ort, groesse')
-              .limit(limit);
-            if (error) toolError = error.message;
-            result = error ? { error: error.message } : { data: data || [] };
-          } 
-          else if (call.name === "get_apartments") {
-            let query = supabase.from('Wohnungen').select('id, name, groesse, miete, haus_id, Haeuser(name)');
-            if (call.args?.house_id) {
-               query = query.eq('haus_id', call.args.house_id);
-            }
-            const limit = Number(call.args?.limit) || 10;
-            const { data, error } = await query.limit(limit);
-            if (error) toolError = error.message;
-            result = error ? { error: error.message } : { data: data || [] };
-          } 
-          else if (call.name === "get_tenants") {
-            let query = supabase.from('Mieter').select('id, name, email, telefonnummer, status, einzug, auszug, Wohnungen(name, miete, Haeuser(name))');
-            if (call.args?.search_term) {
-               query = query.ilike('name', `%${call.args.search_term}%`);
-            }
-            const limit = Number(call.args?.limit) || 10;
-            const { data, error } = await query.limit(limit);
-            if (error) toolError = error.message;
-            result = error ? { error: error.message } : { data: data || [] };
-          } 
-          else if (call.name === "get_finances") {
-            let query = supabase.from('Finanzen').select('id, name, datum, betrag, notiz, ist_einnahmen, wohnung_id, Wohnungen(name, Haeuser(name))');
-            if (call.args?.wohnung_id) {
-               query = query.eq('wohnung_id', call.args.wohnung_id);
-            }
-            if (call.args?.ist_einnahmen !== undefined) {
-               query = query.eq('ist_einnahmen', call.args.ist_einnahmen);
-            }
-            const limit = Number(call.args?.limit) || 10;
-            const { data, error } = await query.limit(limit);
-            if (error) toolError = error.message;
-            result = error ? { error: error.message } : { data: data || [] };
+          // Send Message & Handle Function Calls
+          let messageParts: any[] = [{ text: message }];
+          if (attachment) {
+            messageParts.push({
+              inlineData: {
+                data: attachment.data,
+                mimeType: attachment.type
+              }
+            });
           }
-          else if (call.name === "get_tasks") {
-            let query = supabase.from('Aufgaben').select('id, name, beschreibung, ist_erledigt, faelligkeitsdatum, erstellungsdatum');
-            if (call.args?.ist_erledigt !== undefined) {
-               query = query.eq('ist_erledigt', call.args.ist_erledigt);
-            }
-            const limit = Number(call.args?.limit) || 10;
-            const { data, error } = await query.limit(limit);
-            if (error) toolError = error.message;
-            result = error ? { error: error.message } : { data: data || [] };
-          }
-          else if (call.name === "get_nebenkosten") {
-            let query = supabase.from('Nebenkosten').select('id, nebenkostenart, betrag, berechnungsart, startdatum, enddatum, vorauszahlungs_art, haeuser_id, Haeuser(name)');
-            if (call.args?.haeuser_id) {
-               query = query.eq('haeuser_id', call.args.haeuser_id);
-            }
-            const limit = Number(call.args?.limit) || 10;
-            const { data, error } = await query.limit(limit);
-            if (error) toolError = error.message;
-            result = error ? { error: error.message } : { data: data || [] };
-          } 
-          else {
-            toolError = "Unknown tool call: " + call.name;
-            result = { error: toolError };
-          }
-        } catch (e: any) {
-          toolError = e.message || String(e);
-          result = { error: toolError };
-        }
-        
-        executedTools.push({
-          name: call.name,
-          args: call.args,
-          result: result,
-          error: toolError,
-        });
 
-        // Track specific tool failures immediately
-        if (toolError && posthog) {
-           console.error(`Tool Execution Error [${call.name}]:`, toolError);
-           posthog.capture({
-             distinctId: userId,
-             event: '$ai_generation_error',
-             properties: {
-                 $ai_trace_id: traceId,
-                 $ai_session_id: sessionId,
-                 $ai_span_name: `mietevo_ai_tool_${call.name}`,
-                 error_message: `Database Tool Error: ${toolError}`,
-                 tool_args: JSON.stringify(call.args)
-             }
-           });
-        }
-        
-        responses.push({
-          functionResponse: {
-            name: call.name,
-            id: call.id,
-            response: result
+          let totalInputTokens = 0;
+          let totalOutputTokens = 0;
+
+          const addUsage = (res: any) => {
+            if (res.usageMetadata) {
+              totalInputTokens += res.usageMetadata.promptTokenCount || 0;
+              totalOutputTokens += res.usageMetadata.candidatesTokenCount || 0;
+            }
+          };
+
+          send({ type: "step_start", stepType: "thinking", label: "Nachricht analysieren..." });
+          let aiResponse = await chat.sendMessage({ message: messageParts });
+          addUsage(aiResponse);
+          send({ type: "step_done" });
+          
+          let maxToolLoops = 5;
+          const executedTools: any[] = [];
+          
+          while (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && maxToolLoops > 0) {
+            maxToolLoops--;
+            const responses: any[] = [];
+
+            for (const call of aiResponse.functionCalls) {
+              const label = call.name === "get_houses" ? "Häuser abrufen..." :
+                            call.name === "get_apartments" ? "Wohnungen suchen..." :
+                            call.name === "get_tenants" ? "Mieter-Datenbank durchsuchen..." :
+                            call.name === "get_finances" ? "Finanzdaten analysieren..." :
+                            call.name === "get_tasks" ? "Aufgabenliste prüfen..." :
+                            call.name === "get_nebenkosten" ? "Nebenkosten-Details abrufen..." :
+                            `Tool ausführen: ${call.name}`;
+              
+              send({ 
+                type: "step_start", 
+                stepType: "tool_call", 
+                label, 
+                detail: `${call.name}(${JSON.stringify(call.args)})` 
+              });
+
+              let result: any = {};
+              let toolError: string | null = null;
+              try {
+                if (call.name === "get_houses") {
+                  const limit = Number(call.args?.limit) || 10;
+                  const { data, error } = await supabase.from('Haeuser')
+                    .select('id, name, strasse, plz, ort, groesse')
+                    .limit(limit);
+                  if (error) toolError = error.message;
+                  result = error ? { error: error.message } : { data: data || [] };
+                } 
+                else if (call.name === "get_apartments") {
+                  let query = supabase.from('Wohnungen').select('id, name, groesse, miete, haus_id, Haeuser(name)');
+                  if (call.args?.house_id) {
+                     query = query.eq('haus_id', call.args.house_id);
+                  }
+                  const limit = Number(call.args?.limit) || 10;
+                  const { data, error } = await query.limit(limit);
+                  if (error) toolError = error.message;
+                  result = error ? { error: error.message } : { data: data || [] };
+                } 
+                else if (call.name === "get_tenants") {
+                  let query = supabase.from('Mieter').select('id, name, email, telefonnummer, status, einzug, auszug, Wohnungen(name, miete, Haeuser(name))');
+                  if (call.args?.search_term) {
+                     query = query.ilike('name', `%${call.args.search_term}%`);
+                  }
+                  const limit = Number(call.args?.limit) || 10;
+                  const { data, error } = await query.limit(limit);
+                  if (error) toolError = error.message;
+                  result = error ? { error: error.message } : { data: data || [] };
+                } 
+                else if (call.name === "get_finances") {
+                  let query = supabase.from('Finanzen').select('id, name, datum, betrag, notiz, ist_einnahmen, wohnung_id, Wohnungen(name, Haeuser(name))');
+                  if (call.args?.wohnung_id) {
+                     query = query.eq('wohnung_id', call.args.wohnung_id);
+                  }
+                  if (call.args?.ist_einnahmen !== undefined) {
+                     query = query.eq('ist_einnahmen', call.args.ist_einnahmen);
+                  }
+                  const limit = Number(call.args?.limit) || 10;
+                  const { data, error } = await query.limit(limit);
+                  if (error) toolError = error.message;
+                  result = error ? { error: error.message } : { data: data || [] };
+                }
+                else if (call.name === "get_tasks") {
+                  let query = supabase.from('Aufgaben').select('id, name, beschreibung, ist_erledigt, faelligkeitsdatum, erstellungsdatum');
+                  if (call.args?.ist_erledigt !== undefined) {
+                     query = query.eq('ist_erledigt', call.args.ist_erledigt);
+                  }
+                  const limit = Number(call.args?.limit) || 10;
+                  const { data, error } = await query.limit(limit);
+                  if (error) toolError = error.message;
+                  result = error ? { error: error.message } : { data: data || [] };
+                }
+                else if (call.name === "get_nebenkosten") {
+                  let query = supabase.from('Nebenkosten').select('id, nebenkostenart, betrag, berechnungsart, startdatum, enddatum, vorauszahlungs_art, haeuser_id, Haeuser(name)');
+                  if (call.args?.haeuser_id) {
+                     query = query.eq('haeuser_id', call.args.haeuser_id);
+                  }
+                  const limit = Number(call.args?.limit) || 10;
+                  const { data, error } = await query.limit(limit);
+                  if (error) toolError = error.message;
+                  result = error ? { error: error.message } : { data: data || [] };
+                } 
+                else {
+                  toolError = "Unknown tool call: " + call.name;
+                  result = { error: toolError };
+                }
+              } catch (e: any) {
+                toolError = e.message || String(e);
+                result = { error: toolError };
+              }
+              
+              const toolResult = {
+                name: call.name,
+                args: call.args,
+                result: result,
+                error: toolError,
+              };
+              executedTools.push(toolResult);
+              
+              // Yield the tool result immediately to UI
+              send({ type: "tool_result", toolCall: toolResult });
+              send({ type: "step_done" });
+              
+              responses.push({
+                functionResponse: {
+                  name: call.name,
+                  id: call.id,
+                  response: result
+                }
+              });
+            }
+
+            // Send the function responses back to Gemini
+            send({ type: "step_start", stepType: "thinking", label: "Daten verarbeiten..." });
+            aiResponse = await chat.sendMessage({ message: responses });
+            addUsage(aiResponse);
+            send({ type: "step_done" });
           }
-        });
+
+          send({ type: "step_start", stepType: "generating", label: "Antwort formulieren..." });
+          const replyText = aiResponse.text;
+          const latency = (Date.now() - startTime) / 1000;
+          send({ type: "step_done" });
+
+          // 8. Track Generation in PostHog
+          if (posthog) {
+            posthog.capture({
+              distinctId: userId,
+              event: '$ai_generation',
+              properties: {
+                $ai_trace_id: traceId,
+                $ai_session_id: sessionId,
+                $ai_span_name: 'mietevo_ai_agent',
+                $ai_model: model,
+                $ai_provider: 'google',
+                $ai_input_tokens: totalInputTokens,
+                $ai_output_tokens: totalOutputTokens,
+                $ai_latency: latency,
+                $ai_tools_called: executedTools.map(t => t.name),
+                $ai_tool_call_count: executedTools.length,
+              },
+            });
+            await posthog.shutdown();
+          }
+
+          // Final payload
+          send({ 
+            type: "final_reply", 
+            reply: replyText, 
+            traceId: traceId,
+            toolCalls: executedTools 
+          });
+          controller.close();
+
+        } catch (error: any) {
+          console.error("Stream Error:", error);
+          send({ type: "error", message: error?.message || "Internal Server Error" });
+          controller.close();
+        }
       }
+    });
 
-      // Send the function responses back to Gemini
-      try {
-        console.log("Sending function responses back to Gemini:", JSON.stringify(responses, null, 2));
-        aiResponse = await chat.sendMessage({ message: responses });
-      } catch (e: any) {
-        console.error("Tool execution or response sending failed:", e.message || String(e), e);
-        if (posthog) {
-          posthog.capture({
-             distinctId: userId,
-             event: '$ai_generation_error',
-             properties: {
-                 $ai_trace_id: traceId,
-                 $ai_span_name: 'mietevo_ai_agent_tool',
-                 error_message: `Tool response error: ${e?.message || String(e)}`,
-                 tool_responses: JSON.stringify(responses)
-             }
-         });
-        }
-        break; // Exit the loop on failure
-      }
-    }
-
-    const replyText = aiResponse.text;
-    const latency = (Date.now() - startTime) / 1000;
-
-    // 8. Track Generation in PostHog
-    if (posthog) {
-      posthog.capture({
-        distinctId: userId,
-        event: '$ai_generation',
-        properties: {
-          $ai_trace_id: traceId,
-          $ai_session_id: sessionId,
-          $ai_span_name: 'mietevo_ai_agent',
-          $ai_model: model,
-          $ai_provider: 'google',
-          $ai_input: JSON.stringify([
-            { role: 'system', content: systemInstruction },
-            { role: 'user', content: message }
-          ]),
-          $ai_output_choices: JSON.stringify([
-            { role: 'assistant', content: replyText }
-          ]),
-          $ai_input_tokens: aiResponse.usageMetadata?.promptTokenCount || 0,
-          $ai_output_tokens: aiResponse.usageMetadata?.candidatesTokenCount || 0,
-          $ai_latency: latency,
-          $ai_tools_called: executedTools.map(t => t.name),
-          $ai_tool_call_count: executedTools.length,
-          executed_tools_json: JSON.stringify(executedTools),
-          current_page: pathname,
-          user_role: userRole,
-        },
-      });
-      // Flush events to ensure they are sent before the function exits
-      await posthog.shutdown();
-    }
-
-    return NextResponse.json({ 
-      reply: replyText, 
-      traceId: traceId,
-      toolCalls: executedTools 
+    return new Response(stream, {
+      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive" }
     });
 
   } catch (error: any) {
-    console.error("Chat API Error:", error);
-    
-    // Attempt tracking errors
-    if (posthog) {
-       posthog.capture({
-           distinctId: userId,
-           event: '$ai_generation_error', // Custom or fallback for error
-           properties: {
-               $ai_trace_id: traceId,
-               $ai_span_name: 'mietevo_ai_agent',
-               error_message: error?.message || String(error)
-           }
-       });
-       await posthog.shutdown();
-    }
-
+    console.error("Chat API Root Error:", error);
     return NextResponse.json(
       { error: "Internal Server Error", details: error?.message },
       { status: 500 }
