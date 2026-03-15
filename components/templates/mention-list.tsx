@@ -1,31 +1,62 @@
 'use client';
 
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { MentionVariable } from '@/lib/template-constants';
 import { cn } from '@/lib/utils';
-import { Hash } from 'lucide-react';
+import {
+  Hash,
+  User,
+  Home,
+  Building,
+  Calendar,
+  UserCheck,
+  Mail,
+  Phone,
+  MapPin,
+  Ruler,
+  ChevronRight
+} from 'lucide-react';
 
 export interface MentionListProps {
   items: MentionVariable[];
   command: (item: MentionVariable) => void;
 }
 
+const ICON_MAP: Record<string, React.ElementType> = {
+  User,
+  Home,
+  Building,
+  Calendar,
+  UserCheck,
+  Mail,
+  Phone,
+  MapPin,
+  Ruler,
+  Hash
+};
+
+const CATEGORY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  mieter: { bg: 'bg-blue-500/10', text: 'text-blue-600', label: 'Mieter' },
+  wohnung: { bg: 'bg-emerald-500/10', text: 'text-emerald-600', label: 'Wohnung' },
+  haus: { bg: 'bg-indigo-500/10', text: 'text-indigo-600', label: 'Haus' },
+  datum: { bg: 'bg-amber-500/10', text: 'text-amber-600', label: 'Datum' },
+  vermieter: { bg: 'bg-purple-500/10', text: 'text-purple-600', label: 'Vermieter' },
+};
+
 export const MentionList = forwardRef((props: MentionListProps, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  // Reset selected index when items change
   useEffect(() => {
     setSelectedIndex(0);
   }, [props.items]);
 
-  // Use a ref for selectedIndex to avoid stale closures in onKeyDown
   const selectedIndexRef = useRef(selectedIndex);
   useEffect(() => {
     selectedIndexRef.current = selectedIndex;
   }, [selectedIndex]);
 
-  // Scroll selected item into view
   useEffect(() => {
     const list = listRef.current;
     if (!list) return;
@@ -52,7 +83,6 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }: { event: KeyboardEvent }) => {
-      // Only handle events if we have items to navigate
       if (!props.items || props.items.length === 0) {
         return false;
       }
@@ -60,65 +90,106 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
       const activeIndex = selectedIndexRef.current;
 
       if (event.key === 'ArrowUp') {
+        event.preventDefault();
         setSelectedIndex((activeIndex + props.items.length - 1) % props.items.length);
         return true;
       }
 
       if (event.key === 'ArrowDown') {
+        event.preventDefault();
         setSelectedIndex((activeIndex + 1) % props.items.length);
         return true;
       }
 
       if (event.key === 'Enter' || event.key === 'Tab') {
+        event.preventDefault();
         selectItem(activeIndex);
         return true;
       }
 
-      // Explicitly return false for any other keys (ArrowLeft, ArrowRight, etc.)
-      // to let the editor handle them
       return false;
     },
   }), [props.items, props.command]);
 
+  const renderItems = () => {
+    const categories: Record<string, number[]> = {};
+    props.items.forEach((item, index) => {
+      const category = item.category || 'allgemein';
+      if (!categories[category]) categories[category] = [];
+      categories[category].push(index);
+    });
+
+    return Object.entries(categories).map(([category, indices]) => {
+      const categoryStyle = CATEGORY_STYLES[category] || { label: category };
+      
+      return (
+        <React.Fragment key={category}>
+          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+            {categoryStyle.label}
+          </div>
+          
+          <div className="flex flex-col gap-px">
+            {indices.map((index) => {
+              const item = props.items[index];
+              const Icon = (item.icon && ICON_MAP[item.icon]) || Hash;
+              const isSelected = index === selectedIndex;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  tabIndex={-1}
+                  data-mention-item="true"
+                  aria-selected={isSelected}
+                  className={cn(
+                    "relative flex w-full cursor-pointer select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                    isSelected 
+                      ? "bg-accent text-accent-foreground" 
+                      : "text-foreground"
+                  )}
+                  onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                  onClick={() => selectItem(index)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                >
+                  <Icon className="mr-2 h-4 w-4 flex-shrink-0" />
+                  
+                  <div className="flex flex-col flex-1 text-left min-w-0">
+                    <span className="truncate">
+                      {item.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate opacity-80">
+                      {item.description}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </React.Fragment>
+      );
+    });
+  };
+
   return (
-    <div
+    <motion.div
       ref={listRef}
-      className="z-[9999] min-w-[240px] max-h-[300px] overflow-y-auto overflow-x-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 scrollbar-thin overscroll-contain"
-      onMouseDown={(e) => e.preventDefault()}
+      initial={{ opacity: 0, scale: 0.98, y: -4 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98, y: -4 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
+      className="z-[9999] w-72 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg outline-none"
+      onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
     >
-      {props.items.length > 0 ? (
-        <div className="flex flex-col gap-0.5">
-          {props.items.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              tabIndex={-1}
-              data-mention-item="true"
-              aria-selected={index === selectedIndex}
-              className={cn(
-                "relative flex w-full cursor-default select-none items-start gap-2 rounded-md px-2 py-2 text-sm outline-none transition-colors text-left",
-                index === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
-              )}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => selectItem(index)}
-              onMouseEnter={() => setSelectedIndex(index)}
-            >
-              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border bg-muted text-muted-foreground">
-                <Hash className="h-3 w-3" />
-              </div>
-              <div className="flex flex-col items-start overflow-hidden w-full text-left">
-                <span className="font-medium truncate w-full">{item.label}</span>
-                <span className="text-xs text-muted-foreground truncate w-full">{item.description}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-          Keine Variablen gefunden
-        </div>
-      )}
-    </div>
+      <div className="max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
+        {props.items.length > 0 ? (
+          renderItems()
+        ) : (
+          <div className="py-6 text-center text-sm text-foreground">
+            Keine Variablen gefunden.
+          </div>
+        )}
+      </div>
+    </motion.div>
   );
 });
 

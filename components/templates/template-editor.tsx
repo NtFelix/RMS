@@ -17,10 +17,55 @@ import {
   Quote,
   Undo,
   Redo,
-  Type
+  Type,
+  Heading1,
+  Heading2,
+  Code,
+  AtSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TemplateEditorProps } from '@/types/template';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+interface ToolbarButtonProps {
+  onClick: () => void;
+  isActive?: boolean;
+  disabled?: boolean;
+  title: string;
+  icon: React.ReactNode;
+}
+
+function ToolbarButton({ onClick, isActive, disabled, title, icon }: ToolbarButtonProps) {
+  return (
+    <TooltipProvider delayDuration={400}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={cn(
+              "p-2 rounded-lg transition-all duration-200",
+              isActive 
+                ? "bg-primary text-primary-foreground shadow-sm scale-105" 
+                : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+            )}
+          >
+            {icon}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-[10px] font-bold uppercase tracking-wider bg-popover/90 backdrop-blur-sm border-primary/10 px-2 py-1 shadow-xl">
+          {title}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 export function TemplateEditor({
   content,
@@ -43,10 +88,13 @@ export function TemplateEditor({
           keepMarks: true,
           keepAttributes: false,
         },
+        heading: {
+          levels: [1, 2],
+        },
       }),
       Mention.configure({
         HTMLAttributes: {
-          class: 'mention-variable bg-primary/10 text-primary px-1 py-0.5 rounded font-medium',
+          class: 'mention-variable',
         },
         renderText({ options, node }) {
           return `${options.suggestion.char}${node.attrs.label ?? node.attrs.id}`;
@@ -69,7 +117,6 @@ export function TemplateEditor({
                   return;
                 }
 
-                // Append to containerRef.current or body to ensure proper stacking
                 popup = tippy(document.body, {
                   getReferenceClientRect: props.clientRect as any,
                   appendTo: () => containerRef.current || document.body,
@@ -78,6 +125,7 @@ export function TemplateEditor({
                   interactive: true,
                   trigger: 'manual',
                   placement: 'bottom-start',
+                  theme: 'mention-suggestion',
                 });
               },
 
@@ -97,7 +145,6 @@ export function TemplateEditor({
                   return true;
                 }
 
-                // Only intercept keys used for list navigation
                 if (!['ArrowUp', 'ArrowDown', 'Enter', 'Tab'].includes(props.event.key)) {
                   return false;
                 }
@@ -135,17 +182,12 @@ export function TemplateEditor({
     immediatelyRender: false,
   });
 
-  // Update content if it changes externally
   useEffect(() => {
     if (!editor || content === undefined) return;
-
     const newHTML = typeof content === 'string' ? content : JSON.stringify(content);
-    
-    // Only update if content is actually different from what we last emitted
     if (newHTML !== lastContentRef.current) {
       const currentJSON = editor.getJSON();
       const isSame = JSON.stringify(currentJSON) === JSON.stringify(content);
-
       if (!isSame) {
         editor.commands.setContent(content);
         lastContentRef.current = typeof content === 'string' ? content : editor.getHTML();
@@ -160,112 +202,95 @@ export function TemplateEditor({
   return (
     <div 
       ref={containerRef}
-      className={cn('border border-input rounded-md bg-background relative', className)}
+      className={cn('flex flex-col h-full bg-background relative', className)}
     >
       {!readOnly && (
-        <div className="border-b border-input p-1 flex items-center gap-0.5 flex-wrap bg-muted/20 rounded-t-md">
-          <Button
-            type="button"
-            variant={editor.isActive('bold') ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            className="h-8 w-8 p-0"
-            title="Fett"
-          >
-            <Bold className="h-4 w-4" />
-          </Button>
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b bg-muted/20 backdrop-blur-md overflow-x-auto no-scrollbar sticky top-0 z-10">
+          <div className="flex items-center gap-1">
+            <ToolbarButton
+              title="Überschrift 1"
+              icon={<Heading1 size={18} />}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+              isActive={editor.isActive('heading', { level: 1 })}
+            />
+            <ToolbarButton
+              title="Überschrift 2"
+              icon={<Heading2 size={18} />}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              isActive={editor.isActive('heading', { level: 2 })}
+            />
+            
+            <div className="w-px h-6 bg-border mx-2" />
 
-          <Button
-            type="button"
-            variant={editor.isActive('italic') ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            className="h-8 w-8 p-0"
-            title="Kursiv"
-          >
-            <Italic className="h-4 w-4" />
-          </Button>
+            <ToolbarButton
+              title="Fett"
+              icon={<Bold size={18} />}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              isActive={editor.isActive('bold')}
+            />
+            <ToolbarButton
+              title="Kursiv"
+              icon={<Italic size={18} />}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              isActive={editor.isActive('italic')}
+            />
+            
+            <div className="w-px h-6 bg-border mx-2" />
 
-          <div className="w-px h-4 bg-border mx-1" />
+            <ToolbarButton
+              title="Aufzählung"
+              icon={<List size={18} />}
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              isActive={editor.isActive('bulletList')}
+            />
+            <ToolbarButton
+              title="Nummerierte Liste"
+              icon={<ListOrdered size={18} />}
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              isActive={editor.isActive('orderedList')}
+            />
+            <ToolbarButton
+              title="Zitat"
+              icon={<Quote size={18} />}
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              isActive={editor.isActive('blockquote')}
+            />
+            
+            <div className="w-px h-6 bg-border mx-2" />
 
-          <Button
-            type="button"
-            variant={editor.isActive('bulletList') ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className="h-8 w-8 p-0"
-            title="Aufzählung"
-          >
-            <List className="h-4 w-4" />
-          </Button>
+            <ToolbarButton
+              title="Rückgängig"
+              icon={<Undo size={18} />}
+              onClick={() => editor.chain().focus().undo().run()}
+              disabled={!editor.can().undo()}
+            />
+            <ToolbarButton
+              title="Wiederholen"
+              icon={<Redo size={18} />}
+              onClick={() => editor.chain().focus().redo().run()}
+              disabled={!editor.can().redo()}
+            />
+          </div>
 
-          <Button
-            type="button"
-            variant={editor.isActive('orderedList') ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className="h-8 w-8 p-0"
-            title="Nummerierte Liste"
-          >
-            <ListOrdered className="h-4 w-4" />
-          </Button>
-
-          <Button
-            type="button"
-            variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className="h-8 w-8 p-0"
-            title="Zitat"
-          >
-            <Quote className="h-4 w-4" />
-          </Button>
-
-          <div className="w-px h-4 bg-border mx-1" />
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            className="h-8 w-8 p-0"
-            title="Rückgängig"
-          >
-            <Undo className="h-4 w-4" />
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            className="h-8 w-8 p-0"
-            title="Wiederholen"
-          >
-            <Redo className="h-4 w-4" />
-          </Button>
-
-          <div className="ml-auto hidden sm:flex items-center gap-2 px-2 text-xs text-muted-foreground">
-            <Type className="h-3 w-3" />
-            <span>@ für Variablen</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full border border-primary/20 shadow-sm uppercase tracking-widest transition-all hover:bg-primary/20">
+            <AtSign size={12} />
+            <span>für Variablen tippen</span>
           </div>
         </div>
       )}
 
-      <div className="min-h-[200px] p-4 relative rounded-b-md">
+      <div className="flex-1 overflow-auto relative bg-background custom-scrollbar">
         <EditorContent
           editor={editor}
           className={cn(
-            'prose prose-sm max-w-none focus:outline-none min-h-[150px]',
-            '[&_.mention-variable]:bg-primary/10 [&_.mention-variable]:text-primary [&_.mention-variable]:px-1 [&_.mention-variable]:py-0.5 [&_.mention-variable]:rounded [&_.mention-variable]:font-medium',
-            readOnly && 'cursor-default transition-all duration-200'
+            'prose prose-slate dark:prose-invert max-w-none focus:outline-none min-h-full p-10 lg:p-14 text-foreground/80 leading-relaxed',
+            'transition-all duration-300 ease-in-out',
+            readOnly && 'cursor-default'
           )}
         />
 
         {editor.isEmpty && !readOnly && (
-          <div className="absolute top-4 left-4 text-muted-foreground pointer-events-none text-sm italic">
+          <div className="absolute top-10 lg:top-14 left-10 lg:left-14 text-muted-foreground/30 pointer-events-none text-xl font-medium select-none italic">
             {placeholder}
           </div>
         )}
