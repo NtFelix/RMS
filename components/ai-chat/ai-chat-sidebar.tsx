@@ -38,6 +38,7 @@ type Message = {
   traceId?: string;
   feedback?: 'up' | 'down' | null;
   toolCalls?: ToolCallRecord[];
+  steps?: LLMStep[];
 };
 
 // ─── ShimmerText: smooth left-to-right shimmer for the active step ──────────
@@ -71,19 +72,20 @@ function IntelligenceInsight({
 }) {
   const [expandedTool, setExpandedTool] = useState<number | null>(null);
   const hasToolData = toolCalls && toolCalls.length > 0;
-
-  // Don't render if loading is done and there were no tool calls
-  if (!isLoading && !hasToolData) return null;
+  const hasSteps = steps && steps.length > 0;
+  
+  // Don't render if nothing to show
+  if (!isLoading && !hasToolData && !hasSteps) return null;
 
   // Visible steps: during loading show all, after loading only done ones
   const visibleSteps = isLoading
     ? steps.filter(s => s.status !== "pending" || steps.find(x => x.status === "loading") === undefined)
-    : steps.filter(s => s.status === "done");
+    : steps.filter(s => s.status === "done" || s.status === "error");
 
   return (
     <div className="mb-5 space-y-1.5 pl-1">
       {/* Step rows — no container, just inline bullets */}
-      {steps.map((step, i) => {
+      {visibleSteps.map((step, i) => {
         const isActive = step.status === "loading";
         const isDone   = step.status === "done";
         const isError  = step.status === "error";
@@ -284,7 +286,7 @@ export function AIChatSidebar() {
   const currentTheme = theme === 'system' ? resolvedTheme : theme;
   const isDark = currentTheme === 'dark';
   
-  const { steps: llmSteps, isVisible: stepsVisible, start: startSteps, finish: finishSteps, addStep, updateStep, setAllDone } = useGeminiSteps();
+  const { steps: llmSteps, stepsRef, isVisible: stepsVisible, start: startSteps, finish: finishSteps, addStep, updateStep, setAllDone } = useGeminiSteps();
   const pathname = usePathname();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -461,6 +463,7 @@ export function AIChatSidebar() {
         content: finalReply || "Entschuldigung, ich konnte keine Antwort generieren.",
         traceId: traceId,
         toolCalls: toolResults.length > 0 ? toolResults : undefined,
+        steps: [...stepsRef.current],
       };
 
       setMessages((prev) => [...prev, aiMessage]);
@@ -610,8 +613,8 @@ export function AIChatSidebar() {
                              </div>
                            </div>
                            
-                            {m.toolCalls && m.toolCalls.length > 0 && (
-                              <IntelligenceInsight steps={[]} isLoading={false} toolCalls={m.toolCalls} />
+                            {((m.toolCalls && m.toolCalls.length > 0) || (m.steps && m.steps.length > 0)) && (
+                              <IntelligenceInsight steps={m.steps || []} isLoading={false} toolCalls={m.toolCalls} />
                             )}
 
                            <div className="prose prose-sm dark:prose-invert max-w-none px-1 text-[15px] leading-relaxed text-foreground/90 font-medium">
