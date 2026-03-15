@@ -8,6 +8,11 @@ import { isTestEnv } from "@/lib/test-utils"
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
+  // Skip PostHog proxy traffic entirely (no auth, no CSP, no redirects)
+  if (pathname.startsWith('/assets/v2')) {
+    return NextResponse.next()
+  }
+
   // Dynamic pages that require nonce-based CSP (authenticated dashboard routes)
   // All other pages use 'unsafe-inline' since they are either static or don't handle user input
   // This approach ensures high security for sensitive areas while maintaining compatibility for static pages
@@ -214,6 +219,6 @@ export const config = {
      * - public folder
      * - _vercel (Vercel specific files)
      */
-    "/((?!_next/static|_next/image|_vercel|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|_vercel|favicon.ico|assets/v2|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }

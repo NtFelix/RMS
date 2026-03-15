@@ -214,7 +214,7 @@ const FeaturePreviewSection = () => {
                   <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-decimal">
                     <li>Stellen Sie sicher, dass Sie alle Cookies akzeptiert haben</li>
                     <li>Deaktivieren Sie temporär Ihren Werbeblocker für diese Seite</li>
-                    <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-xs">eu.i.posthog.com</code> in Ihren Browser-Einstellungen</li>
+                    <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-xs">mie.mietevo.de/assets/v2</code> in Ihren Browser-Einstellungen</li>
                     <li>Laden Sie die Seite neu, nachdem Sie die Einstellungen geändert haben</li>
                   </ol>
                   <div className="pt-2">

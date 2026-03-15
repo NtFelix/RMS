@@ -1,4 +1,5 @@
 import { PostHog } from 'posthog-node'
+import resolvePostHogHost from '../lib/posthog-host.js'
 
 const dummyPostHog = {
   capture: async () => { },
@@ -14,7 +15,7 @@ let posthogInstance = null
 export function getPostHogServer() {
   if (!posthogInstance) {
     const apiKey = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY
-    const apiHost = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
+    const apiHost = resolvePostHogHost()
 
     if (!apiKey) {
       if (process.env.NODE_ENV === 'test' || process.env.CI === 'true') {
