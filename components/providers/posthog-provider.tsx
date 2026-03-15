@@ -11,6 +11,9 @@ async function initializePostHog(nonce?: string) {
     return;
   }
 
+  const pick = <T,>(...values: Array<T | undefined | null>) =>
+    values.find((value) => value !== undefined && value !== null);
+
   const defaultHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || '/assets/v2';
   const defaultUiHost = process.env.NEXT_PUBLIC_POSTHOG_UI_HOST || 'https://eu.posthog.com';
 
@@ -32,9 +35,9 @@ async function initializePostHog(nonce?: string) {
       if (response.ok) {
         const apiConfig = await response.json();
         config = {
-          key: apiConfig.key ?? apiConfig.apiKey ?? apiConfig.api_key ?? config.key,
-          host: apiConfig.host ?? apiConfig.apiHost ?? apiConfig.api_host ?? config.host,
-          uiHost: apiConfig.uiHost ?? apiConfig.ui_host ?? config.uiHost,
+          key: pick(apiConfig.key, apiConfig.apiKey, apiConfig.api_key, config.key),
+          host: pick(apiConfig.host, apiConfig.apiHost, apiConfig.api_host, config.host),
+          uiHost: pick(apiConfig.uiHost, apiConfig.ui_host, config.uiHost),
         };
         console.log('PostHog config fetched from API');
       } else {

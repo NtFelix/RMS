@@ -15,8 +15,9 @@ function buildTargetUrl(request: Request, pathname: string): URL {
   return targetUrl
 }
 
-async function proxy(request: Request, params: { path?: string[] }) {
-  const pathname = params.path?.join('/') ?? ''
+async function proxy(request: Request, paramsPromise: Promise<{ path: string[] }>) {
+  const { path } = await paramsPromise
+  const pathname = path?.join('/') ?? ''
   const targetUrl = buildTargetUrl(request, pathname)
 
   const headers = new Headers(request.headers)
@@ -35,30 +36,30 @@ async function proxy(request: Request, params: { path?: string[] }) {
   return fetch(proxyRequest)
 }
 
-export async function GET(request: Request, { params }: { params: { path?: string[] } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, params)
 }
 
-export async function POST(request: Request, { params }: { params: { path?: string[] } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, params)
 }
 
-export async function PUT(request: Request, { params }: { params: { path?: string[] } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, params)
 }
 
-export async function PATCH(request: Request, { params }: { params: { path?: string[] } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, params)
 }
 
-export async function DELETE(request: Request, { params }: { params: { path?: string[] } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, params)
 }
 
-export async function OPTIONS(request: Request, { params }: { params: { path?: string[] } }) {
+export async function OPTIONS(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, params)
 }
 
-export async function HEAD(request: Request, { params }: { params: { path?: string[] } }) {
+export async function HEAD(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, params)
 }
