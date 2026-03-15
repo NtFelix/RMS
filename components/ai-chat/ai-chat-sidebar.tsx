@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/select";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+// @ts-ignore - useThumbSurvey is available in recent posthog-js/react but types might be lagging
+import { useThumbSurvey } from 'posthog-js/react/surveys'
 
 // Define message type
 type Message = {
@@ -31,8 +33,56 @@ type Message = {
     type: string;
     data: string;
   };
+  traceId?: string;
   feedback?: 'up' | 'down' | null;
 };
+
+function PostHogFeedback({ traceId, isDark }: { traceId?: string; isDark: boolean }) {
+  if (!traceId) return null;
+
+  const { respond, response, triggerRef } = useThumbSurvey({
+    surveyId: '019ce11d-f79c-0000-4959-8e5eb60be080',
+    properties: {
+      $ai_trace_id: traceId,
+    },
+  })
+
+  return (
+    <div ref={triggerRef} className="flex flex-col gap-2 mt-4 pt-4 border-t border-border/10">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+        War diese Antwort hilfreich?
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => respond('up')}
+          className={`h-8 px-3 rounded-lg flex items-center gap-2 transition-all duration-300 border ${
+            response === 'up' 
+              ? 'bg-green-500/10 border-green-500/30 text-green-600' 
+              : 'bg-transparent border-border/30 text-muted-foreground hover:bg-green-500/5 hover:border-green-500/20 hover:text-green-500'
+          }`}
+        >
+          <ThumbsUp className={`w-3.5 h-3.5 ${response === 'up' ? 'fill-current' : ''}`} />
+          <span className="text-[12px] font-semibold">Hilfreich</span>
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => respond('down')}
+          className={`h-8 px-3 rounded-lg flex items-center gap-2 transition-all duration-300 border ${
+            response === 'down' 
+              ? 'bg-red-500/10 border-red-500/30 text-red-600' 
+              : 'bg-transparent border-border/30 text-muted-foreground hover:bg-red-500/5 hover:border-red-500/20 hover:text-red-500'
+          }`}
+        >
+          <ThumbsDown className={`w-3.5 h-3.5 ${response === 'down' ? 'fill-current' : ''}`} />
+          <span className="text-[12px] font-semibold">Nicht hilfreich</span>
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 export function AIChatSidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -72,20 +122,7 @@ export function AIChatSidebar() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleFeedback = (messageId: string, feedback: 'up' | 'down') => {
-    setMessages(prev => prev.map(m => 
-      m.id === messageId 
-        ? { ...m, feedback: m.feedback === feedback ? null : feedback } 
-        : m
-    ));
 
-    const message = messages.find(m => m.id === messageId);
-    posthog.capture("ai_message_feedback", {
-      message_id: messageId,
-      feedback_type: feedback,
-      message_content: message?.content?.substring(0, 100),
-    });
-  };
 
   // Initialize session ID on mount
   useEffect(() => {
@@ -181,6 +218,7 @@ export function AIChatSidebar() {
         id: uuidv4(),
         role: "model",
         content: data.reply || "Entschuldigung, ich konnte keine Antwort generieren.",
+        traceId: data.traceId,
       };
 
       setMessages((prev) => [...prev, aiMessage]);
@@ -292,68 +330,55 @@ export function AIChatSidebar() {
                      >
                        {m.role === "user" ? (
                          <div className="flex flex-col items-end max-w-[85%]">
-                            <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-[20px] rounded-tr-[4px] shadow-md text-[14.5px] border border-primary/20">
+                            <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-[22px] rounded-tr-[4px] shadow-lg text-[14.5px] border border-primary/20 relative overflow-hidden group/message">
+                              {/* Glowing background effect for user bubble */}
+                              <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-50" />
+                              
                               {m.attachment && (
-                                <div className="flex flex-col gap-2 mb-3 p-0 rounded-xl overflow-hidden bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 shadow-lg group/attachment">
+                                <div className="flex flex-col gap-2 mb-3 p-0 rounded-xl overflow-hidden bg-white/10 hover:bg-white/15 transition-all duration-300 border border-white/20 shadow-xl group/attachment relative z-10">
                                   {m.attachment.type.startsWith('image/') ? (
-                                    <div className="relative aspect-auto max-h-[220px] w-full overflow-hidden bg-black/20">
-                                      <img src={`data:${m.attachment.type};base64,${m.attachment.data}`} alt={m.attachment.name} className="object-contain w-full h-full transform transition-transform duration-500 group-hover/attachment:scale-105" />
-                                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold text-white/90 border border-white/10 uppercase tracking-widest">
+                                    <div className="relative aspect-auto max-h-[220px] w-full overflow-hidden bg-black/40">
+                                      <img src={`data:${m.attachment.type};base64,${m.attachment.data}`} alt={m.attachment.name} className="object-contain w-full h-full transform transition-transform duration-700 group-hover/attachment:scale-105" />
+                                      <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-bold text-white/90 border border-white/10 uppercase tracking-widest shadow-lg">
                                         Bild
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-3 p-3 bg-white/5">
-                                      <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 border border-white/10 shadow-inner">
-                                        <FileIcon className="w-5 h-5 text-white/90" />
+                                    <div className="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-sm">
+                                      <div className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/10 border border-white/10 shadow-inner group-hover/attachment:bg-white/20 transition-colors duration-300">
+                                        <FileIcon className="w-6 h-6 text-white" />
                                       </div>
                                       <div className="flex flex-col min-w-0">
                                         <span className="text-[13px] truncate font-bold text-white leading-tight">{m.attachment.name}</span>
-                                        <span className="text-[10px] opacity-60 uppercase tracking-tighter">Dokument</span>
+                                        <span className="text-[10px] opacity-70 uppercase tracking-widest mt-0.5 font-medium">Dokument</span>
                                       </div>
                                     </div>
                                   )}
                                 </div>
                               )}
-                              <p className="whitespace-pre-wrap">{m.content}</p>
+                              <p className="whitespace-pre-wrap relative z-10 font-medium">{m.content}</p>
                             </div>
                          </div>
                        ) : (
-                         <div className="w-full space-y-3 group">
+                         <div className="w-full space-y-4 group">
                            <div className="flex items-center justify-between px-1">
-                             <div className="flex items-center gap-2">
-                               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm overflow-hidden p-[1px]">
-                                 <Image src={LOGO_URL} alt="AI" width={18} height={18} className="object-contain" />
+                             <div className="flex items-center gap-2.5">
+                               <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20 shadow-sm overflow-hidden p-[2px] transition-transform group-hover:scale-105 duration-300">
+                                 <Image src={LOGO_URL} alt="AI" width={20} height={20} className="object-contain" />
                                </div>
-                               <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-80">Mietevo Copilot</span>
-                             </div>
-                             
-                             {/* Feedback and Actions */}
-                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 onClick={() => handleFeedback(m.id, 'up')}
-                                 className={`w-7 h-7 rounded-md transition-colors ${m.feedback === 'up' ? 'text-green-500 bg-green-500/10' : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/5'}`}
-                               >
-                                 <ThumbsUp className={`w-3.5 h-3.5 ${m.feedback === 'up' ? 'fill-current' : ''}`} />
-                               </Button>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 onClick={() => handleFeedback(m.id, 'down')}
-                                 className={`w-7 h-7 rounded-md transition-colors ${m.feedback === 'down' ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/5'}`}
-                               >
-                                 <ThumbsDown className={`w-3.5 h-3.5 ${m.feedback === 'down' ? 'fill-current' : ''}`} />
-                               </Button>
+                               <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em] opacity-70">Mietevo Copilot</span>
                              </div>
                            </div>
-                           <div className="prose prose-sm dark:prose-invert max-w-none px-1 text-[15px] leading-relaxed text-foreground/90">
+                           <div className="prose prose-sm dark:prose-invert max-w-none px-1 text-[15px] leading-relaxed text-foreground/90 font-medium">
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                 {m.content}
                               </ReactMarkdown>
                            </div>
-                           <div className="h-px w-full bg-gradient-to-r from-border/50 via-border/20 to-transparent my-4 opacity-50" />
+                           
+                           {/* PostHog Survey Feedback Component */}
+                           <PostHogFeedback traceId={m.traceId} isDark={isDark} />
+                           
+                           <div className="h-px w-full bg-gradient-to-r from-border/50 via-border/10 to-transparent my-6 opacity-30" />
                          </div>
                        )}
                      </motion.div>

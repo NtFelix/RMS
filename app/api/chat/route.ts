@@ -327,7 +327,7 @@ ${pageContext}`;
       await posthog.shutdown();
     }
 
-    return NextResponse.json({ reply: replyText });
+    return NextResponse.json({ reply: replyText, traceId: traceId });
 
   } catch (error: any) {
     console.error("Chat API Error:", error);
