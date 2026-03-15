@@ -8,18 +8,21 @@ export function useGeminiSteps() {
   const [steps, setSteps] = useState<LLMStep[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const timers = useRef<Record<string, number>>({});
+  const stepsRef = useRef<LLMStep[]>([]);
 
   const addStep = useCallback((type: StepType, label: string, status: StepStatus = "pending", detail?: string) => {
     const id = uuidv4();
     const newStep: LLMStep = { id, type, label, status, detail, startedAt: status === "loading" ? Date.now() : undefined };
     if (status === "loading") timers.current[id] = Date.now();
     
-    setSteps(prev => [...prev, newStep]);
+    const nextSteps = [...stepsRef.current, newStep];
+    stepsRef.current = nextSteps;
+    setSteps(nextSteps);
     return id;
   }, []);
 
   const updateStep = useCallback((stepId: string, updates: Partial<LLMStep>) => {
-    setSteps(prev => prev.map(s => {
+    const nextSteps = stepsRef.current.map(s => {
       if (s.id !== stepId) return s;
       
       const newStatus = updates.status ?? s.status;
@@ -35,37 +38,42 @@ export function useGeminiSteps() {
       }
       
       return { ...s, ...updates, duration };
-    }));
+    });
+    
+    stepsRef.current = nextSteps;
+    setSteps(nextSteps);
   }, []);
 
   const start = useCallback(() => {
+    stepsRef.current = [];
     setSteps([]);
     setIsVisible(true);
     addStep("thinking", "Anfrage analysieren", "loading");
   }, [addStep]);
 
   const setAllDone = useCallback(() => {
-    setSteps(prev => prev.map(s => {
+    const nextSteps = stepsRef.current.map(s => {
       if (s.status === "loading") {
         const duration = timers.current[s.id] ? Date.now() - timers.current[s.id] : undefined;
-        return { ...s, status: "done", duration };
+        return { ...s, status: "done" as StepStatus, duration };
       }
       return s;
-    }));
+    });
+    stepsRef.current = nextSteps;
+    setSteps(nextSteps);
   }, []);
 
   const finish = useCallback((success: boolean) => {
     setAllDone();
     if (!success) {
-      setSteps(prev => {
-        const last = prev[prev.length - 1];
-        if (last) {
-          return prev.slice(0, -1).concat({ ...last, status: "error" });
-        }
-        return prev;
+      const nextSteps = stepsRef.current.map((s, i, arr) => {
+        if (i === arr.length - 1) return { ...s, status: "error" as StepStatus };
+        return s;
       });
+      stepsRef.current = nextSteps;
+      setSteps(nextSteps);
     }
   }, [setAllDone]);
 
-  return { steps, isVisible, start, addStep, updateStep, finish, setAllDone };
+  return { steps, stepsRef, isVisible, start, addStep, updateStep, finish, setAllDone };
 }
