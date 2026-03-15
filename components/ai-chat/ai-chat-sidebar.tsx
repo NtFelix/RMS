@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown } from "lucide-react";
+import { MessageCircle, X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -22,6 +22,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 // @ts-ignore - useThumbSurvey is available in recent posthog-js/react but types might be lagging
 import { useThumbSurvey } from 'posthog-js/react/surveys'
+import type { LLMStep, StepType, ToolCallRecord } from '@/types/llm-steps';
+import { useGeminiSteps } from '@/hooks/useGeminiSteps';
 
 // Define message type
 type Message = {
@@ -35,7 +37,193 @@ type Message = {
   };
   traceId?: string;
   feedback?: 'up' | 'down' | null;
+  toolCalls?: ToolCallRecord[];
 };
+
+// ─── ShimmerText: smooth left-to-right shimmer for the active step ──────────
+function ShimmerText({ text }: { text: string }) {
+  return (
+    <motion.span
+      className="text-[13px] font-medium text-muted-foreground/40 bg-clip-text"
+      style={{
+        backgroundImage: "linear-gradient(90deg, currentColor 0%, rgba(255,255,255,0.6) 50%, currentColor 100%)",
+        backgroundSize: "200% 100%",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+      } as React.CSSProperties}
+      animate={{ backgroundPosition: ["100% 0", "-100% 0"] }}
+      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+    >
+      {text}
+    </motion.span>
+  );
+}
+
+// ─── IntelligenceInsight: no-container, inline step list ────────────────────
+function IntelligenceInsight({
+  steps,
+  isLoading,
+  toolCalls,
+}: {
+  steps: LLMStep[];
+  isLoading: boolean;
+  toolCalls?: ToolCallRecord[];
+}) {
+  const [expandedTool, setExpandedTool] = useState<number | null>(null);
+  const hasToolData = toolCalls && toolCalls.length > 0;
+
+  // Don't render if loading is done and there were no tool calls
+  if (!isLoading && !hasToolData) return null;
+
+  // Visible steps: during loading show all, after loading only done ones
+  const visibleSteps = isLoading
+    ? steps.filter(s => s.status !== "pending" || steps.find(x => x.status === "loading") === undefined)
+    : steps.filter(s => s.status === "done");
+
+  return (
+    <div className="mb-5 space-y-1.5 pl-1">
+      {/* Step rows — no container, just inline bullets */}
+      {steps.map((step, i) => {
+        const isActive = step.status === "loading";
+        const isDone   = step.status === "done";
+        const isError  = step.status === "error";
+        const isPending = step.status === "pending";
+
+        // Hide pending steps that haven't started yet during loading
+        if (isPending && isLoading) return null;
+
+        return (
+          <motion.div
+            key={step.id}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: i * 0.06 }}
+            className="flex items-start gap-2.5"
+          >
+            {/* Bullet */}
+            <div className="mt-[5px] shrink-0">
+              {isActive ? (
+                <motion.div
+                  className="w-1.5 h-1.5 rounded-full bg-foreground/40"
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                />
+              ) : isDone ? (
+                <div className="w-1.5 h-1.5 rounded-full bg-foreground/20" />
+              ) : isError ? (
+                <div className="w-1.5 h-1.5 rounded-full bg-red-400/60" />
+              ) : null}
+            </div>
+
+            {/* Text + detail */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                {isActive ? (
+                  <ShimmerText text={step.label} />
+                ) : (
+                  <span className={`text-[13px] font-medium ${
+                    isDone   ? "text-muted-foreground/55" :
+                    isError  ? "text-red-400/70" :
+                    "text-muted-foreground/30"
+                  }`}>
+                    {step.label}
+                  </span>
+                )}
+
+                {/* Detail chip — e.g. tool names */}
+                {step.detail && !isPending && (
+                  <span className="text-[11px] font-mono text-muted-foreground/40 truncate max-w-[200px]">
+                    {step.detail}
+                  </span>
+                )}
+
+                {/* Duration badge */}
+                {isDone && step.duration && (
+                  <span className="text-[10px] font-mono text-muted-foreground/30">
+                    {step.duration}ms
+                  </span>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        );
+      })}
+
+      {/* Tool call data — shown as collapsible rows after the steps, no container */}
+      {hasToolData && (
+        <div className="mt-3 space-y-2 pl-4">
+          {toolCalls!.map((call, idx) => (
+            <div key={idx}>
+              {/* Clickable row */}
+              <button
+                onClick={() => setExpandedTool(expandedTool === idx ? null : idx)}
+                className="flex items-center gap-2 group/tool outline-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Database className={`w-3 h-3 shrink-0 ${call.error ? "text-red-400/60" : "text-blue-400/60"}`} />
+                  <span className="text-[12px] font-mono text-muted-foreground/55 group-hover/tool:text-muted-foreground transition-colors">
+                    {call.name}
+                  </span>
+                  {call.error
+                    ? <span className="text-[9px] text-red-400/60 font-bold uppercase tracking-wider">Fehler</span>
+                    : <span className="text-[9px] text-emerald-500/60 font-bold uppercase tracking-wider">OK</span>
+                  }
+                </div>
+                <motion.span
+                  animate={{ rotate: expandedTool === idx ? 180 : 0 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <ChevronDown className="w-3 h-3 text-muted-foreground/30" />
+                </motion.span>
+              </button>
+
+              {/* Expandable payload */}
+              <AnimatePresence>
+                {expandedTool === idx && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2 ml-1 space-y-2 border-l border-border/30 pl-3">
+                      {/* Input */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between pr-1">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/35">Input</span>
+                          <span className="text-[9px] font-mono text-muted-foreground/25">{JSON.stringify(call.args).length} B</span>
+                        </div>
+                        <pre className="p-2 rounded-md text-[11px] font-mono bg-muted/15 text-muted-foreground/70 overflow-x-auto overflow-y-auto max-h-[160px] border border-border/10 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/50 [&::-webkit-scrollbar-track]:bg-transparent">
+                          {JSON.stringify(call.args, null, 2)}
+                        </pre>
+                      </div>
+
+                      {/* Output */}
+                      {call.result && (
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between pr-1">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-primary/40">Output</span>
+                            <span className="text-[9px] font-mono text-primary/30">JSON · {JSON.stringify(call.result).length} B</span>
+                          </div>
+                          <pre className="p-2 rounded-md text-[11px] font-mono bg-primary/[0.03] text-foreground/65 overflow-x-auto overflow-y-auto max-h-[220px] border border-primary/10 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/25 [&::-webkit-scrollbar-track]:bg-transparent">
+                            {JSON.stringify(call.result, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
 function PostHogFeedback({ traceId, isDark }: { traceId?: string; isDark: boolean }) {
   if (!traceId) return null;
@@ -96,6 +284,7 @@ export function AIChatSidebar() {
   const currentTheme = theme === 'system' ? resolvedTheme : theme;
   const isDark = currentTheme === 'dark';
   
+  const { steps: llmSteps, isVisible: stepsVisible, start: startSteps, finish: finishSteps, onToolsStarted, onToolsDone } = useGeminiSteps();
   const pathname = usePathname();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -170,6 +359,7 @@ export function AIChatSidebar() {
     setInputValue("");
     setAttachment(null);
     setIsLoading(true);
+    startSteps();
 
     const turnCount = messages.filter((m) => m.role === "user").length + 1;
     posthog.capture("ai_message_sent", {
@@ -214,16 +404,30 @@ export function AIChatSidebar() {
 
       const data = await res.json();
 
+      // Signal step phases based on real API response
+      const toolNames = (data.toolCalls ?? []).map((t: any) => t.name);
+      if (toolNames.length > 0) {
+        onToolsStarted(toolNames);
+        // Brief delay to show the tool_call step before marking done
+        await new Promise(r => setTimeout(r, 600));
+        onToolsDone(true);
+      } else {
+        onToolsDone(false);
+      }
+      finishSteps(true);
+
       const aiMessage: Message = {
         id: uuidv4(),
         role: "model",
         content: data.reply || "Entschuldigung, ich konnte keine Antwort generieren.",
         traceId: data.traceId,
+        toolCalls: data.toolCalls,
       };
 
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       console.error("AI Chat Error:", error);
+      finishSteps(false);
       const errorMessage: Message = {
         id: uuidv4(),
         role: "model",
@@ -306,8 +510,8 @@ export function AIChatSidebar() {
                   transition={{ delay: 0.1, duration: 0.4 }}
                   className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-[85%] mx-auto pb-10"
                 >
-                  <div className="relative w-24 h-24 rounded-full bg-gradient-to-tr from-primary/20 via-primary/5 to-transparent flex items-center justify-center ring-1 ring-primary/20 shadow-[0_0_30px_-5px_hsl(var(--primary)/0.2)] overflow-hidden">
-                    <Image src={LOGO_URL} alt="Mietevo Mascot" width={60} height={60} className="object-contain drop-shadow-md" />
+                  <div className="relative w-20 h-20 rounded-full bg-muted flex items-center justify-center border border-border shadow-sm overflow-hidden">
+                    <Image src={LOGO_URL} alt="Mietevo Mascot" width={50} height={50} className="object-contain" />
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-xl font-bold tracking-tight">Wie kann ich helfen?</h3>
@@ -330,12 +534,9 @@ export function AIChatSidebar() {
                      >
                        {m.role === "user" ? (
                          <div className="flex flex-col items-end max-w-[85%]">
-                            <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-[22px] rounded-tr-[4px] shadow-lg text-[14.5px] border border-primary/20 relative overflow-hidden group/message">
-                              {/* Glowing background effect for user bubble */}
-                              <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-50" />
-                              
+                            <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-[20px] rounded-tr-[4px] shadow-sm border border-primary/10 relative overflow-hidden group/message">
                               {m.attachment && (
-                                <div className="flex flex-col gap-2 mb-3 p-0 rounded-xl overflow-hidden bg-white/10 hover:bg-white/15 transition-all duration-300 border border-white/20 shadow-xl group/attachment relative z-10">
+                                <div className="flex flex-col gap-2 mb-3 p-0 rounded-lg overflow-hidden bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 group/attachment relative z-10">
                                   {m.attachment.type.startsWith('image/') ? (
                                     <div className="relative aspect-auto max-h-[220px] w-full overflow-hidden bg-black/40">
                                       <img src={`data:${m.attachment.type};base64,${m.attachment.data}`} alt={m.attachment.name} className="object-contain w-full h-full transform transition-transform duration-700 group-hover/attachment:scale-105" />
@@ -344,8 +545,8 @@ export function AIChatSidebar() {
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-sm">
-                                      <div className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/10 border border-white/10 shadow-inner group-hover/attachment:bg-white/20 transition-colors duration-300">
+                                    <div className="flex items-center gap-4 p-4 bg-white/5">
+                                      <div className="w-11 h-11 flex items-center justify-center rounded-lg bg-white/10 border border-white/10 group-hover/attachment:bg-white/20 transition-colors duration-300">
                                         <FileIcon className="w-6 h-6 text-white" />
                                       </div>
                                       <div className="flex flex-col min-w-0">
@@ -363,12 +564,17 @@ export function AIChatSidebar() {
                          <div className="w-full space-y-4 group">
                            <div className="flex items-center justify-between px-1">
                              <div className="flex items-center gap-2.5">
-                               <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20 shadow-sm overflow-hidden p-[2px] transition-transform group-hover:scale-105 duration-300">
+                               <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center border border-primary/20 shadow-sm overflow-hidden p-[2px] transition-transform group-hover:scale-105 duration-300">
                                  <Image src={LOGO_URL} alt="AI" width={20} height={20} className="object-contain" />
                                </div>
                                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em] opacity-70">Mietevo Copilot</span>
                              </div>
                            </div>
+                           
+                            {m.toolCalls && m.toolCalls.length > 0 && (
+                              <IntelligenceInsight steps={[]} isLoading={false} toolCalls={m.toolCalls} />
+                            )}
+
                            <div className="prose prose-sm dark:prose-invert max-w-none px-1 text-[15px] leading-relaxed text-foreground/90 font-medium">
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                 {m.content}
@@ -385,43 +591,19 @@ export function AIChatSidebar() {
                    ))}
                  </AnimatePresence>
               )}
-                            {isLoading && (
-                 <motion.div 
-                   initial={{ opacity: 0, y: 10 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   className="flex flex-col items-start w-full space-y-3"
-                 >
-                   <div className="flex items-center gap-2 px-1">
-                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm relative overflow-hidden">
-                        <div className="absolute inset-0 bg-primary/10 animate-pulse" />
-                        <Sparkles className="w-3.5 h-3.5 text-primary animate-[spin_3s_linear_infinite]" />
-                     </div>
-                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider animate-pulse">Analysiere...</span>
-                   </div>
-                   <div className="flex flex-col space-y-2 w-full max-w-[120px] px-1">
-                     <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden relative">
-                       <motion.div 
-                         initial={{ x: "-100%" }}
-                         animate={{ x: "100%" }}
-                         transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                         className="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-primary to-transparent"
-                       />
-                     </div>
-                     <div className="h-1.5 w-3/4 bg-muted rounded-full overflow-hidden relative">
-                       <motion.div 
-                         initial={{ x: "-100%" }}
-                         animate={{ x: "100%" }}
-                         transition={{ repeat: Infinity, duration: 1.5, ease: "linear", delay: 0.2 }}
-                         className="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-primary to-transparent"
-                       />
-                     </div>
-                   </div>
-                 </motion.div>
-               )}
+                {isLoading && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="w-full"
+                  >
+                    <IntelligenceInsight steps={llmSteps} isLoading={true} />
+                  </motion.div>
+                )}
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-background/90 backdrop-blur-2xl border-t border-border/50 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-20">
+            <div className="p-4 bg-background border-t border-border/50 shadow-sm z-20">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -431,7 +613,7 @@ export function AIChatSidebar() {
               >
                 <div className="px-4 pt-3">
                   {attachment && (
-                    <div className="flex items-center justify-between p-2 mb-2 rounded-xl bg-muted/50 border border-border/40 backdrop-blur-sm animate-in zoom-in-95 duration-200">
+                    <div className="flex items-center justify-between p-2 mb-2 rounded-lg bg-muted border border-border/40 animate-in zoom-in-95 duration-200">
                       <div className="flex items-center gap-2 overflow-hidden">
                         {attachment.type.startsWith('image/') ? (
                           <div className="relative shrink-0 w-8 h-8 overflow-hidden rounded bg-background shadow-sm">
@@ -551,21 +733,20 @@ export function AIChatSidebar() {
             initial={{ scale: 0, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0, opacity: 0, y: 20 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             className="fixed bottom-6 right-6 z-40 group"
           >
-            {/* Pulsing ring effect */}
-            <div className="absolute -inset-2 bg-gradient-to-r from-primary to-primary/50 rounded-full blur-xl opacity-20 group-hover:opacity-60 transition duration-500 animate-[pulse_3s_cubic-bezier(0.4,0,0.6,1)_infinite]"></div>
+            {/* Subtle glow effect */}
+            <div className="absolute -inset-1 bg-primary rounded-full blur opacity-10 group-hover:opacity-30 transition duration-500"></div>
             
             <Button
               size="icon"
-              className="relative h-16 w-16 rounded-full shadow-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-2 border-primary-foreground/10 hover:shadow-[0_0_30px_hsl(var(--primary)/0.3)] overflow-hidden"
+              className="relative h-14 w-14 rounded-full shadow-lg bg-primary text-primary-foreground border border-primary-foreground/10 overflow-hidden"
               onClick={toggleSidebar}
             >
-              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <Sparkles className="absolute top-3 right-3 w-4 h-4 opacity-70 animate-pulse text-primary-foreground" />
-              <MessageCircle className="w-7 h-7 ml-[-2px] mt-[-2px]" />
+              <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <MessageCircle className="w-6 h-6" />
             </Button>
           </motion.div>
         )}
