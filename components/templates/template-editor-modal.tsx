@@ -382,7 +382,7 @@ export function TemplateEditorModal({
         </DialogDescription>
 
         {/* Header Section */}
-        <div className="flex-shrink-0 px-6 py-5 border-b flex items-center justify-between bg-muted/20 backdrop-blur-md">
+        <div className="flex-shrink-0 px-6 pt-1 pb-3 border-b flex items-center justify-between bg-muted/20 backdrop-blur-md">
           <div className="flex items-center gap-4 flex-1">
             {!template && step === 'editor' && (
               <Button
@@ -603,7 +603,7 @@ export function TemplateEditorModal({
                     />
 
                     {/* Row 2: Footer with Save & Abort */}
-                    <footer className="flex-shrink-0 flex items-center justify-end gap-3 px-8 py-5 bg-muted/30 border-t backdrop-blur-md">
+                    <footer className="flex-shrink-0 flex items-center justify-end gap-3 px-6 pb-4 pt-4 bg-transparent border-t">
                       <Button
                         type="button"
                         variant="ghost"
@@ -616,7 +616,7 @@ export function TemplateEditorModal({
                       <Button
                         type="submit"
                         disabled={!isTemplateEditorModalDirty || isLoading}
-                        className="flex items-center gap-2 px-10 h-12 rounded-full font-bold bg-primary hover:bg-primary/95 shadow-xl shadow-primary/20 transition-all disabled:opacity-50 group"
+                        className="flex items-center gap-2 px-10 h-12 rounded-full font-bold bg-primary hover:bg-primary/95 transition-all disabled:opacity-50 group"
                       >
                         {isLoading ? (
                           <>
