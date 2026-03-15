@@ -242,6 +242,7 @@ ${pageContext}`;
         executedTools.push({
           name: call.name,
           args: call.args,
+          result: result,
           error: toolError,
         });
 
@@ -327,7 +328,11 @@ ${pageContext}`;
       await posthog.shutdown();
     }
 
-    return NextResponse.json({ reply: replyText, traceId: traceId });
+    return NextResponse.json({ 
+      reply: replyText, 
+      traceId: traceId,
+      toolCalls: executedTools 
+    });
 
   } catch (error: any) {
     console.error("Chat API Error:", error);
