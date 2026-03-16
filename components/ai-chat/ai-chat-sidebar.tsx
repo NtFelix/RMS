@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight } from "lucide-react";
+import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -320,6 +320,7 @@ export function AIChatSidebar() {
   const pathname = usePathname();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -349,6 +350,29 @@ export function AIChatSidebar() {
   useEffect(() => {
     setSessionId(uuidv4());
   }, []);
+
+  // Hotkey listener for Cmd/Ctrl + J
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        setIsOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  // Focus textarea when sidebar opens
+  useEffect(() => {
+    if (isOpen) {
+      // Small timeout to wait for sidebar spring animation to start/complete enough
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   // Auto-scroll to bottom of messages smoothly
   useEffect(() => {
@@ -541,7 +565,7 @@ export function AIChatSidebar() {
                 </div>
                 <div>
                   <h2 className="font-bold text-lg leading-none bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 dark:to-white/70">
-                    Mietevo Copilot
+                    Mietevo AI
                   </h2>
                 </div>
               </div>
@@ -635,7 +659,7 @@ export function AIChatSidebar() {
                                <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center border border-primary/20 shadow-sm overflow-hidden p-[2px] transition-transform group-hover:scale-105 duration-300">
                                  <Image src={LOGO_URL} alt="AI" width={20} height={20} className="object-contain" />
                                </div>
-                               <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em] opacity-70">Mietevo Copilot</span>
+                               <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em] opacity-70">Mietevo AI</span>
                              </div>
                            </div>
                            
@@ -705,7 +729,8 @@ export function AIChatSidebar() {
                       </Button>
                     </div>
                   )}
-                  <textarea
+                   <textarea
+                    ref={textareaRef}
                     value={inputValue}
                     onChange={(e) => {
                       setInputValue(e.target.value);
@@ -810,12 +835,34 @@ export function AIChatSidebar() {
             
             <Button
               size="icon"
-              className="relative h-14 w-14 rounded-full shadow-lg bg-primary text-primary-foreground border border-primary-foreground/10 overflow-hidden"
+              className="relative h-14 w-14 rounded-full shadow-2xl bg-white hover:bg-white text-primary border border-border overflow-hidden p-0"
               onClick={toggleSidebar}
             >
-              <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <MessageCircle className="w-6 h-6" />
+              <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <Image 
+                src={LOGO_URL} 
+                alt="Mietevo AI" 
+                width={32} 
+                height={32} 
+                className="object-contain relative z-10" 
+              />
             </Button>
+
+            {/* Hover Tooltip */}
+            <div className="absolute bottom-full right-0 mb-4 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 flex flex-col items-start whitespace-nowrap">
+              <div className={`px-4 py-2.5 rounded-2xl shadow-xl border backdrop-blur-md flex flex-col items-start gap-1 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-black/[0.05]'}`}>
+                <span className="text-[13px] font-bold tracking-tight">Mietevo AI</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-30">Hotkey</span>
+                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[11px] font-bold ${isDark ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/5'}`}>
+                    <span>⌘</span>
+                    <span>J</span>
+                  </div>
+                </div>
+              </div>
+              {/* Tooltip triangle - centered relative to button by using ml-auto or similar if needed, but anchored to right-0 so mr-6 is correct if button is 56px */}
+              <div className={`mr-6 ml-auto w-3 h-3 rotate-45 border-r border-b translate-y-[-6px] ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-black/[0.05]'}`} />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
