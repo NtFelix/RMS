@@ -1,5 +1,3 @@
-import { PostHog } from 'posthog-node'
-
 const dummyPostHog = {
   capture: async () => { },
   flush: async () => { },
@@ -18,27 +16,44 @@ export function getPostHogServer() {
 
     if (!apiKey) {
       if (process.env.NODE_ENV === 'test' || process.env.CI === 'true') {
-        // Return a mock object for testing to avoid crashes
         return dummyPostHog
       }
       console.warn('[PostHog Server] No API key found. Events will not be captured.')
+      return dummyPostHog
     }
 
-    try {
-      posthogInstance = new PostHog(apiKey || 'dummy-key', {
-        host: apiHost,
-        flushAt: 1,
-        flushInterval: 0
-      })
+    // Lightweight fetch-based PostHog client to avoid huge posthog-node bundle size on Edge
+    const sendEvent = async (event, properties = {}) => {
+      try {
+        // Send event payload using the API schema from PostHog
+        fetch(`${apiHost}/capture/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            api_key: apiKey,
+            event,
+            properties,
+            timestamp: new Date().toISOString()
+          }),
+          // Dont await so we don't block the running context, handled implicitly
+        }).catch(e => {
+            console.error('[PostHog Server] fetch capture error:', e)
+        });
+      } catch (e) {
+        console.error('[PostHog Server] capture error:', e)
+      }
+    }
 
-      // Add error handler
-      posthogInstance.on('error', (err) => {
-        console.error('[PostHog Server] Error:', err)
-      })
-    } catch (e) {
-      console.error('[PostHog Server] Initialization failed:', e)
-      // Fallback to dummy
-      return dummyPostHog
+    posthogInstance = {
+      capture: async ({ distinctId, event, properties }) => sendEvent(event, { distinct_id: distinctId, ...properties }),
+      flush: async () => { }, // No-op for fetch-based client
+      on: () => { },
+      identify: async ({ distinctId, properties }) => sendEvent('$identify', { distinct_id: distinctId, $set: properties }),
+      alias: async () => { },
+      captureException: async (error, distinctId) => sendEvent('exception', {
+        distinct_id: distinctId || 'anonymous',
+        error_message: error?.message || String(error)
+      }),
     }
   }
   return posthogInstance
