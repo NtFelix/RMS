@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal } from "lucide-react";
+import { MessageCircle, X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -534,31 +534,24 @@ export function AIChatSidebar() {
             className="fixed top-0 right-0 h-full w-full sm:w-[450px] bg-background/90 dark:bg-background/90 backdrop-blur-2xl border-l border-border/50 dark:border-white/10 shadow-2xl z-50 flex flex-col pt-safe"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 bg-background/50 backdrop-blur-xl z-20">
+            <div className="flex items-center justify-between px-6 py-6 bg-transparent z-20">
               <div className="flex items-center gap-3">
                 <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 shadow-inner overflow-hidden">
                   <Image src={LOGO_URL} alt="Mietevo Mascot" width={24} height={24} className="object-contain" />
-                  <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
-                  </span>
                 </div>
                 <div>
                   <h2 className="font-bold text-lg leading-none bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 dark:to-white/70">
                     Mietevo Copilot
                   </h2>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                    <Sparkles className="w-3 h-3 text-primary" /> KI Assistent
-                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1 bg-muted/40 rounded-full p-1 border border-border/50">
+              <div className={`flex items-center gap-1 rounded-full p-1 border transition-all duration-300 ${isDark ? 'bg-muted/40 border-white/10 shadow-none' : 'bg-white border-black/[0.08] shadow-sm'}`}>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={clearChat}
                   title="Chat leeren"
-                  className="rounded-full w-8 h-8 hover:bg-background hover:text-destructive flex-shrink-0 transition-all"
+                  className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5 hover:text-destructive' : 'hover:bg-black/5 hover:text-red-500 text-muted-foreground'}`}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -566,9 +559,9 @@ export function AIChatSidebar() {
                   variant="ghost"
                   size="icon"
                   onClick={toggleSidebar}
-                  className="rounded-full w-8 h-8 hover:bg-background flex-shrink-0 transition-all"
+                  className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5 text-muted-foreground'}`}
                 >
-                  <X className="w-4 h-4" />
+                  <ChevronsRight className="w-5 h-5" />
                 </Button>
               </div>
             </div>
