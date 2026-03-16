@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { DocumentationSearch } from '@/components/documentation/documentation-search';
 import { DocumentationCategories, Category } from '@/components/documentation/documentation-categories';
 import { DocumentationArticleList, Article } from '@/components/documentation/documentation-article-list';
-import { DocumentationArticleViewer } from '@/components/documentation/documentation-article-viewer';
 import { DocumentationCategoryCards } from '@/components/documentation/documentation-category-cards';
 import { DocumentationTableOfContents } from '@/components/documentation/documentation-table-of-contents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +14,11 @@ import { AlertCircle, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
 import { useModalStore } from '@/hooks/use-modal-store';
+import dynamic from 'next/dynamic';
+
+const DocumentationArticleViewer = dynamic(() => import('@/components/documentation/documentation-article-viewer').then(mod => mod.DocumentationArticleViewer), {
+  loading: () => <div className="space-y-4"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-64 w-full" /></div>
+});
 
 interface DocumentationState {
   categories: Category[];
