@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { loadStripe } from '@stripe/stripe-js';
 import { trackSectionViewed, type LandingSection } from '@/lib/posthog-landing-events';
 import { ROUTES } from '@/lib/constants';
 
@@ -18,12 +17,6 @@ import { EmailVerificationNotifier } from '@/components/auth/email-verification-
 import { useSubscriptionUser } from '@/hooks/use-subscription-user';
 import { useSubscriptionCheckout } from '@/hooks/use-subscription-checkout';
 import { useAuthRedirects } from '@/hooks/use-auth-redirect-handler';
-
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-);
-
-
 
 // Main content component that uses the auth modal context
 function LandingPageContent() {

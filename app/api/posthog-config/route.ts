@@ -4,11 +4,11 @@ export const runtime = 'edge'
 
 export async function GET() {
   // Return PostHog configuration from server-side environment variables
-  // Use the exact names from Cloudflare: POSTHOG_API_KEY, POSTHOG_HOST, POSTHOG_ENV_ID
+  // Use the exact names from Cloudflare: POSTHOG_API_KEY, POSTHOG_HOST, POSTHOG_PROJECT_ID
   const config = {
     key: process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY,
     host: process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com',
-    envId: process.env.POSTHOG_ENV_ID
+    projectId: process.env.POSTHOG_PROJECT_ID || process.env.POSTHOG_ENV_ID
   }
 
   // Only return config if we have a valid key

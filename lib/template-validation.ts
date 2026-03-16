@@ -1,6 +1,6 @@
 import { TemplatePayload } from '@/types/template';
 import { TEMPLATE_CATEGORIES } from '@/lib/template-constants';
-import { JSONContent } from '@tiptap/react';
+import type { JSONContent } from '@tiptap/react';
 
 export interface ValidationError {
   field: string;

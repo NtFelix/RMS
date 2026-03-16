@@ -1,7 +1,7 @@
 'use client';
 
 import React, { forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect, memo, Fragment } from 'react';
-import { Editor, Range } from '@tiptap/react';
+import type { Editor, Range } from '@tiptap/react';
 import { MentionVariable, CATEGORY_CONFIGS, getCategoryConfig } from '@/lib/template-constants';
 import { groupMentionVariablesByCategory, getOrderedCategories } from '@/lib/mention-utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
