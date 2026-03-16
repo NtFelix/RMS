@@ -32,6 +32,7 @@
         "jszip": "^3.10.1",
         "pako": "^2.1.0",
         "papaparse": "^5.4.1",
-        "posthog-node": "^5.26.0"
+    "posthog-node": "^5.26.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
     }
 }
