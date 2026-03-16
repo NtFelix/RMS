@@ -9,9 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calendar, Gauge, Droplets } from "lucide-react";
 import type { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/types";
-import { bulkCreateAblesungen } from "@/app/meter-actions";
 import { isoToGermanDate } from "@/utils/date-calculations";
-import { formatNumber, roundToDecimals } from "@/utils/format";
+import { formatNumber } from "@/utils/format";
 import { StatCard } from "@/components/common/stat-card";
 
 interface MeterImportModalProps {
@@ -23,10 +22,6 @@ interface MeterImportModalProps {
 }
 
 type ImportStep = "upload" | "mapping" | "preview";
-
-interface ParsedRow {
-  [key: string]: string | number | null;
-}
 
 interface ColumnMapping {
   custom_id: string;
@@ -41,9 +36,9 @@ interface ProcessedReading {
   ablese_datum: string;
   zaehlerstand: number;
   verbrauch: number;
-  original_row: ParsedRow;
   status: "valid" | "duplicate" | "missing_meter" | "invalid_date" | "invalid_value";
   message?: string;
+  rowIndex?: number;
 }
 
 export function MeterImportModal({
@@ -54,11 +49,17 @@ export function MeterImportModal({
   readings,
 }: MeterImportModalProps) {
   const [step, setStep] = useState<ImportStep>("upload");
-  const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
+  const [jobId, setJobId] = useState<string | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({ custom_id: "", ablese_datum: "", zaehlerstand: "", verbrauch: "" });
   const [processedData, setProcessedData] = useState<ProcessedReading[]>([]);
+  const [totalRowCount, setTotalRowCount] = useState(0);
+  const [counts, setCounts] = useState({
+    validCount: 0,
+    duplicateCount: 0,
+    missingCount: 0,
+    invalidCount: 0,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,55 +67,38 @@ export function MeterImportModal({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
-    setFile(selectedFile);
-    await parseFile(selectedFile);
-  };
+    setIsSubmitting(true);
+    setProcessedData([]);
+    setCounts({ validCount: 0, duplicateCount: 0, missingCount: 0, invalidCount: 0 });
 
-  const parseFile = async (file: File) => {
-    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
 
-    if (fileExtension === "csv") {
-      const Papa = (await import("papaparse")).default;
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          if (results.data && results.data.length > 0) {
-            setParsedData(results.data as ParsedRow[]);
-            setColumns(Object.keys(results.data[0] as object));
-            setStep("mapping");
-          } else {
-            toast({ title: "Fehler", description: "Die CSV-Datei ist leer oder ungültig.", variant: "destructive" });
-          }
-        },
-        error: (error: any) => {
-          toast({ title: "Fehler", description: `Fehler beim Parsen der CSV: ${error.message}`, variant: "destructive" });
-        },
+      const response = await fetch("/api/meter-import/preview", {
+        method: "POST",
+        body: formData,
       });
-    } else if (fileExtension === "xlsx" || fileExtension === "xls") {
-      const XLSX = await import("xlsx");
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: "binary" });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(sheet);
-          if (jsonData && jsonData.length > 0) {
-            setParsedData(jsonData as ParsedRow[]);
-            setColumns(Object.keys(jsonData[0] as object));
-            setStep("mapping");
-          } else {
-            toast({ title: "Fehler", description: "Die Excel-Datei ist leer.", variant: "destructive" });
-          }
-        } catch (error) {
-          toast({ title: "Fehler", description: "Fehler beim Parsen der Excel-Datei.", variant: "destructive" });
-        }
-      };
-      reader.readAsBinaryString(file);
-    } else {
-      toast({ title: "Fehler", description: "Nicht unterstütztes Dateiformat.", variant: "destructive" });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Datei konnte nicht verarbeitet werden.");
+      }
+
+      setJobId(data.jobId);
+      setColumns(data.columns || []);
+      setTotalRowCount(data.totalRowCount || 0);
+      setMapping({ custom_id: "", ablese_datum: "", zaehlerstand: "", verbrauch: "" });
+      setStep("mapping");
+    } catch (error: unknown) {
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Datei konnte nicht verarbeitet werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -124,61 +108,14 @@ export function MeterImportModal({
 
   const columnOptions = columns.map(col => ({ value: col, label: col }));
 
-  const parseDateString = (value: string | number | Date): string | null => {
-    if (!value) return null;
-
-    // Handle Excel serial dates
-    if (typeof value === 'number') {
-      const date = new Date((value - 25569) * 86400 * 1000);
-      return date.toISOString().split('T')[0];
-    }
-
-    if (value instanceof Date) {
-      return value.toISOString().split('T')[0];
-    }
-
-    const strVal = String(value).trim();
-
-    // German format: DD.MM.YYYY
-    const germanMatch = strVal.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-    if (germanMatch) {
-      const day = germanMatch[1].padStart(2, '0');
-      const month = germanMatch[2].padStart(2, '0');
-      const year = germanMatch[3];
-      return `${year}-${month}-${day}`;
-    }
-
-    // Try standard parsing (handles ISO YYYY-MM-DD)
-    const date = new Date(strVal);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString().split('T')[0];
-    }
-
-    return null;
-  };
-
-
-  const parseGermanNumber = (value: string | number): number => {
-    let parsed: number;
-
-    if (typeof value === 'number') {
-      parsed = value;
-    } else if (!value) {
-      parsed = 0;
-    } else {
-      let strVal = String(value).trim();
-
-      if (strVal.includes(',')) {
-        strVal = strVal.replace(/\./g, '');
-        strVal = strVal.replace(',', '.');
-      }
-
-      parsed = parseFloat(strVal);
-      if (isNaN(parsed)) parsed = 0;
-    }
-
-    // Round to 3 decimal places
-    return roundToDecimals(parsed);
+  const resetToUpload = () => {
+    setJobId(null);
+    setColumns([]);
+    setProcessedData([]);
+    setTotalRowCount(0);
+    setCounts({ validCount: 0, duplicateCount: 0, missingCount: 0, invalidCount: 0 });
+    setMapping({ custom_id: "", ablese_datum: "", zaehlerstand: "", verbrauch: "" });
+    setStep("upload");
   };
 
   const validateAndProcessData = async () => {
@@ -187,197 +124,53 @@ export function MeterImportModal({
       return;
     }
 
+    if (!jobId) {
+      toast({ title: "Fehler", description: "Bitte laden Sie die Datei erneut hoch.", variant: "destructive" });
+      resetToUpload();
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Create efficient lookup map
-      const metersByCustomId = new Map(meters.map(m => [m.custom_id?.toLowerCase(), m]));
-
-      // 1. Identify relevant meters from the parsed data
-      const meterIdsToFetch = new Set<string>();
-
-      parsedData.forEach(row => {
-        const customIdRaw = row[mapping.custom_id];
-        const customId = customIdRaw ? String(customIdRaw).trim() : "";
-        if (customId) {
-          const meter = metersByCustomId.get(customId.toLowerCase());
-          if (meter) {
-            meterIdsToFetch.add(meter.id);
-          }
-        }
+      const response = await fetch("/api/meter-import/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId, mapping }),
       });
 
-      // 2. Fetch LATEST readings for these meters from the server
-      // This ensures we don't think a deleted reading still exists
-      let freshReadings = [...readings]; // Start with props as fallback
-      if (meterIdsToFetch.size > 0) {
-        const { getReadingsForMetersAction } = await import("@/app/meter-actions");
-        const result = await getReadingsForMetersAction(Array.from(meterIdsToFetch));
+      const data = await response.json();
 
-        if (result.success && result.data) {
-          freshReadings = result.data as ZaehlerAblesung[];
-        } else {
-          console.warn("Could not fetch fresh readings, falling back to props data. Error:", result.message);
-        }
+      if (data?.error === "job_expired") {
+        toast({
+          title: "Datei abgelaufen",
+          description: "Die Datei ist abgelaufen, bitte erneut hochladen.",
+          variant: "destructive",
+        });
+        resetToUpload();
+        return;
       }
 
-      // 3. Phase 1: Parse and perform basic validation (Pre-Check)
-      let processed: ProcessedReading[] = parsedData.map((row) => {
-        const customIdRaw = row[mapping.custom_id];
-        const customId = customIdRaw ? String(customIdRaw).trim() : "";
-        const dateRaw = row[mapping.ablese_datum];
-        const valueRaw = row[mapping.zaehlerstand];
+      if (!response.ok) {
+        throw new Error(data?.error || "Fehler bei der Vorschau.");
+      }
 
-        const ableseDatum = parseDateString(dateRaw as string | number | Date);
-        const zaehlerstand = parseGermanNumber(valueRaw as string | number);
-
-        if (!customId) {
-          return {
-            zaehler_id: "",
-            custom_id: "",
-            ablese_datum: ableseDatum || "",
-            zaehlerstand: zaehlerstand,
-            verbrauch: 0,
-            original_row: row,
-            status: "missing_meter",
-            message: "Keine Zähler-ID",
-          };
-        }
-
-        const meter = metersByCustomId.get(customId.toLowerCase());
-
-        if (!meter) {
-          return {
-            zaehler_id: "",
-            custom_id: customId,
-            ablese_datum: ableseDatum || "",
-            zaehlerstand: zaehlerstand,
-            verbrauch: 0,
-            original_row: row,
-            status: "missing_meter",
-            message: `Zähler '${customId}' nicht gefunden`
-          };
-        }
-
-        if (!ableseDatum) {
-          return {
-            zaehler_id: meter.id,
-            custom_id: customId,
-            ablese_datum: "",
-            zaehlerstand: zaehlerstand,
-            verbrauch: 0,
-            original_row: row,
-            status: "invalid_date",
-            message: "Ungültiges Datum"
-          };
-        }
-
-        if (isNaN(zaehlerstand)) {
-          return {
-            zaehler_id: meter.id,
-            custom_id: customId,
-            ablese_datum: ableseDatum,
-            zaehlerstand: 0,
-            verbrauch: 0,
-            original_row: row,
-            status: "invalid_value",
-            message: "Ungültiger Zählerstand"
-          };
-        }
-
-        // Duplicate check (against DB only for now)
-        const isDuplicate = freshReadings.some(
-          (r) => r.zaehler_id === meter.id && r.ablese_datum === ableseDatum
-        );
-
-        if (isDuplicate) {
-          return {
-            zaehler_id: meter.id,
-            custom_id: customId,
-            ablese_datum: ableseDatum,
-            zaehlerstand,
-            verbrauch: 0,
-            original_row: row,
-            status: "duplicate",
-            message: "Ablesung existiert bereits"
-          };
-        }
-
-        // Init usage
-        let verbrauch = 0;
-        if (mapping.verbrauch && row[mapping.verbrauch]) {
-          verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
-        }
-
-        return {
-          zaehler_id: meter.id,
-          custom_id: customId,
-          ablese_datum: ableseDatum,
-          zaehlerstand,
-          verbrauch,
-          original_row: row,
-          status: "valid",
-        };
+      setProcessedData(data.previewRows || []);
+      setTotalRowCount(data.totalRowCount || (data.previewRows?.length || 0));
+      setCounts({
+        validCount: data.validCount ?? 0,
+        duplicateCount: data.duplicateCount ?? 0,
+        missingCount: data.missingCount ?? 0,
+        invalidCount: data.invalidCount ?? 0,
       });
-
-      // 4. Phase 2: Calculate Usage (Inter-row + DB)
-      processed = processed.map(item => {
-        if (item.status !== "valid") return item;
-
-        // If user explicitly mapped consumption and it has a value, we trust it or use it.
-        // But if they just mapped the column and it's empty, we might want to calculate?
-        // Current logic: if usage was found in the row (non-zero or zero but present), we keep it.
-        // Actually, previous logic set verbrauch=0 if not found.
-        // Let's refine: if the mapped value was present in the row, we use it.
-        if (mapping.verbrauch && item.original_row[mapping.verbrauch]) {
-          return item;
-        }
-
-        const currentMeterId = item.zaehler_id;
-        const currentJsDate = new Date(item.ablese_datum).getTime();
-
-        // 1. DB candidates (normalized)
-        const dbCandidates = freshReadings
-          .filter(r => r.zaehler_id === currentMeterId)
-          .map(r => ({
-            date: new Date(r.ablese_datum).getTime(),
-            value: r.zaehlerstand
-          }));
-
-        // 2. File candidates (other valid rows in this batch) -- enable chaining!
-        const fileCandidates = processed
-          .filter(r => r.status === 'valid' && r.zaehler_id === currentMeterId && r !== item)
-          .map(r => ({
-            date: new Date(r.ablese_datum).getTime(),
-            value: r.zaehlerstand
-          }));
-
-        const allCandidates = [...dbCandidates, ...fileCandidates];
-
-        // Find predecessors (Strictly before current date)
-        const predecessors = allCandidates.filter(c => c.date < currentJsDate);
-
-        // Sort by date DESC (closest previous date first)
-        predecessors.sort((a, b) => b.date - a.date);
-
-        const prev = predecessors[0];
-
-        let calculatedUsage = 0;
-        if (prev) {
-          calculatedUsage = Math.max(0, item.zaehlerstand - prev.value);
-        }
-
-        // Round calculated usage to 3 decimal places
-        calculatedUsage = roundToDecimals(calculatedUsage);
-
-        return { ...item, verbrauch: calculatedUsage };
-      });
-
-      setProcessedData(processed);
       setStep("preview");
     } catch (error: unknown) {
       console.error("Error validating data:", error);
-      toast({ title: "Fehler", description: error instanceof Error ? error.message : "Fehler bei der Validierung der Daten.", variant: "destructive" });
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Fehler bei der Validierung der Daten.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -385,46 +178,72 @@ export function MeterImportModal({
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const rowsToImport = processedData.filter(row => row.status === "valid");
+    if (!jobId) {
+      toast({ title: "Fehler", description: "Bitte laden Sie die Datei erneut hoch.", variant: "destructive" });
+      resetToUpload();
+      setIsSubmitting(false);
+      return;
+    }
 
-    if (rowsToImport.length === 0) {
+    if (counts.validCount === 0) {
       toast({ title: "Info", description: "Keine gültigen Datensätze zum Importieren.", variant: "default" });
       setIsSubmitting(false);
       return;
     }
 
-    const payload = rowsToImport.map(row => ({
-      zaehler_id: row.zaehler_id,
-      ablese_datum: row.ablese_datum,
-      zaehlerstand: row.zaehlerstand,
-      verbrauch: row.verbrauch,
-      kommentar: "Importiert"
-    }));
-
-    const result = await bulkCreateAblesungen(payload);
-
-    if (result.success) {
-      toast({
-        title: "Import erfolgreich",
-        description: `${payload.length} Ablesungen wurden importiert.`,
-        variant: "success"
+    try {
+      const response = await fetch("/api/meter-import/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId, mapping }),
       });
+
+      const data = await response.json();
+
+      if (data?.error === "job_expired") {
+        toast({
+          title: "Datei abgelaufen",
+          description: "Die Datei ist abgelaufen, bitte erneut hochladen.",
+          variant: "destructive",
+        });
+        resetToUpload();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Fehler beim Import.");
+      }
+
+      if (data.success) {
+        toast({
+          title: "Import erfolgreich",
+          description: `${data.importedCount ?? 0} Ablesungen wurden importiert.`,
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: "Import abgeschlossen",
+          description: `${data.importedCount ?? 0} Ablesungen importiert, ${data.errorCount ?? 0} Fehler.`,
+          variant: "default",
+        });
+      }
+
       onSuccess();
       onClose();
-    } else {
+    } catch (error: unknown) {
       toast({
         title: "Fehler beim Import",
-        description: result.message || "Unbekannter Fehler",
-        variant: "destructive"
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+        variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
-  const validCount = processedData.filter(d => d.status === "valid").length;
-  const duplicateCount = processedData.filter(d => d.status === "duplicate").length;
-  const missingCount = processedData.filter(d => d.status === "missing_meter").length;
-  const errorCount = processedData.filter(d => d.status === "invalid_date" || d.status === "invalid_value").length;
+  const { validCount, duplicateCount, missingCount, invalidCount } = counts;
+  const errorCount = invalidCount;
+  const remainingRows = Math.max(0, totalRowCount - processedData.length);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -593,10 +412,10 @@ export function MeterImportModal({
                         <TableCell className="text-xs text-muted-foreground">{row.message}</TableCell>
                       </TableRow>
                     ))}
-                    {processedData.length > 100 && (
+                    {remainingRows > 0 && (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          ... {processedData.length - 100} weitere Zeilen
+                          ... {remainingRows} weitere Zeilen
                         </TableCell>
                       </TableRow>
                     )}

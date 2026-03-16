@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { GoogleGenAI } from '@google/genai';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { WorkerLogger, ExecutionContext } from './logger';
@@ -45,6 +46,365 @@ import { formatCurrency, isoToGermanDate, roundToNearest5 } from './utils';
 
 // --- Constants ---
 const QUEUE_VISIBILITY_TIMEOUT = 60;
+
+const MAX_IMPORT_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const PREVIEW_ROW_LIMIT = 100;
+
+type ImportStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+interface ColumnMapping {
+    custom_id: string;
+    ablese_datum: string;
+    zaehlerstand: string;
+    verbrauch?: string;
+}
+
+interface ParsedRow {
+    [key: string]: string | number | null;
+}
+
+interface ProcessedReading {
+    zaehler_id: string;
+    custom_id: string;
+    ablese_datum: string;
+    zaehlerstand: number;
+    verbrauch: number;
+    status: 'valid' | 'duplicate' | 'missing_meter' | 'invalid_date' | 'invalid_value';
+    message?: string;
+    rowIndex: number;
+}
+
+interface ImportCounts {
+    validCount: number;
+    duplicateCount: number;
+    missingCount: number;
+    invalidCount: number;
+    errorCount: number;
+}
+
+interface ImportErrorSummary {
+    row: number;
+    field: string;
+    message: string;
+}
+
+function isAuthorized(request: Request, env: Env, logger: WorkerLogger): boolean {
+    const authHeader = request.headers.get('x-worker-auth');
+    if (!env.WORKER_AUTH_KEY) {
+        logger.error('WORKER_AUTH_KEY not configured');
+        return false;
+    }
+    if (authHeader !== env.WORKER_AUTH_KEY) {
+        logger.error('Unauthorized access attempt', { workerAuthKeyConfigured: !!env.WORKER_AUTH_KEY });
+        return false;
+    }
+    return true;
+}
+
+function getFileExtension(filename: string): string {
+    const parts = filename.split('.');
+    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+}
+
+function parseDateString(value: string | number | Date): string | null {
+    if (!value) return null;
+
+    if (typeof value === 'number') {
+        const date = new Date((value - 25569) * 86400 * 1000);
+        return date.toISOString().split('T')[0];
+    }
+
+    if (value instanceof Date) {
+        return value.toISOString().split('T')[0];
+    }
+
+    const strVal = String(value).trim();
+    const germanMatch = strVal.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (germanMatch) {
+        const day = germanMatch[1].padStart(2, '0');
+        const month = germanMatch[2].padStart(2, '0');
+        const year = germanMatch[3];
+        return `${year}-${month}-${day}`;
+    }
+
+    const date = new Date(strVal);
+    if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+    }
+
+    return null;
+}
+
+function roundToDecimals(value: number, decimals = 3): number {
+    const factor = Math.pow(10, decimals);
+    return Math.round(value * factor) / factor;
+}
+
+function parseGermanNumber(value: string | number): number {
+    let parsed: number;
+
+    if (typeof value === 'number') {
+        parsed = value;
+    } else if (!value) {
+        parsed = 0;
+    } else {
+        let strVal = String(value).trim();
+        if (strVal.includes(',')) {
+            strVal = strVal.replace(/\./g, '');
+            strVal = strVal.replace(',', '.');
+        }
+        parsed = parseFloat(strVal);
+        if (isNaN(parsed)) parsed = 0;
+    }
+
+    return roundToDecimals(parsed);
+}
+
+function buildErrorSummary(
+    rows: ProcessedReading[],
+    rowOffset: number
+): ImportErrorSummary[] {
+    return rows
+        .map((row) => {
+            if (row.status === 'valid') return null;
+
+            let field = 'ablese_datum';
+            if (row.status === 'missing_meter') field = 'custom_id';
+            if (row.status === 'invalid_value') field = 'zaehlerstand';
+            if (row.status === 'invalid_date') field = 'ablese_datum';
+
+            return {
+                row: row.rowIndex + rowOffset,
+                field,
+                message: row.message || 'Ungültiger Datensatz',
+            };
+        })
+        .filter((entry): entry is ImportErrorSummary => !!entry);
+}
+
+async function parseSpreadsheet(
+    buffer: ArrayBuffer,
+    extension: string
+): Promise<{ rows: ParsedRow[]; columns: string[]; totalRowCount: number }> {
+    if (extension === 'csv') {
+        const text = new TextDecoder().decode(buffer);
+        const results = Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+        });
+        const rows = (results.data || []) as ParsedRow[];
+        const columns = (results.meta.fields || Object.keys(rows[0] || {})) as string[];
+        return { rows, columns, totalRowCount: rows.length };
+    }
+
+    if (extension === 'xlsx' || extension === 'xls') {
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: null }) as ParsedRow[];
+        const columns = Object.keys(rows[0] || {});
+        return { rows, columns, totalRowCount: rows.length };
+    }
+
+    throw new Error('Unsupported file type');
+}
+
+async function validateImportRows(
+    supabase: SupabaseClient,
+    userId: string,
+    rows: ParsedRow[],
+    mapping: ColumnMapping
+): Promise<{
+    processed: ProcessedReading[];
+    counts: ImportCounts;
+    errorSummary: ImportErrorSummary[];
+}> {
+    const { data: meters, error: metersError } = await supabase
+        .from('Zaehler')
+        .select('id, custom_id')
+        .eq('user_id', userId);
+
+    if (metersError) {
+        throw new Error(metersError.message);
+    }
+
+    const metersByCustomId = new Map(
+        (meters || [])
+            .filter((meter) => meter.custom_id)
+            .map((meter) => [String(meter.custom_id).toLowerCase(), meter])
+    );
+
+    const meterIdsToFetch = new Set<string>();
+    rows.forEach((row) => {
+        const customIdRaw = row[mapping.custom_id];
+        const customId = customIdRaw ? String(customIdRaw).trim() : '';
+        const meter = metersByCustomId.get(customId.toLowerCase());
+        if (meter?.id) {
+            meterIdsToFetch.add(meter.id);
+        }
+    });
+
+    let freshReadings: { zaehler_id: string; ablese_datum: string; zaehlerstand: number }[] = [];
+    if (meterIdsToFetch.size > 0) {
+        const { data: readings, error: readingsError } = await supabase
+            .from('Zaehler_Ablesungen')
+            .select('zaehler_id, ablese_datum, zaehlerstand')
+            .in('zaehler_id', Array.from(meterIdsToFetch))
+            .eq('user_id', userId);
+
+        if (readingsError) {
+            throw new Error(readingsError.message);
+        }
+
+        freshReadings = readings || [];
+    }
+
+    let processed: ProcessedReading[] = rows.map((row, rowIndex) => {
+        const customIdRaw = row[mapping.custom_id];
+        const customId = customIdRaw ? String(customIdRaw).trim() : '';
+        const dateRaw = row[mapping.ablese_datum];
+        const valueRaw = row[mapping.zaehlerstand];
+
+        const ableseDatum = parseDateString(dateRaw as string | number | Date);
+        const zaehlerstand = parseGermanNumber(valueRaw as string | number);
+
+        if (!customId) {
+            return {
+                zaehler_id: '',
+                custom_id: '',
+                ablese_datum: ableseDatum || '',
+                zaehlerstand,
+                verbrauch: 0,
+                status: 'missing_meter',
+                message: 'Keine Zähler-ID',
+                rowIndex,
+            };
+        }
+
+        const meter = metersByCustomId.get(customId.toLowerCase());
+        if (!meter) {
+            return {
+                zaehler_id: '',
+                custom_id: customId,
+                ablese_datum: ableseDatum || '',
+                zaehlerstand,
+                verbrauch: 0,
+                status: 'missing_meter',
+                message: `Zähler '${customId}' nicht gefunden`,
+                rowIndex,
+            };
+        }
+
+        if (!ableseDatum) {
+            return {
+                zaehler_id: meter.id,
+                custom_id: customId,
+                ablese_datum: '',
+                zaehlerstand,
+                verbrauch: 0,
+                status: 'invalid_date',
+                message: 'Ungültiges Datum',
+                rowIndex,
+            };
+        }
+
+        if (isNaN(zaehlerstand)) {
+            return {
+                zaehler_id: meter.id,
+                custom_id: customId,
+                ablese_datum: ableseDatum,
+                zaehlerstand: 0,
+                verbrauch: 0,
+                status: 'invalid_value',
+                message: 'Ungültiger Zählerstand',
+                rowIndex,
+            };
+        }
+
+        const isDuplicate = freshReadings.some(
+            (reading) => reading.zaehler_id === meter.id && reading.ablese_datum === ableseDatum
+        );
+
+        if (isDuplicate) {
+            return {
+                zaehler_id: meter.id,
+                custom_id: customId,
+                ablese_datum: ableseDatum,
+                zaehlerstand,
+                verbrauch: 0,
+                status: 'duplicate',
+                message: 'Ablesung existiert bereits',
+                rowIndex,
+            };
+        }
+
+        let verbrauch = 0;
+        if (mapping.verbrauch && row[mapping.verbrauch]) {
+            verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
+        }
+
+        return {
+            zaehler_id: meter.id,
+            custom_id: customId,
+            ablese_datum: ableseDatum,
+            zaehlerstand,
+            verbrauch,
+            status: 'valid',
+            rowIndex,
+        };
+    });
+
+    processed = processed.map((item) => {
+        if (item.status !== 'valid') return item;
+
+        if (mapping.verbrauch && rows[item.rowIndex]?.[mapping.verbrauch]) {
+            return item;
+        }
+
+        const currentMeterId = item.zaehler_id;
+        const currentJsDate = new Date(item.ablese_datum).getTime();
+
+        const dbCandidates = freshReadings
+            .filter((reading) => reading.zaehler_id === currentMeterId)
+            .map((reading) => ({
+                date: new Date(reading.ablese_datum).getTime(),
+                value: reading.zaehlerstand,
+            }));
+
+        const fileCandidates = processed
+            .filter((row) => row.status === 'valid' && row.zaehler_id === currentMeterId && row !== item)
+            .map((row) => ({
+                date: new Date(row.ablese_datum).getTime(),
+                value: row.zaehlerstand,
+            }));
+
+        const allCandidates = [...dbCandidates, ...fileCandidates];
+        const predecessors = allCandidates.filter((candidate) => candidate.date < currentJsDate);
+        predecessors.sort((a, b) => b.date - a.date);
+
+        const prev = predecessors[0];
+        let calculatedUsage = 0;
+        if (prev) {
+            calculatedUsage = Math.max(0, item.zaehlerstand - prev.value);
+        }
+
+        return { ...item, verbrauch: roundToDecimals(calculatedUsage) };
+    });
+
+    const counts: ImportCounts = {
+        validCount: processed.filter((row) => row.status === 'valid').length,
+        duplicateCount: processed.filter((row) => row.status === 'duplicate').length,
+        missingCount: processed.filter((row) => row.status === 'missing_meter').length,
+        invalidCount: processed.filter(
+            (row) => row.status === 'invalid_date' || row.status === 'invalid_value'
+        ).length,
+        errorCount: processed.filter((row) => row.status !== 'valid').length,
+    };
+
+    const errorSummary = buildErrorSummary(processed, 2);
+
+    return { processed, counts, errorSummary };
+}
 
 // --- PDF Generation Functions (Preserved) ---
 
@@ -677,6 +1037,349 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
                 'Access-Control-Allow-Origin': '*',
                 'Content-Type': 'application/json'
             }
+        });
+    }
+}
+
+async function handleMeterImportPreview(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const logger = new WorkerLogger(env, ctx);
+
+    if (!isAuthorized(request, env, logger)) {
+        logger.flush();
+        return new Response('Unauthorized', { status: 401 });
+    }
+
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const contentType = request.headers.get('content-type') || '';
+
+    try {
+        if (contentType.includes('multipart/form-data')) {
+            const formData = await request.formData();
+            const file = formData.get('file');
+            const userId = formData.get('user_id');
+
+            if (!(file instanceof File) || typeof userId !== 'string' || !userId) {
+                return new Response(JSON.stringify({ error: 'Invalid upload request' }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+
+            if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+                return new Response(JSON.stringify({ error: 'File too large' }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+
+            const extension = getFileExtension(file.name);
+            if (!['csv', 'xlsx', 'xls'].includes(extension)) {
+                return new Response(JSON.stringify({ error: 'Unsupported file type' }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+
+            const jobId = crypto.randomUUID();
+            const storagePath = `user_${userId}/imports/${jobId}.${extension}`;
+
+            const { error: insertError } = await supabase
+                .from('import_jobs')
+                .insert({
+                    id: jobId,
+                    user_id: userId,
+                    storage_path: storagePath,
+                    original_filename: file.name,
+                    status: 'pending' as ImportStatus,
+                });
+
+            if (insertError) {
+                return new Response(JSON.stringify({ error: insertError.message }), {
+                    status: 500,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+
+            const { error: uploadError } = await supabase.storage
+                .from('file-processing')
+                .upload(storagePath, file, {
+                    contentType: file.type || 'application/octet-stream',
+                    upsert: false,
+                });
+
+            if (uploadError) {
+                return new Response(JSON.stringify({ error: uploadError.message }), {
+                    status: 500,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+
+            const buffer = await file.arrayBuffer();
+            const parsed = await parseSpreadsheet(buffer, extension);
+
+            await supabase
+                .from('import_jobs')
+                .update({
+                    preview_columns: parsed.columns,
+                    total_row_count: parsed.totalRowCount,
+                })
+                .eq('id', jobId);
+
+            return new Response(
+                JSON.stringify({
+                    jobId,
+                    columns: parsed.columns,
+                    previewRows: [],
+                    totalRowCount: parsed.totalRowCount,
+                }),
+                { headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
+        const body = (await request.json()) as { jobId?: string; userId?: string; mapping?: ColumnMapping };
+        const { jobId, userId, mapping } = body || {};
+
+        if (!jobId || !userId || !mapping) {
+            return new Response(JSON.stringify({ error: 'Invalid preview request' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const { data: job, error: jobError } = await supabase
+            .from('import_jobs')
+            .select('id, storage_path, status, expires_at, preview_columns')
+            .eq('id', jobId)
+            .eq('user_id', userId)
+            .single();
+
+        if (jobError || !job) {
+            return new Response(JSON.stringify({ error: 'Job not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        if (job.expires_at && new Date(job.expires_at).getTime() < Date.now()) {
+            return new Response(JSON.stringify({ error: 'job_expired' }), {
+                status: 410,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const { data: fileBlob, error: downloadError } = await supabase.storage
+            .from('file-processing')
+            .download(job.storage_path);
+
+        if (downloadError || !fileBlob) {
+            return new Response(JSON.stringify({ error: downloadError?.message || 'Download failed' }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const extension = getFileExtension(job.storage_path);
+        const buffer = await fileBlob.arrayBuffer();
+        const parsed = await parseSpreadsheet(buffer, extension);
+
+        if (Array.isArray(job.preview_columns) && job.preview_columns.length > 0) {
+            const mappingFields = [mapping.custom_id, mapping.ablese_datum, mapping.zaehlerstand, mapping.verbrauch]
+                .filter((field): field is string => !!field);
+            const missingFields = mappingFields.filter((field) => !job.preview_columns.includes(field));
+            if (missingFields.length > 0) {
+                return new Response(JSON.stringify({ error: 'mapping_invalid', missingFields }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+        }
+
+        const { processed, counts, errorSummary } = await validateImportRows(
+            supabase,
+            userId,
+            parsed.rows,
+            mapping
+        );
+
+        const previewRows = processed.slice(0, PREVIEW_ROW_LIMIT);
+
+        await supabase
+            .from('import_jobs')
+            .update({
+                preview_columns: parsed.columns,
+                preview_rows: previewRows,
+                total_row_count: parsed.totalRowCount,
+                error_count: counts.errorCount,
+                error_summary: errorSummary,
+                status: 'processing' as ImportStatus,
+            })
+            .eq('id', jobId);
+
+        return new Response(
+            JSON.stringify({
+                jobId,
+                columns: parsed.columns,
+                previewRows,
+                totalRowCount: parsed.totalRowCount,
+                ...counts,
+            }),
+            { headers: { 'Content-Type': 'application/json' } }
+        );
+    } catch (error: unknown) {
+        logger.error('Meter import preview failed', { error: (error as Error).message });
+        logger.flush();
+        return new Response(JSON.stringify({ error: (error as Error).message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+}
+
+async function handleMeterImportExecute(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const logger = new WorkerLogger(env, ctx);
+
+    if (!isAuthorized(request, env, logger)) {
+        logger.flush();
+        return new Response('Unauthorized', { status: 401 });
+    }
+
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    try {
+        const body = (await request.json()) as { jobId?: string; userId?: string; mapping?: ColumnMapping };
+        const { jobId, userId, mapping } = body || {};
+
+        if (!jobId || !userId || !mapping) {
+            return new Response(JSON.stringify({ error: 'Invalid execute request' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const { data: job, error: jobError } = await supabase
+            .from('import_jobs')
+            .select('id, storage_path, status, expires_at, preview_columns')
+            .eq('id', jobId)
+            .eq('user_id', userId)
+            .single();
+
+        if (jobError || !job) {
+            return new Response(JSON.stringify({ error: 'Job not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        if (job.expires_at && new Date(job.expires_at).getTime() < Date.now()) {
+            return new Response(JSON.stringify({ error: 'job_expired' }), {
+                status: 410,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        if (Array.isArray(job.preview_columns) && job.preview_columns.length > 0) {
+            const mappingFields = [mapping.custom_id, mapping.ablese_datum, mapping.zaehlerstand, mapping.verbrauch]
+                .filter((field): field is string => !!field);
+            const missingFields = mappingFields.filter((field) => !job.preview_columns.includes(field));
+            if (missingFields.length > 0) {
+                return new Response(JSON.stringify({ error: 'mapping_invalid', missingFields }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+        }
+
+        const { data: fileBlob, error: downloadError } = await supabase.storage
+            .from('file-processing')
+            .download(job.storage_path);
+
+        if (downloadError || !fileBlob) {
+            return new Response(JSON.stringify({ error: downloadError?.message || 'Download failed' }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const extension = getFileExtension(job.storage_path);
+        const buffer = await fileBlob.arrayBuffer();
+        const parsed = await parseSpreadsheet(buffer, extension);
+
+        const { processed, counts, errorSummary } = await validateImportRows(
+            supabase,
+            userId,
+            parsed.rows,
+            mapping
+        );
+
+        const validRows = processed.filter((row) => row.status === 'valid');
+        const rowsToInsert = validRows.map((row) => ({
+            zaehler_id: row.zaehler_id,
+            ablese_datum: row.ablese_datum,
+            zaehlerstand: row.zaehlerstand,
+            verbrauch: row.verbrauch,
+            kommentar: 'Importiert',
+            user_id: userId,
+        }));
+
+        let importedCount = 0;
+        const chunkSize = 500;
+        for (let i = 0; i < rowsToInsert.length; i += chunkSize) {
+            const chunk = rowsToInsert.slice(i, i + chunkSize);
+            if (chunk.length === 0) continue;
+
+            const { error: insertError } = await supabase
+                .from('Zaehler_Ablesungen')
+                .insert(chunk);
+
+            if (insertError) {
+                await supabase
+                    .from('import_jobs')
+                    .update({
+                        status: 'failed' as ImportStatus,
+                        mapping,
+                        imported_count: importedCount,
+                        error_count: counts.errorCount,
+                        error_summary: errorSummary,
+                        completed_at: new Date().toISOString(),
+                    })
+                    .eq('id', jobId);
+
+                return new Response(JSON.stringify({ error: insertError.message }), {
+                    status: 500,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+
+            importedCount += chunk.length;
+        }
+
+        await supabase
+            .from('import_jobs')
+            .update({
+                status: 'completed' as ImportStatus,
+                mapping,
+                imported_count: importedCount,
+                error_count: counts.errorCount,
+                error_summary: errorSummary,
+                completed_at: new Date().toISOString(),
+            })
+            .eq('id', jobId);
+
+        return new Response(
+            JSON.stringify({
+                success: counts.errorCount === 0,
+                importedCount,
+                errorCount: counts.errorCount,
+                errors: errorSummary,
+            }),
+            { headers: { 'Content-Type': 'application/json' } }
+        );
+    } catch (error: unknown) {
+        logger.error('Meter import execute failed', { error: (error as Error).message });
+        logger.flush();
+        return new Response(JSON.stringify({ error: (error as Error).message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
         });
     }
 }
@@ -1356,7 +2059,7 @@ export default {
         const corsHeaders: Record<string, string> = {
             'Access-Control-Allow-Origin': origin,
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, x-worker-auth',
             'Access-Control-Allow-Credentials': 'true',
             'Access-Control-Max-Age': '86400',
             'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time',
@@ -1380,7 +2083,11 @@ export default {
         try {
             // Route based on URL path first (more robust)
             let response: Response;
-            if (url.pathname === '/ai') {
+            if (url.pathname === '/meter-import/preview') {
+                response = await handleMeterImportPreview(request, env, ctx);
+            } else if (url.pathname === '/meter-import/execute') {
+                response = await handleMeterImportExecute(request, env, ctx);
+            } else if (url.pathname === '/ai') {
                 response = await handleAIRequest(request, env, ctx);
             } else if (url.pathname === '/process-queue') {
                 response = await processQueue(request, env, ctx);
