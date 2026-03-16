@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { z } from 'zod';
-import { JSONContent } from '@tiptap/react';
+import type { JSONContent } from '@tiptap/react';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { useModalKeyboardNavigation } from '@/hooks/use-modal-keyboard-navigation';
 import { useTemplateAccessibility } from '@/hooks/use-template-accessibility';

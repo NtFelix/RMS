@@ -1,5 +1,5 @@
 import tippy, { Instance, Props } from 'tippy.js';
-import { Editor } from '@tiptap/react';
+import type { Editor } from '@tiptap/react';
 import { 
   handlePositionError, 
   MentionSuggestionErrorType,
