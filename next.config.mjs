@@ -7,6 +7,15 @@ const { version } = require("./package.json");
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true",
 });
+const posthogProjectId =
+  process.env.POSTHOG_PROJECT_ID || process.env.POSTHOG_ENV_ID;
+const posthogOptions = {
+  personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY,
+  projectId: posthogProjectId,
+  host: process.env.POSTHOG_HOST,
+};
+const shouldUsePostHogConfig =
+  !process.env.CI && posthogOptions.personalApiKey && posthogOptions.projectId;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -77,8 +86,8 @@ const nextConfig = {
   },
 };
 
-export default withPostHogConfig(withBundleAnalyzer(nextConfig), {
-  personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY,
-  envId: process.env.POSTHOG_ENV_ID,
-  host: process.env.POSTHOG_HOST,
-});
+const withPostHog = shouldUsePostHogConfig
+  ? (config) => withPostHogConfig(config, posthogOptions)
+  : (config) => config;
+
+export default withPostHog(withBundleAnalyzer(nextConfig));
