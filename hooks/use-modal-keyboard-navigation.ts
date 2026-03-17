@@ -113,28 +113,45 @@ export function useModalKeyboardNavigation({
   // Main keyboard event handler
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (!isOpen) return;
-    
-    switch (event.key) {
-      case 'Escape':
+
+    const target = event.target as HTMLElement;
+    const isEditable = 
+      target.isContentEditable || 
+      target.tagName === 'TEXTAREA' || 
+      (target.tagName === 'INPUT' && !['checkbox', 'radio', 'range', 'button', 'submit'].includes((target as HTMLInputElement).type));
+
+    // Don't intercept escape key unless we are actually closing the modal
+    if (event.key === 'Escape') {
+      // Allow propagation if we're in an editable area that might want it (e.g. Tiptap)
+      // though usually Escape closes modals regardless.
+      if (!isEditable) {
         event.preventDefault();
         event.stopPropagation();
-        handleEscape();
-        break;
-        
+      }
+      handleEscape();
+      return;
+    }
+
+    // Skip all other navigation keys if we're in an editable area
+    if (isEditable) return;
+
+    switch (event.key) {
       case 'Tab':
         handleTabNavigation(event);
         break;
-        
+
       case 'ArrowDown':
       case 'ArrowUp':
       case 'ArrowLeft':
       case 'ArrowRight':
       case 'Home':
       case 'End':
-        handleArrowNavigation(event);
+        if (enableArrowNavigation) {
+          handleArrowNavigation(event);
+        }
         break;
     }
-  }, [isOpen, handleEscape, handleTabNavigation, handleArrowNavigation]);
+  }, [isOpen, handleEscape, handleTabNavigation, handleArrowNavigation, enableArrowNavigation]);
 
   // Focus management
   const focusFirstElement = useCallback(() => {

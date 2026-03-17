@@ -48,7 +48,8 @@ import {
   Mail,
   MoreHorizontal,
   Check,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -346,7 +347,7 @@ export function TemplateEditorModal({
     onClose: handleAttemptClose,
     isDirty: isTemplateEditorModalDirty,
     onAttemptClose: handleAttemptClose,
-    enableArrowNavigation: true,
+    enableArrowNavigation: false,
   });
 
   // Handle modal open/close for accessibility
@@ -362,7 +363,7 @@ export function TemplateEditorModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleAttemptClose()}>
       <DialogContent
         id={editorId}
-        className="max-w-[95vw] sm:max-w-5xl lg:max-w-6xl h-[90vh] sm:h-[83vh] overflow-hidden flex flex-col p-0 gap-0 border-0 bg-background/95 backdrop-blur-xl shadow-2xl"
+        className="max-w-[95vw] sm:max-w-5xl lg:max-w-6xl h-[90vh] sm:h-[83vh] overflow-hidden flex flex-col p-0 gap-0 border border-primary/10 bg-background rounded-[24px] shadow-2xl"
         isDirty={isTemplateEditorModalDirty}
         onAttemptClose={handleAttemptClose}
         role="dialog"
@@ -381,21 +382,21 @@ export function TemplateEditorModal({
         </DialogDescription>
 
         {/* Header Section */}
-        <div className="flex-shrink-0 px-6 py-4 border-b flex items-center justify-between">
-          <div className="flex items-center gap-3 w-full">
+        <div className="flex-shrink-0 px-6 pt-1 pb-3 border-b flex items-center justify-between bg-muted/20 backdrop-blur-md">
+          <div className="flex items-center gap-4 flex-1">
             {!template && step === 'editor' && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                className="-ml-2 h-8 w-8 text-muted-foreground hover:text-primary rounded-full transition-colors"
                 onClick={handleBackToCategory}
                 aria-label="Zurück zur Kategorieauswahl"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <div className="p-2 rounded-lg bg-primary/5 text-primary">
-              <FileText className="h-5 w-5" />
+            <div className="text-primary">
+              <FileText size={24} className="stroke-[2]" />
             </div>
 
             <div className="flex-1 min-w-0">
@@ -415,17 +416,17 @@ export function TemplateEditorModal({
                               handleTitleChange(e.target.value);
                             }}
                             placeholder="Titel der Vorlage eingeben"
-                            className="text-lg font-semibold tracking-tight border-0 pl-2 pr-0 h-auto bg-transparent focus-visible:ring-0 placeholder:text-muted-foreground/50 w-full"
+                            className="text-xl font-bold text-foreground bg-transparent border-none outline-none focus-visible:ring-2 focus-visible:ring-primary/10 focus-visible:bg-primary/5 rounded-xl px-2 py-1 w-full max-w-md transition-all placeholder:text-muted-foreground/30 h-auto"
                             aria-label="Titel der Vorlage"
                           />
                           {templateForm.formState.errors.titel && (
-                            <span className="text-xs text-destructive">{templateForm.formState.errors.titel.message}</span>
+                            <span className="text-xs text-destructive mt-1 ml-2">{templateForm.formState.errors.titel.message}</span>
                           )}
                         </div>
                       )}
                     />
                   </div>
-                  <div className="flex-shrink-0 w-[160px]">
+                  <div className="flex-shrink-0">
                     <Controller
                       control={templateForm.control}
                       name="kategorie"
@@ -437,8 +438,8 @@ export function TemplateEditorModal({
                           }}
                           value={field.value}
                         >
-                          <SelectTrigger className="h-9 text-xs bg-muted/30 border-muted-foreground/10 hover:bg-muted/50 transition-colors">
-                            <SelectValue placeholder="Kategorie" />
+                          <SelectTrigger className="w-[180px] h-10">
+                            <SelectValue placeholder="Kategorie wählen" />
                           </SelectTrigger>
                           <SelectContent>
                             {TEMPLATE_CATEGORIES.map((cat) => {
@@ -447,8 +448,8 @@ export function TemplateEditorModal({
                               return (
                                 <SelectItem key={cat} value={cat}>
                                   <div className="flex items-center gap-2">
-                                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span className="text-xs">{meta.label}</span>
+                                    <Icon className="h-4 w-4" />
+                                    <span>{meta.label}</span>
                                   </div>
                                 </SelectItem>
                               );
@@ -461,15 +462,9 @@ export function TemplateEditorModal({
                 </div>
               ) : (
                 <div>
-                  <h2 className="text-lg font-semibold tracking-tight">
+                  <h2 className="text-xl font-bold tracking-tight text-foreground">
                     {template ? 'Vorlage bearbeiten' : 'Neue Vorlage'}
                   </h2>
-                  <p className="text-sm text-muted-foreground hidden sm:block">
-                    {step === 'category'
-                      ? 'Wählen Sie einen Vorlagentyp'
-                      : (template ? 'Bearbeiten Sie die Details der Vorlage' : 'Füllen Sie die Details der neuen Vorlage aus')
-                    }
-                  </p>
                 </div>
               )}
             </div>
@@ -477,20 +472,20 @@ export function TemplateEditorModal({
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden relative bg-background">
           <AnimatePresence mode="wait">
             {step === 'category' && (
               <motion.div
                 key="category-step"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 className="h-full flex flex-col p-6 sm:p-10 overflow-y-auto"
               >
                 <div className="flex-1 max-w-4xl mx-auto w-full flex flex-col justify-center">
                   <div className="text-center mb-10">
-                    <h3 className="text-2xl font-semibold mb-2">Was möchten Sie erstellen?</h3>
-                    <p className="text-muted-foreground">Wählen Sie eine Kategorie, um mit der passenden Struktur zu starten.</p>
+                    <h3 className="text-3xl font-bold mb-3 text-foreground tracking-tight">Was möchten Sie erstellen?</h3>
+                    <p className="text-muted-foreground text-lg">Wählen Sie eine Kategorie, um mit der passenden Struktur zu starten.</p>
                   </div>
 
                   <Form {...categoryForm}>
@@ -516,31 +511,32 @@ export function TemplateEditorModal({
                                       type="button"
                                       onClick={() => handleCategorySelect(category)}
                                       className={cn(
-                                        "w-full text-left relative overflow-hidden rounded-[2.5rem] border-2 p-6 transition-all duration-200 h-full flex flex-col gap-4",
+                                        "w-full text-left relative overflow-hidden rounded-[32px] border transition-all duration-300 h-full flex flex-col gap-6 p-8",
                                         isSelected
-                                          ? "border-primary bg-primary/5 shadow-md"
-                                          : "border-muted bg-card hover:border-primary/50 hover:shadow-sm"
+                                          ? "border-primary bg-primary/5 shadow-2xl shadow-primary/10 ring-4 ring-primary/5"
+                                          : "border-primary/10 bg-muted/10 hover:border-primary/30 hover:bg-muted/20"
                                       )}
                                     >
                                       <div className={cn(
-                                        "h-12 w-12 rounded-2xl flex items-center justify-center transition-colors",
-                                        meta.color.full
+                                        "h-14 w-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm",
+                                        isSelected ? "bg-primary text-primary-foreground scale-110 rotate-3" : "bg-background text-primary/40"
                                       )}>
-                                        <Icon className="h-6 w-6" />
+                                        <Icon className="h-7 w-7" />
                                       </div>
 
-                                      <div className="space-y-1">
-                                        <h4 className="font-semibold text-lg">{meta.label}</h4>
+                                      <div className="space-y-2">
+                                        <h4 className={cn(
+                                          "font-bold text-xl tracking-tight",
+                                          isSelected ? "text-primary" : "text-foreground/80"
+                                        )}>{meta.label}</h4>
                                         <p className="text-sm text-muted-foreground leading-relaxed">
                                           {meta.description}
                                         </p>
                                       </div>
 
                                       {isSelected && (
-                                        <div className="absolute top-4 right-4 text-primary">
-                                          <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                                            <Check className="h-3.5 w-3.5" />
-                                          </div>
+                                        <div className="absolute top-6 right-6 text-primary h-8 w-8 rounded-full bg-white flex items-center justify-center shadow-lg animate-in zoom-in-0">
+                                          <Check className="h-5 w-5" />
                                         </div>
                                       )}
                                     </button>
@@ -553,15 +549,14 @@ export function TemplateEditorModal({
                         )}
                       />
 
-                      <div className="flex justify-end border-t pt-6">
+                      <div className="flex justify-center pt-6">
                         <Button
                           type="submit"
-                          size="lg"
                           disabled={!selectedCategory}
-                          className="min-w-[140px]"
+                          className="min-w-[200px] h-14 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl shadow-primary/20 transition-all font-bold text-lg group"
                         >
                           Weiter
-                          <ChevronRight className="ml-2 h-4 w-4" />
+                          <ChevronRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                         </Button>
                       </div>
                     </form>
@@ -588,52 +583,54 @@ export function TemplateEditorModal({
                       control={templateForm.control}
                       name="inhalt"
                       render={() => (
-                        <div className="flex-1 overflow-auto p-6">
-                          <div className="h-full rounded-xl overflow-hidden border bg-background flex flex-col">
-                            <TemplateEditor
-                              content={editorContent}
-                              onChange={handleEditorChange}
-                              placeholder="Beginnen Sie mit der Eingabe... Verwenden Sie @ für Variablen wie @Mieter.Name oder @Wohnung.Adresse"
-                              className="flex-1 border-0 focus-within:ring-0 rounded-none min-h-[400px]"
-                            />
-                            {templateForm.formState.errors.inhalt && (
-                              <div className="px-4 py-2 border-t bg-destructive/5 text-destructive text-xs italic">
+                        <div className="flex-1 overflow-auto bg-background p-0">
+                          <TemplateEditor
+                            content={editorContent}
+                            onChange={handleEditorChange}
+                            placeholder="Beginnen Sie mit der Eingabe... Verwenden Sie @ für Variablen wie @Mieter.Name"
+                            className="flex-1 border-0 focus-within:ring-0 rounded-none h-full"
+                          />
+                          {templateForm.formState.errors.inhalt && (
+                            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full bg-destructive text-white text-sm font-bold shadow-2xl animate-in fade-in slide-in-from-bottom-2 z-50">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4" />
                                 {templateForm.formState.errors.inhalt.message as string}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     />
 
                     {/* Row 2: Footer with Save & Abort */}
-                    <div className="flex-shrink-0 px-6 py-4 border-t bg-background flex items-center justify-end gap-3">
+                    <footer className="flex-shrink-0 flex items-center justify-end gap-3 px-6 pb-4 pt-4 bg-transparent border-t">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         onClick={handleCancelClick}
                         disabled={isLoading}
+                        className="px-6 h-12 rounded-full font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
                       >
                         Abbrechen
                       </Button>
                       <Button
                         type="submit"
                         disabled={!isTemplateEditorModalDirty || isLoading}
-                        className="min-w-[120px]"
+                        className="flex items-center gap-2 px-10 h-12 rounded-full font-bold bg-primary hover:bg-primary/95 transition-all disabled:opacity-50 group"
                       >
                         {isLoading ? (
                           <>
-                            <Spinner className="h-4 w-4 mr-2" />
+                            <Spinner className="h-5 w-5 mr-2" />
                             Speichert...
                           </>
                         ) : (
                           <>
-                            <Save className="h-4 w-4 mr-2" />
-                            {template ? 'Speichern' : 'Erstellen'}
+                            <Save size={18} className="transition-transform group-hover:scale-110" />
+                            <span>{template ? 'Änderungen speichern' : 'Vorlage erstellen'}</span>
                           </>
                         )}
                       </Button>
-                    </div>
+                    </footer>
                   </form>
                 </Form>
               </motion.div>
