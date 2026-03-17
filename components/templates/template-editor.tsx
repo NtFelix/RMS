@@ -212,7 +212,6 @@ export function TemplateEditor({
       const isSame = JSON.stringify(currentJSON) === JSON.stringify(content);
       if (!isSame) {
         editor.commands.setContent(content);
-        lastContentRef.current = typeof content === 'string' ? content : editor.getHTML();
       }
     }
   }, [content, editor]);

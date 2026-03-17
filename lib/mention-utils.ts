@@ -54,7 +54,10 @@ export function filterMentionVariables(
     // Search in description
     const descriptionMatch = variable.description?.toLowerCase().includes(normalizedQuery) || false;
     
-    return labelMatch || descriptionMatch;
+    // Search in keywords
+    const keywordMatch = variable.keywords?.some(keyword => keyword.toLowerCase().includes(normalizedQuery)) || false;
+    
+    return labelMatch || descriptionMatch || keywordMatch;
   });
 
   // Sort results if prioritizing exact matches
