@@ -17,7 +17,8 @@ import { useModalStore } from '@/hooks/use-modal-store';
 import dynamic from 'next/dynamic';
 
 const DocumentationArticleViewer = dynamic(() => import('@/components/documentation/documentation-article-viewer').then(mod => mod.DocumentationArticleViewer), {
-  loading: () => <div className="space-y-4"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-64 w-full" /></div>
+  loading: () => <div className="space-y-4"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-64 w-full" /></div>,
+  ssr: false
 });
 
 interface DocumentationState {
