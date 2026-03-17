@@ -49,12 +49,15 @@ import { GlobalDragDropProvider } from "@/components/cloud-storage/global-drag-d
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 import { AIChatSidebar } from "@/components/ai-chat/ai-chat-sidebar";
+import { useFeatureFlagEnabled } from "@posthog/react";
 
 export default function DashboardInnerLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
+  
   const {
     // Tenant modal state and actions
     isTenantModalOpen,
@@ -290,7 +293,7 @@ export default function DashboardInnerLayout({
         {/* </GlobalDragDropProvider> */}
       </NestedDialogProvider>
       <OnboardingTour />
-      <AIChatSidebar />
+      {isAIAgentEnabled && <AIChatSidebar />}
     </AuthProvider>
   )
 }
