@@ -4,7 +4,7 @@ import { useEditor, EditorContent, ReactRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Mention from '@tiptap/extension-mention';
 import tippy, { Instance as TippyInstance } from 'tippy.js';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
 import { filterMentionVariables } from '@/lib/mention-utils';
 import { MentionList } from './mention-list';
@@ -67,6 +67,17 @@ function ToolbarButton({ onClick, isActive, disabled, title, icon }: ToolbarButt
   );
 }
 
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
 export function TemplateEditor({
   content,
   onChange,
@@ -76,6 +87,13 @@ export function TemplateEditor({
 }: TemplateEditorProps) {
   const lastContentRef = useRef<string>('');
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const debouncedFilter = useMemo(() => 
+    debounce((query: string, resolve: (val: any) => void) => {
+      const result = filterMentionVariables(MENTION_VARIABLES, query).slice(0, 10);
+      resolve(result);
+    }, 150), 
+  []);
 
   const editor = useEditor({
     extensions: [
@@ -101,7 +119,11 @@ export function TemplateEditor({
         },
         suggestion: {
           char: '@',
-          items: ({ query }) => filterMentionVariables(MENTION_VARIABLES, query).slice(0, 10),
+          items: ({ query }) => {
+            return new Promise(resolve => {
+              debouncedFilter(query, resolve);
+            });
+          },
           render: () => {
             let component: ReactRenderer<any> | null = null;
             let popup: TippyInstance | null = null;
