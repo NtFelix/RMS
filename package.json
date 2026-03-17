@@ -1,6 +1,6 @@
 {
   "name": "mietevo",
-  "version": "2.2.106",
+  "version": "2.2.107",
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
