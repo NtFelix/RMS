@@ -324,7 +324,18 @@ ${pageContext}`;
           }
 
           send({ type: "step_start", stepType: "generating", label: "Antwort formulieren..." });
-          const replyText = aiResponse.text;
+          
+          let replyText = "";
+          try {
+            const res = aiResponse as any;
+            replyText = (typeof res.text === "function" ? res.text() : res.text) || 
+                        (typeof res.response?.text === "function" ? res.response.text() : res.response?.text) ||
+                        (res.candidates?.[0]?.content?.parts?.[0]?.text) || 
+                        "";
+          } catch (e) {
+            console.error("Error extracting text for PostHog:", e);
+          }
+
           const latency = (Date.now() - startTime) / 1000;
           send({ type: "step_done" });
 
@@ -339,6 +350,8 @@ ${pageContext}`;
                 $ai_span_name: 'mietevo_ai_agent',
                 $ai_model: model,
                 $ai_provider: 'google',
+                $ai_input: [{ role: 'user', content: message }],
+                $ai_output_choices: [{ role: 'assistant', content: replyText }],
                 $ai_input_tokens: totalInputTokens,
                 $ai_output_tokens: totalOutputTokens,
                 $ai_latency: latency,
