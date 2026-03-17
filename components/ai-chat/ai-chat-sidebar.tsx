@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight } from "lucide-react";
+import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -257,7 +257,8 @@ function IntelligenceInsight({
 
 
 
-function PostHogFeedback({ traceId, isDark }: { traceId?: string; isDark: boolean }) {
+function PostHogFeedback({ traceId, content, isDark }: { traceId?: string; content?: string; isDark: boolean }) {
+  const [copied, setCopied] = useState(false);
   if (!traceId) return null;
 
   const { respond, response, triggerRef } = useThumbSurvey({
@@ -267,12 +268,41 @@ function PostHogFeedback({ traceId, isDark }: { traceId?: string; isDark: boolea
     },
   })
 
+  const handleCopy = () => {
+    if (!content) return;
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    
+    // Optional: Track copy event
+    posthog.capture('ai_response_copied', {
+      $ai_trace_id: traceId,
+    });
+  }
+
   return (
     <div ref={triggerRef} className="flex flex-col gap-2 mt-4 pt-4 border-t border-border/10">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-        War diese Antwort hilfreich?
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+          War diese Antwort hilfreich?
+        </p>
+      </div>
       <div className="flex items-center gap-2">
+        {content && (
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleCopy}
+              title={copied ? 'Kopiert' : 'Kopieren'}
+              className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all duration-300 border bg-transparent border-border/30 text-muted-foreground hover:bg-primary/5 hover:border-primary/20 hover:text-primary ${copied ? 'text-primary border-primary/40 bg-primary/5' : ''}`}
+            >
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            </Button>
+            <div className="h-4 w-px bg-border/40 mx-1" />
+          </>
+        )}
+
         <Button
           variant="secondary"
           size="sm"
@@ -674,7 +704,7 @@ export function AIChatSidebar() {
                            </div>
                            
                            {/* PostHog Survey Feedback Component */}
-                           <PostHogFeedback traceId={m.traceId} isDark={isDark} />
+                           <PostHogFeedback traceId={m.traceId} isDark={isDark} content={m.content} />
                            
                            <div className="h-px w-full bg-gradient-to-r from-border/50 via-border/10 to-transparent my-6 opacity-30" />
                          </div>
