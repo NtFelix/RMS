@@ -56,6 +56,8 @@ You help landlords navigate the platform, answer questions about their property 
 You can only read and present data — you cannot create, update, or delete anything.
 Always be concise, helpful, and professional. Respond in the user's language.
 
+Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+
 --- CURRENT CONTEXT ---
 ${pageContext}`;
 
@@ -96,23 +98,29 @@ ${pageContext}`;
         },
         {
           name: "get_finances",
-          description: "Get a list of financial transactions (Finanzen), optionally filtered by apartment ID or income/expense type.",
+          description: "Get a list of financial transactions (Finanzen). Defaults to the latest entries. Can be filtered by apartment, type, exact date, or date range.",
           parameters: {
             type: Type.OBJECT,
             properties: {
               wohnung_id: { type: Type.STRING, description: "Optional UUID of the apartment (Wohnung) to filter finances by." },
               ist_einnahmen: { type: Type.BOOLEAN, description: "Optional boolean to filter by income (true) or expense (false)." },
+              exact_date: { type: Type.STRING, description: "Filter by an exact date (YYYY-MM-DD)." },
+              start_date: { type: Type.STRING, description: "Start of a date range (ISO format/YYYY-MM-DD)." },
+              end_date: { type: Type.STRING, description: "End of a date range (ISO format/YYYY-MM-DD)." },
               limit: { type: Type.INTEGER, description: "Maximum number of transactions to return (default is 10)" }
             }
           }
         },
         {
           name: "get_tasks",
-          description: "Get a list of tasks (Aufgaben), optionally filtered by completion status.",
+          description: "Get a list of tasks (Aufgaben). Defaults to most recently due or created. Can be filtered by status, exact date, or date range.",
           parameters: {
             type: Type.OBJECT,
             properties: {
               ist_erledigt: { type: Type.BOOLEAN, description: "Optional boolean to filter by completed (true) or pending (false) tasks." },
+              exact_date: { type: Type.STRING, description: "Filter by an exact due date (YYYY-MM-DD)." },
+              start_date: { type: Type.STRING, description: "Start of a due date range (ISO format/YYYY-MM-DD)." },
+              end_date: { type: Type.STRING, description: "End of a due date range (ISO format/YYYY-MM-DD)." },
               limit: { type: Type.INTEGER, description: "Maximum number of tasks to return (default is 10)" }
             }
           }
@@ -228,23 +236,41 @@ ${pageContext}`;
                   result = error ? { error: error.message } : { data: data || [] };
                 } 
                 else if (call.name === "get_finances") {
-                  let query = supabase.from('Finanzen').select('id, name, datum, betrag, notiz, ist_einnahmen, wohnung_id, Wohnungen(name, Haeuser(name))');
+                  let query = supabase.from('Finanzen').select('id, name, datum, betrag, notiz, ist_einnahmen, wohnung_id, Wohnungen(name, Haeuser(name))')
+                    .order('datum', { ascending: false });
+                  
                   if (call.args?.wohnung_id) {
                      query = query.eq('wohnung_id', call.args.wohnung_id);
                   }
                   if (call.args?.ist_einnahmen !== undefined) {
                      query = query.eq('ist_einnahmen', call.args.ist_einnahmen);
                   }
+                  if (call.args?.exact_date) {
+                    query = query.eq('datum', call.args.exact_date);
+                  } else {
+                    if (call.args?.start_date) query = query.gte('datum', call.args.start_date);
+                    if (call.args?.end_date) query = query.lte('datum', call.args.end_date);
+                  }
+
                   const limit = Number(call.args?.limit) || 10;
                   const { data, error } = await query.limit(limit);
                   if (error) toolError = error.message;
                   result = error ? { error: error.message } : { data: data || [] };
                 }
                 else if (call.name === "get_tasks") {
-                  let query = supabase.from('Aufgaben').select('id, name, beschreibung, ist_erledigt, faelligkeitsdatum, erstellungsdatum');
+                  let query = supabase.from('Aufgaben').select('id, name, beschreibung, ist_erledigt, faelligkeitsdatum, erstellungsdatum')
+                    .order('faelligkeitsdatum', { ascending: false, nullsFirst: false });
+                  
                   if (call.args?.ist_erledigt !== undefined) {
                      query = query.eq('ist_erledigt', call.args.ist_erledigt);
                   }
+                  if (call.args?.exact_date) {
+                    query = query.eq('faelligkeitsdatum', call.args.exact_date);
+                  } else {
+                    if (call.args?.start_date) query = query.gte('faelligkeitsdatum', call.args.start_date);
+                    if (call.args?.end_date) query = query.lte('faelligkeitsdatum', call.args.end_date);
+                  }
+
                   const limit = Number(call.args?.limit) || 10;
                   const { data, error } = await query.limit(limit);
                   if (error) toolError = error.message;
