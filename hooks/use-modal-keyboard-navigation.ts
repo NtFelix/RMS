@@ -122,11 +122,12 @@ export function useModalKeyboardNavigation({
 
     // Don't intercept escape key unless we are actually closing the modal
     if (event.key === 'Escape') {
-      // We still handle escape because it's usually used to close the modal
-      // but we allow propagation if we're in an editable area that might want it
+      // Allow propagation if we're in an editable area that might want it (e.g. Tiptap)
       // though usually Escape closes modals regardless.
-      event.preventDefault();
-      event.stopPropagation();
+      if (!isEditable) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       handleEscape();
       return;
     }
