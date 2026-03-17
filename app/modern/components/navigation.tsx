@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { useFeatureFlagEnabled } from "posthog-js/react"
+const useFeatureFlagEnabled = (flag: string) => false;
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight, Sparkles } from "lucide-react"
 
 import Link from "next/link"

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { usePostHog } from 'posthog-js/react';
+import { usePostHog } from '@/hooks/use-custom-posthog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

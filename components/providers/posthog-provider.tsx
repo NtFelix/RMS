@@ -1,13 +1,19 @@
 'use client'
 
-import posthog from 'posthog-js'
-import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, Suspense, useState } from 'react'
+import { useEffect, Suspense, useState, useRef } from 'react'
+
+async function getPostHogLoader() {
+  if (typeof window !== 'undefined') {
+    return (await import('posthog-js')).default;
+  }
+  return null;
+}
 
 // Initialize PostHog with configuration
 async function initializePostHog(nonce?: string) {
-  if (typeof window === 'undefined' || posthog.__loaded) {
+  const posthog = await getPostHogLoader();
+  if (!posthog || posthog.__loaded) {
     return;
   }
 
@@ -36,7 +42,6 @@ async function initializePostHog(nonce?: string) {
   }
 
   if (!config.key || config.key === 'phc_placeholder_key') {
-    // ... logic same as before ...
     console.warn('PostHog is not initialized. Environment check:', {
       hasWindow: typeof window !== 'undefined',
       posthogKey: config.key ? config.key.substring(0, 10) + '...' : 'undefined',
@@ -63,15 +68,14 @@ async function initializePostHog(nonce?: string) {
       distinctID: undefined, // Will be set when user is identified
     },
     // Ensure feature flags are loaded
-    loaded: function (posthog: any) {
+    loaded: function (ph: any) {
       console.log('PostHog loaded successfully, reloading feature flags...');
-      posthog.reloadFeatureFlags?.();
+      ph.reloadFeatureFlags?.();
     }
   } as any);
 
   // Apply stored consent on load - respects user choice on ALL pages
   const consent = localStorage.getItem('cookieConsent');
-  // ... rest of consent logic same ...
   if (consent === 'all' && posthog.has_opted_out_capturing?.()) {
     console.log('Applying stored consent: opting in to PostHog tracking');
     posthog.opt_in_capturing();
@@ -84,9 +88,7 @@ async function initializePostHog(nonce?: string) {
   }
 }
 
-// Global initialization removed to support nonce passing from server
-
-function PostHogTracking({ children }: { children: React.ReactNode }) {
+function PostHogTracking() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [consentGranted, setConsentGranted] = useState(false)
@@ -107,7 +109,8 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
   // Handle user identification based on auth state - ONLY if user has consented
   useEffect(() => {
     const handleUserIdentification = async () => {
-      if (!posthog.__loaded) return;
+      const posthog = await getPostHogLoader();
+      if (!posthog || !posthog.__loaded) return;
 
       // GDPR: Only identify users if they have consented to tracking
       if (!posthog.has_opted_in_capturing?.()) {
@@ -132,8 +135,6 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
             });
           }
         }
-        // Note: Anonymous tracking for documentation pages removed for GDPR compliance
-        // Users must accept cookies before any tracking occurs
       } catch (error) {
         console.error('Error handling user identification for PostHog:', error);
       }
@@ -145,7 +146,8 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
   // Track pageviews
   useEffect(() => {
     const trackPageview = async () => {
-      if (!pathname || !posthog.has_opted_in_capturing?.()) return;
+      const posthog = await getPostHogLoader();
+      if (!posthog || !pathname || !posthog.has_opted_in_capturing?.()) return;
 
       let url = window.origin + pathname;
       if (searchParams.toString()) {
@@ -182,75 +184,60 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
     const loginSuccess = searchParams.get('login_success')
     const provider = searchParams.get('provider')
 
-    if (loginSuccess === 'true' && posthog.has_opted_in_capturing?.()) {
-      // Get user info from Supabase client
-      import('@/utils/supabase/client').then(({ createClient }) => {
-        const supabase = createClient()
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user) {
-            // Identify user and track login event
-            // Include user_type and is_anonymous for consistency with main identification
-            posthog.identify(user.id, {
-              email: user.email,
-              name: user.user_metadata?.name || '',
-              user_type: 'authenticated',
-              is_anonymous: false,
-            })
+    const attachSuccessTracking = async () => {
+      const posthog = await getPostHogLoader();
+      if (!posthog) return;
+      if (loginSuccess === 'true' && posthog.has_opted_in_capturing?.()) {
+        // Get user info from Supabase client
+        import('@/utils/supabase/client').then(({ createClient }) => {
+          const supabase = createClient()
+          supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) {
+              posthog.identify(user.id, {
+                email: user.email,
+                name: user.user_metadata?.name || '',
+                user_type: 'authenticated',
+                is_anonymous: false,
+              })
 
-            posthog.capture('user_logged_in', {
-              provider: provider || 'email',
-              last_sign_in: new Date().toISOString(),
-            })
-          }
+              posthog.capture('user_logged_in', {
+                provider: provider || 'email',
+                last_sign_in: new Date().toISOString(),
+              })
+            }
+          })
         })
-      })
 
-      // Clean up URL params
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.delete('login_success')
-      newUrl.searchParams.delete('provider')
-      window.history.replaceState({}, '', newUrl.toString())
+        // Clean up URL params
+        const newUrl = new URL(window.location.href)
+        newUrl.searchParams.delete('login_success')
+        newUrl.searchParams.delete('provider')
+        window.history.replaceState({}, '', newUrl.toString())
+      }
     }
+    attachSuccessTracking();
   }, [searchParams])
 
-  return <>{children}</>
+  return null;
 }
 
 export function PostHogProvider({ children, nonce }: { children: React.ReactNode, nonce?: string }) {
-  const [isPostHogReady, setIsPostHogReady] = useState(false);
-
   useEffect(() => {
-    // Check if PostHog is ready, and if not, try to initialize it
     const checkPostHogReady = async () => {
-      if (posthog.__loaded) {
-        setIsPostHogReady(true);
-        return;
-      }
-
-      // Try to initialize if not already done, passing nonce
+      const posthog = await getPostHogLoader();
+      if (!posthog || posthog.__loaded) return;
       await initializePostHog(nonce);
-
-      // Check again after initialization attempt
-      if (posthog.__loaded) {
-        setIsPostHogReady(true);
-      } else {
-        // If still not ready, set a timeout to check again
-        setTimeout(() => {
-          if (posthog.__loaded) {
-            setIsPostHogReady(true);
-          }
-        }, 1000);
-      }
     };
 
     checkPostHogReady();
-  }, [nonce]); // Re-run if nonce changes (unlikely)
+  }, [nonce]);
 
   return (
-    <PHProvider client={posthog}>
-      <Suspense fallback={children}>
-        <PostHogTracking>{children}</PostHogTracking>
+    <>
+      <Suspense fallback={null}>
+        <PostHogTracking />
       </Suspense>
-    </PHProvider>
+      {children}
+    </>
   )
 }

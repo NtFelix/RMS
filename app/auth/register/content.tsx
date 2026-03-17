@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, Loader2, Check, Sparkles } from "lucide-react"
 import { LOGO_URL, ROUTES, BASE_URL } from "@/lib/constants"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import posthog from 'posthog-js'
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
 import { trackRegisterStarted, trackRegisterSuccess, trackRegisterFailed } from '@/lib/posthog-auth-events'
 import { motion } from "framer-motion"
@@ -102,15 +101,19 @@ export default function RegisterPage() {
     }
 
     if (data?.user) {
-      // GDPR: Only identify and track if user has consented
-      if (posthog.has_opted_in_capturing?.()) {
-        posthog.identify(data.user.id, {
-          email: data.user.email,
-          signup_date: new Date().toISOString(),
-          user_type: 'authenticated',
-          is_anonymous: false,
-        })
-      }
+        if (typeof window !== 'undefined') {
+          import('posthog-js').then(m => {
+            const ph = m.default;
+            if (ph.has_opted_in_capturing?.()) {
+              ph.identify(data?.user?.id as string, {
+                email: data?.user?.email,
+                signup_date: new Date().toISOString(),
+                user_type: 'authenticated',
+                is_anonymous: false,
+              })
+            }
+          })
+        }
       // Track registration success (GDPR-compliant - checks consent internally)
       trackRegisterSuccess('email')
     }

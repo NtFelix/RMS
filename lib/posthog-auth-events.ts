@@ -12,9 +12,16 @@
  * and flexible analytics queries in PostHog.
  */
 
-import posthog from 'posthog-js';
+const getPosthog = () => {
+    if (typeof window === 'undefined') return null;
+    return (window as any).posthog;
+}
 
-// ============================================================================
+const posthog = {
+    capture: (...args: any[]) => getPosthog()?.capture(...args),
+    identify: (...args: any[]) => getPosthog()?.identify(...args),
+    has_opted_in_capturing: () => getPosthog()?.has_opted_in_capturing?.() ?? false
+};
 // Event Names - Simplified to core events
 // ============================================================================
 

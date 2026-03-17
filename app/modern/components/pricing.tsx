@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { usePostHog, useFeatureFlagEnabled } from 'posthog-js/react';
+import { usePostHog } from '@/hooks/use-custom-posthog';
+const useFeatureFlagEnabled = (flag: string) => false; // Temporary mock, adjust if feature flags absolutely required
 
 import { Button } from '@/components/ui/button';
 import {

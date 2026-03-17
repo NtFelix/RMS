@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
+const useFeatureFlagEnabled = (flag: string) => false;
 import { Gift, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { POSTHOG_FEATURE_FLAGS, ROUTES } from '@/lib/constants';

@@ -11,7 +11,8 @@ import { useErrorHandler } from '@/components/documentation/documentation-error-
 import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { cn } from '@/lib/utils';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
+// Mock posthog feature flag. If this acts real, implement it in hooks/use-custom-posthog.ts
+const useFeatureFlagEnabled = (flag: string) => false;
 
 interface SearchProps {
   onSearch: (query: string) => void;

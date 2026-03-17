@@ -39,7 +39,7 @@ interface MieterClientViewProps {
 
 
 // This is the new main client component, previously MieterPageClientComponent in page.tsx
-import { useFeatureFlagEnabled } from "posthog-js/react";
+const useFeatureFlagEnabled = (flag: string) => false;
 
 export default function MieterClientView({
   initialTenants,
