@@ -634,8 +634,8 @@ jobs:
         run: |
           WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}"
           if [ -z "$WEBHOOK_URL" ]; then
-            echo "❌ Error: DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS secret is not set."
-            exit 1
+            echo "ℹ️ DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS secret is not set. Skipping Discord notification."
+            exit 0
           fi
           
           # Create zip files for each available device
