@@ -162,4 +162,27 @@ describe('Chat API Analytics Pipeline', () => {
       }),
     }));
   });
+
+  it('should include $ai_http_status in the PostHog capture properties', async () => {
+    mockGeminiSendMessage.mockResolvedValueOnce({
+      text: 'Hello world',
+      functionCalls: [],
+      usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 }
+    });
+
+    const reqData = { message: 'Hi', pathname: '/', sessionId: 's3' };
+    const req = new (global as any).Request('http://api/chat', { method: 'POST', body: JSON.stringify(reqData) });
+    req.json = jest.fn().mockResolvedValue(reqData);
+
+    const response = await POST(req);
+    await consumeStream(response);
+
+    expect(mockPostHogInstance.capture).toHaveBeenCalledWith(expect.objectContaining({
+      properties: expect.objectContaining({
+        $ai_http_status: 200,
+        $ai_provider: 'google',
+        $ai_model: expect.any(String),
+      }),
+    }));
+  });
 });

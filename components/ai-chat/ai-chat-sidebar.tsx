@@ -8,6 +8,7 @@ import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { useFeatureFlagEnabled } from "@posthog/react";
 import { LOGO_URL } from "@/lib/constants";
 import { GoogleIcon } from "@/components/icons/google-icon";
 import { useTheme } from "next-themes";
@@ -348,7 +349,13 @@ function PostHogFeedback({ traceId, content, isDark, onRegenerate }: { traceId?:
 }
 
 export function AIChatSidebar() {
+  const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
+  
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Early return if not enabled - this is safe because the entire component 
+  // is mounted dynamically with ssr: false in the parent layout.
+  if (!isAIAgentEnabled) return null;
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
