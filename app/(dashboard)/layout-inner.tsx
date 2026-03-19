@@ -49,9 +49,9 @@ const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenants/te
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
 import { GlobalDragDropProvider } from "@/components/cloud-storage/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
-import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
-import { AIChatSidebar } from "@/components/ai-chat/ai-chat-sidebar";
-import { useFeatureFlagEnabled } from "@posthog/react";
+const OnboardingTour = dynamic(() => import('@/components/onboarding/onboarding-tour').then(mod => mod.OnboardingTour), { ssr: false })
+const AIChatSidebar = dynamic(() => import('@/components/ai-chat/ai-chat-sidebar').then(mod => mod.AIChatSidebar), { ssr: false })
+
 
 export default function DashboardInnerLayout({
   children,
@@ -60,7 +60,6 @@ export default function DashboardInnerLayout({
   children: React.ReactNode
   sidebarData: SidebarUserData
 }>) {
-  const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
   
   const {
     // Tenant modal state and actions
@@ -310,7 +309,7 @@ export default function DashboardInnerLayout({
         {/* </GlobalDragDropProvider> */}
       </NestedDialogProvider>
       <OnboardingTour />
-      {isAIAgentEnabled && <AIChatSidebar />}
+      <AIChatSidebar />
     </AuthProvider>
   )
 }
