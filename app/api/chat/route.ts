@@ -357,6 +357,7 @@ ${pageContext}`;
                 $ai_latency: latency,
                 $ai_tools_called: executedTools.map(t => t.name),
                 $ai_tool_call_count: executedTools.length,
+                $ai_http_status: 200,
               },
             });
             await posthog.shutdown();
