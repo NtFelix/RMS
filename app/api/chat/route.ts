@@ -176,8 +176,35 @@ ${pageContext}`;
             }
           };
 
+          const executeTurn = async (parts: any[]) => {
+            const result = await chat.sendMessageStream({ message: parts });
+            let fullText = "";
+            let functionCalls: any[] = [];
+            let finalUsage: any = null;
+            
+            for await (const chunk of result) {
+              const text = chunk.text;
+              if (text) {
+                fullText += text;
+                send({ type: "content", content: text });
+              }
+              if (chunk.functionCalls) {
+                functionCalls = chunk.functionCalls;
+              }
+              if (chunk.usageMetadata) {
+                finalUsage = chunk.usageMetadata;
+              }
+            }
+            
+            return {
+              text: () => fullText,
+              functionCalls,
+              usageMetadata: finalUsage,
+            };
+          };
+
           send({ type: "step_start", stepType: "thinking", label: "Nachricht analysieren..." });
-          let aiResponse = await chat.sendMessage({ message: messageParts });
+          let aiResponse = await executeTurn(messageParts);
           addUsage(aiResponse);
           send({ type: "step_done" });
           
@@ -303,7 +330,6 @@ ${pageContext}`;
               };
               executedTools.push(toolResult);
               
-              // Yield the tool result immediately to UI
               send({ type: "tool_result", toolCall: toolResult });
               send({ type: "step_done" });
               
@@ -316,26 +342,15 @@ ${pageContext}`;
               });
             }
 
-            // Send the function responses back to Gemini
             send({ type: "step_start", stepType: "thinking", label: "Daten verarbeiten..." });
-            aiResponse = await chat.sendMessage({ message: responses });
+            aiResponse = await executeTurn(responses);
             addUsage(aiResponse);
             send({ type: "step_done" });
           }
 
           send({ type: "step_start", stepType: "generating", label: "Antwort formulieren..." });
           
-          let replyText = "";
-          try {
-            const res = aiResponse as any;
-            replyText = (typeof res.text === "function" ? res.text() : res.text) || 
-                        (typeof res.response?.text === "function" ? res.response.text() : res.response?.text) ||
-                        (res.candidates?.[0]?.content?.parts?.[0]?.text) || 
-                        "";
-          } catch (e) {
-            console.error("Error extracting text for PostHog:", e);
-          }
-
+          let replyText = aiResponse.text();
           const latency = (Date.now() - startTime) / 1000;
           send({ type: "step_done" });
 
