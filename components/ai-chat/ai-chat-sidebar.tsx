@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight, Copy, Check, RotateCcw } from "lucide-react";
+import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight, Copy, Check, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -27,6 +27,14 @@ import type { LLMStep, StepType, ToolCallRecord } from '@/types/llm-steps';
 import { useGeminiSteps } from '@/hooks/useGeminiSteps';
 
 // Define message type
+type MessageVersion = {
+  content: string;
+  traceId?: string;
+  feedback?: 'up' | 'down' | null;
+  toolCalls?: ToolCallRecord[];
+  steps?: LLMStep[];
+};
+
 type Message = {
   id: string;
   role: "user" | "model";
@@ -40,6 +48,8 @@ type Message = {
   feedback?: 'up' | 'down' | null;
   toolCalls?: ToolCallRecord[];
   steps?: LLMStep[];
+  versions?: MessageVersion[];
+  currentVersionIndex?: number;
 };
 
 // ─── ShimmerText: smooth left-to-right shimmer for the active step ──────────
@@ -258,16 +268,33 @@ function IntelligenceInsight({
 
 
 
-function PostHogFeedback({ traceId, content, isDark, onRegenerate }: { traceId?: string; content?: string; isDark: boolean; onRegenerate?: () => void }) {
+function PostHogFeedback({ 
+  traceId, 
+  content, 
+  isDark, 
+  onRegenerate,
+  currentVersionIndex,
+  totalVersions,
+  onVersionChange
+}: { 
+  traceId?: string; 
+  content?: string; 
+  isDark: boolean; 
+  onRegenerate?: () => void;
+  currentVersionIndex?: number;
+  totalVersions?: number;
+  onVersionChange?: (index: number) => void;
+}) {
   const [copied, setCopied] = useState(false);
-  if (!traceId) return null;
-
+  
   const { respond, response, triggerRef } = useThumbSurvey({
     surveyId: '019ce11d-f79c-0000-4959-8e5eb60be080',
     properties: {
-      $ai_trace_id: traceId,
+      $ai_trace_id: traceId || '',
     },
   })
+
+  if (!traceId) return null;
 
   const handleCopy = () => {
     if (!content) return;
@@ -291,6 +318,36 @@ function PostHogFeedback({ traceId, content, isDark, onRegenerate }: { traceId?:
       <div className="flex items-center gap-2">
         {content && (
           <div className="flex items-center gap-2">
+            
+            {/* Version Pagination */}
+            {totalVersions !== undefined && totalVersions > 1 && (
+              <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-border/20">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={currentVersionIndex === 0}
+                  onClick={() => onVersionChange?.(currentVersionIndex! - 1)}
+                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-all"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </Button>
+                <div className="min-w-[32px] text-center">
+                  <span className="text-[11px] font-bold tabular-nums text-muted-foreground">
+                    {currentVersionIndex! + 1} / {totalVersions}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={currentVersionIndex === totalVersions - 1}
+                  onClick={() => onVersionChange?.(currentVersionIndex! + 1)}
+                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-all"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+
             <Button
               variant="secondary"
               size="sm"
@@ -352,25 +409,23 @@ export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
   
   const [isOpen, setIsOpen] = useState(false);
-  
-  // Early return if not enabled - this is safe because the entire component 
-  // is mounted dynamically with ssr: false in the parent layout.
-  if (!isAIAgentEnabled) return null;
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
   const [sessionId, setSessionId] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite-preview");
+  const [activeId, setActiveId] = useState<string | null>(null);
   const { theme, resolvedTheme } = useTheme();
-  const currentTheme = theme === 'system' ? resolvedTheme : theme;
-  const isDark = currentTheme === 'dark';
   
   const { steps: llmSteps, stepsRef, isVisible: stepsVisible, start: startSteps, finish: finishSteps, addStep, updateStep, setAllDone } = useGeminiSteps();
   const pathname = usePathname();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const currentTheme = theme === 'system' ? resolvedTheme : theme;
+  const isDark = currentTheme === 'dark';
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -434,6 +489,8 @@ export function AIChatSidebar() {
     }
   }, [messages, isLoading]);
 
+  if (!isAIAgentEnabled) return null;
+
   const toggleSidebar = () => {
     if (!isOpen) {
       posthog.capture("ai_chat_opened", { current_page: pathname });
@@ -451,9 +508,60 @@ export function AIChatSidebar() {
     setSessionId(uuidv4()); // Start a new session
   };
 
-  const performAIExchange = async (messageContent: string, messageAttachment: any, historyOverride?: Message[]) => {
+  const switchVersion = (messageId: string, versionIndex: number) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === messageId && m.versions && m.versions[versionIndex]) {
+        const v = m.versions[versionIndex];
+        return {
+          ...m,
+          currentVersionIndex: versionIndex,
+          content: v.content,
+          traceId: v.traceId,
+          feedback: v.feedback,
+          toolCalls: v.toolCalls,
+          steps: v.steps
+        };
+      }
+      return m;
+    }));
+  };
+
+  const performAIExchange = async (
+    messageContent: string, 
+    messageAttachment: any, 
+    historyOverride?: Message[],
+    regenerateId?: string,
+    existingVersions?: MessageVersion[]
+  ) => {
+    const aiMessageId = regenerateId || uuidv4();
     setIsLoading(true);
+    setActiveId(aiMessageId);
     startSteps();
+
+    // Immediately create/clear content to start fresh or hide previous answer
+    setMessages(prev => {
+      if (regenerateId) {
+        return prev.map(m => m.id === regenerateId ? {
+          ...m,
+          content: "",
+          steps: [],
+          toolCalls: undefined,
+          traceId: undefined,
+          versions: existingVersions,
+          currentVersionIndex: existingVersions?.length || 0
+        } : m);
+      } else {
+        const initialAiMessage: Message = {
+          id: aiMessageId,
+          role: "model",
+          content: "",
+          steps: [],
+          currentVersionIndex: 0,
+          versions: []
+        };
+        return [...prev, initialAiMessage];
+      }
+    });
 
     try {
       const currentHistory = historyOverride || messages;
@@ -528,6 +636,11 @@ export function AIChatSidebar() {
                 updateStep(currentStepId, { toolResult: data.toolCall });
               }
             } 
+            else if (data.type === "content") {
+              setMessages(prev => prev.map(m => 
+                m.id === aiMessageId ? { ...m, content: m.content + data.content } : m
+              ));
+            }
             else if (data.type === "final_reply") {
               finalReply = data.reply;
               traceId = data.traceId;
@@ -545,16 +658,26 @@ export function AIChatSidebar() {
       setAllDone();
       finishSteps(true);
 
-      const aiMessage: Message = {
-        id: uuidv4(),
-        role: "model",
-        content: finalReply || "Entschuldigung, ich konnte keine Antwort generieren.",
+      const finalStepsList = [...stepsRef.current];
+      const newVersion: MessageVersion = {
+        content: finalReply,
         traceId: traceId,
         toolCalls: toolResults.length > 0 ? toolResults : undefined,
-        steps: [...stepsRef.current],
+        steps: finalStepsList
       };
 
-      setMessages((prev) => [...prev, aiMessage]);
+      const finalVersions = [...(existingVersions || []), newVersion];
+
+      // Update the message with final details and versioning
+      setMessages(prev => prev.map(m => m.id === aiMessageId ? {
+        ...m,
+        content: finalReply || m.content, 
+        traceId,
+        toolCalls: toolResults.length > 0 ? toolResults : undefined,
+        steps: finalStepsList,
+        versions: finalVersions,
+        currentVersionIndex: finalVersions.length - 1
+      } : m));
     } catch (error) {
       console.error("AI Chat Error:", error);
       finishSteps(false);
@@ -567,6 +690,7 @@ export function AIChatSidebar() {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setActiveId(null);
     }
   };
 
@@ -605,21 +729,27 @@ export function AIChatSidebar() {
     const prevUserMessage = messages[index - 1];
     if (!prevUserMessage || prevUserMessage.role !== 'user') return;
 
-    // Truncate messages to remove the model response
+    // Capture current state into versions if not already tracked
+    const updatedVersions = aiMessage.versions ? [...aiMessage.versions] : [{
+      content: aiMessage.content,
+      traceId: aiMessage.traceId,
+      feedback: aiMessage.feedback,
+      toolCalls: aiMessage.toolCalls,
+      steps: aiMessage.steps
+    }];
+
     const historyBeforeUser = messages.slice(0, index - 1);
     const content = prevUserMessage.content;
-    const oldAttachment = prevUserMessage.attachment;
+    const att = prevUserMessage.attachment;
 
-    // Update state to remove the model response (the user response stays at the end)
-    setMessages(messages.slice(0, index));
-    
     posthog.capture("ai_message_regenerated", {
       traceId: aiMessage.traceId,
       current_page: pathname,
-      model: selectedModel
+      model: selectedModel,
+      version_count: updatedVersions.length + 1
     });
 
-    await performAIExchange(content, oldAttachment, historyBeforeUser);
+    await performAIExchange(content, att, historyBeforeUser, id, updatedVersions);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -699,7 +829,6 @@ export function AIChatSidebar() {
                 <AnimatePresence initial={false}>
                    {messages.map((m) => (
                      <motion.div
-                       layout
                        key={m.id}
                        initial={{ opacity: 0, y: 10 }}
                        animate={{ opacity: 1, y: 0 }}
@@ -745,10 +874,14 @@ export function AIChatSidebar() {
                                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em] opacity-70">Mietevo AI</span>
                              </div>
                            </div>
-                           
-                            {((m.toolCalls && m.toolCalls.length > 0) || (m.steps && m.steps.length > 0)) && (
-                              <IntelligenceInsight steps={m.steps || []} isLoading={false} toolCalls={m.toolCalls} />
-                            )}
+                            
+                             {( (m.id === activeId && isLoading) || (m.toolCalls && m.toolCalls.length > 0) || (m.steps && m.steps.length > 0) ) && (
+                               <IntelligenceInsight 
+                                 steps={m.id === activeId && isLoading ? llmSteps : (m.steps || [])} 
+                                 isLoading={m.id === activeId && isLoading} 
+                                 toolCalls={m.id === activeId && isLoading ? undefined : m.toolCalls} 
+                               />
+                             )}
 
                            <div className="prose prose-sm dark:prose-invert max-w-none px-1 text-[15px] leading-relaxed text-foreground/90 font-medium">
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -762,6 +895,9 @@ export function AIChatSidebar() {
                              isDark={isDark} 
                              content={m.content} 
                              onRegenerate={() => regenerateMessage(m.id)}
+                             currentVersionIndex={m.currentVersionIndex}
+                             totalVersions={m.versions?.length}
+                             onVersionChange={(idx) => switchVersion(m.id, idx)}
                            />
                            
                            <div className="h-px w-full bg-gradient-to-r from-border/50 via-border/10 to-transparent my-6 opacity-30" />
@@ -771,7 +907,7 @@ export function AIChatSidebar() {
                    ))}
                  </AnimatePresence>
               )}
-                {isLoading && (
+                {isLoading && activeId === null && ( // Only show global thinking if no specific message is active
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
