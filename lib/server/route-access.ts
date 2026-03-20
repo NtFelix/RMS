@@ -51,14 +51,16 @@ export async function requireActiveSubscription() {
   ) {
     const redirectUrl = new URL("/subscription-locked", "https://mietevo.de")
 
-    if (!profile) {
-      redirectUrl.searchParams.set("debug_profile_status", "missing")
-    } else {
-      redirectUrl.searchParams.set("debug_profile_status", "exists")
-      redirectUrl.searchParams.set(
-        "debug_stripe_status",
-        profile.stripe_subscription_status || "null",
-      )
+    if (process.env.NODE_ENV !== "production") {
+      if (!profile) {
+        redirectUrl.searchParams.set("debug_profile_status", "missing")
+      } else {
+        redirectUrl.searchParams.set("debug_profile_status", "exists")
+        redirectUrl.searchParams.set(
+          "debug_stripe_status",
+          profile.stripe_subscription_status || "null",
+        )
+      }
     }
 
     redirect(`${redirectUrl.pathname}${redirectUrl.search}`)

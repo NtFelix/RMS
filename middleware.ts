@@ -1,20 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
-const NONCE_ROUTE_PREFIXES = [
-  "/auth",
-  "/dashboard",
-  "/betriebskosten",
-  "/finanzen",
-  "/haeuser",
-  "/wohnungen",
-  "/mieter",
-  "/todos",
-  "/mails",
-  "/dateien",
-  "/hilfe/dokumentation",
-]
-
-const REQUEST_CONTEXT_ROUTE_PREFIXES = [
+const MANAGED_ROUTE_PREFIXES = [
   "/auth",
   "/dashboard",
   "/betriebskosten",
@@ -34,13 +20,10 @@ function matchesRoutePrefix(pathname: string, prefix: string) {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
-  const needsNonce = NONCE_ROUTE_PREFIXES.some((prefix) =>
+  const needsManagedHeaders = MANAGED_ROUTE_PREFIXES.some((prefix) =>
     matchesRoutePrefix(pathname, prefix),
   )
-  const needsRequestContext = REQUEST_CONTEXT_ROUTE_PREFIXES.some((prefix) =>
-    matchesRoutePrefix(pathname, prefix),
-  )
-  const nonce = needsNonce ? crypto.randomUUID() : null
+  const nonce = needsManagedHeaders ? crypto.randomUUID() : null
 
   // Content Security Policy
   // Note: We use 'unsafe-inline' without a nonce for scripts because Next.js 
@@ -67,7 +50,7 @@ export async function middleware(request: NextRequest) {
   if (nonce) {
     requestHeaders.set('x-nonce', nonce)
   }
-  if (needsRequestContext) {
+  if (needsManagedHeaders) {
     requestHeaders.set('x-current-pathname', pathname)
     requestHeaders.set('x-current-search', request.nextUrl.search)
   }

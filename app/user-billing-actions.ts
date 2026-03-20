@@ -4,6 +4,15 @@ import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
+type BillingAddressError = {
+  error: string;
+  details?: string;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export interface BillingAddress {
   name?: string;
   companyName?: string;
@@ -34,7 +43,7 @@ interface UpdateBillingAddressParams {
 
 export async function getBillingAddress(
   stripeCustomerId: string,
-): Promise<BillingAddress | { error: string; details?: any }> {
+): Promise<BillingAddress | BillingAddressError> {
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return {
@@ -67,10 +76,7 @@ export async function getBillingAddress(
       return { error: 'Customer not found' };
     }
 
-    const customerWithBusinessName = customer as Stripe.Customer & {
-      business_name?: string;
-    };
-    const companyName = customerWithBusinessName.business_name || '';
+    const companyName = customer.metadata?.company_name || '';
 
     if (!customer.address) {
       return {
@@ -103,11 +109,11 @@ export async function getBillingAddress(
       email: customer.email || '',
       phone: customer.phone || null,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in getBillingAddress:', error);
     return {
       error: 'Failed to fetch billing address',
-      details: error.message,
+      details: getErrorMessage(error, 'Unknown error'),
     };
   }
 }
@@ -132,7 +138,13 @@ export async function updateBillingAddress(
 
     const updateData: Stripe.CustomerUpdateParams = {
       name: details.name,
-      ...(details.companyName && { business_name: details.companyName }),
+      ...(details.companyName !== undefined
+        ? {
+            metadata: {
+              company_name: details.companyName,
+            },
+          }
+        : {}),
       address: {
         line1: details.address.line1,
         ...(details.address.line2 && { line2: details.address.line2 }),
@@ -145,11 +157,11 @@ export async function updateBillingAddress(
 
     await stripe.customers.update(stripeCustomerId, updateData);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating billing address:', error);
     return {
       success: false,
-      error: error.message || 'Failed to update billing address',
+      error: getErrorMessage(error, 'Failed to update billing address'),
     };
   }
 }
@@ -181,10 +193,10 @@ export async function createSetupIntent(
     }
 
     return { clientSecret: setupIntent.client_secret };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating SetupIntent for %s:', stripeCustomerId, error);
     return {
-      error: error.message || 'Failed to create SetupIntent',
+      error: getErrorMessage(error, 'Failed to create SetupIntent'),
     };
   }
 }

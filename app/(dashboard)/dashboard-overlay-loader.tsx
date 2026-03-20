@@ -67,6 +67,8 @@ export default function DashboardOverlayLoader() {
   )
 
   useEffect(() => {
+    // Intentionally one-way: once the overlay host is loaded, keep it mounted
+    // so subsequent modal opens do not pay the re-initialization cost again.
     if (commandMenuOpen || shouldLoadForModal) {
       setShouldRenderHost(true)
     }
