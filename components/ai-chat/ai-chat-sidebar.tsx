@@ -378,27 +378,27 @@ function PostHogFeedback({
           variant="secondary"
           size="sm"
           onClick={() => respond('up')}
-          className={`h-8 px-3 rounded-lg flex items-center gap-2 transition-all duration-300 border ${
+          title="Hilfreich"
+          className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all duration-300 border ${
             response === 'up' 
               ? 'bg-green-500/10 border-green-500/30 text-green-600' 
               : 'bg-transparent border-border/30 text-muted-foreground hover:bg-green-500/5 hover:border-green-500/20 hover:text-green-500'
           }`}
         >
           <ThumbsUp className={`w-3.5 h-3.5 ${response === 'up' ? 'fill-current' : ''}`} />
-          <span className="text-[12px] font-semibold">Hilfreich</span>
         </Button>
         <Button
           variant="secondary"
           size="sm"
           onClick={() => respond('down')}
-          className={`h-8 px-3 rounded-lg flex items-center gap-2 transition-all duration-300 border ${
+          title="Nicht hilfreich"
+          className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all duration-300 border ${
             response === 'down' 
               ? 'bg-red-500/10 border-red-500/30 text-red-600' 
               : 'bg-transparent border-border/30 text-muted-foreground hover:bg-red-500/5 hover:border-red-500/20 hover:text-red-500'
           }`}
         >
           <ThumbsDown className={`w-3.5 h-3.5 ${response === 'down' ? 'fill-current' : ''}`} />
-          <span className="text-[12px] font-semibold">Nicht hilfreich</span>
         </Button>
       </div>
     </div>
@@ -805,7 +805,7 @@ export function AIChatSidebar() {
 
             {/* Messages Area */}
             <div
-              className="flex-1 overflow-y-auto p-5 space-y-6"
+              className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-6"
               ref={scrollRef}
             >
               {messages.length === 0 ? (
@@ -883,8 +883,21 @@ export function AIChatSidebar() {
                                />
                              )}
 
-                           <div className="prose prose-sm dark:prose-invert max-w-none px-1 text-[15px] leading-relaxed text-foreground/90 font-medium">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                           <div className="prose prose-sm dark:prose-invert w-full max-w-full overflow-hidden px-1 text-[15px] leading-relaxed text-foreground/90 font-medium">
+                              <ReactMarkdown 
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  table: ({ node, ...props }) => (
+                                    <div className="overflow-x-auto my-4 rounded-xl border border-border/50 bg-background/50 shadow-sm">
+                                      <table className="min-w-full text-sm border-collapse" {...props} />
+                                    </div>
+                                  ),
+                                  thead: ({ node, ...props }) => <thead className="bg-muted/50 text-left" {...props} />,
+                                  th: ({ node, ...props }) => <th className="px-4 py-2.5 font-semibold text-foreground/80 border-b border-border/60" {...props} />,
+                                  td: ({ node, ...props }) => <td className="px-4 py-2.5 border-b border-border/40 whitespace-nowrap text-foreground/70" {...props} />,
+                                  tr: ({ node, ...props }) => <tr className="hover:bg-muted/5 transition-colors" {...props} />,
+                                }}
+                              >
                                 {m.content}
                               </ReactMarkdown>
                            </div>
