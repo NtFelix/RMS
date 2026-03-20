@@ -1,7 +1,46 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+const NONCE_ROUTE_PREFIXES = [
+  "/auth",
+  "/dashboard",
+  "/betriebskosten",
+  "/finanzen",
+  "/haeuser",
+  "/wohnungen",
+  "/mieter",
+  "/todos",
+  "/mails",
+  "/dateien",
+  "/hilfe/dokumentation",
+]
+
+const REQUEST_CONTEXT_ROUTE_PREFIXES = [
+  "/auth",
+  "/dashboard",
+  "/betriebskosten",
+  "/finanzen",
+  "/haeuser",
+  "/wohnungen",
+  "/mieter",
+  "/todos",
+  "/mails",
+  "/dateien",
+  "/hilfe/dokumentation",
+]
+
+function matchesRoutePrefix(pathname: string, prefix: string) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`)
+}
+
 export async function middleware(request: NextRequest) {
-  const nonce = crypto.randomUUID()
+  const pathname = request.nextUrl.pathname
+  const needsNonce = NONCE_ROUTE_PREFIXES.some((prefix) =>
+    matchesRoutePrefix(pathname, prefix),
+  )
+  const needsRequestContext = REQUEST_CONTEXT_ROUTE_PREFIXES.some((prefix) =>
+    matchesRoutePrefix(pathname, prefix),
+  )
+  const nonce = needsNonce ? crypto.randomUUID() : null
 
   // Content Security Policy
   // Note: We use 'unsafe-inline' without a nonce for scripts because Next.js 
@@ -25,9 +64,13 @@ export async function middleware(request: NextRequest) {
 
   // Clone request headers so layouts and server components can read request context
   const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-nonce', nonce)
-  requestHeaders.set('x-current-pathname', request.nextUrl.pathname)
-  requestHeaders.set('x-current-search', request.nextUrl.search)
+  if (nonce) {
+    requestHeaders.set('x-nonce', nonce)
+  }
+  if (needsRequestContext) {
+    requestHeaders.set('x-current-pathname', pathname)
+    requestHeaders.set('x-current-search', request.nextUrl.search)
+  }
   requestHeaders.set('Content-Security-Policy', csp)
 
   // Initialize response

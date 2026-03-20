@@ -156,7 +156,7 @@ export function CommandMenu() {
 
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [query, clearSearch, setQuery, open, setOpen])
+  }, [query, clearSearch, setQuery, open])
 
   // Auto-focus input when command menu opens and clear search when closed
   useEffect(() => {
