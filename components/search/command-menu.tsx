@@ -124,10 +124,6 @@ export function CommandMenu() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        setOpen(!open)
-      }
       // Clear search when Escape is pressed and there's a query
       if (e.key === "Escape" && query.trim().length > 0) {
         e.preventDefault()
@@ -160,7 +156,7 @@ export function CommandMenu() {
 
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [setOpen, open, query, clearSearch, setQuery])
+  }, [query, clearSearch, setQuery, open, setOpen])
 
   // Auto-focus input when command menu opens and clear search when closed
   useEffect(() => {
