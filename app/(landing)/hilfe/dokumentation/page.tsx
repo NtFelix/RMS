@@ -1,6 +1,8 @@
 import DocumentationPageClient from './documentation-page-client'
 import { createDocumentationService } from '@/lib/documentation-service'
 
+export const runtime = 'edge'
+
 type SearchParamValue = string | string[] | undefined
 
 interface DocumentationPageProps {
