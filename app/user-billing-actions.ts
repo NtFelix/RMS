@@ -4,6 +4,14 @@ import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
+let stripeClient: Stripe | null = null;
+function getStripe(): Stripe {
+  if (!stripeClient) {
+    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
+  }
+  return stripeClient;
+}
+
 type BillingAddressError = {
   error: string;
   details?: string;
@@ -69,7 +77,7 @@ export async function getBillingAddress(
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
+    const stripe = getStripe();
     const customer = await stripe.customers.retrieve(stripeCustomerId);
 
     if ('deleted' in customer && customer.deleted) {
@@ -134,14 +142,14 @@ export async function updateBillingAddress(
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
+    const stripe = getStripe();
 
     const updateData: Stripe.CustomerUpdateParams = {
       name: details.name,
       ...(details.companyName !== undefined
         ? {
             metadata: {
-              company_name: details.companyName,
+              company_name: details.companyName !== '' ? details.companyName : null,
             },
           }
         : {}),
@@ -181,7 +189,7 @@ export async function createSetupIntent(
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
+    const stripe = getStripe();
     const setupIntent = await stripe.setupIntents.create({
       customer: stripeCustomerId,
       payment_method_types: ['card'],

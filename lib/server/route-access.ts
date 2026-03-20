@@ -27,6 +27,7 @@ export async function requireAuthenticatedUser() {
     redirect(buildLoginRedirect(pathname, search))
   }
 
+  // TypeScript cannot infer that redirect() never returns, so cast is needed
   return { supabase, user: user as User }
 }
 
@@ -41,7 +42,7 @@ export async function requireActiveSubscription() {
 
   if (profileError) {
     console.error("Error fetching profile for subscription check:", profileError)
-    redirect("/?error=profile_fetch_failed")
+    redirect("/subscription-locked?reason=profile_error")
   }
 
   if (
@@ -72,8 +73,9 @@ export async function requireActiveSubscription() {
 export async function redirectAuthenticatedAuthRoute() {
   const requestHeaders = await headers()
   const pathname = requestHeaders.get("x-current-pathname")
+  const search = requestHeaders.get("x-current-search")
 
-  if (pathname === ROUTES.LOGIN) {
+  if (pathname?.startsWith(ROUTES.LOGIN)) {
     return
   }
 
@@ -83,6 +85,14 @@ export async function redirectAuthenticatedAuthRoute() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    redirect(ROUTES.HOME)
+    let redirectTarget: string = ROUTES.HOME
+    if (search) {
+      const searchParams = new URLSearchParams(search)
+      const redirectParam = searchParams.get("redirect")
+      if (redirectParam && redirectParam.startsWith("/")) {
+        redirectTarget = redirectParam
+      }
+    }
+    redirect(redirectTarget)
   }
 }

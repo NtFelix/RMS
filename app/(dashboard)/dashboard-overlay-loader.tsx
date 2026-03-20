@@ -11,20 +11,19 @@ const DashboardOverlayHost = dynamic(() => import("./dashboard-overlay-host"), {
 })
 
 function DashboardCommandHotkeys() {
-  const open = useCommandMenu((state) => state.open)
-  const setOpen = useCommandMenu((state) => state.setOpen)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
-        setOpen(!open)
+        // Toggle the command menu by using zustand's state directly, avoiding dependency on `open`
+        useCommandMenu.setState((state) => ({ open: !state.open }))
       }
     }
 
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [open, setOpen])
+  }, [])
 
   return null
 }
@@ -57,8 +56,6 @@ export default function DashboardOverlayLoader() {
     state.isAIAssistantModalOpen ||
     state.isTenantPaymentEditModalOpen ||
     state.isTenantPaymentOverviewModalOpen ||
-    state.isApplicantScoreModalOpen ||
-    state.isMailPreviewModalOpen ||
     state.isAblesungenModalOpen ||
     state.isZaehlerModalOpen
   )

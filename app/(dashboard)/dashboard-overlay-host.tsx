@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic"
 import { CommandMenu } from "@/components/search/command-menu"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
-import { NestedDialogProvider } from "@/components/ui/nested-dialog"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { handleSubmit as tenantServerAction, updateKautionAction } from "@/app/mieter-actions"
 import { handleSubmit as houseServerAction } from "@/app/(dashboard)/haeuser/actions"
@@ -150,7 +149,7 @@ export default function DashboardOverlayHost() {
   } = useModalStore()
 
   return (
-    <NestedDialogProvider>
+    <>
       <CommandMenu />
       <TenantEditModal serverAction={tenantServerAction} />
       <HouseEditModal serverAction={houseServerAction} />
@@ -264,6 +263,6 @@ export default function DashboardOverlayHost() {
           variant={confirmationModalConfig.variant}
         />
       )}
-    </NestedDialogProvider>
+    </>
   )
 }

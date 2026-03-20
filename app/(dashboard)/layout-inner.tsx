@@ -4,6 +4,7 @@ import { AuthProvider } from "@/components/auth/auth-provider"
 import { EmailVerificationNotifier } from '@/components/auth/email-verification-notifier'
 import { Suspense } from "react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { NestedDialogProvider } from "@/components/ui/nested-dialog"
 import dynamic from 'next/dynamic'
 import DashboardOverlayLoader from "./dashboard-overlay-loader"
 
@@ -22,8 +23,10 @@ export default function DashboardInnerLayout({
       <Suspense fallback={null}>
         <EmailVerificationNotifier />
       </Suspense>
-      <DashboardLayout>{children}</DashboardLayout>
-      <DashboardOverlayLoader />
+      <NestedDialogProvider>
+        <DashboardLayout>{children}</DashboardLayout>
+        <DashboardOverlayLoader />
+      </NestedDialogProvider>
       <OnboardingTour />
     </AuthProvider>
   )
