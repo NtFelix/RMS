@@ -5,10 +5,10 @@
  * with consistent error handling and logging.
  */
 
-import { getPostHogServer } from '@/app/posthog-server.mjs'
 import { logger } from '@/utils/logger'
 import { posthogLogger } from '@/lib/posthog-logger'
 import { headers } from 'next/headers'
+import { captureServerEvent } from '@/lib/posthog-server-events'
 
 export interface PostHogEventProperties {
     [key: string]: string | number | boolean | null | undefined | string[] | number[]
@@ -68,10 +68,8 @@ export async function capturePostHogEvent(
     event: string,
     properties: PostHogEventProperties,
     requestContext?: RequestContext
-): Promise<void> {
+    ): Promise<void> {
     try {
-        const posthog = getPostHogServer()
-
         // Build the full properties object with URL context if available
         const fullProperties: PostHogEventProperties = {
             ...properties,
@@ -90,17 +88,13 @@ export async function capturePostHogEvent(
             fullProperties.$host = requestContext.host
         }
 
-        await posthog.capture({
+        await captureServerEvent({
             distinctId: userId,
             event,
             properties: fullProperties,
         })
 
-        // Flush both PostHog and the logger in parallel to save time
-        await Promise.all([
-            posthog.flush(),
-            posthogLogger.flush()
-        ])
+        await posthogLogger.flush()
         logger.info(`[PostHog] Captured event: ${event} for user: ${userId}`)
     } catch (phError) {
         logger.error(
@@ -126,4 +120,3 @@ export async function capturePostHogEventWithContext(
     const context = await getRequestContext()
     return capturePostHogEvent(userId, event, properties, context)
 }
-

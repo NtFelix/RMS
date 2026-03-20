@@ -7,7 +7,6 @@ import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { PlusCircle, Mail as MailIcon, Send, Clock, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
 import { MailsTable } from "@/components/mails-table";
-import { MailDetailPanel } from "@/components/mail-detail-panel";
 import { MailBulkActionBar } from "@/components/mail-bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -23,6 +22,12 @@ import {
 import { useRouter } from "next/navigation";
 import { type LegacyMail, type Mail as DbMail, convertToLegacyMail } from "@/types/Mail";
 import { useToast } from "@/hooks/use-toast";
+import dynamic from "next/dynamic";
+
+const MailDetailPanel = dynamic(
+  () => import("@/components/mail-detail-panel").then((mod) => mod.MailDetailPanel),
+  { ssr: false },
+);
 
 // Re-export for backward compatibility
 export type Mail = LegacyMail;

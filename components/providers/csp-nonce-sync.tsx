@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import posthog from 'posthog-js'
 
 /**
  * CSPNonceSync is a small component that bridges the server-side generated CSP nonce

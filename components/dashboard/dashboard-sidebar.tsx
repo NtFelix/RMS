@@ -14,7 +14,7 @@ import { UserSettings } from "@/components/common/user-settings"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
-import { useFeatureFlagEnabled } from "posthog-js/react"
+import { usePostHogFeatureFlag } from "@/hooks/use-posthog-feature-flag"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 
 const sidebarNavItems = [
@@ -71,8 +71,8 @@ export function DashboardSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   const { setOpen } = useCommandMenu()
-  const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
-  const mailsEnabled = useFeatureFlagEnabled('mails-tab')
+  const documentsEnabled = usePostHogFeatureFlag('documents_tab_access')
+  const mailsEnabled = usePostHogFeatureFlag('mails-tab')
 
   // Feature flags for navigation items
   const featureFlags = new Map([

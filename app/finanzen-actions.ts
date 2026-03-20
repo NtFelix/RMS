@@ -3,9 +3,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
-import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
-import { posthogLogger } from '@/lib/posthog-logger';
+import { captureServerEvent } from '@/lib/posthog-server-events';
 
 // Define a more specific type for the payload, excluding id and related entities
 interface FinanzInput {
@@ -64,8 +63,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const posthog = getPostHogServer();
-        await posthog.capture({
+        await captureServerEvent({
           distinctId: user.id,
           event: 'payment_recorded',
           properties: {
@@ -78,10 +76,6 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
             source: 'server_action'
           }
         });
-        await Promise.all([
-          posthog.flush(),
-          posthogLogger.flush()
-        ]);
         logger.info(`[PostHog] Capturing payment event for user: ${user.id}`);
       }
     } catch (phError) {

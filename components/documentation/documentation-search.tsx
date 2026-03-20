@@ -11,7 +11,7 @@ import { useErrorHandler } from '@/components/documentation/documentation-error-
 import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { cn } from '@/lib/utils';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { usePostHogFeatureFlag } from '@/hooks/use-posthog-feature-flag';
 
 interface SearchProps {
   onSearch: (query: string) => void;
@@ -38,7 +38,7 @@ export function DocumentationSearch({
   const debouncedQuery = useDebounce(query, 300);
   const inputRef = useRef<HTMLInputElement>(null);
   const { handleError } = useErrorHandler();
-  const flagEnabled = useFeatureFlagEnabled('ai-documentation-mode');
+  const flagEnabled = usePostHogFeatureFlag('ai-documentation-mode');
   const [isAIDocumentationMode, setIsAIDocumentationMode] = useState(false);
 
   useEffect(() => {

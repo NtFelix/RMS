@@ -5,9 +5,8 @@ import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
 import { KautionData, KautionStatus, TenantStatus } from "@/types/Tenant";
 import { logAction } from '@/lib/logging-middleware';
-import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
-import { posthogLogger } from '@/lib/posthog-logger';
+import { captureServerEvent } from '@/lib/posthog-server-events';
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const id = formData.get('id');
@@ -62,12 +61,11 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     logAction(actionName, 'success', { tenant_name: tenantName, operation: id ? 'update' : 'create' });
 
     try {
-      const posthog = getPostHogServer();
       const eventName = id ? 'tenant_updated' : 'tenant_added';
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        await posthog.capture({
+        await captureServerEvent({
           distinctId: user.id,
           event: eventName,
           properties: {
@@ -80,10 +78,6 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
             source: 'server_action'
           }
         });
-        await Promise.all([
-          posthog.flush(),
-          posthogLogger.flush()
-        ]);
         logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
       }
     } catch (phError) {

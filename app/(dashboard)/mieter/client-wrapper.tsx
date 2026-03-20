@@ -18,15 +18,29 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ApplicantImportModal } from "@/components/tenants/applicant-import-modal";
-import { ApplicantScoreModal } from "@/components/tenants/applicant-score-modal";
-import { MailPreviewModal } from "@/components/mail-preview-modal";
 import { ChevronDown, UserPlus, Mail } from "lucide-react";
+import dynamic from "next/dynamic";
 
 
 import { Trash2 } from "lucide-react";
 import type { Tenant, TenantStatus } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
+import { usePostHogFeatureFlag } from "@/hooks/use-posthog-feature-flag";
+
+const ApplicantImportModal = dynamic(
+  () => import("@/components/tenants/applicant-import-modal").then((mod) => mod.ApplicantImportModal),
+  { ssr: false },
+);
+
+const ApplicantScoreModal = dynamic(
+  () => import("@/components/tenants/applicant-score-modal").then((mod) => mod.ApplicantScoreModal),
+  { ssr: false },
+);
+
+const MailPreviewModal = dynamic(
+  () => import("@/components/mail-preview-modal").then((mod) => mod.MailPreviewModal),
+  { ssr: false },
+);
 
 // Props for the main client view component
 interface MieterClientViewProps {
@@ -37,9 +51,6 @@ interface MieterClientViewProps {
 
 // Internal AddTenantButton (could be kept from previous step if preferred)
 
-
-// This is the new main client component, previously MieterPageClientComponent in page.tsx
-import { useFeatureFlagEnabled } from "posthog-js/react";
 
 export default function MieterClientView({
   initialTenants,
@@ -57,7 +68,7 @@ export default function MieterClientView({
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const { openTenantModal } = useModalStore();
-  const showTenantTabs = useFeatureFlagEnabled('show-tenant-tabs');
+  const showTenantTabs = usePostHogFeatureFlag('show-tenant-tabs');
 
   // Filter tenants based on tab
   const filteredTenantsByTab = useMemo(() => {

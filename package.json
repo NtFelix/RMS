@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev --turbo",
     "build": "node scripts/generate-llms-txt.mjs && next build --no-lint",
+    "build:analyze": "ANALYZE=true npm run build",
+    "report:deploy-size": "node scripts/report-deploy-artifact-sizes.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "NODE_ENV=test jest",
@@ -23,6 +25,7 @@
     "@opentelemetry/resources": "^2.5.1",
     "@opentelemetry/sdk-logs": "^0.211.0",
     "@opentelemetry/sdk-node": "^0.211.0",
+    "@posthog/cli": "^0.6.1",
     "@posthog/nextjs-config": "^1.8.19",
     "@radix-ui/react-accordion": "1.2.12",
     "@radix-ui/react-alert-dialog": "1.1.15",
@@ -81,7 +84,6 @@
     "next-themes": "^0.4.4",
     "pako": "^2.1.0",
     "papaparse": "^5.4.1",
-    "@posthog/cli": "^0.6.1",
     "posthog-js": "^1.354.1",
     "posthog-node": "^5.26.0",
     "react": "^19.2.4",
@@ -102,6 +104,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.0",
     "@playwright/test": "1.58.2",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",

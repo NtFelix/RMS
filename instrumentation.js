@@ -1,3 +1,25 @@
+import { captureServerEvent } from './lib/posthog-server-events'
+
+function getDistinctIdFromCookie(cookieHeader) {
+  if (!cookieHeader) {
+    return null
+  }
+
+  const postHogCookieMatch = cookieHeader.match(/ph_phc_.*?_posthog=([^;]+)/)
+  if (!postHogCookieMatch || !postHogCookieMatch[1]) {
+    return null
+  }
+
+  try {
+    const decodedCookie = decodeURIComponent(postHogCookieMatch[1])
+    const postHogData = JSON.parse(decodedCookie)
+    return postHogData.distinct_id || null
+  } catch (error) {
+    console.error('Error parsing PostHog cookie:', error)
+    return null
+  }
+}
+
 export async function register() {
   // Add global error handler for uncaught exceptions to prevent server crashes on ECONNRESET
   if (process.env.NEXT_RUNTIME === 'nodejs') {
@@ -46,29 +68,24 @@ export const onRequestError = async (err, request, context) => {
       console.error('Failed to log request error to PostHog:', logError);
     }
 
-    // Also send as exception to PostHog events
+    // Also send as exception-style event without relying on posthog-node.
     try {
-      const { getPostHogServer } = require('./app/posthog-server')
-      const posthog = await getPostHogServer()
-      let distinctId = null
-      if (request.headers.cookie) {
-        const cookieString = request.headers.cookie
-        const postHogCookieMatch =
-          cookieString.match(/ph_phc_.*?_posthog=([^;]+)/)
-        if (postHogCookieMatch && postHogCookieMatch[1]) {
-          try {
-            const decodedCookie = decodeURIComponent(postHogCookieMatch[1])
-            const postHogData = JSON.parse(decodedCookie)
-            distinctId = postHogData.distinct_id
-          } catch (e) {
-            console.error('Error parsing PostHog cookie:', e)
-          }
-        }
-      }
-      await posthog.captureException(err, distinctId || undefined)
+      const distinctId = getDistinctIdFromCookie(request?.headers?.cookie)
+      await captureServerEvent({
+        distinctId: distinctId || 'server-error',
+        event: '$exception',
+        properties: {
+          $exception_message: err?.message || 'Unknown error',
+          $exception_type: err?.name || 'Error',
+          $exception_source: 'instrumentation',
+          request_path: request?.url ? new URL(request.url).pathname : 'unknown',
+          request_method: request?.method || 'unknown',
+          route_type: context?.routeType || 'unknown',
+          route_path: context?.routePath || 'unknown',
+        },
+      })
     } catch (posthogError) {
       console.error('Failed to capture exception in PostHog:', posthogError);
     }
   }
 }
-

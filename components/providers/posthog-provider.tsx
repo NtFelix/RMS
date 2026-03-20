@@ -1,256 +1,298 @@
 'use client'
 
-import posthog from 'posthog-js'
-import { PostHogProvider as PHProvider } from 'posthog-js/react'
-import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, Suspense, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
-// Initialize PostHog with configuration
-async function initializePostHog(nonce?: string) {
-  if (typeof window === 'undefined' || posthog.__loaded) {
-    return;
+type PostHogClient = {
+  __loaded?: boolean
+  config?: {
+    nonce?: string
+  }
+  has_opted_in_capturing?: () => boolean
+  has_opted_out_capturing?: () => boolean
+  opt_in_capturing?: () => void
+  opt_out_capturing?: () => void
+  reloadFeatureFlags?: () => void
+  capture: (event: string, properties?: Record<string, unknown>) => void
+  identify: (distinctId: string, properties?: Record<string, unknown>) => void
+  get_distinct_id?: () => string | undefined
+  init: (key: string, options?: Record<string, unknown>) => void
+}
+
+interface PostHogConfig {
+  key: string
+  host: string
+}
+
+function getStoredConsent() {
+  if (typeof window === 'undefined') {
+    return null
   }
 
-  let config = {
+  return window.localStorage.getItem('cookieConsent')
+}
+
+async function loadPostHogClient() {
+  const module = await import('posthog-js')
+  return module.default as unknown as PostHogClient
+}
+
+async function loadPostHogConfig(): Promise<PostHogConfig | null> {
+  let config: {
+    key?: string
+    host?: string
+  } = {
     key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-    host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
-  };
-
-  // If client-side env vars are not available, try to fetch from API
-  if (!config.key || config.key === 'phc_placeholder_key') {
-    console.log('Client-side PostHog config not found, fetching from API...');
-    try {
-      const response = await fetch('/api/posthog-config');
-      if (response.ok) {
-        const apiConfig = await response.json();
-        config = apiConfig;
-        console.log('PostHog config fetched from API');
-      } else {
-        console.warn('Failed to fetch PostHog config from API');
-        return;
-      }
-    } catch (error) {
-      console.error('Error fetching PostHog config:', error);
-      return;
-    }
+    host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com',
   }
 
   if (!config.key || config.key === 'phc_placeholder_key') {
-    // ... logic same as before ...
-    console.warn('PostHog is not initialized. Environment check:', {
-      hasWindow: typeof window !== 'undefined',
-      posthogKey: config.key ? config.key.substring(0, 10) + '...' : 'undefined',
-      posthogHost: config.host,
-      nodeEnv: process.env.NODE_ENV
-    });
-    return;
+    const response = await fetch('/api/posthog-config')
+    if (!response.ok) {
+      return null
+    }
+
+    config = await response.json()
   }
 
-  console.log('Initializing PostHog with key:', config.key.substring(0, 10) + '...');
+  if (!config.key || config.key === 'phc_placeholder_key') {
+    return null
+  }
 
-  // GDPR Compliance: Always require explicit consent before tracking
-  // This applies to ALL pages including landing and documentation pages
-  posthog.init(config.key, {
-    api_host: config.host,
-    capture_pageview: false, // We'll handle this manually
-    persistence: 'localStorage',
-    enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
-    // GDPR: Always opt-out by default, require explicit consent
-    opt_out_capturing_by_default: true,
-    nonce: nonce, // Add nonce for CSP
-    // Enable early access features
-    bootstrap: {
-      distinctID: undefined, // Will be set when user is identified
-    },
-    // Ensure feature flags are loaded
-    loaded: function (posthog: any) {
-      console.log('PostHog loaded successfully, reloading feature flags...');
-      posthog.reloadFeatureFlags?.();
-    }
-  } as any);
-
-  // Apply stored consent on load - respects user choice on ALL pages
-  const consent = localStorage.getItem('cookieConsent');
-  // ... rest of consent logic same ...
-  if (consent === 'all' && posthog.has_opted_out_capturing?.()) {
-    console.log('Applying stored consent: opting in to PostHog tracking');
-    posthog.opt_in_capturing();
-    // Ensure feature flags are available right after opting in
-    posthog.reloadFeatureFlags?.();
-  } else if (consent !== 'all' && !posthog.has_opted_out_capturing?.()) {
-    console.log('No consent or only necessary cookies accepted: ensuring tracking is disabled');
-    // Ensure we're opted-out if consent wasn't granted
-    posthog.opt_out_capturing();
+  return {
+    key: config.key,
+    host: config.host || 'https://eu.i.posthog.com',
   }
 }
 
-// Global initialization removed to support nonce passing from server
+async function bootstrapPostHog(nonce?: string) {
+  if (typeof window === 'undefined') {
+    return null
+  }
 
-function PostHogTracking({ children }: { children: React.ReactNode }) {
+  if (getStoredConsent() !== 'all') {
+    return null
+  }
+
+  const posthog = await loadPostHogClient()
+  const config = await loadPostHogConfig()
+
+  if (!config) {
+    return null
+  }
+
+  if (!posthog.__loaded) {
+    posthog.init(config.key, {
+      api_host: config.host,
+      capture_pageview: false,
+      persistence: 'localStorage',
+      enable_recording_console_log: false,
+      opt_out_capturing_by_default: true,
+      nonce,
+      bootstrap: {
+        distinctID: undefined,
+      },
+      loaded: (client: PostHogClient) => {
+        client.reloadFeatureFlags?.()
+      },
+    } as Record<string, unknown>)
+  } else if (nonce && posthog.config) {
+    posthog.config.nonce = nonce
+  }
+
+  if (posthog.has_opted_out_capturing?.()) {
+    posthog.opt_in_capturing?.()
+    posthog.reloadFeatureFlags?.()
+  }
+
+  return posthog
+}
+
+export function PostHogProvider({
+  children,
+  nonce,
+}: {
+  children: React.ReactNode
+  nonce?: string
+}) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const [consentGranted, setConsentGranted] = useState(false)
+  const [consentVersion, setConsentVersion] = useState(0)
+  const [currentSearch, setCurrentSearch] = useState('')
 
-  // Listen for consent-granted event to trigger tracking immediately
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const updateSearch = () => {
+      setCurrentSearch(window.location.search)
+    }
+
+    const notifyLocationChange = () => {
+      window.dispatchEvent(new Event('posthog-location-change'))
+    }
+
+    const originalPushState = window.history.pushState
+    const originalReplaceState = window.history.replaceState
+
+    window.history.pushState = function (...args) {
+      originalPushState.apply(this, args)
+      notifyLocationChange()
+    }
+
+    window.history.replaceState = function (...args) {
+      originalReplaceState.apply(this, args)
+      notifyLocationChange()
+    }
+
+    updateSearch()
+    window.addEventListener('popstate', updateSearch)
+    window.addEventListener('posthog-location-change', updateSearch)
+
+    return () => {
+      window.history.pushState = originalPushState
+      window.history.replaceState = originalReplaceState
+      window.removeEventListener('popstate', updateSearch)
+      window.removeEventListener('posthog-location-change', updateSearch)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (getStoredConsent() === 'all') {
+      void bootstrapPostHog(nonce)
+    }
+  }, [nonce])
+
   useEffect(() => {
     const handleConsentGranted = () => {
-      console.log('Consent granted event received, triggering tracking...');
-      setConsentGranted(prev => !prev); // Toggle to trigger effect re-runs
-    };
+      setConsentVersion((version) => version + 1)
+      void bootstrapPostHog(nonce)
+    }
 
-    window.addEventListener('posthog-consent-granted', handleConsentGranted);
+    window.addEventListener('posthog-consent-granted', handleConsentGranted)
     return () => {
-      window.removeEventListener('posthog-consent-granted', handleConsentGranted);
-    };
-  }, []);
+      window.removeEventListener('posthog-consent-granted', handleConsentGranted)
+    }
+  }, [nonce])
 
-  // Handle user identification based on auth state - ONLY if user has consented
   useEffect(() => {
     const handleUserIdentification = async () => {
-      if (!posthog.__loaded) return;
+      if (getStoredConsent() !== 'all') {
+        return
+      }
 
-      // GDPR: Only identify users if they have consented to tracking
-      if (!posthog.has_opted_in_capturing?.()) {
-        console.log('User has not consented to tracking, skipping identification');
-        return;
+      const posthog = await bootstrapPostHog(nonce)
+      if (!posthog?.has_opted_in_capturing?.()) {
+        return
       }
 
       try {
-        const { createClient } = await import('@/utils/supabase/client');
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { createClient } = await import('@/utils/supabase/client')
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-        const currentDistinctId = posthog.get_distinct_id();
-
-        if (user) {
-          // User is authenticated - identify them if not already identified correctly
-          if (!currentDistinctId || currentDistinctId !== user.id) {
-            posthog.identify(user.id, {
-              email: user.email,
-              user_type: 'authenticated',
-              is_anonymous: false,
-            });
-          }
+        const currentDistinctId = posthog.get_distinct_id?.()
+        if (user && currentDistinctId !== user.id) {
+          posthog.identify(user.id, {
+            email: user.email,
+            user_type: 'authenticated',
+            is_anonymous: false,
+          })
         }
-        // Note: Anonymous tracking for documentation pages removed for GDPR compliance
-        // Users must accept cookies before any tracking occurs
       } catch (error) {
-        console.error('Error handling user identification for PostHog:', error);
+        console.error('Error handling PostHog identification:', error)
       }
-    };
+    }
 
-    handleUserIdentification();
-  }, [pathname, consentGranted]); // Re-run when consent is granted
+    void handleUserIdentification()
+  }, [pathname, consentVersion, nonce])
 
-  // Track pageviews
   useEffect(() => {
     const trackPageview = async () => {
-      if (!pathname || !posthog.has_opted_in_capturing?.()) return;
-
-      let url = window.origin + pathname;
-      if (searchParams.toString()) {
-        url = url + `?${searchParams.toString()}`;
+      if (!pathname || getStoredConsent() !== 'all') {
+        return
       }
 
-      // Determine user type by checking actual auth state
-      let isAuthenticated = false;
+      const posthog = await bootstrapPostHog(nonce)
+      if (!posthog?.has_opted_in_capturing?.()) {
+        return
+      }
+
+      let isAuthenticated = false
+
       try {
-        const { createClient } = await import('@/utils/supabase/client');
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        isAuthenticated = !!user;
+        const { createClient } = await import('@/utils/supabase/client')
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        isAuthenticated = !!user
       } catch {
-        // If we can't check auth, assume anonymous
-        isAuthenticated = false;
+        isAuthenticated = false
       }
 
-      const isDocPage = pathname.startsWith('/dokumentation');
+      const url = currentSearch
+        ? `${window.location.origin}${pathname}${currentSearch}`
+        : `${window.location.origin}${pathname}`
 
       posthog.capture('$pageview', {
         $current_url: url,
         user_type: isAuthenticated ? 'authenticated' : 'anonymous',
         is_anonymous: !isAuthenticated,
-        page_type: isDocPage ? 'documentation' : 'other'
-      });
-    };
+        page_type: pathname.startsWith('/dokumentation') ? 'documentation' : 'other',
+      })
+    }
 
-    trackPageview();
-  }, [pathname, searchParams, consentGranted]); // Re-run when consent is granted
+    void trackPageview()
+  }, [pathname, currentSearch, consentVersion, nonce])
 
-  // Handle login tracking from auth callback
   useEffect(() => {
-    const loginSuccess = searchParams.get('login_success')
-    const provider = searchParams.get('provider')
+    const params = new URLSearchParams(currentSearch)
+    const loginSuccess = params.get('login_success')
+    const provider = params.get('provider')
 
-    if (loginSuccess === 'true' && posthog.has_opted_in_capturing?.()) {
-      // Get user info from Supabase client
-      import('@/utils/supabase/client').then(({ createClient }) => {
-        const supabase = createClient()
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user) {
-            // Identify user and track login event
-            // Include user_type and is_anonymous for consistency with main identification
-            posthog.identify(user.id, {
-              email: user.email,
-              name: user.user_metadata?.name || '',
-              user_type: 'authenticated',
-              is_anonymous: false,
-            })
+    if (loginSuccess !== 'true' || getStoredConsent() !== 'all') {
+      return
+    }
 
-            posthog.capture('user_logged_in', {
-              provider: provider || 'email',
-              last_sign_in: new Date().toISOString(),
-            })
-          }
-        })
+    const trackLogin = async () => {
+      const posthog = await bootstrapPostHog(nonce)
+      if (!posthog?.has_opted_in_capturing?.()) {
+        return
+      }
+
+      const { createClient } = await import('@/utils/supabase/client')
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        return
+      }
+
+      posthog.identify(user.id, {
+        email: user.email,
+        name: user.user_metadata?.name || '',
+        user_type: 'authenticated',
+        is_anonymous: false,
       })
 
-      // Clean up URL params
+      posthog.capture('user_logged_in', {
+        provider: provider || 'email',
+        last_sign_in: new Date().toISOString(),
+      })
+
       const newUrl = new URL(window.location.href)
       newUrl.searchParams.delete('login_success')
       newUrl.searchParams.delete('provider')
       window.history.replaceState({}, '', newUrl.toString())
     }
-  }, [searchParams])
+
+    void trackLogin()
+  }, [currentSearch, consentVersion, nonce])
 
   return <>{children}</>
-}
-
-export function PostHogProvider({ children, nonce }: { children: React.ReactNode, nonce?: string }) {
-  const [isPostHogReady, setIsPostHogReady] = useState(false);
-
-  useEffect(() => {
-    // Check if PostHog is ready, and if not, try to initialize it
-    const checkPostHogReady = async () => {
-      if (posthog.__loaded) {
-        setIsPostHogReady(true);
-        return;
-      }
-
-      // Try to initialize if not already done, passing nonce
-      await initializePostHog(nonce);
-
-      // Check again after initialization attempt
-      if (posthog.__loaded) {
-        setIsPostHogReady(true);
-      } else {
-        // If still not ready, set a timeout to check again
-        setTimeout(() => {
-          if (posthog.__loaded) {
-            setIsPostHogReady(true);
-          }
-        }, 1000);
-      }
-    };
-
-    checkPostHogReady();
-  }, [nonce]); // Re-run if nonce changes (unlikely)
-
-  return (
-    <PHProvider client={posthog}>
-      <Suspense fallback={children}>
-        <PostHogTracking>{children}</PostHogTracking>
-      </Suspense>
-    </PHProvider>
-  )
 }

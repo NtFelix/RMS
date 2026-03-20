@@ -27,8 +27,7 @@ import {
 
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
-import { getPostHogServer } from '@/app/posthog-server.mjs';
-import { posthogLogger } from '@/lib/posthog-logger';
+import { captureServerEvent } from '@/lib/posthog-server-events';
 
 /**
  * Gets the most recent water reading for each apartment from a list of readings
@@ -233,8 +232,7 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
 
   try {
-    const posthog = getPostHogServer();
-    await posthog.capture({
+    await captureServerEvent({
       distinctId: user.id,
       event: 'betriebskosten_calculated',
       properties: {
@@ -244,10 +242,6 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
         source: 'server_action'
       }
     });
-    await Promise.all([
-      posthog.flush(),
-      posthogLogger.flush()
-    ]);
     logger.info(`[PostHog] Capturing betriebskosten event for user: ${user.id}`);
   } catch (phError) {
     logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
@@ -2431,4 +2425,3 @@ export async function createAbrechnungCalculationOptimizedAction(
     };
   }
 }
-

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import posthog from 'posthog-js';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -16,28 +15,30 @@ export function CookieConsentBanner() {
     }
   }, []);
 
-  const handleAccept = (level: 'necessary' | 'all') => {
+  const handleAccept = async (level: 'necessary' | 'all') => {
     localStorage.setItem('cookieConsent', level);
     setVisible(false);
 
-    // Here you can add additional logic based on the consent level
-    // For example, initializing analytics only if 'all' is accepted
     if (level === 'all') {
-      // Opt-in PostHog capturing and ensure feature flags are available immediately
-      if (posthog?.opt_in_capturing) {
-        posthog.opt_in_capturing();
-        // Force reload feature flags and record consent
-        posthog.reloadFeatureFlags?.();
-        posthog.capture('consent_accepted', { level: 'all' });
-        console.log('PostHog consent accepted and feature flags reloaded');
-
-        // Dispatch custom event to trigger immediate tracking without page reload
-        window.dispatchEvent(new CustomEvent('posthog-consent-granted'));
+      try {
+        const posthog = (await import('posthog-js')).default;
+        if (posthog?.opt_in_capturing) {
+          posthog.opt_in_capturing();
+          posthog.reloadFeatureFlags?.();
+          posthog.capture('consent_accepted', { level: 'all' });
+        }
+      } catch (error) {
+        console.error('Failed to opt in PostHog after consent:', error);
       }
+
+      window.dispatchEvent(new CustomEvent('posthog-consent-granted'));
     } else {
-      // Ensure analytics are disabled when only necessary cookies are accepted
-      posthog?.opt_out_capturing?.();
-      console.log('PostHog tracking disabled - only necessary cookies accepted');
+      try {
+        const posthog = (await import('posthog-js')).default;
+        posthog?.opt_out_capturing?.();
+      } catch {
+        // No-op: PostHog is intentionally not loaded before consent in most cases.
+      }
     }
   };
 

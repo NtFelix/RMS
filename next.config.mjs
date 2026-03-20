@@ -1,5 +1,12 @@
 import { withPostHogConfig } from "@posthog/nextjs-config";
 
+const withBundleAnalyzer =
+  process.env.ANALYZE === "true"
+    ? (await import("@next/bundle-analyzer")).default({
+        enabled: true,
+      })
+    : (config) => config;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -61,8 +68,10 @@ const nextConfig = {
   },
 };
 
-export default withPostHogConfig(nextConfig, {
-  personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY,
-  envId: process.env.POSTHOG_ENV_ID,
-  host: process.env.POSTHOG_HOST,
-});
+export default withBundleAnalyzer(
+  withPostHogConfig(nextConfig, {
+    personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY,
+    envId: process.env.POSTHOG_ENV_ID,
+    host: process.env.POSTHOG_HOST,
+  }),
+);

@@ -5,9 +5,8 @@ import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
 import { logAction } from '@/lib/logging-middleware';
-import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
-import { posthogLogger } from '@/lib/posthog-logger';
+import { captureServerEvent } from '@/lib/posthog-server-events';
 
 interface WohnungPayload {
   name: string;
@@ -206,10 +205,9 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
     });
 
     try {
-      const posthog = getPostHogServer();
       const eventName = id ? 'property_updated' : 'property_created';
 
-      await posthog.capture({
+      await captureServerEvent({
         distinctId: user.id || 'unknown',
         event: eventName,
         properties: {
@@ -221,10 +219,6 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
           source: 'server_action'
         }
       });
-      await Promise.all([
-        posthog.flush(),
-        posthogLogger.flush()
-      ]);
       logger.info(`[PostHog] Capturing event: ${eventName} for user: ${user.id}`);
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
