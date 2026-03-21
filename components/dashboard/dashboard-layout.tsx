@@ -6,10 +6,13 @@ import { useState, useEffect } from "react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
+import { useAIChatStore } from "@/hooks/use-ai-chat-store"
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const { isOpen, displayMode } = useAIChatStore()
+  const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile
 
   // Prevent hydration errors and handle responsive behavior
   useEffect(() => {
@@ -112,7 +115,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           "p-6 md:p-6",
           "pt-6 md:pt-6",
           // JavaScript-enhanced responsive padding
-          isMobile ? "pb-20 pt-6" : "pb-6 pt-6"
+          isMobile ? "pb-20 pt-6" : "pb-6 pt-6",
+          // Push mode: shift content by adding right margin matching sidebar width
+          isPushMode && "md:mr-[450px]"
         )}>
           <div className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden border shadow-sm",
