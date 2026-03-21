@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 import { ROUTES } from "@/lib/constants"
 import { createClient } from "@/utils/supabase/server"
+import { isTestEnv } from "@/lib/test-utils"
 
 function buildLoginRedirect(pathname: string | null, search: string | null) {
   if (!pathname) {
@@ -33,6 +34,11 @@ export async function requireAuthenticatedUser() {
 
 export async function requireActiveSubscription() {
   const { supabase, user } = await requireAuthenticatedUser()
+
+  // Skip subscription check in E2E tests (test users don't have Stripe subscriptions)
+  if (isTestEnv()) {
+    return { supabase, user, profile: null }
+  }
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
@@ -77,7 +83,7 @@ export async function redirectAuthenticatedAuthRoute() {
   const pathname = requestHeaders.get("x-current-pathname")
   const search = requestHeaders.get("x-current-search")
 
-  if (pathname?.startsWith(ROUTES.LOGIN)) {
+  if (!pathname || pathname.startsWith(ROUTES.LOGIN)) {
     return
   }
 

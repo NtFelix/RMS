@@ -43,6 +43,10 @@ const ZaehlerModal = dynamic(
   () => import("@/components/meters/zaehler-modal").then((mod) => mod.ZaehlerModal),
   { ssr: false },
 )
+const WasserzaehlerModal = dynamic(
+  () => import("@/components/water-meters/wasserzaehler-modal").then((mod) => mod.WasserzaehlerModal),
+  { ssr: false },
+)
 const KautionModal = dynamic(
   () => import("@/components/tenants/kaution-modal").then((mod) => mod.KautionModal),
   { ssr: false },
@@ -170,6 +174,7 @@ export default function DashboardOverlayHost() {
       <AufgabeEditModal serverAction={aufgabeServerAction} />
       <BetriebskostenEditModal />
       <ZaehlerModal />
+      <WasserzaehlerModal />
       <AblesungenModal />
       <KautionModal serverAction={updateKautionAction} />
       <HausOverviewModal />

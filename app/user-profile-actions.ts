@@ -96,17 +96,21 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
   }
 }
 
-export async function getBillingAddress(stripeCustomerId: string) {
+export async function getBillingAddress(
+  stripeCustomerId: string
+): ReturnType<typeof getBillingAddressAction> {
   return getBillingAddressAction(stripeCustomerId);
 }
 
 export async function updateBillingAddress(
   stripeCustomerId: string,
   details: Parameters<typeof updateBillingAddressAction>[1],
-) {
+): ReturnType<typeof updateBillingAddressAction> {
   return updateBillingAddressAction(stripeCustomerId, details);
 }
 
-export async function createSetupIntent(stripeCustomerId: string) {
+export async function createSetupIntent(
+  stripeCustomerId: string
+): ReturnType<typeof createSetupIntentAction> {
   return createSetupIntentAction(stripeCustomerId);
 }
