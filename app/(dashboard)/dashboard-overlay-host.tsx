@@ -1,6 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import { useCallback } from "react"
 import { CommandMenu } from "@/components/search/command-menu"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { useModalStore } from "@/hooks/use-modal-store"
@@ -148,6 +149,12 @@ export default function DashboardOverlayHost() {
     closeTenantMailTemplatesModal,
   } = useModalStore()
 
+  const handleConfirm = useCallback(() => {
+    if (confirmationModalConfig?.onConfirm) {
+      confirmationModalConfig.onConfirm()
+    }
+  }, [confirmationModalConfig?.onConfirm])
+
   return (
     <>
       <CommandMenu />
@@ -251,11 +258,7 @@ export default function DashboardOverlayHost() {
         <ConfirmationDialog
           isOpen={isConfirmationModalOpen}
           onClose={closeConfirmationModal}
-          onConfirm={() => {
-            if (confirmationModalConfig.onConfirm) {
-              confirmationModalConfig.onConfirm()
-            }
-          }}
+          onConfirm={handleConfirm}
           title={confirmationModalConfig.title}
           description={confirmationModalConfig.description}
           confirmText={confirmationModalConfig.confirmText}

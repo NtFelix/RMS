@@ -6,8 +6,12 @@ import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
 let stripeClient: Stripe | null = null;
 function getStripe(): Stripe {
+  // Note: On Cloudflare Workers, module scope is not shared across requests.
+  // This singleton only benefits Node.js environments.
   if (!stripeClient) {
-    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+    stripeClient = new Stripe(key, STRIPE_CONFIG);
   }
   return stripeClient;
 }

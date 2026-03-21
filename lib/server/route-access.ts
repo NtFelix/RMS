@@ -42,6 +42,8 @@ export async function requireActiveSubscription() {
 
   if (profileError) {
     console.error("Error fetching profile for subscription check:", profileError)
+    // Note: redirect() only works in Server Components/Layouts, not API routes.
+    // Do not call this function from API route handlers.
     redirect("/subscription-locked?reason=profile_error")
   }
 
@@ -89,7 +91,7 @@ export async function redirectAuthenticatedAuthRoute() {
     if (search) {
       const searchParams = new URLSearchParams(search)
       const redirectParam = searchParams.get("redirect")
-      if (redirectParam && redirectParam.startsWith("/")) {
+      if (redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")) {
         redirectTarget = redirectParam
       }
     }

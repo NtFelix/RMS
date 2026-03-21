@@ -11,6 +11,7 @@ const MANAGED_ROUTE_PREFIXES = [
   "/todos",
   "/mails",
   "/dateien",
+  "/oauth",
   "/checkout/success",
   "/hilfe/dokumentation",
 ]
