@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { updateBillingAddress, getBillingAddress } from "@/app/user-profile-actions";
+import { updateBillingAddress, getBillingAddress } from "@/app/user-billing-actions";
 import { z } from "zod";
 
 export const runtime = 'edge';
@@ -201,4 +201,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-
