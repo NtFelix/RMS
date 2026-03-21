@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight, Copy, Check, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight, Copy, Check, RotateCcw, ChevronLeft, ChevronRight, Square, Columns } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useAIChatStore } from "@/hooks/use-ai-chat-store";
 // @ts-ignore - useThumbSurvey is available in recent posthog-js/react but types might be lagging
 import { useThumbSurvey } from 'posthog-js/react/surveys'
 import type { LLMStep, StepType, ToolCallRecord } from '@/types/llm-steps';
@@ -408,7 +409,8 @@ function PostHogFeedback({
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
   
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, setIsOpen, displayMode, toggleDisplayMode, toggleOpen } = useAIChatStore();
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -461,7 +463,7 @@ export function AIChatSidebar() {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
         e.preventDefault();
-        setIsOpen(prev => !prev);
+        toggleOpen();
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -500,7 +502,7 @@ export function AIChatSidebar() {
         current_page: pathname,
       });
     }
-    setIsOpen(!isOpen);
+    toggleOpen();
   };
 
   const clearChat = () => {
@@ -791,6 +793,15 @@ export function AIChatSidebar() {
                   className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5 hover:text-destructive' : 'hover:bg-black/5 hover:text-red-500 text-muted-foreground'}`}
                 >
                   <Trash2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleDisplayMode}
+                  title={displayMode === 'push' ? "Zu Overlay wechseln" : "Zu Push wechseln"}
+                  className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5 text-muted-foreground'}`}
+                >
+                  {displayMode === 'push' ? <Square className="w-4 h-4" /> : <Columns className="w-4 h-4" />}
                 </Button>
                 <Button
                   variant="ghost"

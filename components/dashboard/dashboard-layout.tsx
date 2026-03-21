@@ -6,14 +6,15 @@ import { usePathname } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
-import { SidebarUserData } from "@/lib/server/user-data"
+import type { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
+import { useAIChatStore } from "@/hooks/use-ai-chat-store"
 
-export function DashboardLayout({ 
+export function DashboardLayout({
   children,
   sidebarData
-}: { 
+}: {
   children: React.ReactNode
   sidebarData: SidebarUserData
 }) {
@@ -21,6 +22,8 @@ export function DashboardLayout({
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const { preference } = useSidebarStore()
+  const { isOpen, displayMode } = useAIChatStore()
+  const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile
 
   // Prevent hydration errors and handle responsive behavior
   useEffect(() => {
@@ -109,7 +112,7 @@ export function DashboardLayout({
     <TaskDndProvider>
       <div className="flex min-h-screen bg-background w-full max-w-full">
         {/* Desktop sidebar */}
-        <div 
+        <div
           className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
           style={{
             width: preference === 'expanded' ? "16rem" : "5rem"
@@ -118,9 +121,26 @@ export function DashboardLayout({
           <DashboardSidebar sidebarData={sidebarData} />
         </div>
 
-        <div className="flex flex-1 flex-col min-w-0">
-          <main className={cn(
-            "flex flex-1 flex-col min-h-0 min-w-0",
+        <div className="flex flex-1 flex-col overflow-hidden">
+
+        <main className={cn(
+          "flex flex-1 flex-col min-h-0",
+          // Enhanced responsive padding with CSS-only fallbacks
+          "main-content-responsive",
+          "responsive-transition",
+          // Responsive padding: no top padding on mobile since header is hidden
+          "p-6 md:p-6",
+          "pt-6 md:pt-6",
+          // JavaScript-enhanced responsive padding
+          isMobile ? "pb-20 pt-6" : "pb-6 pt-6",
+          // Push mode: shift content by adding right margin matching sidebar width
+          isPushMode && "md:mr-[450px]"
+        )}>
+          <div className={cn(
+            "flex-1 overflow-y-auto overflow-x-hidden border shadow-sm",
+            "rounded-[2rem] md:rounded-[2.5rem]",
+            // Enhanced CSS-only fallback for mobile bottom margin
+            "mb-4 md:mb-0",
             "responsive-transition",
             "p-4"
           )}>
