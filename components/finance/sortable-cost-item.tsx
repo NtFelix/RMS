@@ -91,15 +91,15 @@ export function SortableCostItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex flex-col gap-2 p-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-xl ${isDragging ? 'z-10 shadow-lg bg-white dark:bg-gray-800' : ''}`}
+      className={`flex flex-col gap-2 p-3 bg-gray-50/50 dark:bg-gray-900/10 border border-gray-200 dark:border-gray-800 rounded-[2rem] ${isDragging ? 'z-10 shadow-lg bg-white dark:bg-gray-800' : ''}`}
       role="group"
       aria-label={`Kostenposition ${index + 1}`}
     >
       <div className="flex flex-col sm:flex-row items-start gap-2">
-        <div className="flex items-center justify-center flex-none w-8 h-10">
+        <div className="flex items-center justify-center flex-none w-10 h-10">
           <button
             type="button"
-            className="cursor-grab active:cursor-grabbing p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600"
+            className="cursor-grab active:cursor-grabbing p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors flex items-center justify-center w-10 h-10 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
             {...attributes}
             {...listeners}
             aria-label="Kostenposition verschieben"
@@ -114,11 +114,12 @@ export function SortableCostItem({
             value={item.art}
             onChange={(e) => onCostItemChange(index, 'art', e.target.value)}
             disabled={isSaving}
+            className="rounded-2xl h-10"
           />
         </div>
         <div className="w-full sm:flex-[3_1_0%]">
           {item.berechnungsart === 'nach Rechnung' ? (
-            <div className="flex items-center justify-center h-10 px-3 py-2 text-sm text-muted-foreground bg-gray-50 border rounded-md">
+            <div className="flex items-center justify-center h-10 px-3 py-2 text-sm text-muted-foreground bg-gray-50 border rounded-2xl">
               Beträge pro Mieter unten
             </div>
           ) : (
@@ -129,6 +130,7 @@ export function SortableCostItem({
               onChange={(e) => onCostItemChange(index, 'betrag', e.target.value)}
               step="0.01"
               disabled={isSaving}
+              className="rounded-2xl h-10"
             />
           )}
         </div>
@@ -148,6 +150,7 @@ export function SortableCostItem({
               onFocus={(e) => item.berechnungsart && onItemHover(e, item.berechnungsart as BerechnungsartValue)}
               onBlur={onItemLeave}
               ref={selectTriggerRef}
+              className="rounded-2xl h-10"
             >
               <SelectValue placeholder="Berechnungsart" />
             </SelectTrigger>
@@ -189,15 +192,15 @@ export function SortableCostItem({
             onClick={() => onRemoveCostItem(index)}
             disabled={costItems.length <= 1 || isLoadingDetails || isSaving}
             aria-label="Kostenposition entfernen"
-            className="h-8 w-8"
+            className="h-10 w-10 rounded-full text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive transition-colors"
           >
-            <Trash2 className="h-4 w-4 text-destructive" />
+            <Trash2 className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
       {item.berechnungsart === 'nach Rechnung' && (
-        <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-xl space-y-2">
+        <div className="mt-2 p-3 bg-gray-100/50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/60 rounded-[2rem] space-y-2">
           <h4 className="text-md font-semibold text-gray-800 dark:text-gray-200">
             Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
           </h4>
@@ -237,6 +240,7 @@ export function SortableCostItem({
                             value={rechnungForMieter?.betrag || ''}
                             onChange={(e) => onRechnungChange(item.id, mieter.id, e.target.value)}
                             disabled={isLoadingDetails || isSaving}
+                            className="rounded-2xl h-9"
                           />
                         </div>
                       </div>
