@@ -11,9 +11,20 @@ async function initializePostHog(nonce?: string) {
     return;
   }
 
-  let config = {
+  const pick = <T,>(...values: Array<T | undefined | null>) =>
+    values.find((value) => value !== undefined && value !== null);
+
+  const defaultHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || '/assets/v2';
+  const defaultUiHost = process.env.NEXT_PUBLIC_POSTHOG_UI_HOST || 'https://eu.posthog.com';
+
+  let config: {
+    key?: string;
+    host?: string;
+    uiHost?: string;
+  } = {
     key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-    host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
+    host: defaultHost,
+    uiHost: defaultUiHost,
   };
 
   // If client-side env vars are not available, try to fetch from API
@@ -23,7 +34,11 @@ async function initializePostHog(nonce?: string) {
       const response = await fetch('/api/posthog-config');
       if (response.ok) {
         const apiConfig = await response.json();
-        config = apiConfig;
+        config = {
+          key: pick(apiConfig.key, apiConfig.apiKey, apiConfig.api_key, config.key),
+          host: pick(apiConfig.host, apiConfig.apiHost, apiConfig.api_host, config.host),
+          uiHost: pick(apiConfig.uiHost, apiConfig.ui_host, config.uiHost),
+        };
         console.log('PostHog config fetched from API');
       } else {
         console.warn('Failed to fetch PostHog config from API');
@@ -41,6 +56,7 @@ async function initializePostHog(nonce?: string) {
       hasWindow: typeof window !== 'undefined',
       posthogKey: config.key ? config.key.substring(0, 10) + '...' : 'undefined',
       posthogHost: config.host,
+      posthogUiHost: config.uiHost,
       nodeEnv: process.env.NODE_ENV
     });
     return;
@@ -52,6 +68,7 @@ async function initializePostHog(nonce?: string) {
   // This applies to ALL pages including landing and documentation pages
   posthog.init(config.key, {
     api_host: config.host,
+    ui_host: config.uiHost,
     capture_pageview: false, // We'll handle this manually
     persistence: 'localStorage',
     enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings

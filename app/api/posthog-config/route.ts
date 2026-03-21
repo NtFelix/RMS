@@ -3,11 +3,12 @@ import { NextResponse } from 'next/server'
 export const runtime = 'edge'
 
 export async function GET() {
-  // Return PostHog configuration from server-side environment variables
-  // Use the exact names from Cloudflare: POSTHOG_API_KEY, POSTHOG_HOST, POSTHOG_ENV_ID
+  // Return PostHog configuration for the browser without leaking server-only host.
+  // Use the exact names from Cloudflare: POSTHOG_API_KEY, POSTHOG_ENV_ID
   const config = {
     key: process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY,
-    host: process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com',
+    host: process.env.NEXT_PUBLIC_POSTHOG_HOST || '/assets/v2',
+    ui_host: process.env.NEXT_PUBLIC_POSTHOG_UI_HOST || 'https://eu.posthog.com',
     envId: process.env.POSTHOG_ENV_ID
   }
 
