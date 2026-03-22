@@ -237,10 +237,24 @@ ${pageContext}`;
                 if (call.name === "get_houses") {
                   const limit = Number(call.args?.limit) || 10;
                   const { data, error } = await supabase.from('Haeuser')
-                    .select('id, name, strasse, plz, ort, groesse')
+                    .select('id, name, strasse, plz, ort, groesse, Wohnungen(groesse)')
                     .limit(limit);
+                  
                   if (error) toolError = error.message;
-                  result = error ? { error: error.message } : { data: data || [] };
+                  
+                  const processedData = data?.map((h: any) => {
+                    const { Wohnungen, ...house } = h;
+                    let finalGroesse = house.groesse;
+                    
+                    // If groesse is null (automatic), sum up the apartment sizes
+                    if (finalGroesse === null && Array.isArray(Wohnungen)) {
+                      finalGroesse = Wohnungen.reduce((acc: number, w: any) => acc + (Number(w.groesse) || 0), 0);
+                    }
+                    
+                    return { ...house, groesse: finalGroesse };
+                  });
+
+                  result = error ? { error: error.message } : { data: processedData || [] };
                 } 
                 else if (call.name === "get_apartments") {
                   let query = supabase.from('Wohnungen').select('id, name, groesse, miete, haus_id, Haeuser(name)');
