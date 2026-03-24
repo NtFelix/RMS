@@ -162,6 +162,7 @@ export default function DashboardOverlayHost() {
   return (
     <>
       <CommandMenu />
+      {/* Modals that manage their own open/close state internally */}
       <TenantEditModal serverAction={tenantServerAction} />
       <HouseEditModal serverAction={houseServerAction} />
       <FinanceEditModal serverAction={financeServerAction} />
@@ -181,6 +182,8 @@ export default function DashboardOverlayHost() {
       <WohnungOverviewModal />
       <ApartmentTenantDetailsModal />
       <FileUploadModal />
+
+      {/* Modals that require external data passed as props at mount time */}
       {isFileRenameModalOpen && fileRenameData && (
         <FileRenameModal
           isOpen={isFileRenameModalOpen}

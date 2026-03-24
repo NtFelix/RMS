@@ -1,6 +1,7 @@
 import { headers } from "next/headers"
+import { NextResponse } from "next/server"
 import { redirect } from "next/navigation"
-import type { User } from "@supabase/supabase-js"
+import type { User, SupabaseClient } from "@supabase/supabase-js"
 import { ROUTES } from "@/lib/constants"
 import { createClient } from "@/utils/supabase/server"
 import { isTestEnv } from "@/lib/test-utils"
@@ -112,4 +113,15 @@ export async function redirectAuthenticatedAuthRoute() {
     }
     redirect(redirectTarget)
   }
+}
+
+export async function requireAuthenticatedUserForApi(): Promise<
+  { supabase: SupabaseClient; user: User } | NextResponse
+> {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+  return { supabase, user }
 }
