@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { updateSession } from "@/utils/supabase/middleware"
 
 const MANAGED_ROUTE_PREFIXES = [
   "/auth",
@@ -64,6 +65,9 @@ export async function middleware(request: NextRequest) {
       headers: requestHeaders,
     },
   })
+
+  // Ensure Supabase session cookies are refreshed for prolonged client-side idling
+  await updateSession(request, response)
 
   // Add security headers
   response.headers.set('X-Frame-Options', 'DENY')
