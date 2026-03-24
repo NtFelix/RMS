@@ -19,6 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAIChatStore } from "@/hooks/use-ai-chat-store";
@@ -409,7 +418,7 @@ function PostHogFeedback({
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
   
-  const { isOpen, setIsOpen, displayMode, toggleDisplayMode, toggleOpen } = useAIChatStore();
+  const { isOpen, setIsOpen, displayMode, toggleDisplayMode, toggleOpen, enabledToolIds, toggleTool } = useAIChatStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -592,6 +601,7 @@ export function AIChatSidebar() {
           pathname,
           sessionId,
           model: selectedModel,
+          enabledToolIds,
         }),
       });
 
@@ -1014,14 +1024,51 @@ export function AIChatSidebar() {
                     >
                       <Plus className="w-5 h-5" />
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className={`rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
-                    >
-                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="21" y2="21"/><line x1="4" x2="20" y1="14" y2="14"/><line x1="4" x2="20" y1="7" y2="7"/><circle cx="8" cy="21" r="1"/><circle cx="16" cy="14" r="1"/><circle cx="8" cy="7" r="1"/></svg>
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className={`rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+                          title="KI-Werkzeuge konfigurieren"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="21" y2="21"/><line x1="4" x2="20" y1="14" y2="14"/><line x1="4" x2="20" y1="7" y2="7"/><circle cx="8" cy="21" r="1"/><circle cx="16" cy="14" r="1"/><circle cx="8" cy="7" r="1"/></svg>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className={`w-[200px] p-1.5 border-border/10 shadow-xl rounded-xl ${isDark ? 'bg-[#1A1A1A] text-white' : 'bg-white'}`}>
+                        <DropdownMenuLabel className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-2">
+                          KI-Werkzeuge
+                        </DropdownMenuLabel>
+                        <div className="space-y-0.5">
+                          {[
+                            { id: 'get_houses', label: 'Häuser', icon: <Database className="w-4 h-4" /> },
+                            { id: 'get_apartments', label: 'Wohnungen', icon: <Search className="w-4 h-4" /> },
+                            { id: 'get_tenants', label: 'Mieter', icon: <Sparkles className="w-4 h-4" /> },
+                            { id: 'get_finances', label: 'Finanzen', icon: <Terminal className="w-4 h-4" /> },
+                            { id: 'get_tasks', label: 'Aufgaben', icon: <CheckCircle className="w-4 h-4" /> },
+                            { id: 'get_nebenkosten', label: 'Nebenkosten', icon: <Brain className="w-4 h-4" /> },
+                          ].map((tool) => (
+                            <div 
+                              key={tool.id} 
+                              className={`flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div className="text-muted-foreground">
+                                  {tool.icon}
+                                </div>
+                                <span className="text-[13px] font-medium">{tool.label}</span>
+                              </div>
+                              <Switch 
+                                checked={enabledToolIds.includes(tool.id as any)}
+                                onCheckedChange={() => toggleTool(tool.id as any)}
+                                className="scale-75"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                   
                   <div className="flex items-center gap-2">
