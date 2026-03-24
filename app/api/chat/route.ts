@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Parse Request Body
     const body = await req.json();
-    const { message, history = [], pathname, sessionId, model = "gemini-3.1-flash-lite-preview", attachment } = body;
+    const { message, history = [], pathname, sessionId, model = "gemini-3.1-flash-lite-preview", attachment, enabledToolIds } = body;
 
     if (!message || !pathname || !sessionId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -62,8 +62,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
 ${pageContext}`;
 
     // 6. Define Tools
-    const tools: any[] = [{
-      functionDeclarations: [
+    const allFunctionDeclarations = [
         {
           name: "get_houses",
           description: "Get a list of all houses (properties/Häuser) managed by the user.",
@@ -136,8 +135,15 @@ ${pageContext}`;
             }
           }
         }
-      ]
-    }];
+    ];
+
+    const filteredFunctions = allFunctionDeclarations.filter(f => 
+      !enabledToolIds || (Array.isArray(enabledToolIds) && enabledToolIds.includes(f.name))
+    );
+
+    const tools: any[] = filteredFunctions.length > 0 
+      ? [{ functionDeclarations: filteredFunctions }] 
+      : [];
 
     // 7. Create Chat with History, System Prompt & Tools
     const chat = client.chats.create({
