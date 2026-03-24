@@ -88,7 +88,9 @@ export async function getBillingAddress(
       return { error: 'Customer not found' };
     }
 
-    const companyName = customer.metadata?.company_name || '';
+    // Support fallback to legacy `business_name` mapping on customer object
+    const legacyCustomer = customer as Stripe.Customer & { business_name?: string };
+    const companyName = customer.metadata?.company_name || legacyCustomer.business_name || '';
 
     if (!customer.address) {
       return {

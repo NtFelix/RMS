@@ -55,6 +55,7 @@ export default function DashboardOverlayLoader() {
     state.isAIAssistantModalOpen ||
     state.isTenantPaymentEditModalOpen ||
     state.isTenantPaymentOverviewModalOpen ||
+    state.isWasserzaehlerModalOpen ||
     state.isAblesungenModalOpen ||
     state.isZaehlerModalOpen
   )

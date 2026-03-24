@@ -48,9 +48,9 @@ export async function requireActiveSubscription() {
 
   if (profileError) {
     console.error("Error fetching profile for subscription check:", profileError)
-    // Note: redirect() only works in Server Components/Layouts, not API routes.
-    // Do not call this function from API route handlers.
-    redirect("/subscription-locked?reason=profile_error")
+    // Throw error so Next.js error boundary catches it, rather than redirecting
+    // to a confusing subscription-locked page.
+    throw new Error("Failed to fetch user profile for subscription check. Please try again.")
   }
 
   if (
