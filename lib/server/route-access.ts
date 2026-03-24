@@ -115,6 +115,11 @@ export async function redirectAuthenticatedAuthRoute() {
   }
 }
 
+/**
+ * Checks authentication only. Subscription status is enforced via the
+ * dashboard layout. Use this for API routes that don't require a separate
+ * subscription check.
+ */
 export async function requireAuthenticatedUserForApi(): Promise<
   { supabase: SupabaseClient; user: User } | NextResponse
 > {

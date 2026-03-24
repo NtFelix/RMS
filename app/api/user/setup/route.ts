@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { updateBillingAddress, getBillingAddress } from "@/app/user-billing-actions";
+import { requireAuthenticatedUserForApi } from "@/lib/server/route-access";
 import { z } from "zod";
 
 export const runtime = 'edge';
@@ -41,14 +42,11 @@ const setupBodySchema = z.object({
  * Returns the current setup status and pre-filled data for the setup wizard
  */
 export async function GET() {
-    const supabase = await createClient();
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await requireAuthenticatedUserForApi()
+    if (authResult instanceof NextResponse) {
+        return authResult;
     }
+    const { supabase, user } = authResult;
 
     try {
         // Get profile to check setup_completed status and stripe_customer_id
@@ -100,14 +98,11 @@ export async function GET() {
  * Saves user setup data (name to auth, address to Stripe) and marks setup as complete
  */
 export async function POST(request: NextRequest) {
-    const supabase = await createClient();
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await requireAuthenticatedUserForApi()
+    if (authResult instanceof NextResponse) {
+        return authResult;
     }
+    const { supabase, user } = authResult;
 
     try {
         const body = await request.json();
