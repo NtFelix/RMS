@@ -29,35 +29,49 @@ function DashboardCommandHotkeys() {
 
 export default function DashboardOverlayLoader() {
   const commandMenuOpen = useCommandMenu((state) => state.open)
-  const shouldLoadForModal = useModalStore((state) =>
-    state.isTenantModalOpen ||
-    state.isHouseModalOpen ||
-    state.isFinanceModalOpen ||
-    state.isWohnungModalOpen ||
-    state.isAufgabeModalOpen ||
-    state.isBetriebskostenModalOpen ||
-    state.isWasserzaehlerModalOpen ||
-    state.isKautionModalOpen ||
-    state.isHausOverviewModalOpen ||
-    state.isWohnungOverviewModalOpen ||
-    state.isApartmentTenantDetailsModalOpen ||
-    state.isUploadModalOpen ||
-    state.isConfirmationModalOpen ||
-    state.isFileRenameModalOpen ||
-    state.isCreateFolderModalOpen ||
-    state.isCreateFileModalOpen ||
-    state.isFolderDeleteConfirmationModalOpen ||
-    state.isFileMoveModalOpen ||
-    state.isShareDocumentModalOpen ||
-    state.isMarkdownEditorModalOpen ||
-    state.isTemplatesModalOpen ||
-    state.isTenantMailTemplatesModalOpen ||
-    state.isAIAssistantModalOpen ||
-    state.isTenantPaymentEditModalOpen ||
-    state.isTenantPaymentOverviewModalOpen ||
-    state.isAblesungenModalOpen ||
-    state.isZaehlerModalOpen
-  )
+  const shouldLoadForModal = useModalStore((state) => {
+    const isCoreModalOpen =
+      state.isTenantModalOpen ||
+      state.isHouseModalOpen ||
+      state.isFinanceModalOpen ||
+      state.isWohnungModalOpen ||
+      state.isAufgabeModalOpen ||
+      state.isBetriebskostenModalOpen ||
+      state.isWasserzaehlerModalOpen ||
+      state.isKautionModalOpen ||
+      state.isHausOverviewModalOpen ||
+      state.isWohnungOverviewModalOpen
+
+    const isUtilityModalOpen =
+      state.isApartmentTenantDetailsModalOpen ||
+      state.isConfirmationModalOpen ||
+      state.isTenantPaymentEditModalOpen ||
+      state.isTenantPaymentOverviewModalOpen ||
+      state.isTenantMailTemplatesModalOpen ||
+      state.isTemplatesModalOpen
+
+    const isFileOrAiModalOpen =
+      state.isUploadModalOpen ||
+      state.isFileRenameModalOpen ||
+      state.isCreateFolderModalOpen ||
+      state.isCreateFileModalOpen ||
+      state.isFolderDeleteConfirmationModalOpen ||
+      state.isFileMoveModalOpen ||
+      state.isShareDocumentModalOpen ||
+      state.isMarkdownEditorModalOpen ||
+      state.isAIAssistantModalOpen
+
+    const isMeterModalOpen =
+      state.isAblesungenModalOpen ||
+      state.isZaehlerModalOpen
+
+    return (
+      isCoreModalOpen ||
+      isUtilityModalOpen ||
+      isFileOrAiModalOpen ||
+      isMeterModalOpen
+    )
+  })
   const [shouldRenderHost, setShouldRenderHost] = useState(
     commandMenuOpen || shouldLoadForModal,
   )
