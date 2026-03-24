@@ -11,7 +11,6 @@ const DashboardOverlayHost = dynamic(() => import("./dashboard-overlay-host"), {
 })
 
 function DashboardCommandHotkeys() {
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {

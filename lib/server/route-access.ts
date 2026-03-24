@@ -58,21 +58,22 @@ export async function requireActiveSubscription() {
     (profile.stripe_subscription_status !== "active" &&
       profile.stripe_subscription_status !== "trialing")
   ) {
-    const redirectUrl = new URL("/subscription-locked", "https://mietevo.de")
+    const params = new URLSearchParams()
 
     if (process.env.NODE_ENV !== "production") {
       if (!profile) {
-        redirectUrl.searchParams.set("debug_profile_status", "missing")
+        params.set("debug_profile_status", "missing")
       } else {
-        redirectUrl.searchParams.set("debug_profile_status", "exists")
-        redirectUrl.searchParams.set(
+        params.set("debug_profile_status", "exists")
+        params.set(
           "debug_stripe_status",
           profile.stripe_subscription_status || "null",
         )
       }
     }
 
-    redirect(`${redirectUrl.pathname}${redirectUrl.search}`)
+    const queryString = params.size ? `?${params.toString()}` : ""
+    redirect(`/subscription-locked${queryString}`)
   }
 
   return { supabase, user, profile }
@@ -97,8 +98,16 @@ export async function redirectAuthenticatedAuthRoute() {
     if (search) {
       const searchParams = new URLSearchParams(search)
       const redirectParam = searchParams.get("redirect")
-      if (redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")) {
-        redirectTarget = redirectParam
+      if (redirectParam) {
+        try {
+          // Parse with a dummy local origin to ensure it is strictly a relative path
+          const url = new URL(redirectParam, "http://localhost")
+          if (url.origin === "http://localhost") {
+            redirectTarget = redirectParam
+          }
+        } catch {
+          // ignore invalid URLs
+        }
       }
     }
     redirect(redirectTarget)
