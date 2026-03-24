@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight, Copy, Check, RotateCcw, ChevronLeft, ChevronRight, Square, Columns } from "lucide-react";
+import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight, Copy, Check, RotateCcw, ChevronLeft, ChevronRight, Square, Columns, Home, LayoutGrid, Users, Wallet, Receipt, Building2, CheckSquare, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -1042,12 +1042,12 @@ export function AIChatSidebar() {
                         </DropdownMenuLabel>
                         <div className="space-y-0.5">
                           {[
-                            { id: 'get_houses', label: 'Häuser', icon: <Database className="w-4 h-4" /> },
-                            { id: 'get_apartments', label: 'Wohnungen', icon: <Search className="w-4 h-4" /> },
-                            { id: 'get_tenants', label: 'Mieter', icon: <Sparkles className="w-4 h-4" /> },
-                            { id: 'get_finances', label: 'Finanzen', icon: <Terminal className="w-4 h-4" /> },
-                            { id: 'get_tasks', label: 'Aufgaben', icon: <CheckCircle className="w-4 h-4" /> },
-                            { id: 'get_nebenkosten', label: 'Nebenkosten', icon: <Brain className="w-4 h-4" /> },
+                            { id: 'get_houses', label: 'Häuser', icon: <Building2 className="w-4 h-4" /> },
+                            { id: 'get_apartments', label: 'Wohnungen', icon: <Home className="w-4 h-4" /> },
+                            { id: 'get_tenants', label: 'Mieter', icon: <Users className="w-4 h-4" /> },
+                            { id: 'get_finances', label: 'Finanzen', icon: <Wallet className="w-4 h-4" /> },
+                            { id: 'get_tasks', label: 'Aufgaben', icon: <CheckSquare className="w-4 h-4" /> },
+                            { id: 'get_nebenkosten', label: 'Betriebskosten', icon: <FileSpreadsheet className="w-4 h-4" /> },
                           ].map((tool) => (
                             <div 
                               key={tool.id} 
