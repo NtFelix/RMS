@@ -87,9 +87,12 @@ export async function middleware(request: NextRequest) {
   })
 
   // Transfer all accrued cookie mutations into the final response
-  response.headers.forEach((value, key) => {
-    finalResponse.headers.append(key, value)
-  })
+  // We strictly only transfer Set-Cookie to prevent header duplication issues
+  for (const [key, value] of response.headers.entries()) {
+    if (key.toLowerCase() === 'set-cookie') {
+      finalResponse.headers.append(key, value)
+    }
+  }
   response = finalResponse
 
   // Add security headers

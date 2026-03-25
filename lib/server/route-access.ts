@@ -19,8 +19,14 @@ function buildLoginRedirect(pathname: string | null, search: string | null) {
  * Optimized user fetcher. 
  * Reads the base64 encoded user object injected by middleware's updateSession
  * to eliminate duplicate roundtrips to the Supabase API on page navigations.
+ *
+ * SECURITY WARNING: This caching mechanism relies heavily on Next.js middleware
+ * stripping out any pre-existing `x-user-data` headers spoofed by malicious clients. 
+ * If a route is NOT included in the middleware matcher config, this function will 
+ * still blindly trust the header if present, allowing a potential spoofing vulnerability.
+ * Ensure all API and dashboard routes calling this are covered by the middleware matcher.
  */
-async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: User | null; error: any }> {
+async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: User | null; error: unknown }> {
   try {
     const requestHeaders = await headers()
     const encodedUser = requestHeaders.get("x-user-data")
