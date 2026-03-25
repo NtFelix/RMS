@@ -58,17 +58,39 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set('x-current-search', request.nextUrl.search)
   }
   // Set CSP on request headers so Server Components can read it (e.g., for nonces)
+  // Delete any potentially spoofed user data header from external client requests
+  requestHeaders.delete('x-user-data')
+
+  // Set CSP on request headers so Server Components can read it (e.g., for nonces)
   requestHeaders.set('Content-Security-Policy', csp)
 
-  // Initialize response
-  let response = NextResponse.next({
+  // Initialize empty response to collect cookie mutations from updateSession
+  let response = NextResponse.next()
+
+  // Ensure Supabase session cookies are refreshed for prolonged client-side idling
+  // Only execute logic for non-auth paths to avoid token churn on login flows
+  if (!matchesRoutePrefix(pathname, '/auth') && !matchesRoutePrefix(pathname, '/oauth')) {
+    const user = await updateSession(request, response)
+
+    if (user && needsManagedHeaders) {
+      // Serialize and forward verified local user metadata to save downstream roundtrips
+      // encoded as base64 to prevent header character corruption
+      requestHeaders.set('x-user-data', btoa(encodeURIComponent(JSON.stringify(user))))
+    }
+  }
+
+  // Re-initialize final response with the mutated requestHeaders payload
+  const finalResponse = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   })
 
-  // Ensure Supabase session cookies are refreshed for prolonged client-side idling
-  await updateSession(request, response)
+  // Transfer all accrued cookie mutations into the final response
+  response.headers.forEach((value, key) => {
+    finalResponse.headers.append(key, value)
+  })
+  response = finalResponse
 
   // Add security headers
   response.headers.set('X-Frame-Options', 'DENY')

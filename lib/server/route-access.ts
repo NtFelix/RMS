@@ -15,12 +15,34 @@ function buildLoginRedirect(pathname: string | null, search: string | null) {
   return `${ROUTES.LOGIN}?redirect=${encodeURIComponent(redirectTarget)}`
 }
 
+/**
+ * Optimized user fetcher. 
+ * Reads the base64 encoded user object injected by middleware's updateSession
+ * to eliminate duplicate roundtrips to the Supabase API on page navigations.
+ */
+async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: User | null; error: any }> {
+  try {
+    const requestHeaders = await headers()
+    const encodedUser = requestHeaders.get("x-user-data")
+
+    if (encodedUser) {
+      const parsedUser = JSON.parse(decodeURIComponent(atob(encodedUser))) as User
+      if (parsedUser && parsedUser.id) {
+        return { user: parsedUser, error: null }
+      }
+    }
+  } catch (e) {
+    console.error("[getAuthenticatedUser] Failed to decode cached user headers:", e)
+  }
+  
+  // Fallback to network request if middleware didn't inject the header
+  const { data: { user }, error } = await supabase.auth.getUser()
+  return { user, error }
+}
+
 export async function requireAuthenticatedUser() {
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { user, error: authError } = await getAuthenticatedUser(supabase)
 
   if (authError || !user) {
     const requestHeaders = await headers()
@@ -90,9 +112,7 @@ export async function redirectAuthenticatedAuthRoute() {
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { user } = await getAuthenticatedUser(supabase)
 
   if (user) {
     let redirectTarget: string = ROUTES.HOME
@@ -124,7 +144,8 @@ export async function requireAuthenticatedUserForApi(): Promise<
   { supabase: SupabaseClient; user: User } | NextResponse
 > {
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const { user, error } = await getAuthenticatedUser(supabase)
+  
   if (error || !user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
