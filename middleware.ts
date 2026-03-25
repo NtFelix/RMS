@@ -57,6 +57,7 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set('x-current-pathname', pathname)
     requestHeaders.set('x-current-search', request.nextUrl.search)
   }
+  // Set CSP on request headers so Server Components can read it (e.g., for nonces)
   requestHeaders.set('Content-Security-Policy', csp)
 
   // Initialize response
@@ -75,6 +76,7 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  // Set CSP on response headers so the browser enforces it
   response.headers.set('Content-Security-Policy', csp);
 
   return response
