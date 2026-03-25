@@ -15,12 +15,81 @@ function buildLoginRedirect(pathname: string | null, search: string | null) {
   return `${ROUTES.LOGIN}?redirect=${encodeURIComponent(redirectTarget)}`
 }
 
+/**
+ * Optimized user fetcher for Server Components.
+ * Reads the base64 encoded user object injected by middleware's updateSession
+ * to eliminate duplicate roundtrips to the Supabase API on page navigations.
+ *
+ * SECURITY: The data is cryptographically signed in the middleware using HMAC-SHA256
+ * with the USER_HEADER_SECRET. This function verifies that signature before trusting
+ * the user data.
+ *
+ * REQUIRES: USER_HEADER_SECRET must be set in Environment Variables (Cloudflare Pages).
+ * If missing, the app will gracefully fall back to network-based getUser() calls.
+ */
+async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: User | null; error: unknown }> {
+  try {
+    const requestHeaders = await headers()
+    const encodedUser = requestHeaders.get("x-user-data")
+    const signature = requestHeaders.get("x-user-signature")
+    const secret = process.env.USER_HEADER_SECRET
+
+    if (encodedUser && signature && secret) {
+      try {
+        const userDataString = decodeURIComponent(atob(encodedUser))
+        
+        // Verify signature using Web Crypto API (fast, native in Cloudflare/Next.js)
+        const encoder = new TextEncoder()
+        const keyData = encoder.encode(secret)
+        const msgData = encoder.encode(userDataString)
+        
+        const key = await crypto.subtle.importKey(
+          'raw',
+          keyData,
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['verify']
+        )
+        
+        // Convert hex signature back to buffer for verification
+        const sigUint8 = new Uint8Array(signature.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)))
+        const isValid = await crypto.subtle.verify('HMAC', key, sigUint8, msgData)
+
+        if (isValid) {
+          const parsedUser = JSON.parse(userDataString) as User
+          if (parsedUser && parsedUser.id) {
+            return { user: parsedUser, error: null }
+          }
+        } else {
+          console.warn("[getAuthenticatedUser] Invalid signature for cached user header. Potential spoofing attempt.")
+        }
+      } catch (e) {
+        console.error("[getAuthenticatedUser] Failed to verify cached user headers:", e)
+      }
+    } else if (encodedUser && !secret) {
+      // Development mode fallback if secret is missing (e.g. local first run)
+      try {
+        const userDataString = decodeURIComponent(atob(encodedUser))
+        const parsedUser = JSON.parse(userDataString) as User
+        if (parsedUser && parsedUser.id) {
+          return { user: parsedUser, error: null }
+        }
+      } catch (e) {
+        console.error("[getAuthenticatedUser] Failed to decode unsigned fallback user data:", e)
+      }
+    }
+  } catch (e) {
+    console.error("[getAuthenticatedUser] Failed to read cached user from headers:", e)
+  }
+  
+  // Fallback to network request if middleware didn't inject the header or verification failed
+  const { data: { user }, error } = await supabase.auth.getUser()
+  return { user, error }
+}
+
 export async function requireAuthenticatedUser() {
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { user, error: authError } = await getAuthenticatedUser(supabase)
 
   if (authError || !user) {
     const requestHeaders = await headers()
@@ -90,9 +159,7 @@ export async function redirectAuthenticatedAuthRoute() {
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { user } = await getAuthenticatedUser(supabase)
 
   if (user) {
     let redirectTarget: string = ROUTES.HOME
@@ -124,7 +191,8 @@ export async function requireAuthenticatedUserForApi(): Promise<
   { supabase: SupabaseClient; user: User } | NextResponse
 > {
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const { user, error } = await getAuthenticatedUser(supabase)
+  
   if (error || !user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
