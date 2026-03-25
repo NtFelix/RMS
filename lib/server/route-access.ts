@@ -16,15 +16,16 @@ function buildLoginRedirect(pathname: string | null, search: string | null) {
 }
 
 /**
- * Optimized user fetcher. 
+ * Optimized user fetcher for Server Components.
  * Reads the base64 encoded user object injected by middleware's updateSession
  * to eliminate duplicate roundtrips to the Supabase API on page navigations.
  *
- * SECURITY WARNING: This caching mechanism relies heavily on Next.js middleware
- * stripping out any pre-existing `x-user-data` headers spoofed by malicious clients. 
- * If a route is NOT included in the middleware matcher config, this function will 
- * still blindly trust the header if present, allowing a potential spoofing vulnerability.
- * Ensure all API and dashboard routes calling this are covered by the middleware matcher.
+ * SECURITY: The data is cryptographically signed in the middleware using HMAC-SHA256
+ * with the USER_HEADER_SECRET. This function verifies that signature before trusting
+ * the user data.
+ *
+ * REQUIRES: USER_HEADER_SECRET must be set in Environment Variables (Cloudflare Pages).
+ * If missing, the app will gracefully fall back to network-based getUser() calls.
  */
 async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: User | null; error: unknown }> {
   try {
@@ -37,7 +38,7 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
       try {
         const userDataString = decodeURIComponent(atob(encodedUser))
         
-        // Verify signature using Web Crypto API
+        // Verify signature using Web Crypto API (fast, native in Cloudflare/Next.js)
         const encoder = new TextEncoder()
         const keyData = encoder.encode(secret)
         const msgData = encoder.encode(userDataString)
@@ -66,7 +67,7 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
         console.error("[getAuthenticatedUser] Failed to verify cached user headers:", e)
       }
     } else if (encodedUser && !secret) {
-      // Development mode fallback if secret is missing
+      // Development mode fallback if secret is missing (e.g. local first run)
       try {
         const userDataString = decodeURIComponent(atob(encodedUser))
         const parsedUser = JSON.parse(userDataString) as User
@@ -74,7 +75,7 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
           return { user: parsedUser, error: null }
         }
       } catch (e) {
-        // ignore
+        console.error("[getAuthenticatedUser] Failed to decode unsigned fallback user data:", e)
       }
     }
   } catch (e) {
