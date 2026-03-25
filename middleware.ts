@@ -57,9 +57,9 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set('x-current-pathname', pathname)
     requestHeaders.set('x-current-search', request.nextUrl.search)
   }
-  // Set CSP on request headers so Server Components can read it (e.g., for nonces)
-  // Delete any potentially spoofed user data header from external client requests
+  // Pre-emptively clear any potentially spoofed user data headers from external client requests
   requestHeaders.delete('x-user-data')
+  requestHeaders.delete('x-user-signature')
 
   // Set CSP on request headers so Server Components can read it (e.g., for nonces)
   requestHeaders.set('Content-Security-Policy', csp)
@@ -73,9 +73,36 @@ export async function middleware(request: NextRequest) {
     const user = await updateSession(request, response)
 
     if (user && needsManagedHeaders) {
-      // Serialize and forward verified local user metadata to save downstream roundtrips
-      // encoded as base64 to prevent header character corruption
-      requestHeaders.set('x-user-data', btoa(encodeURIComponent(JSON.stringify(user))))
+      // Serialize and forward verified local user metadata to save downstream roundtrips.
+      // We sign this data with a secret to prevent spoofing if middleware is bypassed.
+      const userData = JSON.stringify(user)
+      const secret = process.env.USER_HEADER_SECRET
+      
+      if (secret) {
+        // Use standard Web Crypto API (available in Cloudflare Edge) for HMAC
+        const encoder = new TextEncoder()
+        const keyData = encoder.encode(secret)
+        const msgData = encoder.encode(userData)
+        
+        // This is async in Web Crypto, but middleware allows awaiting
+        const key = await crypto.subtle.importKey(
+          'raw', 
+          keyData, 
+          { name: 'HMAC', hash: 'SHA-256' }, 
+          false, 
+          ['sign']
+        )
+        const signatureBuffer = await crypto.subtle.sign('HMAC', key, msgData)
+        const signature = Array.from(new Uint8Array(signatureBuffer))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('')
+
+        requestHeaders.set('x-user-data', btoa(encodeURIComponent(userData)))
+        requestHeaders.set('x-user-signature', signature)
+      } else {
+        // Fallback to unsigned if secret is missing (only for development/testing safety)
+        requestHeaders.set('x-user-data', btoa(encodeURIComponent(userData)))
+      }
     }
   }
 

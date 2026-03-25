@@ -30,18 +30,58 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
   try {
     const requestHeaders = await headers()
     const encodedUser = requestHeaders.get("x-user-data")
+    const signature = requestHeaders.get("x-user-signature")
+    const secret = process.env.USER_HEADER_SECRET
 
-    if (encodedUser) {
-      const parsedUser = JSON.parse(decodeURIComponent(atob(encodedUser))) as User
-      if (parsedUser && parsedUser.id) {
-        return { user: parsedUser, error: null }
+    if (encodedUser && signature && secret) {
+      try {
+        const userDataString = decodeURIComponent(atob(encodedUser))
+        
+        // Verify signature using Web Crypto API
+        const encoder = new TextEncoder()
+        const keyData = encoder.encode(secret)
+        const msgData = encoder.encode(userDataString)
+        
+        const key = await crypto.subtle.importKey(
+          'raw',
+          keyData,
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['verify']
+        )
+        
+        // Convert hex signature back to buffer for verification
+        const sigUint8 = new Uint8Array(signature.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)))
+        const isValid = await crypto.subtle.verify('HMAC', key, sigUint8, msgData)
+
+        if (isValid) {
+          const parsedUser = JSON.parse(userDataString) as User
+          if (parsedUser && parsedUser.id) {
+            return { user: parsedUser, error: null }
+          }
+        } else {
+          console.warn("[getAuthenticatedUser] Invalid signature for cached user header. Potential spoofing attempt.")
+        }
+      } catch (e) {
+        console.error("[getAuthenticatedUser] Failed to verify cached user headers:", e)
+      }
+    } else if (encodedUser && !secret) {
+      // Development mode fallback if secret is missing
+      try {
+        const userDataString = decodeURIComponent(atob(encodedUser))
+        const parsedUser = JSON.parse(userDataString) as User
+        if (parsedUser && parsedUser.id) {
+          return { user: parsedUser, error: null }
+        }
+      } catch (e) {
+        // ignore
       }
     }
   } catch (e) {
-    console.error("[getAuthenticatedUser] Failed to decode cached user headers:", e)
+    console.error("[getAuthenticatedUser] Failed to read cached user from headers:", e)
   }
   
-  // Fallback to network request if middleware didn't inject the header
+  // Fallback to network request if middleware didn't inject the header or verification failed
   const { data: { user }, error } = await supabase.auth.getUser()
   return { user, error }
 }
