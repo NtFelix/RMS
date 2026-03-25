@@ -80,13 +80,14 @@ describe('mieter-import-actions', () => {
 
     process.env.WORKER_URL = 'https://mock-worker.com';
     process.env.WORKER_AUTH_KEY = 'mock_auth_key';
-    process.env.NODE_ENV = 'test';
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'test', configurable: true });
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
     delete process.env.WORKER_URL;
     delete process.env.WORKER_AUTH_KEY;
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'test', configurable: true });
   });
 
   describe('searchMailSenders', () => {
@@ -246,7 +247,7 @@ describe('mieter-import-actions', () => {
     });
 
     it('uses empty worker auth key in development if missing', async () => {
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
       delete process.env.WORKER_AUTH_KEY;
       mockBuilder.then.mockImplementationOnce((resolve: any) => resolve({ error: null }));
       (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
@@ -263,7 +264,7 @@ describe('mieter-import-actions', () => {
 
     it('throws error if worker auth key is missing and not in dev', async () => {
       delete process.env.WORKER_AUTH_KEY;
-      process.env.NODE_ENV = 'production';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
       mockBuilder.then.mockImplementationOnce((resolve: any) => resolve({ error: null }));
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
@@ -278,7 +279,7 @@ describe('mieter-import-actions', () => {
   describe('checkWorkerQueueStatus', () => {
     it('returns error if worker auth key is missing and not dev env', async () => {
       delete process.env.WORKER_AUTH_KEY;
-      process.env.NODE_ENV = 'production';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const result = await checkWorkerQueueStatus('user_123');
@@ -288,7 +289,7 @@ describe('mieter-import-actions', () => {
 
     it('uses empty key in development if worker auth key is missing', async () => {
       delete process.env.WORKER_AUTH_KEY;
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({ hasMore: true }),
