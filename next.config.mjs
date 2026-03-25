@@ -2,6 +2,7 @@ import { withPostHogConfig } from "@posthog/nextjs-config";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   // swcMinify is now enabled by default in Next.js 15
   productionBrowserSourceMaps: false,
