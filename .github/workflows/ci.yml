@@ -10,7 +10,19 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,6 +35,7 @@ jobs:
         with:
           context: .
           push: false
+          platforms: ${{ matrix.platform }}
           tags: rms-frontend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
