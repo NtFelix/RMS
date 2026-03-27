@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import { /* Github, */ Twitter, /* Linkedin, */ Mail } from "lucide-react"
 import Link from "next/link"
-import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, INFO_EMAIL, SUPPORT_EMAIL, ROUTES } from "@/lib/constants"
+import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, INFO_EMAIL, SUPPORT_EMAIL, ROUTES, EXTERNAL_LINKS } from "@/lib/constants"
 import { trackFooterLinkClicked, trackFooterSocialClicked, type FooterCategory } from "@/lib/posthog-landing-events"
 
 const footerLinks = {
@@ -24,12 +24,19 @@ const footerLinks = {
   ],
 }
 
+interface FooterLink {
+  href: string;
+  text: string;
+  target?: string;
+  rel?: string;
+}
+
 // Special links that require custom routing or display text
-const specialLinks: Record<string, { href: string; text: string; target?: string; rel?: string }> = {
+const specialLinks: Record<string, FooterLink> = {
   "Wohnungsverwaltung": { href: ROUTES.FEATURES_WOHNUNGSVERWALTUNG, text: "Wohnungsverwaltung" },
   "Finanzverwaltung": { href: ROUTES.FEATURES_FINANZVERWALTUNG, text: "Finanzverwaltung" },
   "Betriebskosten": { href: ROUTES.FEATURES_BETRIEBSKOSTEN, text: "Betriebskosten" },
-  "Hilfezentrum": { href: ROUTES.DOCUMENTATION, text: "Dokumentation", target: "_blank", rel: "noopener noreferrer" },
+  "Hilfezentrum": { href: EXTERNAL_LINKS.DOCUMENTATION, text: "Dokumentation", target: "_blank", rel: "noopener noreferrer" },
   "Datenschutz": { href: ROUTES.PRIVACY, text: "Datenschutz" },
   "AGB": { href: ROUTES.TERMS, text: "AGB" },
   "Impressum": { href: ROUTES.IMPRESSUM, text: "Impressum" },

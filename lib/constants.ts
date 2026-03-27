@@ -80,10 +80,14 @@ export const ROUTES = {
   FEATURES_FINANZVERWALTUNG: '/funktionen/finanzverwaltung',
   FEATURES_BETRIEBSKOSTEN: '/funktionen/betriebskosten',
   // Legal & Resources
-  DOCUMENTATION: 'https://docs.mietevo.de',
+  DOCUMENTATION: '/hilfe/dokumentation',
   PRIVACY: '/datenschutz',
   TERMS: '/agb',
   IMPRESSUM: '/impressum',
+} as const;
+
+export const EXTERNAL_LINKS = {
+  DOCUMENTATION: 'https://docs.mietevo.de',
 } as const;
 
 // MCP Worker URL
