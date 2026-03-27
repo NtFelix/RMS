@@ -137,7 +137,7 @@ export function getWebsiteSchema() {
             '@type': 'SearchAction',
             target: {
                 '@type': 'EntryPoint',
-                urlTemplate: `${ROUTES.DOCUMENTATION}?search={search_term_string}`,
+                urlTemplate: `${ROUTES.DOCUMENTATION}/?search={search_term_string}`,
             },
             'query-input': 'required name=search_term_string',
         },
