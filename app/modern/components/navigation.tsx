@@ -54,7 +54,7 @@ const loesungenItems = [
 ]
 
 const hilfeItems = [
-  { name: "Dokumentation", href: "/hilfe/dokumentation", icon: BookOpen, description: "Ausführliche Anleitungen" },
+  { name: "Dokumentation", href: ROUTES.DOCUMENTATION, icon: BookOpen, description: "Ausführliche Anleitungen", target: "_blank", rel: "noopener noreferrer" },
   { name: "Kontakt", href: `mailto:${INFO_EMAIL}`, icon: Mail, description: "Schreiben Sie uns" },
 ]
 
@@ -170,10 +170,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
     return <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4 h-16"></nav>;
   }
 
-  const renderNavItem = (item: { name: string; href: string; icon: any; description: string }, index: number, dropdown?: NavDropdown) => (
+  const renderNavItem = (item: { name: string; href: string; icon: any; description: string; target?: string; rel?: string }, index: number, dropdown?: NavDropdown) => (
     <Link
       key={index}
       href={item.href}
+      target={item.target}
+      rel={item.rel}
       onClick={() => {
         trackNavLinkClicked(item.name, item.href, dropdown);
         setIsOpen(false);
@@ -380,7 +382,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <DropdownMenuContent align="start" className="w-72">
                       {hilfeItems.map((item, index) => (
                         <DropdownMenuItem key={index} asChild>
-                          <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'hilfe')}>
+                          <Link
+                            href={item.href}
+                            target={item.target}
+                            rel={item.rel}
+                            onClick={() => trackNavLinkClicked(item.name, item.href, 'hilfe')}
+                          >
                             <item.icon className="w-4 h-4 shrink-0" />
                             <div className="flex flex-col items-start gap-0.5">
                               <span className="font-medium">{item.name}</span>

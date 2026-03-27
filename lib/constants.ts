@@ -80,7 +80,7 @@ export const ROUTES = {
   FEATURES_FINANZVERWALTUNG: '/funktionen/finanzverwaltung',
   FEATURES_BETRIEBSKOSTEN: '/funktionen/betriebskosten',
   // Legal & Resources
-  DOCUMENTATION: '/hilfe/dokumentation',
+  DOCUMENTATION: 'https://docs.mietevo.de/',
   PRIVACY: '/datenschutz',
   TERMS: '/agb',
   IMPRESSUM: '/impressum',

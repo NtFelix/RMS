@@ -5,7 +5,7 @@
  * potentially enabling rich snippets in search results.
  */
 
-import { BASE_URL, BRAND_NAME, SUPPORT_EMAIL, FAVICON_URL, OG_IMAGE_URL } from '@/lib/constants'
+import { BASE_URL, BRAND_NAME, SUPPORT_EMAIL, FAVICON_URL, OG_IMAGE_URL, ROUTES } from '@/lib/constants'
 
 /**
  * Organization Schema
@@ -137,7 +137,7 @@ export function getWebsiteSchema() {
             '@type': 'SearchAction',
             target: {
                 '@type': 'EntryPoint',
-                urlTemplate: `${BASE_URL}/hilfe/dokumentation?search={search_term_string}`,
+                urlTemplate: `${ROUTES.DOCUMENTATION}?search={search_term_string}`,
             },
             'query-input': 'required name=search_term_string',
         },

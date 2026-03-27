@@ -25,11 +25,11 @@ const footerLinks = {
 }
 
 // Special links that require custom routing or display text
-const specialLinks: Record<string, { href: string; text: string }> = {
+const specialLinks: Record<string, { href: string; text: string; target?: string; rel?: string }> = {
   "Wohnungsverwaltung": { href: ROUTES.FEATURES_WOHNUNGSVERWALTUNG, text: "Wohnungsverwaltung" },
   "Finanzverwaltung": { href: ROUTES.FEATURES_FINANZVERWALTUNG, text: "Finanzverwaltung" },
   "Betriebskosten": { href: ROUTES.FEATURES_BETRIEBSKOSTEN, text: "Betriebskosten" },
-  "Hilfezentrum": { href: ROUTES.DOCUMENTATION, text: "Dokumentation" },
+  "Hilfezentrum": { href: ROUTES.DOCUMENTATION, text: "Dokumentation", target: "_blank", rel: "noopener noreferrer" },
   "Datenschutz": { href: ROUTES.PRIVACY, text: "Datenschutz" },
   "AGB": { href: ROUTES.TERMS, text: "AGB" },
   "Impressum": { href: ROUTES.IMPRESSUM, text: "Impressum" },
@@ -123,6 +123,8 @@ export default function Footer() {
                         {specialLink ? (
                           <Link
                             href={specialLink.href}
+                            target={specialLink.target}
+                            rel={specialLink.rel}
                             className="text-muted-foreground hover:text-foreground transition-colors"
                             onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
                           >
