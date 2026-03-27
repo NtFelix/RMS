@@ -19,6 +19,12 @@ type FinanzDaten = {
 
 const COLORS = ["#34d399", "#f59e42", "#818cf8", "#f87171"];
 
+// Custom tooltip formatter created once at module level
+const currencyFormatter = new Intl.NumberFormat('de-DE', { 
+  style: 'currency', 
+  currency: 'EUR' 
+});
+
 type MaintenanceData = {
   name: string;
   value: number;
@@ -48,10 +54,7 @@ const CustomTooltip = ({ active, payload }: TooltipProps) => {
       <div className="bg-white p-2 border rounded shadow-lg">
         <p className="text-sm font-medium">{data.name}</p>
         <p className="text-sm text-blue-600">
-          {new Intl.NumberFormat('de-DE', { 
-            style: 'currency', 
-            currency: 'EUR' 
-          }).format(data.value)}
+          {currencyFormatter.format(data.value)}
         </p>
       </div>
     );

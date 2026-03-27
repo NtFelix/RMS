@@ -13,6 +13,7 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { bulkDeleteTasksAction, toggleTaskStatusAction } from "@/app/todos-actions"
 import { TaskContextMenu } from "@/components/tasks/task-context-menu"
 import { ActionMenu } from "@/components/ui/action-menu"
+import { cn } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -46,16 +47,19 @@ interface TableHeaderCellProps {
 const TableHeaderCell = ({ 
   sortKey, 
   children, 
-  className = '', 
+  className, 
   icon: Icon, 
   sortable = true,
   onSort,
   renderSortIcon
 }: TableHeaderCellProps) => (
-  <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
+  <TableHead className={cn("dark:text-[#f3f4f6] group/header", className)}>
     <div
       onClick={() => sortable && onSort(sortKey)}
-      className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
+      className={cn(
+        "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6]",
+        sortable && "cursor-pointer"
+      )}
     >
       <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
       {children}

@@ -70,15 +70,14 @@ const CardWrapper = ({ children, hoverDetails, title, formatHoverValue }: CardWr
                 {hoverDetails.breakdown && hoverDetails.breakdown.length > 0 && (
                   <div className="mt-1">
                     <div className="text-sm font-medium text-muted-foreground leading-tight">Aufschlüsselung:</div>
-                    {hoverDetails.breakdown.map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-sm leading-tight">
+                    {hoverDetails.breakdown.map((item) => (
+                      <div key={item.label} className="flex justify-between text-sm leading-tight">
                         <span className="text-muted-foreground">{item.label}:</span>
                         <span className="font-medium">{formatHoverValue(item.value)}</span>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                )}              </div>
             </div>
           </HoverCardContent>
         </HoverCard>
