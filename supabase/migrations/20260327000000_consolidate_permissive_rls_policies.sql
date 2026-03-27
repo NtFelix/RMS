@@ -25,18 +25,14 @@ AS $$
 $$;
 
 -- ============================================================
--- Indexes (NOTE: CONCURRENTLY requires running OUTSIDE a
--- transaction block. In Supabase, run these as separate
--- migration files or via the Supabase SQL editor manually.)
+-- Note: Indexes moved to separate migration
 -- ============================================================
-CREATE INDEX IF NOT EXISTS mail_import_jobs_user_id_idx
-  ON public."Mail_Import_Jobs" (user_id);
-
-CREATE INDEX IF NOT EXISTS mail_sync_jobs_account_id_idx
-  ON public."Mail_Sync_Jobs" (account_id);
-
-CREATE INDEX IF NOT EXISTS mail_accounts_user_id_idx
-  ON public."Mail_Accounts" (user_id);
+-- Index creation has been moved to:
+-- 20260327000001_add_rls_performance_indexes.sql
+-- 
+-- This avoids table locks during migration execution.
+-- The separate migration can be run with CONCURRENTLY
+-- in production to prevent write locks.
 
 -- ============================================================
 -- Mail_Import_Jobs – Policy Consolidation
@@ -100,12 +96,11 @@ CREATE POLICY "Users can manage sync jobs for their accounts"
 --    - Adding STABLE to helper function for query caching
 --    - Wrapping auth.uid() in SELECT to call once per query instead of per row
 --    - Using SECURITY DEFINER helper function for complex multi-table checks
---    - Adding indexes on columns used in RLS policies
+--    - Indexes created in separate migration to avoid table locks
 -- 4. Maintains security while improving maintainability
 -- 5. Follows Supabase Postgres best practices for RLS performance
 --
 -- Expected performance improvement: 5-10x faster RLS queries on large datasets
 -- Security improvement: Consolidated policies reduce attack surface and complexity
 --
--- NOTE: Index creation may require CONCURRENTLY option in production
--- to avoid table locks. Run indexes separately if needed.
+-- Indexes: See migration 20260327000001_add_rls_performance_indexes.sql

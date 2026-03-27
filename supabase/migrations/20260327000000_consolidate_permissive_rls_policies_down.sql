@@ -45,7 +45,12 @@ CREATE POLICY "Secure SELECT" ON public."Mail_Sync_Jobs"
   ));
 
 CREATE POLICY "Secure INSERT" ON public."Mail_Sync_Jobs"
-  FOR INSERT TO authenticated WITH CHECK (true);
+  FOR INSERT TO authenticated 
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM public."Mail_Accounts"
+    WHERE "Mail_Accounts".id = "Mail_Sync_Jobs".account_id
+    AND "Mail_Accounts".user_id = auth.uid()
+  ));
 
 CREATE POLICY "Secure UPDATE" ON public."Mail_Sync_Jobs"
   FOR UPDATE TO authenticated 
