@@ -10,7 +10,7 @@ DROP POLICY IF EXISTS "Service role full access to sync jobs"   ON public."Mail_
 DROP POLICY IF EXISTS "Users can manage sync jobs for their accounts" ON public."Mail_Sync_Jobs";
 
 -- Drop helper function
-DROP FUNCTION IF EXISTS public.user_owns_mail_account(bigint);
+DROP FUNCTION IF EXISTS public.user_owns_mail_account(uuid);
 
 -- ============================================================
 -- Restore original Mail_Import_Jobs policies

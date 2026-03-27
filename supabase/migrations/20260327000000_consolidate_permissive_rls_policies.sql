@@ -9,7 +9,7 @@
 -- STABLE: critical – allows Postgres to cache result per query
 -- (evaluated once per query, not once per row)
 -- SET search_path = '': prevents schema injection attacks
-CREATE OR REPLACE FUNCTION public.user_owns_mail_account(account_id_param bigint)
+CREATE OR REPLACE FUNCTION public.user_owns_mail_account(account_id_param uuid)
 RETURNS boolean
 LANGUAGE sql
 SECURITY DEFINER
