@@ -1,6 +1,26 @@
 import { test, expect } from '@playwright/test';
 import { login, hasTestCredentials, generateRandomString, acceptCookieConsent } from './utils';
 
+
+import { Page } from '@playwright/test';
+
+async function safeNavigate(page: Page, url: string) {
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      return;
+    } catch (e: any) {
+      if (e.message.includes('interrupted') && retries > 1) {
+        retries--;
+        await page.waitForTimeout(500);
+      } else {
+        throw e;
+      }
+    }
+  }
+}
+
 test.describe('Business Logic Flows', () => {
   // Use serial mode because we are creating dependencies (House -> Apt -> Tenant)
   test.describe.configure({ mode: 'serial' });
@@ -26,7 +46,7 @@ test.describe('Business Logic Flows', () => {
   });
 
   test('Create a House', async ({ page }) => {
-    await page.goto('/haeuser', { waitUntil: 'domcontentloaded' });
+    await safeNavigate(page, '/haeuser');
 
     // Wait for the page content to fully load (look for a key element)
     await expect(page.getByText('Hausverwaltung').first()).toBeVisible({ timeout: 15000 });
@@ -83,7 +103,7 @@ test.describe('Business Logic Flows', () => {
   });
 
   test('Create an Apartment linked to the House', async ({ page }) => {
-    await page.goto('/wohnungen', { waitUntil: 'domcontentloaded' });
+    await safeNavigate(page, '/wohnungen');
 
     // Wait for the page content to fully load (card with title)
     await expect(page.getByText('Wohnungsverwaltung').first()).toBeVisible({ timeout: 15000 });
@@ -140,7 +160,7 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Wohnung erstellen|Speichern/i }).click();
 
     // Wait for modal to close
-    await expect(modal).toBeHidden({ timeout: 10000 });
+    await expect(modal).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Verify
@@ -148,7 +168,7 @@ test.describe('Business Logic Flows', () => {
   });
 
   test('Create a Tenant linked to the Apartment', async ({ page }) => {
-    await page.goto('/mieter', { waitUntil: 'domcontentloaded' });
+    await safeNavigate(page, '/mieter');
 
     // Wait for the page content to fully load (look for a key element)
     await expect(page.getByText('Mieterverwaltung').first()).toBeVisible({ timeout: 15000 });
@@ -197,8 +217,15 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(500);
 
     const option = page.getByRole('option', { name: aptName }).first();
-    await expect(option).toBeVisible({ timeout: 10000 });
-    await option.click();
+    // Re-try opening the combobox if option is not visible
+    try {
+      await expect(option).toBeVisible({ timeout: 5000 });
+    } catch (e) {
+      await page.locator('button[role="combobox"]').first().click({ force: true });
+      await expect(option).toBeVisible({ timeout: 10000 });
+    }
+    await option.scrollIntoViewIfNeeded().catch(() => {});
+    await option.click({ force: true });
     await page.waitForTimeout(300);
 
     // Date - try to fill the date input

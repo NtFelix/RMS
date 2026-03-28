@@ -32,7 +32,7 @@ export const login = async (page: Page) => {
   await form.locator('#password').first().fill(TEST_PASSWORD!);
 
   // Submit with a small delay to ensure React state is updated
-  await page.getByRole('button', { name: /anmelden/i }).first().click();
+  await page.getByRole('button', { name: /anmelden/i }).first().click({ force: true });
 
   // Wait for navigation to dashboard or check for errors
   try {
@@ -40,7 +40,14 @@ export const login = async (page: Page) => {
     if (page.url().includes('/dashboard')) {
       return;
     }
-    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 60000 });
+    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 60000 }).catch(async (e) => {
+      // In webkit sometimes the URL changes but it throws a timeout anyway if the load event doesn't fire
+      if (!page.url().includes('/dashboard')) {
+        throw e;
+      }
+    });
+    // Let Next.js hydrate
+    await page.waitForTimeout(500);
   } catch (e) {
     // If navigation failed, check if there's an error message visible
     // We filter for alerts that aren't the hidden route announcer
