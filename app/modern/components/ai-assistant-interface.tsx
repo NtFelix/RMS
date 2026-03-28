@@ -18,15 +18,13 @@ interface AIAssistantInterfaceProps {
   onClose: () => void;
   documentationContext?: any[];
   className?: string;
-  onFallbackToSearch?: () => void;
 }
 
 export default function AIAssistantInterface({
   isOpen,
   onClose,
   documentationContext = [],
-  className,
-  onFallbackToSearch
+  className
 }: AIAssistantInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -391,17 +389,6 @@ export default function AIAssistantInterface({
                   <AlertDescription className="flex items-center justify-between">
                     <span>{state.error}</span>
                     <div className="flex items-center gap-2">
-                      {state.fallbackToSearch && onFallbackToSearch && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={onFallbackToSearch}
-                          className="h-auto p-1 text-destructive-foreground hover:bg-destructive/20"
-                          title="Zur normalen Suche wechseln"
-                        >
-                          <Search className="w-3 h-3" />
-                        </Button>
-                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -432,24 +419,6 @@ export default function AIAssistantInterface({
                   <RefreshCw className="h-4 w-4 animate-spin" />
                   <AlertDescription>
                     Wiederholung in {retryState.nextRetryIn} Sekunden... (Versuch {retryState.attemptCount})
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Fallback Suggestion */}
-              {state.fallbackToSearch && onFallbackToSearch && (
-                <Alert className="mb-2">
-                  <Search className="h-4 w-4" />
-                  <AlertDescription className="flex items-center justify-between">
-                    <span>Sie können stattdessen die normale Dokumentationssuche verwenden.</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={onFallbackToSearch}
-                      className="ml-2"
-                    >
-                      Zur Suche
-                    </Button>
                   </AlertDescription>
                 </Alert>
               )}

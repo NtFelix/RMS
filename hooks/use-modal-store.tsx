@@ -118,7 +118,6 @@ interface WasserZaehlerModalData {
 // AI Assistant Modal Types
 interface AIAssistantModalData {
   documentationContext?: any;
-  onFallbackToSearch?: () => void;
 }
 
 interface CreateFolderModalData {

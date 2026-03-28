@@ -63,7 +63,6 @@ const mockEnhancedAIAssistant: {
     validationError: string | null;
     validationWarning: string | null;
     inputSuggestions: string[];
-    fallbackToSearch: boolean;
   };
   actions: {
     sendMessage: jest.Mock;
@@ -71,8 +70,6 @@ const mockEnhancedAIAssistant: {
     clearMessages: jest.Mock;
     setInputValue: jest.Mock;
     validateInput: jest.Mock;
-    fallbackToDocumentationSearch: jest.Mock;
-    resetFallback: jest.Mock;
   };
   networkStatus: {
     isOnline: boolean;
@@ -101,17 +98,14 @@ const mockEnhancedAIAssistant: {
     sessionStartTime: null,
     validationError: null,
     validationWarning: null,
-    inputSuggestions: [],
-    fallbackToSearch: false
+    inputSuggestions: []
   },
   actions: {
     sendMessage: jest.fn(),
     retryLastMessage: jest.fn(),
     clearMessages: jest.fn(),
     setInputValue: jest.fn(),
-    validateInput: jest.fn(),
-    fallbackToDocumentationSearch: jest.fn(),
-    resetFallback: jest.fn()
+    validateInput: jest.fn()
   },
   networkStatus: {
     isOnline: true,
@@ -155,7 +149,6 @@ describe('AI Assistant Integration Tests', () => {
       validationError: null,
       validationWarning: null,
       inputSuggestions: [],
-      fallbackToSearch: false
     };
     
     // Suppress console errors for tests
@@ -563,11 +556,9 @@ describe('AI Assistant Integration Tests', () => {
 
       mockEnhancedAIAssistant.networkStatus = offlineNetworkStatus;
       mockEnhancedAIAssistant.state.error = 'Keine Internetverbindung';
-      mockEnhancedAIAssistant.state.fallbackToSearch = true;
 
       expect(mockEnhancedAIAssistant.networkStatus.isOffline).toBe(true);
       expect(mockEnhancedAIAssistant.state.error).toContain('Internetverbindung');
-      expect(mockEnhancedAIAssistant.state.fallbackToSearch).toBe(true);
     });
 
     it('handles validation errors', () => {
@@ -584,20 +575,6 @@ describe('AI Assistant Integration Tests', () => {
 
       expect(mockEnhancedAIAssistant.state.error).toContain('Streaming failed');
       expect(mockEnhancedAIAssistant.state.streamingMessageId).toBe(null);
-    });
-
-    it('provides fallback to documentation search', () => {
-      mockEnhancedAIAssistant.state.fallbackToSearch = true;
-      mockEnhancedAIAssistant.state.error = 'AI service unavailable';
-
-      mockEnhancedAIAssistant.actions.fallbackToDocumentationSearch.mockImplementation(() => {
-        mockEnhancedAIAssistant.state.fallbackToSearch = true;
-      });
-
-      mockEnhancedAIAssistant.actions.fallbackToDocumentationSearch();
-
-      expect(mockEnhancedAIAssistant.state.fallbackToSearch).toBe(true);
-      expect(mockEnhancedAIAssistant.actions.fallbackToDocumentationSearch).toHaveBeenCalled();
     });
 
     it('handles retry state management', () => {

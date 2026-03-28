@@ -59,6 +59,20 @@ const nextConfig = {
     config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
     return config;
   },
+  async redirects() {
+    return [
+      {
+        source: '/hilfe/dokumentation',
+        destination: 'https://docs.mietevo.de/',
+        permanent: true,
+      },
+      {
+        source: '/hilfe/dokumentation/:path*',
+        destination: 'https://docs.mietevo.de/',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default withPostHogConfig(nextConfig, {

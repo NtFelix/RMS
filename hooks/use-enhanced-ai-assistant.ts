@@ -27,7 +27,6 @@ export interface AIAssistantState {
   validationError: string | null;
   validationWarning: string | null;
   inputSuggestions: string[];
-  fallbackToSearch: boolean;
 }
 
 export interface UseEnhancedAIAssistantReturn {
@@ -38,8 +37,6 @@ export interface UseEnhancedAIAssistantReturn {
     clearMessages: () => void;
     setInputValue: (value: string) => void;
     validateInput: (input: string) => boolean;
-    fallbackToDocumentationSearch: () => void;
-    resetFallback: () => void;
   };
   networkStatus: ReturnType<typeof useNetworkStatus>;
   retryState: ReturnType<typeof useRetry>['state'];
@@ -67,8 +64,7 @@ export function useEnhancedAIAssistant(
     sessionStartTime: null,
     validationError: null,
     validationWarning: null,
-    inputSuggestions: [],
-    fallbackToSearch: false
+    inputSuggestions: []
   });
 
   const posthog = usePostHog();
@@ -134,8 +130,7 @@ export function useEnhancedAIAssistant(
       // Clear network-related errors when coming back online
       setState(prev => ({
         ...prev,
-        error: null,
-        fallbackToSearch: false
+        error: null
       }));
     }
   }, [networkStatus.isOnline, state.error]);
@@ -193,7 +188,6 @@ export function useEnhancedAIAssistant(
       setState(prev => ({
         ...prev,
         error: 'Keine Internetverbindung verfügbar. Bitte überprüfen Sie Ihre Netzwerkverbindung.',
-        fallbackToSearch: true
       }));
       return;
     }
@@ -259,8 +253,7 @@ export function useEnhancedAIAssistant(
         error: null,
         validationError: null,
         validationWarning: null,
-        inputSuggestions: [],
-        fallbackToSearch: false
+        inputSuggestions: []
       }));
 
       return;
@@ -297,7 +290,6 @@ export function useEnhancedAIAssistant(
       validationError: null,
       validationWarning: null,
       inputSuggestions: [],
-      fallbackToSearch: false
     }));
 
     // Create placeholder assistant message for streaming
@@ -415,16 +407,6 @@ export function useEnhancedAIAssistant(
 
       // Get user-friendly error message in German
       let errorMessage = getGermanErrorMessage(errorDetails);
-      let shouldFallback = false;
-
-      // Determine if we should suggest fallback to documentation search
-      if (errorDetails.errorType === 'network_error' ||
-        errorDetails.errorType === 'timeout_error' ||
-        errorDetails.errorType === 'server_error' ||
-        errorDetails.errorType === 'model_overloaded') {
-        shouldFallback = true;
-        errorMessage += ' Sie können stattdessen die normale Dokumentationssuche verwenden.';
-      }
 
       // Track failed response
       if (posthog && posthog.has_opted_in_capturing?.()) {
@@ -445,7 +427,6 @@ export function useEnhancedAIAssistant(
         ...prev,
         messages: prev.messages.filter(msg => msg.id !== assistantMessageId),
         error: errorMessage,
-        fallbackToSearch: shouldFallback
       }));
 
     } finally {
@@ -487,21 +468,10 @@ export function useEnhancedAIAssistant(
       validationError: null,
       validationWarning: null,
       inputSuggestions: [],
-      fallbackToSearch: false,
       streamingMessageId: null
     }));
     resetRetry();
   }, [resetRetry]);
-
-  // Fallback to documentation search
-  const fallbackToDocumentationSearch = useCallback(() => {
-    setState(prev => ({ ...prev, fallbackToSearch: true }));
-  }, []);
-
-  // Reset fallback state
-  const resetFallback = useCallback(() => {
-    setState(prev => ({ ...prev, fallbackToSearch: false }));
-  }, []);
 
   // Helper function to update assistant message
   const updateAssistantMessage = useCallback((messageId: string, content: string) => {
@@ -631,9 +601,7 @@ export function useEnhancedAIAssistant(
       retryLastMessage,
       clearMessages,
       setInputValue,
-      validateInput,
-      fallbackToDocumentationSearch,
-      resetFallback
+      validateInput
     },
     networkStatus,
     retryState

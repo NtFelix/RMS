@@ -58,7 +58,6 @@ describe('Enhanced AI Assistant Error Handling', () => {
       });
 
       expect(result.current.state.error).toContain('Keine Internetverbindung');
-      expect(result.current.state.fallbackToSearch).toBe(true);
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
@@ -101,7 +100,7 @@ describe('Enhanced AI Assistant Error Handling', () => {
 
       await waitFor(() => {
         expect(result.current.state.error).toBeNull();
-        expect(result.current.state.fallbackToSearch).toBe(false);
+
       });
     });
   });
@@ -230,37 +229,6 @@ describe('Enhanced AI Assistant Error Handling', () => {
       await waitFor(() => {
         expect(result.current.state.error).toBeNull();
       });
-    });
-  });
-
-  describe('Fallback Handling', () => {
-    it('should suggest fallback to documentation search for certain errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Service unavailable'));
-
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
-
-      await act(async () => {
-        await result.current.actions.sendMessage('Test message');
-      });
-
-      expect(result.current.state.fallbackToSearch).toBe(true);
-      expect(result.current.state.error).toContain('Dokumentationssuche');
-    });
-
-    it('should reset fallback state when requested', () => {
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
-
-      act(() => {
-        result.current.actions.fallbackToDocumentationSearch();
-      });
-
-      expect(result.current.state.fallbackToSearch).toBe(true);
-
-      act(() => {
-        result.current.actions.resetFallback();
-      });
-
-      expect(result.current.state.fallbackToSearch).toBe(false);
     });
   });
 

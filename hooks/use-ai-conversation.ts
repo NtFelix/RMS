@@ -12,7 +12,6 @@ import {
 
 interface AIConversationOptions {
   documentationContext?: any;
-  onFallbackToSearch?: () => void;
   interface?: 'modal' | 'simple';
 }
 
@@ -32,7 +31,7 @@ interface AIConversationReturn {
  * Used by both AIAssistantModal and AIAssistantInterfaceSimple
  */
 export function useAIConversation(options: AIConversationOptions = {}): AIConversationReturn {
-  const { documentationContext, onFallbackToSearch, interface: interfaceType = 'modal' } = options;
+  const { documentationContext, interface: interfaceType = 'modal' } = options;
 
   // Local state for the interface
   const [inputValue, setInputValue] = useState('');

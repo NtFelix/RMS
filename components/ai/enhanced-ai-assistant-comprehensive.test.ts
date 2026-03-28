@@ -103,7 +103,6 @@ describe('Enhanced AI Assistant Hook', () => {
       expect(result.current.state.validationError).toBe(null);
       expect(result.current.state.validationWarning).toBe(null);
       expect(result.current.state.inputSuggestions).toEqual([]);
-      expect(result.current.state.fallbackToSearch).toBe(false);
     });
 
     it('initializes session ID on mount', async () => {
@@ -217,7 +216,7 @@ describe('Enhanced AI Assistant Hook', () => {
       });
 
       expect(result.current.state.error).toContain('Keine Internetverbindung');
-      expect(result.current.state.fallbackToSearch).toBe(true);
+
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
@@ -244,7 +243,6 @@ describe('Enhanced AI Assistant Hook', () => {
 
       await waitFor(() => {
         expect(result.current.state.error).toBeNull();
-        expect(result.current.state.fallbackToSearch).toBe(false);
       });
     });
 
@@ -484,7 +482,7 @@ describe('Enhanced AI Assistant Hook', () => {
         await result.current.actions.sendMessage('Test message');
       });
 
-      expect(result.current.state.fallbackToSearch).toBe(true);
+
       expect(result.current.state.error).toContain('Dokumentationssuche');
     });
 
@@ -624,28 +622,10 @@ describe('Enhanced AI Assistant Hook', () => {
       expect(result.current.state.validationError).toBe(null);
       expect(result.current.state.validationWarning).toBe(null);
       expect(result.current.state.inputSuggestions).toEqual([]);
-      expect(result.current.state.fallbackToSearch).toBe(false);
       expect(result.current.state.streamingMessageId).toBe(null);
     });
 
-    it('manages fallback state correctly', () => {
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
-
-      act(() => {
-        result.current.actions.fallbackToDocumentationSearch();
-      });
-
-      expect(result.current.state.fallbackToSearch).toBe(true);
-
-      act(() => {
-        result.current.actions.resetFallback();
-      });
-
-      expect(result.current.state.fallbackToSearch).toBe(false);
-    });
-  });
-
-  describe('Request Cancellation', () => {
+    describe('Request Cancellation', () => {
     it('cancels previous request when new one is made', async () => {
       const abortSpy = jest.fn();
       const mockAbortController = {
@@ -782,4 +762,5 @@ describe('Enhanced AI Assistant Hook', () => {
       expect(result.current.state.error).toBeTruthy();
     });
   });
+});
 });
