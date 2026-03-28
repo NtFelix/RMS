@@ -5,6 +5,7 @@ import { /* Github, */ Twitter, /* Linkedin, */ Mail } from "lucide-react"
 import Link from "next/link"
 import { BRAND_NAME_PART_1, BRAND_NAME_PART_2, BRAND_NAME, INFO_EMAIL, SUPPORT_EMAIL, ROUTES, EXTERNAL_LINKS } from "@/lib/constants"
 import { trackFooterLinkClicked, trackFooterSocialClicked, type FooterCategory } from "@/lib/posthog-landing-events"
+import type { FooterLink } from "@/lib/types"
 
 const footerLinks = {
   Funktionen: [
@@ -22,13 +23,6 @@ const footerLinks = {
     "AGB",
     "Impressum",
   ],
-}
-
-interface FooterLink {
-  href: string;
-  text: string;
-  target?: string;
-  rel?: string;
 }
 
 // Special links that require custom routing or display text
@@ -122,11 +116,11 @@ export default function Footer() {
               >
                 <h4 className="text-foreground font-semibold mb-4">{category}</h4>
                 <ul className="space-y-3">
-                  {links.map((link, linkIndex) => {
+                  {links.map((link) => {
                     const specialLink = specialLinks[link];
                     const footerCategory = categoryMap[category];
                     return (
-                      <li key={linkIndex}>
+                      <li key={link}>
                         {specialLink ? (
                           <Link
                             href={specialLink.href}
@@ -136,6 +130,9 @@ export default function Footer() {
                             onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
                           >
                             {specialLink.text}
+                            {specialLink.target === "_blank" && (
+                              <span className="sr-only"> (öffnet in neuem Tab)</span>
+                            )}
                           </Link>
                         ) : (
                           <a
