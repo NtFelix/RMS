@@ -1,0 +1,47 @@
+
+> mietevo@2.3.6 dev
+> next dev --turbo
+
+   ▲ Next.js 15.5.14 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.2:3000
+   - Environments: .env
+   - Experiments (use with caution):
+     ✓ optimizeCss
+     ✓ scrollRestoration
+
+ ✓ Starting...
+ ✓ Compiled instrumentation Node.js in 350ms
+ ✓ Compiled instrumentation Edge in 56ms
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 1211ms
+[PostHog Logger] 🚀 Initializing... {
+  environment: 'development',
+  hasApiKey: false,
+  apiKeyPrefix: 'undefined...',
+  host: 'https://eu.i.posthog.com',
+  endpoint: 'https://eu.i.posthog.com/i/v1/logs',
+  debugMode: false,
+  willSendToPostHog: false
+}
+[PostHog Logger] ⚠️ POSTHOG_API_KEY not set - logs will only be printed to console
+[INFO] Application started {
+  'app.name': 'mietevo',
+  'app.version': '2.3.6',
+  runtime: 'nodejs',
+  'node.version': 'v22.22.1',
+  'log.timestamp': '2026-03-28T00:26:09.989Z',
+  'service.name': 'mietevo',
+  environment: 'development'
+}
+ ✓ Ready in 3.8s
+ ⚠ Webpack is configured while Turbopack is not, which may cause problems.
+ ⚠ See instructions if you need to configure Turbopack:
+  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+
+ ○ Compiling /auth/login ...
+ ✓ Compiled /auth/login in 18.4s
+ GET /auth/login 200 in 20130ms
+ ○ Compiling /api/posthog-config ...
+ ✓ Compiled /api/posthog-config in 6.5s
+ GET /api/posthog-config 404 in 6788ms

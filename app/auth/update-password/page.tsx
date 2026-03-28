@@ -11,8 +11,9 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { LOGO_URL } from "@/lib/constants"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { getAuthErrorMessage } from "@/lib/auth-error-handler"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { getAuthErrorMessage, DB_CONNECTION_ERROR_MESSAGE } from "@/lib/auth-error-handler"
+import { Database } from "lucide-react"
 import { trackPasswordUpdated } from "@/lib/posthog-auth-events"
 
 export default function UpdatePasswordPage() {
@@ -68,6 +69,8 @@ export default function UpdatePasswordPage() {
           <form onSubmit={handleUpdatePassword} className="space-y-4">
             {error && (
               <Alert variant="destructive">
+                {error === DB_CONNECTION_ERROR_MESSAGE && <Database className="h-4 w-4" />}
+                {error === DB_CONNECTION_ERROR_MESSAGE && <AlertTitle>Verbindungsproblem</AlertTitle>}
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}

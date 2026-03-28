@@ -1,0 +1,13 @@
+I have improved the error handling when the database is unreachable (e.g. database is down).
+
+Changes:
+1. Updated `lib/auth-error-handler.ts`:
+   - Added `DB_CONNECTION_ERROR_MESSAGE` as a exported constant.
+   - Added patterns "Failed to fetch", "Load failed", and "NetworkError" to `MESSAGE_PATTERNS` mapping to the connection error message.
+2. Updated authentication UI components (`components/auth/login-content.tsx`, `app/auth/register/content.tsx`, `app/auth/reset-password/page.tsx`, `app/auth/update-password/page.tsx`):
+   - Integrated check for `DB_CONNECTION_ERROR_MESSAGE`.
+   - Added `Database` icon and `AlertTitle` ("Verbindungsproblem") when a connection error is detected.
+
+Verification:
+- Created and ran unit tests in `lib/auth-error-handler.test.ts` which pass.
+- Verified frontend with Playwright by intercepting and aborting network requests to simulate "Failed to fetch".

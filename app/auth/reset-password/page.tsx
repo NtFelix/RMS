@@ -8,10 +8,10 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Check, Mail } from "lucide-react"
+import { Loader2, Check, Mail, Database } from "lucide-react"
 import { LOGO_URL, BASE_URL } from "@/lib/constants"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { getAuthErrorMessage } from "@/lib/auth-error-handler"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { getAuthErrorMessage, DB_CONNECTION_ERROR_MESSAGE } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import {
@@ -174,6 +174,8 @@ export default function ResetPasswordPage() {
                   animate={{ opacity: 1, scale: 1 }}
                 >
                   <Alert variant="destructive" className="rounded-xl">
+                    {error === DB_CONNECTION_ERROR_MESSAGE && <Database className="h-4 w-4" />}
+                    {error === DB_CONNECTION_ERROR_MESSAGE && <AlertTitle>Verbindungsproblem</AlertTitle>}
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 </motion.div>

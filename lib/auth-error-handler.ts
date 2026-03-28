@@ -24,6 +24,8 @@ export const URL_ERROR_MESSAGES: Record<string, string> = {
 /**
  * Default error message when no specific error is identified.
  */
+export const DB_CONNECTION_ERROR_MESSAGE = "Die Verbindung zur Datenbank konnte nicht hergestellt werden. Bitte überprüfen Sie Ihre Internetverbindung oder versuchen Sie es in Kürze erneut."
+
 const DEFAULT_ERROR_MESSAGE = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
 
 /**
@@ -77,6 +79,10 @@ const MESSAGE_PATTERNS: Array<{ pattern: string; message: string }> = [
     // Rate limiting (handle both correct spelling and common typo)
     { pattern: "Too many requests", message: "Zu viele Anfragen. Bitte warten Sie einen Moment." },
     { pattern: "rate limit exceeded", message: "Zu viele Anfragen. Bitte warten Sie einen Moment." },
+    // Connection / Database down errors
+    { pattern: "Failed to fetch", message: DB_CONNECTION_ERROR_MESSAGE },
+    { pattern: "Load failed", message: DB_CONNECTION_ERROR_MESSAGE },
+    { pattern: "NetworkError", message: DB_CONNECTION_ERROR_MESSAGE },
 ]
 
 /**
