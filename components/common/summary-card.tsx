@@ -1,5 +1,5 @@
 "use client"
-import React, { ReactNode } from "react";
+import React, { ReactNode, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,7 +47,6 @@ const CardWrapper = ({ children, hoverDetails, title, formatHoverValue }: CardWr
             align="start"
             sideOffset={0}
             alignOffset={0}
-            style={{ height: "auto", minHeight: "100%" }}
           >
             <div className="space-y-0">
               <div className="mb-1">
@@ -77,7 +76,8 @@ const CardWrapper = ({ children, hoverDetails, title, formatHoverValue }: CardWr
                       </div>
                     ))}
                   </div>
-                )}              </div>
+                )}
+              </div>
             </div>
           </HoverCardContent>
         </HoverCard>
@@ -102,10 +102,10 @@ export function SummaryCard({
     return <SummaryCardSkeleton className={className} />;
   }
 
-  const formatHoverValue = (num: number) => {
+  const formatHoverValue = useCallback((num: number) => {
     if (hoverDetails?.isCurrency) return formatCurrency(num);
     return valueFormatter ? valueFormatter(num) : num.toString();
-  };
+  }, [hoverDetails?.isCurrency, valueFormatter]);
 
   return (
     <CardWrapper hoverDetails={hoverDetails} title={title} formatHoverValue={formatHoverValue}>
