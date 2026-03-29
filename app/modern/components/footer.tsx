@@ -84,9 +84,9 @@ export default function Footer() {
                 Die moderne Lösung für Ihre Mietverwaltung und Betriebskostenabrechnung.
               </p>
               <div className="flex gap-4">
-                {socialLinks.map((social, index) => (
+                {socialLinks.map((social) => (
                   <motion.a
-                    key={index}
+                    key={social.platform}
                     href={social.href}
                     target={social.href.startsWith("http") ? "_blank" : undefined}
                     rel={social.href.startsWith("http") ? "noopener noreferrer" : undefined}
