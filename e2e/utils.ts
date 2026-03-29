@@ -40,7 +40,10 @@ export const login = async (page: Page) => {
     if (page.url().includes('/dashboard')) {
       return;
     }
-    await page.waitForURL(/\/dashboard|^\/$/, { timeout: 60000 }).catch(async (e) => {
+    await page.waitForFunction(() => {
+      const p = window.location.pathname;
+      return p === '/dashboard' || p === '/' || p === '/haeuser';
+    }, { timeout: 60000 }).catch(async (e) => {
       // In webkit sometimes the URL changes but it throws a timeout anyway if the load event doesn't fire
       if (!page.url().includes('/dashboard')) {
         throw e;

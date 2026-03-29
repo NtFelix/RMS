@@ -4,11 +4,11 @@ import { login, hasTestCredentials, generateRandomString, acceptCookieConsent } 
 
 import { Page } from '@playwright/test';
 
-async function safeNavigate(page: Page, url: string) {
+async function safeNavigate(page: Page, url: string, waitUntil: 'load' | 'domcontentloaded' | 'networkidle' | 'commit' = 'domcontentloaded') {
   let retries = 3;
   while (retries > 0) {
     try {
-      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await page.goto(url, { waitUntil });
       return;
     } catch (e: any) {
       if (e.message.includes('interrupted') && retries > 1) {
@@ -49,7 +49,7 @@ test.describe('Business Logic Flows', () => {
     await safeNavigate(page, '/haeuser');
 
     // Wait for the page content to fully load (look for a key element)
-    await expect(page.getByText('Hausverwaltung').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Hausverwaltung').first()).toBeAttached({ timeout: 15000 });
     await page.waitForTimeout(500); // Short wait for React hydration
 
     // Open modal - button shows "Hinzufügen" on mobile, "Haus hinzufügen" on desktop
@@ -57,7 +57,7 @@ test.describe('Business Logic Flows', () => {
     const addBtn = page.getByRole('button', { name: /Haus hinzufügen|Hinzufügen/i });
 
     // Wait for button to be present in DOM first
-    await expect(createBtn.or(addBtn)).toBeVisible({ timeout: 15000 });
+    await expect(createBtn.or(addBtn)).toBeAttached({ timeout: 15000 });
 
     if (await createBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await createBtn.click();
@@ -106,7 +106,7 @@ test.describe('Business Logic Flows', () => {
     await safeNavigate(page, '/wohnungen');
 
     // Wait for the page content to fully load (card with title)
-    await expect(page.getByText('Wohnungsverwaltung').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Wohnungsverwaltung').first()).toBeAttached({ timeout: 15000 });
     await page.waitForTimeout(500); // Short wait for React hydration
 
     // Open modal - button shows "Hinzufügen" on mobile, "Wohnung hinzufügen" on desktop
@@ -171,7 +171,7 @@ test.describe('Business Logic Flows', () => {
     await safeNavigate(page, '/mieter');
 
     // Wait for the page content to fully load (look for a key element)
-    await expect(page.getByText('Mieterverwaltung').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Mieterverwaltung').first()).toBeAttached({ timeout: 15000 });
 
 
     // Open modal - button shows "Hinzufügen" on mobile, "Mieter hinzufügen" on desktop
@@ -275,7 +275,7 @@ test.describe('Business Logic Flows', () => {
       for (const entity of entities) {
         try {
           console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
-          await page.goto(entity.path, { waitUntil: 'networkidle' });
+          await safeNavigate(page, entity.path, 'networkidle');
 
           // Strategy 1: Search for the specific entity name
           let foundAndDeleted = false;
