@@ -115,9 +115,21 @@ interface WasserZaehlerModalData {
   existingZaehler?: WasserZaehlerData[];
 }
 
+interface DocumentationContextItem {
+  id: string;
+  titel: string;
+  kategorie?: string | null;
+  seiteninhalt?: string;
+}
+
+interface AIDocumentationContext {
+  articles: DocumentationContextItem[];
+  categories?: any[];
+}
+
 // AI Assistant Modal Types
 interface AIAssistantModalData {
-  documentationContext?: any;
+  documentationContext?: AIDocumentationContext;
 }
 
 interface CreateFolderModalData {

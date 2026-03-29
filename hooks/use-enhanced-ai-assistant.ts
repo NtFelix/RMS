@@ -7,6 +7,18 @@ import { validateAIInput, validateAIContext, sanitizeInput, getInputSuggestions 
 import { categorizeAIError, trackAIRequestFailure, type AIErrorDetails } from '@/lib/ai-documentation-context';
 import { createAIPerformanceMonitor, type AIPerformanceMetrics } from '@/lib/ai-performance-monitor';
 
+export interface DocumentationContextItem {
+  id: string;
+  titel: string;
+  kategorie?: string | null;
+  seiteninhalt?: string;
+}
+
+export interface AIDocumentationContext {
+  articles: DocumentationContextItem[];
+  categories?: any[];
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -52,7 +64,7 @@ const generateMessageId = () => `msg_${crypto.randomUUID()}`;
  * Includes network detection, retry mechanisms, input validation, and fallback options
  */
 export function useEnhancedAIAssistant(
-  documentationContext: any[] = []
+  documentationContext: AIDocumentationContext = { articles: [] }
 ): UseEnhancedAIAssistantReturn {
   const [state, setState] = useState<AIAssistantState>({
     messages: [],
@@ -93,7 +105,7 @@ export function useEnhancedAIAssistant(
 
   // Preload frequent queries when documentation context changes
   useEffect(() => {
-    if (documentationContext.length > 0 && networkStatus.isOnline) {
+    if (documentationContext.articles.length > 0 && networkStatus.isOnline) {
       const contextHash = generateContextHash(documentationContext);
 
       // Preload common queries in the background
@@ -264,7 +276,7 @@ export function useEnhancedAIAssistant(
       posthog.capture('ai_question_submitted', {
         question_length: sanitizedMessage.length,
         session_id: sessionId,
-        has_context: documentationContext.length > 0,
+        has_context: documentationContext.articles.length > 0,
         message_count: state.messages.length + 1,
         is_retry: false,
         network_type: networkStatus.connectionType,
@@ -416,8 +428,8 @@ export function useEnhancedAIAssistant(
           sessionId: sessionId,
           responseTimeMs: responseTime,
           questionLength: sanitizedMessage.length,
-          hasContext: documentationContext.length > 0,
-          contextArticlesCount: documentationContext.length,
+          hasContext: documentationContext.articles.length > 0,
+          contextArticlesCount: documentationContext.articles.length,
           messageCount: state.messages.length + 1
         });
       }
@@ -611,14 +623,14 @@ export function useEnhancedAIAssistant(
 /**
  * Generate context hash for caching
  */
-function generateContextHash(documentationContext: any[]): string {
-  if (!documentationContext || documentationContext.length === 0) {
+function generateContextHash(documentationContext: AIDocumentationContext): string {
+  if (!documentationContext || documentationContext.articles.length === 0) {
     return 'no-context';
   }
 
   const contextString = JSON.stringify({
-    articleIds: documentationContext.map(article => article.id || article.titel).sort(),
-    count: documentationContext.length
+    articleIds: documentationContext.articles.map(article => article.id || article.titel).sort(),
+    count: documentationContext.articles.length
   });
 
   // Simple hash function

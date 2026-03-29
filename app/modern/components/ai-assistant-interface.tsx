@@ -13,17 +13,29 @@ import { cn } from "@/lib/utils";
 import { useEnhancedAIAssistant } from "@/hooks/use-enhanced-ai-assistant";
 import { BRAND_NAME } from "@/lib/constants";
 
+interface DocumentationContextItem {
+  id: string;
+  titel: string;
+  kategorie?: string | null;
+  seiteninhalt?: string;
+}
+
+interface AIDocumentationContext {
+  articles: DocumentationContextItem[];
+  categories?: any[];
+}
+
 interface AIAssistantInterfaceProps {
   isOpen: boolean;
   onClose: () => void;
-  documentationContext?: any[];
+  documentationContext?: AIDocumentationContext;
   className?: string;
 }
 
 export default function AIAssistantInterface({
   isOpen,
   onClose,
-  documentationContext = [],
+  documentationContext = { articles: [] },
   className
 }: AIAssistantInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);

@@ -10,8 +10,20 @@ import {
   type LLMTrace
 } from '@/lib/posthog-llm-tracking';
 
+interface DocumentationContextItem {
+  id: string;
+  titel: string;
+  kategorie?: string | null;
+  seiteninhalt?: string;
+}
+
+interface AIDocumentationContext {
+  articles: DocumentationContextItem[];
+  categories?: any[];
+}
+
 interface AIConversationOptions {
-  documentationContext?: any;
+  documentationContext?: AIDocumentationContext;
   interface?: 'modal' | 'simple';
 }
 

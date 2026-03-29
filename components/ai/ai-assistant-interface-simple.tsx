@@ -11,10 +11,22 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useAIConversation } from "@/hooks/use-ai-conversation";
 
+interface DocumentationContextItem {
+  id: string;
+  titel: string;
+  kategorie?: string | null;
+  seiteninhalt?: string;
+}
+
+interface AIDocumentationContext {
+  articles: DocumentationContextItem[];
+  categories?: any[];
+}
+
 interface AIAssistantInterfaceProps {
   isOpen: boolean;
   onClose: () => void;
-  documentationContext?: any;
+  documentationContext?: AIDocumentationContext;
   className?: string;
 }
 

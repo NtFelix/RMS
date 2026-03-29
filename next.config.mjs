@@ -68,7 +68,7 @@ const nextConfig = {
       },
       {
         source: '/hilfe/dokumentation/:path*',
-        destination: 'https://docs.mietevo.de/',
+        destination: 'https://docs.mietevo.de/:path*',
         permanent: true,
       },
     ];
