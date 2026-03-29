@@ -20,9 +20,14 @@ interface DocumentationContextItem {
   seiteninhalt?: string;
 }
 
+interface CategoryItem {
+  name: string;
+  articleCount?: number;
+}
+
 interface AIDocumentationContext {
   articles: DocumentationContextItem[];
-  categories?: any[];
+  categories?: CategoryItem[];
 }
 
 interface AIAssistantInterfaceProps {

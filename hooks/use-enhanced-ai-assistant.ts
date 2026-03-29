@@ -14,9 +14,14 @@ export interface DocumentationContextItem {
   seiteninhalt?: string;
 }
 
+export interface CategoryItem {
+  name: string;
+  articleCount?: number;
+}
+
 export interface AIDocumentationContext {
   articles: DocumentationContextItem[];
-  categories?: any[];
+  categories?: CategoryItem[];
 }
 
 export interface ChatMessage {
