@@ -33,15 +33,7 @@ import {
   trackNavMobileMenuOpened,
   type NavDropdown,
 } from "@/lib/posthog-landing-events";
-
-interface NavItem {
-  name: string;
-  href: string;
-  icon: LucideIcon;
-  description: string;
-  target?: string;
-  rel?: string;
-}
+import type { NavItem } from "@/lib/types";
 
 // Navigation dropdown items
 const produkteItems: NavItem[] = [
@@ -179,9 +171,9 @@ export default function Navigation({ onLogin }: NavigationProps) {
     return <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4 h-16"></nav>;
   }
 
-  const renderNavItem = (item: NavItem, index: number, dropdown?: NavDropdown) => (
+  const renderNavItem = (item: NavItem, dropdown?: NavDropdown) => (
     <Link
-      key={index}
+      key={item.name}
       href={item.href}
       target={item.target}
       rel={item.rel}
@@ -193,7 +185,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
     >
       <item.icon className="w-5 h-5 mr-3" />
       <div>
-        <div className="font-medium">{item.name}</div>
+        <div className="font-medium">
+          {item.name}
+          {item.target === "_blank" && (
+            <span className="sr-only"> (öffnet in neuem Tab)</span>
+          )}
+        </div>
         <div className="text-sm text-muted-foreground">{item.description}</div>
       </div>
     </Link>
@@ -271,8 +268,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
-                        {produkteItems.map((item, index) => (
-                          <DropdownMenuItem key={index} asChild>
+                        {produkteItems.map((item) => (
+                          <DropdownMenuItem key={item.name} asChild>
                             <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'produkte')}>
                               <item.icon className="w-4 h-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
@@ -298,8 +295,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <DropdownMenuContent align="start" className="w-[600px] p-0">
                       <div className="grid grid-cols-2">
                         <div className="p-2">
-                          {funktionenItems.map((item, index) => (
-                            <DropdownMenuItem key={index} asChild>
+                          {funktionenItems.map((item) => (
+                            <DropdownMenuItem key={item.name} asChild>
                               <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'funktionen')}>
                                 <item.icon className="w-4 h-4 shrink-0" />
                                 <div className="flex flex-col items-start gap-0.5">
@@ -354,8 +351,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
-                        {loesungenItems.map((item, index) => (
-                          <DropdownMenuItem key={index} asChild>
+                        {loesungenItems.map((item) => (
+                          <DropdownMenuItem key={item.name} asChild>
                             <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'loesungen')}>
                               <item.icon className="w-4 h-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
@@ -389,8 +386,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-72">
-                      {hilfeItems.map((item, index) => (
-                        <DropdownMenuItem key={index} asChild>
+                      {hilfeItems.map((item) => (
+                        <DropdownMenuItem key={item.name} asChild>
                           <Link
                             href={item.href}
                             target={item.target}
@@ -543,7 +540,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Produkte
                       </div>
-                      {produkteItems.map((item, index) => renderNavItem(item, index))}
+                      {produkteItems.map((item) => renderNavItem(item))}
                     </div>
                   )}
 
@@ -552,7 +549,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Funktionen
                     </div>
-                    {funktionenItems.map((item, index) => renderNavItem(item, index))}
+                    {funktionenItems.map((item) => renderNavItem(item))}
                   </div>
 
                   {/* Lösungen Section */}
@@ -561,7 +558,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Lösungen
                       </div>
-                      {loesungenItems.map((item, index) => renderNavItem(item, index))}
+                      {loesungenItems.map((item) => renderNavItem(item))}
                     </div>
                   )}
 
@@ -585,7 +582,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Hilfe
                     </div>
-                    {hilfeItems.map((item, index) => renderNavItem(item, index))}
+                    {hilfeItems.map((item) => renderNavItem(item))}
                   </div>
                 </div>
 

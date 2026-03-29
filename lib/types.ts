@@ -1,5 +1,6 @@
 // Types for data fetching - can be imported by both client and server components
 import { NebenkostenEntry } from "../types/Tenant";
+import type { LucideIcon } from "lucide-react";
 
 export type Wohnung = {
     id: string;
@@ -178,3 +179,20 @@ export type Finanzen = {
     dokument_id: string | null;
     tags?: string[] | null;
 };
+
+export interface ExternalLinkProps {
+    target?: "_blank" | "_self" | "_parent" | "_top";
+    rel?: string;
+}
+
+export interface NavItem extends ExternalLinkProps {
+    name: string;
+    href: string;
+    icon: LucideIcon;
+    description: string;
+}
+
+export interface FooterLink extends ExternalLinkProps {
+    href: string;
+    text: string;
+}

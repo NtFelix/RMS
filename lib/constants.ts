@@ -87,7 +87,7 @@ export const ROUTES = {
 } as const;
 
 export const EXTERNAL_LINKS = {
-  DOCUMENTATION: 'https://docs.mietevo.de',
+  DOCUMENTATION: 'https://docs.mietevo.de/',
 } as const;
 
 // MCP Worker URL

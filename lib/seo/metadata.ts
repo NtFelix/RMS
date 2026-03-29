@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { BASE_URL, BRAND_NAME, OG_IMAGE_URL, ROUTES, EXTERNAL_LINKS } from '@/lib/constants'
+import { BASE_URL, BRAND_NAME, OG_IMAGE_URL, EXTERNAL_LINKS } from '@/lib/constants'
 
 /**
  * Default metadata for the entire application.
