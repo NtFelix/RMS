@@ -233,7 +233,7 @@ describe('mieter-import-actions', () => {
 
       const result = await createApplicantsFromMails([{ id: '1', absender: 'john@example.com', dateipfad: 'path/to/file' }]);
 
-      expect(result.message).toContain('some warnings');
+      expect(result.message).toBe('Imported 1 applicants with some warnings. Queued 1 for AI processing.');
       expect(consoleErrorSpy).toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
     });
@@ -262,7 +262,7 @@ describe('mieter-import-actions', () => {
       );
     });
 
-    it('throws error if worker auth key is missing and not in dev', async () => {
+    it('returns error result if worker auth key is missing in production', async () => {
       delete process.env.WORKER_AUTH_KEY;
       Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
       mockBuilder.then.mockImplementationOnce((resolve: any) => resolve({ error: null }));
@@ -271,7 +271,7 @@ describe('mieter-import-actions', () => {
       const result = await createApplicantsFromMails([{ id: '1', absender: 'john@example.com', dateipfad: 'path/to/file' }]);
 
       expect(consoleErrorSpy).toHaveBeenCalled();
-      expect(result.message).toContain('warnings');
+      expect(result.message).toBe('Imported 1 applicants with some warnings. Queued 1 for AI processing.');
       consoleErrorSpy.mockRestore();
     });
   });

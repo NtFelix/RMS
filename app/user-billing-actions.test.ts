@@ -32,17 +32,13 @@ MockedStripe.mockImplementation(() => ({
 } as any));
 
 describe('user-billing-actions', () => {
-  let consoleErrorSpy: jest.SpyInstance;
-
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.STRIPE_SECRET_KEY = 'test_secret_key';
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
   });
 
   afterEach(() => {
     delete process.env.STRIPE_SECRET_KEY;
-    consoleErrorSpy.mockRestore();
   });
 
   describe('getBillingAddress', () => {
@@ -56,6 +52,22 @@ describe('user-billing-actions', () => {
           name: 'Max Mustermann',
           companyName: 'Muster GmbH',
           email: 'test@example.com',
+        })
+      );
+    });
+
+    it('prefers metadata.company_name over business_name', async () => {
+      (isStripeMocked as jest.Mock).mockReturnValue(false);
+      mockCustomersRetrieve.mockResolvedValue({
+        id: 'cus_123',
+        metadata: { company_name: 'Primary Inc' },
+        business_name: 'Legacy Inc',
+      });
+
+      const result = await getBillingAddress('cus_123');
+      expect(result).toEqual(
+        expect.objectContaining({
+          companyName: 'Primary Inc',
         })
       );
     });
@@ -170,6 +182,7 @@ describe('user-billing-actions', () => {
     });
 
     it('handles fetch error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       (isStripeMocked as jest.Mock).mockReturnValue(false);
       mockCustomersRetrieve.mockRejectedValue(new Error('Network error'));
 
@@ -178,9 +191,11 @@ describe('user-billing-actions', () => {
         error: 'Failed to fetch billing address',
         details: 'Network error',
       });
+      consoleSpy.mockRestore();
     });
 
     it('handles fetch non-error object', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       (isStripeMocked as jest.Mock).mockReturnValue(false);
       mockCustomersRetrieve.mockRejectedValue('String error');
 
@@ -189,6 +204,7 @@ describe('user-billing-actions', () => {
         error: 'Failed to fetch billing address',
         details: 'Unknown error',
       });
+      consoleSpy.mockRestore();
     });
   });
 
@@ -287,6 +303,7 @@ describe('user-billing-actions', () => {
     });
 
     it('handles update error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       (isStripeMocked as jest.Mock).mockReturnValue(false);
       mockCustomersUpdate.mockRejectedValue(new Error('Update failed'));
 
@@ -295,6 +312,7 @@ describe('user-billing-actions', () => {
         address: { line1: '', city: '', postal_code: '', country: '' },
       });
       expect(result).toEqual({ success: false, error: 'Update failed' });
+      consoleSpy.mockRestore();
     });
   });
 
@@ -337,6 +355,7 @@ describe('user-billing-actions', () => {
     });
 
     it('returns error if client_secret is null', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       (isStripeMocked as jest.Mock).mockReturnValue(false);
       mockSetupIntentsCreate.mockResolvedValue({
         client_secret: null,
@@ -344,14 +363,27 @@ describe('user-billing-actions', () => {
 
       const result = await createSetupIntent('cus_123');
       expect(result).toEqual({ error: 'Failed to create SetupIntent: client_secret is null' });
+      consoleSpy.mockRestore();
     });
 
     it('handles create setup intent error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       (isStripeMocked as jest.Mock).mockReturnValue(false);
       mockSetupIntentsCreate.mockRejectedValue(new Error('Create intent failed'));
 
       const result = await createSetupIntent('cus_123');
       expect(result).toEqual({ error: 'Create intent failed' });
+      consoleSpy.mockRestore();
+    });
+
+    it('handles create setup intent non-error object', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      (isStripeMocked as jest.Mock).mockReturnValue(false);
+      mockSetupIntentsCreate.mockRejectedValue('String error');
+
+      const result = await createSetupIntent('cus_123');
+      expect(result).toEqual({ error: 'Failed to create SetupIntent' });
+      consoleSpy.mockRestore();
     });
   });
 });
