@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { BASE_URL, BRAND_NAME, OG_IMAGE_URL } from '@/lib/constants'
+import { BASE_URL, BRAND_NAME, OG_IMAGE_URL, EXTERNAL_LINKS } from '@/lib/constants'
 
 /**
  * Default metadata for the entire application.
@@ -299,10 +299,10 @@ export const pageMetadata = {
         openGraph: {
             title: 'Dokumentation & Hilfe | Mietevo',
             description: 'Ausführliche Anleitungen und Hilfe zur Nutzung von Mietevo.',
-            url: `${BASE_URL}/hilfe/dokumentation`,
+            url: EXTERNAL_LINKS.DOCUMENTATION,
         },
         alternates: {
-            canonical: '/hilfe/dokumentation',
+            canonical: EXTERNAL_LINKS.DOCUMENTATION,
         },
     } satisfies Metadata,
 
