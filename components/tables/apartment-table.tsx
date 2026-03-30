@@ -64,8 +64,8 @@ interface TableHeaderCellProps {
   className?: string;
   icon: React.ElementType;
   sortable?: boolean;
-  onSort: (key: ApartmentSortKey) => void;
-  renderSortIcon: (key: ApartmentSortKey) => React.ReactNode;
+  onSort?: (key: ApartmentSortKey) => void;
+  renderSortIcon?: (key: ApartmentSortKey) => React.ReactNode;
 }
 
 const TableHeaderCell = ({ 
@@ -79,7 +79,7 @@ const TableHeaderCell = ({
 }: TableHeaderCellProps) => (
   <TableHead className={cn("dark:text-[#f3f4f6] group/header", className)}>
     <div
-      onClick={() => sortable && sortKey && onSort(sortKey)}
+      onClick={() => sortable && sortKey && onSort?.(sortKey)}
       className={cn(
         "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6]",
         sortable && sortKey && "cursor-pointer"
@@ -87,7 +87,7 @@ const TableHeaderCell = ({
     >
       <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
       {children}
-      {sortable && sortKey && renderSortIcon(sortKey)}
+      {sortable && sortKey && renderSortIcon?.(sortKey)}
     </div>
   </TableHead>
 )
@@ -405,7 +405,6 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                 </TableHeaderCell>
                 <TableHeaderCell 
                   sortKey="haus" 
-                  className="" 
                   icon={Building2}
                   onSort={handleSort}
                   renderSortIcon={renderSortIcon}
@@ -425,8 +424,6 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                   className="w-[80px] pr-2" 
                   icon={Pencil} 
                   sortable={false}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
                 >
                   Aktionen
                 </TableHeaderCell>
