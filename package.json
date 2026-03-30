@@ -26,7 +26,7 @@
     "@opentelemetry/resources": "^2.5.1",
     "@opentelemetry/sdk-logs": "^0.211.0",
     "@opentelemetry/sdk-node": "^0.214.0",
-    "@posthog/nextjs-config": "^1.8.23",
+    "@posthog/nextjs-config": "^1.8.26",
     "@radix-ui/react-accordion": "1.2.12",
     "@radix-ui/react-alert-dialog": "1.1.15",
     "@radix-ui/react-aspect-ratio": "1.1.8",
