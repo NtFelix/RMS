@@ -8,9 +8,9 @@ import { redirect } from 'next/navigation';
 export const ALLOWED_REDIRECT_ORIGINS = [
     'https://api.notion.com',
     'https://www.notion.so',
+    'https://www.perplexity.ai',
     'https://mcp.mietevo.de',
     'https://mietevo.de',
-    'https://mietevo.com',
     // Allow any Cloudflare Pages preview deploy for development
     ...(process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS
         ? process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS.split(',')
