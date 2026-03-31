@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, MutableRefObject } from "react"
+import React, { useMemo, MutableRefObject } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -32,7 +32,7 @@ export interface Apartment {
   groesse: number
   miete: number
   haus_id?: string
-  Haeuser?: { name: string } | null; // Allow null here
+  Haeuser?: { name: string } | null;
   status: 'frei' | 'vermietet'
   tenant?: {
     id: string
@@ -42,7 +42,6 @@ export interface Apartment {
   } | null
 }
 
-// Define sortable fields for apartments
 type ApartmentSortKey = "name" | "groesse" | "miete" | "pricePerSqm" | "haus" | "status"
 type SortDirection = "asc" | "desc"
 
@@ -57,6 +56,8 @@ interface ApartmentTableProps {
   selectedApartments?: Set<string>
   onSelectionChange?: (selected: Set<string>) => void
 }
+
+// --- Sub-components ---
 
 interface TableHeaderCellProps {
   sortKey?: ApartmentSortKey;
@@ -110,6 +111,171 @@ const TableHeaderCell = ({
   );
 };
 
+interface ApartmentBulkActionsProps {
+  selectedCount: number;
+  onClearSelection: () => void;
+  onExport: () => void;
+  onDeleteConfirm: () => void;
+}
+
+const ApartmentBulkActions = ({ selectedCount, onClearSelection, onExport, onDeleteConfirm }: ApartmentBulkActionsProps) => (
+  <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <Checkbox
+          checked={true}
+          onCheckedChange={onClearSelection}
+          className="data-[state=checked]:bg-primary"
+        />
+        <span className="font-medium text-sm">
+          {selectedCount} {selectedCount === 1 ? 'Wohnung' : 'Wohnungen'} ausgewählt
+        </span>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onClearSelection}
+        className="h-8 px-2 hover:bg-primary/20"
+      >
+        <X className="h-4 w-4" />
+      </Button>
+    </div>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onExport}
+        className="h-8 gap-2"
+      >
+        <Download className="h-4 w-4" />
+        Exportieren
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onDeleteConfirm}
+        className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+      >
+        <Trash2 className="h-4 w-4" />
+        Löschen
+      </Button>
+    </div>
+  </div>
+);
+
+interface ApartmentTableRowProps {
+  apt: Apartment;
+  index: number;
+  isSelected: boolean;
+  isLastRow: boolean;
+  onSelect: (checked: CheckedState) => void;
+  onEdit?: (apt: Apartment) => void;
+  onRefresh?: () => Promise<void>;
+  contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+}
+
+const ApartmentTableRowItem = ({ apt, index, isSelected, isLastRow, onSelect, onEdit, onRefresh, contextMenuRefs }: ApartmentTableRowProps) => (
+  <ApartmentContextMenu
+    key={apt.id}
+    apartment={apt}
+    onEdit={() => onEdit?.(apt)}
+    onRefresh={onRefresh}
+  >
+    <TableRow
+      ref={(el) => {
+        if (el) contextMenuRefs.current.set(apt.id, el)
+        else contextMenuRefs.current.delete(apt.id)
+      }}
+      className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+        ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+        }`}
+      onClick={() => onEdit?.(apt)}
+    >
+      <TableCell
+        className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Checkbox
+          aria-label={`Wohnung ${apt.name} auswählen`}
+          checked={isSelected}
+          onCheckedChange={onSelect}
+        />
+      </TableCell>
+      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{apt.name}</TableCell>
+      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatNumber(apt.groesse)} m²</TableCell>
+      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatNumber(apt.miete)} €</TableCell>
+      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatNumber(apt.miete / apt.groesse)} €/m²</TableCell>
+      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{apt.Haeuser?.name || '-'}</TableCell>
+      <TableCell className={`py-4`}>
+        {apt.status === 'vermietet' ? (
+          <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400">
+            vermietet
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400">
+            frei
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell
+        className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <ActionMenu
+          actions={[
+            {
+              id: `edit-${apt.id}`,
+              icon: Pencil,
+              label: "Bearbeiten",
+              onClick: () => onEdit?.(apt),
+              variant: 'primary',
+            },
+            {
+              id: `meter-${apt.id}`,
+              icon: Gauge,
+              label: "Zähler verwalten",
+              onClick: () => {
+                useOnboardingStore.getState().completeStep('create-meter-select');
+                useModalStore.getState().openZaehlerModal(apt.id, apt.name);
+              },
+              variant: 'default',
+            },
+            {
+              id: index === 0 ? "apartment-menu-trigger-0" : `more-${apt.id}`,
+              icon: MoreVertical,
+              label: "Mehr Optionen",
+              onClick: (e) => {
+                if (index === 0) {
+                  useOnboardingStore.getState().completeStep('create-meter-open-menu');
+                }
+                if (!e) return;
+                const rowElement = contextMenuRefs.current.get(apt.id)
+                if (rowElement) {
+                  const contextMenuEvent = new MouseEvent('contextmenu', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    clientX: e.clientX,
+                    clientY: e.clientY,
+                  })
+                  rowElement.dispatchEvent(contextMenuEvent)
+                }
+              },
+              variant: 'default',
+            }
+          ]}
+          shape="pill"
+          visibility="always"
+          className="inline-flex"
+        />
+      </TableCell>
+    </TableRow>
+  </ApartmentContextMenu>
+);
+
+// --- Reducer and main component ---
+
 type ApartmentState = {
   sortKey: ApartmentSortKey;
   sortDirection: SortDirection;
@@ -146,27 +312,18 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
 
   const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
 
-  // Use external selection state if provided, otherwise use internal
   const selectedApartments = externalSelectedApartments ?? state.internalSelectedApartments
   const setSelectedApartments = (next: Set<string>) => {
-    if (onSelectionChange) {
-      onSelectionChange(next);
-    } else {
-      dispatch({ type: 'SET_SELECTED_APARTMENTS', payload: next });
-    }
+    if (onSelectionChange) onSelectionChange(next);
+    else dispatch({ type: 'SET_SELECTED_APARTMENTS', payload: next });
   }
 
   const sortedAndFilteredData = useMemo(() => {
     let result = [...(initialApartments ?? [])]
 
-    // Filter by status
-    if (filter === 'free') {
-      result = result.filter(apt => apt.status === 'frei')
-    } else if (filter === 'rented') {
-      result = result.filter(apt => apt.status === 'vermietet')
-    }
+    if (filter === 'free') result = result.filter(apt => apt.status === 'frei')
+    else if (filter === 'rented') result = result.filter(apt => apt.status === 'vermietet')
 
-    // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       result = result.filter(
@@ -178,11 +335,9 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
       )
     }
 
-    // Apply sorting
     if (state.sortKey) {
       result.sort((a, b) => {
         let valA, valB
-
         if (state.sortKey === 'pricePerSqm') {
           valA = a.miete / a.groesse
           valB = b.miete / b.groesse
@@ -193,13 +348,10 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
           valA = a[state.sortKey]
           valB = b[state.sortKey]
         }
-
         if (valA === undefined || valA === null) valA = ''
         if (valB === undefined || valB === null) valB = ''
-
         const numA = parseFloat(String(valA));
         const numB = parseFloat(String(valB));
-
         if (!isNaN(numA) && !isNaN(numB)) {
           if (numA < numB) return state.sortDirection === "asc" ? -1 : 1;
           if (numA > numB) return state.sortDirection === "asc" ? 1 : -1;
@@ -211,109 +363,66 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
         }
       })
     }
-
     return result
   }, [initialApartments, filter, searchQuery, state.sortKey, state.sortDirection])
 
   const visibleApartmentIds = useMemo(() => sortedAndFilteredData.map((apt) => apt.id), [sortedAndFilteredData])
-
   const allSelected = visibleApartmentIds.length > 0 && visibleApartmentIds.every((id) => selectedApartments.has(id))
   const partiallySelected = visibleApartmentIds.some((id) => selectedApartments.has(id)) && !allSelected
 
   const handleSelectAll = (checked: CheckedState) => {
-    const isChecked = checked === true
     const next = new Set(selectedApartments)
-    if (isChecked) {
-      visibleApartmentIds.forEach((id) => next.add(id))
-    } else {
-      visibleApartmentIds.forEach((id) => next.delete(id))
-    }
+    if (checked === true) visibleApartmentIds.forEach((id) => next.add(id))
+    else visibleApartmentIds.forEach((id) => next.delete(id))
     setSelectedApartments(next)
   }
 
   const handleSelectApartment = (apartmentId: string, checked: CheckedState) => {
-    const isChecked = checked === true
     const next = new Set(selectedApartments)
-    if (isChecked) {
-      next.add(apartmentId)
-    } else {
-      next.delete(apartmentId)
-    }
+    if (checked === true) next.add(apartmentId)
+    else next.delete(apartmentId)
     setSelectedApartments(next)
   }
 
   const handleSort = (key: ApartmentSortKey) => {
-    if (state.sortKey === key) {
-      dispatch({ 
-        type: 'SET_SORT', 
-        payload: { key, direction: state.sortDirection === "asc" ? "desc" : "asc" } 
-      });
-    } else {
-      dispatch({ 
-        type: 'SET_SORT', 
-        payload: { key, direction: "asc" } 
-      });
-    }
+    dispatch({ 
+      type: 'SET_SORT', 
+      payload: { key, direction: state.sortKey === key && state.sortDirection === "asc" ? "desc" : "asc" } 
+    });
   }
 
   const renderSortIcon = (key: ApartmentSortKey) => {
-    if (state.sortKey !== key) {
-      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-    }
-    return state.sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
-    ) : (
-      <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
-    )
+    if (state.sortKey !== key) return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+    return state.sortDirection === "asc" ? <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" /> : <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
   }
 
   const handleBulkDelete = async () => {
     if (selectedApartments.size === 0) return;
-
     dispatch({ type: 'SET_IS_BULK_DELETING', payload: true });
     const selectedIds = Array.from(selectedApartments);
-
     try {
       const response = await fetch('/api/apartments/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedIds }),
       });
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Fehler beim Löschen der Wohnungen.');
       }
-
       const { successCount } = await response.json();
       const failedCount = selectedIds.length - successCount;
-
       dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: false });
       setSelectedApartments(new Set());
-
       if (successCount > 0) {
-        toast({
-          title: "Erfolg",
-          description: `${successCount} Wohnungen erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`,
-          variant: "success",
-        });
-
+        toast({ title: "Erfolg", description: `${successCount} Wohnungen erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`, variant: "success" });
         if (onTableRefresh) await onTableRefresh();
         router.refresh();
       } else {
-        toast({
-          title: "Fehler",
-          description: "Keine Wohnungen konnten gelöscht werden.",
-          variant: "destructive",
-        });
+        toast({ title: "Fehler", description: "Keine Wohnungen konnten gelöscht werden.", variant: "destructive" });
       }
     } catch (error) {
-      console.error("Bulk delete error:", error);
-      toast({
-        title: "Fehler",
-        description: error instanceof Error ? error.message : "Ein Fehler ist beim Löschen der Wohnungen aufgetreten.",
-        variant: "destructive",
-      });
+      toast({ title: "Fehler", description: error instanceof Error ? error.message : "Ein Fehler ist beim Löschen der Wohnungen aufgetreten.", variant: "destructive" });
     } finally {
       dispatch({ type: 'SET_IS_BULK_DELETING', payload: false });
     }
@@ -330,83 +439,30 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
 
   const handleBulkExport = () => {
     const selectedApartmentsData = (initialApartments ?? []).filter(a => selectedApartments.has(a.id))
-
     const headers = ['Wohnung', 'Größe (m²)', 'Miete (€)', '€/m²', 'Haus', 'Status']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-
     const csvRows = selectedApartmentsData.map(a => {
-      const row = [
-        a.name,
-        a.groesse.toString(),
-        a.miete.toString(),
-        (a.miete / a.groesse).toFixed(2),
-        a.Haeuser?.name || '',
-        a.status
-      ]
+      const row = [a.name, a.groesse.toString(), a.miete.toString(), (a.miete / a.groesse).toFixed(2), a.Haeuser?.name || '', a.status]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-
     const csvContent = [csvHeader, ...csvRows].join('\n')
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = `wohnungen_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
-
-    toast({
-      title: "Export erfolgreich",
-      description: `${selectedApartments.size} Wohnungen exportiert.`,
-      variant: "success",
-    })
+    toast({ title: "Export erfolgreich", description: `${selectedApartments.size} Wohnungen exportiert.`, variant: "success" })
   }
 
   return (
     <div className="rounded-lg">
-      {/* Bulk Action Bar - only show if using internal state */}
       {!externalSelectedApartments && selectedApartments.size > 0 && (
-        <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={true}
-                onCheckedChange={() => setSelectedApartments(new Set())}
-                className="data-[state=checked]:bg-primary"
-              />
-              <span className="font-medium text-sm">
-                {selectedApartments.size} {selectedApartments.size === 1 ? 'Wohnung' : 'Wohnungen'} ausgewählt
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedApartments(new Set())}
-              className="h-8 px-2 hover:bg-primary/20"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBulkExport}
-              className="h-8 gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Exportieren
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: true })}
-              className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-            >
-              <Trash2 className="h-4 w-4" />
-              Löschen
-            </Button>
-          </div>
-        </div>
+        <ApartmentBulkActions
+          selectedCount={selectedApartments.size}
+          onClearSelection={() => setSelectedApartments(new Set())}
+          onExport={handleBulkExport}
+          onDeleteConfirm={() => dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: true })}
+        />
       )}
       <div className="overflow-x-auto -mx-4 sm:mx-0 min-h-[600px]">
         <div className="inline-block min-w-full align-middle">
@@ -423,187 +479,32 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                     />
                   </div>
                 </TableHead>
-                <TableHeaderCell 
-                  sortKey="name" 
-                  className="w-[200px]" 
-                  icon={Home}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Wohnung
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  sortKey="groesse" 
-                  className="w-[120px]" 
-                  icon={Ruler}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Größe
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  sortKey="miete" 
-                  className="w-[110px]" 
-                  icon={Euro}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Miete
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  sortKey="pricePerSqm" 
-                  className="w-[130px]" 
-                  icon={Euro}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  €/m²
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  sortKey="haus" 
-                  icon={Building2}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Haus
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  sortKey="status" 
-                  className="w-[110px]" 
-                  icon={CheckCircle2}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Status
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  className="w-[80px] pr-2" 
-                  icon={Pencil} 
-                  sortable={false}
-                >
-                  Aktionen
-                </TableHeaderCell>
+                <TableHeaderCell sortKey="name" className="w-[200px]" icon={Home} onSort={handleSort} renderSortIcon={renderSortIcon}>Wohnung</TableHeaderCell>
+                <TableHeaderCell sortKey="groesse" className="w-[120px]" icon={Ruler} onSort={handleSort} renderSortIcon={renderSortIcon}>Größe</TableHeaderCell>
+                <TableHeaderCell sortKey="miete" className="w-[110px]" icon={Euro} onSort={handleSort} renderSortIcon={renderSortIcon}>Miete</TableHeaderCell>
+                <TableHeaderCell sortKey="pricePerSqm" className="w-[130px]" icon={Euro} onSort={handleSort} renderSortIcon={renderSortIcon}>€/m²</TableHeaderCell>
+                <TableHeaderCell sortKey="haus" icon={Building2} onSort={handleSort} renderSortIcon={renderSortIcon}>Haus</TableHeaderCell>
+                <TableHeaderCell sortKey="status" className="w-[110px]" icon={CheckCircle2} onSort={handleSort} renderSortIcon={renderSortIcon}>Status</TableHeaderCell>
+                <TableHeaderCell className="w-[80px] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedAndFilteredData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-[400px] text-center">
-                    Keine Wohnungen gefunden.
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={8} className="h-[400px] text-center">Keine Wohnungen gefunden.</TableCell></TableRow>
               ) : (
-                sortedAndFilteredData.map((apt, index) => {
-                  const isLastRow = index === sortedAndFilteredData.length - 1
-                  const isSelected = selectedApartments.has(apt.id)
-
-                  return (
-                    <ApartmentContextMenu
-                      key={apt.id}
-                      apartment={apt}
-                      onEdit={() => onEdit?.(apt)}
-                      onRefresh={async () => {
-                        if (onTableRefresh) {
-                          await onTableRefresh();
-                        }
-                      }}
-                    >
-                      <TableRow
-                        ref={(el) => {
-                          if (el) {
-                            contextMenuRefs.current.set(apt.id, el)
-                          } else {
-                            contextMenuRefs.current.delete(apt.id)
-                          }
-                        }}
-                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
-                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                          }`}
-                        onClick={() => onEdit?.(apt)}
-                      >
-                        <TableCell
-                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <Checkbox
-                            aria-label={`Wohnung ${apt.name} auswählen`}
-                            checked={selectedApartments.has(apt.id)}
-                            onCheckedChange={(checked) => handleSelectApartment(apt.id, checked)}
-                          />
-                        </TableCell>
-                        <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{apt.name}</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatNumber(apt.groesse)} m²</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatNumber(apt.miete)} €</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatNumber(apt.miete / apt.groesse)} €/m²</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{apt.Haeuser?.name || '-'}</TableCell>
-                        <TableCell className={`py-4`}>
-                          {apt.status === 'vermietet' ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400">
-                              vermietet
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400">
-                              frei
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell
-                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <ActionMenu
-                            actions={[
-                              {
-                                id: `edit-${apt.id}`,
-                                icon: Pencil,
-                                label: "Bearbeiten",
-                                onClick: () => onEdit?.(apt),
-                                variant: 'primary',
-                              },
-                              {
-                                id: `meter-${apt.id}`,
-                                icon: Gauge,
-                                label: "Zähler verwalten",
-                                onClick: () => {
-                                  useOnboardingStore.getState().completeStep('create-meter-select');
-                                  useModalStore.getState().openZaehlerModal(apt.id, apt.name);
-                                },
-                                variant: 'default',
-                              },
-                              {
-                                id: index === 0 ? "apartment-menu-trigger-0" : `more-${apt.id}`,
-                                icon: MoreVertical,
-                                label: "Mehr Optionen",
-                                onClick: (e) => {
-                                  if (index === 0) {
-                                    useOnboardingStore.getState().completeStep('create-meter-open-menu');
-                                  }
-                                  if (!e) return;
-                                  const rowElement = contextMenuRefs.current.get(apt.id)
-                                  if (rowElement) {
-                                    const contextMenuEvent = new MouseEvent('contextmenu', {
-                                      bubbles: true,
-                                      cancelable: true,
-                                      view: window,
-                                      clientX: e.clientX,
-                                      clientY: e.clientY,
-                                    })
-                                    rowElement.dispatchEvent(contextMenuEvent)
-                                  }
-                                },
-                                variant: 'default',
-                              }
-                            ]}
-                            shape="pill"
-                            visibility="always"
-                            className="inline-flex"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    </ApartmentContextMenu>
-                  )
-                })
+                sortedAndFilteredData.map((apt, index) => (
+                  <ApartmentTableRowItem
+                    key={apt.id}
+                    apt={apt}
+                    index={index}
+                    isSelected={selectedApartments.has(apt.id)}
+                    isLastRow={index === sortedAndFilteredData.length - 1}
+                    onSelect={(checked) => handleSelectApartment(apt.id, checked)}
+                    onEdit={onEdit}
+                    onRefresh={onTableRefresh}
+                    contextMenuRefs={contextMenuRefs}
+                  />
+                ))
               )}
             </TableBody>
           </Table>
@@ -614,9 +515,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mehrere Wohnungen löschen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Möchten Sie wirklich {selectedApartments.size} Wohnungen löschen? Diese Aktion kann nicht rückgängig gemacht werden.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Möchten Sie wirklich {selectedApartments.size} Wohnungen löschen? Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={state.isBulkDeleting}>Abbrechen</AlertDialogCancel>
