@@ -1,16 +1,20 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
-    
+
     // Get user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      return NextResponse.json({ error: 'Not authenticated' }, { 
+        status: 401,
+        headers: NO_CACHE_HEADERS
+      })
     }
 
     const { searchParams } = new URL(request.url)
@@ -27,6 +31,8 @@ export async function GET(request: NextRequest) {
         userId: user.id,
         allTenants: allTenants || [],
         error: allTenantsError?.message
+      }, {
+        headers: NO_CACHE_HEADERS
       })
     }
 
@@ -53,12 +59,17 @@ export async function GET(request: NextRequest) {
       tenants: tenants || [],
       tenantsError: tenantsError?.message,
       tenantsCount: tenants?.length || 0
+    }, {
+      headers: NO_CACHE_HEADERS
     })
 
   } catch (error) {
     console.error('Debug API error:', error)
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 })
+    }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    })
   }
 }

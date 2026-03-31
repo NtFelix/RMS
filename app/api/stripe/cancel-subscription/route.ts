@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import StripeNode from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { logApiRoute } from '@/lib/logging-middleware';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 export async function POST(req: Request) {
   logApiRoute('/api/stripe/cancel-subscription', 'POST', 'request', {});
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
     logApiRoute('/api/stripe/cancel-subscription', 'POST', 'error', {
       error_message: 'Stripe secret key not configured'
     });
-    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
+    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
   const stripe = new StripeNode(process.env.STRIPE_SECRET_KEY!);
   const supabase = createSupabaseServerClient();
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
       logApiRoute('/api/stripe/cancel-subscription', 'POST', 'error', {
         error_message: 'Unauthorized: Could not get user'
       });
-      return NextResponse.json({ error: 'Unauthorized: Could not get user.' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Could not get user.' }, { status: 401, headers: NO_CACHE_HEADERS });
     }
 
     let parsedBody;
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
         error_message: 'Invalid JSON body',
         user_id: user.id
       });
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
     const { stripeSubscriptionId } = parsedBody;
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
         error_message: 'Stripe Subscription ID is required',
         user_id: user.id
       });
-      return NextResponse.json({ error: 'Stripe Subscription ID (stripeSubscriptionId) is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Stripe Subscription ID (stripeSubscriptionId) is required' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
         error_message: 'Could not retrieve user profile',
         user_id: user.id
       });
-      return NextResponse.json({ error: 'Could not retrieve user profile to verify subscription.' }, { status: 500 });
+      return NextResponse.json({ error: 'Could not retrieve user profile to verify subscription.' }, { status: 500, headers: NO_CACHE_HEADERS });
     }
 
     let currentSubscription: StripeNode.Subscription;
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
         user_id: user.id,
         subscription_id: stripeSubscriptionId
       });
-      return NextResponse.json({ error: `Stripe API error: ${error.message}` }, { status: 500 });
+      return NextResponse.json({ error: `Stripe API error: ${error.message}` }, { status: 500, headers: NO_CACHE_HEADERS });
     }
 
     if (currentSubscription.customer !== profile.stripe_customer_id) {
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
         user_id: user.id,
         subscription_id: stripeSubscriptionId
       });
-      return NextResponse.json({ error: 'Subscription not associated with this user.' }, { status: 403 });
+      return NextResponse.json({ error: 'Subscription not associated with this user.' }, { status: 403, headers: NO_CACHE_HEADERS });
     }
 
     // Cancel the subscription at the end of the current period
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
             ? new Date(canceledSubscription.current_period_end * 1000).toISOString()
             : undefined,
         }
-      }, { status: 207 });
+      }, { status: 207, headers: NO_CACHE_HEADERS });
     }
 
     logApiRoute('/api/stripe/cancel-subscription', 'POST', 'response', {
@@ -133,7 +134,7 @@ export async function POST(req: Request) {
           ? new Date(canceledSubscription.current_period_end * 1000).toISOString()
           : undefined,
       }
-    }, { status: 200 });
+    }, { status: 200, headers: NO_CACHE_HEADERS });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
@@ -141,9 +142,9 @@ export async function POST(req: Request) {
       error_message: errorMessage
     });
     if (error instanceof StripeNode.errors.StripeError) {
-      return NextResponse.json({ error: `Stripe error: ${errorMessage}` }, { status: 500 });
+      return NextResponse.json({ error: `Stripe error: ${errorMessage}` }, { status: 500, headers: NO_CACHE_HEADERS });
     }
-    return NextResponse.json({ error: `Failed to cancel subscription: ${errorMessage}` }, { status: 500 });
+    return NextResponse.json({ error: `Failed to cancel subscription: ${errorMessage}` }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 

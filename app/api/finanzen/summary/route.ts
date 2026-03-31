@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { createClient } from "../../../../utils/supabase/server";
 import { NextResponse } from "next/server";
 import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export async function GET(request: Request) {
   try {
@@ -67,7 +68,7 @@ export async function GET(request: Request) {
       
     if (error) {
       console.error('GET /api/finanzen/summary error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 500, headers: NO_CACHE_HEADERS });
     }
 
     // Calculate summary statistics using the shared utility function
@@ -81,9 +82,9 @@ export async function GET(request: Request) {
     const { monthlyData, ...restSummary } = summary;
     const summaryWithMonthlyData = { ...restSummary, monthlyData };
 
-    return NextResponse.json(summaryWithMonthlyData, { status: 200 });
+    return NextResponse.json(summaryWithMonthlyData, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
     console.error('Server error GET /api/finanzen/summary:', e);
-    return NextResponse.json({ error: 'Serverfehler bei Finanzen-Zusammenfassung.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler bei Finanzen-Zusammenfassung.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

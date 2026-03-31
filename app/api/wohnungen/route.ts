@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 
 export async function POST(request: Request) {
@@ -15,7 +16,10 @@ export async function POST(request: Request) {
 
     if (!userProfile) {
       // fetchUserProfile already logs "No user logged in..."
-      return NextResponse.json({ error: "Benutzer nicht authentifiziert." }, { status: 401 });
+      return NextResponse.json({ error: "Benutzer nicht authentifiziert." }, { 
+        status: 401,
+        headers: NO_CACHE_HEADERS
+      });
     }
     const userId = userProfile.id; // Get userId from userProfile
 
@@ -34,7 +38,10 @@ export async function POST(request: Request) {
 
         if (planDetails === null) {
           console.error(`API: Plan details not found for price_id: ${userProfile.stripe_price_id}`);
-          return NextResponse.json({ error: "Details zu Ihrem Abonnementplan konnten nicht gefunden werden." }, { status: 403 });
+          return NextResponse.json({ error: "Details zu Ihrem Abonnementplan konnten nicht gefunden werden." }, { 
+            status: 403,
+            headers: NO_CACHE_HEADERS
+          });
         }
 
         if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
@@ -43,7 +50,10 @@ export async function POST(request: Request) {
           currentApartmentLimit = Infinity;
         } else {
           console.error(`API: Invalid limitWohnungen configuration: ${planDetails.limitWohnungen}`);
-          return NextResponse.json({ error: "Ungültige Konfiguration für Wohnungslimit in Ihrem Plan." }, { status: 500 });
+          return NextResponse.json({ error: "Ungültige Konfiguration für Wohnungslimit in Ihrem Plan." }, { 
+            status: 500,
+            headers: NO_CACHE_HEADERS
+          });
         }
       } catch (planError: unknown) {
         if (planError instanceof Error) {
@@ -52,11 +62,17 @@ export async function POST(request: Request) {
         } else {
           console.error("API: Error fetching plan details for limit enforcement (unknown type):", planError);
         }
-        return NextResponse.json({ error: "Fehler beim Abrufen der Plandetails für Ihr Abonnement." }, { status: 500 });
+        return NextResponse.json({ error: "Fehler beim Abrufen der Plandetails für Ihr Abonnement." }, { 
+          status: 500,
+          headers: NO_CACHE_HEADERS
+        });
       }
     } else {
       // No active subscription or price ID, and not in trial
-      return NextResponse.json({ error: "Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen." }, { status: 403 });
+      return NextResponse.json({ error: "Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen." }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
     // Now, count existing apartments
@@ -67,7 +83,10 @@ export async function POST(request: Request) {
 
     if (countError) {
       console.error('API: Error counting apartments:', countError);
-      return NextResponse.json({ error: "Fehler beim Zählen der Wohnungen." }, { status: 500 });
+      return NextResponse.json({ error: "Fehler beim Zählen der Wohnungen." }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
     // Enforce the limit
@@ -76,15 +95,24 @@ export async function POST(request: Request) {
     // This is a fallback / sanity check.
     if (currentApartmentLimit === null) {
       console.warn("API: currentApartmentLimit is null after trial/subscription checks. This indicates a potential logic issue.");
-      return NextResponse.json({ error: "Zugriff verweigert. Keine gültige Testphase oder Abonnement gefunden." }, { status: 403 });
+      return NextResponse.json({ error: "Zugriff verweigert. Keine gültige Testphase oder Abonnement gefunden." }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
     if (currentApartmentLimit !== Infinity) { // Only check if not unlimited
       if (count !== null && count >= currentApartmentLimit) {
         if (isTrialActive) {
-          return NextResponse.json({ error: `Maximale Anzahl an Wohnungen (5) für Ihre Testphase erreicht.` }, { status: 403 });
+          return NextResponse.json({ error: `Maximale Anzahl an Wohnungen (5) für Ihre Testphase erreicht.` }, { 
+            status: 403,
+            headers: NO_CACHE_HEADERS
+          });
         } else {
-          return NextResponse.json({ error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` }, { status: 403 });
+          return NextResponse.json({ error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` }, { 
+            status: 403,
+            headers: NO_CACHE_HEADERS
+          });
         }
       }
     }
@@ -92,7 +120,10 @@ export async function POST(request: Request) {
 
     const { name, groesse, miete, haus_id } = await request.json();
     if (!name || groesse == null || miete == null) {
-      return NextResponse.json({ error: "Name, Größe und Miete sind erforderlich." }, { status: 400 });
+      return NextResponse.json({ error: "Name, Größe und Miete sind erforderlich." }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
     }
     const { data, error } = await supabase
       .from('Wohnungen')
@@ -100,12 +131,21 @@ export async function POST(request: Request) {
       .select();
     if (error) {
       console.error("Supabase Insert Error (Wohnungen):", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      });
     }
-    return NextResponse.json(data[0], { status: 201 });
+    return NextResponse.json(data[0], { 
+      status: 201,
+      headers: NO_CACHE_HEADERS
+    });
   } catch (e) {
     console.error("POST /api/wohnungen error:", e);
-    return NextResponse.json({ error: "Serverfehler beim Speichern der Wohnung." }, { status: 500 });
+    return NextResponse.json({ error: "Serverfehler beim Speichern der Wohnung." }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 }
 
@@ -119,7 +159,10 @@ export async function GET() {
 
   if (error) {
     console.error("Supabase Select Error (Wohnungen):", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 
   // Get tenants to determine occupation status
@@ -129,7 +172,10 @@ export async function GET() {
 
   if (tenantsError) {
     console.error("Supabase Select Error (Mieter):", tenantsError);
-    return NextResponse.json({ error: tenantsError.message }, { status: 500 });
+    return NextResponse.json({ error: tenantsError.message }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 
   // Add status and tenant information
@@ -159,7 +205,10 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json(enrichedApartments, { status: 200 });
+  return NextResponse.json(enrichedApartments, { 
+    status: 200,
+    headers: NO_CACHE_HEADERS
+  });
 }
 
 export async function DELETE(request: Request) {
@@ -168,17 +217,29 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) {
-      return NextResponse.json({ error: "Wohnungs-ID ist erforderlich." }, { status: 400 });
+      return NextResponse.json({ error: "Wohnungs-ID ist erforderlich." }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
     }
     const { error } = await supabase.from('Wohnungen').delete().match({ id });
     if (error) {
       console.error("Supabase Delete Error (Wohnungen):", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      });
     }
-    return NextResponse.json({ message: "Wohnung erfolgreich gelöscht." }, { status: 200 });
+    return NextResponse.json({ message: "Wohnung erfolgreich gelöscht." }, { 
+      status: 200,
+      headers: NO_CACHE_HEADERS
+    });
   } catch (e) {
     console.error("DELETE /api/wohnungen error:", e);
-    return NextResponse.json({ error: "Serverfehler beim Löschen der Wohnung." }, { status: 500 });
+    return NextResponse.json({ error: "Serverfehler beim Löschen der Wohnung." }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 }
 
@@ -189,10 +250,16 @@ export async function PUT(request: Request) {
     const id = searchParams.get("id");
     const { name, groesse, miete, haus_id } = await request.json();
     if (!id) {
-      return NextResponse.json({ error: "Wohnungs-ID ist erforderlich." }, { status: 400 });
+      return NextResponse.json({ error: "Wohnungs-ID ist erforderlich." }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
     }
     if (!name || groesse == null || miete == null) {
-      return NextResponse.json({ error: "Name, Größe und Miete sind erforderlich." }, { status: 400 });
+      return NextResponse.json({ error: "Name, Größe und Miete sind erforderlich." }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
     }
     const { data, error } = await supabase
       .from('Wohnungen')
@@ -201,14 +268,26 @@ export async function PUT(request: Request) {
       .select();
     if (error) {
       console.error("Supabase Update Error (Wohnungen):", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      });
     }
     if (!data || data.length === 0) {
-      return NextResponse.json({ error: "Wohnung nicht gefunden oder Update fehlgeschlagen." }, { status: 404 });
+      return NextResponse.json({ error: "Wohnung nicht gefunden oder Update fehlgeschlagen." }, { 
+        status: 404,
+        headers: NO_CACHE_HEADERS
+      });
     }
-    return NextResponse.json(data[0], { status: 200 });
+    return NextResponse.json(data[0], { 
+      status: 200,
+      headers: NO_CACHE_HEADERS
+    });
   } catch (e) {
     console.error("PUT /api/wohnungen error:", e);
-    return NextResponse.json({ error: "Serverfehler beim Aktualisieren der Wohnung." }, { status: 500 });
+    return NextResponse.json({ error: "Serverfehler beim Aktualisieren der Wohnung." }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 }

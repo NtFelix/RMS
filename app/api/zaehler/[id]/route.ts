@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
@@ -14,7 +15,7 @@ export async function PATCH(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     const { id } = await params
@@ -30,7 +31,7 @@ export async function PATCH(
       .single()
 
     if (fetchError || !existing) {
-      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
     }
 
     // Update Zähler
@@ -52,7 +53,7 @@ export async function PATCH(
 
     if (error) {
       console.error('Error updating Wasserzähler:', error)
-      return NextResponse.json({ error: 'Failed to update Wasserzähler' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to update Wasserzähler' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 
     // PostHog Event Tracking
@@ -64,10 +65,10 @@ export async function PATCH(
       source: 'api_route'
     })
 
-    return NextResponse.json(data)
+    return NextResponse.json(data, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in PATCH /api/zaehler/[id]:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
   }
 }
 
@@ -81,7 +82,7 @@ export async function DELETE(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     const { id } = await params
@@ -95,7 +96,7 @@ export async function DELETE(
       .single()
 
     if (fetchError || !existing) {
-      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
     }
 
     // Delete Wasserzähler
@@ -107,7 +108,7 @@ export async function DELETE(
 
     if (error) {
       console.error('Error deleting Wasserzähler:', error)
-      return NextResponse.json({ error: 'Failed to delete Wasserzähler' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to delete Wasserzähler' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 
     // PostHog Event Tracking
@@ -117,10 +118,10 @@ export async function DELETE(
       source: 'api_route'
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in DELETE /api/zaehler/[id]:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
   }
 }
 
