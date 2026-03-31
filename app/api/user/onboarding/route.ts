@@ -1,14 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export const runtime = 'edge';
-
-// Cache-control headers to prevent CDN caching of user-specific responses
-const NO_CACHE_HEADERS = {
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
-};
 
 export async function POST() {
     const supabase = await createClient();

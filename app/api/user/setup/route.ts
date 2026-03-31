@@ -3,15 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateBillingAddress, getBillingAddress } from "@/app/user-billing-actions";
 import { requireAuthenticatedUserForApi } from "@/lib/server/route-access";
 import { z } from "zod";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export const runtime = 'edge';
-
-// Cache-control headers to prevent CDN caching of user-specific responses
-const NO_CACHE_HEADERS = {
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
-};
 
 // Zod schema for request body validation with conditional validation
 const setupBodySchema = z.object({
