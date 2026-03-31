@@ -52,21 +52,72 @@ const TableHeaderCell = ({
   sortable = true,
   onSort,
   renderSortIcon
-}: TableHeaderCellProps) => (
-  <TableHead className={cn("dark:text-[#f3f4f6] group/header", className)}>
-    <div
-      onClick={() => sortable && sortKey && onSort?.(sortKey)}
-      className={cn(
-        "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6]",
-        sortable && sortKey && "cursor-pointer"
+}: TableHeaderCellProps) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (sortable && sortKey && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onSort?.(sortKey);
+    }
+  };
+
+  return (
+    <TableHead className={cn("dark:text-[#f3f4f6] group/header", className)}>
+      {sortable && sortKey ? (
+        <button
+          onClick={() => onSort?.(sortKey)}
+          onKeyDown={handleKeyDown}
+          type="button"
+          className={cn(
+            "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm w-full text-left font-semibold",
+            "cursor-pointer"
+          )}
+        >
+          <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+          {children}
+          {renderSortIcon?.(sortKey)}
+        </button>
+      ) : (
+        <div className="flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6]">
+          <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+          {children}
+        </div>
       )}
-    >
-      <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-      {children}
-      {sortable && sortKey && renderSortIcon?.(sortKey)}
-    </div>
-  </TableHead>
-)
+    </TableHead>
+  );
+};
+
+type TaskState = {
+  showDeleteConfirm: boolean;
+  taskToDelete: Task | null;
+  isDeleting: boolean;
+  sortKey: TaskSortKey;
+  sortDirection: SortDirection;
+  internalSelectedTasks: Set<string>;
+  showBulkDeleteConfirm: boolean;
+  isBulkDeleting: boolean;
+};
+
+type TaskAction =
+  | { type: 'SET_DELETE_CONFIRM'; payload: boolean }
+  | { type: 'SET_TASK_TO_DELETE'; payload: Task | null }
+  | { type: 'SET_IS_DELETING'; payload: boolean }
+  | { type: 'SET_SORT'; payload: { key: TaskSortKey; direction: SortDirection } }
+  | { type: 'SET_SELECTED_TASKS'; payload: Set<string> }
+  | { type: 'SET_BULK_DELETE_CONFIRM'; payload: boolean }
+  | { type: 'SET_IS_BULK_DELETING'; payload: boolean };
+
+function taskReducer(state: TaskState, action: TaskAction): TaskState {
+  switch (action.type) {
+    case 'SET_DELETE_CONFIRM': return { ...state, showDeleteConfirm: action.payload };
+    case 'SET_TASK_TO_DELETE': return { ...state, taskToDelete: action.payload };
+    case 'SET_IS_DELETING': return { ...state, isDeleting: action.payload };
+    case 'SET_SORT': return { ...state, sortKey: action.payload.key, sortDirection: action.payload.direction };
+    case 'SET_SELECTED_TASKS': return { ...state, internalSelectedTasks: action.payload };
+    case 'SET_BULK_DELETE_CONFIRM': return { ...state, showBulkDeleteConfirm: action.payload };
+    case 'SET_IS_BULK_DELETING': return { ...state, isBulkDeleting: action.payload };
+    default: return state;
+  }
+}
 
 export function TaskTable({
   tasks,
@@ -79,19 +130,28 @@ export function TaskTable({
   onTaskUpdated
 }: TaskTableProps) {
   const router = useRouter()
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [sortKey, setSortKey] = useState<TaskSortKey>("aenderungsdatum")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
-  const [internalSelectedTasks, setInternalSelectedTasks] = useState<Set<string>>(new Set())
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [state, dispatch] = React.useReducer(taskReducer, {
+    showDeleteConfirm: false,
+    taskToDelete: null,
+    isDeleting: false,
+    sortKey: "aenderungsdatum",
+    sortDirection: "desc",
+    internalSelectedTasks: new Set(),
+    showBulkDeleteConfirm: false,
+    isBulkDeleting: false,
+  });
+
   const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
 
   // Use external selection state if provided, otherwise use internal
-  const selectedTasks = externalSelectedTasks ?? internalSelectedTasks
-  const setSelectedTasks = onSelectionChange ?? setInternalSelectedTasks
+  const selectedTasks = externalSelectedTasks ?? state.internalSelectedTasks
+  const setSelectedTasks = (next: Set<string>) => {
+    if (onSelectionChange) {
+      onSelectionChange(next);
+    } else {
+      dispatch({ type: 'SET_SELECTED_TASKS', payload: next });
+    }
+  }
 
   const handleToggleStatus = useCallback(async (task: Task) => {
     const { success, error } = await toggleTaskStatusAction(task.id, !task.ist_erledigt)
@@ -130,16 +190,16 @@ export function TaskTable({
     }
 
     // Apply sorting
-    if (sortKey) {
+    if (state.sortKey) {
       result.sort((a, b) => {
         let valA, valB
 
-        if (sortKey === 'erstellungsdatum' || sortKey === 'aenderungsdatum') {
-          valA = new Date(a[sortKey]).getTime()
-          valB = new Date(b[sortKey]).getTime()
+        if (state.sortKey === 'erstellungsdatum' || state.sortKey === 'aenderungsdatum') {
+          valA = new Date(a[state.sortKey]).getTime()
+          valB = new Date(b[state.sortKey]).getTime()
         } else {
-          valA = a[sortKey]
-          valB = b[sortKey]
+          valA = a[state.sortKey]
+          valB = b[state.sortKey]
         }
 
         if (valA === undefined || valA === null) valA = ''
@@ -150,19 +210,19 @@ export function TaskTable({
         const numB = parseFloat(String(valB));
 
         if (!isNaN(numA) && !isNaN(numB)) {
-          if (numA < numB) return sortDirection === "asc" ? -1 : 1;
-          if (numA > numB) return sortDirection === "asc" ? 1 : -1;
+          if (numA < numB) return state.sortDirection === "asc" ? -1 : 1;
+          if (numA > numB) return state.sortDirection === "asc" ? 1 : -1;
           return 0;
         } else {
           const strA = String(valA);
           const strB = String(valB);
-          return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
+          return state.sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
         }
       })
     }
 
     return result
-  }, [tasks, filter, searchQuery, sortKey, sortDirection])
+  }, [tasks, filter, searchQuery, state.sortKey, state.sortDirection])
 
   const visibleTaskIds = useMemo(() => sortedAndFilteredData.map((task) => task.id), [sortedAndFilteredData])
 
@@ -192,19 +252,24 @@ export function TaskTable({
   }
 
   const handleSort = (key: TaskSortKey) => {
-    if (sortKey === key) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    if (state.sortKey === key) {
+      dispatch({ 
+        type: 'SET_SORT', 
+        payload: { key, direction: state.sortDirection === "asc" ? "desc" : "asc" } 
+      });
     } else {
-      setSortKey(key)
-      setSortDirection("asc")
+      dispatch({ 
+        type: 'SET_SORT', 
+        payload: { key, direction: "asc" } 
+      });
     }
   }
 
   const renderSortIcon = (key: TaskSortKey) => {
-    if (sortKey !== key) {
+    if (state.sortKey !== key) {
       return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
     }
-    return sortDirection === "asc" ? (
+    return state.sortDirection === "asc" ? (
       <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
     ) : (
       <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
@@ -214,7 +279,7 @@ export function TaskTable({
   const handleBulkDelete = async () => {
     if (selectedTasks.size === 0) return;
 
-    setIsBulkDeleting(true);
+    dispatch({ type: 'SET_IS_BULK_DELETING', payload: true });
     const selectedIds = Array.from(selectedTasks);
 
     try {
@@ -223,7 +288,7 @@ export function TaskTable({
       if (success && deletedCount !== undefined) {
         const failedCount = selectedIds.length - deletedCount;
 
-        setShowBulkDeleteConfirm(false);
+        dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: false });
         setSelectedTasks(new Set());
 
         if (deletedCount > 0) {
@@ -253,7 +318,7 @@ export function TaskTable({
         variant: "destructive",
       });
     } finally {
-      setIsBulkDeleting(false);
+      dispatch({ type: 'SET_IS_BULK_DELETING', payload: false });
     }
   }
 
@@ -340,7 +405,7 @@ export function TaskTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowBulkDeleteConfirm(true)}
+              onClick={() => dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: true })}
               className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
             >
               <Trash2 className="h-4 w-4" />
@@ -551,7 +616,7 @@ export function TaskTable({
         </div>
       </div>
 
-      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+      <AlertDialog open={state.showBulkDeleteConfirm} onOpenChange={(open) => dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: open })}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mehrere Aufgaben löschen?</AlertDialogTitle>
@@ -560,9 +625,9 @@ export function TaskTable({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-              {isBulkDeleting ? "Lösche..." : `${selectedTasks.size} Aufgaben löschen`}
+            <AlertDialogCancel disabled={state.isBulkDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={state.isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+              {state.isBulkDeleting ? "Lösche..." : `${selectedTasks.size} Aufgaben löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

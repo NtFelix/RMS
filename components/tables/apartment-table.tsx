@@ -76,34 +76,85 @@ const TableHeaderCell = ({
   sortable = true,
   onSort,
   renderSortIcon
-}: TableHeaderCellProps) => (
-  <TableHead className={cn("dark:text-[#f3f4f6] group/header", className)}>
-    <div
-      onClick={() => sortable && sortKey && onSort?.(sortKey)}
-      className={cn(
-        "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6]",
-        sortable && sortKey && "cursor-pointer"
+}: TableHeaderCellProps) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (sortable && sortKey && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onSort?.(sortKey);
+    }
+  };
+
+  return (
+    <TableHead className={cn("dark:text-[#f3f4f6] group/header", className)}>
+      {sortable && sortKey ? (
+        <button
+          onClick={() => onSort?.(sortKey)}
+          onKeyDown={handleKeyDown}
+          type="button"
+          className={cn(
+            "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm w-full text-left font-semibold",
+            "cursor-pointer"
+          )}
+        >
+          <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+          {children}
+          {renderSortIcon?.(sortKey)}
+        </button>
+      ) : (
+        <div className="flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6]">
+          <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+          {children}
+        </div>
       )}
-    >
-      <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-      {children}
-      {sortable && sortKey && renderSortIcon?.(sortKey)}
-    </div>
-  </TableHead>
-)
+    </TableHead>
+  );
+};
+
+type ApartmentState = {
+  sortKey: ApartmentSortKey;
+  sortDirection: SortDirection;
+  internalSelectedApartments: Set<string>;
+  showBulkDeleteConfirm: boolean;
+  isBulkDeleting: boolean;
+};
+
+type ApartmentAction =
+  | { type: 'SET_SORT'; payload: { key: ApartmentSortKey; direction: SortDirection } }
+  | { type: 'SET_SELECTED_APARTMENTS'; payload: Set<string> }
+  | { type: 'SET_BULK_DELETE_CONFIRM'; payload: boolean }
+  | { type: 'SET_IS_BULK_DELETING'; payload: boolean };
+
+function apartmentReducer(state: ApartmentState, action: ApartmentAction): ApartmentState {
+  switch (action.type) {
+    case 'SET_SORT': return { ...state, sortKey: action.payload.key, sortDirection: action.payload.direction };
+    case 'SET_SELECTED_APARTMENTS': return { ...state, internalSelectedApartments: action.payload };
+    case 'SET_BULK_DELETE_CONFIRM': return { ...state, showBulkDeleteConfirm: action.payload };
+    case 'SET_IS_BULK_DELETING': return { ...state, isBulkDeleting: action.payload };
+    default: return state;
+  }
+}
 
 export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, onDelete, initialApartments, selectedApartments: externalSelectedApartments, onSelectionChange }: ApartmentTableProps) {
   const router = useRouter()
-  const [sortKey, setSortKey] = useState<ApartmentSortKey>("name")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
-  const [internalSelectedApartments, setInternalSelectedApartments] = useState<Set<string>>(new Set())
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [state, dispatch] = React.useReducer(apartmentReducer, {
+    sortKey: "name",
+    sortDirection: "asc",
+    internalSelectedApartments: new Set(),
+    showBulkDeleteConfirm: false,
+    isBulkDeleting: false,
+  });
+
   const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
 
   // Use external selection state if provided, otherwise use internal
-  const selectedApartments = externalSelectedApartments ?? internalSelectedApartments
-  const setSelectedApartments = onSelectionChange ?? setInternalSelectedApartments
+  const selectedApartments = externalSelectedApartments ?? state.internalSelectedApartments
+  const setSelectedApartments = (next: Set<string>) => {
+    if (onSelectionChange) {
+      onSelectionChange(next);
+    } else {
+      dispatch({ type: 'SET_SELECTED_APARTMENTS', payload: next });
+    }
+  }
 
   const sortedAndFilteredData = useMemo(() => {
     let result = [...(initialApartments ?? [])]
@@ -128,19 +179,19 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
     }
 
     // Apply sorting
-    if (sortKey) {
+    if (state.sortKey) {
       result.sort((a, b) => {
         let valA, valB
 
-        if (sortKey === 'pricePerSqm') {
+        if (state.sortKey === 'pricePerSqm') {
           valA = a.miete / a.groesse
           valB = b.miete / b.groesse
-        } else if (sortKey === 'haus') {
+        } else if (state.sortKey === 'haus') {
           valA = a.Haeuser?.name || ''
           valB = b.Haeuser?.name || ''
         } else {
-          valA = a[sortKey]
-          valB = b[sortKey]
+          valA = a[state.sortKey]
+          valB = b[state.sortKey]
         }
 
         if (valA === undefined || valA === null) valA = ''
@@ -150,19 +201,19 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
         const numB = parseFloat(String(valB));
 
         if (!isNaN(numA) && !isNaN(numB)) {
-          if (numA < numB) return sortDirection === "asc" ? -1 : 1;
-          if (numA > numB) return sortDirection === "asc" ? 1 : -1;
+          if (numA < numB) return state.sortDirection === "asc" ? -1 : 1;
+          if (numA > numB) return state.sortDirection === "asc" ? 1 : -1;
           return 0;
         } else {
           const strA = String(valA);
           const strB = String(valB);
-          return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
+          return state.sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
         }
       })
     }
 
     return result
-  }, [initialApartments, filter, searchQuery, sortKey, sortDirection])
+  }, [initialApartments, filter, searchQuery, state.sortKey, state.sortDirection])
 
   const visibleApartmentIds = useMemo(() => sortedAndFilteredData.map((apt) => apt.id), [sortedAndFilteredData])
 
@@ -192,19 +243,24 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
   }
 
   const handleSort = (key: ApartmentSortKey) => {
-    if (sortKey === key) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    if (state.sortKey === key) {
+      dispatch({ 
+        type: 'SET_SORT', 
+        payload: { key, direction: state.sortDirection === "asc" ? "desc" : "asc" } 
+      });
     } else {
-      setSortKey(key)
-      setSortDirection("asc")
+      dispatch({ 
+        type: 'SET_SORT', 
+        payload: { key, direction: "asc" } 
+      });
     }
   }
 
   const renderSortIcon = (key: ApartmentSortKey) => {
-    if (sortKey !== key) {
+    if (state.sortKey !== key) {
       return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
     }
-    return sortDirection === "asc" ? (
+    return state.sortDirection === "asc" ? (
       <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
     ) : (
       <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
@@ -214,7 +270,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
   const handleBulkDelete = async () => {
     if (selectedApartments.size === 0) return;
 
-    setIsBulkDeleting(true);
+    dispatch({ type: 'SET_IS_BULK_DELETING', payload: true });
     const selectedIds = Array.from(selectedApartments);
 
     try {
@@ -232,7 +288,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
       const { successCount } = await response.json();
       const failedCount = selectedIds.length - successCount;
 
-      setShowBulkDeleteConfirm(false);
+      dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: false });
       setSelectedApartments(new Set());
 
       if (successCount > 0) {
@@ -259,7 +315,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
         variant: "destructive",
       });
     } finally {
-      setIsBulkDeleting(false);
+      dispatch({ type: 'SET_IS_BULK_DELETING', payload: false });
     }
   }
 
@@ -343,7 +399,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowBulkDeleteConfirm(true)}
+              onClick={() => dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: true })}
               className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
             >
               <Trash2 className="h-4 w-4" />
@@ -554,7 +610,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
         </div>
       </div>
 
-      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+      <AlertDialog open={state.showBulkDeleteConfirm} onOpenChange={(open) => dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: open })}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mehrere Wohnungen löschen?</AlertDialogTitle>
@@ -563,9 +619,9 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-              {isBulkDeleting ? "Lösche..." : `${selectedApartments.size} Wohnungen löschen`}
+            <AlertDialogCancel disabled={state.isBulkDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={state.isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+              {state.isBulkDeleting ? "Lösche..." : `${selectedApartments.size} Wohnungen löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
