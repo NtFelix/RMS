@@ -156,7 +156,7 @@ describe('Enhanced Error Handling and Logging', () => {
       const result = await withRetry(mockOperation, {
         maxRetries: 3,
         baseDelayMs: 100,
-        retryCondition: (result) => !result.success && result.performanceMetrics?.errorMessage?.includes('network')
+        retryCondition: (result) => !result.success && (result.performanceMetrics?.errorMessage?.includes('network') || false)
       });
 
       expect(result.success).toBe(true);
@@ -172,7 +172,7 @@ describe('Enhanced Error Handling and Logging', () => {
 
       const result = await withRetry(mockOperation, {
         maxRetries: 3,
-        retryCondition: (result) => !result.success && result.message?.includes('network')
+        retryCondition: (result) => !result.success && (result.message?.includes('network') || false)
       });
 
       expect(result.success).toBe(false);
@@ -554,7 +554,7 @@ describe('Integration Tests', () => {
       baseDelayMs: 10,
       retryCondition: (result) => !result.success && (
         result.performanceMetrics?.errorMessage?.includes('network') ||
-        result.performanceMetrics?.errorMessage?.includes('timeout')
+        result.performanceMetrics?.errorMessage?.includes('timeout') || false
       )
     });
 

@@ -12,6 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useAIConversation } from "@/hooks/use-ai-conversation";
+import { LOGO_URL } from "@/lib/constants";
 
 export function AIAssistantModal() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -36,7 +37,6 @@ export function AIAssistantModal() {
     formatTime
   } = useAIConversation({
     documentationContext: aiAssistantModalData?.documentationContext,
-    onFallbackToSearch: aiAssistantModalData?.onFallbackToSearch,
     interface: 'modal'
   });
 
@@ -102,7 +102,7 @@ export function AIAssistantModal() {
             {messages.length === 0 && (
               <div className="text-center py-8">
                 <img
-                  src="/mascot/normal.png"
+                  src={LOGO_URL}
                   alt="Mietevo AI Assistent Maskottchen"
                   className="w-24 h-24 mx-auto mb-4 object-contain"
                 />
@@ -130,7 +130,7 @@ export function AIAssistantModal() {
                 {message.role === 'assistant' && (
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
                     <img
-                      src="/mascot/normal.png"
+                      src={LOGO_URL}
                       alt="Mietevo Maskottchen"
                       className="w-full h-full object-contain"
                     />
@@ -173,7 +173,7 @@ export function AIAssistantModal() {
               >
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
                   <img
-                    src="/mascot/normal.png"
+                    src={LOGO_URL}
                     alt="Mietevo Maskottchen"
                     className="w-full h-full object-contain"
                   />
@@ -198,16 +198,6 @@ export function AIAssistantModal() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex items-center justify-between">
                 <span>{error}</span>
-                {aiAssistantModalData?.onFallbackToSearch && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={aiAssistantModalData.onFallbackToSearch}
-                    className="ml-2"
-                  >
-                    Zur Suche
-                  </Button>
-                )}
               </AlertDescription>
             </Alert>
           </div>

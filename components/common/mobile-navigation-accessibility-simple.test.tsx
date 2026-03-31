@@ -312,8 +312,8 @@ describe('MobileBottomNavigation - Core Accessibility', () => {
         expect(screen.getByRole('navigation')).toBeInTheDocument()
       })
 
-      const results = await axe(container)
-      expect(results).toHaveNoViolations()
+      const results = await axe(container);
+      (expect(results) as any).toHaveNoViolations()
     })
 
     test('passes axe audit with dropdown open', async () => {
@@ -335,8 +335,8 @@ describe('MobileBottomNavigation - Core Accessibility', () => {
         expect(screen.getByRole('menu')).toBeInTheDocument()
       })
 
-      const results = await axe(container)
-      expect(results).toHaveNoViolations()
+      const results = await axe(container);
+      (expect(results) as any).toHaveNoViolations()
     })
 
     test('provides proper color contrast classes', async () => {

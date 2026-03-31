@@ -24,6 +24,7 @@ interface ConfirmationAlertDialogProps {
   confirmButtonText?: string;
   cancelButtonText?: string;
   confirmButtonVariant?: "default" | "destructive"; // Retained for logic, applied via className
+  isDeleting?: boolean;
 }
 
 export function ConfirmationAlertDialog({
@@ -36,11 +37,11 @@ export function ConfirmationAlertDialog({
   confirmButtonText,
   cancelButtonText,
   confirmButtonVariant = "default", // Default to 'default'
+  isDeleting = false,
 }: ConfirmationAlertDialogProps) {
-  
+
   const handleConfirm = () => {
     onConfirm();
-    onOpenChange(false); // Close dialog after confirmation
   };
 
   const handleCancel = () => {
@@ -61,13 +62,14 @@ export function ConfirmationAlertDialog({
           <AlertDialogCancel onClick={handleCancel}>
             {cancelButtonText || "Abbrechen"}
           </AlertDialogCancel>
-          <AlertDialogAction 
+          <AlertDialogAction
             onClick={handleConfirm}
+            disabled={isDeleting}
             // Apply destructive styling if variant is 'destructive'
             // This uses buttonVariants from ui/button to get the correct classes
             className={confirmButtonVariant === 'destructive' ? buttonVariants({ variant: 'destructive' }) : ''}
           >
-            {confirmButtonText || "Bestätigen"}
+            {isDeleting ? "Wird verarbeitet..." : (confirmButtonText || "Bestätigen")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

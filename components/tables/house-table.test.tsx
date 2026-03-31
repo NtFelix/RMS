@@ -62,7 +62,7 @@ describe('HouseTable', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockToast.mockReturnValue({ toast: mockToastFn });
+    mockToast.mockReturnValue({ toast: mockToastFn, dismiss: jest.fn(), toasts: [] });
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockHouses),

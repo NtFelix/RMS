@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { useCommandMenu } from '../use-command-menu';
+import { useCommandMenu } from './use-command-menu';
 
 describe('useCommandMenu', () => {
   it('should initialize with closed state', () => {

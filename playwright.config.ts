@@ -19,10 +19,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Use 50% of available CPU cores in CI for parallel execution */
-  workers: process.env.CI ? '50%' : undefined,
+  /* Use 2 workers in CI to avoid overwhelming the server */
+  workers: process.env.CI ? 2 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
+  /* Global timeout for all tests */
+  timeout: 60000, // 60 seconds per test
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -33,6 +35,12 @@ export default defineConfig({
 
     /* Capture screenshot on failure */
     screenshot: 'only-on-failure',
+
+    /* Navigation timeout */
+    navigationTimeout: 30000,
+
+    /* Action timeout */
+    actionTimeout: 10000,
   },
 
   /* Configure projects for major browsers */

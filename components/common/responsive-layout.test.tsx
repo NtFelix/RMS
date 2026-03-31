@@ -323,7 +323,7 @@ describe('Responsive Layout Tests', () => {
       ];
 
       components.forEach(({ component: Component, props }) => {
-        const { container } = render(<Component {...props} />);
+        const { container } = render(<Component {...(props as any)} />);
         
         // All should have consistent main container layout
         const mainContainer = container.firstChild;
@@ -501,8 +501,11 @@ describe('Responsive Layout Tests', () => {
         tasks: [
           {
             id: '1',
-            title: 'Very Long Task Title That Might Cause Layout Issues On Small Screens',
-            description: 'This is a very long description that should wrap properly and not cause any layout issues',
+            name: 'Very Long Task Title That Might Cause Layout Issues On Small Screens',
+            beschreibung: 'This is a very long description that should wrap properly and not cause any layout issues',
+            ist_erledigt: false,
+            erstellungsdatum: '2023-01-01',
+            aenderungsdatum: '2023-01-01',
             status: 'todo' as const,
             priority: 'high' as const,
             category: 'maintenance',

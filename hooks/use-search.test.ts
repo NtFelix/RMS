@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useSearch } from '../use-search';
+import { useSearch } from './use-search';
 
 // Mock the useDebounce hook
 jest.mock('../use-debounce', () => ({
@@ -13,7 +13,7 @@ jest.mock('../use-search-analytics', () => ({
   }))
 }));
 
-import { useDebounce } from '../use-debounce';
+import { useDebounce } from './use-debounce';
 const mockUseDebounce = useDebounce as jest.MockedFunction<typeof useDebounce>;
 
 // Mock fetch
@@ -68,7 +68,7 @@ describe('useSearch', () => {
     jest.clearAllMocks();
     mockFetch.mockClear();
     mockUseDebounce.mockImplementation((value) => value);
-    navigator.onLine = true;
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     
     // Reset timers
     jest.useFakeTimers();
@@ -441,7 +441,7 @@ describe('useSearch', () => {
 
     it('should implement retry mechanism', async () => {
       // Ensure we're online for this test
-      navigator.onLine = true;
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
       mockLocalStorage.getItem.mockReturnValue(null);
       
       mockUseDebounce.mockImplementation((value) => value);
@@ -526,7 +526,7 @@ describe('useSearch', () => {
 
   describe('Network status handling', () => {
     it('should detect offline status', () => {
-      navigator.onLine = false;
+      Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
       
       const { result } = renderHook(() => useSearch());
 
@@ -540,7 +540,7 @@ describe('useSearch', () => {
 
       // Simulate going offline
       act(() => {
-        navigator.onLine = false;
+        Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
         // Trigger offline event
         const offlineHandler = mockAddEventListener.mock.calls.find(
           call => call[0] === 'offline'
@@ -571,13 +571,13 @@ describe('useSearch', () => {
 
       // Start with offline state and error
       act(() => {
-        navigator.onLine = false;
+        Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
         result.current.setQuery('online retry');
       });
 
       // Simulate coming back online
       act(() => {
-        navigator.onLine = true;
+        Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
         const onlineHandler = mockAddEventListener.mock.calls.find(
           call => call[0] === 'online'
         )?.[1];

@@ -36,7 +36,7 @@ describe('/api/apartments/[apartmentId]/tenant/[tenantId]/details', () => {
     mockNextResponse.json.mockImplementation((data, init) => ({
       json: () => Promise.resolve(data),
       status: init?.status || 200,
-    }));
+    } as unknown as NextResponse));
   });
 
   afterEach(() => {

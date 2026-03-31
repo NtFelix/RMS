@@ -281,7 +281,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
       <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
         {/* Background gradient */}
         <div
-          className="absolute inset-0 z-[-1]"
+          className="absolute inset-0 z-[-1] pointer-events-none"
           style={{
             backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
           }}
@@ -291,9 +291,9 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
           <CardHeader>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <CardTitle>Aufgabenkalender</CardTitle>
+                <CardTitle>Aufgaben Board</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1 hidden sm:block">
-                  Verwalten Sie hier Ihre Aufgaben und Termine
+                  Verwalten Sie hier alle Ihre Aufgaben
                 </p>
               </div>
               <div className="mt-0 sm:mt-1">

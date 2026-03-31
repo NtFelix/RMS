@@ -416,7 +416,7 @@ describe('Accessibility Compliance Tests', () => {
 
       const { container } = render(<WohnungenClientView {...props} />);
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('Häuser page has no accessibility violations', async () => {
@@ -425,7 +425,7 @@ describe('Accessibility Compliance Tests', () => {
       const props = { enrichedHaeuser: [] };
       const { container } = render(<HaeuserClientView {...props} />);
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('Mieter page has no accessibility violations', async () => {
@@ -439,7 +439,7 @@ describe('Accessibility Compliance Tests', () => {
 
       const { container } = render(<MieterClientView {...props} />);
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('Betriebskosten page has no accessibility violations', async () => {
@@ -453,7 +453,7 @@ describe('Accessibility Compliance Tests', () => {
 
       const { container } = render(<BetriebskostenClientView {...props} />);
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('Todos page has no accessibility violations', async () => {
@@ -462,7 +462,7 @@ describe('Accessibility Compliance Tests', () => {
       const props = { tasks: [] };
       const { container } = render(<TodosClientWrapper {...props} />);
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
 
     it('Finanzen page has no accessibility violations', async () => {
@@ -476,7 +476,7 @@ describe('Accessibility Compliance Tests', () => {
 
       const { container } = render(<FinanzenClientWrapper {...props} />);
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
     });
   });
 
@@ -581,7 +581,7 @@ describe('Accessibility Compliance Tests', () => {
 
       // Should still be accessible on mobile
       const results = await axe(container);
-      expect(results).toHaveNoViolations();
+      (expect(results) as any).toHaveNoViolations();
 
       // Button should still be focusable
       const addButton = screen.getByRole('button', { name: /Aufgabe hinzufügen/i });

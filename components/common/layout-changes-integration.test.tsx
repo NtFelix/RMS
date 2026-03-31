@@ -252,7 +252,7 @@ describe('Layout Changes Integration Tests', () => {
       ];
 
       for (const { component: Component, props } of components) {
-        const { container } = render(<Component {...props} />);
+        const { container } = render(<Component {...(props as any)} />);
         
         // All should have consistent main container layout
         const mainContainer = container.firstChild;

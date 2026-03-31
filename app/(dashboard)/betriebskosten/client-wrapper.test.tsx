@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { getMieterByHausIdAction } from '@/app/mieter-actions';
-import BetriebskostenClientWrapper from '../client-wrapper';
+import BetriebskostenClientWrapper from './client-wrapper';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';

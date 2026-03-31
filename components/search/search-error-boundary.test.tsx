@@ -243,7 +243,7 @@ describe('SearchErrorBoundary', () => {
   describe('Error information', () => {
     it('should provide detailed error information in development', () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
 
       render(
         <SearchErrorBoundary onError={mockOnError}>
@@ -261,7 +261,7 @@ describe('SearchErrorBoundary', () => {
         })
       );
 
-      process.env.NODE_ENV = originalEnv;
+      Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, configurable: true });
     });
 
     it('should handle errors with different error types', () => {

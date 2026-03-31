@@ -114,8 +114,8 @@ describe('AbrechnungModal Optimization', () => {
     nebenkostenart: ['Heizung', 'Wasser'],
     betrag: [1000, 500],
     berechnungsart: ['pro qm', 'nach Verbrauch'],
-    wasserkosten: 500,
-    wasserverbrauch: 100,
+    zaehlerkosten: { 'Wasser': 500 },
+    zaehlerverbrauch: { 'Wasser': 100 },
     haeuser_id: 'house-1',
     user_id: 'user-1',
     Haeuser: { name: 'Test House' },
@@ -130,7 +130,7 @@ describe('AbrechnungModal Optimization', () => {
       name: 'John Doe',
       wohnung_id: 'apt-1',
       einzug: '2024-01-01',
-      auszug: undefined,
+      auszug: null,
       email: 'john@example.com',
       telefonnummer: '123456789',
       notiz: '',
@@ -139,7 +139,6 @@ describe('AbrechnungModal Optimization', () => {
       Wohnungen: {
         name: 'Apartment 1',
         groesse: 50,
-        miete: 800,
       },
     },
     {
@@ -147,7 +146,7 @@ describe('AbrechnungModal Optimization', () => {
       name: 'Jane Smith',
       wohnung_id: 'apt-2',
       einzug: '2024-01-01',
-      auszug: undefined,
+      auszug: null,
       email: 'jane@example.com',
       telefonnummer: '987654321',
       notiz: '',
@@ -156,7 +155,6 @@ describe('AbrechnungModal Optimization', () => {
       Wohnungen: {
         name: 'Apartment 2',
         groesse: 60,
-        miete: 900,
       },
     },
   ];
@@ -181,6 +179,7 @@ describe('AbrechnungModal Optimization', () => {
       verbrauch: 50,
       nebenkosten_id: 'test-id',
       user_id: 'user-1',
+      zaehler_id: 'meter-1',
     },
   ];
 
@@ -204,7 +203,7 @@ describe('AbrechnungModal Optimization', () => {
 
     // Verify the modal opens
     expect(screen.getByTestId('dialog')).toBeInTheDocument();
-    
+
     // Verify it shows the optimization indicator
     expect(screen.getByText(/Daten für 2 Mieter erfolgreich geladen/)).toBeInTheDocument();
   });
@@ -215,7 +214,7 @@ describe('AbrechnungModal Optimization', () => {
     // Verify tenant combobox is rendered with pre-loaded data
     const combobox = screen.getByTestId('combobox');
     expect(combobox).toBeInTheDocument();
-    
+
     // Verify tenants are available in the combobox
     expect(screen.getByRole('option', { name: 'John Doe' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Jane Smith' })).toBeInTheDocument();
@@ -254,10 +253,10 @@ describe('AbrechnungModal Optimization', () => {
 
     // Find the PDF export button and verify it's disabled
     const buttons = screen.getAllByTestId('button');
-    const pdfButton = buttons.find(button => 
+    const pdfButton = buttons.find(button =>
       button.textContent?.includes('Als PDF exportieren')
     );
-    
+
     expect(pdfButton).toBeDisabled();
   });
 
@@ -266,10 +265,10 @@ describe('AbrechnungModal Optimization', () => {
 
     // Initially should show normal text
     const buttons = screen.getAllByTestId('button');
-    const pdfButton = buttons.find(button => 
+    const pdfButton = buttons.find(button =>
       button.textContent?.includes('Als PDF exportieren')
     );
-    
+
     expect(pdfButton).toHaveTextContent('Als PDF exportieren');
   });
 
@@ -278,7 +277,7 @@ describe('AbrechnungModal Optimization', () => {
 
     // Verify dropdown menu is rendered
     expect(screen.getByTestId('dropdown-menu')).toBeInTheDocument();
-    
+
     // Verify dropdown trigger (chevron button) is rendered
     expect(screen.getByTestId('dropdown-trigger')).toBeInTheDocument();
     expect(screen.getByTestId('chevron-down-icon')).toBeInTheDocument();

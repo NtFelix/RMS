@@ -81,7 +81,6 @@ describe('Modal Keyboard and Click Interactions', () => {
     // Other modal functions (needed for context menu actions)
     openWohnungModal: jest.fn(),
     openTenantModal: jest.fn(),
-    openWohnungOverviewModal: jest.fn(),
   };
 
   beforeEach(() => {

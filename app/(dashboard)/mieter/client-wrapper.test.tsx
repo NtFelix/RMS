@@ -20,12 +20,11 @@ describe('MieterClientView - Layout Changes', () => {
       name: 'John Doe',
       wohnung_id: 'w1',
       einzug: '2023-01-01',
-      auszug: null,
+      auszug: undefined,
       email: 'john@example.com',
       telefonnummer: '123456789',
       notiz: 'Test note',
-      nebenkosten: [],
-      user_id: 'u1'
+      nebenkosten: []
     },
     {
       id: '2',
@@ -36,8 +35,7 @@ describe('MieterClientView - Layout Changes', () => {
       email: 'jane@example.com',
       telefonnummer: '987654321',
       notiz: '',
-      nebenkosten: [],
-      user_id: 'u1'
+      nebenkosten: []
     }
   ];
 
@@ -49,8 +47,7 @@ describe('MieterClientView - Layout Changes', () => {
       miete: 800,
       status: 'vermietet',
       Haeuser: { name: 'House 1' },
-      haeuser_id: 'h1',
-      user_id: 'u1'
+      haus_id: 'h1'
     },
     {
       id: 'w2',
@@ -59,8 +56,7 @@ describe('MieterClientView - Layout Changes', () => {
       miete: 1200,
       status: 'frei',
       Haeuser: { name: 'House 2' },
-      haeuser_id: 'h2',
-      user_id: 'u1'
+      haus_id: 'h2'
     }
   ];
 
@@ -306,7 +302,7 @@ describe('MieterClientView - Layout Changes', () => {
       // Create a tenant with specific data structure
       const tenantWithNebenkosten = {
         ...mockTenants[0],
-        nebenkosten: [{ type: 'heating', amount: 100 }],
+        nebenkosten: [{ id: 'nk1', date: '2023-01-01', type: 'heating', amount: '100' }],
       };
 
       const propsWithNebenkosten = {

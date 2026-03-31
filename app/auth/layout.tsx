@@ -1,5 +1,11 @@
 import type React from "react"
 import type { Metadata } from "next"
+import { headers } from "next/headers"
+import { CSPNonceSync } from "@/components/providers/csp-nonce-sync"
+import { redirectAuthenticatedAuthRoute } from "@/lib/server/route-access"
+
+// Cloudflare Pages requires dynamic routes to be marked as edge
+export const runtime = 'edge'
 
 // Auth layout metadata - common settings for all auth pages
 export const metadata: Metadata = {
@@ -11,10 +17,18 @@ export const metadata: Metadata = {
   },
 }
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <div className="min-h-screen bg-background">{children}</div>
+  await redirectAuthenticatedAuthRoute()
+  const nonce = (await headers()).get('x-nonce')
+
+  return (
+    <div className="min-h-screen bg-background">
+      <CSPNonceSync nonce={nonce} />
+      {children}
+    </div>
+  )
 }

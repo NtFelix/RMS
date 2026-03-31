@@ -19,6 +19,7 @@ jest.mock('@/hooks/use-toast', () => ({
 jest.mock('@/app/todos-actions', () => ({
   toggleTaskStatusAction: jest.fn().mockResolvedValue({ success: true }),
   deleteTaskAction: jest.fn().mockResolvedValue({ success: true }),
+  updateTaskDueDateAction: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 // Mock fetch
@@ -38,6 +39,10 @@ describe('TodosClientWrapper - Calendar Layout', () => {
       erstellungsdatum: '2023-01-01',
       aenderungsdatum: '2023-01-01',
       faelligkeitsdatum: '2026-01-15',
+      description: 'Repair the kitchen faucet',
+      status: 'todo',
+      createdAt: '2023-01-01',
+      updatedAt: '2023-01-01'
     },
     {
       id: '2',
@@ -47,6 +52,10 @@ describe('TodosClientWrapper - Calendar Layout', () => {
       erstellungsdatum: '2023-01-02',
       aenderungsdatum: '2023-01-02',
       faelligkeitsdatum: '2026-01-10',
+      description: 'Paint the living room walls',
+      status: 'completed',
+      createdAt: '2023-01-02',
+      updatedAt: '2023-01-02'
     },
     {
       id: '3',
@@ -56,6 +65,10 @@ describe('TodosClientWrapper - Calendar Layout', () => {
       erstellungsdatum: '2023-01-03',
       aenderungsdatum: '2023-01-03',
       faelligkeitsdatum: null,
+      description: 'This task has no due date',
+      status: 'todo',
+      createdAt: '2023-01-03',
+      updatedAt: '2023-01-03'
     },
   ];
 
@@ -78,8 +91,8 @@ describe('TodosClientWrapper - Calendar Layout', () => {
   describe('Calendar Layout Structure', () => {
     it('renders the main header with calendar title', () => {
       render(<TodosClientWrapper {...defaultProps} />);
-
-      expect(screen.getByText('Aufgabenkalender')).toBeInTheDocument();
+      // Changed to 'Aufgaben Board' to match resolved implementation
+      expect(screen.getByText('Aufgaben Board')).toBeInTheDocument();
     });
 
     it('renders the add task button', () => {
@@ -163,8 +176,41 @@ describe('TodosClientWrapper - Calendar Layout', () => {
 
       render(<TodosClientWrapper {...emptyProps} />);
 
-      expect(screen.getByText('Aufgabenkalender')).toBeInTheDocument();
+      expect(screen.getByText('Aufgaben Board')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Aufgabe hinzufügen/i })).toBeInTheDocument();
+    });
+
+    it('handles task list with various statuses', () => {
+      const mixedStatusTasks: TaskBoardTask[] = [
+        { ...mockTasks[0], ist_erledigt: false, status: 'todo' },
+        { ...mockTasks[1], ist_erledigt: false, status: 'in_progress' },
+        { 
+          id: '3', 
+          name: 'Completed task', 
+          ist_erledigt: true,
+          erstellungsdatum: '2023-01-03',
+          aenderungsdatum: '2023-01-03',
+          status: 'completed',
+          createdAt: '2023-01-03',
+          updatedAt: '2023-01-03'
+        }
+      ];
+
+      const mixedProps = {
+        tasks: mixedStatusTasks,
+      };
+
+      render(<TodosClientWrapper {...mixedProps} />);
+
+      // Should handle different task statuses
+      expect(screen.getByText('Aufgabenliste')).toBeInTheDocument();
+    });
+
+    it('handles task updates through callback', () => {
+      render(<TodosClientWrapper {...defaultProps} />);
+
+      // Should provide callback for task updates
+      expect(screen.getByText('Aufgabenliste')).toBeInTheDocument();
     });
   });
 

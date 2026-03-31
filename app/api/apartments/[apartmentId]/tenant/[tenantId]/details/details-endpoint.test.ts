@@ -1,4 +1,4 @@
-import { GET } from '../apartments/[apartmentId]/details/route'
+import { GET } from './route'
 import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -49,7 +49,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
 
   it('returns 400 when apartmentId is missing', async () => {
     const request = new Request('http://localhost/api/apartments//details')
-    const params = Promise.resolve({ apartmentId: '' })
+    const params = Promise.resolve({ apartmentId: '', tenantId: 'any' })
 
     await GET(request, { params })
 
@@ -72,7 +72,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
     mockSupabaseClient.from.mockReturnValue(mockApartmentQuery)
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: '123e4567-e89b-12d3-a456-426614174002' })
 
     await GET(request, { params })
 
@@ -109,7 +109,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
       .mockReturnValueOnce(mockTenantQuery) // Second call for tenant
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: '123e4567-e89b-12d3-a456-426614174002' })
 
     await GET(request, { params })
 
@@ -168,7 +168,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
       .mockReturnValueOnce(mockTenantQuery)
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: 'any' })
 
     await GET(request, { params })
 
@@ -214,7 +214,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
       .mockReturnValueOnce(mockTenantQuery)
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: '123e4567-e89b-12d3-a456-426614174002' })
 
     await GET(request, { params })
 
@@ -261,7 +261,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
       .mockReturnValueOnce(mockTenantQuery)
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: 'any' })
 
     await GET(request, { params })
 
@@ -288,7 +288,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
     mockSupabaseClient.from.mockReturnValue(mockApartmentQuery)
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: '123e4567-e89b-12d3-a456-426614174002' })
 
     await GET(request, { params })
 
@@ -304,7 +304,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
     })
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: '123e4567-e89b-12d3-a456-426614174002' })
 
     await GET(request, { params })
 
@@ -341,7 +341,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
       .mockReturnValueOnce(mockTenantQuery)
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: '123e4567-e89b-12d3-a456-426614174002' })
 
     await GET(request, { params })
 

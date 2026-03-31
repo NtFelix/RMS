@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TemplatesModal } from '@/components/templates/templates-modal';
@@ -69,7 +70,7 @@ describe('Template Management E2E Workflow', () => {
           ],
         },
         user_id: 'user1',
-        kategorie: 'Vertrag',
+        kategorie: 'Dokumente',
         kontext_anforderungen: ['mieter', 'wohnung'],
         erstellungsdatum: '2024-01-01T00:00:00Z',
         aktualisiert_am: '2024-01-01T00:00:00Z',
@@ -91,7 +92,7 @@ describe('Template Management E2E Workflow', () => {
           ],
         },
         user_id: 'user1',
-        kategorie: 'Mahnung',
+        kategorie: 'Dokumente',
         kontext_anforderungen: ['mieter'],
         erstellungsdatum: '2024-01-02T00:00:00Z',
         aktualisiert_am: '2024-01-02T00:00:00Z',
@@ -145,7 +146,7 @@ describe('Template Management E2E Workflow', () => {
           ],
         },
         user_id: 'user1',
-        kategorie: 'Kündigung',
+        kategorie: 'Dokumente',
         kontext_anforderungen: [],
         erstellungsdatum: '2024-01-03T00:00:00Z',
         aktualisiert_am: '2024-01-03T00:00:00Z',
@@ -396,8 +397,7 @@ describe('Template Management E2E Workflow', () => {
       
       mockDeleteTemplate.mockResolvedValue(undefined);
 
-      // Mock confirmation modal
-      let confirmationCallback: (() => void) | null = null;
+      let confirmationCallback: (() => Promise<void>) | null = null;
       const mockOpenConfirmationModal = jest.fn((config) => {
         confirmationCallback = config.onConfirm;
       });
@@ -424,7 +424,7 @@ describe('Template Management E2E Workflow', () => {
 
       // Simulate user confirming deletion
       if (confirmationCallback) {
-        await confirmationCallback();
+        await (confirmationCallback as any)();
       }
 
       expect(mockDeleteTemplate).toHaveBeenCalledWith('1');
@@ -435,7 +435,7 @@ describe('Template Management E2E Workflow', () => {
       
       mockDeleteTemplate.mockRejectedValue(new Error('Cannot delete template'));
 
-      let confirmationCallback: (() => void) | null = null;
+      let confirmationCallback: (() => Promise<void>) | null = null;
       const mockOpenConfirmationModal = jest.fn((config) => {
         confirmationCallback = config.onConfirm;
       });
@@ -452,7 +452,7 @@ describe('Template Management E2E Workflow', () => {
 
       // Confirm deletion
       if (confirmationCallback) {
-        await expect(confirmationCallback()).rejects.toThrow('Cannot delete template');
+        await expect((confirmationCallback as any)()).rejects.toThrow('Cannot delete template');
       }
 
       expect(mockDeleteTemplate).toHaveBeenCalledWith('1');
@@ -649,6 +649,3 @@ describe('Template Management E2E Workflow', () => {
     });
   });
 });
-
-// Add React import for JSX
-const React = require('react');

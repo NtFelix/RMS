@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import BetriebskostenClientView from '../client-wrapper';
+import BetriebskostenClientView from './client-wrapper';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -29,25 +29,37 @@ describe('BetriebskostenClientView - Layout Changes', () => {
   const mockNebenkosten = [
     {
       id: 'nk1',
-      jahr: '2023',
+      startdatum: '2023-01-01',
+      enddatum: '2023-12-31',
       Haeuser: { name: 'Haus A' },
       nebenkostenart: ['Strom'],
       betrag: [100],
       berechnungsart: ['Einheit'],
-      wasserkosten: 50,
+      zaehlerkosten: { 'Wasser': 50 },
+      zaehlerverbrauch: { 'Wasser': 100 },
       haeuser_id: 'h1',
-      user_id: 'u1'
+      user_id: 'u1',
+      haus_name: 'Haus A',
+      gesamt_flaeche: 100,
+      anzahl_wohnungen: 2,
+      anzahl_mieter: 2
     },
     {
       id: 'nk2',
-      jahr: '2024',
+      startdatum: '2024-01-01',
+      enddatum: '2024-12-31',
       Haeuser: { name: 'Haus B' },
       nebenkostenart: ['Heizung'],
       betrag: [200],
       berechnungsart: ['Pauschal'],
-      wasserkosten: 75,
+      zaehlerkosten: { 'Wasser': 75 },
+      zaehlerverbrauch: { 'Wasser': 150 },
       haeuser_id: 'h2',
-      user_id: 'u1'
+      user_id: 'u1',
+      haus_name: 'Haus B',
+      gesamt_flaeche: 150,
+      anzahl_wohnungen: 3,
+      anzahl_mieter: 3
     }
   ];
 
@@ -92,6 +104,7 @@ describe('BetriebskostenClientView - Layout Changes', () => {
 
     mockDeleteNebenkosten.mockResolvedValue({
       success: true,
+      message: 'Deleted successfully',
     });
   });
 

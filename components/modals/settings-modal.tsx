@@ -22,12 +22,15 @@ import ExportSection from "../settings/export-section";
 import FeaturePreviewSection from "../settings/feature-preview-section";
 import InformationSection from "../settings/information-section";
 import MailSection from "../settings/mail-section";
+import { useFeatureFlagEnabled } from "posthog-js/react";
+import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants";
 
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false)
+  const mailsEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MAILS_TAB)
 
   const tabs: Tab[] = [
     {
@@ -48,12 +51,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       icon: CreditCard,
       content: <SubscriptionSection />,
     },
-    {
+    ...(mailsEnabled ? [{
       value: "mail",
       label: "E-Mail",
       icon: Mail,
       content: <MailSection />,
-    },
+    }] : []),
     {
       value: "display",
       label: "Darstellung",

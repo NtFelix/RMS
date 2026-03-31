@@ -64,9 +64,9 @@ describe('URL Management Basic Tests', () => {
     const { result } = renderHook(() => useCloudStorageNavigationStore())
     
     const breadcrumbs = [
-      { name: 'Cloud Storage', path: 'user_test-user', type: 'root' },
-      { name: 'House 1', path: 'user_test-user/house1', type: 'house' },
-      { name: 'Apartment 1', path: 'user_test-user/house1/apt1', type: 'apartment' }
+      { name: 'Cloud Storage', path: 'user_test-user', type: 'root' as const },
+      { name: 'House 1', path: 'user_test-user/house1', type: 'house' as const },
+      { name: 'Apartment 1', path: 'user_test-user/house1/apt1', type: 'apartment' as const }
     ]
     
     act(() => {

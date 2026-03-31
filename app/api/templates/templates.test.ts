@@ -4,7 +4,7 @@ import { GET, POST } from '../templates/route';
 import { GET as getTemplate, PUT, DELETE } from '../templates/[id]/route';
 
 // Mock Supabase client
-const mockSupabaseClient = {
+const mockSupabaseClient: any = {
   auth: {
     getUser: jest.fn()
   },
@@ -237,7 +237,7 @@ describe('/api/templates/[id]', () => {
       });
 
       const request = new NextRequest('http://localhost/api/templates/template-123');
-      const response = await getTemplate(request, { params: mockParams });
+      const response = await getTemplate(request, { params: Promise.resolve(mockParams) });
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -261,7 +261,7 @@ describe('/api/templates/[id]', () => {
       });
 
       const request = new NextRequest('http://localhost/api/templates/nonexistent');
-      const response = await getTemplate(request, { params: { id: 'nonexistent' } });
+      const response = await getTemplate(request, { params: Promise.resolve({ id: 'nonexistent' }) });
       const data = await response.json();
 
       expect(response.status).toBe(404);
@@ -306,7 +306,7 @@ describe('/api/templates/[id]', () => {
         body: JSON.stringify(updateData)
       });
 
-      const response = await PUT(request, { params: mockParams });
+      const response = await PUT(request, { params: Promise.resolve(mockParams) });
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -329,7 +329,7 @@ describe('/api/templates/[id]', () => {
       });
 
       const request = new NextRequest('http://localhost/api/templates/template-123');
-      const response = await DELETE(request, { params: mockParams });
+      const response = await DELETE(request, { params: Promise.resolve(mockParams) });
       const data = await response.json();
 
       expect(response.status).toBe(200);

@@ -30,10 +30,12 @@ import {
     Zap,
     Fuel,
     Trash2,
+    MessageSquare,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types"
+import { formatNumber } from "@/utils/format"
 
 // Types
 export interface Zaehler {
@@ -49,6 +51,7 @@ export interface Zaehler {
         zaehlerstand: number
         verbrauch: number
     } | null
+    kommentar?: string | null
 }
 
 export interface EditingMeterState {
@@ -56,6 +59,7 @@ export interface EditingMeterState {
     customId: string
     eichungsdatum: Date | undefined
     zaehlerTyp: ZaehlerTyp
+    kommentar?: string
 }
 
 interface MeterCardProps {
@@ -74,7 +78,6 @@ interface MeterCardProps {
 export function getMeterIcon(zaehler_typ: ZaehlerTyp, className?: string) {
     const iconClass = className || "h-5 w-5"
     switch (zaehler_typ) {
-        case 'wasser':
         case 'kaltwasser':
             return <Droplet className={cn(iconClass, "text-blue-500")} />
         case 'warmwasser':
@@ -95,7 +98,6 @@ export function getMeterIcon(zaehler_typ: ZaehlerTyp, className?: string) {
 // Helper function to get background color based on meter type
 export function getMeterBgColor(zaehler_typ: ZaehlerTyp) {
     switch (zaehler_typ) {
-        case 'wasser':
         case 'kaltwasser':
             return "bg-blue-100 dark:bg-blue-900/30"
         case 'warmwasser':
@@ -180,17 +182,20 @@ export function MeterCard({
     onOpenAblesungen,
     onEditChange,
 }: MeterCardProps) {
-    const config = ZAEHLER_CONFIG[zaehler.zaehler_typ] || ZAEHLER_CONFIG.wasser
+    const config = ZAEHLER_CONFIG[zaehler.zaehler_typ] || ZAEHLER_CONFIG.kaltwasser
     const einheit = zaehler.einheit || config.einheit
     const isEditing = editingMeter?.id === zaehler.id
 
     const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
-            onSaveEdit(zaehler.id)
+            // Prevent save if validation fails, though button does this too
+            if ((editingMeter?.kommentar?.length || 0) <= 25) {
+                onSaveEdit(zaehler.id)
+            }
         } else if (e.key === "Escape") {
             onCancelEdit()
         }
-    }, [onSaveEdit, onCancelEdit, zaehler.id])
+    }, [onSaveEdit, onCancelEdit, zaehler.id, editingMeter?.kommentar])
 
     return (
         <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
@@ -217,7 +222,7 @@ export function MeterCard({
                                     <Button
                                         size="sm"
                                         onClick={() => onSaveEdit(zaehler.id)}
-                                        disabled={!editingMeter.customId.trim() || isSaving}
+                                        disabled={!editingMeter.customId.trim() || isSaving || ((editingMeter.kommentar?.length || 0) > 25)}
                                     >
                                         <Check className="h-4 w-4 mr-1" />
                                         Speichern
@@ -264,6 +269,30 @@ export function MeterCard({
                                     />
                                 </div>
                                 <div>
+                                    <div className="flex justify-between items-center">
+                                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <span className="text-muted-foreground">Kommentar</span>
+                                        </Label>
+                                        <span className={cn(
+                                            "text-[10px]",
+                                            (editingMeter.kommentar?.length || 0) > 25 ? "text-red-500 font-bold" : "text-muted-foreground"
+                                        )}>
+                                            {editingMeter.kommentar?.length || 0}/25
+                                        </span>
+                                    </div>
+                                    <Input
+                                        value={editingMeter.kommentar || ''}
+                                        onChange={(e) => onEditChange({ kommentar: e.target.value })}
+                                        onKeyDown={handleKeyDown}
+                                        disabled={isSaving}
+                                        placeholder="Kommentar (max 25 Zeichen)"
+                                        className={cn(
+                                            "mt-1.5",
+                                            (editingMeter.kommentar?.length || 0) > 25 && "border-red-500 focus-visible:ring-red-500"
+                                        )}
+                                    />
+                                </div>
+                                <div>
                                     <Label className="text-xs text-muted-foreground flex items-center gap-1">
                                         <CalendarIcon className="h-3 w-3" />
                                         Eichungsdatum
@@ -291,7 +320,7 @@ export function MeterCard({
                             transition={{ duration: 0.2, ease: "easeInOut" }}
                         >
                             {/* Header */}
-                            <div className="p-4">
+                            <div className="p-4 pb-2">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", getMeterBgColor(zaehler.zaehler_typ))}>
@@ -312,6 +341,7 @@ export function MeterCard({
                                         </div>
                                     </div>
                                     <div className="flex gap-1">
+
                                         <Button
                                             size="sm"
                                             variant="ghost"
@@ -362,7 +392,7 @@ export function MeterCard({
                                         <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
                                         {zaehler.latest_reading ? (
                                             <p className="text-sm font-medium">
-                                                {zaehler.latest_reading.zaehlerstand} {einheit}
+                                                {formatNumber(zaehler.latest_reading.zaehlerstand, 3)} {einheit}
                                             </p>
                                         ) : (
                                             <p className="text-sm font-medium text-muted-foreground italic">
@@ -415,6 +445,26 @@ export function MeterCard({
                                         )}
                                     </div>
                                 </motion.div>
+
+                                {/* Kommentar */}
+                                {zaehler.kommentar && (
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ duration: 0.3, delay: 0.4 }}
+                                        className="col-span-1 sm:col-span-3 flex items-start gap-2 pt-2 border-t border-gray-100 dark:border-gray-800"
+                                    >
+                                        <div className="flex-shrink-0 mt-0.5">
+                                            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-muted-foreground mb-1">Kommentar</p>
+                                            <p className="text-sm text-foreground break-words">
+                                                {zaehler.kommentar}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
                             </div>
 
                             {/* Footer */}

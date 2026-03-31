@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { formatNumber } from "@/utils/format";
 import { createPortal } from "react-dom";
 import {
@@ -30,14 +30,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed } from "lucide-react";
+import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed, Droplets, Thermometer, Flame, Gauge, Zap, Fuel, X, CalendarClock, Banknote, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Mieter, Nebenkosten, RechnungSql } from "@/lib/data-fetching";
+import type { Mieter, Nebenkosten, RechnungSql } from "@/lib/types";
+import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types";
+import { convertZaehlerkostenToStrings } from "@/lib/zaehler-utils";
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 import { DEFAULT_COST_ITEMS } from "@/lib/constants/betriebskosten";
 import { generateId } from "@/lib/utils/generate-id";
@@ -63,6 +65,15 @@ import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDat
 export type { CostItem, RechnungEinzel };
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
+const METER_ICON_MAP = {
+  droplet: Droplets,
+  thermometer: Thermometer,
+  flame: Flame,
+  gauge: Gauge,
+  zap: Zap,
+  fuel: Fuel,
+};
+
 interface BetriebskostenEditModalPropsRefactored { }
 
 export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefactored) {
@@ -78,8 +89,9 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
   const [startdatum, setStartdatum] = useState("");
   const [enddatum, setEnddatum] = useState("");
-  const [wasserkosten, setWasserkosten] = useState("");
+  const [zaehlerkosten, setZaehlerkosten] = useState<Record<string, string>>({});
   const [hausId, setHausId] = useState("");
+  const [vorauszahlungsArt, setVorauszahlungsArt] = useState<'soll' | 'ist'>('soll');
   const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -489,9 +501,9 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
         // Process cost items and rechnungen
         await processCostItems();
 
-        // Set wasserkosten if available
-        if (latest.wasserkosten) {
-          setWasserkosten(latest.wasserkosten.toString());
+        // Set zaehlerkosten if available
+        if (latest.zaehlerkosten) {
+          setZaehlerkosten(convertZaehlerkostenToStrings(latest.zaehlerkosten));
         }
 
         // Set the date range if available
@@ -559,7 +571,8 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
         setStartdatum("");
         setEnddatum("");
       }
-      setWasserkosten("");
+      setZaehlerkosten({});
+      setVorauszahlungsArt('soll');
       const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
       setHausId(initialHausId);
 
@@ -608,7 +621,13 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               setStartdatum(fetchedData.startdatum ? isoToGermanDate(fetchedData.startdatum) : "");
               setEnddatum(fetchedData.enddatum ? isoToGermanDate(fetchedData.enddatum) : "");
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
-              setWasserkosten(fetchedData.wasserkosten?.toString() || "");
+              setVorauszahlungsArt(fetchedData.vorauszahlungs_art === 'ist' ? 'ist' : 'soll');
+              // Load zaehlerkosten
+              if (fetchedData.zaehlerkosten) {
+                setZaehlerkosten(convertZaehlerkostenToStrings(fetchedData.zaehlerkosten));
+              } else {
+                setZaehlerkosten({});
+              }
 
               const newCostItems: CostItem[] = (fetchedData.nebenkostenart || []).map((art, idx) => ({
                 id: generateId(),
@@ -738,12 +757,19 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       return;
     }
 
-    const parsedWasserkosten = wasserkosten ? parseFloat(wasserkosten) : null;
-    if (wasserkosten.trim() !== '' && isNaN(parsedWasserkosten as number)) {
-      toast({ title: "Ungültige Eingabe", description: "Wasserkosten müssen eine gültige Zahl sein.", variant: "destructive" });
+    // Parse and validate zaehlerkosten values
+    const nonEmptyEntries = Object.entries(zaehlerkosten).filter(([, value]) => value?.trim());
+    const hasInvalidZaehlerkosten = nonEmptyEntries.some(([, value]) => isNaN(parseFloat(value)));
+
+    if (hasInvalidZaehlerkosten) {
+      toast({ title: "Ungültige Eingabe", description: "Zählerkosten müssen gültige Zahlen sein.", variant: "destructive" });
       setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
     }
+
+    const parsedZaehlerkosten = Object.fromEntries(
+      nonEmptyEntries.map(([key, value]) => [key, parseFloat(value)])
+    );
 
     if (costItems.length === 0) {
       toast({ title: "Validierungsfehler", description: "Mindestens ein Kostenpunkt muss hinzugefügt werden.", variant: "destructive" });
@@ -808,8 +834,9 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       nebenkostenart: nebenkostenartArray,
       betrag: betragArray,
       berechnungsart: berechnungsartArray,
-      wasserkosten: parsedWasserkosten,
+      zaehlerkosten: Object.keys(parsedZaehlerkosten).length > 0 ? parsedZaehlerkosten : null,
       haeuser_id: hausId,
+      vorauszahlungs_art: vorauszahlungsArt,
     };
 
     let response;
@@ -915,8 +942,17 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     setBetriebskostenModalDirty(true);
   };
 
-  const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setWasserkosten(e.target.value);
+  const handleZaehlerkostenChange = (zaehlerTyp: string, value: string) => {
+    setZaehlerkosten(prev => ({ ...prev, [zaehlerTyp]: value }));
+    setBetriebskostenModalDirty(true);
+  };
+
+  const handleRemoveZaehlerkosten = (zaehlerTyp: string) => {
+    setZaehlerkosten(prev => {
+      const next = { ...prev };
+      delete next[zaehlerTyp];
+      return next;
+    });
     setBetriebskostenModalDirty(true);
   };
 
@@ -924,6 +960,41 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     setHausId(newHausId || '');
     setBetriebskostenModalDirty(true);
   };
+
+  const addMeterCostSelect = useMemo(() => {
+    const availableTypes = (Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
+      .filter(typ => zaehlerkosten[typ] === undefined);
+
+    if (availableTypes.length === 0) return null;
+
+    return (
+      <div className="flex justify-start">
+        <Select
+          value=""
+          onValueChange={(value) => handleZaehlerkostenChange(value as ZaehlerTyp, "")}
+        >
+          <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all text-muted-foreground">
+            <PlusCircle className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Zähler-Kostenstelle hinzufügen" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableTypes.map((typ) => {
+              const config = ZAEHLER_CONFIG[typ];
+              const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
+              return (
+                <SelectItem key={typ} value={typ} className="group">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-muted-foreground group-focus:text-white transition-colors" />
+                    <span>{config.label}</span>
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }, [zaehlerkosten, handleZaehlerkostenChange]);
 
   if (!isBetriebskostenModalOpen) {
     return null;
@@ -1049,13 +1120,128 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                 )}
               </div>
 
-              {/* Water Costs */}
+              {/* Vorauszahlungsmethode */}
               <div className="space-y-2">
-                <LabelWithTooltip htmlFor="formWasserkosten" infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Abrechnungszeitraum.">
-                  Wasserkosten (€)
+                <LabelWithTooltip htmlFor="formVorauszahlungsArt" infoText="Soll: Verwendet den vereinbarten Vorauszahlungsbetrag, der im Mieterprofil hinterlegt ist. Ist: Verwendet die tatsächlich gebuchten Zahlungen aus der Finanzen-Seite.">
+                  Vorauszahlungsmethode
                 </LabelWithTooltip>
-                {isFormLoading ? <Skeleton className="h-10 w-full" /> : (
-                  <NumberInput id="formWasserkosten" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving || isFormLoading} />
+                {isFormLoading ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Soll option */}
+                    <button
+                      type="button"
+                      onClick={() => { setVorauszahlungsArt('soll'); setBetriebskostenModalDirty(true); }}
+                      disabled={isSaving || isFormLoading}
+                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'soll' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
+                    >
+                      <div className="flex items-start justify-between w-full">
+                        <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'soll' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                          <CalendarClock className="w-4 h-4" />
+                        </div>
+                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'soll' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
+                          <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                        </div>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-semibold leading-tight transition-colors ${vorauszahlungsArt === 'soll' ? 'text-primary' : 'text-foreground'}`}>Soll</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Vereinbarte Vorauszahlung<br />aus dem Mieterprofil</p>
+                      </div>
+                    </button>
+                    {/* Ist option */}
+                    <button
+                      type="button"
+                      onClick={() => { setVorauszahlungsArt('ist'); setBetriebskostenModalDirty(true); }}
+                      disabled={isSaving || isFormLoading}
+                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'ist' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
+                    >
+                      <div className="flex items-start justify-between w-full">
+                        <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'ist' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                          <Banknote className="w-4 h-4" />
+                        </div>
+                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'ist' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
+                          <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                        </div>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-semibold leading-tight transition-colors ${vorauszahlungsArt === 'ist' ? 'text-primary' : 'text-foreground'}`}>Ist</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Gebuchte Einnahmen<br />aus der Finanzen-Seite</p>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Meter Costs / Zählerkosten */}
+              <div className="space-y-3">
+                <LabelWithTooltip htmlFor="formZaehlerkosten" infoText="Die Kosten je Zählertyp für das ausgewählte Haus in diesem Abrechnungszeitraum. Nur Zähler, für die Kosten anfallen, müssen hier eingetragen werden.">
+                  Zählerkosten (€)
+                </LabelWithTooltip>
+
+                {isFormLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {Array.from({ length: 4 }).map((_, idx) => (
+                      <Skeleton key={`skel-zaehler-${idx}`} className="h-10 w-full rounded-xl" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Active Meter Costs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
+                        .filter(typ => zaehlerkosten[typ] !== undefined)
+                        .map((typ) => {
+                          const config = ZAEHLER_CONFIG[typ];
+                          const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
+
+                          return (
+                            <div
+                              key={typ}
+                              className="group flex flex-col gap-2 p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm transition-all hover:border-primary/30"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className={`p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors`}>
+                                    <Icon className="w-4 h-4" />
+                                  </div>
+                                  <Label htmlFor={`zaehlerkosten-${typ}`} className="text-sm font-medium">
+                                    {config.label}
+                                  </Label>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                  onClick={() => handleRemoveZaehlerkosten(typ)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                              <div className="relative">
+                                <NumberInput
+                                  id={`zaehlerkosten-${typ}`}
+                                  value={zaehlerkosten[typ] || ''}
+                                  onChange={(e) => handleZaehlerkostenChange(typ, e.target.value)}
+                                  placeholder="0.00"
+                                  step="0.01"
+                                  disabled={isSaving || isFormLoading}
+                                  className="h-10 pl-3 pr-8 bg-gray-50/50 dark:bg-black/20 border-gray-200 dark:border-gray-800 focus:ring-primary/20"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">€</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+
+                    {/* Add Meter Cost Select */}
+                    {addMeterCostSelect}
+                  </div>
                 )}
               </div>
             </div>

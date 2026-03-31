@@ -18,8 +18,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { PillTabSwitcher } from "@/components/ui/pill-tab-switcher";
-import { useFeatureFlagEnabled } from 'posthog-js/react'
-import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
@@ -58,11 +56,24 @@ export default function AuthModal({
   const [forgotPasswordIsLoading, setForgotPasswordIsLoading] = useState(false)
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
 
-  const isGoogleLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.GOOGLE_SOCIAL_LOGIN)
-  const isMicrosoftLoginEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MICROSOFT_SOCIAL_LOGIN)
   const [socialLoading, setSocialLoading] = useState<string | null>(null) // 'google' | 'microsoft' | null
 
-  const enabledProvidersCount = [isGoogleLoginEnabled, isMicrosoftLoginEnabled].filter(Boolean).length;
+  const socialProviders = [
+    {
+      id: 'google' as const,
+      name: 'Google',
+      fullLabel: 'Mit Google anmelden',
+      Icon: GoogleIcon,
+    },
+    {
+      id: 'microsoft' as const,
+      name: 'Microsoft',
+      fullLabel: 'Mit Microsoft anmelden',
+      Icon: MicrosoftIcon,
+    }
+  ];
+
+  const enabledProvidersCount = socialProviders.length;
 
   const handleSocialAuth = async (provider: 'google' | 'microsoft', flow: 'login' | 'signup') => {
     setSocialLoading(provider);
@@ -78,22 +89,6 @@ export default function AuthModal({
     }
   };
 
-  const socialProviders = [
-    {
-      id: 'google' as const,
-      name: 'Google',
-      fullLabel: 'Mit Google anmelden',
-      Icon: GoogleIcon,
-      enabled: isGoogleLoginEnabled,
-    },
-    {
-      id: 'microsoft' as const,
-      name: 'Microsoft',
-      fullLabel: 'Mit Microsoft anmelden',
-      Icon: MicrosoftIcon,
-      enabled: isMicrosoftLoginEnabled,
-    }
-  ].filter(p => p.enabled);
 
   const [activeView, setActiveView] = useState<'login' | 'register' | 'forgotPassword'>(initialTab);
 
@@ -396,38 +391,36 @@ export default function AuthModal({
                   {loginIsLoading ? "Wird angemeldet..." : "Anmelden"}
                 </Button>
 
-                {(isGoogleLoginEnabled || isMicrosoftLoginEnabled) && (
-                  <div className="pt-2 space-y-3">
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-border" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-card px-2 text-muted-foreground">WEITERE ANMELDEMETHODEN</span>
-                      </div>
+                <div className="pt-2 space-y-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
                     </div>
-
-                    <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
-                      {socialProviders.map((provider) => (
-                        <Button
-                          key={provider.id}
-                          type="button"
-                          variant="outline"
-                          className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
-                          onClick={() => handleSocialAuth(provider.id, 'login')}
-                          disabled={socialLoading !== null}
-                        >
-                          {socialLoading === provider.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <provider.Icon className="h-4 w-4 mr-2" />
-                          )}
-                          {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
-                        </Button>
-                      ))}
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">WEITERE ANMELDEMETHODEN</span>
                     </div>
                   </div>
-                )}
+
+                  <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
+                    {socialProviders.map((provider) => (
+                      <Button
+                        key={provider.id}
+                        type="button"
+                        variant="outline"
+                        className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
+                        onClick={() => handleSocialAuth(provider.id, 'login')}
+                        disabled={socialLoading !== null}
+                      >
+                        {socialLoading === provider.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <provider.Icon className="h-4 w-4 mr-2" />
+                        )}
+                        {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </AuthForm>
             </>
           )}
@@ -501,38 +494,36 @@ export default function AuthModal({
                     {registerIsLoading ? "Wird registriert..." : "Registrieren"}
                   </Button>
 
-                  {(isGoogleLoginEnabled || isMicrosoftLoginEnabled) && (
-                    <div className="pt-2 space-y-3">
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t border-border" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-card px-2 text-muted-foreground">WEITERE ANMELDEMETHODEN</span>
-                        </div>
+                  <div className="pt-2 space-y-3">
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
                       </div>
-
-                      <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
-                        {socialProviders.map((provider) => (
-                          <Button
-                            key={provider.id}
-                            type="button"
-                            variant="outline"
-                            className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
-                            onClick={() => handleSocialAuth(provider.id, 'signup')}
-                            disabled={socialLoading !== null}
-                          >
-                            {socialLoading === provider.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <provider.Icon className="h-4 w-4 mr-2" />
-                            )}
-                            {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
-                          </Button>
-                        ))}
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-card px-2 text-muted-foreground">WEITERE ANMELDEMETHODEN</span>
                       </div>
                     </div>
-                  )}
+
+                    <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
+                      {socialProviders.map((provider) => (
+                        <Button
+                          key={provider.id}
+                          type="button"
+                          variant="outline"
+                          className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
+                          onClick={() => handleSocialAuth(provider.id, 'signup')}
+                          disabled={socialLoading !== null}
+                        >
+                          {socialLoading === provider.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <provider.Icon className="h-4 w-4 mr-2" />
+                          )}
+                          {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                 </form>
               </CardContent>
             </>

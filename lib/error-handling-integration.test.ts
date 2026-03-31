@@ -66,7 +66,7 @@ describe('Error Handling Integration Tests', () => {
       const result = await withRetry(operation, {
         maxRetries: 3,
         baseDelayMs: 10,
-        retryCondition: (result) => !result.success && result.message?.includes('dauerte zu lange')
+        retryCondition: (result) => !result.success && (result.message?.includes('dauerte zu lange') || false)
       });
 
       expect(result.success).toBe(true);
@@ -104,7 +104,7 @@ describe('Error Handling Integration Tests', () => {
 
       const result = await withRetry(operation, {
         maxRetries: 2,
-        retryCondition: (result) => !result.success && result.message?.includes('Netzwerk')
+        retryCondition: (result) => !result.success && (result.message?.includes('Netzwerk') || false)
       });
 
       expect(result.success).toBe(false);
@@ -357,7 +357,7 @@ describe('Error Handling Integration Tests', () => {
         retryCondition: (result) => !result.success && (
           result.message?.includes('Netzwerkfehler') ||
           result.message?.includes('Verbindungsfehler') ||
-          result.message?.includes('versuchen Sie es erneut')
+          result.message?.includes('versuchen Sie es erneut') || false
         )
       });
 
@@ -391,8 +391,7 @@ describe('Error Handling Integration Tests', () => {
       );
 
       const result = await withRetry(operation, {
-        maxRetries: 3,
-        retryCondition: (result) => !result.success && result.message?.includes('Netzwerk')
+        retryCondition: (result) => !result.success && (result.message?.includes('Netzwerk') || false)
       });
 
       expect(result.success).toBe(false);

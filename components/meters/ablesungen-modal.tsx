@@ -74,10 +74,9 @@ interface Ablesung {
 // Helper function to get icon component based on meter type
 function getMeterIcon(zaehlerTyp: string | undefined, className?: string) {
   const iconClass = className || "h-5 w-5"
-  const typ = (zaehlerTyp || 'wasser') as ZaehlerTyp
+  const typ = (zaehlerTyp || 'kaltwasser') as ZaehlerTyp
 
   switch (typ) {
-    case 'wasser':
     case 'kaltwasser':
       return <Droplet className={cn(iconClass, "text-blue-500")} />
     case 'warmwasser':
@@ -97,10 +96,9 @@ function getMeterIcon(zaehlerTyp: string | undefined, className?: string) {
 
 // Helper function to get background color based on meter type
 function getMeterBgColor(zaehlerTyp: string | undefined) {
-  const typ = (zaehlerTyp || 'wasser') as ZaehlerTyp
+  const typ = (zaehlerTyp || 'kaltwasser') as ZaehlerTyp
 
   switch (typ) {
-    case 'wasser':
     case 'kaltwasser':
       return "bg-blue-100 dark:bg-blue-900/30"
     case 'warmwasser':
@@ -197,7 +195,7 @@ export function AblesungenModal() {
 
     if (previousReading && previousReading.zaehlerstand !== null) {
       const consumption = currentReading - previousReading.zaehlerstand
-      setNewVerbrauch(consumption.toFixed(2))
+      setNewVerbrauch(consumption.toFixed(3))
 
       // Only show warnings for significant differences
       if (consumption < 0) {
@@ -256,7 +254,7 @@ export function AblesungenModal() {
 
     if (previousReading?.zaehlerstand !== null && previousReading?.zaehlerstand !== undefined) {
       const consumption = currentReading - previousReading.zaehlerstand
-      setEditVerbrauch(consumption.toFixed(2))
+      setEditVerbrauch(consumption.toFixed(3))
 
       // Only show warnings for significant differences
       if (consumption < 0) {
@@ -465,7 +463,7 @@ export function AblesungenModal() {
         const currentReading = parseFloat(editZaehlerstand)
         if (!isNaN(currentReading)) {
           const consumption = currentReading - previousReading.zaehlerstand
-          setEditVerbrauch(consumption.toFixed(2))
+          setEditVerbrauch(consumption.toFixed(3))
 
           // Update warnings if needed
           if (consumption < 0) {
@@ -653,7 +651,7 @@ export function AblesungenModal() {
                 </div>
                 <div className="space-y-2">
                   <NumberInput
-                    step="0.01"
+                    step="0.001"
                     placeholder={`Zählerstand (${ablesungenModalData?.einheit || 'm³'})`}
                     value={newZaehlerstand}
                     onChange={(e) => handleNewZaehlerstandChange(e.target.value)}
@@ -667,7 +665,7 @@ export function AblesungenModal() {
                 </div>
                 <div className="space-y-2">
                   <NumberInput
-                    step="0.01"
+                    step="0.001"
                     placeholder={`Verbrauch (${ablesungenModalData?.einheit || 'm³'})`}
                     value={newVerbrauch}
                     onChange={(e) => setNewVerbrauch(e.target.value)}
@@ -796,7 +794,7 @@ export function AblesungenModal() {
                                       Zählerstand
                                     </Label>
                                     <NumberInput
-                                      step="0.01"
+                                      step="0.001"
                                       value={editZaehlerstand}
                                       onChange={(e) => {
                                         const currentAblesung = ablesenList.find(a => a.id === editingId)
@@ -815,7 +813,7 @@ export function AblesungenModal() {
                                       Verbrauch
                                     </Label>
                                     <NumberInput
-                                      step="0.01"
+                                      step="0.001"
                                       value={editVerbrauch}
                                       onChange={(e) => setEditVerbrauch(e.target.value)}
                                       disabled={isSaving}
@@ -910,7 +908,7 @@ export function AblesungenModal() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
                                       <p className="text-sm font-medium">
-                                        {ablesung.zaehlerstand !== null ? `${formatNumber(ablesung.zaehlerstand)} m³` : (
+                                        {ablesung.zaehlerstand !== null ? `${formatNumber(ablesung.zaehlerstand, 3)} m³` : (
                                           <span className="text-muted-foreground italic">Nicht gesetzt</span>
                                         )}
                                       </p>
@@ -929,7 +927,10 @@ export function AblesungenModal() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Verbrauch</p>
                                       <p className="text-sm font-medium">
-                                        {formatNumber(ablesung.verbrauch)} {ablesungenModalData?.einheit || 'm³'}
+                                        {ablesung.verbrauch !== null && ablesung.verbrauch !== undefined
+                                          ? `${formatNumber(ablesung.verbrauch, 3)} ${ablesungenModalData?.einheit || 'm³'}`
+                                          : <span className="text-muted-foreground italic">Nicht gesetzt</span>
+                                        }
                                       </p>
                                     </div>
                                   </motion.div>

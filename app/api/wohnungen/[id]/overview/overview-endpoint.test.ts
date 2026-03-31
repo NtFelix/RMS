@@ -1,4 +1,4 @@
-import { GET } from '../wohnungen/[id]/overview/route'
+import { GET } from './route'
 import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 

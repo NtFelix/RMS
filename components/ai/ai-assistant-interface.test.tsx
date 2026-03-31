@@ -102,7 +102,7 @@ const createMockStreamingResponse = (chunks: string[], finalResponse?: string) =
       'content-type': 'text/event-stream'
     }),
     body: mockStream
-  } as Response;
+  } as unknown as Response;
 };
 
 // Helper function to create a mock JSON response (fallback)
@@ -120,7 +120,7 @@ describe('AIAssistantInterface', () => {
   const defaultProps = {
     isOpen: true,
     onClose: jest.fn(),
-    documentationContext: []
+    documentationContext: { articles: [] }
   };
 
   beforeEach(() => {

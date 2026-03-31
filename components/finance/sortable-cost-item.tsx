@@ -13,7 +13,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Mieter } from "@/lib/data-fetching";
+import type { Mieter } from "@/lib/types";
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 
 export interface CostItem {

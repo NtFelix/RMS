@@ -1,5 +1,5 @@
 "use client"
-import React, { ReactNode } from "react";
+import React, { ReactNode, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,67 @@ interface SummaryCardProps {
   description?: string;
 }
 
+interface CardWrapperProps {
+  children: ReactNode;
+  hoverDetails?: SummaryCardHoverDetails;
+  title: string;
+  formatHoverValue: (num: number) => string | number;
+}
+
+const CardWrapper = ({ children, hoverDetails, title, formatHoverValue }: CardWrapperProps) => {
+  if (hoverDetails) {
+    return (
+      <div className="relative group">
+        <HoverCard openDelay={0} closeDelay={0}>
+          <HoverCardTrigger asChild>
+            {children}
+          </HoverCardTrigger>
+          <HoverCardContent
+            className="w-80 absolute left-full top-0 ml-2 h-auto min-h-full p-2"
+            side="right"
+            align="start"
+            sideOffset={0}
+            alignOffset={0}
+          >
+            <div className="space-y-0">
+              <div className="mb-1">
+                <h4 className="text-sm font-semibold leading-tight">{title} - Details</h4>
+                <p className="text-sm text-muted-foreground leading-tight">Zusätzliche Statistiken</p>
+              </div>
+              <div className="space-y-0">
+                {hoverDetails.average !== undefined && (
+                  <div className="flex justify-between text-sm leading-tight">
+                    <span className="text-muted-foreground">Durchschnitt:</span>
+                    <span className="font-medium">{formatHoverValue(hoverDetails.average)}</span>
+                  </div>
+                )}
+                {hoverDetails.median !== undefined && (
+                  <div className="flex justify-between text-sm leading-tight">
+                    <span className="text-muted-foreground">Median:</span>
+                    <span className="font-medium">{formatHoverValue(hoverDetails.median)}</span>
+                  </div>
+                )}
+                {hoverDetails.breakdown && hoverDetails.breakdown.length > 0 && (
+                  <div className="mt-1">
+                    <div className="text-sm font-medium text-muted-foreground leading-tight">Aufschlüsselung:</div>
+                    {hoverDetails.breakdown.map((item) => (
+                      <div key={item.label} className="flex justify-between text-sm leading-tight">
+                        <span className="text-muted-foreground">{item.label}:</span>
+                        <span className="font-medium">{formatHoverValue(item.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </HoverCardContent>
+        </HoverCard>
+      </div>
+    );
+  }
+  return <>{children}</>;
+};
+
 export function SummaryCard({
   title,
   value,
@@ -41,68 +102,13 @@ export function SummaryCard({
     return <SummaryCardSkeleton className={className} />;
   }
 
-  const formatHoverValue = (num: number) => {
+  const formatHoverValue = useCallback((num: number) => {
     if (hoverDetails?.isCurrency) return formatCurrency(num);
     return valueFormatter ? valueFormatter(num) : num.toString();
-  };
-
-  const CardWrapper = ({ children }: { children: ReactNode }) => {
-    if (hoverDetails) {
-      return (
-        <div className="relative group">
-          <HoverCard openDelay={0} closeDelay={0}>
-            <HoverCardTrigger asChild>
-              {children}
-            </HoverCardTrigger>
-            <HoverCardContent
-              className="w-80 absolute left-full top-0 ml-2 h-auto min-h-full p-2"
-              side="right"
-              align="start"
-              sideOffset={0}
-              alignOffset={0}
-              style={{ height: "auto", minHeight: "100%" }}
-            >
-              <div className="space-y-0">
-                <div className="mb-1">
-                  <h4 className="text-sm font-semibold leading-tight">{title} - Details</h4>
-                  <p className="text-sm text-muted-foreground leading-tight">Zusätzliche Statistiken</p>
-                </div>
-                <div className="space-y-0">
-                  {hoverDetails.average !== undefined && (
-                    <div className="flex justify-between text-sm leading-tight">
-                      <span className="text-muted-foreground">Durchschnitt:</span>
-                      <span className="font-medium">{formatHoverValue(hoverDetails.average)}</span>
-                    </div>
-                  )}
-                  {hoverDetails.median !== undefined && (
-                    <div className="flex justify-between text-sm leading-tight">
-                      <span className="text-muted-foreground">Median:</span>
-                      <span className="font-medium">{formatHoverValue(hoverDetails.median)}</span>
-                    </div>
-                  )}
-                  {hoverDetails.breakdown && hoverDetails.breakdown.length > 0 && (
-                    <div className="mt-1">
-                      <div className="text-sm font-medium text-muted-foreground leading-tight">Aufschlüsselung:</div>
-                      {hoverDetails.breakdown.map((item, idx) => (
-                        <div key={idx} className="flex justify-between text-sm leading-tight">
-                          <span className="text-muted-foreground">{item.label}:</span>
-                          <span className="font-medium">{formatHoverValue(item.value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </HoverCardContent>
-          </HoverCard>
-        </div>
-      );
-    }
-    return <>{children}</>;
-  };
+  }, [hoverDetails?.isCurrency, valueFormatter]);
 
   return (
-    <CardWrapper>
+    <CardWrapper hoverDetails={hoverDetails} title={title} formatHoverValue={formatHoverValue}>
       <Card
         className={cn(
           // Main-Style-Äquivalent: abgeleitet von main, ohne Opacity-Loading (Skeleton übernimmt)

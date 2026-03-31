@@ -58,52 +58,31 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
       // First sign out from Supabase
       const { error: signOutError } = await supabase.auth.signOut()
 
-      // We'll continue with the logout flow even if there's a sign out error
       if (signOutError) {
         console.warn("Supabase sign out warning:", signOutError)
       }
 
-      // Create an array to hold all cleanup promises
-      const cleanupPromises = [];
-
-      // Add logout API call to promises
-      cleanupPromises.push(
+      // Perform cleanup API calls
+      // We use allSettled to ensure we wait for them to finish (success or fail)
+      // before navigating away, which prevents ECONNRESET on the server
+      await Promise.allSettled([
         fetch('/api/auth/logout', {
           method: 'POST',
           credentials: 'same-origin'
-        }).catch(error => {
-          if (error.name !== 'AbortError') {
-            console.warn("Logout API error:", error);
-          }
-        })
-      );
-
-      // Add clear cookie call to promises
-      cleanupPromises.push(
+        }),
         fetch('/api/auth/clear-auth-cookie', {
           method: 'POST',
           credentials: 'same-origin'
-        }).catch(error => {
-          if (error.name !== 'AbortError') {
-            console.warn("Clear cookie error:", error);
-          }
         })
-      );
-
-      // Wait for all cleanup operations to complete or timeout
-      await Promise.race([
-        Promise.all(cleanupPromises),
-        new Promise(resolve => setTimeout(resolve, 2000)) // 2 second timeout
       ]);
 
     } catch (error) {
       console.error("Error during logout:", error);
     } finally {
-      // Reset loading state first
+      // Reset loading state
       setIsLoadingLogout(false);
 
-      // Force a hard redirect to ensure we leave the current page
-      // This is more reliable than router.push for logout scenarios
+      // Redirect to home
       window.location.href = '/';
     }
   }

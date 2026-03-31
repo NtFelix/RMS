@@ -229,32 +229,3 @@ export function SolutionSubPageJsonLd({ pageName, pageUrl }: SolutionSubPageJson
         </>
     )
 }
-
-/**
- * Schema for Documentation pages with breadcrumbs
- */
-interface DocsPageJsonLdProps {
-    articleTitle?: string
-    articleUrl?: string
-}
-
-export function DocsPageJsonLd({ articleTitle, articleUrl }: DocsPageJsonLdProps) {
-    // Note: No intermediate 'Hilfe' page exists, so we skip it in the breadcrumb
-    const breadcrumbItems = [
-        { name: 'Startseite', url: `${BASE_URL}${ROUTES.LANDING}` },
-        { name: 'Dokumentation', url: `${BASE_URL}/hilfe/dokumentation` },
-    ]
-
-    // Add article to breadcrumb if viewing a specific article
-    if (articleTitle && articleUrl) {
-        breadcrumbItems.push({ name: articleTitle, url: articleUrl })
-    }
-
-    return (
-        <>
-            <OrganizationJsonLd />
-            <SoftwareApplicationJsonLd />
-            <BreadcrumbJsonLd items={breadcrumbItems} />
-        </>
-    )
-}

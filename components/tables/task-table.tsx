@@ -13,6 +13,7 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { bulkDeleteTasksAction, toggleTaskStatusAction } from "@/app/todos-actions"
 import { TaskContextMenu } from "@/components/tasks/task-context-menu"
 import { ActionMenu } from "@/components/ui/action-menu"
+import { cn } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -32,6 +33,40 @@ interface TaskTableProps {
   onSelectionChange?: (selected: Set<string>) => void;
   onTaskUpdated?: (task: Task) => void;
 }
+
+interface TableHeaderCellProps {
+  sortKey?: TaskSortKey;
+  children: React.ReactNode;
+  className?: string;
+  icon: React.ElementType;
+  sortable?: boolean;
+  onSort?: (key: TaskSortKey) => void;
+  renderSortIcon?: (key: TaskSortKey) => React.ReactNode;
+}
+
+const TableHeaderCell = ({ 
+  sortKey, 
+  children, 
+  className, 
+  icon: Icon, 
+  sortable = true,
+  onSort,
+  renderSortIcon
+}: TableHeaderCellProps) => (
+  <TableHead className={cn("dark:text-[#f3f4f6] group/header", className)}>
+    <div
+      onClick={() => sortable && sortKey && onSort?.(sortKey)}
+      className={cn(
+        "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6]",
+        sortable && sortKey && "cursor-pointer"
+      )}
+    >
+      <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+      {children}
+      {sortable && sortKey && renderSortIcon?.(sortKey)}
+    </div>
+  </TableHead>
+)
 
 export function TaskTable({
   tasks,
@@ -267,19 +302,6 @@ export function TaskTable({
     })
   }
 
-  const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon, sortable = true }: { sortKey: TaskSortKey, children: React.ReactNode, className?: string, icon: React.ElementType, sortable?: boolean }) => (
-    <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
-      <div
-        onClick={() => sortable && handleSort(sortKey)}
-        className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
-      >
-        <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-        {children}
-        {sortable && renderSortIcon(sortKey)}
-      </div>
-    </TableHead>
-  )
-
   return (
     <div className="rounded-lg">
       {/* Bulk Action Bar - only show if using internal state */}
@@ -342,12 +364,57 @@ export function TaskTable({
                     />
                   </div>
                 </TableHead>
-                <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={FileText}>Name</TableHeaderCell>
-                <TableHeaderCell sortKey="beschreibung" className="dark:text-[#f3f4f6]" icon={FileText}>Beschreibung</TableHeaderCell>
-                <TableHeaderCell sortKey="ist_erledigt" className="w-[120px] dark:text-[#f3f4f6]" icon={CheckSquare}>Status</TableHeaderCell>
-                <TableHeaderCell sortKey="erstellungsdatum" className="w-[130px] dark:text-[#f3f4f6]" icon={Calendar}>Erstellt</TableHeaderCell>
-                <TableHeaderCell sortKey="aenderungsdatum" className="w-[130px] dark:text-[#f3f4f6]" icon={Calendar}>Geändert</TableHeaderCell>
-                <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="name" 
+                  className="w-[250px]" 
+                  icon={FileText}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Name
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="beschreibung" 
+                  icon={FileText}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Beschreibung
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="ist_erledigt" 
+                  className="w-[120px]" 
+                  icon={CheckSquare}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Status
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="erstellungsdatum" 
+                  className="w-[130px]" 
+                  icon={Calendar}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Erstellt
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="aenderungsdatum" 
+                  className="w-[130px]" 
+                  icon={Calendar}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Geändert
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  className="w-[80px] pr-2" 
+                  icon={Pencil} 
+                  sortable={false}
+                >
+                  Aktionen
+                </TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>

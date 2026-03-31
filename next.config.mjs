@@ -28,6 +28,19 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
+    optimizePackageImports: [
+      'recharts',
+      'lucide-react',
+      'framer-motion',
+      'date-fns',
+      '@dnd-kit/core',
+      '@dnd-kit/sortable',
+      '@dnd-kit/utilities',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-dropdown-menu',
+    ],
   },
   webpack: (config, { webpack }) => {
     // Stub and ignore 'ws' module in all builds

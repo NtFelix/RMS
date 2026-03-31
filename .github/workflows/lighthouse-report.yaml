@@ -8,6 +8,9 @@ on:
     branches: [main]
   workflow_dispatch:  # Allows manual triggering from the Actions tab
 
+permissions:
+  contents: read
+
 jobs:
   # Lightweight job to determine if lighthouse should run and which devices to test
   # This allows build and prepare-lhci to run truly in parallel
@@ -70,12 +73,12 @@ jobs:
     
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Generate build cache key
@@ -90,7 +93,7 @@ jobs:
 
       - name: Restore build cache
         id: restore-build-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .next
           key: ${{ steps.build-cache-key.outputs.cache-key }}
@@ -100,7 +103,7 @@ jobs:
       - name: Cache node_modules
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -121,10 +124,15 @@ jobs:
       - name: Build application
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
         run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
 
       - name: Save build cache
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .next
           key: ${{ steps.build-cache-key.outputs.cache-key }}
@@ -147,13 +155,13 @@ jobs:
     
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           
       - name: Restore LHCI tools cache
         id: lhci-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             lhci-tools/node_modules
@@ -199,17 +207,17 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -217,7 +225,7 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Restore build cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .next
           key: ${{ needs.build.outputs.build-cache-key }}
@@ -236,7 +244,7 @@ jobs:
           fi
 
       - name: Restore LHCI tools cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             lhci-tools/node_modules
@@ -255,6 +263,11 @@ jobs:
       - name: Run Lighthouse audit
         id: lighthouse
         timeout-minutes: 8
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
         run: |
           DEVICE="${{ matrix.device }}"
           FORM_FACTOR="${{ matrix.form-factor }}"
@@ -332,7 +345,7 @@ jobs:
 
       - name: Upload Lighthouse report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lighthouse-${{ matrix.device }}
           path: lighthouse-reports/
@@ -353,13 +366,13 @@ jobs:
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: lighthouse-results
 
       - name: Generate PR comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -431,7 +444,7 @@ jobs:
 
       - name: Generate Actions Summary
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -495,7 +508,7 @@ jobs:
       - name: Prepare Discord notification
         if: always()
         id: prepare-discord
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -619,7 +632,11 @@ jobs:
       - name: Create device zip files and send to Discord
         if: always()
         run: |
-          WEBHOOK_URL="https://discord.com/api/webhooks/1427189522764140565/pmtcfhnQiZ_ERvVGvZbdqYHp_pJrFxbIcDLC722-ucw7Z7UX2__Vue9GJpyeuzfMfpPy"
+          WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}"
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "ℹ️ DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS secret is not set. Skipping Discord notification."
+            exit 0
+          fi
           
           # Create zip files for each available device
           echo "Creating zip files for available device reports..."
@@ -647,43 +664,56 @@ jobs:
           echo "Available zip files:"
           ls -lh lighthouse-*-report.zip 2>/dev/null || echo "No zip files created"
           
-          # Build the curl command dynamically based on available files
-          # Discord webhooks support up to 10 files per message
+          # Build the curl command as an array to handle spaces and special characters safely
           echo ""
           echo "Sending Discord notification with embed and attachments..."
           
-          # Start building curl command with the payload_json for the embed
-          CURL_CMD="curl -s"
-          FILE_COUNT=0
+          CURL_ARGS=(-s -S) # -S shows error if it fails
           
           # Add each available zip file
+          FILE_COUNT=0
           if [ -f lighthouse-mobile-report.zip ] && [ -s lighthouse-mobile-report.zip ]; then
-            CURL_CMD="$CURL_CMD -F 'files[$FILE_COUNT]=@lighthouse-mobile-report.zip;filename=lighthouse-mobile-report.zip'"
+            CURL_ARGS+=(-F "files[$FILE_COUNT]=@lighthouse-mobile-report.zip")
             FILE_COUNT=$((FILE_COUNT + 1))
             echo "  📱 Adding mobile report"
           fi
           
           if [ -f lighthouse-desktop-report.zip ] && [ -s lighthouse-desktop-report.zip ]; then
-            CURL_CMD="$CURL_CMD -F 'files[$FILE_COUNT]=@lighthouse-desktop-report.zip;filename=lighthouse-desktop-report.zip'"
+            CURL_ARGS+=(-F "files[$FILE_COUNT]=@lighthouse-desktop-report.zip")
             FILE_COUNT=$((FILE_COUNT + 1))
             echo "  🖥️ Adding desktop report"
           fi
           
           if [ -f lighthouse-tablet-report.zip ] && [ -s lighthouse-tablet-report.zip ]; then
-            CURL_CMD="$CURL_CMD -F 'files[$FILE_COUNT]=@lighthouse-tablet-report.zip;filename=lighthouse-tablet-report.zip'"
+            CURL_ARGS+=(-F "files[$FILE_COUNT]=@lighthouse-tablet-report.zip")
             FILE_COUNT=$((FILE_COUNT + 1))
             echo "  📱 Adding tablet report"
           fi
           
           # Add the JSON payload with the embed
-          CURL_CMD="$CURL_CMD -F 'payload_json=<discord-payload.json'"
-          CURL_CMD="$CURL_CMD $WEBHOOK_URL"
+          if [ -f discord-payload.json ]; then
+            CURL_ARGS+=(-F "payload_json=<discord-payload.json")
+          else
+            echo "❌ Error: discord-payload.json not found"
+            exit 1
+          fi
           
           echo ""
           echo "Sending $FILE_COUNT file(s) with embed to Discord..."
           
-          # Execute the curl command
-          eval $CURL_CMD
+          # Execute curl with the constructed arguments
+          RESPONSE=$(curl "${CURL_ARGS[@]}" "$WEBHOOK_URL")
+          CURL_EXIT_CODE=$?
+          
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "❌ Error: curl failed with exit code $CURL_EXIT_CODE"
+            exit $CURL_EXIT_CODE
+          fi
+          
+          if [ -n "$RESPONSE" ] && echo "$RESPONSE" | grep -q "error"; then
+            echo "❌ Error from Discord API: $RESPONSE"
+            exit 1
+          fi
           
           echo ""
           echo "✓ Discord notification sent successfully with $FILE_COUNT attachment(s)"

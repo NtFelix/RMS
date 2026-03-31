@@ -149,7 +149,6 @@ describe('AI Assistant Comprehensive Tests', () => {
       const { result } = renderHook(() => useAIAssistantStore());
 
       expect(result.current.isOpen).toBe(false);
-      expect(result.current.currentMode).toBe('search');
       expect(result.current.messages).toEqual([]);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBe(null);
@@ -164,7 +163,6 @@ describe('AI Assistant Comprehensive Tests', () => {
       });
 
       expect(result.current.isOpen).toBe(true);
-      expect(result.current.currentMode).toBe('ai');
       expect(result.current.sessionId).toMatch(/^session_/);
       expect(result.current.error).toBe(null);
     });
@@ -190,17 +188,13 @@ describe('AI Assistant Comprehensive Tests', () => {
       const { result } = renderHook(() => useAIAssistantStore());
 
       act(() => {
-        result.current.switchToAI();
       });
 
-      expect(result.current.currentMode).toBe('ai');
       expect(result.current.isOpen).toBe(true);
 
       act(() => {
-        result.current.switchToSearch();
       });
 
-      expect(result.current.currentMode).toBe('search');
       expect(result.current.isOpen).toBe(false);
     });
 
@@ -304,11 +298,9 @@ describe('AI Assistant Comprehensive Tests', () => {
       });
 
       act(() => {
-        result.current.switchToAI();
       });
 
       expect(result.current.sessionId).toBe('existing-session');
-      expect(result.current.currentMode).toBe('ai');
       expect(result.current.isOpen).toBe(true);
     });
 

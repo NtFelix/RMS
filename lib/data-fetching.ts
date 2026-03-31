@@ -1,171 +1,51 @@
 import { createSupabaseServerClient } from "./supabase-server";
 
-export type Wohnung = {
-  id: string;
-  groesse: number;
-  name: string;
-  miete: number;
-  user_id: string;
-  haus_id: string | null;
-};
+// Re-export all types from the types file for backward compatibility
+// Client components should import from "@/lib/types" directly to avoid server imports
+export type {
+  Wohnung,
+  Haus,
+  Mieter,
+  Aufgabe,
+  HausMitFlaeche,
+  Nebenkosten,
+  NebenkostenChartData,
+  NebenkostenChartDatum,
+  Rechnung,
+  RechnungSql,
+  ZaehlerTyp,
+  Zaehler,
+  ZaehlerAblesung,
+  WasserZaehler,
+  WasserAblesung,
+  Wasserzaehler,
+  Finanzen,
+  MeterReadingFormEntry,
+  MeterReadingFormData,
+  // Deprecated aliases
+  WasserzaehlerFormEntry,
+  WasserzaehlerFormData
+} from "./types";
 
-export type Haus = {
-  id: string;
-  ort: string | null;
-  name: string;
-  user_id: string;
-  strasse: string | null;
-  groesse?: number | null;
-};
+export { ZAEHLER_CONFIG, getZaehlerLabel, getZaehlerEinheit } from "./zaehler-types";
 
-import { NebenkostenEntry } from "../types/Tenant";
-
-export type Mieter = {
-  id: string;
-  wohnung_id: string | null;
-  name: string;
-  einzug: string | null;
-  auszug: string | null;
-  email: string | null;
-  telefonnummer: string | null;
-  notiz: string | null;
-  nebenkosten: NebenkostenEntry[] | null;
-  user_id: string;
-  Wohnungen?: { // Make it optional as not all Mieter queries might join this
-    name: string;
-    groesse: number;
-    // id and miete can be added if consistently selected and needed elsewhere
-  } | null; // Allow it to be null if the join returns no matching Wohnung
-};
-
-export type Aufgabe = {
-  id: string;
-  user_id: string;
-  ist_erledigt: boolean;
-  name: string;
-  beschreibung: string;
-  erstellungsdatum: string;
-  aenderungsdatum: string;
-};
-
-export type HausMitFlaeche = {
-  id: string;
-  name: string;
-  gesamtFlaeche: number;
-  anzahlWohnungen: number;
-  anzahlMieter: number;
-};
-
-export type Nebenkosten = {
-  id: string;
-  startdatum: string; // ISO date string (YYYY-MM-DD)
-  enddatum: string;   // ISO date string (YYYY-MM-DD)
-  nebenkostenart: string[] | null;
-  betrag: number[] | null;
-  berechnungsart: string[] | null;
-  wasserkosten: number | null;
-  wasserverbrauch: number | null; // Changed from optional to required for consistency
-  haeuser_id: string;
-  user_id: string; // Changed from optional to required for consistency
-  Haeuser?: { name: string } | null;
-  Rechnungen?: RechnungSql[] | null;
-  gesamtFlaeche?: number; // Added for total area (calculated field)
-  anzahlWohnungen?: number; // Number of apartments (calculated field)
-  anzahlMieter?: number; // Number of tenants (calculated field)
-};
-
-export type NebenkostenChartData = {
-  year: number;
-  data: {
-    name: string;
-    value: number;
-  }[];
-};
-
-export type NebenkostenChartDatum = {
-  name: string;
-  value: number;
-};
-
-// Added as per subtask
-export interface Rechnung {
-  id: string;
-  user_id: string;
-  nebenkosten_id: string | null;
-  mieter_id: string | null;
-  name: string; // This should correspond to a 'nebenkostenart'
-  betrag: number | null;
-  // Add any other relevant fields from the 'Rechnungen' table
-}
-
-export type RechnungSql = {
-  id: string;
-  nebenkosten_id: string;
-  mieter_id: string;
-  betrag: number;
-  name: string;
-  user_id: string;
-  // Add other fields from your Rechnungen table schema if needed
-};
-
-// Meter type definitions for multi-meter support
-// Re-exported from zaehler-types.ts for backward compatibility
-export type { ZaehlerTyp } from './zaehler-types';
-export { ZAEHLER_CONFIG, getZaehlerLabel, getZaehlerEinheit } from './zaehler-types';
-import type { ZaehlerTyp } from './zaehler-types';
-
-// Generic meter type (using Zaehler table)
-export type Zaehler = {
-  id: string;
-  custom_id: string | null;
-  wohnung_id: string | null;
-  erstellungsdatum: string; // ISO date string
-  eichungsdatum: string | null; // ISO date string
-  user_id: string;
-  ist_aktiv: boolean; // Indicates if meter is active
-  zaehler_typ: ZaehlerTyp; // Type of meter
-  einheit: string; // Unit of measurement
-};
-
-// Backward compatibility alias
-export type WasserZaehler = Zaehler;
-
-export type Ablesung = {
-  id: string;
-  ablese_datum: string; // ISO date string
-  zaehlerstand: number | null;
-  verbrauch: number;
-  user_id: string | null;
-  zaehler_id: string; // Reference to Zaehler table
-  kommentar?: string | null;
-};
-
-// Backward compatibility alias
-export type WasserAblesung = Ablesung;
-
-// Legacy type removed - now using Zaehler + Zaehler_Ablesungen tables
-// This type is kept for backward compatibility in form data structures only
-export type Wasserzaehler = {
-  id: string;
-  nebenkosten_id: string;
-  mieter_id: string;
-  ablese_datum: string;
-  zaehlerstand: number;
-  verbrauch: number;
-  user_id: string;
-};
-
-export type Finanzen = {
-  id: string;
-  wohnung_id: string | null;
-  name: string;
-  datum: string | null;
-  betrag: number;
-  ist_einnahmen: boolean;
-  notiz: string | null;
-  user_id: string;
-  dokument_id: string | null;
-};
+// Import types for use in this file
+import type {
+  Wohnung,
+  Haus,
+  Mieter,
+  Aufgabe,
+  Nebenkosten,
+  NebenkostenChartData,
+  Zaehler,
+  ZaehlerAblesung,
+  Wasserzaehler,
+  Finanzen,
+  RechnungSql,
+  MeterReadingFormEntry,
+  MeterReadingFormData
+} from "./types";
+import { type SupabaseClient } from "@supabase/supabase-js";
 
 export async function fetchHaeuser() {
   const supabase = createSupabaseServerClient();
@@ -421,8 +301,11 @@ export async function getDashboardSummary() {
 
   const jaehrlicheAusgaben = nebenkosten.reduce((sum, item) => {
     const betraegeSum = item.betrag ? item.betrag.reduce((a, b) => a + b, 0) : 0;
-    const wasserkosten = item.wasserkosten || 0;
-    return sum + betraegeSum + wasserkosten;
+    // Sum all meter costs from zaehlerkosten JSONB
+    const zaehlerSum = item.zaehlerkosten
+      ? Object.values(item.zaehlerkosten).reduce((a, b) => a + b, 0)
+      : 0;
+    return sum + betraegeSum + zaehlerSum;
   }, 0);
 
   return {
@@ -486,7 +369,7 @@ export async function fetchUserProfile(): Promise<Profile | null> {
     if (profileError.code === 'PGRST116') {
       // Profile not found in 'profiles' table - this is expected for new users
     } else {
-      console.error(`Unhandled error fetching profile data for user ${user.id}:`, profileError);
+      console.error('Unhandled error fetching profile data for user %s:', user.id, profileError);
     }
     return baseUserProfile;
   }
@@ -506,44 +389,34 @@ export async function fetchUserProfile(): Promise<Profile | null> {
 
 // Wasserzaehler type is defined earlier in the file (line ~132)
 
-export type WasserzaehlerFormEntry = {
-  mieter_id: string;
-  mieter_name: string; // For display purposes in the form
-  ablese_datum: string | null;
-  zaehlerstand: number | string; // string to handle empty input
-  verbrauch: number | string; // string to handle empty input
-  // Optional: Add an existing_wasserzaehler_id if we need to update existing records
-  // existing_wasserzaehler_id?: string | null;
-};
-
-export type WasserzaehlerFormData = {
-  entries: WasserzaehlerFormEntry[];
-  nebenkosten_id: string; // To associate the readings with a Nebenkosten entry
-};
+// Types MeterReadingFormEntry and MeterReadingFormData are now imported from "./types"
 
 /**
- * Fetches Wasserzähler data for a specific house and year (backward compatibility)
+ * Fetches Meter readings for a specific house and year
  * @param hausId The ID of the house
  * @param year The year to fetch data for (e.g., '2024')
  * @returns Object containing mieter list and existing readings for the specified house and year
  */
-export async function fetchWasserzaehlerByHausAndYear(
+export async function fetchMeterReadingsByHausAndYear(
   hausId: string,
   year: string
 ): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   const startdatum = `${year}-01-01`;
   const enddatum = `${year}-12-31`;
-  return fetchWasserzaehlerByHausAndDateRange(hausId, startdatum, enddatum);
+  return fetchMeterReadingsByHausAndDateRange(hausId, startdatum, enddatum);
 }
 
+// Backward compatibility alias
+export const fetchWasserzaehlerByHausAndYear = fetchMeterReadingsByHausAndYear;
+
 /**
- * Fetches Wasserzähler data for a specific house and date range
+ * Fetches Meter readings for a specific house and date range
  * @param hausId The ID of the house
  * @param startdatum The start date of the billing period (YYYY-MM-DD)
  * @param enddatum The end date of the billing period (YYYY-MM-DD)
  * @returns Object containing mieter list and existing readings for the specified house and date range
  */
-export async function fetchWasserzaehlerByHausAndDateRange(
+export async function fetchMeterReadingsByHausAndDateRange(
   hausId: string,
   startdatum: string,
   enddatum: string
@@ -551,101 +424,101 @@ export async function fetchWasserzaehlerByHausAndDateRange(
   const supabase = createSupabaseServerClient();
 
   try {
-    // 1. Fetch Wohnungen for the specified house
-    const { data: wohnungenInHaus, error: wohnungenError } = await supabase
-      .from('Wohnungen')
-      .select('id')
-      .eq('haus_id', hausId);
+    // Optimized: Run queries in parallel using joins instead of waterfall
+    const [mieterResult, readingsResult] = await Promise.all([
+      // 1. Fetch Mieter for the house, filtered by date range
+      supabase
+        .from('Mieter')
+        .select('*, Wohnungen!inner(id)')
+        .eq('Wohnungen.haus_id', hausId)
+        .lte('einzug', enddatum)
+        .or(`auszug.gte.${startdatum},auszug.is.null`),
 
-    if (wohnungenError || !wohnungenInHaus) {
-      console.error(`Error fetching Wohnungen for Haus ID ${hausId}:`, wohnungenError);
-      return { mieterList: [], existingReadings: [] };
-    }
+      // 2. Fetch Readings for the house (via Zaehler), filtered by date range
+      // We join Zaehler to filter by house and get wohnung_id for mapping
+      supabase
+        .from('Zaehler_Ablesungen')
+        .select('*, zaehler_id, Zaehler!inner(id, wohnung_id, Wohnungen!inner(id))')
+        .eq('Zaehler.Wohnungen.haus_id', hausId)
+        .gte('ablese_datum', startdatum)
+        .lte('ablese_datum', enddatum)
+    ]);
 
-    if (wohnungenInHaus.length === 0) {
-      return { mieterList: [], existingReadings: [] };
-    }
-
-    const wohnungIds = wohnungenInHaus.map(w => w.id);
-
-    // 2. Fetch Mieter for these Wohnungen, filtered by date range
-    const { data: relevantMieter, error: mieterError } = await supabase
-      .from('Mieter')
-      .select('*')
-      .in('wohnung_id', wohnungIds)
-      .lte('einzug', enddatum)
-      .or(`auszug.gte.${startdatum},auszug.is.null`);
+    const { data: relevantMieter, error: mieterError } = mieterResult;
+    const { data: readingsWithRelations, error: readingsError } = readingsResult;
 
     if (mieterError) {
-      console.error(`Error fetching Mieter for Wohnungen in Haus ID ${hausId}:`, mieterError);
+      console.error('Error fetching Mieter for Wohnungen in Haus ID %s:', hausId, mieterError);
+      // If fetching tenants fails, we can't do much, so return empty
       return { mieterList: [], existingReadings: [] };
     }
 
-    if (!relevantMieter) {
-      return { mieterList: [], existingReadings: [] };
+    if (readingsError) {
+      console.error('Error fetching Zaehler_Ablesungen for Haus %s in date range %s to %s:', hausId, startdatum, enddatum, readingsError);
+      // If fetching readings fails, we still want to return the tenant list
     }
 
-    // 3. Fetch water meter readings from new Zaehler + Zaehler_Ablesungen tables
+    const mieterList = (relevantMieter as Mieter[]) || [];
     let existingReadings: Wasserzaehler[] = [];
-    if (relevantMieter.length > 0) {
-      // Get water meters for these apartments
-      const { data: waterMeters, error: metersError } = await supabase
-        .from('Zaehler')
-        .select('id, wohnung_id')
-        .in('wohnung_id', wohnungIds);
 
-      if (metersError) {
-        console.error('Error fetching Zaehler for Haus %s:', hausId, metersError);
-      } else if (waterMeters && waterMeters.length > 0) {
-        const meterIds = waterMeters.map(m => m.id);
+    if (!readingsError && readingsWithRelations) {
+      // 3. Create a lookup map for faster mieter access: O(M) complexity
+      const wohnungIdToMieterMap = new Map<string, Mieter>(
+        mieterList
+          .filter(mieter => mieter.wohnung_id)
+          .map(mieter => [mieter.wohnung_id!, mieter])
+      );
 
-        // Get readings for these meters in the date range
-        const { data: readings, error: readingsError } = await supabase
-          .from('Zaehler_Ablesungen')
-          .select('*, zaehler_id')
-          .in('zaehler_id', meterIds)
-          .gte('ablese_datum', startdatum)
-          .lte('ablese_datum', enddatum);
-
-        if (readingsError) {
-          console.error('Error fetching Zaehler_Ablesungen for Haus %s in date range %s to %s:', hausId, startdatum, enddatum, readingsError);
-        } else if (readings) {
-          // Transform new structure to legacy format for compatibility
-          existingReadings = readings.map(reading => {
-            const meter = waterMeters.find(m => m.id === reading.zaehler_id);
-            const mieter = relevantMieter.find(m => m.wohnung_id === meter?.wohnung_id);
-
-            return {
-              id: reading.id,
-              nebenkosten_id: '', // Not applicable in new structure
-              mieter_id: mieter?.id || '',
-              ablese_datum: reading.ablese_datum,
-              zaehlerstand: reading.zaehlerstand || 0,
-              verbrauch: reading.verbrauch || 0,
-              user_id: reading.user_id
-            };
-          });
-        }
+      // Define interface for the joined query result for type safety
+      interface DBReadingWithRelations extends ZaehlerAblesung {
+        Zaehler: {
+          id: string;
+          wohnung_id: string;
+          Wohnungen: {
+            id: string;
+          };
+        } | null;
       }
+
+      // Transform readings to include optional tenant context for modal compatibility: O(N) complexity
+      // Total complexity reduced from O(N*M) to O(N+M)
+      existingReadings = (readingsWithRelations as unknown as DBReadingWithRelations[]).map((reading) => {
+        // reading.Zaehler is available due to the join
+        const meter = reading.Zaehler;
+        const mieter = meter?.wohnung_id ? wohnungIdToMieterMap.get(meter.wohnung_id) : undefined;
+
+        return {
+          id: reading.id,
+          mieter_id: mieter?.id || '',
+          ablese_datum: reading.ablese_datum,
+          zaehlerstand: reading.zaehlerstand || 0,
+          verbrauch: reading.verbrauch || 0,
+          user_id: reading.user_id,
+          zaehler_id: reading.zaehler_id
+        } satisfies Wasserzaehler;
+      });
     }
 
     return {
-      mieterList: relevantMieter,
+      mieterList,
       existingReadings
     };
 
   } catch (error) {
-    console.error('Unexpected error in fetchWasserzaehlerByHausAndDateRange:', error);
+    console.error('Unexpected error in fetchMeterReadingsByHausAndDateRange:', error);
     return { mieterList: [], existingReadings: [] };
   }
 }
 
+// Backward compatibility alias
+export const fetchWasserzaehlerByHausAndDateRange = fetchMeterReadingsByHausAndDateRange;
+
 /**
- * Fetches Wasserzähler data for a specific Nebenkosten entry
+ * Fetches Meter readings for a specific Nebenkosten entry
  * @param nebenkostenId The ID of the Nebenkosten entry
  * @returns Object containing mieter list and existing readings for the specified Nebenkosten
  */
-export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
+export async function fetchMeterReadingsModalData(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   const supabase = createSupabaseServerClient();
 
   try {
@@ -657,39 +530,38 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
       .single();
 
     if (nebenkostenError || !nebenkostenEntry) {
-      console.error(`Error fetching Nebenkosten entry for ID ${nebenkostenId}:`, nebenkostenError);
+      console.error('Error fetching Nebenkosten entry for ID %s:', nebenkostenId, nebenkostenError);
       throw new Error(`Nebenkosten entry with ID ${nebenkostenId} not found.`);
     }
 
     const { haeuser_id, startdatum, enddatum } = nebenkostenEntry;
 
     if (!haeuser_id || !startdatum || !enddatum) {
-      console.error(`Nebenkosten entry ${nebenkostenId} is missing haeuser_id, startdatum, or enddatum.`);
+      console.error('Nebenkosten entry %s is missing haeuser_id, startdatum, or enddatum.', nebenkostenId);
       return { mieterList: [], existingReadings: [] };
     }
 
     // 2. Use the new function to get data by house and date range
-    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndDateRange(haeuser_id, startdatum, enddatum);
-
-    // 3. Filter existingReadings to only include those for the current nebenkosten_id
-    //    This maintains backward compatibility with the existing code
-    const filteredReadings = existingReadings.filter(reading => reading.nebenkosten_id === nebenkostenId);
+    const { mieterList, existingReadings } = await fetchMeterReadingsByHausAndDateRange(haeuser_id, startdatum, enddatum);
 
     return {
       mieterList,
-      existingReadings: filteredReadings
+      existingReadings
     };
 
   } catch (error) {
-    console.error('Unexpected error in fetchWasserzaehlerModalData:', error);
+    console.error('Unexpected error in fetchMeterReadingsModalData:', error);
     return { mieterList: [], existingReadings: [] };
   }
 }
 
+// Backward compatibility alias
+export const fetchWasserzaehlerModalData = fetchMeterReadingsModalData;
+
 // getAbrechnungModalData function removed - replaced by getAbrechnungModalDataAction in betriebskosten-actions.ts
 // The optimized version uses get_abrechnung_modal_data database function for better performance
 
-export async function getCurrentWohnungenCount(supabaseClient: any, userId: string): Promise<number> {
+export async function getCurrentWohnungenCount(supabaseClient: SupabaseClient, userId: string): Promise<number> {
   if (!userId) {
     console.error("getCurrentWohnungenCount: userId is required");
     return 0;

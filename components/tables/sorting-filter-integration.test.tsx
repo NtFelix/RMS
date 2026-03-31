@@ -21,7 +21,6 @@ jest.mock('@/hooks/use-toast', () => ({
 
 import { ApartmentTable } from '@/components/tables/apartment-table'
 import { TenantTable } from '@/components/tables/tenant-table'
-import { FinanceTransactions } from '@/components/finance-transactions'
 import type { Apartment } from '@/components/tables/apartment-table'
 import type { Tenant } from '@/types/Tenant'
 
@@ -64,9 +63,9 @@ const mockTenants: Tenant[] = [
     telefonnummer: '123456789',
     wohnung_id: '1',
     einzug: '2023-01-01',
-    auszug: null,
+    auszug: undefined,
     notiz: '',
-    nebenkosten: [{ amount: '100', description: 'Heating' }]
+    nebenkosten: [{ id: '1', amount: '100', date: '2023-01-01' }]
   },
   {
     id: '2',
@@ -77,7 +76,7 @@ const mockTenants: Tenant[] = [
     einzug: '2022-06-01',
     auszug: '2023-12-31',
     notiz: '',
-    nebenkosten: [{ amount: '150', description: 'Water' }]
+    nebenkosten: [{ id: '2', amount: '150', date: '2023-01-01' }]
   },
   {
     id: '3',
@@ -86,7 +85,7 @@ const mockTenants: Tenant[] = [
     telefonnummer: '555666777',
     wohnung_id: '3',
     einzug: '2023-03-01',
-    auszug: null,
+    auszug: undefined,
     notiz: '',
     nebenkosten: []
   }
@@ -135,7 +134,7 @@ const mockFinances = [
 window.IntersectionObserver = jest.fn().mockImplementation((callback: IntersectionObserverCallback, options?: IntersectionObserverInit) => {
   return {
     observe: jest.fn().mockImplementation((element: Element) => {
-      callback([{ isIntersecting: true, target: element }], this as any)
+      callback([{ isIntersecting: true, target: element } as any], this as any)
     }),
     unobserve: jest.fn(),
     disconnect: jest.fn(),
@@ -311,137 +310,7 @@ describe('Sorting and Filtering Integration', () => {
     })
   })
 
-  describe('FinanceTransactions Integration', () => {
-    it('should maintain sort order when applying filters', () => {
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment 1' }, { id: '2', name: 'Apartment 2' }]}
-          availableYears={[2023, 2024]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'betrag',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={() => {}}
-        />
-      )
 
-      // Sort by amount
-      const amountHeader = screen.getByText('Betrag').closest('div')
-      fireEvent.click(amountHeader!)
-
-      // The component should show all finances sorted by amount
-      const rows = screen.getAllByRole('row')
-      expect(rows).toHaveLength(5) // Header + 3 data rows + loaded message row
-
-      // Check that all transactions are visible
-      expect(screen.getByText('Rent Payment')).toBeInTheDocument()
-      expect(screen.getByText('Maintenance Cost')).toBeInTheDocument()
-      expect(screen.getByText('Utility Bill')).toBeInTheDocument()
-    })
-
-    it('should maintain sort order when applying search', () => {
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment 1' }, { id: '2', name: 'Apartment 2' }]}
-          availableYears={[2023, 2024]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'betrag',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={() => {}}
-        />
-      )
-
-      // Sort by name
-      const nameHeader = screen.getByText('Bezeichnung').closest('div')
-      fireEvent.click(nameHeader!)
-
-      // The search functionality is internal to the component
-      // We can verify the sorting works by checking the order
-      const rows = screen.getAllByRole('row')
-      expect(rows).toHaveLength(5) // Header + 3 data rows + loaded message row
-    })
-
-    it('should handle date sorting correctly', () => {
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment 1' }, { id: '2', name: 'Apartment 2' }]}
-          availableYears={[2023, 2024]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'betrag',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={() => {}}
-        />
-      )
-
-      // Sort by date
-      const dateHeader = screen.getByText('Datum').closest('div')
-      fireEvent.click(dateHeader!)
-
-      // Should sort by date (default is descending for finance table)
-      const rows = screen.getAllByRole('row')
-      expect(rows).toHaveLength(5) // Header + 3 data rows + loaded message row
-    })
-
-    it('should handle type sorting correctly', () => {
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment 1' }, { id: '2', name: 'Apartment 2' }]}
-          availableYears={[2023, 2024]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'betrag',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={() => {}}
-        />
-      )
-
-      // Sort by type
-      const typeHeader = screen.getByText('Typ').closest('div')
-      fireEvent.click(typeHeader!)
-
-      // Should sort by type (Einnahme vs Ausgabe)
-      const rows = screen.getAllByRole('row')
-      expect(rows).toHaveLength(5) // Header + 3 data rows + loaded message row
-      
-      // Check that badges are rendered
-      expect(screen.getByText('Einnahme')).toBeInTheDocument()
-      expect(screen.getAllByText('Ausgabe')).toHaveLength(2)
-    })
-  })
 
   describe('Edge Cases', () => {
     it('should handle empty datasets correctly', () => {

@@ -8,6 +8,7 @@ import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dial
 import { createClient } from "@/utils/supabase/client"
 import { Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DeleteAccountOtpModal } from "@/components/modals/delete-account-otp-modal";
 import type { UserProfileWithSubscription } from '@/types/user';
 import { getUserProfileForSettings, getBillingAddress, updateBillingAddress } from '@/app/user-profile-actions';
 import { useToast } from "@/hooks/use-toast";
@@ -44,10 +45,9 @@ const ProfileSection = () => {
     country: "DE", // Default to Germany
   });
   const [isAddressComplete, setIsAddressComplete] = useState(false);
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
-  const [reauthCode, setReauthCode] = useState<string>("")
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
   const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
   const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null);
   const [isFetchingStatus, setIsFetchingStatus] = useState(true);
 
@@ -141,17 +141,45 @@ const ProfileSection = () => {
     }
   };
 
-  const handleConfirmDeleteAccount = async () => {
-    if (!reauthCode) {
-      toast({
-        title: "Fehler",
-        description: "Bestätigungscode ist erforderlich.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleConfirmDeleteAccount = async (otp: string) => {
     setIsDeleting(true);
     try {
+      // Fetch current user to ensure we have the correct email
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user || !user.email) {
+        console.error("Error fetching user for account deletion verification:", userError);
+        toast({
+          title: "Fehler",
+          description: "Benutzer konnte nicht identifiziert werden.",
+          variant: "destructive",
+        });
+        setIsDeleting(false);
+        return;
+      }
+
+      // Step 1: Verify OTP using reauthentication nonce via updateUser
+      const userEmail = user.email.trim().toLowerCase();
+
+
+      // reauthenticate() sends a nonce that is consumed by updateUser to authorize changes.
+      // We call updateUser with the nonce to verify it. If it succeeds, the nonce was valid.
+      const { error: reauthError } = await supabase.auth.updateUser({
+        nonce: otp.trim()
+      });
+
+      if (reauthError) {
+        console.error("Reauth Verification Error details:", JSON.stringify(reauthError, null, 2));
+        toast({
+          title: "Fehler",
+          description: `Ungültiger Bestätigungscode: ${reauthError.message}`,
+          variant: "destructive",
+        });
+        setIsDeleting(false);
+        return;
+      }
+
+      // Step 2: Call the edge function to delete the user and storage
       const localSupabase = createClient();
       const { error: functionError } = await localSupabase.functions.invoke("delete-user-account", {});
 
@@ -171,6 +199,7 @@ const ProfileSection = () => {
         if (signOutError) {
           console.error("Error signing out after account deletion:", signOutError);
         }
+        setShowOtpModal(false);
         router.push("/auth/login");
       }
     } catch (error) {
@@ -186,19 +215,21 @@ const ProfileSection = () => {
   };
 
   const handleDeleteAccountInitiation = async () => {
+    if (isDeleting) return;
     setIsDeleting(true);
-    setShowDeleteConfirmation(false);
+    setShowOtpModal(false);
     try {
       const { error } = await supabase.auth.reauthenticate();
+
       if (error) {
+        console.error("Reauthentication Initiation Error:", error);
         toast({
           title: "Fehler",
           description: `Fehler bei der erneuten Authentifizierung: ${error.message}`,
           variant: "destructive",
         });
-        setShowDeleteConfirmation(false);
       } else {
-        setShowDeleteConfirmation(true);
+        setShowOtpModal(true);
         toast({
           title: "Erfolg",
           description: "Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.",
@@ -213,7 +244,7 @@ const ProfileSection = () => {
         description: "Ein unerwarteter Fehler ist bei der erneuten Authentifizierung aufgetreten.",
         variant: "destructive",
       });
-      setShowDeleteConfirmation(false);
+      setShowOtpModal(false);
       setShowDeleteAccountConfirmModal(false);
     } finally {
       setIsDeleting(false);
@@ -570,46 +601,23 @@ const ProfileSection = () => {
                   </Button>
                 </div>
               </div>
-
-              {showDeleteConfirmation && (
-                <div className="mt-4 p-4 border border-destructive/50 rounded-xl bg-destructive/10 space-y-3">
-                  <p className="text-sm text-destructive font-medium">
-                    Zur Bestätigung wurde ein Code an Ihre E-Mail-Adresse gesendet. Bitte geben Sie den Code hier ein, um die Kontolöschung abzuschließen.
-                  </p>
-                  <div className="space-y-2">
-                    <label htmlFor="reauthCode" className="text-sm font-medium text-destructive">
-                      Bestätigungscode (OTP)
-                    </label>
-                    <Input
-                      id="reauthCode"
-                      type="text"
-                      value={reauthCode}
-                      onChange={e => setReauthCode(e.target.value)}
-                      placeholder="Code aus E-Mail eingeben"
-                      className="border-destructive focus:ring-destructive"
-                    />
-                  </div>
-                  <Button
-                    variant="destructive"
-                    onClick={handleConfirmDeleteAccount}
-                    disabled={!reauthCode || isDeleting}
-                    size="sm"
-                    className="w-full"
-                  >
-                    {isDeleting ? "Wird gelöscht..." : "Code bestätigen und Konto löschen"}
-                  </Button>
-                </div>
-              )}
             </div>
           </SettingsCard>
         </SettingsSection>
       </div>
+      <DeleteAccountOtpModal
+        isOpen={showOtpModal}
+        onOpenChange={setShowOtpModal}
+        onConfirm={handleConfirmDeleteAccount}
+        isDeleting={isDeleting}
+      />
       <ConfirmationAlertDialog
         isOpen={showDeleteAccountConfirmModal}
         onOpenChange={setShowDeleteAccountConfirmModal}
         title="Konto wirklich löschen?"
         description="Sind Sie sicher, dass Sie Ihr Konto endgültig löschen möchten? Dieser Schritt startet den Prozess zur sicheren Entfernung Ihrer Daten. Sie erhalten anschließend eine E-Mail zur Bestätigung."
         onConfirm={handleDeleteAccountInitiation}
+        isDeleting={isDeleting}
         confirmButtonText="Löschen einleiten"
         cancelButtonText="Abbrechen"
         confirmButtonVariant="destructive"

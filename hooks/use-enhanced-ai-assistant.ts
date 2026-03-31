@@ -6,15 +6,12 @@ import { useAICacheClient, useAICacheWarming } from './use-ai-cache-client';
 import { validateAIInput, validateAIContext, sanitizeInput, getInputSuggestions } from '@/lib/ai-input-validation';
 import { categorizeAIError, trackAIRequestFailure, type AIErrorDetails } from '@/lib/ai-documentation-context';
 import { createAIPerformanceMonitor, type AIPerformanceMetrics } from '@/lib/ai-performance-monitor';
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  isRetry?: boolean;
-  validationWarning?: string;
-}
+import { 
+  AIDocumentationContext, 
+  DocumentationContextItem, 
+  CategoryItem, 
+  type ChatMessage 
+} from '@/types/ai';
 
 export interface AIAssistantState {
   messages: ChatMessage[];
@@ -27,7 +24,6 @@ export interface AIAssistantState {
   validationError: string | null;
   validationWarning: string | null;
   inputSuggestions: string[];
-  fallbackToSearch: boolean;
 }
 
 export interface UseEnhancedAIAssistantReturn {
@@ -38,22 +34,22 @@ export interface UseEnhancedAIAssistantReturn {
     clearMessages: () => void;
     setInputValue: (value: string) => void;
     validateInput: (input: string) => boolean;
-    fallbackToDocumentationSearch: () => void;
-    resetFallback: () => void;
   };
   networkStatus: ReturnType<typeof useNetworkStatus>;
   retryState: ReturnType<typeof useRetry>['state'];
 }
 
-const generateSessionId = () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// crypto.randomUUID() requires a secure context (HTTPS/localhost) in the browser
+// and is available in Node.js >=14.17.
+const generateSessionId = () => `session_${crypto.randomUUID()}`;
+const generateMessageId = () => `msg_${crypto.randomUUID()}`;
 
 /**
  * Enhanced AI Assistant hook with comprehensive error handling
  * Includes network detection, retry mechanisms, input validation, and fallback options
  */
 export function useEnhancedAIAssistant(
-  documentationContext: any[] = []
+  documentationContext: AIDocumentationContext = { articles: [] }
 ): UseEnhancedAIAssistantReturn {
   const [state, setState] = useState<AIAssistantState>({
     messages: [],
@@ -65,8 +61,7 @@ export function useEnhancedAIAssistant(
     sessionStartTime: null,
     validationError: null,
     validationWarning: null,
-    inputSuggestions: [],
-    fallbackToSearch: false
+    inputSuggestions: []
   });
 
   const posthog = usePostHog();
@@ -74,10 +69,10 @@ export function useEnhancedAIAssistant(
   const { retry, state: retryState, reset: resetRetry } = useRetry();
   const { cacheResponse, getCachedResponse, hasCachedResponse, stats: cacheStats } = useAICacheClient();
   const { preloadFrequentQueries } = useAICacheWarming();
-  
+
   // Performance monitoring
   const performanceMonitor = useRef(createAIPerformanceMonitor(posthog));
-  
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastUserMessageRef = useRef<string>('');
   const contextHashRef = useRef<string>('');
@@ -95,9 +90,9 @@ export function useEnhancedAIAssistant(
 
   // Preload frequent queries when documentation context changes
   useEffect(() => {
-    if (documentationContext.length > 0 && networkStatus.isOnline) {
+    if (documentationContext.articles.length > 0 && networkStatus.isOnline) {
       const contextHash = generateContextHash(documentationContext);
-      
+
       // Preload common queries in the background
       preloadFrequentQueries(contextHash, async (query: string) => {
         try {
@@ -110,7 +105,7 @@ export function useEnhancedAIAssistant(
               sessionId: state.sessionId || generateSessionId()
             })
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             return data.response || '';
@@ -132,8 +127,7 @@ export function useEnhancedAIAssistant(
       // Clear network-related errors when coming back online
       setState(prev => ({
         ...prev,
-        error: null,
-        fallbackToSearch: false
+        error: null
       }));
     }
   }, [networkStatus.isOnline, state.error]);
@@ -162,7 +156,7 @@ export function useEnhancedAIAssistant(
   // Update input value with validation
   const setInputValue = useCallback((value: string) => {
     setState(prev => ({ ...prev, inputValue: value }));
-    
+
     // Validate input in real-time for better UX
     if (value.trim().length > 0) {
       validateInput(value);
@@ -191,7 +185,6 @@ export function useEnhancedAIAssistant(
       setState(prev => ({
         ...prev,
         error: 'Keine Internetverbindung verfügbar. Bitte überprüfen Sie Ihre Netzwerkverbindung.',
-        fallbackToSearch: true
       }));
       return;
     }
@@ -218,10 +211,10 @@ export function useEnhancedAIAssistant(
     const cachedResponse = getCachedResponse(sanitizedMessage, contextHash);
     if (cachedResponse) {
       console.log('Using cached AI response');
-      
+
       // Update performance tracking for cache hit
       performanceMonitor.current.completeRequest(sessionId, true);
-      
+
       // Track cache hit
       if (posthog && posthog.has_opted_in_capturing?.()) {
         posthog.capture('ai_response_cache_hit', {
@@ -257,8 +250,7 @@ export function useEnhancedAIAssistant(
         error: null,
         validationError: null,
         validationWarning: null,
-        inputSuggestions: [],
-        fallbackToSearch: false
+        inputSuggestions: []
       }));
 
       return;
@@ -269,7 +261,7 @@ export function useEnhancedAIAssistant(
       posthog.capture('ai_question_submitted', {
         question_length: sanitizedMessage.length,
         session_id: sessionId,
-        has_context: documentationContext.length > 0,
+        has_context: documentationContext.articles.length > 0,
         message_count: state.messages.length + 1,
         is_retry: false,
         network_type: networkStatus.connectionType,
@@ -295,7 +287,6 @@ export function useEnhancedAIAssistant(
       validationError: null,
       validationWarning: null,
       inputSuggestions: [],
-      fallbackToSearch: false
     }));
 
     // Create placeholder assistant message for streaming
@@ -331,7 +322,13 @@ export function useEnhancedAIAssistant(
           throw new Error('Network connectivity check failed');
         }
 
-        const response = await fetch('/api/ai-assistant', {
+        const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL;
+        if (!workerUrl) {
+          console.error("NEXT_PUBLIC_WORKER_URL environment variable is not defined");
+          throw new Error("AI Service configuration error: missing backend URL");
+        }
+
+        const response = await fetch(workerUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -360,10 +357,10 @@ export function useEnhancedAIAssistant(
           // Fallback to regular JSON response
           const data = await response.json();
           updateAssistantMessage(assistantMessageId, data.response || 'Entschuldigung, ich konnte keine Antwort generieren.');
-          
+
           // Complete performance tracking
           performanceMonitor.current.completeRequest(sessionId, true);
-          
+
           // Track successful response
           if (posthog && posthog.has_opted_in_capturing?.()) {
             const responseTime = Date.now() - requestStartTime;
@@ -388,58 +385,47 @@ export function useEnhancedAIAssistant(
 
     } catch (error) {
       console.error('AI Assistant Error:', error);
-      
+
       // Categorize error for proper handling
       const errorDetails = categorizeAIError(error instanceof Error ? error : String(error), {
         sessionId: sessionId,
         failureStage: 'client_request'
       });
-      
+
       // Track error in performance monitor
       performanceMonitor.current.trackError(sessionId, {
         type: errorDetails.errorType,
         message: errorDetails.errorMessage,
         retryable: errorDetails.retryable
       });
-      
+
       // Complete performance tracking with error
       performanceMonitor.current.completeRequest(sessionId, false);
 
       // Get user-friendly error message in German
       let errorMessage = getGermanErrorMessage(errorDetails);
-      let shouldFallback = false;
-
-      // Determine if we should suggest fallback to documentation search
-      if (errorDetails.errorType === 'network_error' || 
-          errorDetails.errorType === 'timeout_error' ||
-          errorDetails.errorType === 'server_error' ||
-          errorDetails.errorType === 'model_overloaded') {
-        shouldFallback = true;
-        errorMessage += ' Sie können stattdessen die normale Dokumentationssuche verwenden.';
-      }
 
       // Track failed response
       if (posthog && posthog.has_opted_in_capturing?.()) {
         const responseTime = Date.now() - requestStartTime;
-        
+
         trackAIRequestFailure(posthog, errorDetails, {
           sessionId: sessionId,
           responseTimeMs: responseTime,
           questionLength: sanitizedMessage.length,
-          hasContext: documentationContext.length > 0,
-          contextArticlesCount: documentationContext.length,
+          hasContext: documentationContext.articles.length > 0,
+          contextArticlesCount: documentationContext.articles.length,
           messageCount: state.messages.length + 1
         });
       }
-      
+
       // Remove the placeholder assistant message and show error
       setState(prev => ({
         ...prev,
         messages: prev.messages.filter(msg => msg.id !== assistantMessageId),
         error: errorMessage,
-        fallbackToSearch: shouldFallback
       }));
-      
+
     } finally {
       setState(prev => ({
         ...prev,
@@ -449,14 +435,14 @@ export function useEnhancedAIAssistant(
       resetRetry();
     }
   }, [
-    validateInput, 
-    networkStatus, 
-    state.sessionId, 
-    state.messages.length, 
+    validateInput,
+    networkStatus,
+    state.sessionId,
+    state.messages.length,
     state.validationWarning,
-    documentationContext, 
-    posthog, 
-    retry, 
+    documentationContext,
+    posthog,
+    retry,
     resetRetry
   ]);
 
@@ -479,28 +465,17 @@ export function useEnhancedAIAssistant(
       validationError: null,
       validationWarning: null,
       inputSuggestions: [],
-      fallbackToSearch: false,
       streamingMessageId: null
     }));
     resetRetry();
   }, [resetRetry]);
 
-  // Fallback to documentation search
-  const fallbackToDocumentationSearch = useCallback(() => {
-    setState(prev => ({ ...prev, fallbackToSearch: true }));
-  }, []);
-
-  // Reset fallback state
-  const resetFallback = useCallback(() => {
-    setState(prev => ({ ...prev, fallbackToSearch: false }));
-  }, []);
-
   // Helper function to update assistant message
   const updateAssistantMessage = useCallback((messageId: string, content: string) => {
     setState(prev => ({
       ...prev,
-      messages: prev.messages.map(msg => 
-        msg.id === messageId 
+      messages: prev.messages.map(msg =>
+        msg.id === messageId
           ? { ...msg, content }
           : msg
       )
@@ -511,8 +486,8 @@ export function useEnhancedAIAssistant(
   const appendToAssistantMessage = useCallback((messageId: string, chunk: string) => {
     setState(prev => ({
       ...prev,
-      messages: prev.messages.map(msg => 
-        msg.id === messageId 
+      messages: prev.messages.map(msg =>
+        msg.id === messageId
           ? { ...msg, content: msg.content + chunk }
           : msg
       )
@@ -521,9 +496,9 @@ export function useEnhancedAIAssistant(
 
   // Handle streaming response
   const handleStreamingResponse = useCallback(async (
-    response: Response, 
-    messageId: string, 
-    sessionId: string, 
+    response: Response,
+    messageId: string,
+    sessionId: string,
     requestStartTime: number,
     sanitizedMessage: string
   ) => {
@@ -540,7 +515,7 @@ export function useEnhancedAIAssistant(
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           if (!hasReceivedContent) {
             updateAssistantMessage(messageId, 'Entschuldigung, ich konnte keine Antwort generieren.');
@@ -552,20 +527,20 @@ export function useEnhancedAIAssistant(
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
-        
+
         for (const line of lines) {
           const trimmedLine = line.trim();
-          
+
           if (!trimmedLine || trimmedLine.startsWith(':')) {
             continue;
           }
-          
+
           if (trimmedLine.startsWith('data: ')) {
             const dataStr = trimmedLine.slice(6);
-            
+
             try {
               const data = JSON.parse(dataStr);
-              
+
               if (data.type === 'chunk' && data.content) {
                 if (!hasReceivedContent) {
                   performanceMonitor.current.trackFirstChunk(sessionId);
@@ -578,7 +553,7 @@ export function useEnhancedAIAssistant(
                   updateAssistantMessage(messageId, data.content);
                   hasReceivedContent = true;
                 }
-                
+
                 // Cache the response
                 if (data.content) {
                   cacheResponse(sanitizedMessage, data.content, contextHashRef.current);
@@ -623,9 +598,7 @@ export function useEnhancedAIAssistant(
       retryLastMessage,
       clearMessages,
       setInputValue,
-      validateInput,
-      fallbackToDocumentationSearch,
-      resetFallback
+      validateInput
     },
     networkStatus,
     retryState
@@ -635,14 +608,14 @@ export function useEnhancedAIAssistant(
 /**
  * Generate context hash for caching
  */
-function generateContextHash(documentationContext: any[]): string {
-  if (!documentationContext || documentationContext.length === 0) {
+function generateContextHash(documentationContext: AIDocumentationContext): string {
+  if (!documentationContext || documentationContext.articles.length === 0) {
     return 'no-context';
   }
 
   const contextString = JSON.stringify({
-    articleIds: documentationContext.map(article => article.id || article.titel).sort(),
-    count: documentationContext.length
+    articleIds: documentationContext.articles.map(article => article.id || article.titel).sort(),
+    count: documentationContext.articles.length
   });
 
   // Simple hash function
@@ -665,7 +638,9 @@ function getGermanErrorMessage(errorDetails: AIErrorDetails): string {
     case 'rate_limit':
       return 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
     case 'server_error':
-      return 'Serverfehler. Bitte versuchen Sie es später erneut.';
+      return 'Serverfehler. Der AI-Dienst ist momentan nicht erreichbar. Bitte versuchen Sie es später erneut.';
+    case 'inference_error':
+      return 'Fehler bei der AI-Verarbeitung. Bitte versuchen Sie es erneut.';
     case 'authentication_error':
       return 'Authentifizierungsfehler. Der Service ist momentan nicht verfügbar.';
     case 'content_safety_error':

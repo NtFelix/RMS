@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { useKeyboardNavigation } from '../use-keyboard-navigation';
+import { useKeyboardNavigation } from './use-keyboard-navigation';
 
 describe('useKeyboardNavigation', () => {
   const mockOnSelect = jest.fn();

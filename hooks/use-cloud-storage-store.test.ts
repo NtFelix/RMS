@@ -9,7 +9,7 @@ import {
   type VirtualFolder,
   type BreadcrumbItem,
   type UploadItem,
-} from '../use-cloud-storage-store'
+} from './use-cloud-storage-store'
 
 // Mock file for testing
 const createMockFile = (name: string, size: number = 1024): File => {

@@ -20,11 +20,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { TenantPaymentBento } from "@/components/tenants/tenant-payment-bento"
 import { getDashboardSummary, getNebenkostenChartData } from "@/lib/data-fetching"
-import { RevenueExpensesChart } from "@/components/charts/revenue-expenses-chart"
-import { OccupancyChart } from "@/components/charts/occupancy-chart"
-import { MaintenanceDonutChart } from "@/components/charts/maintenance-donut-chart"
-import { NebenkostenChart } from "@/components/charts/nebenkosten-chart"
 import { LastTransactionsContainer } from "@/components/finance/last-transactions-container"
+import {
+  RevenueExpensesChart,
+  OccupancyChart,
+  MaintenanceDonutChart,
+  NebenkostenChart
+} from "@/components/dashboard/dashboard-charts-wrapper"
+
+const currencyFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+const formatCurrency = (amount: number) => currencyFormatter.format(amount);
 
 export default async function Dashboard() {
   // Fetch real data from database
@@ -143,7 +148,7 @@ export default async function Dashboard() {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
               <div className="flex items-center gap-2 mt-1">
-                <div className="text-lg font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
+                <div className="text-lg font-bold leading-none">{formatCurrency(summary.monatlicheEinnahmen)}</div>
                 <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
                   /Monat
                 </div>
@@ -163,7 +168,7 @@ export default async function Dashboard() {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
               <div className="flex items-center gap-2 mt-1">
-                <div className="text-lg font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
+                <div className="text-lg font-bold leading-none">{formatCurrency(summary.jaehrlicheAusgaben)}</div>
                 <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
                   /Jahr
                 </div>
@@ -208,7 +213,7 @@ export default async function Dashboard() {
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="text-2xl font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
+                    <div className="text-2xl font-bold leading-none">{formatCurrency(summary.monatlicheEinnahmen)}</div>
                     <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
                       /Monat
                     </div>
@@ -228,7 +233,7 @@ export default async function Dashboard() {
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="text-2xl font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
+                    <div className="text-2xl font-bold leading-none">{formatCurrency(summary.jaehrlicheAusgaben)}</div>
                     <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
                       /Jahr
                     </div>

@@ -271,7 +271,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
 
   // Set up keyboard navigation
   useModalKeyboardNavigation({
-    isOpen,
+    isOpen: isOpen && !isTemplateEditorModalOpen,
     onClose: handleClose,
     isDirty: isTemplatesModalDirty,
     onAttemptClose: handleAttemptClose,

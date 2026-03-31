@@ -21,7 +21,7 @@ const mockModalStore = {
 
 describe('useSearchModalIntegration', () => {
   beforeEach(() => {
-    ;(useModalStore as jest.Mock).mockReturnValue(mockModalStore)
+    ;(useModalStore as unknown as jest.Mock).mockReturnValue(mockModalStore as any)
   })
 
   it('should call onEntityUpdated when modal is closed after successful operation', () => {
@@ -36,20 +36,20 @@ describe('useSearchModalIntegration', () => {
     )
 
     // Simulate modal opening
-    ;(useModalStore as jest.Mock).mockReturnValue({
+    ;(useModalStore as unknown as jest.Mock).mockReturnValue({
       ...mockModalStore,
       isTenantModalOpen: true,
       isTenantModalDirty: true,
-    })
+    } as any)
 
     rerender()
 
     // Simulate modal closing after successful operation (not dirty)
-    ;(useModalStore as jest.Mock).mockReturnValue({
+    ;(useModalStore as unknown as jest.Mock).mockReturnValue({
       ...mockModalStore,
       isTenantModalOpen: false,
       isTenantModalDirty: false,
-    })
+    } as any)
 
     rerender()
 
@@ -69,20 +69,20 @@ describe('useSearchModalIntegration', () => {
     )
 
     // Simulate modal opening
-    ;(useModalStore as jest.Mock).mockReturnValue({
+    ;(useModalStore as unknown as jest.Mock).mockReturnValue({
       ...mockModalStore,
       isTenantModalOpen: true,
       isTenantModalDirty: true,
-    })
+    } as any)
 
     rerender()
 
     // Simulate modal closing while still dirty (cancelled)
-    ;(useModalStore as jest.Mock).mockReturnValue({
+    ;(useModalStore as unknown as jest.Mock).mockReturnValue({
       ...mockModalStore,
       isTenantModalOpen: false,
       isTenantModalDirty: true,
-    })
+    } as any)
 
     rerender()
 

@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
-import { KautionData, KautionStatus } from "@/types/Tenant";
+import { KautionData, KautionStatus, TenantStatus } from "@/types/Tenant";
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
@@ -26,6 +26,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
       email: formData.get('email') || null,
       telefonnummer: formData.get('telefonnummer') || null,
       notiz: formData.get('notiz') || null,
+      status: (formData.get('status') as TenantStatus) || 'mieter',
       nebenkosten: (() => {
         const nebenkostenRaw = formData.get('nebenkosten');
         if (nebenkostenRaw && typeof nebenkostenRaw === 'string' && nebenkostenRaw.length > 0) {
@@ -66,7 +67,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        posthog.capture({
+        await posthog.capture({
           distinctId: user.id,
           event: eventName,
           properties: {
@@ -75,11 +76,14 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
             has_property: !!payload.wohnung_id,
             property_id: payload.wohnung_id,
             has_email: !!payload.email,
+            status: payload.status,
             source: 'server_action'
           }
         });
-        await posthog.flush();
-        await posthogLogger.flush();
+        await Promise.all([
+          posthog.flush(),
+          posthogLogger.flush()
+        ]);
         logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
       }
     } catch (phError) {
@@ -166,7 +170,7 @@ export async function getMieterByHausIdAction(
       .eq("haus_id", hausId);
 
     if (wohnungenError) {
-      console.error(`Error fetching Wohnungen for Haus ${hausId}:`, wohnungenError.message);
+      console.error('Error fetching Wohnungen for Haus %s:', hausId, wohnungenError.message);
       return { success: false, error: wohnungenError.message, data: null };
     }
 
@@ -195,7 +199,7 @@ export async function getMieterByHausIdAction(
     const { data: mieterData, error: mieterError } = await query;
 
     if (mieterError) {
-      console.error(`Error fetching Mieter for Haus ${hausId} (Wohnung IDs: ${wohnungIds.join(', ')}):`, mieterError.message);
+      console.error('Error fetching Mieter for Haus %s (Wohnung IDs: %s):', hausId, wohnungIds.join(', '), mieterError.message);
       return { success: false, error: mieterError.message, data: null };
     }
 
@@ -346,9 +350,42 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
     const suggestedAmount = wohnung.miete * 3;
 
     return { success: true, suggestedAmount };
-
   } catch (e) {
     console.error("Unexpected error in getSuggestedKautionAmount:", e);
     return { success: false, error: { message: (e as Error).message } };
+  }
+}
+
+export async function deleteAllApplicantsAction(): Promise<{ success: boolean; error?: { message: string } }> {
+  const supabase = await createClient();
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: { message: "Unauthorized" } };
+    }
+
+    const { error } = await supabase
+      .from('Mieter')
+      .delete()
+      .eq('status', 'bewerber')
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting all applicants:', error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/mieter');
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error deleting all applicants:', error);
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      }
+    };
   }
 }

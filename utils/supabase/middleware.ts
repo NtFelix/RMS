@@ -1,7 +1,9 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import type { User } from "@supabase/supabase-js"
 
-export async function updateSession(request: NextRequest, response: NextResponse) {
+import { createServerClient, type CookieOptions } from "@supabase/ssr"
+
+export async function updateSession(request: NextRequest, response: NextResponse): Promise<User | null> {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -20,7 +22,12 @@ export async function updateSession(request: NextRequest, response: NextResponse
     },
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getUser() validates the session and implicitly triggers a token refresh
+  // via the cookie adapter above when the access token has expired.
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error) {
+    console.error('[updateSession] Failed to refresh session:', error.message)
+  }
 
-  return { response, user }
+  return user
 }

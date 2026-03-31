@@ -1,7 +1,6 @@
 export const runtime = 'edge';
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
-import Papa from 'papaparse';
 
 export async function GET(request: Request) {
   try {
@@ -33,19 +32,19 @@ export async function GET(request: Request) {
         .select('id')
         .eq('name', selectedApartment)
         .single();
-      
+
       if (apartmentError) {
         console.error('Error fetching apartment:', apartmentError);
         return NextResponse.json({ error: 'Fehler beim Abrufen der Wohnungsdaten' }, { status: 500 });
       }
-      
+
       if (!apartment) {
         return NextResponse.json({ error: 'Wohnung nicht gefunden' }, { status: 404 });
       }
-      
+
       // Store the apartment data for later use
       apartmentData = apartment;
-      
+
       // Filter by apartment ID directly in the Finanzen table
       countQuery = countQuery.eq('wohnung_id', apartmentData.id);
     }
@@ -63,7 +62,7 @@ export async function GET(request: Request) {
     }
 
     const { count } = await countQuery;
-    
+
     if (count === 0) {
       return new NextResponse('', {
         status: 200,
@@ -129,15 +128,9 @@ export async function GET(request: Request) {
       'Notiz': item.notiz || ''
     }));
 
-    const csv = Papa.unparse(formattedData);
-
-    return new NextResponse(csv, {
-      status: 200,
-      headers: {
-        'Content-Disposition': 'attachment; filename="finanzen-export.csv"',
-        'Content-Type': 'text/csv;charset=utf-8;',
-      },
-    });
+    // Offload CSV generation to Worker
+    const { generateCSV } = await import('@/lib/worker-client');
+    return await generateCSV(formattedData, 'finanzen-export.csv');
   } catch (e) {
     console.error('Server error GET /api/finanzen/export:', e);
     return NextResponse.json({ error: 'Serverfehler beim Exportieren der Finanzen.' }, { status: 500 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ButtonWithTooltip } from '../button-with-tooltip';
+import { ButtonWithTooltip } from './button-with-tooltip';
 
 describe('ButtonWithTooltip', () => {
   it('renders button without tooltip when not disabled', () => {

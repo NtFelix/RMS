@@ -23,7 +23,7 @@ jest.mock('posthog-js/react', () => ({
 }));
 
 // Mock fetch
-const mockFetch = jest.fn();
+const mockFetch = jest.fn() as any;
 global.fetch = mockFetch;
 
 const mockUseNetworkStatus = useNetworkStatus as jest.MockedFunction<typeof useNetworkStatus>;
@@ -48,7 +48,8 @@ describe('Enhanced AI Assistant Hook', () => {
   const defaultRetryState = {
     isRetrying: false,
     attemptCount: 0,
-    nextRetryIn: 0
+    nextRetryIn: 0,
+    lastError: null
   };
 
   const mockRetryFunction = jest.fn();
@@ -65,7 +66,8 @@ describe('Enhanced AI Assistant Hook', () => {
     mockUseRetry.mockReturnValue({
       retry: mockRetryFunction,
       state: defaultRetryState,
-      reset: mockResetRetry
+      reset: mockResetRetry,
+      cancel: jest.fn()
     });
 
     // Default validation mocks
@@ -91,7 +93,7 @@ describe('Enhanced AI Assistant Hook', () => {
 
   describe('Initial State', () => {
     it('has correct initial state', () => {
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       expect(result.current.state.messages).toEqual([]);
       expect(result.current.state.isLoading).toBe(false);
@@ -101,11 +103,10 @@ describe('Enhanced AI Assistant Hook', () => {
       expect(result.current.state.validationError).toBe(null);
       expect(result.current.state.validationWarning).toBe(null);
       expect(result.current.state.inputSuggestions).toEqual([]);
-      expect(result.current.state.fallbackToSearch).toBe(false);
     });
 
     it('initializes session ID on mount', async () => {
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await waitFor(() => {
         expect(result.current.state.sessionId).toMatch(/^session_/);
@@ -126,7 +127,7 @@ describe('Enhanced AI Assistant Hook', () => {
         error: 'Invalid context'
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       act(() => {
         result.current.actions.setInputValue('a');
@@ -150,7 +151,7 @@ describe('Enhanced AI Assistant Hook', () => {
         sanitizedInput: 'test'
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       act(() => {
         result.current.actions.setInputValue('test input');
@@ -171,7 +172,7 @@ describe('Enhanced AI Assistant Hook', () => {
         getInputSuggestions: jest.fn().mockReturnValue(['Suggestion 1', 'Suggestion 2'])
       }));
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       act(() => {
         result.current.actions.setInputValue('a');
@@ -183,7 +184,7 @@ describe('Enhanced AI Assistant Hook', () => {
     });
 
     it('clears validation errors for empty input', () => {
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       // First set some input to trigger validation
       act(() => {
@@ -208,19 +209,19 @@ describe('Enhanced AI Assistant Hook', () => {
         isOffline: true
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
       });
 
       expect(result.current.state.error).toContain('Keine Internetverbindung');
-      expect(result.current.state.fallbackToSearch).toBe(true);
+
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('clears network errors when coming back online', async () => {
-      const { result, rerender } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result, rerender } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       // Start offline
       mockUseNetworkStatus.mockReturnValue({
@@ -242,7 +243,6 @@ describe('Enhanced AI Assistant Hook', () => {
 
       await waitFor(() => {
         expect(result.current.state.error).toBeNull();
-        expect(result.current.state.fallbackToSearch).toBe(false);
       });
     });
 
@@ -257,9 +257,9 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Test response' })
-      } as Response);
+      } as unknown as Response);
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -279,7 +279,7 @@ describe('Enhanced AI Assistant Hook', () => {
         await fn(); // Execute the function to trigger the connectivity check
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -296,13 +296,13 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'AI response' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -347,13 +347,13 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'text/event-stream' }),
         body: mockStream
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -371,7 +371,7 @@ describe('Enhanced AI Assistant Hook', () => {
         error: 'Empty input'
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('');
@@ -390,13 +390,13 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Response' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('original input');
@@ -408,15 +408,17 @@ describe('Enhanced AI Assistant Hook', () => {
     });
 
     it('includes documentation context in request', async () => {
-      const documentationContext = [
-        { id: '1', title: 'Test Article', content: 'Test content' }
-      ];
+      const documentationContext = {
+        articles: [
+          { id: '1', titel: 'Test Article', seiteninhalt: 'Test content' }
+        ]
+      };
 
       mockFetch.mockResolvedValue({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Response' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
@@ -429,7 +431,7 @@ describe('Enhanced AI Assistant Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith('/api/ai-assistant', expect.objectContaining({
-        body: expect.stringContaining('"context":[{"id":"1","title":"Test Article","content":"Test content"}]')
+        body: expect.stringContaining('"context":{"articles":[{"id":"1","titel":"Test Article","seiteninhalt":"Test content"}]}')
       }));
     });
   });
@@ -451,7 +453,7 @@ describe('Enhanced AI Assistant Hook', () => {
         failureStage: 'server'
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -476,13 +478,13 @@ describe('Enhanced AI Assistant Hook', () => {
         failureStage: 'server'
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
       });
 
-      expect(result.current.state.fallbackToSearch).toBe(true);
+
       expect(result.current.state.error).toContain('Dokumentationssuche');
     });
 
@@ -493,7 +495,7 @@ describe('Enhanced AI Assistant Hook', () => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -522,13 +524,13 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'text/event-stream' }),
         body: mockStream
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -542,7 +544,7 @@ describe('Enhanced AI Assistant Hook', () => {
     it('uses retry mechanism for failed requests', async () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -558,7 +560,7 @@ describe('Enhanced AI Assistant Hook', () => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       // First attempt fails
       await act(async () => {
@@ -573,7 +575,7 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Retry success' })
-      } as Response);
+      } as unknown as Response);
 
       // Manual retry
       await act(async () => {
@@ -588,13 +590,13 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Success' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -606,7 +608,7 @@ describe('Enhanced AI Assistant Hook', () => {
 
   describe('Message Management', () => {
     it('clears messages correctly', () => {
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       // Add some messages first
       act(() => {
@@ -622,28 +624,10 @@ describe('Enhanced AI Assistant Hook', () => {
       expect(result.current.state.validationError).toBe(null);
       expect(result.current.state.validationWarning).toBe(null);
       expect(result.current.state.inputSuggestions).toEqual([]);
-      expect(result.current.state.fallbackToSearch).toBe(false);
       expect(result.current.state.streamingMessageId).toBe(null);
     });
 
-    it('manages fallback state correctly', () => {
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
-
-      act(() => {
-        result.current.actions.fallbackToDocumentationSearch();
-      });
-
-      expect(result.current.state.fallbackToSearch).toBe(true);
-
-      act(() => {
-        result.current.actions.resetFallback();
-      });
-
-      expect(result.current.state.fallbackToSearch).toBe(false);
-    });
-  });
-
-  describe('Request Cancellation', () => {
+    describe('Request Cancellation', () => {
     it('cancels previous request when new one is made', async () => {
       const abortSpy = jest.fn();
       const mockAbortController = {
@@ -660,7 +644,7 @@ describe('Enhanced AI Assistant Hook', () => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       // Start first request
       act(() => {
@@ -676,6 +660,7 @@ describe('Enhanced AI Assistant Hook', () => {
       expect(abortSpy).toHaveBeenCalled();
     });
   });
+});
 
   describe('PostHog Analytics', () => {
     it('tracks question submitted events', async () => {
@@ -693,13 +678,13 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve({ response: 'Response' })
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -713,7 +698,7 @@ describe('Enhanced AI Assistant Hook', () => {
 
   describe('Edge Cases', () => {
     it('handles empty documentation context', () => {
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       expect(result.current.state).toBeDefined();
       expect(result.current.actions).toBeDefined();
@@ -744,13 +729,13 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'text/event-stream' }),
         body: mockStream
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
@@ -765,13 +750,13 @@ describe('Enhanced AI Assistant Hook', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'text/event-stream' }),
         body: null
-      } as Response);
+      } as unknown as Response);
 
       mockRetryFunction.mockImplementation(async (fn) => {
         await fn();
       });
 
-      const { result } = renderHook(() => useEnhancedAIAssistant([]));
+      const { result } = renderHook(() => useEnhancedAIAssistant({ articles: [] }));
 
       await act(async () => {
         await result.current.actions.sendMessage('Test message');
