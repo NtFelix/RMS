@@ -24,6 +24,7 @@ import { formatNumber } from "@/utils/format"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
+import { cn } from "@/lib/utils"
 
 export interface Apartment {
   id: string
@@ -56,6 +57,40 @@ interface ApartmentTableProps {
   selectedApartments?: Set<string>
   onSelectionChange?: (selected: Set<string>) => void
 }
+
+interface TableHeaderCellProps {
+  sortKey?: ApartmentSortKey;
+  children: React.ReactNode;
+  className?: string;
+  icon: React.ElementType;
+  sortable?: boolean;
+  onSort?: (key: ApartmentSortKey) => void;
+  renderSortIcon?: (key: ApartmentSortKey) => React.ReactNode;
+}
+
+const TableHeaderCell = ({ 
+  sortKey, 
+  children, 
+  className, 
+  icon: Icon, 
+  sortable = true,
+  onSort,
+  renderSortIcon
+}: TableHeaderCellProps) => (
+  <TableHead className={cn("dark:text-[#f3f4f6] group/header", className)}>
+    <div
+      onClick={() => sortable && sortKey && onSort?.(sortKey)}
+      className={cn(
+        "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6]",
+        sortable && sortKey && "cursor-pointer"
+      )}
+    >
+      <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+      {children}
+      {sortable && sortKey && renderSortIcon?.(sortKey)}
+    </div>
+  </TableHead>
+)
 
 export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, onDelete, initialApartments, selectedApartments: externalSelectedApartments, onSelectionChange }: ApartmentTableProps) {
   const router = useRouter()
@@ -270,19 +305,6 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
     })
   }
 
-  const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon, sortable = true }: { sortKey: ApartmentSortKey, children: React.ReactNode, className?: string, icon: React.ElementType, sortable?: boolean }) => (
-    <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
-      <div
-        onClick={() => sortable && handleSort(sortKey)}
-        className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
-      >
-        <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-        {children}
-        {sortable && renderSortIcon(sortKey)}
-      </div>
-    </TableHead>
-  )
-
   return (
     <div className="rounded-lg">
       {/* Bulk Action Bar - only show if using internal state */}
@@ -345,13 +367,66 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                     />
                   </div>
                 </TableHead>
-                <TableHeaderCell sortKey="name" className="w-[200px] dark:text-[#f3f4f6]" icon={Home}>Wohnung</TableHeaderCell>
-                <TableHeaderCell sortKey="groesse" className="w-[120px] dark:text-[#f3f4f6]" icon={Ruler}>Größe</TableHeaderCell>
-                <TableHeaderCell sortKey="miete" className="w-[110px] dark:text-[#f3f4f6]" icon={Euro}>Miete</TableHeaderCell>
-                <TableHeaderCell sortKey="pricePerSqm" className="w-[130px] dark:text-[#f3f4f6]" icon={Euro}>€/m²</TableHeaderCell>
-                <TableHeaderCell sortKey="haus" className="dark:text-[#f3f4f6]" icon={Building2}>Haus</TableHeaderCell>
-                <TableHeaderCell sortKey="status" className="w-[110px] dark:text-[#f3f4f6]" icon={CheckCircle2}>Status</TableHeaderCell>
-                <TableHeaderCell sortKey="name" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="name" 
+                  className="w-[200px]" 
+                  icon={Home}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Wohnung
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="groesse" 
+                  className="w-[120px]" 
+                  icon={Ruler}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Größe
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="miete" 
+                  className="w-[110px]" 
+                  icon={Euro}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Miete
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="pricePerSqm" 
+                  className="w-[130px]" 
+                  icon={Euro}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  €/m²
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="haus" 
+                  icon={Building2}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Haus
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  sortKey="status" 
+                  className="w-[110px]" 
+                  icon={CheckCircle2}
+                  onSort={handleSort}
+                  renderSortIcon={renderSortIcon}
+                >
+                  Status
+                </TableHeaderCell>
+                <TableHeaderCell 
+                  className="w-[80px] pr-2" 
+                  icon={Pencil} 
+                  sortable={false}
+                >
+                  Aktionen
+                </TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
