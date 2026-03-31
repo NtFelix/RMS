@@ -3,6 +3,13 @@ import { NextResponse } from "next/server";
 
 export const runtime = 'edge';
 
+// Cache-control headers to prevent CDN caching of user-specific responses
+const NO_CACHE_HEADERS = {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+};
+
 export async function POST() {
     const supabase = await createClient();
     const {
@@ -10,7 +17,10 @@ export async function POST() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401, headers: NO_CACHE_HEADERS }
+        );
     }
 
     const { error } = await supabase
@@ -22,19 +32,13 @@ export async function POST() {
         console.error("Error updating onboarding status:", error);
         return NextResponse.json(
             { error: "Failed to update onboarding status" },
-            { status: 500 }
+            { status: 500, headers: NO_CACHE_HEADERS }
         );
     }
 
     return NextResponse.json(
         { success: true },
-        {
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0',
-            },
-        }
+        { headers: NO_CACHE_HEADERS }
     );
 }
 
@@ -45,7 +49,10 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401, headers: NO_CACHE_HEADERS }
+        );
     }
 
     const { data, error } = await supabase
@@ -58,7 +65,7 @@ export async function GET() {
         console.error("Error fetching onboarding status:", error);
         return NextResponse.json(
             { error: "Failed to fetch onboarding status" },
-            { status: 500 }
+            { status: 500, headers: NO_CACHE_HEADERS }
         );
     }
 
@@ -66,12 +73,6 @@ export async function GET() {
         {
             completed: !!data?.onboarding_completed
         },
-        {
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0',
-            },
-        }
+        { headers: NO_CACHE_HEADERS }
     );
 }

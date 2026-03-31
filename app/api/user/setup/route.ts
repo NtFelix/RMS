@@ -6,6 +6,13 @@ import { z } from "zod";
 
 export const runtime = 'edge';
 
+// Cache-control headers to prevent CDN caching of user-specific responses
+const NO_CACHE_HEADERS = {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+};
+
 // Zod schema for request body validation with conditional validation
 const setupBodySchema = z.object({
     firstName: z.string().min(1).optional(),
@@ -60,7 +67,7 @@ export async function GET() {
             console.error("Error fetching profile:", profileError);
             return NextResponse.json(
                 { error: "Failed to fetch profile" },
-                { status: 500 }
+                { status: 500, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -85,19 +92,13 @@ export async function GET() {
                 lastName,
                 billingAddress,
             },
-            {
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0',
-                },
-            }
+            { headers: NO_CACHE_HEADERS }
         );
     } catch (error) {
         console.error("Error in GET /api/user/setup:", error);
         return NextResponse.json(
             { error: "Internal server error" },
-            { status: 500 }
+            { status: 500, headers: NO_CACHE_HEADERS }
         );
     }
 }
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
         if (!parseResult.success) {
             return NextResponse.json(
                 { error: "Invalid request body", issues: parseResult.error.issues },
-                { status: 400 }
+                { status: 400, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
                 console.error("Error updating user metadata:", authError);
                 return NextResponse.json(
                     { error: "Failed to update name" },
-                    { status: 500 }
+                    { status: 500, headers: NO_CACHE_HEADERS }
                 );
             }
 
@@ -153,7 +154,7 @@ export async function POST(request: NextRequest) {
                 console.error("Error fetching profile:", profileError);
                 return NextResponse.json(
                     { error: "Failed to fetch profile" },
-                    { status: 500 }
+                    { status: 500, headers: NO_CACHE_HEADERS }
                 );
             }
 
@@ -192,25 +193,19 @@ export async function POST(request: NextRequest) {
             console.error("Error updating setup_completed:", updateError);
             return NextResponse.json(
                 { error: "Failed to update setup status" },
-                { status: 500 }
+                { status: 500, headers: NO_CACHE_HEADERS }
             );
         }
 
         return NextResponse.json(
             { success: true, skipped: !!skipSetup },
-            {
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0',
-                },
-            }
+            { headers: NO_CACHE_HEADERS }
         );
     } catch (error) {
         console.error("Error in POST /api/user/setup:", error);
         return NextResponse.json(
             { error: "Internal server error" },
-            { status: 500 }
+            { status: 500, headers: NO_CACHE_HEADERS }
         );
     }
 }
