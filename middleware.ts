@@ -14,7 +14,6 @@ const MANAGED_ROUTE_PREFIXES = [
   "/dateien",
   "/oauth",
   "/checkout/success",
-  "/hilfe/dokumentation",
 ]
 
 function matchesRoutePrefix(pathname: string, prefix: string) {
@@ -147,7 +146,6 @@ export const config = {
     "/mails/:path*",
     "/dateien/:path*",
     "/checkout/success",
-    "/hilfe/dokumentation/:path*",
     "/oauth/:path*",
   ],
 }

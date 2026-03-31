@@ -285,27 +285,6 @@ export const pageMetadata = {
         },
     } satisfies Metadata,
 
-    // Dokumentation
-    dokumentation: {
-        title: 'Dokumentation & Hilfe | Anleitungen für Mietevo',
-        description: 'Ausführliche Anleitungen und Hilfe zur Nutzung von Mietevo. Schritt-für-Schritt Tutorials, FAQ und Best Practices für Ihre Hausverwaltung.',
-        keywords: [
-            'Mietevo Anleitung',
-            'Hausverwaltung Tutorial',
-            'Nebenkostenabrechnung Hilfe',
-            'Mietevo Dokumentation',
-            'Hausverwaltung Hilfe',
-        ],
-        openGraph: {
-            title: 'Dokumentation & Hilfe | Mietevo',
-            description: 'Ausführliche Anleitungen und Hilfe zur Nutzung von Mietevo.',
-            url: EXTERNAL_LINKS.DOCUMENTATION,
-        },
-        alternates: {
-            canonical: EXTERNAL_LINKS.DOCUMENTATION,
-        },
-    } satisfies Metadata,
-
     // Datenschutz
     datenschutz: {
         title: 'Datenschutzerklärung',
