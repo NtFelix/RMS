@@ -5,6 +5,7 @@ import type { User, SupabaseClient } from "@supabase/supabase-js"
 import { ROUTES } from "@/lib/constants"
 import { createClient } from "@/utils/supabase/server"
 import { isTestEnv } from "@/lib/test-utils"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 function buildLoginRedirect(pathname: string | null, search: string | null) {
   if (!pathname) {
@@ -194,7 +195,10 @@ export async function requireAuthenticatedUserForApi(): Promise<
   const { user, error } = await getAuthenticatedUser(supabase)
   
   if (error || !user) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    return NextResponse.json(
+      { error: 'Not authenticated' }, 
+      { status: 401, headers: NO_CACHE_HEADERS }
+    )
   }
   return { supabase, user }
 }
