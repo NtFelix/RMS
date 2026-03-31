@@ -12,23 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useEnhancedAIAssistant } from "@/hooks/use-enhanced-ai-assistant";
 import { BRAND_NAME } from "@/lib/constants";
-
-interface DocumentationContextItem {
-  id: string;
-  titel: string;
-  kategorie?: string | null;
-  seiteninhalt?: string;
-}
-
-interface CategoryItem {
-  name: string;
-  articleCount?: number;
-}
-
-interface AIDocumentationContext {
-  articles: DocumentationContextItem[];
-  categories?: CategoryItem[];
-}
+import { AIDocumentationContext } from "@/types/ai";
 
 interface AIAssistantInterfaceProps {
   isOpen: boolean;

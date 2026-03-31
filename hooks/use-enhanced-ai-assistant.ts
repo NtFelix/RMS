@@ -6,32 +6,12 @@ import { useAICacheClient, useAICacheWarming } from './use-ai-cache-client';
 import { validateAIInput, validateAIContext, sanitizeInput, getInputSuggestions } from '@/lib/ai-input-validation';
 import { categorizeAIError, trackAIRequestFailure, type AIErrorDetails } from '@/lib/ai-documentation-context';
 import { createAIPerformanceMonitor, type AIPerformanceMetrics } from '@/lib/ai-performance-monitor';
-
-export interface DocumentationContextItem {
-  id: string;
-  titel: string;
-  kategorie?: string | null;
-  seiteninhalt?: string;
-}
-
-export interface CategoryItem {
-  name: string;
-  articleCount?: number;
-}
-
-export interface AIDocumentationContext {
-  articles: DocumentationContextItem[];
-  categories?: CategoryItem[];
-}
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  isRetry?: boolean;
-  validationWarning?: string;
-}
+import { 
+  AIDocumentationContext, 
+  DocumentationContextItem, 
+  CategoryItem, 
+  type ChatMessage 
+} from '@/types/ai';
 
 export interface AIAssistantState {
   messages: ChatMessage[];

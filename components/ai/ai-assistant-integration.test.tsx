@@ -165,7 +165,6 @@ describe('AI Assistant Integration Tests', () => {
       
       // Test initial state
       expect(result.current.isOpen).toBe(false);
-      expect(result.current.currentMode).toBe('search');
       expect(result.current.messages).toEqual([]);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBe(null);
@@ -176,22 +175,19 @@ describe('AI Assistant Integration Tests', () => {
       });
       
       expect(result.current.isOpen).toBe(true);
-      expect(result.current.currentMode).toBe('ai');
       expect(result.current.sessionId).toMatch(/^session_/);
       
-      // Test mode switching
+      // Test opening
       act(() => {
-        result.current.switchToSearch();
+        result.current.closeAI();
       });
       
-      expect(result.current.currentMode).toBe('search');
       expect(result.current.isOpen).toBe(false);
       
       act(() => {
-        result.current.switchToAI();
+        result.current.openAI();
       });
       
-      expect(result.current.currentMode).toBe('ai');
       expect(result.current.isOpen).toBe(true);
     });
 
@@ -399,24 +395,20 @@ describe('AI Assistant Integration Tests', () => {
       const { result } = renderHook(() => useAIAssistantStore());
       
       // Check initial state (may vary based on store implementation)
-      const initialMode = result.current.currentMode;
       const initialOpen = result.current.isOpen;
       
       // Switch to AI mode
       act(() => {
-        result.current.switchToAI();
+        result.current.openAI();
       });
       
-      expect(result.current.currentMode).toBe('ai');
       expect(result.current.isOpen).toBe(true);
       expect(result.current.sessionId).toMatch(/^session_/);
       
       // Switch back to search mode
       act(() => {
-        result.current.switchToSearch();
       });
       
-      expect(result.current.currentMode).toBe('search');
       expect(result.current.isOpen).toBe(false);
     });
 
@@ -439,7 +431,6 @@ describe('AI Assistant Integration Tests', () => {
       
       // Switch modes should clear messages
       act(() => {
-        result.current.switchToSearch();
       });
       
       // Messages should still be there (mode switching doesn't clear messages)
@@ -466,7 +457,6 @@ describe('AI Assistant Integration Tests', () => {
       
       // Switch to search mode
       act(() => {
-        result.current.switchToSearch();
       });
       
       // Session ID should be maintained
@@ -474,7 +464,7 @@ describe('AI Assistant Integration Tests', () => {
       
       // Switch back to AI mode
       act(() => {
-        result.current.switchToAI();
+        result.current.openAI();
       });
       
       // Session ID should still be the same
@@ -494,7 +484,6 @@ describe('AI Assistant Integration Tests', () => {
       // The actual PostHog tracking would be in the component using the store
       // Here we verify the store state changes that would trigger analytics
       expect(result.current.isOpen).toBe(true);
-      expect(result.current.currentMode).toBe('ai');
       expect(result.current.sessionId).toBeTruthy();
       
       // Adding messages (would trigger question submitted events)

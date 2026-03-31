@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { useAIAssistantStore, type ChatMessage } from '@/hooks/use-ai-assistant-store';
+import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
+import { AIDocumentationContext, type ChatMessage } from '@/types/ai';
 import {
   startAIGeneration,
   completeAIGeneration,
@@ -9,23 +10,6 @@ import {
   type LLMGeneration,
   type LLMTrace
 } from '@/lib/posthog-llm-tracking';
-
-interface DocumentationContextItem {
-  id: string;
-  titel: string;
-  kategorie?: string | null;
-  seiteninhalt?: string;
-}
-
-interface CategoryItem {
-  name: string;
-  articleCount?: number;
-}
-
-interface AIDocumentationContext {
-  articles: DocumentationContextItem[];
-  categories?: CategoryItem[];
-}
 
 interface AIConversationOptions {
   documentationContext?: AIDocumentationContext;
