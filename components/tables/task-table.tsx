@@ -53,19 +53,11 @@ const TableHeaderCell = ({
   onSort,
   renderSortIcon
 }: TableHeaderCellProps) => {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (sortable && sortKey && (e.key === "Enter" || e.key === " ")) {
-      e.preventDefault();
-      onSort?.(sortKey);
-    }
-  };
-
   return (
     <TableHead className={cn("dark:text-[#f3f4f6] group/header", className)}>
       {sortable && sortKey ? (
         <button
           onClick={() => onSort?.(sortKey)}
-          onKeyDown={handleKeyDown}
           type="button"
           className={cn(
             "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm w-full text-left font-semibold",

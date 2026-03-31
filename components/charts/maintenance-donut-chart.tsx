@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useReducer } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import dynamic from "next/dynamic";
 import { createClient } from "@/utils/supabase/client";
@@ -91,7 +91,7 @@ function chartReducer(state: ChartState, action: ChartAction): ChartState {
 }
 
 export function MaintenanceDonutChart() {
-  const [state, dispatch] = React.useReducer(chartReducer, {
+  const [state, dispatch] = useReducer(chartReducer, {
     data: initialData,
     loading: true,
   });
