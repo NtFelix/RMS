@@ -4,7 +4,6 @@ import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { StripePlan } from '@/types/stripe';
 import { parseStorageString } from '@/lib/stripe-server';
-import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
@@ -46,12 +45,11 @@ export async function GET() {
         position: 2,
         description: 'Mock pro plan for testing',
         metadata: { feat_units: '50', feat_storage: '10 GB' }
-      }], { headers: NO_CACHE_HEADERS });
+      }]);
     }
 
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, {
       status: 500,
-      headers: NO_CACHE_HEADERS,
     });
   }
 
@@ -135,7 +133,7 @@ export async function GET() {
       return 0;
     });
 
-    return NextResponse.json(plans, { headers: NO_CACHE_HEADERS });
+    return NextResponse.json(plans);
 
   } catch (error) {
     let errorMessage = 'An unknown error occurred while fetching plans.';
@@ -158,7 +156,6 @@ export async function GET() {
     }
     return NextResponse.json({ error: 'Failed to fetch plans from Stripe.', details: errorMessage }, {
       status: 500,
-      headers: NO_CACHE_HEADERS,
     });
   }
 }
