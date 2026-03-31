@@ -170,7 +170,7 @@ interface ApartmentTableRowProps {
   isLastRow: boolean;
   onSelect: (checked: CheckedState) => void;
   onEdit?: (apt: Apartment) => void;
-  onRefresh?: () => Promise<void>;
+  onRefresh?: () => void | Promise<void>;
   contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
 }
 
@@ -179,7 +179,9 @@ const ApartmentTableRowItem = ({ apt, index, isSelected, isLastRow, onSelect, on
     key={apt.id}
     apartment={apt}
     onEdit={() => onEdit?.(apt)}
-    onRefresh={onRefresh}
+    onRefresh={() => {
+      if (onRefresh) onRefresh();
+    }}
   >
     <TableRow
       ref={(el) => {
@@ -305,7 +307,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
   const [state, dispatch] = React.useReducer(apartmentReducer, {
     sortKey: "name",
     sortDirection: "asc",
-    internalSelectedApartments: new Set(),
+    internalSelectedApartments: new Set<string>(),
     showBulkDeleteConfirm: false,
     isBulkDeleting: false,
   });

@@ -136,7 +136,7 @@ export function TaskTable({
     isDeleting: false,
     sortKey: "aenderungsdatum",
     sortDirection: "desc",
-    internalSelectedTasks: new Set(),
+    internalSelectedTasks: new Set<string>(),
     showBulkDeleteConfirm: false,
     isBulkDeleting: false,
   });
@@ -191,15 +191,16 @@ export function TaskTable({
 
     // Apply sorting
     if (state.sortKey) {
+      const currentSortKey = state.sortKey;
       result.sort((a, b) => {
         let valA, valB
 
-        if (state.sortKey === 'erstellungsdatum' || state.sortKey === 'aenderungsdatum') {
-          valA = new Date(a[state.sortKey]).getTime()
-          valB = new Date(b[state.sortKey]).getTime()
+        if (currentSortKey === 'erstellungsdatum' || currentSortKey === 'aenderungsdatum') {
+          valA = new Date(a[currentSortKey]).getTime()
+          valB = new Date(b[currentSortKey]).getTime()
         } else {
-          valA = a[state.sortKey]
-          valB = b[state.sortKey]
+          valA = a[currentSortKey as keyof Task]
+          valB = b[currentSortKey as keyof Task]
         }
 
         if (valA === undefined || valA === null) valA = ''
