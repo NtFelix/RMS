@@ -77,13 +77,22 @@ export async function GET() {
             }
         }
 
-        return NextResponse.json({
-            setupCompleted: !!profile?.setup_completed,
-            stripeCustomerId: profile?.stripe_customer_id || null,
-            firstName,
-            lastName,
-            billingAddress,
-        });
+        return NextResponse.json(
+            {
+                setupCompleted: !!profile?.setup_completed,
+                stripeCustomerId: profile?.stripe_customer_id || null,
+                firstName,
+                lastName,
+                billingAddress,
+            },
+            {
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                },
+            }
+        );
     } catch (error) {
         console.error("Error in GET /api/user/setup:", error);
         return NextResponse.json(
@@ -187,7 +196,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        return NextResponse.json({ success: true, skipped: !!skipSetup });
+        return NextResponse.json(
+            { success: true, skipped: !!skipSetup },
+            {
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                },
+            }
+        );
     } catch (error) {
         console.error("Error in POST /api/user/setup:", error);
         return NextResponse.json(

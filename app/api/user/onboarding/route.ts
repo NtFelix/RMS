@@ -26,7 +26,16 @@ export async function POST() {
         );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(
+        { success: true },
+        {
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+            },
+        }
+    );
 }
 
 export async function GET() {
@@ -53,7 +62,16 @@ export async function GET() {
         );
     }
 
-    return NextResponse.json({
-        completed: !!data?.onboarding_completed
-    });
+    return NextResponse.json(
+        {
+            completed: !!data?.onboarding_completed
+        },
+        {
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+            },
+        }
+    );
 }
