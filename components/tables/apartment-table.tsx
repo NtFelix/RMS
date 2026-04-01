@@ -166,7 +166,7 @@ interface ApartmentTableRowProps {
   contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
 }
 
-const ApartmentTableRowItem = ({ apt, index, isSelected, isLastRow, onSelect, onEdit, onRefresh, contextMenuRefs }: ApartmentTableRowProps) => (
+const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, onSelect, onEdit, onRefresh, contextMenuRefs }: ApartmentTableRowProps) => (
   <ApartmentContextMenu
     key={apt.id}
     apartment={apt}
@@ -266,7 +266,9 @@ const ApartmentTableRowItem = ({ apt, index, isSelected, isLastRow, onSelect, on
       </TableCell>
     </TableRow>
   </ApartmentContextMenu>
-);
+));
+
+ApartmentTableRowItem.displayName = "ApartmentTableRowItem";
 
 // --- Reducer and main component ---
 
@@ -344,8 +346,10 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
         }
         if (valA === undefined || valA === null) valA = ''
         if (valB === undefined || valB === null) valB = ''
-        const numA = parseFloat(String(valA));
-        const numB = parseFloat(String(valB));
+
+        const numA = typeof valA === 'number' ? valA : parseFloat(String(valA));
+        const numB = typeof valB === 'number' ? valB : parseFloat(String(valB));
+
         if (!isNaN(numA) && !isNaN(numB)) {
           if (numA < numB) return state.sortDirection === "asc" ? -1 : 1;
           if (numA > numB) return state.sortDirection === "asc" ? 1 : -1;
@@ -364,26 +368,26 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
   const allSelected = visibleApartmentIds.length > 0 && visibleApartmentIds.every((id) => selectedApartments.has(id))
   const partiallySelected = visibleApartmentIds.some((id) => selectedApartments.has(id)) && !allSelected
 
-  const handleSelectAll = (checked: CheckedState) => {
+  const handleSelectAll = React.useCallback((checked: CheckedState) => {
     const next = new Set(selectedApartments)
     if (checked === true) visibleApartmentIds.forEach((id) => next.add(id))
     else visibleApartmentIds.forEach((id) => next.delete(id))
     setSelectedApartments(next)
-  }
+  }, [selectedApartments, visibleApartmentIds, setSelectedApartments])
 
-  const handleSelectApartment = (apartmentId: string, checked: CheckedState) => {
+  const handleSelectApartment = React.useCallback((apartmentId: string, checked: CheckedState) => {
     const next = new Set(selectedApartments)
     if (checked === true) next.add(apartmentId)
     else next.delete(apartmentId)
     setSelectedApartments(next)
-  }
+  }, [selectedApartments, setSelectedApartments])
 
-  const handleSort = (key: ApartmentSortKey) => {
+  const handleSort = React.useCallback((key: ApartmentSortKey) => {
     dispatch({ 
       type: 'SET_SORT', 
       payload: { key, direction: state.sortKey === key && state.sortDirection === "asc" ? "desc" : "asc" } 
     });
-  }
+  }, [state.sortKey, state.sortDirection])
 
   const renderSortIcon = (key: ApartmentSortKey) => {
     if (state.sortKey !== key) return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />

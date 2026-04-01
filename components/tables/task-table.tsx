@@ -199,8 +199,8 @@ export function TaskTable({
         if (valB === undefined || valB === null) valB = ''
 
         // Convert to number if it's a numeric value for proper sorting
-        const numA = parseFloat(String(valA));
-        const numB = parseFloat(String(valB));
+        const numA = typeof valA === 'number' ? valA : parseFloat(String(valA));
+        const numB = typeof valB === 'number' ? valB : parseFloat(String(valB));
 
         if (!isNaN(numA) && !isNaN(numB)) {
           if (numA < numB) return state.sortDirection === "asc" ? -1 : 1;
@@ -222,7 +222,7 @@ export function TaskTable({
   const allSelected = visibleTaskIds.length > 0 && visibleTaskIds.every((id) => selectedTasks.has(id))
   const partiallySelected = visibleTaskIds.some((id) => selectedTasks.has(id)) && !allSelected
 
-  const handleSelectAll = (checked: CheckedState) => {
+  const handleSelectAll = React.useCallback((checked: CheckedState) => {
     const isChecked = checked === true
     const next = new Set(selectedTasks)
     if (isChecked) {
@@ -231,9 +231,9 @@ export function TaskTable({
       visibleTaskIds.forEach((id) => next.delete(id))
     }
     setSelectedTasks(next)
-  }
+  }, [selectedTasks, visibleTaskIds, setSelectedTasks])
 
-  const handleSelectTask = (taskId: string, checked: CheckedState) => {
+  const handleSelectTask = React.useCallback((taskId: string, checked: CheckedState) => {
     const isChecked = checked === true
     const next = new Set(selectedTasks)
     if (isChecked) {
@@ -242,9 +242,9 @@ export function TaskTable({
       next.delete(taskId)
     }
     setSelectedTasks(next)
-  }
+  }, [selectedTasks, setSelectedTasks])
 
-  const handleSort = (key: TaskSortKey) => {
+  const handleSort = React.useCallback((key: TaskSortKey) => {
     if (state.sortKey === key) {
       dispatch({ 
         type: 'SET_SORT', 
@@ -256,7 +256,7 @@ export function TaskTable({
         payload: { key, direction: "asc" } 
       });
     }
-  }
+  }, [state.sortKey, state.sortDirection])
 
   const renderSortIcon = (key: TaskSortKey) => {
     if (state.sortKey !== key) {
