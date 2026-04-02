@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useCallback } from "react"
+import React, { useMemo, useCallback } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { useRouter } from "next/navigation"
 import { ChevronsUpDown, ArrowUp, ArrowDown, CheckSquare, FileText, Calendar, MoreVertical, X, Download, Trash2, Pencil, Check } from "lucide-react"
-import { useModalStore } from "@/hooks/use-modal-store"
 import { bulkDeleteTasksAction, toggleTaskStatusAction } from "@/app/todos-actions"
 import { TaskContextMenu } from "@/components/tasks/task-context-menu"
 import { ActionMenu } from "@/components/ui/action-menu"
@@ -33,6 +32,8 @@ interface TaskTableProps {
   onSelectionChange?: (selected: Set<string>) => void;
   onTaskUpdated?: (task: Task) => void;
 }
+
+// --- Sub-components ---
 
 interface TableHeaderCellProps {
   sortKey?: TaskSortKey;
@@ -77,6 +78,183 @@ const TableHeaderCell = ({
     </TableHead>
   );
 };
+
+interface TaskBulkActionsProps {
+  selectedCount: number;
+  onClearSelection: () => void;
+  onExport: () => void;
+  onDeleteConfirm: () => void;
+}
+
+const TaskBulkActions = ({ selectedCount, onClearSelection, onExport, onDeleteConfirm }: TaskBulkActionsProps) => (
+  <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <Checkbox
+          checked={true}
+          onCheckedChange={onClearSelection}
+          className="data-[state=checked]:bg-primary"
+        />
+        <span className="font-medium text-sm">
+          {selectedCount} {selectedCount === 1 ? 'Aufgabe' : 'Aufgaben'} ausgewählt
+        </span>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onClearSelection}
+        className="h-8 px-2 hover:bg-primary/20"
+      >
+        <X className="h-4 w-4" />
+      </Button>
+    </div>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onExport}
+        className="h-8 gap-2"
+      >
+        <Download className="h-4 w-4" />
+        Exportieren
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onDeleteConfirm}
+        className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+      >
+        <Trash2 className="h-4 w-4" />
+        Löschen
+      </Button>
+    </div>
+  </div>
+);
+
+interface TaskTableRowItemProps {
+  task: Task;
+  isSelected: boolean;
+  isLastRow: boolean;
+  onSelect: (id: string, checked: CheckedState) => void;
+  onEdit?: (task: Task) => void;
+  onToggleStatus: (task: Task) => void;
+  onRefresh: () => void;
+  contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+}
+
+const TaskTableRowItem = React.memo(({ task, isSelected, isLastRow, onSelect, onEdit, onToggleStatus, onRefresh, contextMenuRefs }: TaskTableRowItemProps) => (
+  <TaskContextMenu
+    key={task.id}
+    task={task}
+    onEdit={() => onEdit?.(task)}
+    onStatusToggle={() => onToggleStatus(task)}
+    onTaskDeleted={onRefresh}
+  >
+    <TableRow
+      ref={(el) => {
+        if (el) contextMenuRefs.current.set(task.id, el)
+        else contextMenuRefs.current.delete(task.id)
+      }}
+      className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+        ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+        }`}
+      onClick={() => onEdit?.(task)}
+    >
+      <TableCell
+        className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Checkbox
+          aria-label={`Aufgabe ${task.name} auswählen`}
+          checked={isSelected}
+          onCheckedChange={(checked) => onSelect(task.id, checked)}
+        />
+      </TableCell>
+      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>
+        <span className={task.ist_erledigt ? 'line-through text-muted-foreground' : ''}>
+          {task.name}
+        </span>
+      </TableCell>
+      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
+        <span className={task.ist_erledigt ? 'line-through text-muted-foreground' : ''}>
+          {task.beschreibung ? (
+            task.beschreibung.length > 50
+              ? `${task.beschreibung.substring(0, 50)}...`
+              : task.beschreibung
+          ) : '-'}
+        </span>
+      </TableCell>
+      <TableCell className={`py-4`}>
+        {task.ist_erledigt ? (
+          <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400">
+            Erledigt
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400">
+            Ausstehend
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className={`py-4 dark:text-[#f3f4f6] text-sm`}>
+        {format(new Date(task.erstellungsdatum), 'dd.MM.yyyy', { locale: de })}
+      </TableCell>
+      <TableCell className={`py-4 dark:text-[#f3f4f6] text-sm`}>
+        {format(new Date(task.aenderungsdatum), 'dd.MM.yyyy', { locale: de })}
+      </TableCell>
+      <TableCell
+        className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <ActionMenu
+          actions={[
+            {
+              id: `edit-${task.id}`,
+              icon: Pencil,
+              label: "Bearbeiten",
+              onClick: () => onEdit?.(task),
+              variant: 'primary',
+            },
+            {
+              id: `toggle-task-${task.id}`,
+              icon: Check,
+              label: task.ist_erledigt ? "Als ausstehend markieren" : "Als erledigt markieren",
+              onClick: () => onToggleStatus(task),
+              variant: 'default',
+            },
+            {
+              id: `more-${task.id}`,
+              icon: MoreVertical,
+              label: "Mehr Optionen",
+              onClick: (e) => {
+                if (!e) return;
+                const rowElement = contextMenuRefs.current.get(task.id)
+                if (rowElement) {
+                  const contextMenuEvent = new MouseEvent('contextmenu', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    clientX: e.clientX,
+                    clientY: e.clientY,
+                  })
+                  rowElement.dispatchEvent(contextMenuEvent)
+                }
+              },
+              variant: 'default',
+            }
+          ]}
+          shape="pill"
+          visibility="always"
+          className="inline-flex"
+        />
+      </TableCell>
+    </TableRow>
+  </TaskContextMenu>
+));
+
+TaskTableRowItem.displayName = "TaskTableRowItem";
+
+// --- Reducer and main component ---
 
 type TaskState = {
   showDeleteConfirm: boolean;
@@ -137,13 +315,13 @@ export function TaskTable({
 
   // Use external selection state if provided, otherwise use internal
   const selectedTasks = externalSelectedTasks ?? state.internalSelectedTasks
-  const setSelectedTasks = (next: Set<string>) => {
+  const setSelectedTasks = useCallback((next: Set<string>) => {
     if (onSelectionChange) {
       onSelectionChange(next);
     } else {
       dispatch({ type: 'SET_SELECTED_TASKS', payload: next });
     }
-  }
+  }, [onSelectionChange])
 
   const handleToggleStatus = useCallback(async (task: Task) => {
     const { success, error } = await toggleTaskStatusAction(task.id, !task.ist_erledigt)
@@ -222,7 +400,7 @@ export function TaskTable({
   const allSelected = visibleTaskIds.length > 0 && visibleTaskIds.every((id) => selectedTasks.has(id))
   const partiallySelected = visibleTaskIds.some((id) => selectedTasks.has(id)) && !allSelected
 
-  const handleSelectAll = React.useCallback((checked: CheckedState) => {
+  const handleSelectAll = useCallback((checked: CheckedState) => {
     const isChecked = checked === true
     const next = new Set(selectedTasks)
     if (isChecked) {
@@ -233,7 +411,7 @@ export function TaskTable({
     setSelectedTasks(next)
   }, [selectedTasks, visibleTaskIds, setSelectedTasks])
 
-  const handleSelectTask = React.useCallback((taskId: string, checked: CheckedState) => {
+  const handleSelectTask = useCallback((taskId: string, checked: CheckedState) => {
     const isChecked = checked === true
     const next = new Set(selectedTasks)
     if (isChecked) {
@@ -244,18 +422,11 @@ export function TaskTable({
     setSelectedTasks(next)
   }, [selectedTasks, setSelectedTasks])
 
-  const handleSort = React.useCallback((key: TaskSortKey) => {
-    if (state.sortKey === key) {
-      dispatch({ 
-        type: 'SET_SORT', 
-        payload: { key, direction: state.sortDirection === "asc" ? "desc" : "asc" } 
-      });
-    } else {
-      dispatch({ 
-        type: 'SET_SORT', 
-        payload: { key, direction: "asc" } 
-      });
-    }
+  const handleSort = useCallback((key: TaskSortKey) => {
+    dispatch({ 
+      type: 'SET_SORT', 
+      payload: { key, direction: state.sortKey === key && state.sortDirection === "asc" ? "desc" : "asc" } 
+    });
   }, [state.sortKey, state.sortDirection])
 
   const renderSortIcon = (key: TaskSortKey) => {
@@ -271,55 +442,31 @@ export function TaskTable({
 
   const handleBulkDelete = async () => {
     if (selectedTasks.size === 0) return;
-
     dispatch({ type: 'SET_IS_BULK_DELETING', payload: true });
     const selectedIds = Array.from(selectedTasks);
-
     try {
       const { success, deletedCount, error } = await bulkDeleteTasksAction(selectedIds);
-
       if (success && deletedCount !== undefined) {
         const failedCount = selectedIds.length - deletedCount;
-
         dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: false });
         setSelectedTasks(new Set());
-
         if (deletedCount > 0) {
-          toast({
-            title: "Erfolg",
-            description: `${deletedCount} ${deletedCount === 1 ? 'Aufgabe' : 'Aufgaben'} erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`,
-            variant: "success",
-          });
-
-          // Refresh the page to reflect the changes
+          toast({ title: "Erfolg", description: `${deletedCount} ${deletedCount === 1 ? 'Aufgabe' : 'Aufgaben'} erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`, variant: "success" });
           router.refresh();
         } else {
-          toast({
-            title: "Fehler",
-            description: "Keine Aufgaben konnten gelöscht werden.",
-            variant: "destructive",
-          });
+          toast({ title: "Fehler", description: "Keine Aufgaben konnten gelöscht werden.", variant: "destructive" });
         }
-      } else if (error) {
-        throw new Error(error.message);
-      }
+      } else if (error) throw new Error(error.message);
     } catch (error) {
-      console.error("Fehler beim Löschen der Aufgaben:", error);
-      toast({
-        title: "Fehler",
-        description: error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten.",
-        variant: "destructive",
-      });
+      toast({ title: "Fehler", description: error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten.", variant: "destructive" });
     } finally {
       dispatch({ type: 'SET_IS_BULK_DELETING', payload: false });
     }
   }
 
-  // Helper function to properly escape CSV values
   const escapeCsvValue = (value: string | null | undefined): string => {
     if (!value) return ''
     const stringValue = String(value)
-    // If the value contains comma, quote, or newline, wrap it in quotes and escape internal quotes
     if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
       return `"${stringValue.replace(/"/g, '""')}"`
     }
@@ -328,84 +475,30 @@ export function TaskTable({
 
   const handleBulkExport = () => {
     const selectedTasksData = tasks.filter(t => selectedTasks.has(t.id))
-
-    // Create CSV header
     const headers = ['Name', 'Beschreibung', 'Status', 'Erstellt', 'Geändert']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
-
-    // Create CSV rows with proper escaping
     const csvRows = selectedTasksData.map(t => {
-      const row = [
-        t.name,
-        t.beschreibung || '',
-        t.ist_erledigt ? 'Erledigt' : 'Ausstehend',
-        format(new Date(t.erstellungsdatum), 'dd.MM.yyyy', { locale: de }),
-        format(new Date(t.aenderungsdatum), 'dd.MM.yyyy', { locale: de })
-      ]
+      const row = [t.name, t.beschreibung || '', t.ist_erledigt ? 'Erledigt' : 'Ausstehend', format(new Date(t.erstellungsdatum), 'dd.MM.yyyy', { locale: de }), format(new Date(t.aenderungsdatum), 'dd.MM.yyyy', { locale: de })]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
-
     const csvContent = [csvHeader, ...csvRows].join('\n')
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = `aufgaben_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
-
-    toast({
-      title: "Export erfolgreich",
-      description: `${selectedTasks.size} Aufgaben exportiert.`,
-      variant: "success",
-    })
+    toast({ title: "Export erfolgreich", description: `${selectedTasks.size} Aufgaben exportiert.`, variant: "success" })
   }
 
   return (
     <div className="rounded-lg">
-      {/* Bulk Action Bar - only show if using internal state */}
       {!externalSelectedTasks && selectedTasks.size > 0 && (
-        <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={true}
-                onCheckedChange={() => setSelectedTasks(new Set())}
-                className="data-[state=checked]:bg-primary"
-              />
-              <span className="font-medium text-sm">
-                {selectedTasks.size} {selectedTasks.size === 1 ? 'Aufgabe' : 'Aufgaben'} ausgewählt
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedTasks(new Set())}
-              className="h-8 px-2 hover:bg-primary/20"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBulkExport}
-              className="h-8 gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Exportieren
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: true })}
-              className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-            >
-              <Trash2 className="h-4 w-4" />
-              Löschen
-            </Button>
-          </div>
-        </div>
+        <TaskBulkActions
+          selectedCount={selectedTasks.size}
+          onClearSelection={() => setSelectedTasks(new Set())}
+          onExport={handleBulkExport}
+          onDeleteConfirm={() => dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: true })}
+        />
       )}
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="inline-block min-w-full align-middle">
@@ -422,187 +515,31 @@ export function TaskTable({
                     />
                   </div>
                 </TableHead>
-                <TableHeaderCell 
-                  sortKey="name" 
-                  className="w-[250px]" 
-                  icon={FileText}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Name
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  sortKey="beschreibung" 
-                  icon={FileText}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Beschreibung
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  sortKey="ist_erledigt" 
-                  className="w-[120px]" 
-                  icon={CheckSquare}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Status
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  sortKey="erstellungsdatum" 
-                  className="w-[130px]" 
-                  icon={Calendar}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Erstellt
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  sortKey="aenderungsdatum" 
-                  className="w-[130px]" 
-                  icon={Calendar}
-                  onSort={handleSort}
-                  renderSortIcon={renderSortIcon}
-                >
-                  Geändert
-                </TableHeaderCell>
-                <TableHeaderCell 
-                  className="w-[80px] pr-2" 
-                  icon={Pencil} 
-                  sortable={false}
-                >
-                  Aktionen
-                </TableHeaderCell>
+                <TableHeaderCell sortKey="name" className="w-[250px]" icon={FileText} onSort={handleSort} renderSortIcon={renderSortIcon}>Name</TableHeaderCell>
+                <TableHeaderCell sortKey="beschreibung" icon={FileText} onSort={handleSort} renderSortIcon={renderSortIcon}>Beschreibung</TableHeaderCell>
+                <TableHeaderCell sortKey="ist_erledigt" className="w-[120px]" icon={CheckSquare} onSort={handleSort} renderSortIcon={renderSortIcon}>Status</TableHeaderCell>
+                <TableHeaderCell sortKey="erstellungsdatum" className="w-[130px]" icon={Calendar} onSort={handleSort} renderSortIcon={renderSortIcon}>Erstellt</TableHeaderCell>
+                <TableHeaderCell sortKey="aenderungsdatum" className="w-[130px]" icon={Calendar} onSort={handleSort} renderSortIcon={renderSortIcon}>Geändert</TableHeaderCell>
+                <TableHeaderCell className="w-[80px] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedAndFilteredData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    Keine Aufgaben gefunden.
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={7} className="h-24 text-center">Keine Aufgaben gefunden.</TableCell></TableRow>
               ) : (
-                sortedAndFilteredData.map((task, index) => {
-                  const isLastRow = index === sortedAndFilteredData.length - 1
-                  const isSelected = selectedTasks.has(task.id)
-
-
-
-                  return (
-                    <TaskContextMenu
-                      key={task.id}
-                      task={task}
-                      onEdit={() => onEdit?.(task)}
-                      onStatusToggle={() => handleToggleStatus(task)}
-                      onTaskDeleted={() => router.refresh()}
-                    >
-                      <TableRow
-                        key={task.id}
-                        ref={(el) => {
-                          if (el) {
-                            contextMenuRefs.current.set(task.id, el)
-                          } else {
-                            contextMenuRefs.current.delete(task.id)
-                          }
-                        }}
-                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
-                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                          }`}
-                        onClick={() => onEdit?.(task)}
-                      >
-                        <TableCell
-                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <Checkbox
-                            aria-label={`Aufgabe ${task.name} auswählen`}
-                            checked={selectedTasks.has(task.id)}
-                            onCheckedChange={(checked) => handleSelectTask(task.id, checked)}
-                          />
-                        </TableCell>
-                        <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>
-                          <span className={task.ist_erledigt ? 'line-through text-muted-foreground' : ''}>
-                            {task.name}
-                          </span>
-                        </TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
-                          <span className={task.ist_erledigt ? 'line-through text-muted-foreground' : ''}>
-                            {task.beschreibung ? (
-                              task.beschreibung.length > 50
-                                ? `${task.beschreibung.substring(0, 50)}...`
-                                : task.beschreibung
-                            ) : '-'}
-                          </span>
-                        </TableCell>
-                        <TableCell className={`py-4`}>
-                          {task.ist_erledigt ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400">
-                              Erledigt
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400">
-                              Ausstehend
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6] text-sm`}>
-                          {format(new Date(task.erstellungsdatum), 'dd.MM.yyyy', { locale: de })}
-                        </TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6] text-sm`}>
-                          {format(new Date(task.aenderungsdatum), 'dd.MM.yyyy', { locale: de })}
-                        </TableCell>
-                        <TableCell
-                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <ActionMenu
-                            actions={[
-                              {
-                                id: `edit-${task.id}`,
-                                icon: Pencil,
-                                label: "Bearbeiten",
-                                onClick: () => onEdit?.(task),
-                                variant: 'primary',
-                              },
-                              {
-                                id: `toggle-task-${task.id}`,
-                                icon: Check,
-                                label: task.ist_erledigt ? "Als ausstehend markieren" : "Als erledigt markieren",
-                                onClick: () => handleToggleStatus(task),
-                                variant: 'default',
-                              },
-                              {
-                                id: `more-${task.id}`,
-                                icon: MoreVertical,
-                                label: "Mehr Optionen",
-                                onClick: (e) => {
-                                  if (!e) return;
-                                  const rowElement = contextMenuRefs.current.get(task.id)
-                                  if (rowElement) {
-                                    const contextMenuEvent = new MouseEvent('contextmenu', {
-                                      bubbles: true,
-                                      cancelable: true,
-                                      view: window,
-                                      clientX: e.clientX,
-                                      clientY: e.clientY,
-                                    })
-                                    rowElement.dispatchEvent(contextMenuEvent)
-                                  }
-                                },
-                                variant: 'default',
-                              }
-                            ]}
-                            shape="pill"
-                            visibility="always"
-                            className="inline-flex"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    </TaskContextMenu>
-                  )
-                })
+                sortedAndFilteredData.map((task, index) => (
+                  <TaskTableRowItem
+                    key={task.id}
+                    task={task}
+                    isSelected={selectedTasks.has(task.id)}
+                    isLastRow={index === sortedAndFilteredData.length - 1}
+                    onSelect={handleSelectTask}
+                    onEdit={onEdit}
+                    onToggleStatus={handleToggleStatus}
+                    onRefresh={() => router.refresh()}
+                    contextMenuRefs={contextMenuRefs}
+                  />
+                ))
               )}
             </TableBody>
           </Table>
@@ -613,9 +550,7 @@ export function TaskTable({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mehrere Aufgaben löschen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Möchten Sie wirklich {selectedTasks.size} Aufgaben löschen? Diese Aktion kann nicht rückgängig gemacht werden.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Möchten Sie wirklich {selectedTasks.size} Aufgaben löschen? Diese Aktion kann nicht rückgängig gemacht werden.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={state.isBulkDeleting}>Abbrechen</AlertDialogCancel>

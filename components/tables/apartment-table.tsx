@@ -160,7 +160,7 @@ interface ApartmentTableRowProps {
   index: number;
   isSelected: boolean;
   isLastRow: boolean;
-  onSelect: (checked: CheckedState) => void;
+  onSelect: (id: string, checked: CheckedState) => void;
   onEdit?: (apt: Apartment) => void;
   onRefresh?: () => void | Promise<void>;
   contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
@@ -193,7 +193,7 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
         <Checkbox
           aria-label={`Wohnung ${apt.name} auswählen`}
           checked={isSelected}
-          onCheckedChange={onSelect}
+          onCheckedChange={(checked) => onSelect(apt.id, checked)}
         />
       </TableCell>
       <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{apt.name}</TableCell>
@@ -309,10 +309,10 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
   const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
 
   const selectedApartments = externalSelectedApartments ?? state.internalSelectedApartments
-  const setSelectedApartments = (next: Set<string>) => {
+  const setSelectedApartments = React.useCallback((next: Set<string>) => {
     if (onSelectionChange) onSelectionChange(next);
     else dispatch({ type: 'SET_SELECTED_APARTMENTS', payload: next });
-  }
+  }, [onSelectionChange])
 
   const sortedAndFilteredData = useMemo(() => {
     let result = [...(initialApartments ?? [])]
@@ -497,7 +497,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                     index={index}
                     isSelected={selectedApartments.has(apt.id)}
                     isLastRow={index === sortedAndFilteredData.length - 1}
-                    onSelect={(checked) => handleSelectApartment(apt.id, checked)}
+                    onSelect={handleSelectApartment}
                     onEdit={onEdit}
                     onRefresh={onTableRefresh}
                     contextMenuRefs={contextMenuRefs}
