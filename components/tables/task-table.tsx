@@ -257,9 +257,6 @@ TaskTableRowItem.displayName = "TaskTableRowItem";
 // --- Reducer and main component ---
 
 type TaskState = {
-  showDeleteConfirm: boolean;
-  taskToDelete: Task | null;
-  isDeleting: boolean;
   sortKey: TaskSortKey;
   sortDirection: SortDirection;
   internalSelectedTasks: Set<string>;
@@ -268,9 +265,6 @@ type TaskState = {
 };
 
 type TaskAction =
-  | { type: 'SET_DELETE_CONFIRM'; payload: boolean }
-  | { type: 'SET_TASK_TO_DELETE'; payload: Task | null }
-  | { type: 'SET_IS_DELETING'; payload: boolean }
   | { type: 'SET_SORT'; payload: { key: TaskSortKey; direction: SortDirection } }
   | { type: 'SET_SELECTED_TASKS'; payload: Set<string> }
   | { type: 'SET_BULK_DELETE_CONFIRM'; payload: boolean }
@@ -278,9 +272,6 @@ type TaskAction =
 
 function taskReducer(state: TaskState, action: TaskAction): TaskState {
   switch (action.type) {
-    case 'SET_DELETE_CONFIRM': return { ...state, showDeleteConfirm: action.payload };
-    case 'SET_TASK_TO_DELETE': return { ...state, taskToDelete: action.payload };
-    case 'SET_IS_DELETING': return { ...state, isDeleting: action.payload };
     case 'SET_SORT': return { ...state, sortKey: action.payload.key, sortDirection: action.payload.direction };
     case 'SET_SELECTED_TASKS': return { ...state, internalSelectedTasks: action.payload };
     case 'SET_BULK_DELETE_CONFIRM': return { ...state, showBulkDeleteConfirm: action.payload };
@@ -301,9 +292,6 @@ export function TaskTable({
 }: TaskTableProps) {
   const router = useRouter()
   const [state, dispatch] = React.useReducer(taskReducer, {
-    showDeleteConfirm: false,
-    taskToDelete: null,
-    isDeleting: false,
     sortKey: "aenderungsdatum",
     sortDirection: "desc",
     internalSelectedTasks: new Set<string>(),
@@ -536,7 +524,7 @@ export function TaskTable({
                     onSelect={handleSelectTask}
                     onEdit={onEdit}
                     onToggleStatus={handleToggleStatus}
-                    onRefresh={() => router.refresh()}
+                    onRefresh={router.refresh}
                     contextMenuRefs={contextMenuRefs}
                   />
                 ))
