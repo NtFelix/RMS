@@ -98,14 +98,14 @@ export function SummaryCard({
   valueFormatter = (val) => typeof val === "number" ? formatCurrency(val) : (val?.toString() ?? ""),
   description,
 }: SummaryCardProps) {
-  if (isLoading) {
-    return <SummaryCardSkeleton className={className} />;
-  }
-
   const formatHoverValue = useCallback((num: number) => {
     if (hoverDetails?.isCurrency) return formatCurrency(num);
     return valueFormatter ? valueFormatter(num) : num.toString();
   }, [hoverDetails?.isCurrency, valueFormatter]);
+
+  if (isLoading) {
+    return <SummaryCardSkeleton className={className} />;
+  }
 
   return (
     <CardWrapper hoverDetails={hoverDetails} title={title} formatHoverValue={formatHoverValue}>

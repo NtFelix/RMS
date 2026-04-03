@@ -1,8 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useReducer } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, PieLabelRenderProps } from "recharts";
+import dynamic from "next/dynamic";
 import { createClient } from "@/utils/supabase/client";
+
+// Dynamically import Recharts components to reduce bundle size
+const PieChart = dynamic(() => import("recharts").then((mod) => mod.PieChart), { ssr: false });
+const Pie = dynamic(() => import("recharts").then((mod) => mod.Pie), { ssr: false });
+const Cell = dynamic(() => import("recharts").then((mod) => mod.Cell), { ssr: false });
+const Legend = dynamic(() => import("recharts").then((mod) => mod.Legend), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.ResponsiveContainer), { ssr: false });
 
 type FinanzDaten = {
   id: string;
@@ -62,9 +70,31 @@ const CustomTooltip = ({ active, payload }: TooltipProps) => {
   return null;
 };
 
+type ChartState = {
+  data: MaintenanceData[];
+  loading: boolean;
+};
+
+type ChartAction =
+  | { type: 'FETCH_SUCCESS'; payload: MaintenanceData[] }
+  | { type: 'FETCH_ERROR' };
+
+function chartReducer(state: ChartState, action: ChartAction): ChartState {
+  switch (action.type) {
+    case 'FETCH_SUCCESS':
+      return { data: action.payload, loading: false };
+    case 'FETCH_ERROR':
+      return { ...state, loading: false };
+    default:
+      return state;
+  }
+}
+
 export function MaintenanceDonutChart() {
-  const [maintenanceData, setMaintenanceData] = useState<MaintenanceData[]>(initialData);
-  const [loading, setLoading] = useState(true);
+  const [state, dispatch] = useReducer(chartReducer, {
+    data: initialData,
+    loading: true,
+  });
 
   useEffect(() => {
     const fetchMaintenanceData = async () => {
@@ -87,7 +117,7 @@ export function MaintenanceDonutChart() {
 
           if (error) {
             console.error("Error fetching maintenance data:", error);
-            setLoading(false);
+            dispatch({ type: 'FETCH_ERROR' });
             return;
           }
 
@@ -136,13 +166,13 @@ export function MaintenanceDonutChart() {
         // Only show categories with values > 0
         const filteredData = formattedData.filter(item => item.value > 0);
         
-        setMaintenanceData(filteredData.length > 0 ? filteredData : [
-          { name: "Keine Daten", value: 1 }
-        ]);
+        dispatch({
+          type: 'FETCH_SUCCESS',
+          payload: filteredData.length > 0 ? filteredData : [{ name: "Keine Daten", value: 1 }]
+        });
       } catch (error) {
         console.error("Error processing maintenance data:", error);
-      } finally {
-        setLoading(false);
+        dispatch({ type: 'FETCH_ERROR' });
       }
     };
 
@@ -156,7 +186,7 @@ export function MaintenanceDonutChart() {
         <CardDescription>Verteilung der Betriebskosten</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-2 min-h-0">
-        {loading ? (
+        {state.loading ? (
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
           </div>
@@ -164,7 +194,7 @@ export function MaintenanceDonutChart() {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={maintenanceData}
+                data={state.data}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
@@ -174,8 +204,8 @@ export function MaintenanceDonutChart() {
                 fill="#8884d8"
                 paddingAngle={2}
               >
-                {maintenanceData.map((entry, idx) => (
-                  <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                {state.data.map((entry, idx) => (
+                  <Cell key={`cell-${entry.name}`} fill={COLORS[idx % COLORS.length]} />
                 ))}
               </Pie>
               <Legend wrapperStyle={{ fontSize: 10 }} />
