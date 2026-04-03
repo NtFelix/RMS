@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 // GET todos
 export async function GET(request: NextRequest) {
@@ -14,12 +15,12 @@ export async function GET(request: NextRequest) {
     
     if (error) throw error
     
-    return NextResponse.json(data)
+    return NextResponse.json(data, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error("Error fetching todos:", error)
     return NextResponse.json(
       { error: "Fehler beim Laden der Aufgaben" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     if (!name || !beschreibung) {
       return NextResponse.json(
         { error: "Name und Beschreibung sind erforderlich" },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       )
     }
     
@@ -52,12 +53,12 @@ export async function POST(request: NextRequest) {
     
     if (error) throw error
     
-    return NextResponse.json(data[0])
+    return NextResponse.json(data[0], { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error("Error creating todo:", error)
     return NextResponse.json(
       { error: "Fehler beim Erstellen der Aufgabe" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }
@@ -73,7 +74,7 @@ export async function PATCH(request: NextRequest) {
     if (!id) {
       return NextResponse.json(
         { error: "ID ist erforderlich" },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       )
     }
     
@@ -88,12 +89,12 @@ export async function PATCH(request: NextRequest) {
     
     if (error) throw error
     
-    return NextResponse.json(data[0])
+    return NextResponse.json(data[0], { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error("Error updating todo:", error)
     return NextResponse.json(
       { error: "Fehler beim Aktualisieren der Aufgabe" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }

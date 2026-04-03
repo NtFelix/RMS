@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 export const runtime = 'edge';
 
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     const baseUrl = new URL(request.url).origin;
 
     if (!authorizationId) {
-        return NextResponse.json({ error: 'Missing authorization_id' }, { status: 400 });
+        return NextResponse.json({ error: 'Missing authorization_id' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     if (!supabaseUrl || !anonKey) {
         console.error('Missing Supabase environment variables');
-        return NextResponse.json({ error: 'Configuration error' }, { status: 500 });
+        return NextResponse.json({ error: 'Configuration error' }, { status: 500, headers: NO_CACHE_HEADERS });
     }
 
     try {

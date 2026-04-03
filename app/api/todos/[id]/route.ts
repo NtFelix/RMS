@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 // GET specific todo by ID
 export async function GET(
@@ -20,12 +21,12 @@ export async function GET(
     
     if (error) throw error
     
-    return NextResponse.json(data)
+    return NextResponse.json(data, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error("Error fetching todo:", error)
     return NextResponse.json(
       { error: "Fehler beim Laden der Aufgabe" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }
@@ -45,7 +46,7 @@ export async function PUT(
     if (!name || !beschreibung) {
       return NextResponse.json(
         { error: "Name und Beschreibung sind erforderlich" },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       )
     }
     
@@ -62,12 +63,12 @@ export async function PUT(
     
     if (error) throw error
     
-    return NextResponse.json(data[0])
+    return NextResponse.json(data[0], { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error("Error updating todo:", error)
     return NextResponse.json(
       { error: "Fehler beim Aktualisieren der Aufgabe" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }
@@ -89,12 +90,12 @@ export async function DELETE(
     
     if (error) throw error
     
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error("Error deleting todo:", error)
     return NextResponse.json(
       { error: "Fehler beim Löschen der Aufgabe" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }
