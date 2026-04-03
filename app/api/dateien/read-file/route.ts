@@ -59,10 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Return with cache-busting headers
     return NextResponse.json({ content }, {
-      headers: {
-        ...NO_CACHE_HEADERS,
-        'ETag': `"${Date.now()}-${content.length}"` // Unique ETag based on timestamp and content
-      }
+      headers: NO_CACHE_HEADERS
     })
   } catch (error) {
     console.error('Error reading file:', error)
