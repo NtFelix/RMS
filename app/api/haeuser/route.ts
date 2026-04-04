@@ -2,23 +2,36 @@ export const runtime = 'edge';
 import { NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
 import { formatNumber } from "@/utils/format"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
     const { name, strasse, ort } = await request.json()
     if (!name || !strasse || !ort) {
-      return NextResponse.json({ error: "Alle Felder (Name, Straße, Ort) sind erforderlich." }, { status: 400 })
+      return NextResponse.json({ error: "Alle Felder (Name, Straße, Ort) sind erforderlich." }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      })
     }
     const { data, error } = await supabase.from('Haeuser').insert({ name, strasse, ort })
     if (error) {
       console.error("Supabase Insert Error:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      })
     }
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(data, { 
+      status: 201,
+      headers: NO_CACHE_HEADERS
+    })
   } catch (e) {
     console.error("POST /api/haeuser error:", e)
-    return NextResponse.json({ error: "Serverfehler beim Speichern des Hauses." }, { status: 500 })
+    return NextResponse.json({ error: "Serverfehler beim Speichern des Hauses." }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    })
   }
 }
 
@@ -27,7 +40,10 @@ export async function GET() {
   const { data: houses, error: housesError } = await supabase.from('Haeuser').select("*")
   
   if (housesError) {
-    return NextResponse.json({ error: housesError.message }, { status: 500 })
+    return NextResponse.json({ error: housesError.message }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    })
   }
   
   // Get apartments with their related houses
@@ -36,7 +52,10 @@ export async function GET() {
     .select('id, name, groesse, miete, haus_id')
   
   if (aptsError) {
-    return NextResponse.json({ error: aptsError.message }, { status: 500 })
+    return NextResponse.json({ error: aptsError.message }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    })
   }
   
   // Get tenants to check apartment occupancy
@@ -45,7 +64,10 @@ export async function GET() {
     .select('id, wohnung_id, auszug')
   
   if (tenantsError) {
-    return NextResponse.json({ error: tenantsError.message }, { status: 500 })
+    return NextResponse.json({ error: tenantsError.message }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    })
   }
 
   // Calculate statistics for each house
@@ -88,7 +110,10 @@ export async function GET() {
     return house
   })
   
-  return NextResponse.json(enrichedHouses, { status: 200 })
+  return NextResponse.json(enrichedHouses, { 
+    status: 200,
+    headers: NO_CACHE_HEADERS
+  })
 }
 
 export async function DELETE(request: Request) {
@@ -98,20 +123,32 @@ export async function DELETE(request: Request) {
     const id = searchParams.get("id")
 
     if (!id) {
-      return NextResponse.json({ error: "Haus-ID ist erforderlich." }, { status: 400 })
+      return NextResponse.json({ error: "Haus-ID ist erforderlich." }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      })
     }
 
     const { error } = await supabase.from('Haeuser').delete().match({ id })
 
     if (error) {
       console.error("Supabase Delete Error:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      })
     }
 
-    return NextResponse.json({ message: "Haus erfolgreich gelöscht." }, { status: 200 })
+    return NextResponse.json({ message: "Haus erfolgreich gelöscht." }, { 
+      status: 200,
+      headers: NO_CACHE_HEADERS
+    })
   } catch (e) {
     console.error("DELETE /api/haeuser error:", e)
-    return NextResponse.json({ error: "Serverfehler beim Löschen des Hauses." }, { status: 500 })
+    return NextResponse.json({ error: "Serverfehler beim Löschen des Hauses." }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    })
   }
 }
 
@@ -123,10 +160,16 @@ export async function PUT(request: Request) {
     const { name, strasse, ort } = await request.json()
 
     if (!id) {
-      return NextResponse.json({ error: "Haus-ID ist erforderlich." }, { status: 400 })
+      return NextResponse.json({ error: "Haus-ID ist erforderlich." }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      })
     }
     if (!name || !strasse || !ort) {
-      return NextResponse.json({ error: "Alle Felder (Name, Straße, Ort) sind erforderlich." }, { status: 400 })
+      return NextResponse.json({ error: "Alle Felder (Name, Straße, Ort) sind erforderlich." }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      })
     }
 
     const { data, error } = await supabase
@@ -137,16 +180,28 @@ export async function PUT(request: Request) {
 
     if (error) {
       console.error("Supabase Update Error:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      })
     }
 
     if (!data || data.length === 0) {
-        return NextResponse.json({ error: "Haus nicht gefunden oder Update fehlgeschlagen." }, { status: 404 })
+        return NextResponse.json({ error: "Haus nicht gefunden oder Update fehlgeschlagen." }, { 
+          status: 404,
+          headers: NO_CACHE_HEADERS
+        })
     }
 
-    return NextResponse.json(data[0], { status: 200 })
+    return NextResponse.json(data[0], { 
+      status: 200,
+      headers: NO_CACHE_HEADERS
+    })
   } catch (e) {
     console.error("PUT /api/haeuser error:", e)
-    return NextResponse.json({ error: "Serverfehler beim Aktualisieren des Hauses." }, { status: 500 })
+    return NextResponse.json({ error: "Serverfehler beim Aktualisieren des Hauses." }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    })
   }
 }

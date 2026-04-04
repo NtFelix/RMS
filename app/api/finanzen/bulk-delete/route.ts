@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export const runtime = 'edge';
 
@@ -12,7 +13,7 @@ export async function POST(
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
         { error: 'Keine gültigen IDs zum Löschen übergeben.' }, 
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -28,20 +29,20 @@ export async function POST(
       console.error('Bulk delete error:', error);
       return NextResponse.json(
         { error: 'Fehler beim Löschen der Transaktionen' }, 
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
     
     return NextResponse.json(
       { success: true, count: ids.length }, 
-      { status: 200 }
+      { status: 200, headers: NO_CACHE_HEADERS }
     );
     
   } catch (e) {
     console.error('Server error during bulk delete:', e);
     return NextResponse.json(
       { error: 'Serverfehler beim Massenlöschen von Transaktionen' }, 
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
   }
 }

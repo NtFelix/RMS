@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
@@ -23,7 +24,10 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return NextResponse.json(
         { error: 'User ID is required' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -35,25 +39,31 @@ export async function GET(request: NextRequest) {
     if (authError || !user || user.id !== userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
-        { status: 401 }
+        {
+          status: 401,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
     if (path) {
       // Load children for a specific path
       const children = await loadFolderChildren(supabase, userId, path)
-      return NextResponse.json({ children })
+      return NextResponse.json({ children }, { headers: NO_CACHE_HEADERS })
     } else {
       // Load root tree structure
       const tree = await loadRootTree(supabase, userId)
-      return NextResponse.json({ tree })
+      return NextResponse.json({ tree }, { headers: NO_CACHE_HEADERS })
     }
 
   } catch (error) {
     console.error('Unexpected error loading folder tree:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: NO_CACHE_HEADERS,
+      }
     )
   }
 }

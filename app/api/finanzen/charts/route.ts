@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { createClient } from "../../../../utils/supabase/server";
 import { NextResponse } from "next/server";
 import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 // Type definitions for the financial data structure
 interface WohnungData {
@@ -108,7 +109,7 @@ export async function GET(request: Request) {
       
     if (error) {
       console.error('GET /api/finanzen/charts error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 500, headers: NO_CACHE_HEADERS });
     }
 
     // Process data for charts
@@ -204,9 +205,9 @@ export async function GET(request: Request) {
       monthlyData
     };
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
     console.error('Server error GET /api/finanzen/charts:', e);
-    return NextResponse.json({ error: 'Serverfehler bei Chart-Daten.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler bei Chart-Daten.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
