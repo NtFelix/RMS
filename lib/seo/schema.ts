@@ -133,14 +133,6 @@ export function getWebsiteSchema() {
             url: BASE_URL,
             logo: FAVICON_URL,
         },
-        potentialAction: {
-            '@type': 'SearchAction',
-            target: {
-                '@type': 'EntryPoint',
-                urlTemplate: `${BASE_URL}/hilfe/dokumentation?search={search_term_string}`,
-            },
-            'query-input': 'required name=search_term_string',
-        },
     }
 }
 

@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!); // Moved inside POST
 
@@ -11,11 +12,17 @@ export async function POST(req: Request) {
     const { sessionId } = await req.json();
 
     if (!sessionId) {
-      return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Session ID is required' }, {
+        status: 400,
+        headers: NO_CACHE_HEADERS,
+      });
     }
 
     if (typeof sessionId !== 'string') {
-      return NextResponse.json({ error: 'Invalid Session ID format' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid Session ID format' }, {
+        status: 400,
+        headers: NO_CACHE_HEADERS,
+      });
     }
 
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
@@ -23,7 +30,10 @@ export async function POST(req: Request) {
     });
 
     if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Session not found' }, {
+        status: 404,
+        headers: NO_CACHE_HEADERS,
+      });
     }
 
     // Successfully retrieved the session
@@ -34,17 +44,26 @@ export async function POST(req: Request) {
       // You can add more details here if needed, for example:
       // line_items: session.line_items,
       // subscription: session.subscription (if it's a subscription session)
-    });
+    }, { headers: NO_CACHE_HEADERS });
 
   } catch (error) {
     console.error('Error verifying Stripe session:', error);
     if (error instanceof Stripe.errors.StripeError) {
       // Handle Stripe-specific errors
-      return NextResponse.json({ error: error.message }, { status: error.statusCode || 500 });
+      return NextResponse.json({ error: error.message }, {
+        status: error.statusCode || 500,
+        headers: NO_CACHE_HEADERS,
+      });
     } else if (error instanceof Error) {
       // Handle generic errors
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, {
+        status: 500,
+        headers: NO_CACHE_HEADERS,
+      });
     }
-    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
+    return NextResponse.json({ error: 'An unknown error occurred' }, {
+      status: 500,
+      headers: NO_CACHE_HEADERS,
+    });
   }
 }

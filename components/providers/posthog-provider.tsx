@@ -181,13 +181,10 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
         isAuthenticated = false;
       }
 
-      const isDocPage = pathname.startsWith('/dokumentation');
-
       posthog.capture('$pageview', {
         $current_url: url,
         user_type: isAuthenticated ? 'authenticated' : 'anonymous',
         is_anonymous: !isAuthenticated,
-        page_type: isDocPage ? 'documentation' : 'other'
       });
     };
 

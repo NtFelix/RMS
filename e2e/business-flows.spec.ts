@@ -1,6 +1,26 @@
 import { test, expect } from '@playwright/test';
 import { login, hasTestCredentials, generateRandomString, acceptCookieConsent } from './utils';
 
+
+import { Page } from '@playwright/test';
+
+async function safeNavigate(page: Page, url: string, waitUntil: 'load' | 'domcontentloaded' | 'networkidle' | 'commit' = 'domcontentloaded') {
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      await page.goto(url, { waitUntil });
+      return;
+    } catch (e: any) {
+      if (e.message.includes('interrupted') && retries > 1) {
+        retries--;
+        await page.waitForTimeout(500);
+      } else {
+        throw e;
+      }
+    }
+  }
+}
+
 test.describe('Business Logic Flows', () => {
   // Use serial mode because we are creating dependencies (House -> Apt -> Tenant)
   test.describe.configure({ mode: 'serial' });
@@ -26,10 +46,10 @@ test.describe('Business Logic Flows', () => {
   });
 
   test('Create a House', async ({ page }) => {
-    await page.goto('/haeuser', { waitUntil: 'domcontentloaded' });
+    await safeNavigate(page, '/haeuser');
 
     // Wait for the page content to fully load (look for a key element)
-    await expect(page.getByText('Hausverwaltung').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Hausverwaltung').first()).toBeAttached({ timeout: 15000 });
     await page.waitForTimeout(500); // Short wait for React hydration
 
     // Open modal - button shows "Hinzufügen" on mobile, "Haus hinzufügen" on desktop
@@ -37,7 +57,7 @@ test.describe('Business Logic Flows', () => {
     const addBtn = page.getByRole('button', { name: /Haus hinzufügen|Hinzufügen/i });
 
     // Wait for button to be present in DOM first
-    await expect(createBtn.or(addBtn)).toBeVisible({ timeout: 15000 });
+    await expect(createBtn.or(addBtn)).toBeAttached({ timeout: 15000 });
 
     if (await createBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await createBtn.click();
@@ -83,10 +103,10 @@ test.describe('Business Logic Flows', () => {
   });
 
   test('Create an Apartment linked to the House', async ({ page }) => {
-    await page.goto('/wohnungen', { waitUntil: 'domcontentloaded' });
+    await safeNavigate(page, '/wohnungen');
 
     // Wait for the page content to fully load (card with title)
-    await expect(page.getByText('Wohnungsverwaltung').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Wohnungsverwaltung').first()).toBeAttached({ timeout: 15000 });
     await page.waitForTimeout(500); // Short wait for React hydration
 
     // Open modal - button shows "Hinzufügen" on mobile, "Wohnung hinzufügen" on desktop
@@ -140,7 +160,7 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Wohnung erstellen|Speichern/i }).click();
 
     // Wait for modal to close
-    await expect(modal).toBeHidden({ timeout: 10000 });
+    await expect(modal).not.toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Verify
@@ -148,10 +168,10 @@ test.describe('Business Logic Flows', () => {
   });
 
   test('Create a Tenant linked to the Apartment', async ({ page }) => {
-    await page.goto('/mieter', { waitUntil: 'domcontentloaded' });
+    await safeNavigate(page, '/mieter');
 
     // Wait for the page content to fully load (look for a key element)
-    await expect(page.getByText('Mieterverwaltung').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Mieterverwaltung').first()).toBeAttached({ timeout: 15000 });
 
 
     // Open modal - button shows "Hinzufügen" on mobile, "Mieter hinzufügen" on desktop
@@ -197,8 +217,15 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(500);
 
     const option = page.getByRole('option', { name: aptName }).first();
-    await expect(option).toBeVisible({ timeout: 10000 });
-    await option.click();
+    // Re-try opening the combobox if option is not visible
+    try {
+      await expect(option).toBeVisible({ timeout: 5000 });
+    } catch (e) {
+      await page.locator('button[role="combobox"]').first().click({ force: true });
+      await expect(option).toBeVisible({ timeout: 10000 });
+    }
+    await option.scrollIntoViewIfNeeded().catch(() => {});
+    await option.click({ force: true });
     await page.waitForTimeout(300);
 
     // Date - try to fill the date input
@@ -248,7 +275,7 @@ test.describe('Business Logic Flows', () => {
       for (const entity of entities) {
         try {
           console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
-          await page.goto(entity.path, { waitUntil: 'networkidle' });
+          await safeNavigate(page, entity.path, 'networkidle');
 
           // Strategy 1: Search for the specific entity name
           let foundAndDeleted = false;

@@ -3,10 +3,11 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/utils/supabase/server';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 export async function GET() {
   if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
+    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
@@ -16,7 +17,7 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401, headers: NO_CACHE_HEADERS });
     }
 
     // Get user profile to find customer ID
@@ -27,7 +28,7 @@ export async function GET() {
       .single();
 
     if (profileError || !profile?.stripe_customer_id) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Customer not found' }, { status: 404, headers: NO_CACHE_HEADERS });
     }
 
     // Fetch payment methods from Stripe
@@ -52,7 +53,7 @@ export async function GET() {
 
     return NextResponse.json({
       payment_methods: transformedPaymentMethods,
-    });
+    }, { headers: NO_CACHE_HEADERS });
 
   } catch (error) {
     console.error('Error fetching payment methods:', error);
@@ -60,6 +61,6 @@ export async function GET() {
       ? error.message 
       : 'Failed to fetch payment methods';
     
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

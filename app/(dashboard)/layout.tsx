@@ -1,6 +1,7 @@
 import { headers } from "next/headers"
 import { CSPNonceSync } from "@/components/providers/csp-nonce-sync"
 import DashboardInnerLayout from "./layout-inner"
+import { requireActiveSubscription } from "@/lib/server/route-access"
 
 // Cloudflare Pages requires dynamic routes to be marked as edge
 export const runtime = 'edge'
@@ -10,6 +11,8 @@ export default async function DashboardRootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  await requireActiveSubscription()
+
   const nonce = (await headers()).get('x-nonce')
 
   return (

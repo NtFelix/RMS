@@ -48,7 +48,9 @@ export async function GET() {
       }]);
     }
 
-    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
+    return NextResponse.json({ error: 'Stripe secret key not configured.' }, {
+      status: 500,
+    });
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
@@ -152,6 +154,8 @@ export async function GET() {
     } else {
       console.error('Unknown error object when fetching plans:', error);
     }
-    return NextResponse.json({ error: 'Failed to fetch plans from Stripe.', details: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch plans from Stripe.', details: errorMessage }, {
+      status: 500,
+    });
   }
 }

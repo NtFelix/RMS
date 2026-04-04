@@ -5,6 +5,7 @@ import { Tenant, KautionData } from '@/types/Tenant';
 import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
 import { TenantBentoItem } from '@/types/tenant-payment';
+import { AIDocumentationContext } from '@/types/ai';
 
 // Overview Modal Types
 interface HausWithWohnungen {
@@ -112,13 +113,12 @@ interface WasserZaehlerData {
 interface WasserZaehlerModalData {
   wohnungId: string;
   wohnungName: string;
-  existingZaehler?: WasserZaehlerData[];
+  existingZaehler?: Wasserzaehler[];
 }
 
 // AI Assistant Modal Types
 interface AIAssistantModalData {
-  documentationContext?: any;
-  onFallbackToSearch?: () => void;
+  documentationContext?: AIDocumentationContext;
 }
 
 interface CreateFolderModalData {

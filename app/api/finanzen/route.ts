@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { PAGINATION } from "@/constants";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 // Helper function to fetch all records with pagination
 async function fetchPaginatedData(
@@ -117,18 +118,25 @@ export async function GET(request: Request) {
     );
 
     if (!transactions) {
-      return NextResponse.json([], { status: 200 });
+      return NextResponse.json([], { 
+        status: 200,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
     return NextResponse.json(transactions, {
       status: 200,
       headers: {
+        ...NO_CACHE_HEADERS,
         'X-Total-Count': count?.toString() || '0', // Add total count to headers
       }
     });
   } catch (e) {
     console.error('Server error GET /api/finanzen:', e);
-    return NextResponse.json({ error: 'Serverfehler bei Finanzen-Abfrage.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler bei Finanzen-Abfrage.' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 }
 
@@ -145,17 +153,29 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('POST /api/finanzen error:', error);
-      return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: 400 });
+      return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
     if (!result) {
-      return NextResponse.json({ error: 'Transaktion konnte nicht erstellt werden' }, { status: 500 });
+      return NextResponse.json({ error: 'Transaktion konnte nicht erstellt werden' }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(result, { 
+      status: 201,
+      headers: NO_CACHE_HEADERS
+    });
   } catch (e) {
     console.error('Server error POST /api/finanzen:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Erstellen der Transaktion.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler beim Erstellen der Transaktion.' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 }
 
@@ -174,17 +194,29 @@ export async function PUT(request: Request) {
 
     if (error) {
       console.error('PUT /api/finanzen error:', error);
-      return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: 400 });
+      return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
     if (!result || result.length === 0) {
-      return NextResponse.json({ error: 'Transaktion nicht gefunden.' }, { status: 404 });
+      return NextResponse.json({ error: 'Transaktion nicht gefunden.' }, { 
+        status: 404,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
-    return NextResponse.json(result[0], { status: 200 });
+    return NextResponse.json(result[0], { 
+      status: 200,
+      headers: NO_CACHE_HEADERS
+    });
   } catch (e) {
     console.error('Server error PUT /api/finanzen:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Aktualisieren der Transaktion.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler beim Aktualisieren der Transaktion.' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 }
 
@@ -194,7 +226,10 @@ export async function DELETE(request: Request) {
     const id = url.searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json({ error: 'Transaktions-ID erforderlich.' }, { status: 400 });
+      return NextResponse.json({ error: 'Transaktions-ID erforderlich.' }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
     const supabase = await createClient();
@@ -202,12 +237,21 @@ export async function DELETE(request: Request) {
 
     if (error) {
       console.error('DELETE /api/finanzen error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
-    return NextResponse.json({ message: 'Transaktion gelöscht' }, { status: 200 });
+    return NextResponse.json({ message: 'Transaktion gelöscht' }, { 
+      status: 200,
+      headers: NO_CACHE_HEADERS
+    });
   } catch (e) {
     console.error('Server error DELETE /api/finanzen:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Löschen der Transaktion.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler beim Löschen der Transaktion.' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 }

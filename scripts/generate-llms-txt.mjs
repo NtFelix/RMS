@@ -73,41 +73,11 @@ async function getFeatureFlags() {
     }
 }
 
-async function getDocumentationArticles() {
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-        console.warn('[llms.txt] Supabase environment variables missing.');
-        return [];
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-    const { data, error } = await supabase
-        .from('Dokumentation')
-        .select('id, title')
-        .order('id');
-
-    if (error) {
-        console.error('[llms.txt] Error fetching documentation:', error.message);
-        return [];
-    }
-
-    return data || [];
-}
-
 async function generate() {
     await loadEnv();
     console.log('Generating llms.txt...');
 
-    const [featureFlags, articles] = await Promise.all([
-        getFeatureFlags(),
-        getDocumentationArticles(),
-    ]);
-
-    const articlesContent = articles.length > 0
-        ? articles.map(article => `  - [${article.title || article.id}](${BASE_URL}/hilfe/dokumentation/${article.id})`).join('\n')
-        : '';
+    const featureFlags = await getFeatureFlags();
 
     const loesungenSection = featureFlags.showLoesungen ? `
 ## Lösungen für verschiedene Zielgruppen
@@ -136,8 +106,7 @@ ${loesungenSection}
 ## Hilfe & Ressourcen
 - [Kostenlos testen](${BASE_URL}/auth/register): 14 Tage kostenlos testen, keine Kreditkarte erforderlich
 - [Login](${BASE_URL}/auth/login): Anmeldung für bestehende Nutzer
-- [Handbuch & Dokumentation](${BASE_URL}/hilfe/dokumentation): Übersicht aller Hilfethemen
-${articlesContent}
+- [Handbuch & Dokumentation](https://docs.mietevo.de): Übersicht aller Hilfethemen
 ${produkteSection}
 ## Rechtliches
 - [Impressum](${BASE_URL}/impressum)

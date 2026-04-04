@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
@@ -10,7 +11,10 @@ export async function POST(request: NextRequest) {
     if (!folderPath || !folderName) {
       return NextResponse.json(
         { error: 'Folder path and name are required' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -18,7 +22,10 @@ export async function POST(request: NextRequest) {
     if (!/^[a-zA-Z0-9_\-\s]+$/.test(folderName)) {
       return NextResponse.json(
         { error: 'Folder name contains invalid characters' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -30,7 +37,10 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Not authenticated' },
-        { status: 401 }
+        {
+          status: 401,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -38,7 +48,10 @@ export async function POST(request: NextRequest) {
     if (!folderPath.startsWith(`user_${user.id}`)) {
       return NextResponse.json(
         { error: 'Invalid path' },
-        { status: 403 }
+        {
+          status: 403,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -53,7 +66,10 @@ export async function POST(request: NextRequest) {
     if (existingFolder && existingFolder.length > 0) {
       return NextResponse.json(
         { error: 'Folder already exists' },
-        { status: 409 }
+        {
+          status: 409,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -72,7 +88,10 @@ export async function POST(request: NextRequest) {
       console.error('Error creating folder:', uploadError)
       return NextResponse.json(
         { error: 'Failed to create folder' },
-        { status: 500 }
+        {
+          status: 500,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -105,7 +124,10 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         { error: 'Failed to save folder metadata' },
-        { status: 500 }
+        {
+          status: 500,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -113,13 +135,16 @@ export async function POST(request: NextRequest) {
       success: true,
       folderPath: newFolderPath,
       message: 'Folder created successfully'
-    })
+    }, { headers: NO_CACHE_HEADERS })
 
   } catch (error) {
     console.error('Unexpected error creating folder:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: NO_CACHE_HEADERS,
+      }
     )
   }
 }

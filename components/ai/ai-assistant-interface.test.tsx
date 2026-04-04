@@ -120,7 +120,7 @@ describe('AIAssistantInterface', () => {
   const defaultProps = {
     isOpen: true,
     onClose: jest.fn(),
-    documentationContext: []
+    documentationContext: { articles: [] }
   };
 
   beforeEach(() => {

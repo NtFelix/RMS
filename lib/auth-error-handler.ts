@@ -9,6 +9,8 @@ import type { AuthError } from "@supabase/supabase-js"
  * @see https://supabase.com/docs/reference/javascript/auth-error-codes
  */
 
+export const DATABASE_DOWN_ERROR_MESSAGE = "Die Verbindung zur Datenbank konnte nicht hergestellt werden. Bitte überprüfen Sie Ihre Internetverbindung oder versuchen Sie es in Kürze erneut."
+
 /**
  * Mapping of URL error parameters to German error messages.
  * Used for errors passed via URL query parameters (e.g., from auth callbacks).
@@ -77,6 +79,12 @@ const MESSAGE_PATTERNS: Array<{ pattern: string; message: string }> = [
     // Rate limiting (handle both correct spelling and common typo)
     { pattern: "Too many requests", message: "Zu viele Anfragen. Bitte warten Sie einen Moment." },
     { pattern: "rate limit exceeded", message: "Zu viele Anfragen. Bitte warten Sie einen Moment." },
+
+    // Network / Database outage errors
+    { pattern: "Failed to fetch", message: DATABASE_DOWN_ERROR_MESSAGE },
+    { pattern: "Network Error", message: DATABASE_DOWN_ERROR_MESSAGE },
+    { pattern: "Database timeout", message: DATABASE_DOWN_ERROR_MESSAGE },
+    { pattern: "Connection refused", message: DATABASE_DOWN_ERROR_MESSAGE },
 ]
 
 /**

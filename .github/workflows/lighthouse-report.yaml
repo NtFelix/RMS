@@ -73,12 +73,12 @@ jobs:
     
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Generate build cache key
@@ -93,7 +93,7 @@ jobs:
 
       - name: Restore build cache
         id: restore-build-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .next
           key: ${{ steps.build-cache-key.outputs.cache-key }}
@@ -103,7 +103,7 @@ jobs:
       - name: Cache node_modules
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -132,7 +132,7 @@ jobs:
 
       - name: Save build cache
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .next
           key: ${{ steps.build-cache-key.outputs.cache-key }}
@@ -155,13 +155,13 @@ jobs:
     
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           
       - name: Restore LHCI tools cache
         id: lhci-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             lhci-tools/node_modules
@@ -207,17 +207,17 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -225,7 +225,7 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Restore build cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .next
           key: ${{ needs.build.outputs.build-cache-key }}
@@ -244,7 +244,7 @@ jobs:
           fi
 
       - name: Restore LHCI tools cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             lhci-tools/node_modules
@@ -345,7 +345,7 @@ jobs:
 
       - name: Upload Lighthouse report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lighthouse-${{ matrix.device }}
           path: lighthouse-reports/
@@ -366,13 +366,13 @@ jobs:
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: lighthouse-results
 
       - name: Generate PR comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -444,7 +444,7 @@ jobs:
 
       - name: Generate Actions Summary
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -508,7 +508,7 @@ jobs:
       - name: Prepare Discord notification
         if: always()
         id: prepare-discord
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -634,8 +634,8 @@ jobs:
         run: |
           WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}"
           if [ -z "$WEBHOOK_URL" ]; then
-            echo "❌ Error: DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS secret is not set."
-            exit 1
+            echo "ℹ️ DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS secret is not set. Skipping Discord notification."
+            exit 0
           fi
           
           # Create zip files for each available device
