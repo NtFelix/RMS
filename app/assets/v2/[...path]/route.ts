@@ -1,7 +1,8 @@
+import posthogProxyConfig from '@/lib/posthog-proxy'
+
 export const runtime = 'edge'
 
-const POSTHOG_INGEST_HOST = 'https://eu.i.posthog.com'
-const POSTHOG_ASSETS_HOST = 'https://eu-assets.i.posthog.com'
+const { POSTHOG_INGEST_HOST, POSTHOG_ASSETS_HOST } = posthogProxyConfig
 
 function buildTargetUrl(request: Request, pathname: string): URL {
   const baseHost = pathname.startsWith('static/')

@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
+import posthogProxyConfig from "@/lib/posthog-proxy"
+
+const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
 const MANAGED_ROUTE_PREFIXES = [
   "/auth",
@@ -24,7 +27,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Skip PostHog proxy traffic entirely (no auth, no CSP, no redirects)
-  if (pathname.startsWith('/assets/v2')) {
+  if (pathname.startsWith(POSTHOG_PROXY_PATH)) {
     return NextResponse.next()
   }
   const needsManagedHeaders = MANAGED_ROUTE_PREFIXES.some((prefix) =>

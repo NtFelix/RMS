@@ -8,6 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import posthogProxyConfig from "@/lib/posthog-proxy";
+
+const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
 type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
 interface EarlyAccessFeature {
@@ -29,6 +32,11 @@ const FeaturePreviewSection = () => {
   const [otherFeatures, setOtherFeatures] = useState<EarlyAccessFeature[]>([])
   const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
   const [useLocalFeatures, setUseLocalFeatures] = useState<boolean>(false)
+  const [proxyHelpHost, setProxyHelpHost] = useState<string>('mietevo.de')
+
+  useEffect(() => {
+    setProxyHelpHost(window.location.host)
+  }, [])
 
   const getStageDisplayName = (stage: string) => {
     switch (stage) {
@@ -214,7 +222,7 @@ const FeaturePreviewSection = () => {
                   <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-decimal">
                     <li>Stellen Sie sicher, dass Sie alle Cookies akzeptiert haben</li>
                     <li>Deaktivieren Sie temporär Ihren Werbeblocker für diese Seite</li>
-                    <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-xs">mie.mietevo.de/assets/v2</code> in Ihren Browser-Einstellungen</li>
+                    <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-xs">{proxyHelpHost}{POSTHOG_PROXY_PATH}</code> in Ihren Browser-Einstellungen</li>
                     <li>Laden Sie die Seite neu, nachdem Sie die Einstellungen geändert haben</li>
                   </ol>
                   <div className="pt-2">

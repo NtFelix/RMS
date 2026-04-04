@@ -1,8 +1,7 @@
 import { withPostHogConfig } from "@posthog/nextjs-config";
+import posthogProxyConfig from "./lib/posthog-proxy.js";
 
-const POSTHOG_PROXY_PATH = "/assets/v2";
-const POSTHOG_INGEST_HOST = "https://eu.i.posthog.com";
-const POSTHOG_ASSETS_HOST = "https://eu-assets.i.posthog.com";
+const { POSTHOG_PROXY_PATH, POSTHOG_INGEST_HOST, POSTHOG_ASSETS_HOST } = posthogProxyConfig;
 const POSTHOG_PROXY_MODE = process.env.POSTHOG_PROXY_MODE;
 
 /** @type {import('next').NextConfig} */

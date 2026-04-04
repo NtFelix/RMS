@@ -4,6 +4,9 @@ import posthog from 'posthog-js'
 import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, Suspense, useState } from 'react'
+import posthogProxyConfig from '@/lib/posthog-proxy'
+
+const { POSTHOG_PROXY_PATH, POSTHOG_UI_HOST } = posthogProxyConfig
 
 // Initialize PostHog with configuration
 async function initializePostHog(nonce?: string) {
@@ -14,8 +17,8 @@ async function initializePostHog(nonce?: string) {
   const pick = <T,>(...values: Array<T | undefined | null>) =>
     values.find((value) => value !== undefined && value !== null);
 
-  const defaultHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || '/assets/v2';
-  const defaultUiHost = process.env.NEXT_PUBLIC_POSTHOG_UI_HOST || 'https://eu.posthog.com';
+  const defaultHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || POSTHOG_PROXY_PATH;
+  const defaultUiHost = process.env.NEXT_PUBLIC_POSTHOG_UI_HOST || POSTHOG_UI_HOST;
 
   let config: {
     key?: string;
