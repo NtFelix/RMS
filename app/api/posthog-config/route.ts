@@ -6,10 +6,10 @@ export const runtime = 'edge'
 const { POSTHOG_PROXY_PATH, POSTHOG_UI_HOST } = posthogProxyConfig
 
 export async function GET() {
-  // Return PostHog configuration for the browser without leaking server-only host.
-  // Use the exact names from Cloudflare: POSTHOG_API_KEY, POSTHOG_ENV_ID
+  // Return PostHog configuration for the browser without leaking server-only keys.
+  // The browser SDK must use the public project token, not any server-side credential.
   const config = {
-    key: process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     host: process.env.NEXT_PUBLIC_POSTHOG_HOST || POSTHOG_PROXY_PATH,
     ui_host: process.env.NEXT_PUBLIC_POSTHOG_UI_HOST || POSTHOG_UI_HOST,
     envId: process.env.POSTHOG_ENV_ID

@@ -53,8 +53,9 @@ STRIPE_WEBHOOK_SIGNING_SECRET=your_stripe_webhook_signing_secret
 NEXT_PUBLIC_POSTHOG_KEY=phc_your_public_project_key
 NEXT_PUBLIC_POSTHOG_HOST=/assets/v2
 NEXT_PUBLIC_POSTHOG_UI_HOST=https://eu.posthog.com
-POSTHOG_API_KEY=phx_your_project_api_key
+POSTHOG_API_KEY=phc_your_server_project_key
 POSTHOG_HOST=https://eu.i.posthog.com
+POSTHOG_PERSONAL_API_KEY=phx_your_personal_api_key
 # Optional: force the route-handler proxy if edge rewrites fail
 # POSTHOG_PROXY_MODE=route
 ```

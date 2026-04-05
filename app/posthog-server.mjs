@@ -12,9 +12,20 @@ const dummyPostHog = {
 
 let posthogInstance = null
 
+function resolvePostHogProjectApiKey() {
+  const projectApiKey = process.env.POSTHOG_API_KEY
+
+  if (projectApiKey?.startsWith('phx_')) {
+    console.warn('[PostHog Server] POSTHOG_API_KEY looks like a personal API key. Falling back to NEXT_PUBLIC_POSTHOG_KEY project token.')
+    return process.env.NEXT_PUBLIC_POSTHOG_KEY
+  }
+
+  return projectApiKey || process.env.NEXT_PUBLIC_POSTHOG_KEY
+}
+
 export function getPostHogServer() {
   if (!posthogInstance) {
-    const apiKey = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY
+    const apiKey = resolvePostHogProjectApiKey()
     const apiHost = resolvePostHogHost()
 
     if (!apiKey) {
