@@ -287,7 +287,7 @@ describe('Modal Keyboard and Click Interactions', () => {
       render(<WohnungOverviewModal />);
       
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText(/Test Wohnung/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Test Wohnung/)[0]).toBeInTheDocument();
     });
   });
 

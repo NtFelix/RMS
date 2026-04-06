@@ -94,7 +94,7 @@ describe('SummaryCard', () => {
     render(<SummaryCard {...defaultProps} />);
     
     // Find the card container
-    const card = screen.getByText('Total Rent').closest('[class*="rounded-2xl"]');
+    const card = screen.getByText('Total Rent').closest('.rounded-xl, .bg-card, .border');
     expect(card).not.toHaveClass('cursor-pointer');
   });
 

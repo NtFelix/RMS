@@ -12,8 +12,7 @@
 ## Hilfe & Ressourcen
 - [Kostenlos testen](https://mietevo.de/auth/register): 14 Tage kostenlos testen, keine Kreditkarte erforderlich
 - [Login](https://mietevo.de/auth/login): Anmeldung für bestehende Nutzer
-- [Handbuch & Dokumentation](https://mietevo.de/hilfe/dokumentation): Übersicht aller Hilfethemen
-
+- [Handbuch & Dokumentation](https://docs.mietevo.de): Übersicht aller Hilfethemen
 
 ## Rechtliches
 - [Impressum](https://mietevo.de/impressum)
