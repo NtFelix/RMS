@@ -133,6 +133,9 @@
   },
   "overrides": {
     "test-exclude": "7.0.1",
-    "@posthog/cli": "$@posthog/cli"
+    "@posthog/cli": "$@posthog/cli",
+    "eslint-config-next": {
+      "eslint": "$eslint"
+    }
   }
 }
