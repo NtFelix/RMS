@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import resolvePostHogHost from '../lib/posthog-host.js';
 
 /**
  * llms.txt Generation Script
@@ -23,7 +24,7 @@ async function loadEnv() {
 
 // Duplicated from lib/constants.ts for standalone compatibility
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de';
-const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com';
+const POSTHOG_HOST = resolvePostHogHost();
 const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
 const FEATURE_FLAGS = {
