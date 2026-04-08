@@ -3,9 +3,11 @@ import eslintNextPlugin from "@next/eslint-plugin-next";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 import reactPlugin from "eslint-plugin-react";
 import tsParser from "@typescript-eslint/parser";
+import globals from "globals";
 
 const eslintConfig = defineConfig([
   {
+    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     plugins: {
       "@next/next": eslintNextPlugin,
       "@typescript-eslint": tsPlugin,
@@ -17,6 +19,10 @@ const eslintConfig = defineConfig([
         ecmaFeatures: {
           jsx: true,
         },
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
       },
     },
     rules: {
@@ -43,7 +49,6 @@ const eslintConfig = defineConfig([
     "**/.env*",
     "!**/.env.example",
     "**/*.d.ts",
-    "**/.next/",
     "**/.vscode/",
     "**/.idea/",
     "**/.DS_Store",
