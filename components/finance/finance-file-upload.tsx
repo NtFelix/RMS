@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef } from "react";
-import { Upload, File, X, Download, Loader2, FileText, Image as ImageIcon } from "lucide-react";
+import { Upload, File, X, Download, Eye, Loader2, FileText, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -145,14 +145,38 @@ export function FinanceFileUpload({
         setIsDragOver(false);
     }, []);
 
-    const handleDownload = useCallback(async () => {
+    const handleView = useCallback(async () => {
         if (!dokumentId) return;
 
         try {
             const result = await getFinanceDocumentUrl(dokumentId);
             if (result.success && result.url) {
-                // Open in new tab or trigger download
                 window.open(result.url, "_blank");
+            } else {
+                throw new Error(result.error || "URL konnte nicht erstellt werden");
+            }
+        } catch (error) {
+            console.error("View error:", error);
+            toast({
+                title: "Fehler beim Öffnen",
+                description: error instanceof Error ? error.message : "Unbekannter Fehler",
+                variant: "destructive",
+            });
+        }
+    }, [dokumentId]);
+
+    const handleDownload = useCallback(async () => {
+        if (!dokumentId) return;
+
+        try {
+            const result = await getFinanceDocumentUrl(dokumentId, true);
+            if (result.success && result.url) {
+                const link = document.createElement("a");
+                link.href = result.url;
+                link.download = result.filename || "download";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             } else {
                 throw new Error(result.error || "URL konnte nicht erstellt werden");
             }
@@ -225,6 +249,16 @@ export function FinanceFileUpload({
                         </p>
                     </div>
                     <div className="flex items-center gap-1">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleView}
+                            disabled={disabled}
+                            title="Ansehen"
+                        >
+                            <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                             type="button"
                             variant="ghost"
