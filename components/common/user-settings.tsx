@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { SettingsModal } from "@/components/modals/settings-modal"
+import { SidebarUserData } from "@/lib/server/user-data"
 import {
   CustomDropdown,
   CustomDropdownItem,
@@ -24,7 +25,13 @@ import {
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
 
-export function UserSettings({ collapsed }: { collapsed?: boolean }) {
+export function UserSettings({ 
+  collapsed,
+  initialData 
+}: { 
+  collapsed?: boolean;
+  initialData: SidebarUserData;
+}) {
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
@@ -39,14 +46,17 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
     userEmail,
     userInitials,
     isLoading: isLoadingUser
-  } = useUserProfile()
+  } = useUserProfile(initialData)
 
   const {
     count: apartmentCount,
     limit: apartmentLimit,
     progressPercentage,
     isLoading: isLoadingApartmentData
-  } = useApartmentUsage(user)
+  } = useApartmentUsage(user, {
+    count: initialData.apartmentCount,
+    limit: initialData.apartmentLimit
+  })
 
   const handleLogout = async () => {
     setIsLoadingLogout(true)

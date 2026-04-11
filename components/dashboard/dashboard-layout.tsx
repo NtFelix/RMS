@@ -1,13 +1,19 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
+import { SidebarUserData } from "@/lib/server/user-data"
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+export function DashboardLayout({ 
+  children,
+  sidebarData
+}: { 
+  children: React.ReactNode
+  sidebarData: SidebarUserData
+}) {
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
@@ -98,7 +104,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar - hidden on mobile with enhanced CSS-only fallbacks */}
       <div className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift">
-        <DashboardSidebar />
+        <DashboardSidebar sidebarData={sidebarData} />
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">

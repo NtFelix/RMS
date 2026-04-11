@@ -11,16 +11,16 @@ export interface ApartmentUsage {
   progressPercentage: number;
 }
 
-export function useApartmentUsage(user: User | null) {
+export function useApartmentUsage(user: User | null, initialData?: Partial<ApartmentUsage>) {
   const [state, setState] = useState<{
     count: number;
     limit: number | null;
     isLoading: boolean;
     error: string | null;
   }>({
-    count: 0,
-    limit: null,
-    isLoading: true,
+    count: initialData?.count || 0,
+    limit: initialData?.limit !== undefined ? initialData.limit : null,
+    isLoading: initialData ? false : true,
     error: null,
   });
 

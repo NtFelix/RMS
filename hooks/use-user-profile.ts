@@ -11,20 +11,13 @@ export interface UserProfile {
   error: string | null;
 }
 
-export function useUserProfile() {
-  const [state, setState] = useState<{
-    user: User | null;
-    userName: string;
-    userEmail: string;
-    userInitials: string;
-    isLoading: boolean;
-    error: string | null;
-  }>({
-    user: null,
-    userName: 'Lade...',
-    userEmail: '',
-    userInitials: '',
-    isLoading: true,
+export function useUserProfile(initialData?: Partial<UserProfile>) {
+  const [state, setState] = useState<UserProfile>({
+    user: initialData?.user || null,
+    userName: initialData?.userName || 'Lade...',
+    userEmail: initialData?.userEmail || '',
+    userInitials: initialData?.userInitials || '',
+    isLoading: initialData ? false : true,
     error: null,
   });
 
