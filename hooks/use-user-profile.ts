@@ -1,12 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
+import { getUserDisplayData, UserDisplayData } from '@/lib/utils/user';
 
-export interface UserProfile {
+export interface UserProfile extends UserDisplayData {
   user: User | null;
-  userName: string;
-  userEmail: string;
-  userInitials: string;
   isLoading: boolean;
   error: string | null;
 }
@@ -14,7 +12,7 @@ export interface UserProfile {
 export function useUserProfile(initialData?: Partial<UserProfile>) {
   const [state, setState] = useState<UserProfile>({
     user: initialData?.user || null,
-    userName: initialData?.userName || 'Lade...',
+    userName: initialData?.userName || 'Loading...',
     userEmail: initialData?.userEmail || '',
     userInitials: initialData?.userInitials || '',
     isLoading: initialData ? false : true,
@@ -28,38 +26,22 @@ export function useUserProfile(initialData?: Partial<UserProfile>) {
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-        // If no user is found, return default values instead of throwing an error
+        // If no user is found or error occurs, return guest state
         if (authError || !user) {
+          const guestData = getUserDisplayData(null);
           return setState({
             user: null,
-            userName: 'Gast',
-            userEmail: '',
-            userInitials: 'G',
+            ...guestData,
             isLoading: false,
             error: null,
           });
         }
 
-        const { first_name: rawFirstName, last_name: rawLastName } = user.user_metadata || {};
-        const firstName = (typeof rawFirstName === 'string' ? rawFirstName.trim() : '');
-        const lastName = (typeof rawLastName === 'string' ? rawLastName.trim() : '');
-
-        let userName = 'Namen in Einstellungen festlegen';
-        let userInitials = '?';
-
-        if (firstName && lastName) {
-          userName = `${firstName} ${lastName}`;
-          userInitials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-        } else if (firstName) {
-          userName = firstName;
-          userInitials = firstName.charAt(0).toUpperCase();
-        }
+        const displayData = getUserDisplayData(user);
 
         setState({
           user,
-          userName,
-          userEmail: user.email || 'Keine E-Mail',
-          userInitials,
+          ...displayData,
           isLoading: false,
           error: null,
         });

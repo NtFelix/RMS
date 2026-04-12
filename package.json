@@ -130,7 +130,7 @@
   },
   "overrides": {
     "test-exclude": "7.0.1",
-    "minimatch": "^10.2.2",
+    "minimatch": "^10.2.4",
     "@posthog/cli": "$@posthog/cli"
   }
 }

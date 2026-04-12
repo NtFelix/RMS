@@ -13,10 +13,11 @@ export default async function DashboardRootLayout({
   children: React.ReactNode
 }>) {
   // Ensure authentication and active subscription
-  await requireActiveSubscription()
+  // This already fetches the user and profile, so we reuse them to avoid double fetching
+  const { supabase, user, profile } = await requireActiveSubscription()
 
   // Pre-fetch all sidebar data on server to prevent loading flickers
-  const sidebarData = await getSidebarUserData()
+  const sidebarData = await getSidebarUserData(supabase, user, profile)
 
   const nonce = (await headers()).get('x-nonce')
 
