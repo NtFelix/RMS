@@ -9,6 +9,31 @@ const POSTHOG_PROXY_MODE = process.env.POSTHOG_PROXY_MODE;
 const require = createRequire(import.meta.url);
 const { version } = require('./package.json');
 const projectRoot = fileURLToPath(new URL('.', import.meta.url));
+const posthogPersonalApiKey = process.env.POSTHOG_PERSONAL_API_KEY;
+const posthogProjectId = process.env.POSTHOG_PROJECT_ID || process.env.POSTHOG_ENV_ID;
+const posthogSourcemapsEnabled = Boolean(posthogPersonalApiKey && posthogProjectId);
+const missingPostHogSourcemapVars = [
+  !posthogPersonalApiKey ? 'POSTHOG_PERSONAL_API_KEY' : null,
+  !posthogProjectId ? 'POSTHOG_PROJECT_ID' : null,
+].filter(Boolean);
+
+if (process.env.NODE_ENV === 'production' && !posthogSourcemapsEnabled) {
+  console.warn(`
+============================================================
+POSTHOG SOURCEMAPS DISABLED
+============================================================
+PostHog sourcemap upload is OFF for this production build.
+Missing environment variables: ${missingPostHogSourcemapVars.join(', ')}
+
+To enable sourcemap upload, set:
+  POSTHOG_PERSONAL_API_KEY
+  POSTHOG_PROJECT_ID
+
+Build will continue, but new frontend/server errors in PostHog
+will not resolve to uploaded sourcemaps for this deployment.
+============================================================
+`);
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -102,7 +127,10 @@ const nextConfig = {
 };
 
 export default withPostHogConfig(nextConfig, {
-  personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY,
-  projectId: process.env.POSTHOG_PROJECT_ID || process.env.POSTHOG_ENV_ID,
+  personalApiKey: posthogPersonalApiKey,
+  projectId: posthogProjectId,
   host: process.env.POSTHOG_HOST,
+  sourcemaps: {
+    enabled: posthogSourcemapsEnabled,
+  },
 });
