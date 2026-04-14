@@ -277,6 +277,9 @@ export function sanitizeInput(input: string): string {
     
     // Step 2: Remove dangerous URL schemes
     current = current.replace(/(?:javascript|data|vbscript):/gi, '');
+
+    // Step 3: Remove standalone event handlers (onmouseover=, etc.) that might remain in plain text
+    current = current.replace(/\bon\w*\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]*)/gi, '');
   } while (current !== previous);
 
   // Final cleanup: remove control characters, trim and enforce length

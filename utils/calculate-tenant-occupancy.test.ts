@@ -1,4 +1,4 @@
-import { calculateTenantOccupancy } from '../utils/date-calculations';
+import { calculateTenantOccupancy } from './utils/date-calculations';
 
 describe('calculateTenantOccupancy', () => {
   it('should return 0 occupancy when tenant has no move-in date', () => {

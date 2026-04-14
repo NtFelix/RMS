@@ -1,7 +1,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { NextRequest } from 'next/server';
-import { GET, POST } from '../templates/route';
-import { GET as getTemplate, PUT, DELETE } from '../templates/[id]/route';
+import { GET, POST } from './templates/route';
+import { GET as getTemplate, PUT, DELETE } from './templates/[id]/route';
 
 // Mock Supabase client
 const mockSupabaseClient: any = {

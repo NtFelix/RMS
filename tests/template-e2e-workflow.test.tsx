@@ -9,7 +9,17 @@ import { Template, TemplatePayload } from '@/types/template';
 import { toast } from '@/hooks/use-toast';
 
 // Mock all dependencies
-jest.mock('@/hooks/use-templates');
+jest.mock('@/hooks/use-templates', () => ({
+  useTemplates: jest.fn(),
+  useTemplateFilters: jest.fn((templates) => ({
+    searchQuery: '',
+    setSearchQuery: jest.fn(),
+    selectedCategory: 'all',
+    setSelectedCategory: jest.fn(),
+    filteredTemplates: templates,
+    groupedTemplates: {},
+  })),
+}));
 jest.mock('@/hooks/use-modal-store');
 jest.mock('@/hooks/use-toast');
 jest.mock('@/components/templates/template-editor', () => ({

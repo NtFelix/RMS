@@ -75,17 +75,82 @@ global.Headers = class Headers extends Map {
   }
 };
 
-jest.mock('@supabase/ssr', () => {
-  return {
-    createBrowserClient: jest.fn(() => ({
-      auth: {
-        signInWithPassword: jest.fn(),
-        signUp: jest.fn(),
-        resetPasswordForEmail: jest.fn(),
-      },
-    })),
-  };
-});
+jest.mock('@supabase/ssr', () => ({
+  createBrowserClient: jest.fn(() => ({
+    auth: {
+      signInWithPassword: jest.fn(),
+      signUp: jest.fn(),
+      resetPasswordForEmail: jest.fn(),
+      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signOut: jest.fn().mockResolvedValue({ error: null }),
+    },
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    single: jest.fn().mockReturnThis(),
+    maybeSingle: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+  })),
+  createServerClient: jest.fn(() => ({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+    },
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockResolvedValue({ error: null }),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    single: jest.fn().mockResolvedValue({ data: {}, error: null }),
+    maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+  })),
+}));
+
+// Mock both client and server utils
+jest.mock('@/utils/supabase/server', () => ({
+  createClient: jest.fn(() => ({
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockResolvedValue({ error: null }),
+    upsert: jest.fn().mockResolvedValue({ error: null }),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    single: jest.fn().mockResolvedValue({ data: {}, error: null }),
+    maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+    auth: {
+      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+    },
+  })),
+}));
+
+jest.mock('@/utils/supabase/client', () => ({
+  createClient: jest.fn(() => ({
+    auth: {
+      signInWithPassword: jest.fn(),
+      signUp: jest.fn(),
+      resetPasswordForEmail: jest.fn(),
+      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signOut: jest.fn().mockResolvedValue({ error: null }),
+    },
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    single: jest.fn().mockReturnThis(),
+    maybeSingle: jest.fn().mockReturnThis(),
+  })),
+}));
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({

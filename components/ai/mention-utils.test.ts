@@ -2,8 +2,8 @@ import {
   filterMentionVariables,
   groupMentionVariablesByCategory,
   FilterOptions
-} from '../../lib/mention-utils';
-import { MentionVariable } from '../../lib/template-constants';
+} from './../lib/mention-utils';
+import { MentionVariable } from './../lib/template-constants';
 
 interface EnhancedMentionVariable extends MentionVariable {
   keywords?: string[];

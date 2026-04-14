@@ -4,7 +4,7 @@ import {
   sanitizeInput,
   isQuestion,
   getInputSuggestions
-} from '@/lib/ai-input-validation';
+} from './ai-input-validation';
 
 describe('AI Input Validation', () => {
   describe('validateAIInput', () => {
@@ -216,7 +216,7 @@ describe('AI Input Validation', () => {
   describe('sanitizeInput', () => {
     it('removes HTML tags', () => {
       expect(sanitizeInput('Hello <b>world</b>')).toBe('Hello world');
-      expect(sanitizeInput('<script>alert("xss")</script>Test')).toBe('alert("xss")Test');
+      expect(sanitizeInput('<script>alert("xss")</script>Test')).toBe('Test');
       expect(sanitizeInput('<div><span>Nested</span></div>')).toBe('Nested');
     });
 
@@ -228,8 +228,8 @@ describe('AI Input Validation', () => {
     });
 
     it('removes event handlers', () => {
-      expect(sanitizeInput('Click onclick="alert()" here')).toBe('Click "alert()" here');
-      expect(sanitizeInput('Hover onmouseover="hack()" text')).toBe('Hover "hack()" text');
+      expect(sanitizeInput('Click onclick="alert()" here')).toBe('Click  here');
+      expect(sanitizeInput('Hover onmouseover="hack()" text')).toBe('Hover  text');
     });
 
     it('removes control characters', () => {
