@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 const { version } = require('./package.json');
 const projectRoot = fileURLToPath(new URL('.', import.meta.url));
 const posthogPersonalApiKey = process.env.POSTHOG_PERSONAL_API_KEY;
-const posthogProjectId = process.env.POSTHOG_PROJECT_ID || process.env.POSTHOG_ENV_ID;
+const posthogProjectId = process.env.POSTHOG_PROJECT_ID;
 const posthogSourcemapsEnabled = Boolean(posthogPersonalApiKey && posthogProjectId);
 const missingPostHogSourcemapVars = [
   !posthogPersonalApiKey ? 'POSTHOG_PERSONAL_API_KEY' : null,
@@ -104,24 +104,23 @@ const nextConfig = {
       ],
     };
   },
-  webpack: (config, { webpack }) => {
-    // Preserve the existing project aliases while also stubbing ws.
-    config.resolve = {
-      ...(config.resolve || {}),
-      alias: {
-        ...(config.resolve.alias || {}),
-        '@': path.resolve(projectRoot, './'),
-        '@/components': path.resolve(projectRoot, './components'),
-        '@/app': path.resolve(projectRoot, './app'),
-        ws: false,
-      },
-      fallback: {
-        ...(config.resolve.fallback || {}),
-        ws: false,
-      },
-    };
-    config.plugins = config.plugins || [];
-    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
+  webpack: (config, { isServer, webpack }) => {
+    // Stub ws module on the client side only to prevent breaking server components
+    if (!isServer) {
+      config.resolve = {
+        ...(config.resolve || {}),
+        alias: {
+          ...(config.resolve.alias || {}),
+          ws: false,
+        },
+        fallback: {
+          ...(config.resolve.fallback || {}),
+          ws: false,
+        },
+      };
+      config.plugins = config.plugins || [];
+      config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
+    }
     return config;
   },
 };
