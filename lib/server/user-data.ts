@@ -21,11 +21,10 @@ export async function getSidebarUserData(
   profile?: { stripe_subscription_status: string | null; stripe_price_id: string | null } | null
 ): Promise<SidebarUserData> {
   if (!user) {
+    const guestData = getUserDisplayData(null);
     return {
       user: null,
-      userName: 'Gast',
-      userEmail: '',
-      userInitials: 'G',
+      ...guestData,
       apartmentCount: 0,
       apartmentLimit: 0, // Default to 0 instead of null to avoid "Unlimited" interpretation
     }
@@ -38,7 +37,7 @@ export async function getSidebarUserData(
   const [countResult, secondaryProfileResult] = await Promise.all([
     supabase
       .from('Wohnungen')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id),
     // Only fetch profile if it wasn't provided
     !profile ? supabase
@@ -51,7 +50,11 @@ export async function getSidebarUserData(
   let apartmentLimit: number | null = null;
   const activeProfile = profile || secondaryProfileResult.data;
 
-  if (activeProfile?.stripe_subscription_status === 'active' && activeProfile?.stripe_price_id) {
+  const isActiveOrTrialing = 
+    activeProfile?.stripe_subscription_status === 'active' || 
+    activeProfile?.stripe_subscription_status === 'trialing';
+
+  if (isActiveOrTrialing && activeProfile?.stripe_price_id) {
     try {
         const plans = await getPlanDetails(activeProfile.stripe_price_id);
         apartmentLimit = plans?.limitWohnungen ?? null;

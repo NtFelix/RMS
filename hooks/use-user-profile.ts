@@ -12,7 +12,7 @@ export interface UserProfile extends UserDisplayData {
 export function useUserProfile(initialData?: Partial<UserProfile>) {
   const [state, setState] = useState<UserProfile>({
     user: initialData?.user || null,
-    userName: initialData?.userName || 'Loading...',
+    userName: initialData?.userName || 'Lade...',
     userEmail: initialData?.userEmail || '',
     userInitials: initialData?.userInitials || '',
     isLoading: initialData ? false : true,
