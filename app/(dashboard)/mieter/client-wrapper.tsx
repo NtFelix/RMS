@@ -330,35 +330,42 @@ export default function MieterClientView({
                   </p>
                 </div>
                 <div className="mt-0 sm:mt-1">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button className="w-full sm:w-auto gap-2">
-                        <PlusCircle className="h-4 w-4" />
-                        Hinzufügen
-                        <ChevronDown className="h-4 w-4 opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64">
-                      <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                        <div className="flex items-center font-medium">
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Manuell hinzufügen
-                        </div>
-                        <span className="text-xs text-muted-foreground ml-6">
-                          Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
-                        </span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                        <div className="flex items-center font-medium">
-                          <Mail className="mr-2 h-4 w-4" />
-                          Aus E-Mails importieren
-                        </div>
-                        <span className="text-xs text-muted-foreground ml-6">
-                          Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
-                        </span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {showTenantTabs ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button className="w-full sm:w-auto gap-2">
+                          <PlusCircle className="h-4 w-4" />
+                          Hinzufügen
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                          <div className="flex items-center font-medium">
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Manuell hinzufügen
+                          </div>
+                          <span className="text-xs text-muted-foreground ml-6">
+                            Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
+                          </span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                          <div className="flex items-center font-medium">
+                            <Mail className="mr-2 h-4 w-4" />
+                            Aus E-Mails importieren
+                          </div>
+                          <span className="text-xs text-muted-foreground ml-6">
+                            Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
+                          </span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Button onClick={handleAddTenant} className="w-full sm:w-auto gap-2">
+                      <PlusCircle className="h-4 w-4" />
+                      Hinzufügen
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
