@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
+import { normalizeApartmentLimit } from '@/lib/utils/subscription';
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
@@ -46,11 +47,13 @@ async function determineApartmentEligibility(userProfile: any): Promise<Apartmen
       try {
         const planDetails = await getPlanDetails(userProfile.stripe_price_id);
         if (planDetails) {
-          if (planDetails.limit_wohnungen === null) {
+          const normalizedLimit = normalizeApartmentLimit(planDetails.limit_wohnungen);
+          // If plan is unlimited (Infinity), trial users get unlimited
+          // Otherwise, use max of trial default (5) or plan limit
+          if (normalizedLimit === Infinity) {
             result.apartmentLimit = Infinity;
-          } else if (typeof planDetails.limit_wohnungen === 'number' &&
-            planDetails.limit_wohnungen > result.apartmentLimit) {
-            result.apartmentLimit = planDetails.limit_wohnungen;
+          } else if (normalizedLimit !== null && normalizedLimit > result.apartmentLimit) {
+            result.apartmentLimit = normalizedLimit;
           }
         }
       } catch (error) {
@@ -66,14 +69,12 @@ async function determineApartmentEligibility(userProfile: any): Promise<Apartmen
       const planDetails = await getPlanDetails(userProfile.stripe_price_id);
       if (!planDetails) return defaultIneligible;
 
-      if (planDetails.limit_wohnungen === null) {
-        return { isEligible: true, apartmentLimit: Infinity };
-      } else if (typeof planDetails.limit_wohnungen === 'number') {
-        return {
-          isEligible: planDetails.limit_wohnungen > 0,
-          apartmentLimit: planDetails.limit_wohnungen > 0 ? planDetails.limit_wohnungen : 0
-        };
-      }
+      const normalizedLimit = normalizeApartmentLimit(planDetails.limit_wohnungen);
+      // All paid subscribers are eligible; 0/negative/null limits = unlimited
+      return {
+        isEligible: true,
+        apartmentLimit: normalizedLimit === null ? 0 : normalizedLimit
+      };
     } catch (error) {
       console.error('Error fetching plan details:', error);
     }

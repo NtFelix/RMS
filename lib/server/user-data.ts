@@ -1,6 +1,7 @@
 import { getPlanDetails } from "@/lib/stripe-server"
 import { User, SupabaseClient } from "@supabase/supabase-js"
 import { getUserDisplayData } from "@/lib/utils/user"
+import { normalizeApartmentLimit } from "@/lib/utils/subscription"
 
 export interface SidebarUserData {
   user: User | null;
@@ -50,16 +51,30 @@ export async function getSidebarUserData(
   let apartmentLimit: number | null = null;
   const activeProfile = profile || secondaryProfileResult.data;
 
-  const isActiveOrTrialing = 
-    activeProfile?.stripe_subscription_status === 'active' || 
-    activeProfile?.stripe_subscription_status === 'trialing';
+  const isTrialing = activeProfile?.stripe_subscription_status === 'trialing';
+  const isActive = activeProfile?.stripe_subscription_status === 'active';
 
-  if (isActiveOrTrialing && activeProfile?.stripe_price_id) {
+  // Trial users without price_id get default limit of 5
+  if (isTrialing && !activeProfile?.stripe_price_id) {
+    apartmentLimit = 5;
+  }
+
+  // Both active and trialing users with price_id get plan-based limits
+  if ((isActive || isTrialing) && activeProfile?.stripe_price_id) {
     try {
         const plans = await getPlanDetails(activeProfile.stripe_price_id);
-        apartmentLimit = plans?.limit_wohnungen ?? null;
+        const normalizedLimit = normalizeApartmentLimit(plans?.limit_wohnungen);
+        
+        // For trial users: use max of default (5) or plan limit (allows unlimited plans during trial)
+        if (isTrialing && normalizedLimit !== null) {
+          apartmentLimit = normalizedLimit === Infinity ? Infinity : Math.max(5, normalizedLimit);
+        } else if (isActive) {
+          apartmentLimit = normalizedLimit;
+        }
     } catch (e) {
         console.error("[getSidebarUserData] Failed to fetch plan details:", e);
+        // Fallback: trial users get 5, active users get null
+        apartmentLimit = isTrialing ? 5 : null;
     }
   }
 

@@ -5,6 +5,7 @@ import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
+import { normalizeApartmentLimit } from '@/lib/utils/subscription';
 
 
 export async function POST(request: Request) {
@@ -44,17 +45,18 @@ export async function POST(request: Request) {
           });
         }
 
-        if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) {
-          currentApartmentLimit = planDetails.limit_wohnungen;
-        } else if (planDetails.limit_wohnungen === null || (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen <= 0)) {
-          currentApartmentLimit = Infinity;
-        } else {
+        // Use centralized normalization: null, 0, or negative = unlimited (Infinity)
+        const normalizedLimit = normalizeApartmentLimit(planDetails.limit_wohnungen);
+        
+        if (normalizedLimit === null) {
           console.error(`API: Invalid limit_wohnungen configuration: ${planDetails.limit_wohnungen}`);
           return NextResponse.json({ error: "Ungültige Konfiguration für Wohnungslimit in Ihrem Plan." }, { 
             status: 500,
             headers: NO_CACHE_HEADERS
           });
         }
+        
+        currentApartmentLimit = normalizedLimit;
       } catch (planError: unknown) {
         if (planError instanceof Error) {
           console.error("API: Error fetching plan details for limit enforcement:", planError.message);
