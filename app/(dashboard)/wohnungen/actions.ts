@@ -63,12 +63,12 @@ export async function speichereWohnung(formData: WohnungFormData) {
         try {
           const planDetails = await getPlanDetails(userProfile.stripe_price_id);
           if (planDetails) {
-            if (planDetails.limitWohnungen === null) {
+            if (planDetails.limit_wohnungen === null) {
               currentApartmentLimit = Infinity;
               limitReasonIsTrial = false;
-            } else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-              if (planDetails.limitWohnungen > currentApartmentLimit) {
-                currentApartmentLimit = planDetails.limitWohnungen;
+            } else if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) {
+              if (planDetails.limit_wohnungen > currentApartmentLimit) {
+                currentApartmentLimit = planDetails.limit_wohnungen;
                 limitReasonIsTrial = false;
               }
             }
@@ -88,12 +88,12 @@ export async function speichereWohnung(formData: WohnungFormData) {
         }
 
         // Updated logic to treat 0 or negative as Infinity (unlimited)
-        if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
+        if (planDetails.limit_wohnungen === null || (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen <= 0)) {
           currentApartmentLimit = Infinity;
-        } else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-          currentApartmentLimit = planDetails.limitWohnungen;
+        } else if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) {
+          currentApartmentLimit = planDetails.limit_wohnungen;
         } else {
-          console.error('Invalid limitWohnungen configuration:', planDetails.limitWohnungen);
+          console.error('Invalid limit_wohnungen configuration:', planDetails.limit_wohnungen);
           return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
         }
         limitReasonIsTrial = false; // If it's a paid active sub, limit reason is not trial
@@ -193,12 +193,12 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
           return { error: 'Details zu Ihrem Abonnementplan konnten nicht gefunden werden. Bearbeitung nicht möglich.' };
         }
 
-        if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-          currentApartmentLimit = planDetails.limitWohnungen;
-        } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
+        if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) {
+          currentApartmentLimit = planDetails.limit_wohnungen;
+        } else if (planDetails.limit_wohnungen === null || (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen <= 0)) {
           currentApartmentLimit = Infinity;
         } else {
-          console.error('Invalid limitWohnungen configuration for update:', planDetails.limitWohnungen);
+          console.error('Invalid limit_wohnungen configuration for update:', planDetails.limit_wohnungen);
           return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bearbeitung nicht möglich.' };
         }
       } catch (planError) {

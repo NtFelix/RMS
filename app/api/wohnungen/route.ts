@@ -44,12 +44,12 @@ export async function POST(request: Request) {
           });
         }
 
-        if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-          currentApartmentLimit = planDetails.limitWohnungen;
-        } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
+        if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) {
+          currentApartmentLimit = planDetails.limit_wohnungen;
+        } else if (planDetails.limit_wohnungen === null || (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen <= 0)) {
           currentApartmentLimit = Infinity;
         } else {
-          console.error(`API: Invalid limitWohnungen configuration: ${planDetails.limitWohnungen}`);
+          console.error(`API: Invalid limit_wohnungen configuration: ${planDetails.limit_wohnungen}`);
           return NextResponse.json({ error: "Ungültige Konfiguration für Wohnungslimit in Ihrem Plan." }, { 
             status: 500,
             headers: NO_CACHE_HEADERS

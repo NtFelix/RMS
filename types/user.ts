@@ -10,7 +10,7 @@ export interface SubscriptionPlan {
   interval?: string | null;
   interval_count?: number | null;
   features: string[];
-  limitWohnungen: number | null;
+  limit_wohnungen: number | null;
 }
 
 export interface UserProfileWithSubscription extends SupabaseProfile {

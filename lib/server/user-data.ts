@@ -26,7 +26,7 @@ export async function getSidebarUserData(
       user: null,
       ...guestData,
       apartmentCount: 0,
-      apartmentLimit: 0, // Default to 0 instead of null to avoid "Unlimited" interpretation
+      apartmentLimit: null, // Guest users should see "Unbegrenzte Wohnungen" instead of 0/0
     }
   }
 
@@ -57,7 +57,7 @@ export async function getSidebarUserData(
   if (isActiveOrTrialing && activeProfile?.stripe_price_id) {
     try {
         const plans = await getPlanDetails(activeProfile.stripe_price_id);
-        apartmentLimit = plans?.limitWohnungen ?? null;
+        apartmentLimit = plans?.limit_wohnungen ?? null;
     } catch (e) {
         console.error("[getSidebarUserData] Failed to fetch plan details:", e);
     }

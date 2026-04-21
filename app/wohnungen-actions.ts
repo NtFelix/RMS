@@ -46,11 +46,11 @@ async function determineApartmentEligibility(userProfile: any): Promise<Apartmen
       try {
         const planDetails = await getPlanDetails(userProfile.stripe_price_id);
         if (planDetails) {
-          if (planDetails.limitWohnungen === null) {
+          if (planDetails.limit_wohnungen === null) {
             result.apartmentLimit = Infinity;
-          } else if (typeof planDetails.limitWohnungen === 'number' &&
-            planDetails.limitWohnungen > result.apartmentLimit) {
-            result.apartmentLimit = planDetails.limitWohnungen;
+          } else if (typeof planDetails.limit_wohnungen === 'number' &&
+            planDetails.limit_wohnungen > result.apartmentLimit) {
+            result.apartmentLimit = planDetails.limit_wohnungen;
           }
         }
       } catch (error) {
@@ -66,12 +66,12 @@ async function determineApartmentEligibility(userProfile: any): Promise<Apartmen
       const planDetails = await getPlanDetails(userProfile.stripe_price_id);
       if (!planDetails) return defaultIneligible;
 
-      if (planDetails.limitWohnungen === null) {
+      if (planDetails.limit_wohnungen === null) {
         return { isEligible: true, apartmentLimit: Infinity };
-      } else if (typeof planDetails.limitWohnungen === 'number') {
+      } else if (typeof planDetails.limit_wohnungen === 'number') {
         return {
-          isEligible: planDetails.limitWohnungen > 0,
-          apartmentLimit: planDetails.limitWohnungen > 0 ? planDetails.limitWohnungen : 0
+          isEligible: planDetails.limit_wohnungen > 0,
+          apartmentLimit: planDetails.limit_wohnungen > 0 ? planDetails.limit_wohnungen : 0
         };
       }
     } catch (error) {

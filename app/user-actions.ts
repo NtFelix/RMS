@@ -34,23 +34,23 @@ export async function getUserSubscriptionContext(): Promise<{
 
 export async function getPlanApartmentLimit(
   priceId: string
-): Promise<{ limitWohnungen: number | null | typeof Infinity; error?: string }> {
+): Promise<{ limit_wohnungen: number | null | typeof Infinity; error?: string }> {
   try {
     const planDetails = await getPlanDetails(priceId);
     if (!planDetails) {
-      return { limitWohnungen: null, error: "Plan details not found." };
+      return { limit_wohnungen: null, error: "Plan details not found." };
     }
 
-    let limitWohnungen = planDetails.limitWohnungen;
-    if (limitWohnungen === null || limitWohnungen < 0) {
-      limitWohnungen = Infinity;
+    let limit_wohnungen = planDetails.limit_wohnungen;
+    if (limit_wohnungen === null || limit_wohnungen < 0) {
+      limit_wohnungen = Infinity;
     }
 
-    return { limitWohnungen: limitWohnungen };
+    return { limit_wohnungen: limit_wohnungen };
   } catch (error) {
     console.error("Error in getPlanApartmentLimit:", error);
     return {
-      limitWohnungen: null,
+      limit_wohnungen: null,
       error: "Failed to fetch plan apartment limit.",
     };
   }

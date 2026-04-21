@@ -57,19 +57,19 @@ describe('user-actions', () => {
 
   describe('getPlanApartmentLimit', () => {
     it('returns limit from plan details', async () => {
-      (getPlanDetails as jest.Mock).mockResolvedValue({ limitWohnungen: 5 });
+      (getPlanDetails as jest.Mock).mockResolvedValue({ limit_wohnungen: 5 });
 
       const result = await getPlanApartmentLimit('price_123');
 
-      expect(result.limitWohnungen).toBe(5);
+      expect(result.limit_wohnungen).toBe(5);
     });
 
     it('handles infinite limits', async () => {
-        (getPlanDetails as jest.Mock).mockResolvedValue({ limitWohnungen: -1 });
+        (getPlanDetails as jest.Mock).mockResolvedValue({ limit_wohnungen: -1 });
 
         const result = await getPlanApartmentLimit('price_unlimited');
 
-        expect(result.limitWohnungen).toBe(Infinity);
+        expect(result.limit_wohnungen).toBe(Infinity);
       });
 
     it('returns error if plan not found', async () => {
