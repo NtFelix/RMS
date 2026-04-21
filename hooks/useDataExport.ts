@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { ExportConfig } from '@/lib/export-config';
 
 export const useDataExport = () => {
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleDataExport = async () => {
+  const handleDataExport = async (config?: ExportConfig) => {
     setIsExporting(true);
     toast({
       title: "Export gestartet",
@@ -12,9 +13,18 @@ export const useDataExport = () => {
       variant: "default"
     });
     try {
-      const response = await fetch('/api/export', {
-        method: 'GET',
-      });
+      const fetchOptions: RequestInit = {
+        method: config ? 'POST' : 'GET',
+      };
+      
+      if (config) {
+        fetchOptions.headers = {
+          'Content-Type': 'application/json',
+        };
+        fetchOptions.body = JSON.stringify(config);
+      }
+
+      const response = await fetch('/api/export', fetchOptions);
 
       if (!response.ok) {
         const errorData = await response.json();

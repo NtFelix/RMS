@@ -1,26 +1,13 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { ALLOWED_EXPORT_SCHEMA, ExportConfig } from '@/lib/export-config';
 
-// Define the tables and columns to export based on the LATEST provided schema.
-// Exclude ALL ID columns (primary and foreign keys) as requested.
-const tablesToExport = {
-  Aufgaben: ['ist_erledigt', 'name', 'beschreibung', 'erstellungsdatum', 'aenderungsdatum'],
-  Finanzen: ['name', 'datum', 'betrag', 'ist_einnahmen', 'notiz'],
-  Haeuser: ['ort', 'name', 'strasse', 'groesse'],
-  Mieter: ['name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'],
-  Nebenkosten: ['jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten', 'wasserverbrauch'],
-  Rechnungen: ['name', 'betrag'],
-  Zaehler_Ablesungen: ['ablese_datum', 'zaehlerstand', 'verbrauch', 'kommentar'],
-  Wohnungen: ['groesse', 'name', 'miete'],
-  // profiles table removed from export as requested due to sensitive data.
-};
-
-export async function GET() {
+async function processExport(config: Record<string, string[]>) {
   try {
     const supabase = await createClient();
 
-    const exportPromises = Object.entries(tablesToExport).map(async ([tableName, columns]) => {
+    const exportPromises = Object.entries(config).map(async ([tableName, columns]) => {
       if (columns.length === 0) {
         console.warn(`Skipping table ${tableName} as no columns are defined for export.`);
         return null;
@@ -69,5 +56,37 @@ export async function GET() {
         'Content-Type': 'application/json',
       },
     });
+  }
+}
+
+export async function GET() {
+  return processExport(ALLOWED_EXPORT_SCHEMA);
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { mode, selectedColumns } = body as ExportConfig;
+
+    if (!selectedColumns || typeof selectedColumns !== 'object') {
+      return new NextResponse(JSON.stringify({ error: 'Ungültige Export-Konfiguration' }), { status: 400 });
+    }
+
+    const finalConfig: Record<string, string[]> = {};
+
+    for (const [table, columns] of Object.entries(selectedColumns)) {
+      if (ALLOWED_EXPORT_SCHEMA[table]) {
+        // Filter out any columns that are not in the allowed schema
+        const validColumns = columns.filter(col => ALLOWED_EXPORT_SCHEMA[table].includes(col));
+        if (validColumns.length > 0) {
+          finalConfig[table] = validColumns;
+        }
+      }
+    }
+
+    return processExport(finalConfig);
+  } catch (error) {
+    console.error('Error parsing POST export request:', error);
+    return new NextResponse(JSON.stringify({ error: 'Ungültige Anfrage' }), { status: 400 });
   }
 }
