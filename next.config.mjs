@@ -6,6 +6,7 @@ const POSTHOG_PROXY_MODE = process.env.POSTHOG_PROXY_MODE;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   // swcMinify is now enabled by default in Next.js 15
   productionBrowserSourceMaps: false,
