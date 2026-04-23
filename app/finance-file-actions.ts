@@ -75,7 +75,8 @@ export async function getFinanceDocumentPath(
  * Get a signed URL for viewing/downloading a document
  */
 export async function getFinanceDocumentUrl(
-    dokumentId: string
+    dokumentId: string,
+    download: boolean = false
 ): Promise<{ success: boolean; url?: string; filename?: string; error?: string }> {
     if (!dokumentId) {
         return { success: false, error: "Keine Dokument-ID angegeben" };
@@ -98,9 +99,13 @@ export async function getFinanceDocumentUrl(
     const fullPath = `${dokument.dateipfad}/${dokument.dateiname}`;
 
     // Get signed URL (valid for 1 hour)
+    const options: any = {};
+    if (download) {
+        options.download = dokument.dateiname;
+    }
     const { data: signedUrl, error: urlError } = await supabase.storage
         .from("documents")
-        .createSignedUrl(fullPath, 3600);
+        .createSignedUrl(fullPath, 3600, options);
 
     if (urlError || !signedUrl) {
         console.error("Error creating signed URL:", urlError);
