@@ -126,7 +126,7 @@ export function UserSettings({
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                   {isLoadingUser ? "Lade..." : userName}
                 </span>
-                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && (
+                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && apartmentLimit !== Infinity && (
                   <div className="flex flex-col gap-1 mt-1">
                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                       <span>{apartmentCount} / {apartmentLimit} Wohnungen</span>
@@ -137,7 +137,7 @@ export function UserSettings({
                     />
                   </div>
                 )}
-                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit === null && (
+                {!isLoadingUser && !isLoadingApartmentData && (apartmentLimit === null || apartmentLimit === Infinity) && (
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     Unbegrenzte Wohnungen
                   </span>

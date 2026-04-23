@@ -9,7 +9,7 @@ export interface SidebarUserData {
   userEmail: string;
   userInitials: string;
   apartmentCount: number;
-  apartmentLimit: number | null;
+  apartmentLimit: number | typeof Infinity | null;
 }
 
 /**
@@ -27,7 +27,7 @@ export async function getSidebarUserData(
       user: null,
       ...guestData,
       apartmentCount: 0,
-      apartmentLimit: null, // Guest users should see "Unbegrenzte Wohnungen" instead of 0/0
+      apartmentLimit: Infinity, // Guest users = unlimited (consistent with normalizeApartmentLimit)
     }
   }
 
@@ -48,7 +48,7 @@ export async function getSidebarUserData(
       .single() : Promise.resolve({ data: profile })
   ]);
 
-  let apartmentLimit: number | null = null;
+  let apartmentLimit: number | typeof Infinity | null = null;
   const activeProfile = profile || secondaryProfileResult.data;
 
   const isTrialing = activeProfile?.stripe_subscription_status === 'trialing';
@@ -73,8 +73,8 @@ export async function getSidebarUserData(
         }
     } catch (e) {
         console.error("[getSidebarUserData] Failed to fetch plan details:", e);
-        // Fallback: trial users get 5, active users get null
-        apartmentLimit = isTrialing ? 5 : null;
+        // Fallback: trial users get 5, active users get 0 (safer than null which = unlimited)
+        apartmentLimit = isTrialing ? 5 : 0;
     }
   }
 

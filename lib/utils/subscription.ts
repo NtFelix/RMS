@@ -25,12 +25,14 @@ export type ApartmentLimit = number | typeof Infinity | null;
 export function normalizeApartmentLimit(
   limit: number | null | undefined
 ): number | typeof Infinity | null {
-  if (limit === null || limit === undefined) {
-    return Infinity; // null = unlimited
+  // Missing/undefined data = couldn't determine limit (caller should handle as error/fallback)
+  if (limit === undefined) {
+    return null;
   }
   
-  if (limit <= 0) {
-    return Infinity; // 0 or negative = unlimited
+  // Explicitly null or 0/negative = unlimited
+  if (limit === null || limit <= 0) {
+    return Infinity;
   }
   
   return limit; // Positive number = actual limit
