@@ -47,7 +47,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
         {/* CSS-only fallback layout with enhanced responsive behavior */}
-        <div className="desktop-sidebar-responsive hydration-safe-desktop w-64 bg-background border-r prevent-layout-shift">
+        <div className="desktop-sidebar-responsive hydration-safe-desktop w-64 prevent-layout-shift">
           <div className="flex h-full flex-col">
             {/* Sidebar placeholder with basic structure */}
             <div className="flex h-14 items-center border-b px-4">
@@ -62,7 +62,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex flex-1 flex-col overflow-hidden">
 
-          <main className="flex flex-1 flex-col min-h-0 p-6 pt-6 md:pt-6 main-content-responsive responsive-transition prevent-layout-shift">
+          <main className="flex flex-1 flex-col min-h-0 p-4 pt-4 md:pt-4 main-content-responsive responsive-transition prevent-layout-shift">
             <div className="flex-1 overflow-y-auto rounded-2xl border shadow-sm mb-4 md:mb-0">
               <div className="p-6">
                 <div className="space-y-4">
@@ -109,10 +109,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           "main-content-responsive",
           "responsive-transition",
           // Responsive padding: no top padding on mobile since header is hidden
-          "p-6 md:p-6",
-          "pt-6 md:pt-6",
+          "p-4 md:p-4",
+          "pt-4 md:pt-4",
           // JavaScript-enhanced responsive padding
-          isMobile ? "pb-20 pt-6" : "pb-6 pt-6"
+          isMobile ? "pb-20 pt-4" : "pb-4 pt-4"
         )}>
           <div className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden border shadow-sm",
