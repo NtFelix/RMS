@@ -6,9 +6,9 @@ import { logAction } from '@/lib/logging-middleware';
 
 interface AufgabePayload {
   name: string;
-  beschreibung?: string | null; //beschreibung is optional
+  beschreibung?: string | null;
   ist_erledigt?: boolean;
-  // Future fields like status, prioritaet, faelligkeitsdatum can be added here
+  faelligkeitsdatum?: string | null;
 }
 
 // Interface for the data returned from the database, including all fields
@@ -17,8 +17,9 @@ interface AufgabeDbRecord {
   name: string;
   beschreibung?: string | null;
   ist_erledigt: boolean;
-  created_at: string;
-  // Add other DB fields if they exist
+  erstellungsdatum: string;
+  aenderungsdatum: string;
+  faelligkeitsdatum?: string | null;
 }
 
 export async function aufgabeServerAction(id: string | null, data: AufgabePayload): Promise<{ success: boolean; error?: any; data?: AufgabeDbRecord }> {
@@ -27,19 +28,21 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
 
   const supabase = await createClient();
 
-  const payload = {
+  const payload: Record<string, any> = {
     name: data.name,
-    beschreibung: data.beschreibung || null, // Ensure null if empty string or undefined
-    // If creating a new task (id is null) and ist_erledigt is not provided, default to false.
-    // If editing, and ist_erledigt is provided, use that value. Otherwise, it won't be updated.
+    beschreibung: data.beschreibung || null,
     ist_erledigt: (id === null && typeof data.ist_erledigt === 'undefined') ? false : data.ist_erledigt,
   };
+
+  // Handle due date - include if provided or explicitly set to null
+  if (data.faelligkeitsdatum !== undefined) {
+    payload.faelligkeitsdatum = data.faelligkeitsdatum || null;
+  }
 
   // If editing and ist_erledigt is not provided in data, remove it from payload to avoid unintended updates
   if (id !== null && typeof data.ist_erledigt === 'undefined') {
     delete (payload as Partial<AufgabePayload>).ist_erledigt;
   }
-
 
   // Basic validation
   if (!payload.name || payload.name.trim() === "") {
@@ -54,14 +57,13 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
       dbResponse = await supabase.from("Aufgaben").update(payload).eq("id", id).select().single();
     } else {
       // Create new record
-      // Ensure ist_erledigt is explicitly set for new records if not in payload (already handled above)
       const insertPayload = { ...payload, ist_erledigt: payload.ist_erledigt ?? false };
       dbResponse = await supabase.from("Aufgaben").insert(insertPayload).select().single();
     }
 
     if (dbResponse.error) throw dbResponse.error;
 
-    revalidatePath('/todos'); // Revalidate the main tasks page
+    revalidatePath('/todos');
     logAction(actionName, 'success', { task_id: dbResponse.data?.id, task_name: data.name });
     return { success: true, data: dbResponse.data as AufgabeDbRecord };
   } catch (error: any) {
@@ -206,3 +208,68 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   }
 }
 
+export async function getTasksForCalendarAction(
+  startDate: string,
+  endDate: string
+): Promise<{ success: boolean; tasks?: AufgabeDbRecord[]; error?: { message: string } }> {
+  const actionName = 'getTasksForCalendar';
+  logAction(actionName, 'start', { start_date: startDate, end_date: endDate });
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("Aufgaben")
+      .select("*")
+      .gte("faelligkeitsdatum", startDate)
+      .lte("faelligkeitsdatum", endDate)
+      .order("faelligkeitsdatum", { ascending: true });
+
+    if (error) {
+      logAction(actionName, 'error', { error_message: error.message });
+      return { success: false, error: { message: error.message } };
+    }
+
+    logAction(actionName, 'success', { task_count: data?.length || 0 });
+    return { success: true, tasks: data as AufgabeDbRecord[] };
+
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+}
+
+export async function updateTaskDueDateAction(
+  taskId: string,
+  dueDate: string | null
+): Promise<{ success: boolean; task?: AufgabeDbRecord; error?: { message: string } }> {
+  const actionName = 'updateTaskDueDate';
+  logAction(actionName, 'start', { task_id: taskId, due_date: dueDate });
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("Aufgaben")
+      .update({
+        faelligkeitsdatum: dueDate,
+        aenderungsdatum: new Date().toISOString(),
+      })
+      .eq("id", taskId)
+      .select()
+      .single();
+
+    if (error) {
+      logAction(actionName, 'error', { task_id: taskId, error_message: error.message });
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath("/todos");
+    logAction(actionName, 'success', { task_id: taskId, due_date: dueDate });
+    return { success: true, task: data as AufgabeDbRecord };
+
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+}
