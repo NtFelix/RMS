@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
-import { normalizeApartmentLimit } from '@/lib/utils/subscription';
+import { normalizeApartmentLimit, getEffectiveApartmentLimit } from '@/lib/utils/subscription';
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
@@ -47,14 +47,8 @@ async function determineApartmentEligibility(userProfile: any): Promise<Apartmen
       try {
         const planDetails = await getPlanDetails(userProfile.stripe_price_id);
         if (planDetails) {
-          const normalizedLimit = normalizeApartmentLimit(planDetails.limit_wohnungen);
-          // If plan is unlimited (Infinity), trial users get unlimited
-          // Otherwise, use max of trial default (5) or plan limit
-          if (normalizedLimit === Infinity) {
-            result.apartmentLimit = Infinity;
-          } else if (normalizedLimit !== null && normalizedLimit > result.apartmentLimit) {
-            result.apartmentLimit = normalizedLimit;
-          }
+          // Use centralized utility for consistent limit calculation
+          result.apartmentLimit = getEffectiveApartmentLimit(planDetails.limit_wohnungen, true);
         }
       } catch (error) {
         console.error('Error fetching plan details for active sub during trial:', error);

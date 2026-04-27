@@ -1,7 +1,7 @@
 import { getPlanDetails } from "@/lib/stripe-server"
 import { User, SupabaseClient } from "@supabase/supabase-js"
 import { getUserDisplayData } from "@/lib/utils/user"
-import { normalizeApartmentLimit } from "@/lib/utils/subscription"
+import { getEffectiveApartmentLimit } from "@/lib/utils/subscription"
 
 export interface SidebarUserData {
   user: User | null;
@@ -63,14 +63,8 @@ export async function getSidebarUserData(
   if ((isActive || isTrialing) && activeProfile?.stripe_price_id) {
     try {
         const plans = await getPlanDetails(activeProfile.stripe_price_id);
-        const normalizedLimit = normalizeApartmentLimit(plans?.limit_wohnungen);
-        
-        // For trial users: use max of default (5) or plan limit (allows unlimited plans during trial)
-        if (isTrialing && normalizedLimit !== null) {
-          apartmentLimit = normalizedLimit === Infinity ? Infinity : Math.max(5, normalizedLimit);
-        } else if (isActive) {
-          apartmentLimit = normalizedLimit;
-        }
+        // Use centralized utility for consistent limit calculation
+        apartmentLimit = getEffectiveApartmentLimit(plans?.limit_wohnungen, isTrialing);
     } catch (e) {
         console.error("[getSidebarUserData] Failed to fetch plan details:", e);
         // Fallback: trial users get 5, active users get 0 (safer than null which = unlimited)
