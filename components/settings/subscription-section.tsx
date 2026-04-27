@@ -338,21 +338,21 @@ const SubscriptionSection = () => {
                         </div>
                       </div>
                     )}
-                    {profile.currentWohnungenCount !== undefined && profile.activePlan.limitWohnungen && (
+                    {profile.currentWohnungenCount !== undefined && profile.activePlan.limit_wohnungen && (
                       <div className="space-y-1">
                         <div className="text-sm font-medium text-muted-foreground">Wohnungen genutzt</div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
-                            <span>{profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}</span>
+                            <span>{profile.currentWohnungenCount} / {profile.activePlan.limit_wohnungen}</span>
                             <span className="text-muted-foreground">
-                              {Math.round((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100)}%
+                              {Math.round((profile.currentWohnungenCount / profile.activePlan.limit_wohnungen) * 100)}%
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                             <div
                               className="bg-primary h-2 rounded-full transition-all duration-300"
                               style={{
-                                width: `${Math.min((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100, 100)}%`
+                                width: `${Math.min((profile.currentWohnungenCount / profile.activePlan.limit_wohnungen) * 100, 100)}%`
                               }}
                             />
                           </div>

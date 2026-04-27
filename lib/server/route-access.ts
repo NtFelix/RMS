@@ -113,7 +113,7 @@ export async function requireActiveSubscription() {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("stripe_subscription_status")
+    .select("stripe_subscription_status, stripe_price_id")
     .eq("id", user.id)
     .single()
 

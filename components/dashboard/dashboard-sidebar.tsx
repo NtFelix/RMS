@@ -16,6 +16,7 @@ import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
+import { SidebarUserData } from "@/lib/server/user-data"
 
 const sidebarNavItems = [
   {
@@ -65,7 +66,7 @@ const sidebarNavItems = [
   },
 ]
 
-export function DashboardSidebar() {
+export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -219,6 +220,7 @@ export function DashboardSidebar() {
             toggleCollapse={() => setIsCollapsed(!isCollapsed)}
             textVariants={textVariants}
             iconVariants={iconVariants}
+            sidebarData={sidebarData}
           />
         </div>
       </motion.aside>
@@ -239,6 +241,7 @@ export function DashboardSidebar() {
           getActiveStateClasses={getActiveStateClasses}
           isMobile={true}
           setIsOpen={setIsOpen}
+          sidebarData={sidebarData}
         />
       </aside>
     </>
@@ -257,6 +260,7 @@ interface SidebarContentProps {
   toggleCollapse?: () => void
   textVariants?: Variants
   iconVariants?: Variants
+  sidebarData: SidebarUserData
 }
 
 function SidebarContent({
@@ -270,7 +274,8 @@ function SidebarContent({
   setIsOpen,
   toggleCollapse,
   textVariants,
-  iconVariants
+  iconVariants,
+  sidebarData
 }: SidebarContentProps) {
   return (
     <div className="h-full w-full flex flex-col relative">
@@ -428,7 +433,7 @@ function SidebarContent({
             )}
           </Button>
         )}
-        <UserSettings collapsed={isCollapsed} />
+        <UserSettings collapsed={isCollapsed} initialData={sidebarData} />
       </div>
     </div>
   )

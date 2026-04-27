@@ -1,4 +1,5 @@
-"use client" // Make this a client component
+"use client"
+
 import type React from "react"
 import { AuthProvider } from "@/components/auth/auth-provider"
 import { EmailVerificationNotifier } from '@/components/auth/email-verification-notifier'
@@ -7,6 +8,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"
 import dynamic from 'next/dynamic'
 import DashboardOverlayLoader from "./dashboard-overlay-loader"
+import { SidebarUserData } from "@/lib/server/user-data"
 
 const OnboardingTour = dynamic(
   () => import('@/components/onboarding/onboarding-tour').then(mod => mod.OnboardingTour),
@@ -15,8 +17,10 @@ const OnboardingTour = dynamic(
 
 export default function DashboardInnerLayout({
   children,
+  sidebarData,
 }: Readonly<{
   children: React.ReactNode
+  sidebarData: SidebarUserData
 }>) {
   return (
     <AuthProvider>
@@ -24,7 +28,9 @@ export default function DashboardInnerLayout({
         <EmailVerificationNotifier />
       </Suspense>
       <NestedDialogProvider>
-        <DashboardLayout>{children}</DashboardLayout>
+        <DashboardLayout sidebarData={sidebarData}>
+          {children}
+        </DashboardLayout>
         <DashboardOverlayLoader />
       </NestedDialogProvider>
       <OnboardingTour />

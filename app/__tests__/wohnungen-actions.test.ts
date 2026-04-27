@@ -106,7 +106,7 @@ describe('wohnungServerAction', () => {
       });
       // Mock successful getPlanDetails
       (getPlanDetails as jest.Mock).mockResolvedValue({
-        limitWohnungen: 10,
+        limit_wohnungen: 10,
       });
 
       // Setup the mock chain to handle specific calls
@@ -156,7 +156,7 @@ describe('wohnungServerAction', () => {
     });
 
     it('fails if apartment limit reached', async () => {
-      (getPlanDetails as jest.Mock).mockResolvedValue({ limitWohnungen: 2 });
+      (getPlanDetails as jest.Mock).mockResolvedValue({ limit_wohnungen: 2 });
 
       const mockChain = mockSupabase.from();
       mockChain.eq.mockResolvedValue({ count: 2, error: null }); // Already have 2
@@ -167,7 +167,7 @@ describe('wohnungServerAction', () => {
     });
 
     it('allows creation if limit is Infinity', async () => {
-      (getPlanDetails as jest.Mock).mockResolvedValue({ limitWohnungen: null }); // Infinity
+      (getPlanDetails as jest.Mock).mockResolvedValue({ limit_wohnungen: null }); // Infinity
 
       const mockChain = mockSupabase.from();
       mockChain.eq.mockResolvedValue({ count: 100, error: null });
