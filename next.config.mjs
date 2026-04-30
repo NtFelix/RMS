@@ -49,10 +49,10 @@ const nextConfig = {
   // Avoid redirecting /assets/v2/ -> /assets/v2 which can break PostHog proxying
   skipTrailingSlashRedirect: true,
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
