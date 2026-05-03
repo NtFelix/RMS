@@ -72,7 +72,7 @@ export async function getPlanDetails(priceId: string) {
         interval: 'month',
         interval_count: 1,
         features: [],
-        limitWohnungen: 100,
+        limit_wohnungen: 100,
         storageLimit: 1024 * 1024 * 1024,
       };
     }
@@ -122,7 +122,7 @@ export async function getPlanDetails(priceId: string) {
       interval: price.recurring?.interval || null,
       interval_count: price.recurring?.interval_count || null,
       features: featuresArray, // Now a string[]
-      limitWohnungen: limitWohnungenValue, // Now a number or null
+      limit_wohnungen: limitWohnungenValue, // Now a number or null
       storageLimit: storageLimitValue, // Storage limit in bytes or null for unlimited
     };
 

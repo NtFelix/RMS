@@ -151,7 +151,7 @@ describe('Wohnungen Server Actions', () => {
 
       // Mock plan details
       (getPlanDetails as jest.Mock).mockResolvedValue({
-        limitWohnungen: 10,
+        limit_wohnungen: 10,
       });
 
       mockSelectEq.mockResolvedValue({ count: 2, error: null });
@@ -170,7 +170,7 @@ describe('Wohnungen Server Actions', () => {
 
       // Mock plan details
       (getPlanDetails as jest.Mock).mockResolvedValue({
-        limitWohnungen: 10,
+        limit_wohnungen: 10,
       });
 
       mockSelectEq.mockResolvedValue({ count: 10, error: null });
