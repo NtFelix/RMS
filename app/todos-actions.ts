@@ -39,6 +39,8 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
     payload.faelligkeitsdatum = data.faelligkeitsdatum || null;
   }
 
+  payload.aenderungsdatum = new Date().toISOString();
+
   // If editing and ist_erledigt is not provided in data, remove it from payload to avoid unintended updates
   if (id !== null && typeof data.ist_erledigt === 'undefined') {
     delete (payload as Partial<AufgabePayload>).ist_erledigt;
@@ -227,40 +229,6 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   }
 }
 
-export async function getTasksForCalendarAction(
-  startDate: string,
-  endDate: string
-): Promise<{ success: boolean; tasks?: AufgabeDbRecord[]; error?: { message: string } }> {
-  const actionName = 'getTasksForCalendar';
-  logAction(actionName, 'start', { start_date: startDate, end_date: endDate });
-
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Nicht authentifiziert");
-
-    const { data, error } = await supabase
-      .from("Aufgaben")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("faelligkeitsdatum", startDate)
-      .lte("faelligkeitsdatum", endDate)
-      .order("faelligkeitsdatum", { ascending: true });
-
-    if (error) {
-      logAction(actionName, 'error', { error_message: error.message });
-      return { success: false, error: { message: error.message } };
-    }
-
-    logAction(actionName, 'success', { task_count: data?.length || 0 });
-    return { success: true, tasks: data as AufgabeDbRecord[] };
-
-  } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
-    logAction(actionName, 'error', { error_message: errorMessage });
-    return { success: false, error: { message: errorMessage } };
-  }
-}
 
 export async function updateTaskDueDateAction(
   taskId: string,

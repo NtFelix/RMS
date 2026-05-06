@@ -9,9 +9,10 @@ import {
     startOfMonth,
     endOfMonth,
     eachDayOfInterval,
+    isToday,
+    isSameYear,
     isSameMonth,
     isSameDay,
-    isToday,
     startOfWeek,
     endOfWeek,
     addMonths,
@@ -25,10 +26,9 @@ import {
     eachMonthOfInterval,
 } from "date-fns";
 import { de } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Check, Clock, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { TaskBoardTask as Task } from "@/types/Task";
@@ -123,18 +123,13 @@ export function TaskCalendar({
             if (isSameMonth(start, end)) {
                 return format(start, "MMMM yyyy", { locale: de });
             }
-            if (dateFnsIsSameYear(start, end)) {
+            if (isSameYear(start, end)) {
                 return `${format(start, "MMM", { locale: de })} - ${format(end, "MMMM yyyy", { locale: de })}`;
             }
             return `${format(start, "MMM yyyy", { locale: de })} - ${format(end, "MMM yyyy", { locale: de })}`;
         }
         return format(currentMonth, "MMMM yyyy", { locale: de });
     }, [currentMonth, view]);
-
-    // Helper for year IsSameYear check to avoid import conflict if any
-    function dateFnsIsSameYear(d1: Date, d2: Date) {
-        return d1.getFullYear() === d2.getFullYear();
-    }
 
     const weeks = view === "week" ? 1 : Math.ceil(calendarDays.length / 7);
     const weekDays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
