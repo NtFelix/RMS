@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export const runtime = 'edge';
 
@@ -12,14 +13,14 @@ export async function PATCH(request: Request) {
     if (!Array.isArray(ids) || !updates || typeof updates !== 'object') {
       return NextResponse.json(
         { error: 'Ungültige Anfrage. IDs und Updates werden benötigt.' },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
     if (ids.length === 0) {
       return NextResponse.json(
         { error: 'Keine IDs zum Aktualisieren angegeben.' },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -35,7 +36,7 @@ export async function PATCH(request: Request) {
       console.error('Fehler beim Abrufen der Finanzdaten:', fetchError);
       return NextResponse.json(
         { error: 'Fehler beim Überprüfen der Finanzdaten' },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -51,7 +52,7 @@ export async function PATCH(request: Request) {
           total: ids.length,
           missingIds
         },
-        { status: 404 }
+        { status: 404, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -75,7 +76,7 @@ export async function PATCH(request: Request) {
       console.error('Fehler beim Aktualisieren der Finanzdaten:', updateError);
       return NextResponse.json(
         { error: 'Fehler beim Aktualisieren der Finanzdaten' },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -85,13 +86,13 @@ export async function PATCH(request: Request) {
       total: ids.length,
       updatedRecords: updatedRecords ?? [],
       missingIds: missingIds.length > 0 ? missingIds : undefined
-    });
+    }, { headers: NO_CACHE_HEADERS });
 
   } catch (error) {
     console.error('Unerwarteter Fehler bei der Massenaktualisierung:', error);
     return NextResponse.json(
       { error: 'Interner Serverfehler' },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
   }
 }

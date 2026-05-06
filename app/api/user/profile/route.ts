@@ -6,6 +6,7 @@ import { getPlanDetails } from '@/lib/stripe-server'; // Assuming lib is aliased
 import { Profile } from '@/types/supabase'; // Import the Profile type
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
 import { calculateOverallSubscriptionActivity } from '@/lib/utils';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -16,7 +17,10 @@ export async function GET() {
 
     if (authError || !user) {
       console.error('Auth error:', authError);
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ error: 'Not authenticated' }, { 
+        status: 401,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -28,7 +32,10 @@ export async function GET() {
     if (profileError || !profile) {
       console.error('Profile error:', profileError);
       // You might want to return a default profile structure or a 404
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Profile not found' }, { 
+        status: 404,
+        headers: NO_CACHE_HEADERS
+      });
     }
 
     // Use the new utility function to get the count of Wohnungen
@@ -44,7 +51,10 @@ export async function GET() {
         console.error('Stripe API error:', stripeError);
         // Depending on the error, you might want to return a specific message
         // For now, we'll just indicate that plan details couldn't be fetched
-        return NextResponse.json({ error: 'Could not fetch plan details' }, { status: 500 });
+        return NextResponse.json({ error: 'Could not fetch plan details' }, { 
+          status: 500,
+          headers: NO_CACHE_HEADERS
+        });
       }
     }
 
@@ -64,10 +74,15 @@ export async function GET() {
       currentWohnungenCount: currentWohnungenCount, // Add this line
     };
 
-    return NextResponse.json(responseData);
+    return NextResponse.json(responseData, {
+      headers: NO_CACHE_HEADERS
+    });
 
   } catch (error) {
     console.error('Generic server error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 }

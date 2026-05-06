@@ -1,4 +1,8 @@
 import { withPostHogConfig } from "@posthog/nextjs-config";
+import posthogProxyConfig from "./lib/posthog-proxy.js";
+
+const { POSTHOG_PROXY_PATH, POSTHOG_INGEST_HOST, POSTHOG_ASSETS_HOST } = posthogProxyConfig;
+const POSTHOG_PROXY_MODE = process.env.POSTHOG_PROXY_MODE;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -6,6 +10,8 @@ const nextConfig = {
   // swcMinify is now enabled by default in Next.js 15
   productionBrowserSourceMaps: false,
   compress: true,
+  // Avoid redirecting /assets/v2/ -> /assets/v2 which can break PostHog proxying
+  skipTrailingSlashRedirect: true,
   eslint: {
     ignoreDuringBuilds: true,  // Changed from false to true
   },
@@ -41,6 +47,26 @@ const nextConfig = {
       '@radix-ui/react-popover',
       '@radix-ui/react-dropdown-menu',
     ],
+  },
+  async rewrites() {
+    // If Cloudflare edge rewrites are problematic, force the route-handler proxy instead.
+    if (POSTHOG_PROXY_MODE === "route") {
+      return [];
+    }
+
+    // Use an opaque path to reduce ad-block targeting; keep static assets first.
+    return {
+      beforeFiles: [
+        {
+          source: `${POSTHOG_PROXY_PATH}/static/:path*`,
+          destination: `${POSTHOG_ASSETS_HOST}/static/:path*`,
+        },
+        {
+          source: `${POSTHOG_PROXY_PATH}/:path*`,
+          destination: `${POSTHOG_INGEST_HOST}/:path*`,
+        },
+      ],
+    };
   },
   webpack: (config, { webpack }) => {
     // Stub and ignore 'ws' module in all builds

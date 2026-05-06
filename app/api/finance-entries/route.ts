@@ -4,6 +4,7 @@ export const runtime = 'edge'
 import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
 import { FinanceEntryPayload } from "@/types/finanzen"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 export async function POST(request: Request) {
   const requestStartTime = Date.now()
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     if (!entries || !Array.isArray(entries) || entries.length === 0) {
       return NextResponse.json(
         { error: "Invalid entries data" },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
         error: userError?.message,
         duration: Date.now() - requestStartTime
       })
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     // Validate each entry
@@ -38,14 +39,14 @@ export async function POST(request: Request) {
       if (!entry.wohnung_id || !entry.name || entry.betrag == null || !entry.datum) {
         return NextResponse.json(
           { error: "Missing required fields in entry" },
-          { status: 400 }
+          { status: 400, headers: NO_CACHE_HEADERS }
         )
       }
 
       if (typeof entry.betrag !== 'number' || entry.betrag < 0) {
         return NextResponse.json(
           { error: "Invalid betrag value" },
-          { status: 400 }
+          { status: 400, headers: NO_CACHE_HEADERS }
         )
       }
     }
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
           inserted: rpcData.inserted,
           skipped: rpcData.skipped,
           totalEntries: entries.length
-        })
+        }, { headers: NO_CACHE_HEADERS })
       }
 
       logger.warn("⚠️ [Finance Entries API] RPC function failed, using fallback", {
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
       })
       return NextResponse.json(
         { error: "Failed to create finance entries", details: error.message },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       entries: data
-    })
+    }, { headers: NO_CACHE_HEADERS })
 
   } catch (error) {
     const totalDuration = Date.now() - requestStartTime
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
     })
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }
@@ -167,7 +168,7 @@ export async function GET(request: Request) {
         error: userError?.message,
         duration: Date.now() - requestStartTime
       })
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     const { searchParams } = new URL(request.url)
@@ -192,13 +193,13 @@ export async function GET(request: Request) {
       logger.error("Error fetching finance entries", error, { path: request.url, userId: user.id })
       return NextResponse.json(
         { error: "Failed to fetch finance entries" },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       )
     }
 
     return NextResponse.json({
       entries: data || []
-    })
+    }, { headers: NO_CACHE_HEADERS })
 
   } catch (error) {
     const totalDuration = Date.now() - requestStartTime
@@ -208,7 +209,7 @@ export async function GET(request: Request) {
     })
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }

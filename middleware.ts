@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
+import posthogProxyConfig from "@/lib/posthog-proxy"
+
+const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
 const MANAGED_ROUTE_PREFIXES = [
   "/auth",
@@ -22,6 +25,11 @@ function matchesRoutePrefix(pathname: string, prefix: string) {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+
+  // Skip PostHog proxy traffic entirely (no auth, no CSP, no redirects)
+  if (pathname.startsWith(POSTHOG_PROXY_PATH)) {
+    return NextResponse.next()
+  }
   const needsManagedHeaders = MANAGED_ROUTE_PREFIXES.some((prefix) =>
     matchesRoutePrefix(pathname, prefix),
   )
@@ -76,19 +84,19 @@ export async function middleware(request: NextRequest) {
       // We sign this data with a secret to prevent spoofing if middleware is bypassed.
       const userData = JSON.stringify(user)
       const secret = process.env.USER_HEADER_SECRET
-      
+
       if (secret) {
         // Use standard Web Crypto API (available in Cloudflare Edge) for HMAC
         const encoder = new TextEncoder()
         const keyData = encoder.encode(secret)
         const msgData = encoder.encode(userData)
-        
+
         // This is async in Web Crypto, but middleware allows awaiting
         const key = await crypto.subtle.importKey(
-          'raw', 
-          keyData, 
-          { name: 'HMAC', hash: 'SHA-256' }, 
-          false, 
+          'raw',
+          keyData,
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
           ['sign']
         )
         const signatureBuffer = await crypto.subtle.sign('HMAC', key, msgData)

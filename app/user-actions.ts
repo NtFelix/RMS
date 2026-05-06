@@ -3,6 +3,7 @@
 import { fetchUserProfile, getCurrentWohnungenCount } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { createClient } from "@/utils/supabase/server";
+import { normalizeApartmentLimit } from "@/lib/utils/subscription";
 
 export async function getUserSubscriptionContext(): Promise<{
   stripe_price_id: string | null;
@@ -34,23 +35,21 @@ export async function getUserSubscriptionContext(): Promise<{
 
 export async function getPlanApartmentLimit(
   priceId: string
-): Promise<{ limitWohnungen: number | null | typeof Infinity; error?: string }> {
+): Promise<{ limit_wohnungen: number | null | typeof Infinity; error?: string }> {
   try {
     const planDetails = await getPlanDetails(priceId);
     if (!planDetails) {
-      return { limitWohnungen: null, error: "Plan details not found." };
+      return { limit_wohnungen: null, error: "Plan details not found." };
     }
 
-    let limitWohnungen = planDetails.limitWohnungen;
-    if (limitWohnungen === null || limitWohnungen < 0) {
-      limitWohnungen = Infinity;
-    }
+    // Use centralized normalization: null, 0, or negative = unlimited
+    const limit_wohnungen = normalizeApartmentLimit(planDetails.limit_wohnungen);
 
-    return { limitWohnungen: limitWohnungen };
+    return { limit_wohnungen };
   } catch (error) {
     console.error("Error in getPlanApartmentLimit:", error);
     return {
-      limitWohnungen: null,
+      limit_wohnungen: null,
       error: "Failed to fetch plan apartment limit.",
     };
   }

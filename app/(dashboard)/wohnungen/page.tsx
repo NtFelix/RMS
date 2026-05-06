@@ -41,11 +41,11 @@ export default async function WohnungenPage() {
           try {
             const planDetails = await getPlanDetails(userProfile.stripe_price_id);
             if (planDetails) {
-              if (planDetails.limitWohnungen === null) effectiveApartmentLimit = Infinity;
-              else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > effectiveApartmentLimit) {
-                effectiveApartmentLimit = planDetails.limitWohnungen;
+              if (planDetails.limit_wohnungen === null) effectiveApartmentLimit = Infinity;
+              else if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > effectiveApartmentLimit) {
+                effectiveApartmentLimit = planDetails.limit_wohnungen;
               }
-              if (effectiveApartmentLimit !== 5 || planDetails.limitWohnungen === null) limitReason = 'subscription';
+              if (effectiveApartmentLimit !== 5 || planDetails.limit_wohnungen === null) limitReason = 'subscription';
             }
           } catch (error) { console.error('WohnungenPage: Error fetching plan details for active sub during trial:', error); }
         }
@@ -55,8 +55,8 @@ export default async function WohnungenPage() {
         try {
           const planDetails = await getPlanDetails(userProfile.stripe_price_id);
           if (planDetails) {
-            if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) effectiveApartmentLimit = planDetails.limitWohnungen;
-            else if (planDetails.limitWohnungen === null) effectiveApartmentLimit = Infinity;
+            if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) effectiveApartmentLimit = planDetails.limit_wohnungen;
+            else if (planDetails.limit_wohnungen === null) effectiveApartmentLimit = Infinity;
             else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
           } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
         } catch (error) { console.error('WohnungenPage: Error fetching plan details:', error); userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
