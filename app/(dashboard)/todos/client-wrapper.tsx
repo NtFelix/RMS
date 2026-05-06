@@ -230,7 +230,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
       } else {
         toast({
           title: "Aufgabe verschoben",
-          description: `Fälligkeitsdatum auf ${format(new Date(dateStr), 'dd.MM.yyyy')} geändert.`,
+          description: `Fälligkeitsdatum auf ${format(new Date(dateStr + "T00:00:00"), 'dd.MM.yyyy')} geändert.`,
         });
       }
     } catch (error) {

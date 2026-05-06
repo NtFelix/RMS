@@ -43,7 +43,7 @@ export function TaskDayModal({
         const dateKey = format(date, "yyyy-MM-dd");
         return tasks.filter((task) => {
             if (!task.faelligkeitsdatum) return false;
-            const taskDate = format(new Date(task.faelligkeitsdatum), "yyyy-MM-dd");
+            const taskDate = format(new Date(task.faelligkeitsdatum + "T00:00:00"), "yyyy-MM-dd");
             return taskDate === dateKey;
         });
     }, [tasks, date]);

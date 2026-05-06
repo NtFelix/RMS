@@ -80,7 +80,7 @@ export function TaskItemCard({
                 </p>
                 {task.faelligkeitsdatum && (
                     <p className="text-xs text-muted-foreground mt-0.5">
-                        {format(new Date(task.faelligkeitsdatum), "dd. MMM", { locale: de })}
+                        {format(new Date(task.faelligkeitsdatum + "T00:00:00"), "dd. MMM", { locale: de })}
                     </p>
                 )}
             </div>
@@ -148,7 +148,7 @@ export function TaskSidebar({
             if (!task.faelligkeitsdatum) {
                 noDate.push(task);
             } else {
-                const dueDate = startOfDay(new Date(task.faelligkeitsdatum));
+                const dueDate = startOfDay(new Date(task.faelligkeitsdatum + "T00:00:00"));
 
                 if (isBefore(dueDate, today)) {
                     // Overdue

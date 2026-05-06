@@ -59,7 +59,7 @@ export function TaskCalendar({
 
         tasks.forEach((task) => {
             if (task.faelligkeitsdatum) {
-                const dateKey = format(new Date(task.faelligkeitsdatum), "yyyy-MM-dd");
+                const dateKey = format(new Date(task.faelligkeitsdatum + "T00:00:00"), "yyyy-MM-dd");
                 if (!grouped[dateKey]) {
                     grouped[dateKey] = [];
                 }
