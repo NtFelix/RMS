@@ -123,15 +123,17 @@ export function TaskSidebar({
     const [isUpcomingOpen, setIsUpcomingOpen] = useState(true);
     const [isNoDateOpen, setIsNoDateOpen] = useState(true);
     const [isOverdueOpen, setIsOverdueOpen] = useState(true);
+    const [isLaterOpen, setIsLaterOpen] = useState(false);
 
     const today = startOfDay(new Date());
     const nextWeek = addDays(today, 7);
 
     // Categorize tasks
-    const { upcomingTasks, noDateTasks, overdueTasks } = useMemo(() => {
+    const { upcomingTasks, noDateTasks, overdueTasks, laterTasks } = useMemo(() => {
         const upcoming: Task[] = [];
         const noDate: Task[] = [];
         const overdue: Task[] = [];
+        const later: Task[] = [];
 
         tasks.forEach((task) => {
             // Skip completed tasks for upcoming/overdue
@@ -154,6 +156,9 @@ export function TaskSidebar({
                 } else if (!isAfter(dueDate, nextWeek)) {
                     // Due within next 7 days (including today)
                     upcoming.push(task);
+                } else {
+                    // Due more than 7 days in the future
+                    later.push(task);
                 }
             }
         });
@@ -171,12 +176,18 @@ export function TaskSidebar({
             return dateB - dateA; // Most overdue first
         });
 
+        later.sort((a, b) => {
+            const dateA = new Date(a.faelligkeitsdatum!).getTime();
+            const dateB = new Date(b.faelligkeitsdatum!).getTime();
+            return dateA - dateB;
+        });
+
         // Sort no-date tasks by creation date
         noDate.sort((a, b) => {
             return new Date(b.erstellungsdatum).getTime() - new Date(a.erstellungsdatum).getTime();
         });
 
-        return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue };
+        return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue, laterTasks: later };
     }, [tasks, today, nextWeek]);
 
     const { setNodeRef: setNoDateRef, isOver: isNoDateOver } = useDroppable({
@@ -298,6 +309,37 @@ export function TaskSidebar({
                     )}
                 </CollapsibleContent>
             </Collapsible>
+
+            {/* Later Section */}
+            {laterTasks.length > 0 && (
+                <Collapsible open={isLaterOpen} onOpenChange={setIsLaterOpen}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-blue-50/50 hover:border-blue-100 hover:shadow-sm dark:hover:bg-blue-950/20 dark:hover:border-blue-900/30 group/trigger border border-transparent">
+                        <div className="flex items-center gap-2">
+                            {isLaterOpen ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <Clock className="h-4 w-4 text-blue-500" />
+                            <span className="text-sm font-medium">Später</span>
+                        </div>
+                        <Badge variant="outline" className="h-5 px-1.5 text-xs text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-900/50">
+                            {laterTasks.length}
+                        </Badge>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 space-y-1">
+                        {laterTasks.map((task) => (
+                            <TaskItem
+                                key={task.id}
+                                task={task}
+                                onTaskClick={onTaskClick}
+                                onTaskToggle={onTaskToggle}
+                            />
+                        ))}
+                    </CollapsibleContent>
+                </Collapsible>
+            )}
+
 
             {/* No Date Section */}
             <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>

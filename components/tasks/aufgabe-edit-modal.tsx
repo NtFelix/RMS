@@ -69,7 +69,7 @@ export function AufgabeEditModal({
       setIstErledigt(aufgabeInitialData.ist_erledigt || false);
       // Handle due date from initial data
       if (aufgabeInitialData.faelligkeitsdatum) {
-        setFaelligkeitsdatum(new Date(aufgabeInitialData.faelligkeitsdatum));
+        setFaelligkeitsdatum(new Date(`${aufgabeInitialData.faelligkeitsdatum}T00:00:00`));
       } else {
         setFaelligkeitsdatum(undefined);
       }

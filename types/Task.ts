@@ -17,5 +17,4 @@ export interface TaskBoardTask extends Task {
   status?: string
   createdAt?: string
   updatedAt?: string
-  dueDate?: string | null
 }

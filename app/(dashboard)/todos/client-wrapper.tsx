@@ -48,6 +48,15 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
     setMounted(true);
   }, []);
 
+  const handleActionError = useCallback((previousTasks: TaskBoardTask[], defaultMessage: string, serverError?: { message: string }) => {
+    setTasks(previousTasks);
+    toast({
+      title: "Fehler",
+      description: serverError?.message || defaultMessage,
+      variant: "destructive",
+    });
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -114,13 +123,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
     try {
       const result = await toggleTaskStatusAction(taskId, completed);
       if (!result.success) {
-        // Revert on error
-        setTasks(previousTasks);
-        toast({
-          title: "Fehler",
-          description: result.error?.message || "Status konnte nicht aktualisiert werden.",
-          variant: "destructive",
-        });
+        handleActionError(previousTasks, "Status konnte nicht aktualisiert werden.", result.error);
       } else {
         toast({
           title: completed ? "Aufgabe erledigt" : "Aufgabe reaktiviert",
@@ -130,14 +133,9 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
         });
       }
     } catch (error) {
-      setTasks(previousTasks);
-      toast({
-        title: "Fehler",
-        description: "Status konnte nicht aktualisiert werden.",
-        variant: "destructive",
-      });
+      handleActionError(previousTasks, "Status konnte nicht aktualisiert werden.");
     }
-  }, [tasks]);
+  }, [tasks, handleActionError]);
 
   const handleTaskDelete = useCallback(async (taskId: string) => {
     const previousTasks = tasks;
@@ -149,12 +147,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
     try {
       const result = await deleteTaskAction(taskId);
       if (!result.success) {
-        setTasks(previousTasks);
-        toast({
-          title: "Fehler",
-          description: result.error?.message || "Aufgabe konnte nicht gelöscht werden.",
-          variant: "destructive",
-        });
+        handleActionError(previousTasks, "Aufgabe konnte nicht gelöscht werden.", result.error);
       } else {
         toast({
           title: "Aufgabe gelöscht",
@@ -162,14 +155,9 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
         });
       }
     } catch (error) {
-      setTasks(previousTasks);
-      toast({
-        title: "Fehler",
-        description: "Aufgabe konnte nicht gelöscht werden.",
-        variant: "destructive",
-      });
+      handleActionError(previousTasks, "Aufgabe konnte nicht gelöscht werden.");
     }
-  }, [tasks]);
+  }, [tasks, handleActionError]);
 
   const handleDayClick = useCallback((date: Date) => {
     setSelectedDate(date);
@@ -209,12 +197,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
       try {
         const result = await updateTaskDueDateAction(taskId, null);
         if (!result.success) {
-          setTasks(previousTasks);
-          toast({
-            title: "Fehler",
-            description: result.error?.message || "Datum konnte nicht entfernt werden.",
-            variant: "destructive",
-          });
+          handleActionError(previousTasks, "Datum konnte nicht entfernt werden.", result.error);
         } else {
           toast({
             title: "Datum entfernt",
@@ -222,12 +205,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
           });
         }
       } catch (error) {
-        setTasks(previousTasks);
-        toast({
-          title: "Fehler",
-          description: "Datum konnte nicht entfernt werden.",
-          variant: "destructive",
-        });
+        handleActionError(previousTasks, "Datum konnte nicht entfernt werden.");
       }
       return;
     }
@@ -248,12 +226,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
     try {
       const result = await updateTaskDueDateAction(taskId, dateStr);
       if (!result.success) {
-        setTasks(previousTasks);
-        toast({
-          title: "Fehler",
-          description: result.error?.message || "Datum konnte nicht aktualisiert werden.",
-          variant: "destructive",
-        });
+        handleActionError(previousTasks, "Datum konnte nicht aktualisiert werden.", result.error);
       } else {
         toast({
           title: "Aufgabe verschoben",
@@ -261,15 +234,10 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
         });
       }
     } catch (error) {
-      setTasks(previousTasks);
-      toast({
-        title: "Fehler",
-        description: "Datum konnte nicht aktualisiert werden.",
-        variant: "destructive",
-      });
+      handleActionError(previousTasks, "Datum konnte nicht aktualisiert werden.");
     }
 
-  }, [tasks, handleTaskUpdated]);
+  }, [tasks, handleTaskUpdated, handleActionError]);
 
   const handleMonthChange = useCallback((date: Date) => {
     setCurrentMonth(date);
