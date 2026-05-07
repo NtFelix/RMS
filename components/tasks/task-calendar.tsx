@@ -410,15 +410,34 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
 
             {/* Tasks List */}
             <div className="w-full flex flex-col gap-0.5 min-h-0 flex-1">
-                {visibleTasks.map(task => (
-                    <DraggableCalendarTask key={task.id} task={task} onTaskClick={onTaskClick} />
-                ))}
+                {/* Desktop View: Full Pills */}
+                <div className="hidden sm:flex flex-col gap-0.5 w-full">
+                    {visibleTasks.map(task => (
+                        <DraggableCalendarTask key={task.id} task={task} onTaskClick={onTaskClick} />
+                    ))}
 
-                {hiddenCount > 0 && (
-                    <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium">
-                        +{hiddenCount} weitere
-                    </div>
-                )}
+                    {hiddenCount > 0 && (
+                        <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium">
+                            +{hiddenCount} weitere
+                        </div>
+                    )}
+                </div>
+
+                {/* Mobile View: Dots */}
+                <div className="flex sm:hidden flex-wrap gap-1 w-full mt-auto pb-1">
+                    {tasks.slice(0, 4).map(task => (
+                        <div 
+                            key={task.id} 
+                            className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                task.ist_erledigt ? "bg-gray-300" : "bg-primary"
+                            )} 
+                        />
+                    ))}
+                    {tasks.length > 4 && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
+                    )}
+                </div>
             </div>
         </div>
     );

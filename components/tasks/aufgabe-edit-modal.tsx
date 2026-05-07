@@ -39,7 +39,7 @@ interface AufgabeEditModalProps {
   serverAction: (
     id: string | null,
     data: AufgabePayload
-  ) => Promise<{ success: boolean; error?: any; data?: any }>;
+  ) => Promise<{ success: boolean; error?: { message: string }; data?: Partial<TaskBoardTask> }>;
 }
 
 export function AufgabeEditModal({

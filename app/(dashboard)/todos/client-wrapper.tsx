@@ -9,8 +9,8 @@ import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Calendar as CalendarIcon, List, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { TaskCalendar } from "@/components/tasks/task-calendar";
-import { TaskSidebar } from "@/components/tasks/task-sidebar";
+import { TaskCalendar, CalendarTaskPill } from "@/components/tasks/task-calendar";
+import { TaskSidebar, TaskItemCard } from "@/components/tasks/task-sidebar";
 import { TaskDayModal } from "@/components/tasks/task-day-modal";
 import { TaskBoardTask } from "@/types/Task";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -26,8 +26,7 @@ import {
   DragStartEvent,
   DragEndEvent
 } from "@dnd-kit/core";
-import { TaskItemCard } from "@/components/tasks/task-sidebar";
-import { CalendarTaskPill } from "@/components/tasks/task-calendar";
+
 
 interface TodosClientWrapperProps {
   tasks: TaskBoardTask[];
@@ -89,11 +88,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
     });
   }, []);
 
-  const handleTaskDeleted = useCallback((taskId: string) => {
-    setTasks((currentTasks) =>
-      currentTasks.filter((task) => task.id !== taskId)
-    );
-  }, []);
+
 
   const handleAddTask = useCallback((defaultDate?: Date) => {
     try {
@@ -348,12 +343,32 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
                 </div>
 
                 <div className={cn("overflow-y-auto flex-1 -mr-2 pr-2", !isSidebarOpen && "overflow-visible")}>
-                  <TaskSidebar
-                    tasks={filteredTasks}
-                    onTaskClick={handleTaskClick}
-                    onTaskToggle={handleTaskToggle}
-                    collapsed={!isSidebarOpen}
-                  />
+                  {searchQuery && filteredTasks.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                      <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-full mb-3">
+                        <PlusCircle className="h-6 w-6 text-muted-foreground/50 rotate-45" />
+                      </div>
+                      <p className="text-sm font-medium">Keine Aufgaben gefunden</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Ihre Suche ergab keine Treffer.
+                      </p>
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="mt-2 text-primary"
+                        onClick={() => setSearchQuery("")}
+                      >
+                        Suche löschen
+                      </Button>
+                    </div>
+                  ) : (
+                    <TaskSidebar
+                      tasks={filteredTasks}
+                      onTaskClick={handleTaskClick}
+                      onTaskToggle={handleTaskToggle}
+                      collapsed={!isSidebarOpen}
+                    />
+                  )}
                 </div>
               </div>
 
