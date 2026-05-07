@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useModalStore } from "@/hooks/use-modal-store";
+import { TaskBoardTask } from "@/types/Task";
 
 interface AufgabePayload {
   name: string;
