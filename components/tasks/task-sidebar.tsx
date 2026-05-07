@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { format, isAfter, isBefore, addDays, startOfDay } from "date-fns";
+import { format, isAfter, isBefore, addDays, startOfDay, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import {
     ChevronRight,
@@ -80,7 +80,7 @@ export function TaskItemCard({
                 </p>
                 {task.faelligkeitsdatum && (
                     <p className="text-xs text-muted-foreground mt-0.5">
-                        {format(new Date(task.faelligkeitsdatum + "T00:00:00"), "dd. MMM", { locale: de })}
+                        {format(parseISO(task.faelligkeitsdatum), "dd. MMM", { locale: de })}
                     </p>
                 )}
             </div>
@@ -148,7 +148,7 @@ export function TaskSidebar({
             if (!task.faelligkeitsdatum) {
                 noDate.push(task);
             } else {
-                const dueDate = startOfDay(new Date(task.faelligkeitsdatum + "T00:00:00"));
+                const dueDate = startOfDay(parseISO(task.faelligkeitsdatum));
 
                 if (isBefore(dueDate, today)) {
                     // Overdue
@@ -165,20 +165,20 @@ export function TaskSidebar({
 
         // Sort by due date
         upcoming.sort((a, b) => {
-            const dateA = new Date(a.faelligkeitsdatum!).getTime();
-            const dateB = new Date(b.faelligkeitsdatum!).getTime();
+            const dateA = parseISO(a.faelligkeitsdatum!).getTime();
+            const dateB = parseISO(b.faelligkeitsdatum!).getTime();
             return dateA - dateB;
         });
 
         overdue.sort((a, b) => {
-            const dateA = new Date(a.faelligkeitsdatum!).getTime();
-            const dateB = new Date(b.faelligkeitsdatum!).getTime();
+            const dateA = parseISO(a.faelligkeitsdatum!).getTime();
+            const dateB = parseISO(b.faelligkeitsdatum!).getTime();
             return dateB - dateA; // Most overdue first
         });
 
         later.sort((a, b) => {
-            const dateA = new Date(a.faelligkeitsdatum!).getTime();
-            const dateB = new Date(b.faelligkeitsdatum!).getTime();
+            const dateA = parseISO(a.faelligkeitsdatum!).getTime();
+            const dateB = parseISO(b.faelligkeitsdatum!).getTime();
             return dateA - dateB;
         });
 

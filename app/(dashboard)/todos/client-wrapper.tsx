@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -231,7 +231,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
       } else {
         toast({
           title: "Aufgabe verschoben",
-          description: `Fälligkeitsdatum auf ${format(new Date(dateStr + "T00:00:00"), 'dd.MM.yyyy')} geändert.`,
+          description: `Fälligkeitsdatum auf ${format(parseISO(dateStr), 'dd.MM.yyyy')} geändert.`,
         });
       }
     } catch (error) {
