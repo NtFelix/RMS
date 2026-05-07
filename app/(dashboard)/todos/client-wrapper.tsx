@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
@@ -294,12 +295,21 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
               )}>
                 <div className={cn("flex flex-col gap-4 mb-4 shrink-0", !isSidebarOpen && "gap-2 mb-2")}>
                   <div className={cn("flex items-center gap-2", !isSidebarOpen && "justify-center")}>
-                    {isSidebarOpen && (
-                      <>
-                        <List className="h-5 w-5 text-muted-foreground" />
-                        <h3 className="font-medium flex-1 whitespace-nowrap overflow-hidden">Aufgabenliste</h3>
-                      </>
-                    )}
+                    <AnimatePresence mode="popLayout">
+                      {isSidebarOpen && (
+                        <motion.div
+                          key="header-title"
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: "auto" }}
+                          exit={{ opacity: 0, width: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="flex items-center gap-2 flex-1 overflow-hidden"
+                        >
+                          <List className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <h3 className="font-medium whitespace-nowrap">Aufgabenliste</h3>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -314,16 +324,27 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
                     </Button>
                   </div>
 
-                  {isSidebarOpen && (
-                    <SearchInput
-                      placeholder="Aufgaben suchen..."
-                      className="rounded-full"
-                      wrapperClassName="w-full"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onClear={() => setSearchQuery("")}
-                    />
-                  )}
+                  <AnimatePresence mode="popLayout">
+                    {isSidebarOpen && (
+                      <motion.div
+                        key="search"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <SearchInput
+                          placeholder="Aufgaben suchen..."
+                          className="rounded-full"
+                          wrapperClassName="w-full"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onClear={() => setSearchQuery("")}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 <div className={cn("overflow-y-auto flex-1 -mr-2 pr-2", !isSidebarOpen && "overflow-visible")}>
