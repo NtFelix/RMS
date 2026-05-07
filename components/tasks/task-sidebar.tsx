@@ -254,7 +254,7 @@ export function TaskSidebar({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className="h-full flex flex-col gap-4 overflow-y-auto min-w-[200px] sm:min-w-[240px] pr-2"
+                    className="h-full flex flex-col gap-4 min-w-[200px] sm:min-w-[240px]"
                 >
             {/* Overdue Section */}
             {overdueTasks.length > 0 && (
