@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { CalendarIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,7 @@ export function AufgabeEditModal({
       setIstErledigt(aufgabeInitialData.ist_erledigt || false);
       // Handle due date from initial data
       if (aufgabeInitialData.faelligkeitsdatum) {
-        setFaelligkeitsdatum(new Date(`${aufgabeInitialData.faelligkeitsdatum}T00:00:00`));
+        setFaelligkeitsdatum(parseISO(aufgabeInitialData.faelligkeitsdatum));
       } else {
         setFaelligkeitsdatum(undefined);
       }

@@ -79,11 +79,13 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
     if (dbResponse.error) throw dbResponse.error;
 
     revalidatePath('/todos');
+    revalidatePath('/dashboard');
     logAction(actionName, 'success', { task_id: dbResponse.data?.id, task_name: data.name });
     return { success: true, data: dbResponse.data as AufgabeDbRecord };
-  } catch (error: any) {
-    logAction(actionName, 'error', { task_id: id, task_name: data.name, error_message: error.message });
-    return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
+    logAction(actionName, 'error', { task_id: id, task_name: data.name, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -116,6 +118,7 @@ export async function toggleTaskStatusAction(
     }
 
     revalidatePath("/todos");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { task_id: taskId, new_status: newStatus });
     return { success: true, task: data };
 
@@ -160,6 +163,7 @@ export async function bulkUpdateTaskStatusesAction(
 
     const updatedCount = data?.length || 0;
     revalidatePath("/todos");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { task_count: taskIds.length, updated_count: updatedCount });
     return { success: true, updatedCount };
 
@@ -198,6 +202,7 @@ export async function bulkDeleteTasksAction(
     }
 
     revalidatePath("/todos");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { task_count: taskIds.length, deleted_count: count || 0 });
     return { success: true, deletedCount: count || 0 };
 
@@ -229,6 +234,7 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
     }
 
     revalidatePath('/todos');
+    revalidatePath('/dashboard');
     logAction(actionName, 'success', { task_id: taskId });
     return { success: true, taskId };
 
@@ -269,6 +275,7 @@ export async function updateTaskDueDateAction(
     }
 
     revalidatePath("/todos");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { task_id: taskId, due_date: dueDate });
     return { success: true, task: data as AufgabeDbRecord };
 
