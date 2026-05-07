@@ -217,7 +217,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return;
 
     const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
+    if (!task || task.faelligkeitsdatum === dateStr) return;
 
     // Optimistic update
     const previousTasks = tasks;
