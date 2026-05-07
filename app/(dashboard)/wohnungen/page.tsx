@@ -4,8 +4,7 @@
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-// Removed Card, CardContent etc. as they are used in ClientView
-import { createClient as createSupabaseClient } from '@/utils/supabase/server';
+import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchUserProfile } from '@/lib/data-fetching';
 
 import { getPlanDetails } from '@/lib/stripe-server';
@@ -15,71 +14,84 @@ import type { Wohnung } from "@/types/Wohnung";
 
 // Server Component: Fetches data and passes it to the Client Component
 export default async function WohnungenPage() {
-  const supabase = await createSupabaseClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await requireAuthenticatedUser();
 
   let apartmentCount = 0;
   let userIsEligibleToAdd = false;
   let effectiveApartmentLimit: number | typeof Infinity = 0;
   let limitReason: 'trial' | 'subscription' | 'none' = 'none';
 
-  if (user) {
-    const userProfile = await fetchUserProfile();
-    if (userProfile) {
-      const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
-      const isEffectivelyInTrial = isStripeTrial;
-      const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
+  // Load profile and main data in parallel to eliminate waterfalls
+  const [
+    userProfile,
+    countResult,
+    rawApartmentsResult,
+    tenantsResult,
+    housesResult
+  ] = await Promise.all([
+    fetchUserProfile(),
+    supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)'),
+    supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name'),
+    supabase.from('Haeuser').select('id,name')
+  ]);
 
+  if (userProfile) {
+    const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
+    const isEffectivelyInTrial = isStripeTrial;
+    const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
 
-
-      if (isEffectivelyInTrial) {
-        userIsEligibleToAdd = true;
-        effectiveApartmentLimit = 5;
-        limitReason = 'trial';
-        if (isPaidActiveSub && userProfile.stripe_price_id) {
-          try {
-            const planDetails = await getPlanDetails(userProfile.stripe_price_id);
-            if (planDetails) {
-              if (planDetails.limit_wohnungen === null) effectiveApartmentLimit = Infinity;
-              else if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > effectiveApartmentLimit) {
-                effectiveApartmentLimit = planDetails.limit_wohnungen;
-              }
-              if (effectiveApartmentLimit !== 5 || planDetails.limit_wohnungen === null) limitReason = 'subscription';
-            }
-          } catch (error) { console.error('WohnungenPage: Error fetching plan details for active sub during trial:', error); }
-        }
-      } else if (isPaidActiveSub && userProfile.stripe_price_id) {
-        userIsEligibleToAdd = true;
-        limitReason = 'subscription';
+    if (isEffectivelyInTrial) {
+      userIsEligibleToAdd = true;
+      effectiveApartmentLimit = 5;
+      limitReason = 'trial';
+      if (isPaidActiveSub && userProfile.stripe_price_id) {
         try {
           const planDetails = await getPlanDetails(userProfile.stripe_price_id);
           if (planDetails) {
-            if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) effectiveApartmentLimit = planDetails.limit_wohnungen;
-            else if (planDetails.limit_wohnungen === null) effectiveApartmentLimit = Infinity;
-            else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-          } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-        } catch (error) { console.error('WohnungenPage: Error fetching plan details:', error); userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-      } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-    } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-
-    // Bypass limits for E2E tests in CI environment
-    if (isTestEnv()) {
+            if (planDetails.limit_wohnungen === null) effectiveApartmentLimit = Infinity;
+            else if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > effectiveApartmentLimit) {
+              effectiveApartmentLimit = planDetails.limit_wohnungen;
+            }
+            if (effectiveApartmentLimit !== 5 || planDetails.limit_wohnungen === null) limitReason = 'subscription';
+          }
+        } catch (error) { console.error('WohnungenPage: Error fetching plan details for active sub during trial:', error); }
+      }
+    } else if (isPaidActiveSub && userProfile.stripe_price_id) {
       userIsEligibleToAdd = true;
-      effectiveApartmentLimit = 100;
       limitReason = 'subscription';
-    }
+      try {
+        const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+        if (planDetails) {
+          if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) effectiveApartmentLimit = planDetails.limit_wohnungen;
+          else if (planDetails.limit_wohnungen === null) effectiveApartmentLimit = Infinity;
+          else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
+        } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
+      } catch (error) { console.error('WohnungenPage: Error fetching plan details:', error); userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
+    } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
+  } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
 
-    const { count, error: countError } = await supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
-    if (countError) console.error('Error fetching apartment count:', countError.message);
-    else apartmentCount = count || 0;
+  // Bypass limits for E2E tests in CI environment
+  if (isTestEnv()) {
+    userIsEligibleToAdd = true;
+    effectiveApartmentLimit = 100;
+    limitReason = 'subscription';
   }
 
-  const { data: rawApartments, error: apartmentsError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+  // Handle count result
+  if (countResult.error) console.error('Error fetching apartment count:', countResult.error.message);
+  else apartmentCount = countResult.count || 0;
+
+  // Handle data results
+  const { data: rawApartments, error: apartmentsError } = rawApartmentsResult;
   if (apartmentsError) console.error('Fehler beim Laden der Wohnungen:', apartmentsError);
 
-  const { data: tenants, error: tenantsError } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name');
+  const { data: tenants, error: tenantsError } = tenantsResult;
   if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
+
+  const { data: housesData, error: housesError } = housesResult;
+  if (housesError) console.error('Fehler beim Laden der Häuser:', housesError);
+  const houses = housesData || [];
 
   const today = new Date();
 
@@ -104,10 +116,6 @@ export default async function WohnungenPage() {
       tenant: tenant ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,
     } as Wohnung; // Ensure the mapped object conforms to Wohnung type
   }) : [];
-
-  const { data: housesData, error: housesError } = await supabase.from('Haeuser').select('id,name');
-  if (housesError) console.error('Fehler beim Laden der Häuser:', housesError);
-  const houses = housesData || [];
 
   return (
     <WohnungenClientView
