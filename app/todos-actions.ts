@@ -52,6 +52,16 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
     return { success: false, error: { message: "Name ist erforderlich." } };
   }
 
+  if (payload.name.length > 100) {
+    logAction(actionName, 'failed', { task_id: id, error_message: 'Name ist zu lang.' });
+    return { success: false, error: { message: "Der Name darf maximal 100 Zeichen lang sein." } };
+  }
+
+  if (payload.beschreibung && payload.beschreibung.length > 1000) {
+    logAction(actionName, 'failed', { task_id: id, error_message: 'Beschreibung ist zu lang.' });
+    return { success: false, error: { message: "Die Beschreibung darf maximal 1000 Zeichen lang sein." } };
+  }
+
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Nicht authentifiziert");

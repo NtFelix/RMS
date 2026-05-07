@@ -130,6 +130,24 @@ export function AufgabeEditModal({
       return;
     }
 
+    if (name.trim().length > 100) {
+      toast({
+        title: "Fehler",
+        description: "Der Name darf maximal 100 Zeichen lang sein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (beschreibung.trim().length > 1000) {
+      toast({
+        title: "Fehler",
+        description: "Die Beschreibung darf maximal 1000 Zeichen lang sein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     const payload: AufgabePayload = {
       name: name.trim(),
@@ -193,13 +211,19 @@ export function AufgabeEditModal({
           <div className="grid gap-4 py-4">
             {/* Name Field */}
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="name">Name</Label>
+                <span className={cn("text-xs", name.length >= 100 ? "text-red-500" : "text-muted-foreground")}>
+                  {name.length}/100
+                </span>
+              </div>
               <Input
                 id="name"
                 value={name}
                 onChange={handleNameChange}
                 placeholder="Aufgabentitel eingeben"
                 required
+                maxLength={100}
                 disabled={isSubmitting}
               />
             </div>
@@ -265,13 +289,19 @@ export function AufgabeEditModal({
 
             {/* Description Field */}
             <div className="space-y-2">
-              <Label htmlFor="beschreibung">Beschreibung (optional)</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="beschreibung">Beschreibung (optional)</Label>
+                <span className={cn("text-xs", beschreibung.length >= 1000 ? "text-red-500" : "text-muted-foreground")}>
+                  {beschreibung.length}/1000
+                </span>
+              </div>
               <Textarea
                 id="beschreibung"
                 value={beschreibung}
                 onChange={handleBeschreibungChange}
                 placeholder="Detaillierte Beschreibung der Aufgabe..."
                 className="min-h-[100px]"
+                maxLength={1000}
                 disabled={isSubmitting}
               />
             </div>
