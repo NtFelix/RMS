@@ -42,6 +42,7 @@ export function CustomCombobox({
 }: CustomComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
+  const listboxId = React.useId()
   const [highlightedIndex, setHighlightedIndex] = React.useState(-1)
   const [isKeyboardNavigation, setIsKeyboardNavigation] = React.useState(false)
 
@@ -298,8 +299,5 @@ export function CustomCombobox({
         </div>
       </PopoverContent>
     </Popover>
-  )
-}
- </Popover>
   )
 }

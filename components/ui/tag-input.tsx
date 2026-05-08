@@ -78,6 +78,7 @@ export function TagInput({
 }: TagInputProps) {
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
+    const listboxId = React.useId();
 
     const handleTagToggle = (tag: string) => {
         if (value.includes(tag)) {
@@ -270,8 +271,5 @@ export function TagInput({
                 )}
             </PopoverContent>
         </Popover>
-    );
-}
-</Popover>
     );
 }
