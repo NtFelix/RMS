@@ -3,11 +3,12 @@ export const dynamic = 'force-dynamic';
 
 import FinanzenClientWrapper from "./client-wrapper";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 
 import { PAGINATION } from "@/constants";
 
-async function getSummaryData(supabase: any, year: number) {
+async function getSummaryData(supabase: SupabaseClient, year: number) {
   try {
     // Use the optimized Supabase function that handles pagination internally
     const { data, error } = await supabase.rpc('get_financial_year_summary', {
@@ -34,7 +35,7 @@ async function getSummaryData(supabase: any, year: number) {
   }
 }
 
-async function getSummaryDataFallback(supabase: any, year: number) {
+async function getSummaryDataFallback(supabase: SupabaseClient, year: number) {
   try {
     // Fallback: Use the function that returns all transactions for the year
     const { data, error } = await supabase.rpc('get_financial_summary_data', {
@@ -55,7 +56,7 @@ async function getSummaryDataFallback(supabase: any, year: number) {
   }
 }
 
-async function getAvailableYears(supabase: any) {
+async function getAvailableYears(supabase: SupabaseClient) {
   const { fetchAvailableFinanceYears } = await import("@/utils/financeCalculations");
   return await fetchAvailableFinanceYears(supabase);
 }
