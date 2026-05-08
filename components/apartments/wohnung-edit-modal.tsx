@@ -98,6 +98,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
 
   useEffect(() => {
     if (isWohnungModalOpen) {
