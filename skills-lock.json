@@ -19,6 +19,12 @@
       "skillPath": "gemini-cli-skills/always-verify-gcp/SKILL.md",
       "computedHash": "95dbec68303a97ce49da991324b2e9e22e0b62ee281b81e4645f9ba9ef8165d4"
     },
+    "animation-best-practices": {
+      "source": "millionco/react-doctor",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/animation-best-practices/SKILL.md",
+      "computedHash": "07e9c237f849bc21f8853b8229f240c4da748ade6f2d6e44007413014f544224"
+    },
     "cloudflare": {
       "source": "cloudflare/skills",
       "sourceType": "github",
@@ -66,6 +72,18 @@
       "sourceType": "github",
       "skillPath": "skills_tutorial/license-header-adder/SKILL.md",
       "computedHash": "cc0de2676417d79418e566e4f3549452abbae4e0fe5f00d7f97f62d01b6da255"
+    },
+    "react-doctor": {
+      "source": "millionco/react-doctor",
+      "sourceType": "github",
+      "skillPath": "skills/react-doctor/SKILL.md",
+      "computedHash": "b8f396bd6db7404a899af03e649f2cf12f4c846ee7d85b6b9a475cb8175abb49"
+    },
+    "remotion-best-practices": {
+      "source": "millionco/react-doctor",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/remotion-best-practices/SKILL.md",
+      "computedHash": "9ddcc88dc6383855c8da2c5a0e01ce3a569fe965f8560f18e4148c927c0f27b3"
     },
     "sandbox-sdk": {
       "source": "cloudflare/skills",

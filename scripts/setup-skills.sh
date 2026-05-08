@@ -21,5 +21,8 @@ npx -y skills add https://github.com/cloudflare/skills --all
 # 4. Git Commit Formatter & General Utility Skills
 npx -y skills add rominirani/antigravity-skills --all
 
+# 5. React Doctor (Million.js performance and health checks)
+npx -y skills add millionco/react-doctor --all
+
 echo "✅ All skills installed successfully!"
 echo "The skills are managed via skills-lock.json and located in the .agents/skills directory."
