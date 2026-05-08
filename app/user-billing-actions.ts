@@ -74,7 +74,7 @@ export async function getBillingAddress(
 ): Promise<BillingAddress | BillingAddressError> {
   const authValidation = await validateStripeCustomer(stripeCustomerId);
   if ('error' in authValidation) {
-    return { error: authValidation.error };
+    return { error: authValidation.error as string };
   }
 
   if (isStripeMocked()) {
@@ -211,7 +211,7 @@ export async function createSetupIntent(
 ): Promise<{ clientSecret: string } | { error: string }> {
   const authValidation = await validateStripeCustomer(stripeCustomerId);
   if ('error' in authValidation) {
-    return { error: authValidation.error };
+    return { error: authValidation.error as string };
   }
 
   if (isStripeMocked()) {
