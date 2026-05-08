@@ -10,6 +10,8 @@
     "build": "node scripts/generate-llms-txt.mjs && next build --no-lint",
     "start": "next start",
     "lint": "next lint",
+    "setup": "npm install && npm run setup:skills",
+    "setup:skills": "bash scripts/setup-skills.sh",
     "test": "NODE_ENV=test jest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
