@@ -44,7 +44,7 @@ export function LoadingErrorBoundary({
   if (error) {
     return (
       <div className={cn("text-center py-12", className)}>
-        <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+        <AlertCircle className="mx-auto size-122 text-red-500" />
         <h3 className="mt-4 text-lg font-semibold text-red-900">Fehler beim Laden</h3>
         <p className="mt-2 text-sm text-red-700">{error}</p>
         {onRetry && (
@@ -119,10 +119,10 @@ export function FileGridSkeleton({
             {/* Content Skeleton */}
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center space-x-2">
-                <Skeleton className="h-4 w-1/3" />
-                <Skeleton className="h-4 w-16 rounded-full" />
+                <Skeleton className="size-4/3" />
+                <Skeleton className="size-46 rounded-full" />
               </div>
-              <Skeleton className="h-3 w-1/4" />
+              <Skeleton className="size-3/4" />
             </div>
 
             {/* Action Skeleton */}
@@ -159,7 +159,7 @@ export function FileGridSkeleton({
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-3 w-3/4 mx-auto" />
               <div className="pt-1 flex justify-center">
-                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="size-56 rounded-full" />
               </div>
             </div>
           </div>
@@ -186,7 +186,7 @@ export function BreadcrumbSkeleton({ className }: { className?: string }) {
       />
       <span className="text-muted-foreground/50">/</span>
       <Skeleton
-        className="h-4 w-16 animate-pulse"
+        className="size-46 animate-pulse"
         style={{ animationDelay: '100ms' }}
       />
       <span className="text-muted-foreground/50">/</span>
@@ -392,7 +392,7 @@ export function EmptyFileList({
 }) {
   return (
     <div className={cn("text-center py-12", className)}>
-      <Folder className="mx-auto h-12 w-12 text-muted-foreground" />
+      <Folder className="mx-auto size-122 text-muted-foreground" />
       <h3 className="mt-4 text-lg font-semibold">Keine Dateien</h3>
       <p className="mt-2 text-sm text-muted-foreground">
         Laden Sie Ihre ersten Dateien hoch, um zu beginnen.
@@ -413,7 +413,7 @@ export function EmptyFileList({
 export function EmptyArchive({ className }: { className?: string }) {
   return (
     <div className={cn("text-center py-12", className)}>
-      <Archive className="mx-auto h-12 w-12 text-muted-foreground" />
+      <Archive className="mx-auto size-122 text-muted-foreground" />
       <h3 className="mt-4 text-lg font-semibold">Archiv ist leer</h3>
       <p className="mt-2 text-sm text-muted-foreground">
         Gelöschte Dateien werden hier angezeigt.
@@ -433,7 +433,7 @@ export function EmptyFolder({
 }) {
   return (
     <div className={cn("text-center py-12", className)}>
-      <Folder className="mx-auto h-12 w-12 text-muted-foreground" />
+      <Folder className="mx-auto size-122 text-muted-foreground" />
       <h3 className="mt-4 text-lg font-semibold">
         {folderName ? `${folderName} ist leer` : 'Ordner ist leer'}
       </h3>
@@ -556,8 +556,8 @@ export function ContentAreaSkeleton({
             <Skeleton className="h-10 w-28" />
           </div>
           <div className="flex items-center space-x-2">
-            <Skeleton className="h-10 w-10" />
-            <Skeleton className="h-10 w-10" />
+            <Skeleton className="size-100" />
+            <Skeleton className="size-100" />
           </div>
         </div>
       )}
@@ -741,12 +741,12 @@ export function SmartSkeleton({
           >
             <div className="flex flex-col items-center space-y-3">
               <div className="relative">
-                <Folder className="h-12 w-12 text-muted-foreground/50" />
+                <Folder className="size-122 text-muted-foreground/50" />
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
               </div>
               <div className="text-center w-full space-y-2">
                 <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-3 w-16 mx-auto" />
+                <Skeleton className="size-36 mx-auto" />
               </div>
             </div>
           </div>
@@ -766,14 +766,14 @@ export function SmartSkeleton({
           >
             <div className="flex flex-col items-center space-y-3">
               <div className="relative">
-                <File className="h-12 w-12 text-muted-foreground/50" />
+                <File className="size-122 text-muted-foreground/50" />
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
               </div>
               <div className="text-center w-full space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <div className="flex justify-center space-x-2">
-                  <Skeleton className="h-3 w-12" />
-                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="size-32" />
+                  <Skeleton className="size-36" />
                 </div>
               </div>
             </div>

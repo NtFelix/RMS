@@ -47,11 +47,13 @@ export function FileUploadModal() {
 
       addToUploadQueue(uploadModalFiles, cleanTargetPath)
       // Start processing uploads automatically with a small delay
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         processUploadQueue().catch(error => {
           console.error('Error processing upload queue:', error)
         })
       }, 300)
+
+      return () => clearTimeout(timer)
     }
   }, [uploadModalFiles, uploadModalTargetPath, addToUploadQueue, processUploadQueue, isUploadModalOpen])
 

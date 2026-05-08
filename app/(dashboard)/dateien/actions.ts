@@ -178,6 +178,9 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         }
 
     } catch (error) {
+        if (shouldRedirect) {
+            redirect('/auth/login')
+        }
         await logRpcCall('get_folder_contents', targetPath, startTime, false, {
             error: error instanceof Error ? error.message : 'Unknown error'
         })

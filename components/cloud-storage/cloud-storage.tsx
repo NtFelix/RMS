@@ -712,7 +712,7 @@ export function CloudStorage({
                         {/* Error State */}
                         {displayError && !showLoading && (
                             <div className="text-center py-16">
-                                <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                                <div className="bg-destructive/10 rounded-full p-4 size-166 mx-auto mb-4 flex items-center justify-center">
                                     <AlertCircle className="h-8 w-8 text-destructive" />
                                 </div>
                                 <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
@@ -733,7 +733,7 @@ export function CloudStorage({
                         {!showLoading && !displayError && sortedFolders.length === 0 && sortedFiles.length === 0 && (
                             <div className="text-center py-16">
                                 <div className="bg-muted/50 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                                    <FolderOpen className="h-12 w-12 text-muted-foreground" />
+                                    <FolderOpen className="size-122 text-muted-foreground" />
                                 </div>
                                 <h3 className="text-xl font-semibold mb-2">
                                     {searchQuery ? 'Keine Ergebnisse gefunden' : 'Noch keine Dateien'}
@@ -751,7 +751,7 @@ export function CloudStorage({
                                             Dateien hochladen
                                         </Button>
                                         <Button variant="outline" onClick={handleCreateFolder}>
-                                            <Plus className="h-4 w-4 mr-2" />
+                                            <Plus className="size-4 mr-2" />
                                             Ordner erstellen
                                         </Button>
                                     </div>

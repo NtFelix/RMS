@@ -132,6 +132,10 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
 
     const houseIds = new Set(houses?.map((h: any) => h.id) || [])
     const apartmentIds = new Set(apartments?.map((a: any) => a.id) || [])
+    
+    // Create lookup maps for performance
+    const houseMap = new Map(houses?.map((h: any) => [h.id, h]) || [])
+    const apartmentMap = new Map(apartments?.map((a: any) => [a.id, a]) || [])
 
     // Process discovered folders
     for (const folderName of discoveredFolders) {
@@ -144,7 +148,7 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
 
       if (houseIds.has(folderName)) {
         // This is a house folder
-        const house = houses?.find((h: any) => h.id === folderName)
+        const house = houseMap.get(folderName)
         tree.push({
           id: folderName,
           name: folderName,
@@ -485,6 +489,9 @@ async function countDirectFiles(supabase: any, path: string): Promise<number> {
     
     return fileCount
   } catch (error) {
+    return 0
+  }
+}error) {
     return 0
   }
 }

@@ -57,8 +57,8 @@ export default function DateienLoading() {
                 <div className="flex items-center gap-2 mt-1">
                   {/* View mode toggle */}
                   <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-full p-1">
-                    <Skeleton className="h-8 w-10 rounded-full" />
-                    <Skeleton className="h-8 w-10 rounded-full" />
+                    <Skeleton className="size-80 rounded-full" />
+                    <Skeleton className="size-80 rounded-full" />
                   </div>
                   {/* Add button */}
                   <Skeleton className="h-10 w-32 rounded-lg" />
@@ -81,7 +81,7 @@ export default function DateienLoading() {
                 <div key={i} className="animate-pulse" style={{ animationDelay: `${i * 20}ms` }}>
                   <Skeleton className="h-32 rounded-2xl mb-3 bg-gray-100 dark:bg-[#22272e]" />
                   <Skeleton className="h-4 w-3/4 mb-1" />
-                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="size-3/2" />
                 </div>
               ))}
             </div>
