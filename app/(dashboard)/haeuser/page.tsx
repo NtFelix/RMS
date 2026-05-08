@@ -29,13 +29,23 @@ export default async function HaeuserPage() {
   const apartments = apartmentsData ?? [];
   const tenants = tenantsData ?? [];
 
+  // Create a map for faster tenant lookup by wohnung_id
+  // We only care if there is ANY active tenant for the apartment
+  const activeTenantsByWohnung = new Set<string>();
+  const now = new Date();
+  
+  tenants.forEach(tenant => {
+    if (tenant.wohnung_id && (!tenant.auszug || new Date(tenant.auszug) > now)) {
+      activeTenantsByWohnung.add(tenant.wohnung_id);
+    }
+  });
+
   // Enrich houses with stats
   const enrichedHaeuser: House[] = houses.map(house => {
     const apts = apartments.filter(a => a.haus_id === house.id);
     const totalApartments = apts.length;
     const freeApartments = apts.reduce((acc, apt) => {
-      const tenant = tenants.find(t => t.wohnung_id === apt.id);
-      const occupied = tenant && (!tenant.auszug || new Date(tenant.auszug) > new Date());
+      const occupied = activeTenantsByWohnung.has(apt.id);
       return acc + (occupied ? 0 : 1);
     }, 0);
 

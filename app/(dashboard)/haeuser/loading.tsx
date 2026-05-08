@@ -18,7 +18,7 @@ export default function Loading() {
               </div>
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="size-86 mb-2" />
             </CardContent>
           </Card>
           <Card className="flex-1 min-w-[200px] bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl">
@@ -29,7 +29,7 @@ export default function Loading() {
               </div>
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="size-86 mb-2" />
             </CardContent>
           </Card>
           <Card className="flex-1 min-w-[200px] bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl">
@@ -40,7 +40,7 @@ export default function Loading() {
               </div>
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="size-86 mb-2" />
             </CardContent>
           </Card>
         </div>

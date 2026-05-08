@@ -21,6 +21,11 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
   const supabase = await createClient();
 
   try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return { success: false, error: { message: 'Nicht autorisiert.' } };
+    }
+
     // Process groesse field
     const groesseValue = formData.get("groesse");
     let processedGroesse: number | null = null;
@@ -54,7 +59,8 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       const { error } = await supabase
         .from("Haeuser")
         .update(houseData)
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user.id);
 
       if (error) {
         logAction(actionName, 'error', { house_id: id, house_name: houseName, error_message: error.message });
@@ -63,7 +69,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     } else {
       const { error: insertError } = await supabase
         .from("Haeuser")
-        .insert(houseData);
+        .insert({ ...houseData, user_id: user.id });
 
       if (insertError) {
         logAction(actionName, 'error', { house_name: houseName, error_message: insertError.message });
@@ -85,10 +91,16 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
 
   try {
     const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return { success: false, error: { message: 'Nicht autorisiert.' } };
+    }
+
     const { error } = await supabase
       .from("Haeuser")
       .delete()
-      .eq("id", houseId);
+      .eq("id", houseId)
+      .eq("user_id", user.id);
 
     if (error) {
       logAction(actionName, 'error', { house_id: houseId, error_message: error.message });
@@ -111,6 +123,12 @@ import { fetchWasserzaehlerModalData, Mieter, Wasserzaehler } from "@/lib/data-f
 
 export async function getWasserzaehlerModalDataLegacyAction(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('Nicht autorisiert');
+    }
+
     const data = await fetchWasserzaehlerModalData(nebenkostenId);
     return data;
   } catch (error) {

@@ -430,7 +430,7 @@ export function ZaehlerModal() {
                             ) : zaehlerList.length === 0 ? (
                                 <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
                                     <CardContent className="flex flex-col items-center justify-center p-8 text-center">
-                                        <CircleGauge className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                                        <CircleGauge className="size-122 text-muted-foreground/50 mb-3" />
                                         <p className="text-sm text-muted-foreground">
                                             Keine Zähler vorhanden
                                         </p>
