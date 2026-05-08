@@ -56,7 +56,7 @@ export default function MobileAppWaitlistPage() {
         <div className="max-w-md w-full text-center space-y-6">
           <div className="flex justify-center">
             <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
-              <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
+              <CheckCircle2 className="size-100 text-green-600 dark:text-green-400" />
             </div>
           </div>
           <h1 className="text-3xl font-bold">Vielen Dank!</h1>
@@ -84,7 +84,7 @@ export default function MobileAppWaitlistPage() {
             {/* Left Column - Product Info */}
             <div className="space-y-6">
               <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
+                <div className="size-166 bg-primary/10 rounded-2xl flex items-center justify-center">
                   <Phone className="w-8 h-8 text-primary" />
                 </div>
                 <div>

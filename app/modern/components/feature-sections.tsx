@@ -31,7 +31,7 @@ const features: Feature[] = [
           </div>
           <div className="flex-1 min-w-0">
             <div className="h-2 w-24 bg-foreground/20 rounded-full mb-1.5" />
-            <div className="h-1.5 w-16 bg-foreground/10 rounded-full" />
+            <div className="size-1.56 bg-foreground/10 rounded-full" />
           </div>
           <div className="text-xs text-muted-foreground font-medium bg-secondary px-2 py-0.5 rounded-md shrink-0">
             Heute
@@ -42,7 +42,7 @@ const features: Feature[] = [
           <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30 shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="h-2 w-20 bg-foreground/20 rounded-full mb-1.5" />
-            <div className="h-1.5 w-12 bg-foreground/10 rounded-full" />
+            <div className="size-1.52 bg-foreground/10 rounded-full" />
           </div>
         </div>
 
@@ -83,7 +83,7 @@ const features: Feature[] = [
             { name: "Übergabeprotokoll.pdf", type: "PDF", size: "3.2 MB", color: "text-red-500", bg: "bg-red-500/10" },
           ].map((file, i) => (
             <div key={file.name} className="flex items-center gap-4 p-3 rounded-xl bg-background/40 border border-border/40 hover:bg-background/60 transition-colors group/file cursor-default">
-              <div className={`w-10 h-10 rounded-lg ${file.bg} flex items-center justify-center ${file.color} shrink-0`}>
+              <div className={`size-100 rounded-lg ${file.bg} flex items-center justify-center ${file.color} shrink-0`}>
                 <FileText size={18} />
               </div>
               <div className="flex-1 min-w-0">
@@ -151,7 +151,7 @@ const features: Feature[] = [
         <div className="relative">
           <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
           <div className="relative w-24 h-24 bg-background/50 backdrop-blur-md border border-primary/20 rounded-2xl flex items-center justify-center shadow-xl">
-            <Server className="w-10 h-10 text-primary" />
+            <Server className="size-100 text-primary" />
           </div>
           {/* Floating Badges */}
           <div className="absolute -top-3 -right-8 px-3 py-1 bg-background border border-border shadow-sm rounded-full text-[10px] font-bold text-foreground flex items-center gap-1 group-hover:translate-x-1 transition-transform whitespace-nowrap">
@@ -224,7 +224,7 @@ export default function FeatureSections() {
                 <div className="relative h-full flex flex-col">
                   {/* Card Header Content */}
                   <div className="p-6 md:p-8 flex flex-col gap-2 relative z-10">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                    <div className="size-122 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
                       <feature.icon className="w-6 h-6 text-primary" />
                     </div>
                     <h3 className="text-xl md:text-2xl font-bold text-foreground">

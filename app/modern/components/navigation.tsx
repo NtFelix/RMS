@@ -427,7 +427,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-60 p-2">
                         <div className="flex items-center space-x-3 px-2 py-2">
-                          <Avatar className="h-10 w-10">
+                          <Avatar className="size-100">
                             <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                             <AvatarFallback className="text-sm">
                               {currentUser.email?.charAt(0).toUpperCase() || 'U'}
@@ -591,7 +591,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {currentUser ? (
                     <div className="space-y-3">
                       <div className="flex items-center space-x-3 px-2">
-                        <Avatar className="h-10 w-10">
+                        <Avatar className="size-100">
                           <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                           <AvatarFallback>
                             {currentUser.email?.charAt(0).toUpperCase() || 'U'}

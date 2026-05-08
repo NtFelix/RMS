@@ -165,7 +165,7 @@ export default function FinanceManagementPage() {
             transition={{ duration: 0.6 }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 text-primary">
               Intelligente Finanzvisualisierung
             </h2>
             <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
@@ -185,7 +185,7 @@ export default function FinanceManagementPage() {
               <Card className="h-full bg-gradient-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <div className="size-100 rounded-full bg-primary/10 flex items-center justify-center">
                       <Home className="w-5 h-5 text-primary" />
                     </div>
                     <Badge variant="secondary" className="text-xs">Kreisdiagramm</Badge>
@@ -270,7 +270,7 @@ export default function FinanceManagementPage() {
               <Card className="h-full bg-gradient-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                    <div className="size-100 rounded-full bg-green-500/10 flex items-center justify-center">
                       <TrendingUp className="w-5 h-5 text-green-500" />
                     </div>
                     <Badge variant="secondary" className="text-xs">Liniendiagramm</Badge>
@@ -332,11 +332,11 @@ export default function FinanceManagementPage() {
                       <span className="font-medium text-green-600">€3.580</span>
                     </div>
                     <div className="mt-4 flex items-center gap-1">
-                      <div className="h-8 w-1 bg-green-500/20 rounded"></div>
-                      <div className="h-8 w-1 bg-green-500/40 rounded"></div>
-                      <div className="h-8 w-1 bg-green-500/60 rounded"></div>
-                      <div className="h-8 w-1 bg-green-500/80 rounded"></div>
-                      <div className="h-8 w-1 bg-green-500 rounded"></div>
+                      <div className="size-8 bg-green-500/20 rounded"></div>
+                      <div className="size-8 bg-green-500/40 rounded"></div>
+                      <div className="size-8 bg-green-500/60 rounded"></div>
+                      <div className="size-8 bg-green-500/80 rounded"></div>
+                      <div className="size-8 bg-green-500 rounded"></div>
                     </div>
                   </div>
                 </CardContent>
@@ -354,7 +354,7 @@ export default function FinanceManagementPage() {
               <Card className="h-full bg-gradient-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <div className="size-100 rounded-full bg-blue-500/10 flex items-center justify-center">
                       <BarChart3 className="w-5 h-5 text-blue-500" />
                     </div>
                     <Badge variant="secondary" className="text-xs">Balkendiagramm</Badge>
@@ -431,7 +431,7 @@ export default function FinanceManagementPage() {
               <Card className="h-full bg-gradient-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                    <div className="size-100 rounded-full bg-orange-500/10 flex items-center justify-center">
                       <PieChart className="w-5 h-5 text-orange-500" />
                     </div>
                     <Badge variant="secondary" className="text-xs">Kreisdiagramm</Badge>
@@ -927,7 +927,7 @@ export default function FinanceManagementPage() {
                 {/* CSV Export Option */}
                 <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer group">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                    <div className="size-100 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
                       <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="flex-1">

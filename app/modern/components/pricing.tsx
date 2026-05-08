@@ -451,7 +451,7 @@ export default function Pricing({
 
             <CardContent className="flex flex-col items-center text-center p-12 space-y-8">
               <div className="rounded-full bg-primary/10 p-4 ring-1 ring-primary/20">
-                <Sparkles className="w-12 h-12 text-primary" />
+                <Sparkles className="size-122 text-primary" />
               </div>
 
               <div className="space-y-4 max-w-xl">
@@ -506,7 +506,7 @@ export default function Pricing({
                   <Skeleton className="h-8 w-32 mx-auto mb-4" />
                   <div className="mt-4 flex justify-center items-baseline gap-1">
                     <Skeleton className="h-10 w-24" />
-                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="size-42" />
                   </div>
                   <Skeleton className="h-4 w-48 mx-auto mt-4" />
                 </CardHeader>
