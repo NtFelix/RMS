@@ -36,11 +36,28 @@ describe('TenantTable Filtering', () => {
     { id: 'w3', name: 'Apartment 3' },
   ];
 
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
+  const now = new Date();
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0')
+  ].join('-');
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const tomorrowStr = [
+    tomorrow.getFullYear(),
+    String(tomorrow.getMonth() + 1).padStart(2, '0'),
+    String(tomorrow.getDate()).padStart(2, '0')
+  ].join('-');
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayStr = [
+    yesterday.getFullYear(),
+    String(yesterday.getMonth() + 1).padStart(2, '0'),
+    String(yesterday.getDate()).padStart(2, '0')
+  ].join('-');
 
   const mockTenants: Tenant[] = [
     {
@@ -55,14 +72,21 @@ describe('TenantTable Filtering', () => {
       name: 'Future Move-out Tenant',
       wohnung_id: 'w2',
       einzug: '2023-01-01',
-      auszug: tomorrow.toISOString().split('T')[0],
+      auszug: tomorrowStr,
     },
     {
       id: '3',
       name: 'Past Move-out Tenant',
       wohnung_id: 'w3',
       einzug: '2022-01-01',
-      auszug: yesterday.toISOString().split('T')[0],
+      auszug: yesterdayStr,
+    },
+    {
+      id: '4',
+      name: 'Today Move-out Tenant',
+      wohnung_id: 'w1',
+      einzug: '2023-01-01',
+      auszug: todayStr,
     },
   ];
 
@@ -80,10 +104,15 @@ describe('TenantTable Filtering', () => {
 
     // Future move-out tenant should be visible in current filter
     expect(screen.getByText('Future Move-out Tenant')).toBeInTheDocument();
+
+    // Past move-out tenant should NOT be visible
     expect(screen.queryByText('Past Move-out Tenant')).not.toBeInTheDocument();
+
+    // Today move-out tenant should NOT be visible (they moved out today)
+    expect(screen.queryByText('Today Move-out Tenant')).not.toBeInTheDocument();
   });
 
-  it('shows only tenants with past auszug date when filter is "previous"', () => {
+  it('shows only tenants with past or today auszug date when filter is "previous"', () => {
     render(
       <TenantTable
         tenants={mockTenants}
@@ -96,5 +125,6 @@ describe('TenantTable Filtering', () => {
     expect(screen.queryByText('Active Tenant')).not.toBeInTheDocument();
     expect(screen.queryByText('Future Move-out Tenant')).not.toBeInTheDocument();
     expect(screen.getByText('Past Move-out Tenant')).toBeInTheDocument();
+    expect(screen.getByText('Today Move-out Tenant')).toBeInTheDocument();
   });
 });
