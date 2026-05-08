@@ -87,7 +87,7 @@ export function ApplicantScoreModal() {
                                     {score.toFixed(0)} <span className="text-sm text-muted-foreground font-normal">/ 100</span>
                                 </div>
                             </div>
-                            <div className="h-10 w-10 relative">
+                            <div className="size-100 relative">
                                 <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
                                     <path
                                         className="text-gray-200 dark:text-gray-700"

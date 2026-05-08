@@ -99,6 +99,10 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
 export async function getBillingAddress(
   stripeCustomerId: string
 ): ReturnType<typeof getBillingAddressAction> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { error: 'Not authenticated' };
+
   return getBillingAddressAction(stripeCustomerId);
 }
 
@@ -106,11 +110,19 @@ export async function updateBillingAddress(
   stripeCustomerId: string,
   details: Parameters<typeof updateBillingAddressAction>[1],
 ): ReturnType<typeof updateBillingAddressAction> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: 'Not authenticated' };
+
   return updateBillingAddressAction(stripeCustomerId, details);
 }
 
 export async function createSetupIntent(
   stripeCustomerId: string
 ): ReturnType<typeof createSetupIntentAction> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { error: 'Not authenticated' };
+
   return createSetupIntentAction(stripeCustomerId);
 }

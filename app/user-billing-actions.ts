@@ -3,17 +3,12 @@
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
+import { createClient } from '@/utils/supabase/server';
 
-let stripeClient: Stripe | null = null;
 function getStripe(): Stripe {
-  // Note: On Cloudflare Workers, module scope is not shared across requests.
-  // This singleton only benefits Node.js environments.
-  if (!stripeClient) {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-    stripeClient = new Stripe(key, STRIPE_CONFIG);
-  }
-  return stripeClient;
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  return new Stripe(key, STRIPE_CONFIG);
 }
 
 type BillingAddressError = {
@@ -23,6 +18,27 @@ type BillingAddressError = {
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
+}
+
+async function validateStripeCustomer(stripeCustomerId: string) {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { error: 'Not authenticated' };
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile || profile.stripe_customer_id !== stripeCustomerId) {
+    return { error: 'Unauthorized' };
+  }
+
+  return { user, profile };
 }
 
 export interface BillingAddress {
@@ -56,6 +72,11 @@ interface UpdateBillingAddressParams {
 export async function getBillingAddress(
   stripeCustomerId: string,
 ): Promise<BillingAddress | BillingAddressError> {
+  const authValidation = await validateStripeCustomer(stripeCustomerId);
+  if ('error' in authValidation) {
+    return { error: authValidation.error };
+  }
+
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return {
@@ -136,6 +157,11 @@ export async function updateBillingAddress(
   stripeCustomerId: string,
   details: UpdateBillingAddressParams,
 ): Promise<{ success: boolean; error?: string }> {
+  const authValidation = await validateStripeCustomer(stripeCustomerId);
+  if ('error' in authValidation) {
+    return { success: false, error: authValidation.error };
+  }
+
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return { success: true };
@@ -183,6 +209,11 @@ export async function updateBillingAddress(
 export async function createSetupIntent(
   stripeCustomerId: string,
 ): Promise<{ clientSecret: string } | { error: string }> {
+  const authValidation = await validateStripeCustomer(stripeCustomerId);
+  if ('error' in authValidation) {
+    return { error: authValidation.error };
+  }
+
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return { clientSecret: 'seti_mock_secret_123' };

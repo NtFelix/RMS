@@ -339,8 +339,8 @@ export function TenantMailTemplatesModal({
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-16 w-full" />
           <div className="flex justify-between items-center">
-            <Skeleton className="h-3 w-1/3" />
-            <Skeleton className="h-4 w-12" />
+            <Skeleton className="size-3/3" />
+            <Skeleton className="size-42" />
           </div>
         </div>
       ))}
@@ -350,7 +350,7 @@ export function TenantMailTemplatesModal({
   // Render error state
   const renderError = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <AlertCircle className="h-12 w-12 text-destructive/60 mb-4" />
+      <AlertCircle className="size-122 text-destructive/60 mb-4" />
       <h3 className="text-lg font-medium mb-2 text-foreground">
         Fehler beim Laden der Vorlagen
       </h3>
@@ -437,7 +437,7 @@ export function TenantMailTemplatesModal({
                     {filteredTemplates.length} von {mailTemplates.length} Mail-Vorlagen
                   </span>
                   {filteredTemplates.length > 0 && (
-                    <div className="w-1 h-1 bg-muted-foreground/50 rounded-full"></div>
+                    <div className="size-1 bg-muted-foreground/50 rounded-full"></div>
                   )}
                   {filteredTemplates.some(t => t.kontext_anforderungen && t.kontext_anforderungen.length > 0) && (
                     <span className="text-blue-600 dark:text-blue-400 text-xs">

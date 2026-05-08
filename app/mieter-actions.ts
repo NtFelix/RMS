@@ -10,12 +10,17 @@ import { logger } from '@/utils/logger';
 import { posthogLogger } from '@/lib/posthog-logger';
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: { message: "Nicht authentifiziert" } };
+  }
+
   const id = formData.get('id');
   const actionName = id ? 'updateTenant' : 'createTenant';
   const tenantName = formData.get('name') as string;
   logAction(actionName, 'start', { tenant_id: id as string | null, tenant_name: tenantName });
-
-  const supabase = await createClient();
 
   try {
     const payload: any = {
@@ -27,6 +32,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
       telefonnummer: formData.get('telefonnummer') || null,
       notiz: formData.get('notiz') || null,
       status: (formData.get('status') as TenantStatus) || 'mieter',
+      user_id: user.id,
       nebenkosten: (() => {
         const nebenkostenRaw = formData.get('nebenkosten');
         if (nebenkostenRaw && typeof nebenkostenRaw === 'string' && nebenkostenRaw.length > 0) {
@@ -40,17 +46,24 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
         return null;
       })(),
     };
-    const id = formData.get('id');
 
     let finalTenantId = id as string | null;
 
     if (id) {
-      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
+      const { error } = await supabase
+        .from('Mieter')
+        .update(payload)
+        .eq('id', id as string)
+        .eq('user_id', user.id);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { data: newTenant, error } = await supabase.from('Mieter').insert(payload).select('id').single();
+      const { data: newTenant, error } = await supabase
+        .from('Mieter')
+        .insert(payload)
+        .select('id')
+        .single();
       if (error) {
         return { success: false, error: { message: error.message } };
       }
@@ -64,28 +77,25 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     try {
       const posthog = getPostHogServer();
       const eventName = id ? 'tenant_updated' : 'tenant_added';
-      const { data: { user } } = await supabase.auth.getUser();
 
-      if (user) {
-        await posthog.capture({
-          distinctId: user.id,
-          event: eventName,
-          properties: {
-            tenant_id: finalTenantId || 'unknown',
-            tenant_name: tenantName,
-            has_property: !!payload.wohnung_id,
-            property_id: payload.wohnung_id,
-            has_email: !!payload.email,
-            status: payload.status,
-            source: 'server_action'
-          }
-        });
-        await Promise.all([
-          posthog.flush(),
-          posthogLogger.flush()
-        ]);
-        logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
-      }
+      await posthog.capture({
+        distinctId: user.id,
+        event: eventName,
+        properties: {
+          tenant_id: finalTenantId || 'unknown',
+          tenant_name: tenantName,
+          has_property: !!payload.wohnung_id,
+          property_id: payload.wohnung_id,
+          has_email: !!payload.email,
+          status: payload.status,
+          source: 'server_action'
+        }
+      });
+      await Promise.all([
+        posthog.flush(),
+        posthogLogger.flush()
+      ]);
+      logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
     }
@@ -100,10 +110,17 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
 export async function deleteTenantAction(tenantId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
     const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { success: false, error: { message: "Nicht authentifiziert" } };
+    }
+
     const { error } = await supabase
       .from("Mieter")
       .delete()
-      .eq("id", tenantId);
+      .eq("id", tenantId)
+      .eq("user_id", user.id);
 
     if (error) {
       console.error("Error deleting tenant from Supabase:", error);
@@ -111,16 +128,11 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
     }
 
     revalidatePath('/mieter');
-    // Revalidate related apartment details if a tenant was unlinked from an apartment.
-    // This is a general revalidation; specific apartment revalidation might be too complex here
-    // without knowing which apartment was affected.
     revalidatePath('/wohnungen');
-    // Also consider revalidating the dashboard if it summarizes tenant counts or related info.
-    // revalidatePath('/'); 
 
     return { success: true };
 
-  } catch (e: unknown) { // Using unknown for better type safety with instanceof
+  } catch (e: unknown) {
     console.error("Unexpected error in deleteTenantAction:", e);
     if (e instanceof Error) {
       return { success: false, error: { message: e.message } };
@@ -139,6 +151,11 @@ export async function getMieterByHausIdAction(
   }
 
   const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: "Nicht authentifiziert", data: null };
+  }
 
   // Validate date parameters if provided
   if (startdatum && enddatum) {
@@ -163,11 +180,12 @@ export async function getMieterByHausIdAction(
   }
 
   try {
-    // Step 1: Fetch Wohnungen associated with the hausId
+    // Step 1: Fetch Wohnungen associated with the hausId AND owned by the user
     const { data: wohnungenInHaus, error: wohnungenError } = await supabase
       .from("Wohnungen")
       .select("id")
-      .eq("haus_id", hausId);
+      .eq("haus_id", hausId)
+      .eq("user_id", user.id);
 
     if (wohnungenError) {
       console.error('Error fetching Wohnungen for Haus %s:', hausId, wohnungenError.message);
@@ -175,23 +193,19 @@ export async function getMieterByHausIdAction(
     }
 
     if (!wohnungenInHaus || wohnungenInHaus.length === 0) {
-      // No Wohnungen in this Haus, so no Mieter. This is a successful query with no results.
       return { success: true, data: [] };
     }
 
     const wohnungIds = wohnungenInHaus.map(w => w.id);
 
-    // Step 2: Fetch Mieter who are in these Wohnungen
-    // Including Wohnungen details as per the original fetchMieter and potential needs
+    // Step 2: Fetch Mieter who are in these Wohnungen AND owned by the user
     let query = supabase
       .from("Mieter")
       .select("*, Wohnungen(name, groesse, miete)")
-      .in("wohnung_id", wohnungIds);
+      .in("wohnung_id", wohnungIds)
+      .eq("user_id", user.id);
 
-    // If date range is provided, filter tenants based on overlap with billing period
     if (startdatum && enddatum) {
-      // Get tenants who have any overlap with the billing period
-      // Tenant overlaps if: tenant_start <= billing_end AND (tenant_end >= billing_start OR tenant_end is null)
       query = query
         .or(`and(einzug.lte.${enddatum},or(auszug.is.null,auszug.gte.${startdatum}))`);
     }
@@ -203,8 +217,6 @@ export async function getMieterByHausIdAction(
       return { success: false, error: mieterError.message, data: null };
     }
 
-    // If mieterData is null (though no error), it means no tenants found for those wohnung_ids.
-    // This is also a successful query with no results.
     return { success: true, data: mieterData || [] };
 
   } catch (e: any) {
@@ -215,6 +227,11 @@ export async function getMieterByHausIdAction(
 
 export async function updateKautionAction(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: { message: "Nicht authentifiziert" } };
+  }
 
   try {
     // Extract form data
@@ -255,16 +272,17 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
       updatedAt: now
     };
 
-    // Check if tenant already has kaution data to preserve createdAt
+    // Check if tenant already has kaution data and belongs to the user
     const { data: existingTenant, error: fetchError } = await supabase
       .from('Mieter')
       .select('kaution')
       .eq('id', tenantId)
+      .eq('user_id', user.id)
       .single();
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
+    if (fetchError) {
       console.error("Error fetching existing tenant data:", fetchError);
-      return { success: false, error: { message: "Fehler beim Laden der Mieterdaten" } };
+      return { success: false, error: { message: "Fehler beim Laden der Mieterdaten oder keine Berechtigung" } };
     }
 
     // If tenant has existing kaution data, preserve the createdAt timestamp
@@ -276,14 +294,14 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
     const { error: updateError } = await supabase
       .from('Mieter')
       .update({ kaution: kautionData })
-      .eq('id', tenantId);
+      .eq('id', tenantId)
+      .eq('user_id', user.id);
 
     if (updateError) {
       console.error("Error updating kaution data:", updateError);
       return { success: false, error: { message: updateError.message } };
     }
 
-    // Revalidate the mieter page to reflect changes
     revalidatePath('/mieter');
 
     return { success: true };
@@ -296,12 +314,18 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
 
 export async function updateTenantApartment(tenantId: string, apartmentId: string): Promise<{ success: boolean; error?: { message: string } }> {
   const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: { message: "Nicht authentifiziert" } };
+  }
 
   try {
     const { error } = await supabase
       .from('Mieter')
       .update({ wohnung_id: apartmentId || null })
-      .eq('id', tenantId);
+      .eq('id', tenantId)
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error updating tenant apartment:', error);
@@ -323,30 +347,33 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
 
 export async function getSuggestedKautionAmount(tenantId: string): Promise<{ success: boolean; suggestedAmount?: number; error?: { message: string } }> {
   const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: { message: "Nicht authentifiziert" } };
+  }
 
   try {
-    // Fetch tenant with associated apartment data
+    // Fetch tenant with associated apartment data and verify ownership
     const { data: tenant, error: tenantError } = await supabase
       .from('Mieter')
       .select('wohnung_id, Wohnungen(miete)')
       .eq('id', tenantId)
+      .eq('user_id', user.id)
       .single();
 
     if (tenantError) {
       console.error("Error fetching tenant data:", tenantError);
-      return { success: false, error: { message: "Fehler beim Laden der Mieterdaten" } };
+      return { success: false, error: { message: "Fehler beim Laden der Mieterdaten oder keine Berechtigung" } };
     }
 
-    // Handle the joined data - Supabase returns an array for joins
     const wohnungen = tenant.Wohnungen as { miete: number }[] | null;
     const wohnung = Array.isArray(wohnungen) && wohnungen.length > 0 ? wohnungen[0] : null;
 
-    // If tenant has no associated apartment or apartment has no rent data
     if (!tenant.wohnung_id || !wohnung || !wohnung.miete) {
       return { success: true, suggestedAmount: undefined };
     }
 
-    // Calculate suggested amount (3x rent)
     const suggestedAmount = wohnung.miete * 3;
 
     return { success: true, suggestedAmount };
