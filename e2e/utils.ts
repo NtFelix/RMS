@@ -31,9 +31,10 @@ export const login = async (page: Page) => {
   await form.locator('#email').first().fill(TEST_EMAIL!);
   await form.locator('#password').first().fill(TEST_PASSWORD!);
 
-  // Submit with a small delay to ensure React state is updated
-  await page.waitForTimeout(500);
-  await page.getByRole('button', { name: /anmelden/i }).first().click({ force: true });
+  // Ensure button is ready to receive clicks
+  const loginBtn = page.getByRole('button', { name: /anmelden/i }).first();
+  await expect(loginBtn).toBeEnabled();
+  await loginBtn.click({ force: true });
 
   // Wait for navigation to dashboard or check for errors
   try {
@@ -43,8 +44,9 @@ export const login = async (page: Page) => {
       return p === '/dashboard' || p === '/' || p === '/haeuser' || p.startsWith('/subscription-locked');
     }, { timeout: 30000 });
 
-    // Let Next.js hydrate and cookies settle
-    await page.waitForTimeout(1000);
+    // Wait for a key element to appear to ensure Next.js has hydrated and the session is loaded.
+    // We check for elements common to dashboard/management pages OR the subscription lock page.
+    await expect(page.locator('nav, aside, h1, .subscription-lock-container').first()).toBeVisible({ timeout: 15000 });
     
     // Final check of the URL to ensure we aren't stuck on login due to some silent failure
     if (page.url().includes('/auth/login')) {
