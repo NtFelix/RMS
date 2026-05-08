@@ -18,10 +18,13 @@ export function createSupabaseServerClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch (error) {
-            // Only log if it's NOT the expected error when setting cookies in a Server Component
-            if (process.env.NODE_ENV === 'development') {
-              console.debug('[Supabase Server] setAll called from Server Component/Action:', error);
+          } catch (error: any) {
+            // In Next.js 15, cookies().set() throws if called during Server Component rendering.
+            // This is expected. However, we log other types of errors to aid debugging.
+            const isReadOnlyError = error?.message?.includes('readonly') || error?.digest?.includes('NEXT_REDIRECT');
+            
+            if (!isReadOnlyError && process.env.NODE_ENV === 'development') {
+              console.warn('[Supabase Server] setAll encountered an unexpected error:', error.message);
             }
           }
         },

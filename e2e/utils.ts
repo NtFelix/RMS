@@ -96,9 +96,26 @@ export const acceptCookieConsent = async (page: Page) => {
  * Reusable helper to extract error messages from the UI (toasts, alerts, etc.)
  */
 export async function getUiErrorMessage(page: Page) {
-  return await page.locator('[role="alert"], [role="status"], .destructive, .text-destructive, .text-red-500')
-    .filter({ hasNotText: /^$/ })
-    .first()
-    .innerText()
-    .catch(() => '');
+  // We check multiple common error locations and roles
+  const locators = [
+    page.locator('[role="alert"]'),
+    page.locator('[role="status"]').filter({ hasText: /fehler|error|fehlgeschlagen|failed/i }),
+    page.locator('.destructive'),
+    page.locator('.text-destructive'),
+    page.locator('.text-red-500'),
+    page.locator('.bg-red-50'),
+  ];
+
+  for (const locator of locators) {
+    try {
+      const first = locator.filter({ hasNotText: /^$/ }).first();
+      if (await first.isVisible({ timeout: 1000 })) {
+        const text = await first.innerText();
+        if (text && text.trim().length > 0) return text.trim();
+      }
+    } catch (e) {
+      // Ignore timeout/not found for individual locators
+    }
+  }
+  return '';
 }
