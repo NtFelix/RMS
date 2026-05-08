@@ -96,7 +96,7 @@ export function SortableCostItem({
       aria-label={`Kostenposition ${index + 1}`}
     >
       <div className="flex flex-col sm:flex-row items-start gap-2">
-        <div className="flex items-center justify-center flex-none w-8 h-10">
+        <div className="flex items-center justify-center flex-none size-80">
           <button
             type="button"
             className="cursor-grab active:cursor-grabbing p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600"
@@ -181,7 +181,7 @@ export function SortableCostItem({
             document.body
           )}
         </div>
-        <div className="flex items-center justify-center flex-none w-10 h-10">
+        <div className="flex items-center justify-center flex-none size-100">
           <Button
             type="button"
             variant="ghost"

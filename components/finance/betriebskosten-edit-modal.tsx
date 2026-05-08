@@ -974,7 +974,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
           onValueChange={(value) => handleZaehlerkostenChange(value as ZaehlerTyp, "")}
         >
           <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all text-muted-foreground">
-            <PlusCircle className="w-4 h-4 mr-2" />
+            <PlusCircle className="size-4 mr-2" />
             <SelectValue placeholder="Zähler-Kostenstelle hinzufügen" />
           </SelectTrigger>
           <SelectContent>
@@ -984,7 +984,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               return (
                 <SelectItem key={typ} value={typ} className="group">
                   <div className="flex items-center gap-2">
-                    <Icon className="w-4 h-4 text-muted-foreground group-focus:text-white transition-colors" />
+                    <Icon className="size-4 text-muted-foreground group-focus:text-white transition-colors" />
                     <span>{config.label}</span>
                   </div>
                 </SelectItem>
@@ -1073,7 +1073,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                         disabled={isSaving || isFormLoading}
                         title="Ein Jahr zurück"
                       >
-                        <CalendarMinus className="w-4 h-4 mr-2" />
+                        <CalendarMinus className="size-4 mr-2" />
                         -1 Jahr
                       </Button>
                       <Button
@@ -1092,7 +1092,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                         disabled={isSaving || isFormLoading}
                         title="Ein Jahr vor"
                       >
-                        <CalendarPlus className="w-4 h-4 mr-2" />
+                        <CalendarPlus className="size-4 mr-2" />
                         +1 Jahr
                       </Button>
                     </div>
@@ -1141,10 +1141,10 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                     >
                       <div className="flex items-start justify-between w-full">
                         <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'soll' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                          <CalendarClock className="w-4 h-4" />
+                          <CalendarClock className="size-4" />
                         </div>
-                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'soll' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
-                          <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                        <div className={`flex items-center justify-center size-4 rounded-full transition-all ${vorauszahlungsArt === 'soll' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
+                          <Check className="size-2.5 text-primary-foreground" strokeWidth={3} />
                         </div>
                       </div>
                       <div>
@@ -1161,10 +1161,10 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                     >
                       <div className="flex items-start justify-between w-full">
                         <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'ist' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                          <Banknote className="w-4 h-4" />
+                          <Banknote className="size-4" />
                         </div>
-                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'ist' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
-                          <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                        <div className={`flex items-center justify-center size-4 rounded-full transition-all ${vorauszahlungsArt === 'ist' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
+                          <Check className="size-2.5 text-primary-foreground" strokeWidth={3} />
                         </div>
                       </div>
                       <div>
@@ -1219,10 +1219,10 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                   className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
                                   onClick={() => handleRemoveZaehlerkosten(typ)}
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="size-3.5" />
                                 </Button>
-                              </div>
-                              <div className="relative">
+                                </div>
+                                <div className="relative">
                                 <NumberInput
                                   id={`zaehlerkosten-${typ}`}
                                   value={zaehlerkosten[typ] || ''}
@@ -1233,90 +1233,89 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                   className="h-10 pl-3 pr-8 bg-gray-50/50 dark:bg-black/20 border-gray-200 dark:border-gray-800 focus:ring-primary/20"
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">€</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
+                                </div>
+                                </div>
+                                );
+                                })}
+                                </div>
 
-                    {/* Add Meter Cost Select */}
-                    {addMeterCostSelect}
-                  </div>
-                )}
-              </div>
-            </div>
+                                {/* Add Meter Cost Select */}
+                                {addMeterCostSelect}
+                                </div>
+                                )}
+                                </div>
+                                </div>
 
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
-              <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 p-3 space-y-3">
-                {isFormLoading ? (
-                  Array.from({ length: 3 }).map((_, idx) => (
-                    <div key={`skel-cost-${idx}`} className="flex flex-col gap-2 py-2 border-b last:border-b-0">
-                      <div className="flex flex-col sm:flex-row items-start gap-2">
-                        <div className="flex items-center justify-center flex-none w-8 h-10">
-                          <Skeleton className="h-6 w-6 rounded" />
-                        </div>
-                        <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
-                        <Skeleton className="h-10 w-full sm:flex-[3_1_0%]" />
-                        <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
-                        <div className="flex items-center justify-center flex-none w-10 h-10">
-                          <Skeleton className="h-8 w-8 rounded" />
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext items={costItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
-                      {costItems.map((item, index) => (
-                        <SortableCostItem
-                          key={item.id}
-                          item={item}
-                          index={index}
-                          costItems={costItems}
-                          selectedHausMieter={selectedHausMieter}
-                          rechnungen={rechnungen}
-                          isSaving={isSaving}
-                          isLoadingDetails={isFormLoading}
-                          isFetchingTenants={isFetchingTenants}
-                          hausId={hausId}
-                          onCostItemChange={handleCostItemChange}
-                          onRemoveCostItem={removeCostItem}
-                          onRechnungChange={handleRechnungChange}
-                          hoveredBerechnungsart={hoveredBerechnungsart}
-                          selectContentRect={selectContentRect}
-                          hoveredItemRect={hoveredItemRect}
-                          tooltipMap={tooltipMap}
-                          onItemHover={handleItemHover}
-                          onItemLeave={handleItemLeave}
-                          selectContentRef={selectContentRef}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                )}
-                <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isFormLoading || isSaving}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Kostenposition hinzufügen
-                </Button>
-              </div>
-            </div>
-          </div>
+                                <div className="space-y-2">
+                                <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
+                                <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 p-3 space-y-3">
+                                {isFormLoading ? (
+                                Array.from({ length: 3 }).map((_, idx) => (
+                                <div key={`skel-cost-${idx}`} className="flex flex-col gap-2 py-2 border-b last:border-b-0">
+                                <div className="flex flex-col sm:flex-row items-start gap-2">
+                                <div className="flex items-center justify-center flex-none size-80">
+                                <Skeleton className="size-6 rounded" />
+                                </div>
+                                <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
+                                <Skeleton className="h-10 w-full sm:flex-[3_1_0%]" />
+                                <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
+                                <div className="flex items-center justify-center flex-none size-100">
+                                <Skeleton className="size-8 rounded" />
+                                </div>
+                                </div>
+                                </div>
+                                ))
+                                ) : (
+                                <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                                >
+                                <SortableContext items={costItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
+                                {costItems.map((item, index) => (
+                                <SortableCostItem
+                                key={item.id}
+                                item={item}
+                                index={index}
+                                costItems={costItems}
+                                selectedHausMieter={selectedHausMieter}
+                                rechnungen={rechnungen}
+                                isSaving={isSaving}
+                                isLoadingDetails={isFormLoading}
+                                isFetchingTenants={isFetchingTenants}
+                                hausId={hausId}
+                                onCostItemChange={handleCostItemChange}
+                                onRemoveCostItem={removeCostItem}
+                                onRechnungChange={handleRechnungChange}
+                                hoveredBerechnungsart={hoveredBerechnungsart}
+                                selectContentRect={selectContentRect}
+                                hoveredItemRect={hoveredItemRect}
+                                tooltipMap={tooltipMap}
+                                onItemHover={handleItemHover}
+                                onItemLeave={handleItemLeave}
+                                selectContentRef={selectContentRef}
+                                />
+                                ))}
+                                </SortableContext>
+                                </DndContext>
+                                )}
+                                <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isFormLoading || isSaving}>
+                                <PlusCircle className="mr-2 size-4" />
+                                Kostenposition hinzufügen
+                                </Button>
+                                </div>
+                                </div>
+                                </div>
 
-          <DialogFooter className="px-4">
-            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isFormLoading}>
-              Abbrechen
-            </Button>
-            <Button type="submit" disabled={isSaving || isFetchingTenants || isFormLoading}>
-              {isSaving ? "Speichern..." : (isFormLoading || isFetchingTenants ? "Laden..." : "Speichern")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+                                <DialogFooter className="px-4">
+                                <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isFormLoading}>
+                                Abbrechen
+                                </Button>
+                                <Button type="submit" disabled={isSaving || isFetchingTenants || isFormLoading}>
+                                {isSaving ? "Speichern..." : (isFormLoading || isFetchingTenants ? "Laden..." : "Speichern")}
+                                </Button>
+                                </DialogFooter>
+                                </form>      </DialogContent>
     </Dialog>
   );
 }

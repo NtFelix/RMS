@@ -109,11 +109,17 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
   logAction(actionName, 'start', { nebenkosten_id: id });
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    logAction(actionName, 'error', { error_message: 'User not authenticated' });
+    return { success: false, message: "User not authenticated", data: null };
+  }
 
   const { data, error } = await supabase
     .from("Nebenkosten")
     .update(formData)
     .eq("id", id)
+    .eq("user_id", user.id) // Ensure ownership
     .select()
     .single();
 
@@ -133,11 +139,17 @@ export async function deleteNebenkosten(id: string) {
   logAction(actionName, 'start', { nebenkosten_id: id });
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    logAction(actionName, 'error', { error_message: 'User not authenticated' });
+    return { success: false, message: "User not authenticated" };
+  }
 
   const { error } = await supabase
     .from("Nebenkosten")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id); // Ensure ownership
 
   if (error) {
     logAction(actionName, 'error', { nebenkosten_id: id, error_message: error.message });
@@ -161,13 +173,18 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
   }
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, count: 0, message: "User not authenticated" };
+  }
 
   try {
     // Use in_ operator to delete multiple records in a single query
     const { count, error } = await supabase
       .from("Nebenkosten")
       .delete()
-      .in("id", ids);
+      .in("id", ids)
+      .eq("user_id", user.id); // Ensure ownership
 
     if (error) throw error;
 
@@ -677,8 +694,27 @@ export async function getWasserzaehlerByHausAndYearAction(
   year: string
 ): Promise<{ success: boolean; data?: { mieterList: Mieter[]; existingReadings: Wasserzaehler[] }; message?: string }> {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, message: "User not authenticated" };
+    }
+
     if (!hausId || !year) {
       return { success: false, message: "Haus-ID und Jahr sind erforderlich." };
+    }
+
+    // Verify ownership of the house
+    const { data: house, error: houseError } = await supabase
+      .from("Haeuser")
+      .select("id")
+      .eq("id", hausId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (houseError || !house) {
+      return { success: false, message: "Haus nicht gefunden oder keine Berechtigung." };
     }
 
     // Validate year format (basic check for YYYY)
@@ -1110,16 +1146,34 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
   "use server";
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: "User not authenticated", data: null };
+  }
 
   try {
+    // Verify ownership of the house
+    const { data: house, error: houseError } = await supabase
+      .from("Haeuser")
+      .select("id")
+      .eq("id", hausId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (houseError || !house) {
+      return { success: false, message: "Haus nicht gefunden oder keine Berechtigung.", data: null };
+    }
+
     // First, get the latest Nebenkosten ID for the house
     const { data: latestNebenkosten, error: nebError } = await supabase
       .from("Nebenkosten")
       .select('id')
       .eq('haeuser_id', hausId)
+      .eq('user_id', user.id) // Ensure ownership
       .order('enddatum', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle(); // Changed from single() to maybeSingle() to handle no rows gracefully
 
     if (nebError && nebError.code !== 'PGRST116') { // PGRST116 = no rows returned
       console.error("Error fetching latest Nebenkosten ID:", nebError);
@@ -1757,19 +1811,29 @@ async function getAbrechnungModalDataFallback(
     operation: 'getAbrechnungModalDataFallback'
   });
 
-  // Fetch Nebenkosten with house info
-  const { data: nebenkostenData, error: nebenkostenError } = await supabase
-    .from("Nebenkosten")
-    .select(`
-      *,
-      Haeuser (
-        name,
-        groesse
-      )
-    `)
-    .eq("id", nebenkostenId)
-    .eq("user_id", userId)
-    .single();
+  // Fetch Nebenkosten with house info and rechnungen in parallel
+  const [nebenkostenResult, rechnungenResult] = await Promise.all([
+    supabase
+      .from("Nebenkosten")
+      .select(`
+        *,
+        Haeuser (
+          name,
+          groesse
+        )
+      `)
+      .eq("id", nebenkostenId)
+      .eq("user_id", userId)
+      .single(),
+    supabase
+      .from("Rechnungen")
+      .select("*")
+      .eq("nebenkosten_id", nebenkostenId)
+      .eq("user_id", userId)
+  ]);
+
+  const { data: nebenkostenData, error: nebenkostenError } = nebenkostenResult;
+  const { data: rechnungen, error: rechnungenError } = rechnungenResult;
 
   if (nebenkostenError || !nebenkostenData) {
     logger.error('Failed to fetch Nebenkosten details in fallback', nebenkostenError || undefined, {
@@ -1803,13 +1867,6 @@ async function getAbrechnungModalDataFallback(
     });
     return { success: false, message: "Fehler beim Laden der Mieterdaten." };
   }
-
-  // Fetch rechnungen
-  const { data: rechnungen, error: rechnungenError } = await supabase
-    .from("Rechnungen")
-    .select("*")
-    .eq("nebenkosten_id", nebenkostenId)
-    .eq("user_id", userId);
 
   if (rechnungenError) {
     logger.error('Failed to fetch rechnungen in fallback', rechnungenError || undefined, {

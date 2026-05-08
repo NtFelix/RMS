@@ -192,7 +192,7 @@ export function OperatingCostsOverviewModal({
             <span>{isoToGermanDate(nebenkosten.startdatum)} - {isoToGermanDate(nebenkosten.enddatum)}</span>
             {nebenkosten.haus_name && (
               <>
-                <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+                <span className="size-1 rounded-full bg-muted-foreground/30" />
                 <span>{nebenkosten.haus_name}</span>
               </>
             )}
@@ -209,7 +209,7 @@ export function OperatingCostsOverviewModal({
             <Card className="rounded-2xl shadow-md border-none sticky top-6">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Finanzielles Ergebnis</CardTitle>
-                <Scale className="h-5 w-5 text-muted-foreground" />
+                <Scale className="size-5 text-muted-foreground" />
               </CardHeader>
               <CardContent className="pt-6 space-y-8">
 
@@ -224,7 +224,7 @@ export function OperatingCostsOverviewModal({
                         {formatCurrency(totalBalance)}
                       </div>
                       <div className={`flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-medium ${isNachzahlung ? "bg-red-100 text-red-700 dark:bg-red-900/30" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30"}`}>
-                        {isNachzahlung ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+                        {isNachzahlung ? <TrendingDown className="size-3" /> : <TrendingUp className="size-3" />}
                         {isNachzahlung ? "Nachzahlung" : "Guthaben"}
                       </div>
                     </div>
@@ -237,14 +237,14 @@ export function OperatingCostsOverviewModal({
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Euro className="h-4 w-4" /> Gesamtkosten (inkl. Zähler)
+                      <Euro className="size-4" /> Gesamtkosten (inkl. Zähler)
                     </div>
                     <div className="font-semibold">{formatCurrency(totalCosts)}</div>
                   </div>
 
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Wallet className="h-4 w-4" /> Vorauszahlungen (gesamt)
+                      <Wallet className="size-4" /> Vorauszahlungen (gesamt)
                     </div>
                     {isLoadingData ? <Skeleton className="h-6 w-24" /> :
                       <div className="font-semibold text-emerald-600 dark:text-emerald-400">
@@ -259,27 +259,27 @@ export function OperatingCostsOverviewModal({
                 {/* 3. Building Context */}
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-muted-foreground"><Ruler className="h-4 w-4" /> Gesamtfläche</span>
+                    <span className="flex items-center gap-2 text-muted-foreground"><Ruler className="size-4" /> Gesamtfläche</span>
                     <span className="font-medium">{nebenkosten.gesamtFlaeche || 0} m²</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-muted-foreground"><Home className="h-4 w-4" /> Einheiten</span>
+                    <span className="flex items-center gap-2 text-muted-foreground"><Home className="size-4" /> Einheiten</span>
                     <span className="font-medium">{nebenkosten.anzahlWohnungen || 0}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-muted-foreground"><Users className="h-4 w-4" /> Mieter</span>
+                    <span className="flex items-center gap-2 text-muted-foreground"><Users className="size-4" /> Mieter</span>
                     <span className="font-medium">{abrechnungData?.tenants?.length || 0}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-muted-foreground"><Gauge className="h-4 w-4" /> Positionen</span>
+                    <span className="flex items-center gap-2 text-muted-foreground"><Gauge className="size-4" /> Positionen</span>
                     <span className="font-medium">{nebenkosten.nebenkostenart?.length || 0}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-muted-foreground"><ArrowRight className="h-4 w-4" /> Zeitraum</span>
+                    <span className="flex items-center gap-2 text-muted-foreground"><ArrowRight className="size-4" /> Zeitraum</span>
                     <span className="font-medium">{periodDays} Tage</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-muted-foreground"><Coins className="h-4 w-4" /> Ø Kosten / m²</span>
+                    <span className="flex items-center gap-2 text-muted-foreground"><Coins className="size-4" /> Ø Kosten / m²</span>
                     <span className="font-medium">{formatCurrency(costPerSqm)}</span>
                   </div>
                 </div>
@@ -291,7 +291,7 @@ export function OperatingCostsOverviewModal({
                     className="w-full flex items-center justify-center gap-2 py-6 text-base"
                     variant="default"
                   >
-                    <FileDown className="h-5 w-5" />
+                    <FileDown className="size-5" />
                     {isExporting ? "Wird erstellt..." : "Als PDF exportieren"}
                   </Button>
                 </div>
@@ -307,7 +307,7 @@ export function OperatingCostsOverviewModal({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <Building2 className="size-5 text-muted-foreground" />
                   Kostenaufstellung
                 </h3>
               </div>
@@ -356,7 +356,7 @@ export function OperatingCostsOverviewModal({
             {/* 2. Meter Costs Grid */}
             <div className="space-y-4">
               <h3 className="font-semibold text-lg flex items-center gap-2 pt-4 border-t">
-                <Gauge className="h-5 w-5 text-muted-foreground" />
+                <Gauge className="size-5 text-muted-foreground" />
                 Zählerabhängige Kosten
               </h3>
 
@@ -382,7 +382,7 @@ export function OperatingCostsOverviewModal({
                       <Card key={typ} className="shadow-md rounded-2xl border-none">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                           <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <MeterIcon className="h-4 w-4 text-muted-foreground" />
+                            <MeterIcon className="size-4 text-muted-foreground" />
                             {label}
                           </CardTitle>
                           <div className="font-bold">{formatCurrency(kosten)}</div>

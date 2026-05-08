@@ -35,19 +35,9 @@ export default function BetriebskostenClientView({
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
-  const [filteredNebenkosten, setFilteredNebenkosten] = useState<OptimizedNebenkosten[]>(initialNebenkosten);
-  // isModalOpen and editingNebenkosten are now managed by useModalStore
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
-  const { openBetriebskostenModal } = useModalStore(); // Get the action to open modal
-  const { toast } = useToast();
-  // Define router for potential refresh, though modal might handle it
-  const router = useRouter();
-  const tableRef = useRef<HTMLDivElement | null>(null);
-  const [showGuide, setShowGuide] = useState(true);
-
-
-  useEffect(() => {
+  
+  // Derive filteredNebenkosten from initial data and filter state
+  const filteredNebenkosten = useMemo(() => {
     let result = initialNebenkosten;
     if (selectedHouseId && selectedHouseId !== "all") {
       result = result.filter(item => item.haeuser_id === selectedHouseId);
@@ -75,8 +65,10 @@ export default function BetriebskostenClientView({
         item.enddatum && item.enddatum < currentYearStart
       );
     }
-    setFilteredNebenkosten(result);
+    return result;
   }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
+
+  // isModalOpen and editingNebenkosten are now managed by useModalStore
 
   const handleOpenCreateModal = useCallback((templateType: 'blank' | 'previous' | 'default' = 'blank') => {
     // Pass initialHaeuser and a success callback (e.g., to refresh data)
@@ -131,7 +123,7 @@ export default function BetriebskostenClientView({
         description: "Nebenkosten-Eintrag erfolgreich gelöscht.",
         variant: "success"
       });
-      setFilteredNebenkosten(prev => prev.filter(item => item.id !== selectedItemIdForDelete));
+      router.refresh();
     } else {
       toast({
         title: "Fehler",

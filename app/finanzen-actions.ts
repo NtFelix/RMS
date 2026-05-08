@@ -20,10 +20,14 @@ interface FinanzInput {
 }
 
 export async function financeServerAction(id: string | null, data: FinanzInput): Promise<{ success: boolean; error?: any; data?: any }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: { message: "Unauthorized" } };
+  }
+
   const actionName = id ? 'updateFinance' : 'createFinance';
   logAction(actionName, 'start', { finance_id: id, finance_name: data.name, amount: data.betrag });
-
-  const supabase = await createClient();
 
   // Ensure betrag is a number and handle potential string input from forms
   const payload = {
@@ -33,6 +37,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     datum: data.datum || null,
     notiz: data.notiz || null,
     dokument_id: data.dokument_id || null,
+    user_id: user.id,
   };
 
   if (typeof payload.name !== 'string' || payload.name.trim() === '') {
@@ -50,7 +55,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     let dbResponse;
     if (id) {
       // Update existing record
-      dbResponse = await supabase.from("Finanzen").update(payload).eq("id", id).select().single();
+      dbResponse = await supabase.from("Finanzen").update(payload).eq("id", id).eq("user_id", user.id).select().single();
     } else {
       // Create new record
       dbResponse = await supabase.from("Finanzen").insert(payload).select().single();
@@ -62,28 +67,25 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     logAction(actionName, 'success', { finance_id: dbResponse.data.id, finance_name: data.name });
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const posthog = getPostHogServer();
-        await posthog.capture({
-          distinctId: user.id,
-          event: 'payment_recorded',
-          properties: {
-            payment_id: dbResponse.data.id,
-            amount: payload.betrag,
-            type: payload.ist_einnahmen ? 'income' : 'expense',
-            category: payload.notiz || 'uncategorized', // Assuming 'notiz' might contain category info or just use a generic one
-            date: payload.datum,
-            has_property: !!payload.wohnung_id,
-            source: 'server_action'
-          }
-        });
-        await Promise.all([
-          posthog.flush(),
-          posthogLogger.flush()
-        ]);
-        logger.info(`[PostHog] Capturing payment event for user: ${user.id}`);
-      }
+      const posthog = getPostHogServer();
+      await posthog.capture({
+        distinctId: user.id,
+        event: 'payment_recorded',
+        properties: {
+          payment_id: dbResponse.data.id,
+          amount: payload.betrag,
+          type: payload.ist_einnahmen ? 'income' : 'expense',
+          category: payload.notiz || 'uncategorized', // Assuming 'notiz' might contain category info or just use a generic one
+          date: payload.datum,
+          has_property: !!payload.wohnung_id,
+          source: 'server_action'
+        }
+      });
+      await Promise.all([
+        posthog.flush(),
+        posthogLogger.flush()
+      ]);
+      logger.info(`[PostHog] Capturing payment event for user: ${user.id}`);
     } catch (phError) {
       logger.error('Failed to capture PostHog event:', phError instanceof Error ? phError : new Error(String(phError)));
     }
@@ -98,6 +100,10 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
 
 export async function toggleFinanceStatusAction(id: string, currentStatus: boolean): Promise<{ success: boolean; error?: any; data?: any }> {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: { message: "Unauthorized" } };
+  }
 
   try {
     // Only update the ist_einnahmen field
@@ -107,6 +113,7 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
         ist_einnahmen: !currentStatus
       })
       .eq('id', id)
+      .eq('user_id', user.id) // Ensure user owns the record
       .select()
       .single();
 
@@ -126,10 +133,16 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
 export async function deleteFinanceAction(financeId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: { message: "Unauthorized" } };
+    }
+
     const { error } = await supabase
       .from("Finanzen")
       .delete()
-      .eq("id", financeId);
+      .eq("id", financeId)
+      .eq("user_id", user.id); // Ensure user owns the record
 
     if (error) {
       // Log the error for server-side visibility

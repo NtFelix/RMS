@@ -94,7 +94,7 @@ export default function FinanzenClientWrapper({
   const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
-  const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
+  const hasInitialData = summaryData !== null;
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -232,7 +232,6 @@ export default function FinanzenClientWrapper({
       if (response.ok) {
         const newSummaryData = await response.json();
         setSummaryData(newSummaryData);
-        setHasInitialData(true);
       }
     } catch (error) {
       console.error('Failed to refresh summary data:', error);

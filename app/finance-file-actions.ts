@@ -81,14 +81,22 @@ export async function getFinanceDocumentUrl(
         return { success: false, error: "Keine Dokument-ID angegeben" };
     }
 
-    const supabase = await createClient();
+    // Fetch document metadata and user session in parallel
+    const [docResult, userResult] = await Promise.all([
+        supabase
+            .from("Dokumente_Metadaten")
+            .select("dateipfad, dateiname")
+            .eq("id", dokumentId)
+            .single(),
+        supabase.auth.getUser()
+    ]);
 
-    // Get document metadata
-    const { data: dokument, error: docError } = await supabase
-        .from("Dokumente_Metadaten")
-        .select("dateipfad, dateiname")
-        .eq("id", dokumentId)
-        .single();
+    const { data: dokument, error: docError } = docResult;
+    const { data: { user } } = userResult;
+
+    if (!user) {
+        return { success: false, error: "Unauthorized" };
+    }
 
     if (docError || !dokument) {
         console.error("Error fetching document metadata:", docError);
@@ -127,12 +135,18 @@ export async function deleteFinanceDocument(
 
     const supabase = await createClient();
 
-    // Get document metadata first
-    const { data: dokument, error: docError } = await supabase
-        .from("Dokumente_Metadaten")
-        .select("dateipfad, dateiname, user_id")
-        .eq("id", dokumentId)
-        .single();
+    // Fetch document metadata and user session in parallel
+    const [docResult, userResult] = await Promise.all([
+        supabase
+            .from("Dokumente_Metadaten")
+            .select("dateipfad, dateiname, user_id")
+            .eq("id", dokumentId)
+            .single(),
+        supabase.auth.getUser()
+    ]);
+
+    const { data: dokument, error: docError } = docResult;
+    const { data: { user } } = userResult;
 
     if (docError || !dokument) {
         console.error("Error fetching document metadata:", docError);
@@ -140,7 +154,6 @@ export async function deleteFinanceDocument(
     }
 
     // Verify user owns this document
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user || dokument.user_id !== user.id) {
         return { success: false, error: "Keine Berechtigung" };
     }
@@ -182,11 +195,16 @@ export async function getFinanceDocumentInfo(
     }
 
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return { success: false, error: "Unauthorized" };
+    }
 
     const { data: dokument, error } = await supabase
         .from("Dokumente_Metadaten")
         .select("id, dateiname, dateipfad, dateigroesse, mime_type")
         .eq("id", dokumentId)
+        .eq("user_id", user.id) // Ensure ownership
         .single();
 
     if (error || !dokument) {

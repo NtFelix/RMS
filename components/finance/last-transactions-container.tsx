@@ -124,7 +124,7 @@ export function LastTransactionsContainer() {
           </div>
           <Link href="/finanzen">
             <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
+              <Eye className="size-4" />
               Alle anzeigen
             </Button>
           </Link>
@@ -133,7 +133,7 @@ export function LastTransactionsContainer() {
       <CardContent className="flex-1 p-3 min-h-0 overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+            <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
           </div>
         ) : (
           <div className="space-y-2 overflow-y-auto h-full pr-2">
@@ -144,15 +144,15 @@ export function LastTransactionsContainer() {
                   className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 dark:table-row-hover transition-colors"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                    <div className={`flex-shrink-0 size-8 rounded-full flex items-center justify-center ${
                       transaction.ist_einnahmen 
                         ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' 
                         : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                     }`}>
                       {transaction.ist_einnahmen ? (
-                        <ArrowUpRight className="h-4 w-4" />
+                        <ArrowUpRight className="size-4" />
                       ) : (
-                        <ArrowDownRight className="h-4 w-4" />
+                        <ArrowDownRight className="size-4" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -181,8 +181,8 @@ export function LastTransactionsContainer() {
               ))
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                  <ArrowUpRight className="h-6 w-6 text-muted-foreground" />
+                <div className="size-122 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <ArrowUpRight className="size-6 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">Keine Transaktionen gefunden</p>
               </div>

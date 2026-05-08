@@ -72,7 +72,7 @@ export default function Loading() {
           {/* Year selector skeleton */}
           <div className="mt-4 md:mt-0 flex items-center gap-2">
             <Skeleton className="h-4 w-8" />
-            <Skeleton className="h-9 w-16 rounded-lg" />
+            <Skeleton className="size-96 rounded-lg" />
           </div>
         </div>
         
