@@ -22,6 +22,7 @@ import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
 import { Loader2 } from "lucide-react"
+import Image from "next/image"
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -29,6 +30,89 @@ interface AuthModalProps {
   onAuthenticated: () => void;
   initialTab?: 'login' | 'register';
 }
+
+// Common header component moved to module scope
+const AuthHeader = ({ title, description }: { title: string; description: string }) => (
+  <CardHeader className="space-y-1 text-center px-6 pt-2">
+    <Link href="/" className="flex justify-center mb-2 hover:opacity-80 transition-opacity">
+      <Image 
+        src={LOGO_URL} 
+        alt="Mietevo Logo" 
+        width={48}
+        height={48}
+        className="size-122 object-contain" 
+        priority
+      />
+    </Link>
+    <CardTitle className="text-2xl font-bold">{title}</CardTitle>
+    <CardDescription>{description}</CardDescription>
+  </CardHeader>
+);
+
+// Common form wrapper moved to module scope
+const AuthForm = ({
+  onSubmit,
+  error,
+  successMessage,
+  children
+}: {
+  onSubmit: (e: React.FormEvent) => void;
+  error: string | null;
+  successMessage?: string | null;
+  children: React.ReactNode;
+}) => (
+  <CardContent className="px-6 pb-6">
+    <form onSubmit={onSubmit} className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {successMessage && (
+        <Alert variant="default">
+          <AlertDescription>{successMessage}</AlertDescription>
+        </Alert>
+      )}
+      {children}
+    </form>
+  </CardContent>
+);
+
+// Common input field component moved to module scope
+const FormField = ({
+  id,
+  label,
+  type = "text",
+  placeholder,
+  value,
+  onChange,
+  required = false,
+  extraContent
+}: {
+  id: string;
+  label: string;
+  type?: string;
+  placeholder?: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  extraContent?: React.ReactNode;
+}) => (
+  <div className="space-y-2">
+    <div className="flex items-center justify-between">
+      <Label htmlFor={id}>{label}</Label>
+      {extraContent}
+    </div>
+    <Input
+      id={id}
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      required={required}
+    />
+  </div>
+);
 
 export default function AuthModal({
   isOpen,
@@ -206,85 +290,6 @@ export default function AuthModal({
       setForgotPasswordIsLoading(false)
     }
   }
-
-  // Common header component to reduce duplication
-  const AuthHeader = ({ title, description }: { title: string; description: string }) => (
-    <CardHeader className="space-y-1 text-center px-6 pt-2">
-      <Link href="/" className="flex justify-center mb-2 hover:opacity-80 transition-opacity">
-        {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN. 
-            next/image adds unnecessary overhead for small, pre-optimized images. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={LOGO_URL} alt="Mietevo Logo" className="h-12 w-12 object-contain" />
-      </Link>
-      <CardTitle className="text-2xl font-bold">{title}</CardTitle>
-      <CardDescription>{description}</CardDescription>
-    </CardHeader>
-  );
-
-  // Common form wrapper to reduce duplication
-  const AuthForm = ({
-    onSubmit,
-    error,
-    successMessage,
-    children
-  }: {
-    onSubmit: (e: React.FormEvent) => void;
-    error: string | null;
-    successMessage?: string | null;
-    children: React.ReactNode;
-  }) => (
-    <CardContent className="px-6 pb-6">
-      <form onSubmit={onSubmit} className="space-y-4">
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {successMessage && (
-          <Alert variant="default">
-            <AlertDescription>{successMessage}</AlertDescription>
-          </Alert>
-        )}
-        {children}
-      </form>
-    </CardContent>
-  );
-
-  // Common input field component
-  const FormField = ({
-    id,
-    label,
-    type = "text",
-    placeholder,
-    value,
-    onChange,
-    required = false,
-    extraContent
-  }: {
-    id: string;
-    label: string;
-    type?: string;
-    placeholder?: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    required?: boolean;
-    extraContent?: React.ReactNode;
-  }) => (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label htmlFor={id}>{label}</Label>
-        {extraContent}
-      </div>
-      <Input
-        id={id}
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={onChange}
-        required={required}
-      />
-    </div>
-  );
 
   const renderContent = () => {
     if (activeView === 'forgotPassword') {
