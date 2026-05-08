@@ -746,4 +746,4 @@ export function CloudStorageItemCard({
       {deleteConfirmationDialog}
     </>
   )
-}}
+}

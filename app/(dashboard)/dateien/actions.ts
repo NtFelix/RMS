@@ -110,6 +110,7 @@ export interface FolderContentsResult {
 export async function getFolderContents(userId: string, path?: string): Promise<FolderContentsResult> {
     const targetPath = path || `user_${userId}`
     const startTime = performance.now()
+    let shouldRedirect = false
 
     try {
         const supabase = await createClient()

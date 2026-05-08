@@ -134,8 +134,8 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
     const apartmentIds = new Set(apartments?.map((a: any) => a.id) || [])
     
     // Create lookup maps for performance
-    const houseMap = new Map(houses?.map((h: any) => [h.id, h]) || [])
-    const apartmentMap = new Map(apartments?.map((a: any) => [a.id, a]) || [])
+    const houseMap = new Map<string, any>(houses?.map((h: any) => [h.id, h]) || [])
+    const apartmentMap = new Map<string, any>(apartments?.map((a: any) => [a.id, a]) || [])
 
     // Process discovered folders
     for (const folderName of discoveredFolders) {
@@ -489,9 +489,6 @@ async function countDirectFiles(supabase: any, path: string): Promise<number> {
     
     return fileCount
   } catch (error) {
-    return 0
-  }
-}error) {
     return 0
   }
 }
