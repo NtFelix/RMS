@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "./supabase-server";
+import { isTestEnv } from "./test-utils";
 
 // Re-export all types from the types file for backward compatibility
 // Client components should import from "@/lib/types" directly to avoid server imports
@@ -329,8 +330,6 @@ type Profile = {
   stripe_price_id?: string | null;
   stripe_current_period_end?: string | null; // Consider Date type if you parse it
 };
-
-import { isTestEnv } from "./test-utils";
 
 export async function fetchUserProfile(): Promise<Profile | null> {
   const supabase = createSupabaseServerClient();
