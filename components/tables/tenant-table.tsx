@@ -74,9 +74,20 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const sortedAndFilteredData = useMemo(() => {
     let result = [...tenants]
 
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
+
     // Apply filters
-    if (filter === "current") result = result.filter(t => !t.auszug)
-    else if (filter === "previous") result = result.filter(t => !!t.auszug)
+    if (filter === "current") {
+      result = result.filter(t => !t.auszug || t.auszug > todayStr)
+    } else if (filter === "previous") {
+      result = result.filter(t => t.auszug && t.auszug <= todayStr)
+    }
 
     // Apply search
     if (searchQuery) {
