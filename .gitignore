@@ -57,3 +57,7 @@ node_modules/
 /playwright/.auth/
 # next-agents-md
 .next-docs/
+
+# AI Agent Skills references (documentation)
+.agents/skills/*/references/
+.agents/skills/*/rules/
