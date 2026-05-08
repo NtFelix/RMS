@@ -120,7 +120,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
     }
 
     // Only check limits when creating a new apartment
-    if (!id && !isTestEnv()) {
+    if (!id) {
       // Get user profile for subscription details
       const userProfile = await fetchUserProfile();
       if (!userProfile) {

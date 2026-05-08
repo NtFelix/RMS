@@ -91,3 +91,14 @@ export const acceptCookieConsent = async (page: Page) => {
     await expect(consentBtn).toBeHidden();
   }
 };
+
+/**
+ * Reusable helper to extract error messages from the UI (toasts, alerts, etc.)
+ */
+export async function getUiErrorMessage(page: Page) {
+  return await page.locator('[role="alert"], [role="status"], .destructive, .text-destructive, .text-red-500')
+    .filter({ hasNotText: /^$/ })
+    .first()
+    .innerText()
+    .catch(() => '');
+}

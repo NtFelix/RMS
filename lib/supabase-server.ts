@@ -18,8 +18,11 @@ export function createSupabaseServerClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {
-            // Can be ignored if middleware handles it
+          } catch (error) {
+            // Only log if it's NOT the expected error when setting cookies in a Server Component
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('[Supabase Server] setAll called from Server Component/Action:', error);
+            }
           }
         },
       }
