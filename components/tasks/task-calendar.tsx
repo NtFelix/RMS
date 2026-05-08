@@ -59,7 +59,7 @@ export function TaskCalendar({
 
         tasks.forEach((task) => {
             if (task.faelligkeitsdatum) {
-                const dateKey = format(new Date(task.faelligkeitsdatum + "T00:00:00"), "yyyy-MM-dd");
+                const dateKey = task.faelligkeitsdatum;
                 if (!grouped[dateKey]) {
                     grouped[dateKey] = [];
                 }
@@ -398,27 +398,50 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
             )}
         >
             {/* Day Number */}
-            <span
-                className={cn(
-                    "text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full mb-1",
-                    isDayToday && "bg-red-500 text-white shadow-sm",
-                    isSelected && !isDayToday && "bg-primary text-primary-foreground"
-                )}
-            >
-                {format(day, "d")}
-            </span>
+            <div className="w-full flex justify-center sm:justify-start">
+                <span
+                    className={cn(
+                        "text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 transition-colors",
+                        isDayToday && "bg-red-500 text-white shadow-sm",
+                        isSelected && !isDayToday && "bg-primary text-primary-foreground"
+                    )}
+                >
+                    {format(day, "d")}
+                </span>
+            </div>
 
             {/* Tasks List */}
             <div className="w-full flex flex-col gap-0.5 min-h-0 flex-1">
-                {visibleTasks.map(task => (
-                    <DraggableCalendarTask key={task.id} task={task} onTaskClick={onTaskClick} />
-                ))}
+                {/* Desktop View: Full Pills */}
+                <div className="hidden sm:flex flex-col gap-0.5 w-full">
+                    {visibleTasks.map(task => (
+                        <DraggableCalendarTask key={task.id} task={task} onTaskClick={onTaskClick} />
+                    ))}
 
-                {hiddenCount > 0 && (
-                    <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium">
-                        +{hiddenCount} weitere
-                    </div>
-                )}
+                    {hiddenCount > 0 && (
+                        <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium">
+                            +{hiddenCount} weitere
+                        </div>
+                    )}
+                </div>
+
+                {/* Mobile View: Centered Dots */}
+                <div className="flex sm:hidden flex-wrap gap-1 w-full mt-auto justify-center pb-1.5 px-0.5">
+                    {tasks.slice(0, isWeekView ? 8 : 4).map(task => (
+                        <div 
+                            key={task.id} 
+                            className={cn(
+                                "w-1.5 h-1.5 rounded-full shadow-sm ring-1 ring-inset",
+                                task.ist_erledigt 
+                                    ? "bg-gray-200 ring-gray-300 dark:bg-gray-800 dark:ring-gray-700" 
+                                    : "bg-primary ring-primary/20"
+                            )} 
+                        />
+                    ))}
+                    {tasks.length > (isWeekView ? 8 : 4) && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 shadow-sm ring-1 ring-inset ring-black/5" />
+                    )}
+                </div>
             </div>
         </div>
     );

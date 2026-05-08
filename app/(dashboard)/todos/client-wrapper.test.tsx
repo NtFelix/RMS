@@ -81,9 +81,9 @@ describe('TodosClientWrapper - Calendar Layout', () => {
 
     mockUseModalStore.mockReturnValue({
       openAufgabeModal: mockOpenAufgabeModal,
-    } as any);
+    } as unknown as ReturnType<typeof useModalStore>);
 
-    (mockUseModalStore as any).getState = jest.fn().mockReturnValue({
+    (mockUseModalStore as unknown as { getState: jest.Mock }).getState = jest.fn().mockReturnValue({
       openAufgabeModal: mockOpenAufgabeModal,
     });
   });
@@ -152,8 +152,8 @@ describe('TodosClientWrapper - Calendar Layout', () => {
       render(<TodosClientWrapper {...defaultProps} />);
 
       const searchInput = screen.getByPlaceholderText('Aufgaben suchen...');
-      await user.type(searchInput, 'test');
-      expect(searchInput).toHaveValue('test');
+      await user.type(searchInput, 'faucet');
+      expect(searchInput).toHaveValue('faucet');
 
       const clearButton = screen.getByRole('button', { name: /Suche löschen/i });
       await user.click(clearButton);

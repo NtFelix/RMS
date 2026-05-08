@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { format, isAfter, isBefore, addDays, startOfDay } from "date-fns";
+import { format, isAfter, isBefore, addDays, startOfDay, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import {
-    ChevronDown,
     ChevronRight,
     Clock,
     CalendarOff,
@@ -12,6 +11,7 @@ import {
     Circle,
     GripVertical,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -80,7 +80,7 @@ export function TaskItemCard({
                 </p>
                 {task.faelligkeitsdatum && (
                     <p className="text-xs text-muted-foreground mt-0.5">
-                        {format(new Date(task.faelligkeitsdatum + "T00:00:00"), "dd. MMM", { locale: de })}
+                        {format(parseISO(task.faelligkeitsdatum), "dd. MMM", { locale: de })}
                     </p>
                 )}
             </div>
@@ -148,7 +148,7 @@ export function TaskSidebar({
             if (!task.faelligkeitsdatum) {
                 noDate.push(task);
             } else {
-                const dueDate = startOfDay(new Date(task.faelligkeitsdatum + "T00:00:00"));
+                const dueDate = startOfDay(parseISO(task.faelligkeitsdatum));
 
                 if (isBefore(dueDate, today)) {
                     // Overdue
@@ -165,20 +165,20 @@ export function TaskSidebar({
 
         // Sort by due date
         upcoming.sort((a, b) => {
-            const dateA = new Date(a.faelligkeitsdatum!).getTime();
-            const dateB = new Date(b.faelligkeitsdatum!).getTime();
+            const dateA = parseISO(a.faelligkeitsdatum!).getTime();
+            const dateB = parseISO(b.faelligkeitsdatum!).getTime();
             return dateA - dateB;
         });
 
         overdue.sort((a, b) => {
-            const dateA = new Date(a.faelligkeitsdatum!).getTime();
-            const dateB = new Date(b.faelligkeitsdatum!).getTime();
+            const dateA = parseISO(a.faelligkeitsdatum!).getTime();
+            const dateB = parseISO(b.faelligkeitsdatum!).getTime();
             return dateB - dateA; // Most overdue first
         });
 
         later.sort((a, b) => {
-            const dateA = new Date(a.faelligkeitsdatum!).getTime();
-            const dateB = new Date(b.faelligkeitsdatum!).getTime();
+            const dateA = parseISO(a.faelligkeitsdatum!).getTime();
+            const dateB = parseISO(b.faelligkeitsdatum!).getTime();
             return dateA - dateB;
         });
 
@@ -194,9 +194,17 @@ export function TaskSidebar({
         id: "remove-date-zone",
     });
 
-    if (collapsed) {
-        return (
-            <div className="flex flex-col items-center gap-6 py-4">
+    return (
+        <AnimatePresence mode="wait">
+            {collapsed ? (
+                <motion.div
+                    key="collapsed"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col items-center gap-6 py-4 w-full"
+                >
                 {overdueTasks.length > 0 && (
                     <div className="relative group/rail cursor-pointer flex flex-col items-center gap-1">
                         <div className="p-2 rounded-xl bg-red-50 dark:bg-red-950/20 text-red-500 border border-red-100 dark:border-red-900/30">
@@ -238,22 +246,25 @@ export function TaskSidebar({
                         Ohne Datum
                     </span>
                 </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="h-full flex flex-col gap-4 overflow-y-auto">
+                </motion.div>
+            ) : (
+                <motion.div
+                    key="expanded"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="h-full flex flex-col gap-4 min-w-[200px] sm:min-w-[240px]"
+                >
             {/* Overdue Section */}
             {overdueTasks.length > 0 && (
                 <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen}>
                     <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-red-50/50 hover:border-red-100 hover:shadow-sm dark:hover:bg-red-950/20 dark:hover:border-red-900/30 group/trigger border border-transparent">
                         <div className="flex items-center gap-2">
-                            {isOverdueOpen ? (
-                                <ChevronDown className="h-4 w-4 text-red-500" />
-                            ) : (
-                                <ChevronRight className="h-4 w-4 text-red-500" />
-                            )}
+                            <ChevronRight className={cn(
+                                "h-4 w-4 text-red-500 transition-transform duration-200",
+                                isOverdueOpen && "rotate-90"
+                            )} />
                             <Clock className="h-4 w-4 text-red-500" />
                             <span className="text-sm font-medium text-red-600 dark:text-red-400">
                                 Überfällig
@@ -280,11 +291,10 @@ export function TaskSidebar({
             <Collapsible open={isUpcomingOpen} onOpenChange={setIsUpcomingOpen}>
                 <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-orange-50/50 hover:border-orange-100 hover:shadow-sm dark:hover:bg-orange-950/20 dark:hover:border-orange-900/30 group/trigger border border-transparent">
                     <div className="flex items-center gap-2">
-                        {isUpcomingOpen ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
+                        <ChevronRight className={cn(
+                            "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                            isUpcomingOpen && "rotate-90"
+                        )} />
                         <Clock className="h-4 w-4 text-yellow-600" />
                         <span className="text-sm font-medium">Anstehend</span>
                     </div>
@@ -315,11 +325,10 @@ export function TaskSidebar({
                 <Collapsible open={isLaterOpen} onOpenChange={setIsLaterOpen}>
                     <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-blue-50/50 hover:border-blue-100 hover:shadow-sm dark:hover:bg-blue-950/20 dark:hover:border-blue-900/30 group/trigger border border-transparent">
                         <div className="flex items-center gap-2">
-                            {isLaterOpen ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            )}
+                            <ChevronRight className={cn(
+                                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                isLaterOpen && "rotate-90"
+                            )} />
                             <Clock className="h-4 w-4 text-blue-500" />
                             <span className="text-sm font-medium">Später</span>
                         </div>
@@ -352,11 +361,10 @@ export function TaskSidebar({
                     )}
                 >
                     <div className="flex items-center gap-2">
-                        {isNoDateOpen ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
+                        <ChevronRight className={cn(
+                            "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                            isNoDateOpen && "rotate-90"
+                        )} />
                         <CalendarOff className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">Ohne Datum</span>
                     </div>
@@ -381,6 +389,8 @@ export function TaskSidebar({
                     )}
                 </CollapsibleContent>
             </Collapsible>
-        </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
     );
 }

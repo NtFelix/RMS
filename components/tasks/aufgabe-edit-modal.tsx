@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { CalendarIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useModalStore } from "@/hooks/use-modal-store";
+import { TaskBoardTask } from "@/types/Task";
 
 interface AufgabePayload {
   name: string;
@@ -39,7 +40,7 @@ interface AufgabeEditModalProps {
   serverAction: (
     id: string | null,
     data: AufgabePayload
-  ) => Promise<{ success: boolean; error?: any; data?: any }>;
+  ) => Promise<{ success: boolean; error?: { message: string }; data?: Partial<TaskBoardTask> }>;
 }
 
 export function AufgabeEditModal({
@@ -69,7 +70,7 @@ export function AufgabeEditModal({
       setIstErledigt(aufgabeInitialData.ist_erledigt || false);
       // Handle due date from initial data
       if (aufgabeInitialData.faelligkeitsdatum) {
-        setFaelligkeitsdatum(new Date(`${aufgabeInitialData.faelligkeitsdatum}T00:00:00`));
+        setFaelligkeitsdatum(parseISO(aufgabeInitialData.faelligkeitsdatum));
       } else {
         setFaelligkeitsdatum(undefined);
       }
@@ -125,6 +126,24 @@ export function AufgabeEditModal({
       toast({
         title: "Fehler",
         description: "Bitte geben Sie einen Namen für die Aufgabe ein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (name.trim().length > 100) {
+      toast({
+        title: "Fehler",
+        description: "Der Name darf maximal 100 Zeichen lang sein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (beschreibung.trim().length > 1000) {
+      toast({
+        title: "Fehler",
+        description: "Die Beschreibung darf maximal 1000 Zeichen lang sein.",
         variant: "destructive",
       });
       return;
@@ -193,13 +212,19 @@ export function AufgabeEditModal({
           <div className="grid gap-4 py-4">
             {/* Name Field */}
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="name">Name</Label>
+                <span className={cn("text-xs", name.length >= 100 ? "text-red-500" : "text-muted-foreground")}>
+                  {name.length}/100
+                </span>
+              </div>
               <Input
                 id="name"
                 value={name}
                 onChange={handleNameChange}
                 placeholder="Aufgabentitel eingeben"
                 required
+                maxLength={100}
                 disabled={isSubmitting}
               />
             </div>
@@ -265,13 +290,19 @@ export function AufgabeEditModal({
 
             {/* Description Field */}
             <div className="space-y-2">
-              <Label htmlFor="beschreibung">Beschreibung (optional)</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="beschreibung">Beschreibung (optional)</Label>
+                <span className={cn("text-xs", beschreibung.length >= 1000 ? "text-red-500" : "text-muted-foreground")}>
+                  {beschreibung.length}/1000
+                </span>
+              </div>
               <Textarea
                 id="beschreibung"
                 value={beschreibung}
                 onChange={handleBeschreibungChange}
                 placeholder="Detaillierte Beschreibung der Aufgabe..."
                 className="min-h-[100px]"
+                maxLength={1000}
                 disabled={isSubmitting}
               />
             </div>
